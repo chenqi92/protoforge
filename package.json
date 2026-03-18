@@ -1,0 +1,44 @@
+{
+  "name": "protoforge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:tauri": "tauri dev",
+    "build": "tsc && vite build",
+    "build:tauri": "tauri build",
+    "build:debug": "tauri build --debug",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "version:patch": "npm version patch --no-git-tag-version && node scripts/sync-version.mjs",
+    "version:minor": "npm version minor --no-git-tag-version && node scripts/sync-version.mjs",
+    "version:major": "npm version major --no-git-tag-version && node scripts/sync-version.mjs",
+    "version:set": "node scripts/sync-version.mjs",
+    "lint": "tsc --noEmit",
+    "clean": "rimraf dist src-tauri/target",
+    "icons:generate": "node scripts/generate-icons.mjs"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^0.577.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.1",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "sharp": "^0.34.5",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  }
+}

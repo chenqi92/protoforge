@@ -1,0 +1,164 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+/* ===== ProtoForge Design System v3 — Light + Dark ===== */
+@theme {
+  /* ---- Dark Theme (default) ---- */
+  --color-bg-primary: #111118;
+  --color-bg-secondary: #16161e;
+  --color-bg-tertiary: #1c1c28;
+  --color-bg-surface: #1f1f2c;
+  --color-bg-elevated: #262636;
+  --color-bg-hover: #2c2c3f;
+  --color-bg-active: #343450;
+  --color-bg-input: #1a1a27;
+  
+  --color-border-default: #2d2d42;
+  --color-border-subtle: #232338;
+  --color-border-strong: #3d3d58;
+  --color-border-focus: #6366f1;
+  
+  --color-text-primary: #eeeef4;
+  --color-text-secondary: #a0a0be;
+  --color-text-tertiary: #6c6c90;
+  --color-text-disabled: #4a4a6a;
+  
+  --color-accent: #6366f1;
+  --color-accent-hover: #4f46e5;
+  --color-accent-soft: #6366f118;
+  --color-accent-muted: #6366f130;
+  
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  
+  --color-method-get: #10b981;
+  --color-method-post: #f59e0b;
+  --color-method-put: #3b82f6;
+  --color-method-delete: #ef4444;
+  --color-method-patch: #8b5cf6;
+  --color-method-head: #06b6d4;
+  --color-method-options: #6b7280;
+  
+  --sidebar-width: 220px;
+  --titlebar-height: 40px;
+  --tabbar-height: 38px;
+  --statusbar-height: 26px;
+  
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 14px rgba(0,0,0,0.35);
+  
+  --transition-fast: 100ms ease;
+  --transition-normal: 180ms ease;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ===== Light Theme ===== */
+.light {
+  --color-bg-primary: #f8f9fb;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f1f3f5;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #f5f6f8;
+  --color-bg-hover: #eceef1;
+  --color-bg-active: #e2e5ea;
+  --color-bg-input: #f8f9fb;
+  
+  --color-border-default: #e0e2e7;
+  --color-border-subtle: #eceef1;
+  --color-border-strong: #cdd0d8;
+  --color-border-focus: #6366f1;
+  
+  --color-text-primary: #1a1d24;
+  --color-text-secondary: #5c6370;
+  --color-text-tertiary: #8b919e;
+  --color-text-disabled: #b8bdc8;
+}
+
+/* ===== Global Styles ===== */
+@layer base {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-border-default); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+
+  ::selection { background: var(--color-accent-muted); color: var(--color-text-primary); }
+
+  input, textarea, select { font-family: var(--font-sans); font-size: 13px; user-select: text; }
+}
+
+@layer utilities {
+  .glass {
+    background: rgba(28, 28, 40, 0.85);
+    backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid var(--color-border-default);
+  }
+  .light .glass {
+    background: rgba(255, 255, 255, 0.85);
+  }
+
+  .gradient-accent { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .drag-region { -webkit-app-region: drag; app-region: drag; }
+  .no-drag { -webkit-app-region: no-drag; app-region: no-drag; }
+
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  .input-field {
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    color: var(--color-text-primary);
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+  .input-field:focus {
+    border-color: var(--color-border-focus);
+    box-shadow: 0 0 0 2px var(--color-accent-soft);
+  }
+  .input-field::placeholder { color: var(--color-text-disabled); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    font-weight: 500;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 6px 16px;
+    cursor: pointer;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-primary:active { transform: scale(0.97); }
+}

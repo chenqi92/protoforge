@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#020617" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    
+    <linearGradient id="anvilGrad" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+
+    <linearGradient id="boltGrad" x1="0" y1="0" x2="0" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fcd34d" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <rect width="256" height="256" rx="56" fill="url(#bgGrad)" />
+
+  <g stroke="#334155" stroke-width="4" fill="none" opacity="0.4" transform="translate(128, 145)">
+    <circle cx="0" cy="0" r="46" stroke-width="6" stroke-dasharray="12 12" />
+    <circle cx="0" cy="0" r="34" stroke-width="3" />
+    <circle cx="0" cy="0" r="14" stroke-width="2" />
+  </g>
+
+  <path d="M 90 100 
+           L 200 100 
+           L 200 120 
+           C 180 120, 170 130, 170 150 
+           L 170 180 
+           L 190 180 
+           A 4 4 0 0 1 194 184 
+           L 194 196 
+           A 4 4 0 0 1 190 200 
+           L 66 200 
+           A 4 4 0 0 1 62 196 
+           L 62 184 
+           A 4 4 0 0 1 66 180 
+           L 86 180 
+           L 86 150 
+           C 86 130, 70 120, 40 120 
+           C 50 100, 70 100, 90 100 Z" 
+        fill="#0f172a" stroke="url(#anvilGrad)" stroke-width="6" stroke-linejoin="round" />
+  
+  <line x1="80" y1="180" x2="176" y2="180" stroke="url(#anvilGrad)" stroke-width="4" stroke-linecap="round"/>
+
+  <path d="M 60 70 L 90 70 L 115 95" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 4"/>
+  <path d="M 196 50 L 176 50 L 140 85" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 4"/>
+  <path d="M 40 160 L 60 160 L 76 144" fill="none" stroke="#f43f5e" stroke-width="3" stroke-linecap="round" />
+  <path d="M 216 160 L 196 160 L 180 144" fill="none" stroke="#a855f7" stroke-width="3" stroke-linecap="round" />
+
+  <circle cx="60" cy="70" r="8" fill="#10b981" />
+  <circle cx="60" cy="70" r="3" fill="#fff" />
+  
+  <circle cx="196" cy="50" r="8" fill="#38bdf8" />
+  <circle cx="196" cy="50" r="3" fill="#fff" />
+  
+  <circle cx="40" cy="160" r="8" fill="#f43f5e" />
+  <circle cx="40" cy="160" r="3" fill="#fff" />
+  
+  <circle cx="216" cy="160" r="8" fill="#a855f7" />
+  <circle cx="216" cy="160" r="3" fill="#fff" />
+
+  <polygon points="150,25 110,75 140,75 120,120 170,60 140,60" fill="url(#boltGrad)" filter="url(#glow)"/>
+  
+  <polygon points="146,31 116,71 138,71 124,103 160,64 138,64" fill="#fef08a" />
+
+  <ellipse cx="125" cy="100" rx="24" ry="6" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.8" filter="url(#glow)" />
+</svg>
