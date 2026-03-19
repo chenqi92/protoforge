@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSettingsEffect } from "@/hooks/useSettingsEffect";
 import { TitleBar } from "@/components/layout/TitleBar";
@@ -8,11 +8,15 @@ import { StatusBar } from "@/components/layout/StatusBar";
 import { WelcomePage, type WelcomeAction } from "@/components/WelcomePage";
 import { HttpWorkspace } from "@/components/http/HttpWorkspace";
 import { WsWorkspace } from "@/components/ws/WsWorkspace";
+import { SseWorkspace } from "@/components/sse/SseWorkspace";
+import { MqttWorkspace } from "@/components/mqtt/MqttWorkspace";
 import { PluginModal } from "@/components/plugins/PluginModal";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { CollectionSettingsPanel } from "@/components/collections/CollectionSettingsPanel";
 import { useAppStore, type ProtocolType } from "@/stores/appStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { openToolWindow, type ToolWindowType } from "@/lib/windowManager";
+import { CommandPalette } from "@/components/ui/CommandPalette";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 
 function App() {
@@ -20,10 +24,18 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [pluginModalOpen, setPluginModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
 
   // Mount global keyboard shortcuts
   useKeyboardShortcuts();
   useSettingsEffect();
+
+  // Listen for Ctrl+K command palette toggle
+  useEffect(() => {
+    const handler = () => setCmdPaletteOpen(v => !v);
+    window.addEventListener('toggle-command-palette', handler);
+    return () => window.removeEventListener('toggle-command-palette', handler);
+  }, []);
 
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
@@ -67,6 +79,10 @@ function App() {
   const handleSidebarResize = useCallback((size: { asPercentage: number; inPixels: number }) => {
     // Collapsed when size equals the icon rail width (48px)
     setSidebarCollapsed(size.inPixels <= 50);
+    // Persist sidebar width
+    if (size.asPercentage > 5) {
+      useSettingsStore.getState().update('sidebarWidth', Math.round(size.asPercentage));
+    }
   }, []);
 
   const handleSidebarToggle = useCallback(() => {
@@ -94,16 +110,8 @@ function App() {
       case "http": return <HttpWorkspace />;
       case "ws": return <WsWorkspace />;
       case "collection": return <CollectionSettingsPanel collectionId={activeTab.collectionId!} />;
-      case "sse":
-      case "mqtt":
-        return (
-          <div className="h-full flex items-center justify-center text-text-disabled">
-            <div className="text-center">
-              <p className="text-sm font-medium mb-1">{activeTab.protocol.toUpperCase()}</p>
-              <p className="text-[11px]">开发中</p>
-            </div>
-          </div>
-        );
+      case "sse": return <SseWorkspace />;
+      case "mqtt": return <MqttWorkspace />;
       default: return <WelcomePage onAction={handleWelcomeAction} />;
     }
   };
@@ -116,7 +124,7 @@ function App() {
         <PanelGroup orientation="horizontal">
           <Panel
             id="sidebar"
-            defaultSize="22"
+            defaultSize={String(useSettingsStore.getState().settings.sidebarWidth || 22)}
             minSize="14"
             maxSize="50"
             collapsible
@@ -157,6 +165,7 @@ function App() {
 
       <PluginModal open={pluginModalOpen} onClose={() => setPluginModalOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
     </div>
   );
 }

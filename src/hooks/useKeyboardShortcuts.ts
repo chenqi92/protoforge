@@ -71,6 +71,13 @@ export function useKeyboardShortcuts() {
         if (saveBtn) saveBtn.click();
         return;
       }
+
+      // Ctrl+K — Command palette
+      if (ctrl && !shift && e.key === "k") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('toggle-command-palette'));
+        return;
+      }
     };
 
     window.addEventListener("keydown", handler);

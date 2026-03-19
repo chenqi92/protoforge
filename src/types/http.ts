@@ -2,9 +2,9 @@
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
-export type BodyType = 'none' | 'raw' | 'json' | 'formUrlencoded' | 'formData' | 'binary';
+export type BodyType = 'none' | 'raw' | 'json' | 'formUrlencoded' | 'formData' | 'binary' | 'graphql';
 
-export type AuthType = 'none' | 'bearer' | 'basic' | 'apiKey';
+export type AuthType = 'none' | 'bearer' | 'basic' | 'apiKey' | 'oauth2';
 
 export interface KeyValue {
   key: string;
@@ -23,6 +23,23 @@ export interface FormDataField {
   enabled: boolean;
 }
 
+/** OAuth 2.0 configuration */
+export interface OAuth2Config {
+  grantType: 'authorization_code' | 'client_credentials' | 'password';
+  accessTokenUrl: string;
+  clientId: string;
+  clientSecret: string;
+  scope: string;
+  // Authorization Code specific
+  authUrl: string;
+  redirectUri: string;
+  // Password specific
+  username: string;
+  password: string;
+  // Cached token
+  accessToken: string;
+}
+
 export interface HttpRequestConfig {
   id: string;
   name: string;
@@ -38,6 +55,10 @@ export interface HttpRequestConfig {
   formDataFields: FormDataField[];  // multipart form-data
   binaryFilePath: string;           // binary file path
   binaryFileName: string;           // binary file display name
+  // GraphQL
+  graphqlQuery: string;
+  graphqlVariables: string;
+  // Auth
   authType: AuthType;
   bearerToken: string;
   basicUsername: string;
@@ -45,10 +66,30 @@ export interface HttpRequestConfig {
   apiKeyName: string;
   apiKeyValue: string;
   apiKeyAddTo: 'header' | 'query';
+  oauth2Config: OAuth2Config;
+  // Scripts
   preScript: string;
   postScript: string;
   timeoutMs: number;
   followRedirects: boolean;
+}
+
+export interface CookieInfo {
+  name: string;
+  value: string;
+  domain: string | null;
+  path: string | null;
+  expires: string | null;
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: string | null;
+}
+
+export interface ResponseTiming {
+  totalMs: number;
+  connectMs: number | null;
+  ttfbMs: number | null;
+  downloadMs: number | null;
 }
 
 export interface HttpResponse {
@@ -59,7 +100,29 @@ export interface HttpResponse {
   bodySize: number;
   contentType: string | null;
   durationMs: number;
-  timing: { totalMs: number };
+  timing: ResponseTiming;
+  cookies: CookieInfo[];
+}
+
+/** Script execution result (from Boa engine) */
+export interface ScriptResult {
+  envUpdates: Record<string, string>;
+  testResults: TestResult[];
+  logs: string[];
+  success: boolean;
+  error: string | null;
+}
+
+export interface TestResult {
+  name: string;
+  passed: boolean;
+  error: string | null;
+}
+
+export interface HttpResponseWithScripts {
+  response: HttpResponse;
+  preScriptResult: ScriptResult | null;
+  postScriptResult: ScriptResult | null;
 }
 
 export interface RequestTab {
@@ -86,6 +149,8 @@ export function createDefaultRequest(): HttpRequestConfig {
     formDataFields: [{ key: '', value: '', fieldType: 'text', enabled: true }],
     binaryFilePath: '',
     binaryFileName: '',
+    graphqlQuery: '',
+    graphqlVariables: '{\n  \n}',
     authType: 'none',
     bearerToken: '',
     basicUsername: '',
@@ -93,6 +158,18 @@ export function createDefaultRequest(): HttpRequestConfig {
     apiKeyName: '',
     apiKeyValue: '',
     apiKeyAddTo: 'header',
+    oauth2Config: {
+      grantType: 'client_credentials',
+      accessTokenUrl: '',
+      clientId: '',
+      clientSecret: '',
+      scope: '',
+      authUrl: '',
+      redirectUri: 'http://localhost:1420/callback',
+      username: '',
+      password: '',
+      accessToken: '',
+    },
     preScript: '',
     postScript: '',
     timeoutMs: 30000,
@@ -120,3 +197,4 @@ export function getStatusColor(status: number): string {
   if (status < 500) return 'text-method-post';
   return 'text-error';
 }
+

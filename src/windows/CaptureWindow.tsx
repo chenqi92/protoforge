@@ -8,7 +8,7 @@ import { useEffect } from "react";
 
 export function CaptureWindow() {
   // 确保主题同步
-  const theme = useThemeStore((s) => s.theme);
+  const theme = useThemeStore((s) => s.resolved);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

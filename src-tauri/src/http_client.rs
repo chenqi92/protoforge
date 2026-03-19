@@ -1,10 +1,11 @@
 // ProtoForge HTTP 客户端引擎
-// 支持 7 种方法、多种 Body 类型（含 multipart form-data）、3 种认证、详细时序
+// 支持 7 种方法、多种 Body 类型（含 multipart form-data）、4 种认证、Cookies、详细时序、前后置脚本
 
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
+use crate::script_engine::{self, ScriptResult, ScriptResponse};
 
 /// 请求配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,6 +21,17 @@ pub struct HttpRequest {
     pub follow_redirects: Option<bool>,
     pub ssl_verify: Option<bool>,
     pub proxy: Option<ProxyConfig>,
+}
+
+/// 带脚本的请求配置
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HttpRequestWithScripts {
+    #[serde(flatten)]
+    pub request: HttpRequest,
+    pub pre_script: Option<String>,
+    pub post_script: Option<String>,
+    pub env_vars: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +87,20 @@ pub enum AuthConfig {
     ApiKey { key: String, value: String, add_to: String },
 }
 
+/// Cookie 信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CookieInfo {
+    pub name: String,
+    pub value: String,
+    pub domain: Option<String>,
+    pub path: Option<String>,
+    pub expires: Option<String>,
+    pub http_only: bool,
+    pub secure: bool,
+    pub same_site: Option<String>,
+}
+
 /// 响应结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -87,12 +113,25 @@ pub struct HttpResponse {
     pub content_type: Option<String>,
     pub duration_ms: u64,
     pub timing: ResponseTiming,
+    pub cookies: Vec<CookieInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseTiming {
     pub total_ms: u64,
+    pub connect_ms: Option<u64>,
+    pub ttfb_ms: Option<u64>,
+    pub download_ms: Option<u64>,
+}
+
+/// 带脚本的响应结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HttpResponseWithScripts {
+    pub response: HttpResponse,
+    pub pre_script_result: Option<ScriptResult>,
+    pub post_script_result: Option<ScriptResult>,
 }
 
 /// 执行 HTTP 请求
@@ -219,7 +258,6 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
                 let mut form = reqwest::multipart::Form::new();
                 for field in fields {
                     if field.field_type == "file" {
-                        // 读取文件
                         let file_path = std::path::Path::new(&field.value);
                         let file_bytes = tokio::fs::read(file_path).await
                             .map_err(|e| format!("读取文件失败 '{}': {}", field.value, e))?;
@@ -249,9 +287,14 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
         }
     }
 
-    // 发送请求
+    // 发送请求 — 记录连接后到首字节的时间
+    let connect_done = Instant::now();
+    let connect_ms = connect_done.duration_since(start).as_millis() as u64;
+
     let response = request_builder.send().await
         .map_err(|e| format!("请求发送失败: {}", e))?;
+
+    let ttfb_ms = start.elapsed().as_millis() as u64;
 
     let status = response.status().as_u16();
     let status_text = response.status().canonical_reason()
@@ -269,9 +312,14 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
         resp_headers.insert(key, value);
     }
 
+    // 解析 Cookies
+    let cookies = parse_cookies_from_headers(&resp_headers);
+
     // 响应 body
+    let download_start = Instant::now();
     let body_bytes = response.bytes().await
         .map_err(|e| format!("读取响应 body 失败: {}", e))?;
+    let download_ms = download_start.elapsed().as_millis() as u64;
     let body_size = body_bytes.len() as u64;
 
     let body_text = String::from_utf8_lossy(&body_bytes).to_string();
@@ -288,8 +336,125 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
         duration_ms: total_duration,
         timing: ResponseTiming {
             total_ms: total_duration,
+            connect_ms: Some(connect_ms),
+            ttfb_ms: Some(ttfb_ms),
+            download_ms: Some(download_ms),
         },
+        cookies,
     })
+}
+
+/// 带前后置脚本的请求执行
+pub async fn execute_request_with_scripts(
+    req: HttpRequestWithScripts,
+) -> Result<HttpResponseWithScripts, String> {
+    let env_vars = req.env_vars.unwrap_or_default();
+
+    // 1. 执行前置脚本
+    let pre_script_result = if let Some(ref script) = req.pre_script {
+        if !script.trim().is_empty() {
+            Some(script_engine::run_pre_script(script, &env_vars))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // 如果前置脚本失败，直接返回
+    if let Some(ref pre) = pre_script_result {
+        if !pre.success {
+            return Err(format!("前置脚本执行失败: {}", pre.error.as_deref().unwrap_or("unknown")));
+        }
+    }
+
+    // 2. 执行 HTTP 请求
+    let response = execute_request(req.request).await?;
+
+    // 3. 执行后置脚本
+    let post_script_result = if let Some(ref script) = req.post_script {
+        if !script.trim().is_empty() {
+            let script_resp = ScriptResponse {
+                status: response.status,
+                status_text: response.status_text.clone(),
+                body: response.body.clone(),
+                headers: response.headers.clone(),
+                duration_ms: response.duration_ms,
+            };
+            // 合并前置脚本更新的环境变量
+            let mut merged_env = env_vars;
+            if let Some(ref pre) = pre_script_result {
+                for (k, v) in &pre.env_updates {
+                    merged_env.insert(k.clone(), v.clone());
+                }
+            }
+            Some(script_engine::run_post_script(script, &merged_env, &script_resp))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok(HttpResponseWithScripts {
+        response,
+        pre_script_result,
+        post_script_result,
+    })
+}
+
+/// 从响应 headers 解析 Set-Cookie
+fn parse_cookies_from_headers(headers: &HashMap<String, String>) -> Vec<CookieInfo> {
+    let mut cookies = Vec::new();
+    for (key, value) in headers {
+        if key.eq_ignore_ascii_case("set-cookie") {
+            if let Some(cookie) = parse_single_cookie(value) {
+                cookies.push(cookie);
+            }
+        }
+    }
+    cookies
+}
+
+fn parse_single_cookie(raw: &str) -> Option<CookieInfo> {
+    let parts: Vec<&str> = raw.splitn(2, ';').collect();
+    let name_value = parts.first()?;
+    let (name, value) = name_value.split_once('=')?;
+
+    let mut cookie = CookieInfo {
+        name: name.trim().to_string(),
+        value: value.trim().to_string(),
+        domain: None,
+        path: None,
+        expires: None,
+        http_only: false,
+        secure: false,
+        same_site: None,
+    };
+
+    if parts.len() > 1 {
+        for attr in parts[1].split(';') {
+            let attr = attr.trim();
+            let lower = attr.to_lowercase();
+            if lower == "httponly" {
+                cookie.http_only = true;
+            } else if lower == "secure" {
+                cookie.secure = true;
+            } else if let Some((k, v)) = attr.split_once('=') {
+                let k_lower = k.trim().to_lowercase();
+                let v_trimmed = v.trim().to_string();
+                match k_lower.as_str() {
+                    "domain" => cookie.domain = Some(v_trimmed),
+                    "path" => cookie.path = Some(v_trimmed),
+                    "expires" => cookie.expires = Some(v_trimmed),
+                    "samesite" => cookie.same_site = Some(v_trimmed),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    Some(cookie)
 }
 
 /// 根据文件扩展名猜测 MIME 类型

@@ -1,36 +1,61 @@
 // ProtoForge HTTP Service — Tauri IPC wrapper
 
 import { invoke } from '@tauri-apps/api/core';
-import type { HttpRequestConfig, HttpResponse, FormDataField } from '@/types/http';
+import type { HttpRequestConfig, HttpResponse, HttpResponseWithScripts, FormDataField } from '@/types/http';
 import { useEnvStore } from '@/stores/envStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 // ── Variable substitution engine ──
 
+/** Built-in dynamic variables */
+function getDynamicVariables(): Record<string, () => string> {
+  return {
+    '$timestamp': () => String(Math.floor(Date.now() / 1000)),
+    '$isoTimestamp': () => new Date().toISOString(),
+    '$randomInt': () => String(Math.floor(Math.random() * 1000)),
+    '$randomInt1000': () => String(Math.floor(Math.random() * 1000)),
+    '$guid': () => crypto.randomUUID(),
+    '$randomUUID': () => crypto.randomUUID(),
+    '$randomEmail': () => `user${Math.floor(Math.random() * 10000)}@example.com`,
+    '$randomColor': () => ['red', 'green', 'blue', 'orange', 'purple', 'yellow'][Math.floor(Math.random() * 6)],
+  };
+}
+
 /**
  * Replace {{variableName}} placeholders in a string
- * with values from the active environment and global variables.
+ * with values from the active environment, global variables, and dynamic variables.
  */
 function resolveVariables(input: string, vars: Record<string, string>): string {
-  return input.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, key) => {
-    return vars[key] !== undefined ? vars[key] : match;
+  const dynamicVars = getDynamicVariables();
+  return input.replace(/\{\{\s*([\w.$]+)\s*\}\}/g, (match, key) => {
+    // Check env vars first
+    if (vars[key] !== undefined) return vars[key];
+    // Check dynamic variables
+    if (dynamicVars[key]) return dynamicVars[key]();
+    return match;
   });
 }
 
 function resolveConfigVariables(config: HttpRequestConfig): HttpRequestConfig {
   const vars = useEnvStore.getState().getResolvedVariables();
-  if (Object.keys(vars).length === 0) return config;
+  // Always resolve (even if no env vars, dynamic vars still work)
 
   return {
     ...config,
     url: resolveVariables(config.url, vars),
     rawBody: resolveVariables(config.rawBody, vars),
     jsonBody: resolveVariables(config.jsonBody, vars),
+    graphqlQuery: resolveVariables(config.graphqlQuery, vars),
+    graphqlVariables: resolveVariables(config.graphqlVariables, vars),
     bearerToken: resolveVariables(config.bearerToken, vars),
     basicUsername: resolveVariables(config.basicUsername, vars),
     basicPassword: resolveVariables(config.basicPassword, vars),
     apiKeyName: resolveVariables(config.apiKeyName, vars),
     apiKeyValue: resolveVariables(config.apiKeyValue, vars),
+    oauth2Config: {
+      ...config.oauth2Config,
+      accessToken: resolveVariables(config.oauth2Config.accessToken, vars),
+    },
     headers: config.headers.map(h => ({
       ...h,
       key: resolveVariables(h.key, vars),
@@ -80,6 +105,16 @@ function buildRequestPayload(config: HttpRequestConfig) {
     case 'json':
       body = { type: 'json', data: config.jsonBody };
       break;
+    case 'graphql': {
+      // GraphQL is sent as JSON with query + variables
+      const graphqlPayload: Record<string, unknown> = { query: config.graphqlQuery };
+      try {
+        const parsed = JSON.parse(config.graphqlVariables || '{}');
+        if (parsed && typeof parsed === 'object') graphqlPayload.variables = parsed;
+      } catch { /* ignore parse errors */ }
+      body = { type: 'json', data: JSON.stringify(graphqlPayload) };
+      break;
+    }
     case 'formUrlencoded': {
       const fields: Record<string, string> = {};
       for (const f of config.formFields) {
@@ -123,6 +158,12 @@ function buildRequestPayload(config: HttpRequestConfig) {
     case 'apiKey':
       auth = { type: 'apiKey', key: config.apiKeyName, value: config.apiKeyValue, addTo: config.apiKeyAddTo };
       break;
+    case 'oauth2':
+      // Use the cached access token as a bearer token
+      if (config.oauth2Config.accessToken) {
+        auth = { type: 'bearer', token: config.oauth2Config.accessToken };
+      }
+      break;
   }
 
   return {
@@ -137,15 +178,9 @@ function buildRequestPayload(config: HttpRequestConfig) {
   };
 }
 
-export async function sendHttpRequest(config: HttpRequestConfig): Promise<HttpResponse> {
+function buildFinalPayload(payload: ReturnType<typeof buildRequestPayload>) {
   const settings = useSettingsStore.getState().settings;
-
-  // Apply variable substitution before building payload
-  const resolved = resolveConfigVariables(config);
-  const payload = buildRequestPayload(resolved);
-
-  // Merge global settings as fallback
-  const finalPayload = {
+  return {
     ...payload,
     timeoutMs: payload.timeoutMs || settings.defaultTimeoutMs,
     followRedirects: payload.followRedirects ?? settings.followRedirects,
@@ -160,8 +195,30 @@ export async function sendHttpRequest(config: HttpRequestConfig): Promise<HttpRe
       } : null,
     } : null,
   };
+}
 
+export async function sendHttpRequest(config: HttpRequestConfig): Promise<HttpResponse> {
+  const resolved = resolveConfigVariables(config);
+  const payload = buildRequestPayload(resolved);
+  const finalPayload = buildFinalPayload(payload);
   return await invoke<HttpResponse>('send_request', { request: finalPayload });
+}
+
+/** Send request with pre/post script execution */
+export async function sendRequestWithScripts(config: HttpRequestConfig): Promise<HttpResponseWithScripts> {
+  const resolved = resolveConfigVariables(config);
+  const payload = buildRequestPayload(resolved);
+  const finalPayload = buildFinalPayload(payload);
+  const envVars = useEnvStore.getState().getResolvedVariables();
+
+  return await invoke<HttpResponseWithScripts>('send_request_with_scripts', {
+    request: {
+      ...finalPayload,
+      preScript: config.preScript || null,
+      postScript: config.postScript || null,
+      envVars: Object.keys(envVars).length > 0 ? envVars : null,
+    },
+  });
 }
 
 // ── File picker helper ──
@@ -190,26 +247,3 @@ export async function pickFile(): Promise<{ path: string; name: string } | null>
 // Re-export for convenience
 export type { FormDataField };
 
-export async function getEnvironments(): Promise<string[]> {
-  return await invoke<string[]>('get_environments');
-}
-
-export async function getActiveEnvironment(): Promise<string | null> {
-  return await invoke<string | null>('get_active_environment');
-}
-
-export async function setActiveEnvironment(name: string | null): Promise<void> {
-  await invoke('set_active_environment', { name });
-}
-
-export async function getEnvironmentVariables(name: string): Promise<Record<string, string>> {
-  return await invoke<Record<string, string>>('get_environment_variables', { name });
-}
-
-export async function saveEnvironment(name: string, variables: Record<string, string>): Promise<void> {
-  await invoke('save_environment', { name, variables });
-}
-
-export async function deleteEnvironment(name: string): Promise<void> {
-  await invoke('delete_environment', { name });
-}

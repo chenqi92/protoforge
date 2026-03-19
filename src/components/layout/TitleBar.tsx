@@ -1,4 +1,4 @@
-import { Minus, Square, X, Sun, Moon, Gauge, Radio, Puzzle, Settings, Network } from "lucide-react";
+import { Minus, Square, X, Sun, Moon, Monitor, Gauge, Radio, Puzzle, Settings, Network } from "lucide-react";
 import { useThemeStore } from "@/stores/themeStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ const tools = [
 ];
 
 export function TitleBar({ onOpenTool }: TitleBarProps) {
-  const { theme, toggle } = useThemeStore();
+  const { mode, resolved, toggle } = useThemeStore();
 
   const handleMinimize = async () => {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -66,17 +66,19 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
           })}
         </div>
 
-        {/* Theme */}
+        {/* Theme toggle: cycles light → dark → system */}
         <button
           onClick={() => {
-            const next = theme === 'dark' ? 'light' : 'dark';
             toggle();
-            useSettingsStore.getState().update('theme', next);
+            // Sync to settingsStore based on next mode
+            const nextModes = ['light', 'dark', 'system'] as const;
+            const nextIdx = (nextModes.indexOf(mode) + 1) % nextModes.length;
+            useSettingsStore.getState().update('theme', nextModes[nextIdx]);
           }}
           className="w-8 h-8 flex items-center justify-center rounded-full text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors mr-2"
-          title={theme === 'dark' ? '切换亮色' : '切换暗色'}
+          title={mode === 'system' ? '跟随系统' : mode === 'dark' ? '深色模式' : '浅色模式'}
         >
-          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          {mode === 'system' ? <Monitor className="w-4 h-4" /> : resolved === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
         {/* Window controls */}

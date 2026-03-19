@@ -1,7 +1,7 @@
 // Tauri IPC Commands — 全部使用 SQLite 持久化
 // 这是一个薄委托层，业务逻辑在各领域模块中
 
-use crate::http_client::{self, HttpRequest, HttpResponse};
+use crate::http_client::{self, HttpRequest, HttpResponse, HttpRequestWithScripts, HttpResponseWithScripts};
 use crate::collections::{
     self, Collection, CollectionItem, HistoryEntry,
     Environment, EnvVariable, GlobalVariable,
@@ -9,8 +9,10 @@ use crate::collections::{
 use crate::ws_client::WsConnections;
 use crate::tcp_client::{TcpConnections, TcpServers, UdpSockets};
 use crate::load_test::{LoadTestConfig, LoadTestState};
+use crate::sse_client::{self, SseConnections, SseConnectRequest};
+use crate::mqtt_client::{self, MqttConnections, MqttConnectRequest};
 use sqlx::SqlitePool;
-use tauri::{Manager, State};
+use tauri::{Manager, State, AppHandle};
 
 // ═══════════════════════════════════════════
 //  HTTP
@@ -19,6 +21,11 @@ use tauri::{Manager, State};
 #[tauri::command]
 pub async fn send_request(request: HttpRequest) -> Result<HttpResponse, String> {
     http_client::execute_request(request).await
+}
+
+#[tauri::command]
+pub async fn send_request_with_scripts(request: HttpRequestWithScripts) -> Result<HttpResponseWithScripts, String> {
+    http_client::execute_request_with_scripts(request).await
 }
 
 // ═══════════════════════════════════════════
@@ -497,4 +504,259 @@ pub async fn plugin_refresh_registry(
     mgr: State<'_, PluginManager>,
 ) -> Result<usize, String> {
     mgr.refresh_registry().await
+}
+
+// ═══════════════════════════════════════════
+//  Collection Runner
+// ═══════════════════════════════════════════
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunCollectionConfig {
+    pub collection_id: String,
+    pub item_ids: Vec<String>,    // 选中的请求 ID（空 = 全部）
+    pub delay_ms: u64,            // 请求间延迟
+    pub iterations: u32,          // 迭代次数
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunItemResult {
+    pub item_id: String,
+    pub name: String,
+    pub method: String,
+    pub url: String,
+    pub status: Option<u16>,
+    pub duration_ms: u64,
+    pub success: bool,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunCollectionResult {
+    pub total: usize,
+    pub passed: usize,
+    pub failed: usize,
+    pub total_ms: u64,
+    pub results: Vec<RunItemResult>,
+}
+
+#[tauri::command]
+pub async fn run_collection(
+    pool: State<'_, SqlitePool>,
+    app_handle: AppHandle,
+    config: RunCollectionConfig,
+) -> Result<RunCollectionResult, String> {
+    use crate::http_client::{self, HttpRequest};
+    use tauri::Emitter;
+
+    let all_items = collections::list_collection_items(&pool, &config.collection_id).await?;
+
+    // 过滤出请求类型
+    let requests: Vec<_> = all_items.into_iter()
+        .filter(|item| item.item_type == "request")
+        .filter(|item| config.item_ids.is_empty() || config.item_ids.contains(&item.id))
+        .collect();
+
+    let iterations = config.iterations.max(1);
+    let mut all_results: Vec<RunItemResult> = Vec::new();
+    let mut passed = 0usize;
+    let mut failed = 0usize;
+    let start = std::time::Instant::now();
+
+    for iter in 0..iterations {
+        for (idx, item) in requests.iter().enumerate() {
+            let method = item.method.clone().unwrap_or_else(|| "GET".to_string());
+            let url = item.url.clone().unwrap_or_default();
+
+            if url.is_empty() {
+                let r = RunItemResult {
+                    item_id: item.id.clone(),
+                    name: item.name.clone(),
+                    method: method.clone(),
+                    url: url.clone(),
+                    status: None,
+                    duration_ms: 0,
+                    success: false,
+                    error: Some("URL 为空".to_string()),
+                };
+                failed += 1;
+                all_results.push(r.clone());
+                let _ = app_handle.emit("collection-runner-progress", &serde_json::json!({
+                    "iteration": iter,
+                    "index": idx,
+                    "total": requests.len(),
+                    "result": r,
+                }));
+                continue;
+            }
+
+            // 解析 headers
+            let headers: Vec<(String, String)> = serde_json::from_str(&item.headers)
+                .unwrap_or_default();
+            let header_map: std::collections::HashMap<String, String> = headers.into_iter().collect();
+
+            // 构造 body：从 body_type + body_content 反序列化
+            let body = if item.body_content.is_empty() || item.body_type == "none" {
+                None
+            } else {
+                // 尝试将 body_content 按照 body_type 构造为 RequestBody
+                match item.body_type.as_str() {
+                    "json" => Some(http_client::RequestBody::Json { data: item.body_content.clone() }),
+                    "raw" => Some(http_client::RequestBody::Raw { content: item.body_content.clone(), content_type: "text/plain".to_string() }),
+                    "binary" => Some(http_client::RequestBody::Binary { file_path: item.body_content.clone() }),
+                    _ => serde_json::from_str(&item.body_content).ok(),
+                }
+            };
+
+            // 构造 auth
+            let auth: Option<http_client::AuthConfig> = if item.auth_type == "none" || item.auth_config.is_empty() {
+                None
+            } else {
+                serde_json::from_str(&item.auth_config).ok()
+            };
+
+            let req = HttpRequest {
+                method: method.clone(),
+                url: url.clone(),
+                headers: header_map,
+                query_params: serde_json::from_str(&item.query_params).unwrap_or_default(),
+                body,
+                auth,
+                timeout_ms: None,
+                follow_redirects: None,
+                ssl_verify: None,
+                proxy: None,
+            };
+
+            let result = match http_client::execute_request(req).await {
+                Ok(resp) => {
+                    let success = resp.status < 400;
+                    if success { passed += 1; } else { failed += 1; }
+                    RunItemResult {
+                        item_id: item.id.clone(),
+                        name: item.name.clone(),
+                        method: method.clone(),
+                        url: url.clone(),
+                        status: Some(resp.status),
+                        duration_ms: resp.timing.total_ms,
+                        success,
+                        error: None,
+                    }
+                }
+                Err(e) => {
+                    failed += 1;
+                    RunItemResult {
+                        item_id: item.id.clone(),
+                        name: item.name.clone(),
+                        method: method.clone(),
+                        url: url.clone(),
+                        status: None,
+                        duration_ms: 0,
+                        success: false,
+                        error: Some(e),
+                    }
+                }
+            };
+
+            all_results.push(result.clone());
+            let _ = app_handle.emit("collection-runner-progress", &serde_json::json!({
+                "iteration": iter,
+                "index": idx,
+                "total": requests.len(),
+                "result": result,
+            }));
+
+            // 延迟
+            if config.delay_ms > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(config.delay_ms)).await;
+            }
+        }
+    }
+
+    let total_ms = start.elapsed().as_millis() as u64;
+
+    Ok(RunCollectionResult {
+        total: all_results.len(),
+        passed,
+        failed,
+        total_ms,
+        results: all_results,
+    })
+}
+
+// ═══════════════════════════════════════════
+//  SSE
+// ═══════════════════════════════════════════
+
+#[tauri::command]
+pub async fn sse_connect(
+    connections: State<'_, SseConnections>,
+    app_handle: AppHandle,
+    conn_id: String,
+    request: SseConnectRequest,
+) -> Result<(), String> {
+    sse_client::connect(conn_id, request, connections.inner().clone(), app_handle).await
+}
+
+#[tauri::command]
+pub async fn sse_disconnect(
+    connections: State<'_, SseConnections>,
+    conn_id: String,
+) -> Result<(), String> {
+    sse_client::disconnect(&conn_id, connections.inner().clone()).await
+}
+
+// ═══════════════════════════════════════════
+//  MQTT
+// ═══════════════════════════════════════════
+
+#[tauri::command]
+pub async fn mqtt_connect(
+    connections: State<'_, MqttConnections>,
+    app_handle: AppHandle,
+    conn_id: String,
+    request: MqttConnectRequest,
+) -> Result<(), String> {
+    mqtt_client::connect(conn_id, request, connections.inner().clone(), app_handle).await
+}
+
+#[tauri::command]
+pub async fn mqtt_disconnect(
+    connections: State<'_, MqttConnections>,
+    conn_id: String,
+) -> Result<(), String> {
+    mqtt_client::disconnect(&conn_id, connections.inner().clone()).await
+}
+
+#[tauri::command]
+pub async fn mqtt_subscribe(
+    connections: State<'_, MqttConnections>,
+    conn_id: String,
+    topic: String,
+    qos: u8,
+) -> Result<(), String> {
+    mqtt_client::subscribe(&conn_id, &topic, qos, connections.inner().clone()).await
+}
+
+#[tauri::command]
+pub async fn mqtt_unsubscribe(
+    connections: State<'_, MqttConnections>,
+    conn_id: String,
+    topic: String,
+) -> Result<(), String> {
+    mqtt_client::unsubscribe(&conn_id, &topic, connections.inner().clone()).await
+}
+
+#[tauri::command]
+pub async fn mqtt_publish(
+    connections: State<'_, MqttConnections>,
+    conn_id: String,
+    topic: String,
+    payload: String,
+    qos: u8,
+    retain: bool,
+) -> Result<(), String> {
+    mqtt_client::publish(&conn_id, &topic, &payload, qos, retain, connections.inner().clone()).await
 }

@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, Braces, Upload, FileIcon, X, Save, Flame } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, Braces, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
-import type { HttpMethod, KeyValue, FormDataField } from "@/types/http";
+import type { HttpMethod, KeyValue, FormDataField, ScriptResult } from "@/types/http";
+import type { OAuth2Config } from "@/types/http";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { SaveRequestDialog } from "./SaveRequestDialog";
 import { ScriptEditor } from "./ScriptEditor";
@@ -29,10 +30,11 @@ export function HttpWorkspace() {
   const setError = useAppStore((s) => s.setError);
 
   const [reqTab, setReqTab] = useState<"params" | "headers" | "body" | "auth" | "pre-script" | "post-script">("params");
-  const [resTab, setResTab] = useState<"pretty" | "raw" | "headers">("pretty");
+  const [resTab, setResTab] = useState<"pretty" | "raw" | "headers" | "cookies" | "timing">("pretty");
   const [copied, setCopied] = useState(false);
   const [showMethods, setShowMethods] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [scriptResults, setScriptResults] = useState<{ pre: ScriptResult | null; post: ScriptResult | null }>({ pre: null, post: null });
 
   if (!activeTab?.httpConfig) return null;
   const config = activeTab.httpConfig;
@@ -44,10 +46,19 @@ export function HttpWorkspace() {
     if (!config.url.trim()) return;
     setLoading(tabId, true);
     setError(tabId, null);
+    setScriptResults({ pre: null, post: null });
     try {
-      const { sendHttpRequest } = await import("@/services/httpService");
-      const res = await sendHttpRequest(config);
-      setHttpResponse(tabId, res);
+      const hasScripts = (config.preScript?.trim() || config.postScript?.trim());
+      if (hasScripts) {
+        const { sendRequestWithScripts } = await import("@/services/httpService");
+        const result = await sendRequestWithScripts(config);
+        setHttpResponse(tabId, result.response);
+        setScriptResults({ pre: result.preScriptResult, post: result.postScriptResult });
+      } else {
+        const { sendHttpRequest } = await import("@/services/httpService");
+        const res = await sendHttpRequest(config);
+        setHttpResponse(tabId, res);
+      }
     } catch (err: any) {
       setError(tabId, err.message || String(err));
     } finally {
@@ -190,7 +201,7 @@ export function HttpWorkspace() {
             {reqTab === "body" && (
               <div className="p-4 flex flex-col h-full">
                 <div className="flex items-center gap-2 mb-4 shrink-0 bg-bg-secondary p-1 rounded-lg w-fit">
-                  {(["none", "json", "raw", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
+                  {(["none", "json", "raw", "graphql", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
                     <button
                       key={bt}
                       onClick={() => updateHttpConfig(tabId, { bodyType: bt })}
@@ -199,7 +210,7 @@ export function HttpWorkspace() {
                         config.bodyType === bt ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary"
                       )}
                     >
-                      {bt === "none" ? "None" : bt === "formUrlencoded" ? "URL-Encoded" : bt === "formData" ? "Form-Data" : bt === "binary" ? "Binary" : bt.toUpperCase()}
+                      {bt === "none" ? "None" : bt === "formUrlencoded" ? "URL-Encoded" : bt === "formData" ? "Form-Data" : bt === "binary" ? "Binary" : bt === "graphql" ? "GraphQL" : bt.toUpperCase()}
                     </button>
                   ))}
                 </div>
@@ -215,6 +226,32 @@ export function HttpWorkspace() {
                       style={{ userSelect: "text", tabSize: 2 }}
                       spellCheck={false}
                     />
+                  )}
+                  {config.bodyType === "graphql" && (
+                    <div className="flex flex-col h-full gap-3">
+                      <div className="flex-1 min-h-0">
+                        <label className="text-[11px] font-medium text-text-secondary mb-1 block">Query</label>
+                        <textarea
+                          value={config.graphqlQuery}
+                          onChange={(e) => updateHttpConfig(tabId, { graphqlQuery: e.target.value })}
+                          placeholder={'query {\n  users {\n    id\n    name\n  }\n}'}
+                          className="w-full h-[calc(100%-20px)] p-3 font-mono text-[13px] bg-bg-input border border-border-default rounded-lg text-text-secondary resize-none outline-none focus:border-accent transition-colors"
+                          style={{ userSelect: "text", tabSize: 2 }}
+                          spellCheck={false}
+                        />
+                      </div>
+                      <div className="h-28 shrink-0">
+                        <label className="text-[11px] font-medium text-text-secondary mb-1 block">Variables (JSON)</label>
+                        <textarea
+                          value={config.graphqlVariables}
+                          onChange={(e) => updateHttpConfig(tabId, { graphqlVariables: e.target.value })}
+                          placeholder={'{\n  "id": 1\n}'}
+                          className="w-full h-[calc(100%-20px)] p-3 font-mono text-[12px] bg-bg-input border border-border-default rounded-lg text-text-secondary resize-none outline-none focus:border-accent transition-colors"
+                          style={{ userSelect: "text", tabSize: 2 }}
+                          spellCheck={false}
+                        />
+                      </div>
+                    </div>
                   )}
                   {config.bodyType === "raw" && (
                     <div className="flex flex-col h-full gap-2">
@@ -248,8 +285,8 @@ export function HttpWorkspace() {
             
             {reqTab === "auth" && (
               <div className="p-4">
-                <div className="flex items-center gap-2 mb-4 bg-bg-secondary p-1 rounded-lg w-fit">
-                  {(["none", "bearer", "basic", "apiKey"] as const).map((at) => (
+                <div className="flex items-center gap-2 mb-4 bg-bg-secondary p-1 rounded-lg w-fit flex-wrap">
+                  {(["none", "bearer", "basic", "apiKey", "oauth2"] as const).map((at) => (
                     <button
                       key={at}
                       onClick={() => updateHttpConfig(tabId, { authType: at })}
@@ -258,7 +295,7 @@ export function HttpWorkspace() {
                         config.authType === at ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary"
                       )}
                     >
-                      {at === "none" ? "No Auth" : at === "bearer" ? "Bearer Token" : at === "basic" ? "Basic Auth" : "API Key"}
+                      {at === "none" ? "No Auth" : at === "bearer" ? "Bearer Token" : at === "basic" ? "Basic Auth" : at === "apiKey" ? "API Key" : "OAuth 2.0"}
                     </button>
                   ))}
                 </div>
@@ -310,6 +347,9 @@ export function HttpWorkspace() {
                       </div>
                     </div>
                   )}
+                  {config.authType === "oauth2" && (
+                    <OAuth2Panel config={config.oauth2Config} onChange={(updates) => updateHttpConfig(tabId, { oauth2Config: { ...config.oauth2Config, ...updates } })} />
+                  )}
                 </div>
               </div>
             )}
@@ -344,9 +384,34 @@ export function HttpWorkspace() {
           
           {response ? (
             <>
+              {/* Script results notification */}
+              {(scriptResults.pre || scriptResults.post) && (
+                <div className="px-3 py-1.5 bg-bg-secondary/60 border-b border-border-default flex items-center gap-3 text-[11px] flex-wrap shrink-0">
+                  {scriptResults.pre && (
+                    <span className={cn("flex items-center gap-1 font-medium", scriptResults.pre.success ? "text-emerald-600" : "text-red-500")}>
+                      {scriptResults.pre.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                      前置脚本{scriptResults.pre.success ? "通过" : "失败"}
+                    </span>
+                  )}
+                  {scriptResults.post && (
+                    <span className={cn("flex items-center gap-1 font-medium", scriptResults.post.success ? "text-emerald-600" : "text-red-500")}>
+                      {scriptResults.post.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                      后置脚本{scriptResults.post.success ? "通过" : "失败"}
+                    </span>
+                  )}
+                  {scriptResults.post?.testResults && scriptResults.post.testResults.length > 0 && (
+                    <span className="text-text-tertiary">
+                      测试: {scriptResults.post.testResults.filter(t => t.passed).length}/{scriptResults.post.testResults.length} 通过
+                    </span>
+                  )}
+                  {(scriptResults.pre?.logs?.length || scriptResults.post?.logs?.length) ? (
+                    <span className="text-text-disabled flex items-center gap-1"><Terminal className="w-3 h-3" />{(scriptResults.pre?.logs?.length || 0) + (scriptResults.post?.logs?.length || 0)} 条日志</span>
+                  ) : null}
+                </div>
+              )}
               <div className="flex items-center justify-between px-2 bg-bg-secondary/40 border-b border-border-default shrink-0">
                 <div className="flex items-center overflow-x-auto scrollbar-hide">
-                  {(["pretty", "raw", "headers"] as const).map((t) => (
+                  {(["pretty", "raw", "headers", "cookies", "timing"] as const).map((t) => (
                     <button
                       key={t}
                       onClick={() => setResTab(t)}
@@ -355,7 +420,7 @@ export function HttpWorkspace() {
                         resTab === t ? "text-accent border-accent" : "text-text-tertiary border-transparent hover:text-text-secondary"
                       )}
                     >
-                      {t === "pretty" ? "JSON Format" : t === "raw" ? "Raw" : "响应头"}
+                      {t === "pretty" ? "JSON Format" : t === "raw" ? "Raw" : t === "headers" ? "响应头" : t === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}` : "时序"}
                     </button>
                   ))}
                 </div>
@@ -387,6 +452,58 @@ export function HttpWorkspace() {
                         <div key={k} className={cn("flex gap-4 p-2 text-[13px] font-mono", i > 0 && "border-t border-border-default")}>
                           <span className="text-text-secondary font-medium w-1/3 break-words">{k}</span>
                           <span className="text-text-primary break-all w-2/3">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : resTab === "cookies" ? (
+                  <div className="p-4 overflow-auto h-full">
+                    {response.cookies?.length ? (
+                      <div className="max-w-4xl border border-border-default rounded-lg overflow-hidden bg-bg-primary">
+                        <table className="w-full text-[12px] font-mono">
+                          <thead><tr className="bg-bg-secondary text-text-disabled text-[10px] font-semibold uppercase">
+                            <th className="text-left px-3 py-2">Name</th>
+                            <th className="text-left px-3 py-2">Value</th>
+                            <th className="text-left px-3 py-2">Domain</th>
+                            <th className="text-left px-3 py-2">Path</th>
+                            <th className="text-left px-3 py-2">Flags</th>
+                          </tr></thead>
+                          <tbody>
+                            {response.cookies.map((c, i) => (
+                              <tr key={i} className={cn(i > 0 && "border-t border-border-default")}>
+                                <td className="px-3 py-2 text-text-primary font-semibold">{c.name}</td>
+                                <td className="px-3 py-2 text-text-secondary break-all max-w-[200px] truncate">{c.value}</td>
+                                <td className="px-3 py-2 text-text-tertiary">{c.domain || "-"}</td>
+                                <td className="px-3 py-2 text-text-tertiary">{c.path || "-"}</td>
+                                <td className="px-3 py-2 text-text-tertiary">
+                                  {[c.httpOnly && "HttpOnly", c.secure && "Secure", c.sameSite].filter(Boolean).join(", ") || "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-text-disabled text-[13px]"><Cookie className="w-4 h-4 mr-2 opacity-40" />无 Cookie 数据</div>
+                    )}
+                  </div>
+                ) : resTab === "timing" ? (
+                  <div className="p-6 overflow-auto h-full">
+                    <div className="max-w-lg space-y-4">
+                      {[
+                        { label: "连接建立", value: response.timing.connectMs, color: "bg-blue-500" },
+                        { label: "首字节到达 (TTFB)", value: response.timing.ttfbMs, color: "bg-emerald-500" },
+                        { label: "内容下载", value: response.timing.downloadMs, color: "bg-amber-500" },
+                        { label: "总耗时", value: response.timing.totalMs, color: "bg-violet-500" },
+                      ].map(({ label, value, color }) => (
+                        <div key={label}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[12px] text-text-secondary">{label}</span>
+                            <span className="text-[12px] font-mono font-bold text-text-primary">{value ?? "—"} ms</span>
+                          </div>
+                          <div className="h-2 bg-bg-secondary rounded-full overflow-hidden">
+                            <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${value && response.timing.totalMs ? Math.max(5, (value / response.timing.totalMs) * 100) : 0}%` }} />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -739,6 +856,72 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
 }
 
 
+
+/* ── OAuth 2.0 Panel ── */
+function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (updates: Partial<OAuth2Config>) => void }) {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <label className="text-[12px] font-medium text-text-secondary">授权类型</label>
+        <div className="flex items-center gap-2 bg-bg-secondary p-1 rounded-lg w-fit">
+          {(["client_credentials", "authorization_code", "password"] as const).map((gt) => (
+            <button key={gt} onClick={() => onChange({ grantType: gt })} className={cn("px-3 py-1 text-[12px] font-medium rounded-md transition-all", config.grantType === gt ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary")}>
+              {gt === "client_credentials" ? "Client Credentials" : gt === "authorization_code" ? "Authorization Code" : "Password"}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-[12px] font-medium text-text-secondary">Access Token URL</label>
+        <input value={config.accessTokenUrl} onChange={(e) => onChange({ accessTokenUrl: e.target.value })} placeholder="https://auth.example.com/oauth/token" className="input-field w-full font-mono text-[13px]" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-[12px] font-medium text-text-secondary">Client ID</label>
+          <input value={config.clientId} onChange={(e) => onChange({ clientId: e.target.value })} className="input-field w-full font-mono text-[13px]" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[12px] font-medium text-text-secondary">Client Secret</label>
+          <input value={config.clientSecret} onChange={(e) => onChange({ clientSecret: e.target.value })} type="password" className="input-field w-full font-mono text-[13px]" />
+        </div>
+      </div>
+      {config.grantType === "authorization_code" && (
+        <>
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-medium text-text-secondary">Auth URL</label>
+            <input value={config.authUrl} onChange={(e) => onChange({ authUrl: e.target.value })} placeholder="https://auth.example.com/authorize" className="input-field w-full font-mono text-[13px]" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-medium text-text-secondary">Redirect URI</label>
+            <input value={config.redirectUri} onChange={(e) => onChange({ redirectUri: e.target.value })} className="input-field w-full font-mono text-[13px]" />
+          </div>
+        </>
+      )}
+      {config.grantType === "password" && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-medium text-text-secondary">Username</label>
+            <input value={config.username} onChange={(e) => onChange({ username: e.target.value })} className="input-field w-full text-[13px]" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-medium text-text-secondary">Password</label>
+            <input value={config.password} onChange={(e) => onChange({ password: e.target.value })} type="password" className="input-field w-full text-[13px]" />
+          </div>
+        </div>
+      )}
+      <div className="space-y-1.5">
+        <label className="text-[12px] font-medium text-text-secondary">Scope</label>
+        <input value={config.scope} onChange={(e) => onChange({ scope: e.target.value })} placeholder="read write" className="input-field w-full font-mono text-[13px]" />
+      </div>
+      <div className="pt-2 border-t border-border-default">
+        <div className="space-y-1.5">
+          <label className="text-[12px] font-medium text-text-secondary">Access Token (手动填写或粘贴已获取的 token)</label>
+          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder="粘贴 token 后将以 Bearer 方式发送" className="input-field w-full font-mono text-[12px]" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ── Binary File Picker ── */
 function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; fileName: string; onChange: (path: string, name: string) => void }) {

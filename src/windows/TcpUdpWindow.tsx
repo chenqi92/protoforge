@@ -7,7 +7,7 @@ import { useThemeStore } from "@/stores/themeStore";
 import { useEffect } from "react";
 
 export function TcpUdpWindow() {
-  const theme = useThemeStore((s) => s.theme);
+  const theme = useThemeStore((s) => s.resolved);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

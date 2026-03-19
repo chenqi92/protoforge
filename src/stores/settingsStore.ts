@@ -29,6 +29,11 @@ export interface AppSettings {
   // ── 数据 ──
   maxHistoryCount: number;
   autoSaveInterval: number; // seconds, 0 = disabled
+
+  // ── 窗口状态记忆 ──
+  sidebarWidth: number;    // percentage
+  windowWidth: number;
+  windowHeight: number;
 }
 
 interface SettingsStore {
@@ -59,6 +64,10 @@ const defaultSettings: AppSettings = {
 
   maxHistoryCount: 200,
   autoSaveInterval: 0,
+
+  sidebarWidth: 22,
+  windowWidth: 1280,
+  windowHeight: 800,
 };
 
 export const useSettingsStore = create<SettingsStore>()(

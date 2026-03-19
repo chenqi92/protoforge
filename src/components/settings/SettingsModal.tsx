@@ -29,24 +29,19 @@ const sections: { id: SectionId; label: string; icon: React.ReactNode }[] = [
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [section, setSection] = useState<SectionId>('general');
   const { settings, update, reset } = useSettingsStore();
-  const { setTheme } = useThemeStore();
+  const { setMode } = useThemeStore();
 
   if (!open) return null;
 
   const handleThemeChange = (theme: AppSettings['theme']) => {
     update('theme', theme);
-    if (theme === 'system') {
-      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setTheme(isDark ? 'dark' : 'light');
-    } else {
-      setTheme(theme);
-    }
+    setMode(theme);
   };
 
   const handleReset = () => {
     if (confirm('确定恢复所有设置为默认值？')) {
       reset();
-      setTheme('light');
+      setMode('light');
     }
   };
 

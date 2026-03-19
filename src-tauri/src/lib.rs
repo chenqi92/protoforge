@@ -9,6 +9,9 @@ mod tcp_client;
 mod load_test;
 mod proxy_capture;
 mod plugin_runtime;
+mod script_engine;
+mod sse_client;
+mod mqtt_client;
 
 use tauri::Manager;
 use ws_client::WsConnections;
@@ -44,6 +47,10 @@ pub fn run() {
             app.manage(LoadTestState::new());
             app.manage(ProxyState::new());
 
+            // SSE / MQTT 连接管理
+            app.manage(sse_client::new_connections());
+            app.manage(mqtt_client::new_connections());
+
             // 初始化插件管理器
             let plugin_mgr = PluginManager::new(&app_data);
             let handle2 = app.handle().clone();
@@ -59,6 +66,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // HTTP
             commands::send_request,
+            commands::send_request_with_scripts,
             // Collections
             commands::list_collections,
             commands::create_collection,
@@ -131,6 +139,17 @@ pub fn run() {
             commands::plugin_parse_data,
             commands::plugin_get_protocol_parsers,
             commands::plugin_refresh_registry,
+            // SSE
+            commands::sse_connect,
+            commands::sse_disconnect,
+            // MQTT
+            commands::mqtt_connect,
+            commands::mqtt_disconnect,
+            commands::mqtt_subscribe,
+            commands::mqtt_unsubscribe,
+            commands::mqtt_publish,
+            // Collection Runner
+            commands::run_collection,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
