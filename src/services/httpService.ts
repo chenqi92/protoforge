@@ -1,7 +1,7 @@
 // ProtoForge HTTP Service — Tauri IPC wrapper
 
 import { invoke } from '@tauri-apps/api/core';
-import type { HttpRequestConfig, HttpResponse, KeyValue } from '@/types/http';
+import type { HttpRequestConfig, HttpResponse } from '@/types/http';
 
 function buildRequestPayload(config: HttpRequestConfig) {
   // Headers

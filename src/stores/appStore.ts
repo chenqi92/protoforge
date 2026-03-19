@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { HttpRequestConfig, HttpResponse, RequestTab } from '@/types/http';
+import type { HttpRequestConfig, HttpResponse } from '@/types/http';
 import { createDefaultRequest } from '@/types/http';
 
 export type ProtocolType = 'http' | 'ws' | 'sse' | 'mqtt' | 'tcp' | 'udp';

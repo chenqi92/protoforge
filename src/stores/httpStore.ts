@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { HttpMethod, HttpRequestConfig, HttpResponse, RequestTab } from '@/types/http';
+import type { HttpRequestConfig, HttpResponse, RequestTab } from '@/types/http';
 import { createDefaultRequest } from '@/types/http';
 
 interface HttpStore {

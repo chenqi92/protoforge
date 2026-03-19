@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FolderOpen, FolderPlus, Plus, ChevronRight, ChevronDown,
-  MoreHorizontal, Trash2, Edit2, Copy, Download, Upload,
-  FileText,
+  FolderOpen, FolderPlus, ChevronRight, ChevronDown,
+  MoreHorizontal, Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getMethodColor } from '@/types/http';
@@ -96,7 +95,7 @@ function TreeItem({ item, depth, onSelect }: {
 }
 
 export function CollectionTree({ onSelectRequest }: CollectionTreeProps) {
-  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collections] = useState<Collection[]>([]);
   const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
 
   const toggleExpand = (id: string) => {

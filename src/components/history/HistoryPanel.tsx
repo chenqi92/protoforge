@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Trash2, Search, ChevronRight, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';

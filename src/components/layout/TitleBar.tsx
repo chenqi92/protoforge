@@ -30,11 +30,13 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
   };
 
   return (
-    <div className="h-[var(--titlebar-height)] flex items-center justify-between bg-bg-secondary border-b border-border-subtle drag-region select-none shrink-0">
+    <div className="h-[var(--titlebar-height)] flex items-center justify-between bg-transparent drag-region select-none shrink-0">
       {/* Left: brand */}
-      <div className="flex items-center gap-2 pl-4 no-drag">
-        <div className="w-4 h-4 rounded-sm gradient-accent" />
-        <span className="text-sm font-semibold text-text-primary tracking-wide">ProtoForge</span>
+      <div className="flex items-center gap-2.5 pl-5 no-drag">
+        <div className="w-5 h-5 rounded-[4px] bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm flex items-center justify-center">
+          <div className="w-2.5 h-2.5 rounded-sm bg-white/20" />
+        </div>
+        <span className="text-[13px] font-bold text-text-primary tracking-wide">ProtoForge</span>
       </div>
 
       {/* Center: spacer for drag */}
@@ -43,7 +45,7 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
       {/* Right: tools + theme + window controls */}
       <div className="flex items-center no-drag">
         {/* Tool buttons */}
-        <div className="flex items-center border-r border-border-subtle mr-1 pr-1">
+        <div className="flex items-center border-r border-border-default mr-2 pr-2 h-5">
           {tools.map((t) => {
             const Icon = t.icon;
             return (
@@ -51,13 +53,13 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
                 key={t.id}
                 onClick={() => onOpenTool?.(t.id)}
                 className={cn(
-                  "w-9 h-8 flex items-center justify-center rounded-[var(--radius-sm)]",
-                  "text-text-tertiary transition-colors mx-0.5",
+                  "w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)]",
+                  "text-text-tertiary transition-colors mx-0.5 hover:bg-bg-hover",
                   t.color
                 )}
                 title={t.label}
               >
-                <Icon className="w-[15px] h-[15px]" />
+                <Icon className="w-[14px] h-[14px]" />
               </button>
             );
           })}
@@ -66,21 +68,21 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
         {/* Theme */}
         <button
           onClick={toggle}
-          className="w-9 h-8 flex items-center justify-center text-text-tertiary hover:text-text-primary transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-full text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors mr-2"
           title={theme === 'dark' ? '切换亮色' : '切换暗色'}
         >
-          {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
         {/* Window controls */}
-        <div className="flex items-center ml-1">
-          <button onClick={handleMinimize} className="w-11 h-[var(--titlebar-height)] flex items-center justify-center text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors">
+        <div className="flex items-center">
+          <button onClick={handleMinimize} className="w-11 h-[var(--titlebar-height)] flex items-center justify-center text-text-tertiary hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
             <Minus className="w-4 h-4" />
           </button>
-          <button onClick={handleMaximize} className="w-11 h-[var(--titlebar-height)] flex items-center justify-center text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors">
+          <button onClick={handleMaximize} className="w-11 h-[var(--titlebar-height)] flex items-center justify-center text-text-tertiary hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
             <Square className="w-3.5 h-3.5" />
           </button>
-          <button onClick={handleClose} className="w-11 h-[var(--titlebar-height)] flex items-center justify-center text-text-tertiary hover:bg-red-500/90 hover:text-white transition-colors">
+          <button onClick={handleClose} className="w-11 h-[var(--titlebar-height)] flex items-center justify-center text-text-tertiary hover:bg-red-500 hover:text-white transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>

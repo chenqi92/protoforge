@@ -8,8 +8,10 @@ import { HttpWorkspace } from "@/components/http/HttpWorkspace";
 import { WsWorkspace } from "@/components/ws/WsWorkspace";
 import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
 import { useAppStore, type ProtocolType } from "@/stores/appStore";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 
 function App() {
+  const sidebarPanelRef = usePanelRef();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const tabs = useAppStore((s) => s.tabs);
@@ -37,9 +39,20 @@ function App() {
   }, [setTabProtocol]);
 
   const handleOpenTool = useCallback((tool: string) => {
-    // TODO: Open tools in separate windows
     console.log("Open tool:", tool);
   }, []);
+
+  const handleSidebarResize = useCallback((size: { asPercentage: number; inPixels: number }) => {
+    // Collapsed when size equals the icon rail width (48px)
+    setSidebarCollapsed(size.inPixels <= 50);
+  }, []);
+
+  const handleSidebarToggle = useCallback(() => {
+    const ref = sidebarPanelRef.current;
+    if (ref) {
+      ref.isCollapsed() ? ref.expand() : ref.collapse();
+    }
+  }, [sidebarPanelRef]);
 
   const renderWorkspace = () => {
     if (!activeTab) return <WelcomePage />;
@@ -67,26 +80,41 @@ function App() {
     <div className="h-screen flex flex-col overflow-hidden bg-bg-primary">
       <TitleBar onOpenTool={handleOpenTool} />
 
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
+      <div className="flex-1 overflow-hidden">
+        <PanelGroup orientation="horizontal">
+          <Panel
+            id="sidebar"
+            defaultSize="22"
+            minSize="14"
+            maxSize="50"
+            collapsible
+            collapsedSize="48px"
+            panelRef={sidebarPanelRef}
+            onResize={handleSidebarResize}
+            className="flex flex-col h-full shrink-0 relative"
+          >
+            <Sidebar
+              panelCollapsed={sidebarCollapsed}
+              onTogglePanel={handleSidebarToggle}
+            />
+          </Panel>
+          <PanelResizeHandle className="w-[1px] bg-border-default relative shrink-0 cursor-col-resize hover:bg-accent active:bg-accent transition-colors" />
 
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <TabBar
-            tabs={displayTabs}
-            activeTabId={activeTabId}
-            onTabChange={setActiveTab}
-            onTabClose={closeTab}
-            onNewTab={handleNewTab}
-            onProtocolChange={handleProtocolChange}
-          />
+          <Panel className="flex flex-col overflow-hidden bg-bg-primary">
+            <TabBar
+              tabs={displayTabs}
+              activeTabId={activeTabId}
+              onTabChange={setActiveTab}
+              onTabClose={closeTab}
+              onNewTab={handleNewTab}
+              onProtocolChange={handleProtocolChange}
+            />
 
-          <div className="flex-1 overflow-hidden bg-bg-surface">
-            {renderWorkspace()}
-          </div>
-        </div>
+            <div className="flex-1 overflow-hidden">
+              {renderWorkspace()}
+            </div>
+          </Panel>
+        </PanelGroup>
       </div>
 
       <StatusBar
