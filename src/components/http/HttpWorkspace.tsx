@@ -3,13 +3,20 @@ import { Play, Loader2, Copy, Check, ChevronDown, Braces } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
 import type { HttpMethod, KeyValue } from "@/types/http";
-import { getMethodColor } from "@/types/http";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
-const methodBg: Record<string, string> = {
+
+/** Method text colors for the selector button */
+const methodTextColor: Record<string, string> = {
+  GET: "text-emerald-600", POST: "text-amber-600", PUT: "text-blue-600",
+  DELETE: "text-red-500", PATCH: "text-violet-600", HEAD: "text-cyan-600", OPTIONS: "text-gray-500",
+};
+
+/** Method bg colors for dropdown items */
+const methodDotColor: Record<string, string> = {
   GET: "bg-emerald-500", POST: "bg-amber-500", PUT: "bg-blue-500",
-  DELETE: "bg-red-500", PATCH: "bg-violet-500", HEAD: "bg-cyan-500", OPTIONS: "bg-gray-500",
+  DELETE: "bg-red-500", PATCH: "bg-violet-500", HEAD: "bg-cyan-500", OPTIONS: "bg-gray-400",
 };
 
 export function HttpWorkspace() {
@@ -60,39 +67,42 @@ export function HttpWorkspace() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-bg-primary">
       {/* Top Request Bar Area */}
-      <div className="shrink-0 flex items-center h-11 px-3 border-b border-border-default bg-bg-primary gap-1">
+      <div className="shrink-0 flex items-center h-10 px-3 border-b border-border-default bg-bg-primary gap-2">
         {/* Method Selector */}
         <div className="relative h-full shrink-0 flex items-center">
           <button
             onClick={() => setShowMethods(!showMethods)}
             className={cn(
-              "flex items-center gap-1.5 h-[30px] px-3 rounded-md text-[12px] font-bold text-white min-w-[72px] justify-between transition-colors",
-              methodBg[config.method]
+              "flex items-center gap-1 h-7 px-2.5 rounded-md text-[12px] font-bold transition-colors hover:bg-bg-hover",
+              methodTextColor[config.method] || "text-text-primary"
             )}
           >
             {config.method}
-            <ChevronDown className="w-3 h-3 opacity-70" />
+            <ChevronDown className="w-3 h-3 opacity-50" />
           </button>
           {showMethods && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowMethods(false)} />
-              <div className="absolute top-full left-0 mt-1 z-50 bg-bg-elevated border border-border-default rounded-md shadow-lg overflow-hidden min-w-[110px] py-0.5">
+              <div className="absolute top-full left-0 mt-1 z-50 bg-bg-elevated border border-border-default rounded-lg shadow-lg overflow-hidden min-w-[130px] py-1">
                 {METHODS.map((m) => (
                   <button
                     key={m}
                     onClick={() => { updateHttpConfig(tabId, { method: m }); setShowMethods(false); }}
                     className={cn(
-                      "w-full px-3 py-1.5 text-left text-[12px] font-bold hover:bg-bg-hover transition-colors",
-                      config.method === m ? "bg-accent-soft text-accent" : getMethodColor(m)
+                      "w-full px-3 py-1.5 flex items-center gap-2.5 text-[12px] font-bold hover:bg-bg-hover transition-colors",
+                      config.method === m ? "bg-bg-hover" : ""
                     )}
                   >
-                    {m}
+                    <span className={cn("w-[6px] h-[6px] rounded-full shrink-0", methodDotColor[m])} />
+                    <span className={methodTextColor[m] || "text-text-primary"}>{m}</span>
                   </button>
                 ))}
               </div>
             </>
           )}
         </div>
+
+        <div className="w-[1px] h-4 bg-border-default shrink-0" />
         
         {/* URL Input */}
         <input
@@ -100,14 +110,16 @@ export function HttpWorkspace() {
           onChange={(e) => updateHttpConfig(tabId, { url: e.target.value })}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="输入请求 URL，如 https://api.example.com/v1/users"
-          className="flex-1 h-full px-3 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary"
+          data-url-input
+          className="flex-1 h-full px-2 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary"
         />
         
         {/* Send Button */}
         <button
           onClick={handleSend}
           disabled={loading || !config.url.trim()}
-          className="h-[28px] px-3.5 rounded-md flex items-center justify-center gap-1.5 text-[12px] font-medium text-white bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] transition-all shrink-0"
+          data-send-button
+          className="h-7 px-4 rounded-md flex items-center justify-center gap-1.5 text-[12px] font-semibold text-white bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] transition-all shrink-0"
         >
           {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-white" />}
           {loading ? "发送中" : "发送"}

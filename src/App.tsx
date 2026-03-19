@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { TitleBar } from "@/components/layout/TitleBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TabBar, type Tab } from "@/components/layout/TabBar";
@@ -13,6 +14,9 @@ import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef
 function App() {
   const sidebarPanelRef = usePanelRef();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Mount global keyboard shortcuts
+  useKeyboardShortcuts();
 
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);

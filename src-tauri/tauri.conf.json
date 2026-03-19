@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ProtoForge",
+        "title": "ProtoForge - API Development Tool",
         "width": 1280,
         "height": 800,
         "minWidth": 900,

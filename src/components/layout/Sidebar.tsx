@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen, Clock, Search, Plus,
   ChevronRight, Download, Settings, Globe,
-  MoreHorizontal, Folder, Zap,
+  MoreHorizontal, Folder, Zap, Edit3, Trash2, ExternalLink, Copy, FolderPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
+import { useAppStore } from "@/stores/appStore";
 
 type SidebarView = "collections" | "history" | "environments";
 
@@ -98,14 +100,14 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 {activeView === "collections" && (
                   <>
                     <button
-                      className="h-[26px] px-2.5 flex items-center gap-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-all active:scale-[0.96] shadow-sm"
+                      className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-all active:scale-[0.96] shadow-sm"
                       title="新建请求"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       新建
                     </button>
                     <button
-                      className="h-[26px] px-2 flex items-center gap-1 text-[11px] font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary rounded-md border border-border-default transition-colors"
+                      className="h-7 px-2 flex items-center gap-1 text-[11px] font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary rounded-md border border-border-default transition-colors"
                       title="导入"
                     >
                       <Download className="w-3 h-3" />
@@ -115,7 +117,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 )}
                 {activeView === "environments" && (
                   <button
-                    className="h-[26px] px-2.5 flex items-center gap-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-all active:scale-[0.96] shadow-sm"
+                    className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-all active:scale-[0.96] shadow-sm"
                     title="新增环境"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -162,6 +164,8 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
 /* ── Collections View ── */
 function CollectionsView({ search }: { search: string }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ default: true, users: true });
+  const addTab = useAppStore((s) => s.addTab);
+  const { showMenu, MenuComponent } = useContextMenu();
 
   const collections = [
     {
@@ -191,12 +195,41 @@ function CollectionsView({ search }: { search: string }) {
     PATCH: { text: "text-violet-600", bg: "bg-violet-500/8" },
   };
 
+  const handleFolderContextMenu = (e: React.MouseEvent, _colName: string) => {
+    const items: ContextMenuEntry[] = [
+      { id: "new-req", label: "新建请求", icon: <Plus className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
+      { id: "new-folder", label: "新建文件夹", icon: <FolderPlus className="w-3.5 h-3.5" />, onClick: () => {} },
+      { type: "divider" },
+      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => {} },
+      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => {} },
+    ];
+    showMenu(e, items);
+  };
+
+  const handleItemContextMenu = (e: React.MouseEvent, item: { name: string; url: string }) => {
+    const items: ContextMenuEntry[] = [
+      { id: "open", label: "在新标签打开", icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
+      { id: "copy-url", label: "复制 URL", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => navigator.clipboard.writeText(item.url) },
+      { type: "divider" },
+      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => {} },
+      { id: "duplicate", label: "复制", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => {} },
+      { type: "divider" },
+      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => {} },
+    ];
+    showMenu(e, items);
+  };
+
+  const handleItemDoubleClick = () => {
+    addTab("http");
+  };
+
   return (
     <div className="py-0.5">
       {collections.map((col) => (
         <div key={col.id} className="mb-0.5">
           <button
             onClick={() => setExpanded((e) => ({ ...e, [col.id]: !e[col.id] }))}
+            onContextMenu={(e) => handleFolderContextMenu(e, col.name)}
             className="w-full flex items-center gap-1.5 px-2 py-[6px] rounded-md text-[12px] font-medium text-text-secondary hover:bg-bg-hover transition-colors group"
           >
             <motion.div
@@ -226,6 +259,8 @@ function CollectionsView({ search }: { search: string }) {
                     return (
                       <button
                         key={item.id}
+                        onDoubleClick={handleItemDoubleClick}
+                        onContextMenu={(e) => handleItemContextMenu(e, item)}
                         className="w-full flex items-center gap-2 pl-[30px] pr-2 py-[5px] rounded-md text-[12px] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
                       >
                         <span className={cn(
@@ -243,12 +278,16 @@ function CollectionsView({ search }: { search: string }) {
           </AnimatePresence>
         </div>
       ))}
+      {MenuComponent}
     </div>
   );
 }
 
 /* ── History View ── */
 function HistoryView({ search }: { search: string }) {
+  const addTab = useAppStore((s) => s.addTab);
+  const { showMenu, MenuComponent } = useContextMenu();
+
   const methodColors: Record<string, { text: string; bg: string }> = {
     GET: { text: "text-emerald-600", bg: "bg-emerald-500/8" },
     POST: { text: "text-amber-600", bg: "bg-amber-500/8" },
@@ -274,6 +313,16 @@ function HistoryView({ search }: { search: string }) {
     },
   ];
 
+  const handleHistoryContextMenu = (e: React.MouseEvent, item: { url: string }) => {
+    const items: ContextMenuEntry[] = [
+      { id: "open", label: "在新标签打开", icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
+      { id: "copy-url", label: "复制 URL", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => navigator.clipboard.writeText(item.url) },
+      { type: "divider" },
+      { id: "delete", label: "删除记录", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => {} },
+    ];
+    showMenu(e, items);
+  };
+
   return (
     <div className="py-0.5">
       {historyGroups.map((group) => {
@@ -289,6 +338,8 @@ function HistoryView({ search }: { search: string }) {
               return (
                 <button
                   key={h.id}
+                  onDoubleClick={() => addTab("http")}
+                  onContextMenu={(e) => handleHistoryContextMenu(e, h)}
                   className="w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[12px] hover:bg-bg-hover transition-colors group"
                 >
                   <span className={cn(
@@ -318,6 +369,7 @@ function HistoryView({ search }: { search: string }) {
           <p className="text-[11px] mt-0.5 opacity-60">发送请求后将自动记录</p>
         </div>
       )}
+      {MenuComponent}
     </div>
   );
 }

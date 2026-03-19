@@ -30,6 +30,14 @@ interface AppStore {
   updateTab: (id: string, updates: Partial<AppTab>) => void;
   setTabProtocol: (id: string, protocol: ProtocolType) => void;
 
+  // Tab operations
+  renameTab: (id: string, label: string) => void;
+  closeOtherTabs: (id: string) => void;
+  closeTabsToRight: (id: string) => void;
+  duplicateTab: (id: string) => void;
+  nextTab: () => void;
+  prevTab: () => void;
+
   // HTTP helpers
   updateHttpConfig: (id: string, updates: Partial<HttpRequestConfig>) => void;
   setHttpResponse: (id: string, response: HttpResponse | null) => void;
@@ -108,6 +116,62 @@ export const useAppStore = create<AppStore>((set, get) => ({
         };
       }),
     }));
+  },
+
+  renameTab: (id, label) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === id ? { ...t, label } : t)),
+    }));
+  },
+
+  closeOtherTabs: (id) => {
+    set((s) => ({
+      tabs: s.tabs.filter((t) => t.id === id),
+      activeTabId: id,
+    }));
+  },
+
+  closeTabsToRight: (id) => {
+    set((s) => {
+      const idx = s.tabs.findIndex((t) => t.id === id);
+      const next = s.tabs.slice(0, idx + 1);
+      const newActive = next.find((t) => t.id === s.activeTabId) ? s.activeTabId : id;
+      return { tabs: next, activeTabId: newActive };
+    });
+  },
+
+  duplicateTab: (id) => {
+    const s = get();
+    const src = s.tabs.find((t) => t.id === id);
+    if (!src) return;
+    const newId = crypto.randomUUID();
+    const dup: AppTab = {
+      ...structuredClone(src),
+      id: newId,
+      label: `${src.label} (副本)`,
+    };
+    set((s) => {
+      const idx = s.tabs.findIndex((t) => t.id === id);
+      const next = [...s.tabs];
+      next.splice(idx + 1, 0, dup);
+      return { tabs: next, activeTabId: newId };
+    });
+  },
+
+  nextTab: () => {
+    const s = get();
+    if (s.tabs.length <= 1) return;
+    const idx = s.tabs.findIndex((t) => t.id === s.activeTabId);
+    const next = (idx + 1) % s.tabs.length;
+    set({ activeTabId: s.tabs[next].id });
+  },
+
+  prevTab: () => {
+    const s = get();
+    if (s.tabs.length <= 1) return;
+    const idx = s.tabs.findIndex((t) => t.id === s.activeTabId);
+    const prev = (idx - 1 + s.tabs.length) % s.tabs.length;
+    set({ activeTabId: s.tabs[prev].id });
   },
 
   updateHttpConfig: (id, updates) => {
