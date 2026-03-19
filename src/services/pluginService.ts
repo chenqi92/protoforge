@@ -30,3 +30,8 @@ export async function parseData(pluginId: string, rawData: string): Promise<Pars
 export async function getProtocolParsers(): Promise<ProtocolParser[]> {
   return invoke<ProtocolParser[]>("plugin_get_protocol_parsers");
 }
+
+/** 强制刷新远程注册表（返回远程插件数量） */
+export async function refreshRegistry(): Promise<number> {
+  return invoke<number>("plugin_refresh_registry");
+}

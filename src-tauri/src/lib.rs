@@ -3,6 +3,7 @@ mod commands;
 mod collections;
 mod database;
 mod postman_compat;
+mod swagger_import;
 mod ws_client;
 mod tcp_client;
 mod load_test;
@@ -89,6 +90,10 @@ pub fn run() {
             commands::clear_history,
             // Postman Import
             commands::import_postman_collection,
+            commands::export_postman_collection,
+            // Swagger Import
+            commands::fetch_swagger,
+            commands::import_swagger_endpoints,
             // Save Request
             commands::save_request_to_collection,
             // WebSocket
@@ -125,6 +130,7 @@ pub fn run() {
             commands::plugin_uninstall,
             commands::plugin_parse_data,
             commands::plugin_get_protocol_parsers,
+            commands::plugin_refresh_registry,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

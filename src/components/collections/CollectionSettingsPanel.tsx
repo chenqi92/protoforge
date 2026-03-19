@@ -1,0 +1,535 @@
+// CollectionSettingsPanel — 合集设置面板
+// 提供合集级别的概览、变量、认证、脚本编辑功能
+
+import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Info, Variable, Shield, Code, Save,
+  Plus, Trash2, Eye, EyeOff, GripVertical,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useCollectionStore } from '@/stores/collectionStore';
+import type { Collection } from '@/types/collections';
+
+type SettingsTab = 'overview' | 'variables' | 'auth' | 'scripts';
+
+interface CollectionSettingsPanelProps {
+  collectionId: string;
+}
+
+const tabs: { id: SettingsTab; label: string; icon: typeof Info }[] = [
+  { id: 'overview', label: '概览', icon: Info },
+  { id: 'variables', label: '变量', icon: Variable },
+  { id: 'auth', label: '认证', icon: Shield },
+  { id: 'scripts', label: '脚本', icon: Code },
+];
+
+interface VarEntry {
+  key: string;
+  value: string;
+  enabled: boolean;
+  isSecret: boolean;
+}
+
+export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPanelProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('overview');
+  const collections = useCollectionStore((s) => s.collections);
+  const collection = collections.find((c) => c.id === collectionId);
+
+  if (!collection) {
+    return (
+      <div className="h-full flex items-center justify-center text-text-disabled">
+        <p className="text-sm">合集不存在或已被删除</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="shrink-0 px-6 pt-5 pb-0 border-b border-border-subtle">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-lg bg-sky-500/10 flex items-center justify-center">
+            <Variable className="w-4.5 h-4.5 text-sky-600" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-[15px] font-semibold text-text-primary truncate">{collection.name}</h1>
+            <p className="text-[11px] text-text-tertiary">合集设置</p>
+          </div>
+        </div>
+
+        {/* Tab bar */}
+        <div className="flex items-center gap-0.5">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={cn(
+                'relative flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium rounded-t-md transition-colors',
+                activeTab === id
+                  ? 'text-accent'
+                  : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+              {activeTab === id && (
+                <motion.div
+                  layoutId={`col-settings-tab-${collectionId}`}
+                  className="absolute bottom-0 left-2 right-2 h-[2px] bg-accent rounded-full"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto px-6 py-5">
+        {activeTab === 'overview' && <OverviewTab collection={collection} />}
+        {activeTab === 'variables' && <VariablesTab collection={collection} />}
+        {activeTab === 'auth' && <AuthTab collection={collection} />}
+        {activeTab === 'scripts' && <ScriptsTab collection={collection} />}
+      </div>
+    </div>
+  );
+}
+
+/* ── Overview Tab ── */
+function OverviewTab({ collection }: { collection: Collection }) {
+  const [name, setName] = useState(collection.name);
+  const [description, setDescription] = useState(collection.description);
+  const [dirty, setDirty] = useState(false);
+  const collections = useCollectionStore((s) => s.collections);
+
+  useEffect(() => {
+    setName(collection.name);
+    setDescription(collection.description);
+    setDirty(false);
+  }, [collection.id, collection.name, collection.description]);
+
+  const handleSave = useCallback(async () => {
+    // renameCollection only updates the name, we need full update
+    const col = collections.find((c) => c.id === collection.id);
+    if (!col) return;
+    const { updateCollection: updateCol } = await import('@/services/collectionService');
+    const updated = { ...col, name, description, updatedAt: new Date().toISOString() };
+    await updateCol(updated);
+    // refresh store
+    useCollectionStore.getState().fetchCollections();
+    setDirty(false);
+  }, [name, description, collection.id, collections]);
+
+  return (
+    <div className="max-w-lg space-y-5">
+      <div>
+        <label className="block text-[12px] font-medium text-text-secondary mb-1.5">合集名称</label>
+        <input
+          value={name}
+          onChange={(e) => { setName(e.target.value); setDirty(true); }}
+          className="w-full h-9 px-3 text-[13px] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary transition-all"
+        />
+      </div>
+
+      <div>
+        <label className="block text-[12px] font-medium text-text-secondary mb-1.5">描述</label>
+        <textarea
+          value={description}
+          onChange={(e) => { setDescription(e.target.value); setDirty(true); }}
+          rows={4}
+          placeholder="用于描述此合集的用途..."
+          className="w-full px-3 py-2 text-[13px] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary resize-none transition-all"
+        />
+      </div>
+
+      <div className="flex items-center gap-2 pt-2">
+        <button
+          onClick={handleSave}
+          disabled={!dirty}
+          className={cn(
+            'flex items-center gap-1.5 px-4 py-2 rounded-md text-[12px] font-medium transition-all',
+            dirty
+              ? 'gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98]'
+              : 'bg-bg-hover text-text-disabled cursor-not-allowed'
+          )}
+        >
+          <Save className="w-3.5 h-3.5" />
+          保存
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Variables Tab ── */
+function VariablesTab({ collection }: { collection: Collection }) {
+  const [vars, setVars] = useState<VarEntry[]>([]);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(collection.variables || '{}');
+      if (Array.isArray(parsed)) {
+        setVars(parsed);
+      } else if (typeof parsed === 'object') {
+        // Convert object format to array format
+        setVars(Object.entries(parsed).map(([key, value]) => ({
+          key, value: String(value), enabled: true, isSecret: false,
+        })));
+      }
+    } catch {
+      setVars([]);
+    }
+    setDirty(false);
+  }, [collection.id, collection.variables]);
+
+  const addVar = () => {
+    setVars([...vars, { key: '', value: '', enabled: true, isSecret: false }]);
+    setDirty(true);
+  };
+
+  const removeVar = (idx: number) => {
+    setVars(vars.filter((_, i) => i !== idx));
+    setDirty(true);
+  };
+
+  const updateVar = (idx: number, field: keyof VarEntry, val: any) => {
+    setVars(vars.map((v, i) => i === idx ? { ...v, [field]: val } : v));
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    const { updateCollection } = await import('@/services/collectionService');
+    const col = useCollectionStore.getState().collections.find(c => c.id === collection.id);
+    if (!col) return;
+    const updated = { ...col, variables: JSON.stringify(vars), updatedAt: new Date().toISOString() };
+    await updateCollection(updated);
+    useCollectionStore.getState().fetchCollections();
+    setDirty(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[12px] text-text-tertiary">
+          合集级别的变量可在该合集下所有请求中通过 <code className="px-1 py-0.5 bg-bg-hover rounded text-[11px] font-mono text-accent">{'{{key}}'}</code> 引用。
+        </p>
+        <button
+          onClick={addVar}
+          className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          添加变量
+        </button>
+      </div>
+
+      {vars.length === 0 ? (
+        <div className="py-12 flex flex-col items-center text-text-disabled">
+          <Variable className="w-8 h-8 mb-2 opacity-30" />
+          <p className="text-[12px]">暂无变量</p>
+          <p className="text-[11px] mt-0.5 opacity-60">点击"添加变量"开始</p>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {/* Header */}
+          <div className="grid grid-cols-[24px_1fr_1fr_32px_32px_32px] gap-2 px-2 text-[10px] font-semibold text-text-disabled uppercase tracking-wider">
+            <span />
+            <span>KEY</span>
+            <span>VALUE</span>
+            <span />
+            <span />
+            <span />
+          </div>
+          {vars.map((v, i) => (
+            <div
+              key={i}
+              className={cn(
+                'grid grid-cols-[24px_1fr_1fr_32px_32px_32px] gap-2 items-center px-2 py-1 rounded-md border border-border-subtle transition-colors',
+                !v.enabled && 'opacity-50'
+              )}
+            >
+              <GripVertical className="w-3 h-3 text-text-disabled cursor-grab" />
+              <input
+                value={v.key}
+                onChange={(e) => updateVar(i, 'key', e.target.value)}
+                placeholder="key"
+                className="h-7 px-2 text-[12px] bg-bg-primary border border-border-default rounded outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono"
+              />
+              <input
+                value={v.isSecret ? '••••••••' : v.value}
+                onChange={(e) => updateVar(i, 'value', e.target.value)}
+                placeholder="value"
+                type={v.isSecret ? 'password' : 'text'}
+                className="h-7 px-2 text-[12px] bg-bg-primary border border-border-default rounded outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono"
+              />
+              <button
+                onClick={() => updateVar(i, 'isSecret', !v.isSecret)}
+                className="w-7 h-7 flex items-center justify-center text-text-disabled hover:text-text-secondary transition-colors rounded"
+                title={v.isSecret ? '显示值' : '隐藏值'}
+              >
+                {v.isSecret ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              </button>
+              <button
+                onClick={() => updateVar(i, 'enabled', !v.enabled)}
+                className={cn(
+                  'w-7 h-7 flex items-center justify-center rounded transition-colors',
+                  v.enabled ? 'text-emerald-500' : 'text-text-disabled'
+                )}
+                title={v.enabled ? '禁用' : '启用'}
+              >
+                <div className={cn('w-3 h-3 rounded-full border-2', v.enabled ? 'border-emerald-500 bg-emerald-500' : 'border-text-disabled')} />
+              </button>
+              <button
+                onClick={() => removeVar(i)}
+                className="w-7 h-7 flex items-center justify-center text-text-disabled hover:text-red-500 transition-colors rounded"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {dirty && (
+        <div className="flex items-center gap-2 pt-2">
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-[12px] font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+          >
+            <Save className="w-3.5 h-3.5" />
+            保存变量
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Auth Tab ── */
+function AuthTab({ collection }: { collection: Collection }) {
+  const [authType, setAuthType] = useState<'none' | 'bearer' | 'basic' | 'apikey'>('none');
+  const [authConfig, setAuthConfig] = useState<Record<string, string>>({});
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(collection.auth || 'null');
+      if (parsed && typeof parsed === 'object') {
+        setAuthType(parsed.type || 'none');
+        setAuthConfig(parsed);
+      } else {
+        setAuthType('none');
+        setAuthConfig({});
+      }
+    } catch {
+      setAuthType('none');
+      setAuthConfig({});
+    }
+    setDirty(false);
+  }, [collection.id, collection.auth]);
+
+  const updateField = (key: string, value: string) => {
+    setAuthConfig({ ...authConfig, [key]: value });
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    const { updateCollection } = await import('@/services/collectionService');
+    const col = useCollectionStore.getState().collections.find(c => c.id === collection.id);
+    if (!col) return;
+    const authData = authType === 'none' ? null : JSON.stringify({ ...authConfig, type: authType });
+    const updated = { ...col, auth: authData, updatedAt: new Date().toISOString() };
+    await updateCollection(updated);
+    useCollectionStore.getState().fetchCollections();
+    setDirty(false);
+  };
+
+  const authTypes = [
+    { value: 'none', label: '无认证' },
+    { value: 'bearer', label: 'Bearer Token' },
+    { value: 'basic', label: 'Basic Auth' },
+    { value: 'apikey', label: 'API Key' },
+  ] as const;
+
+  return (
+    <div className="max-w-lg space-y-5">
+      <div>
+        <label className="block text-[12px] font-medium text-text-secondary mb-1.5">认证类型</label>
+        <div className="flex gap-1.5">
+          {authTypes.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => { setAuthType(value); setDirty(true); }}
+              className={cn(
+                'px-3 py-1.5 text-[12px] font-medium rounded-md transition-all border',
+                authType === value
+                  ? 'border-accent bg-accent-soft text-accent'
+                  : 'border-border-default text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {authType === 'bearer' && (
+        <div>
+          <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Token</label>
+          <input
+            value={authConfig.bearerToken || ''}
+            onChange={(e) => updateField('bearerToken', e.target.value)}
+            placeholder="Bearer token..."
+            className="w-full h-9 px-3 text-[13px] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-all"
+          />
+        </div>
+      )}
+
+      {authType === 'basic' && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">用户名</label>
+            <input
+              value={authConfig.basicUsername || ''}
+              onChange={(e) => updateField('basicUsername', e.target.value)}
+              placeholder="Username"
+              className="w-full h-9 px-3 text-[13px] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">密码</label>
+            <input
+              type="password"
+              value={authConfig.basicPassword || ''}
+              onChange={(e) => updateField('basicPassword', e.target.value)}
+              placeholder="Password"
+              className="w-full h-9 px-3 text-[13px] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary transition-all"
+            />
+          </div>
+        </div>
+      )}
+
+      {authType === 'apikey' && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Key 名称</label>
+            <input
+              value={authConfig.apiKeyName || ''}
+              onChange={(e) => updateField('apiKeyName', e.target.value)}
+              placeholder="X-API-Key"
+              className="w-full h-9 px-3 text-[13px] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Key 值</label>
+            <input
+              value={authConfig.apiKeyValue || ''}
+              onChange={(e) => updateField('apiKeyValue', e.target.value)}
+              placeholder="your-api-key"
+              className="w-full h-9 px-3 text-[13px] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">添加到</label>
+            <div className="flex gap-1.5">
+              {['header', 'query'].map((loc) => (
+                <button
+                  key={loc}
+                  onClick={() => updateField('apiKeyIn', loc)}
+                  className={cn(
+                    'px-3 py-1.5 text-[12px] font-medium rounded-md transition-all border',
+                    (authConfig.apiKeyIn || 'header') === loc
+                      ? 'border-accent bg-accent-soft text-accent'
+                      : 'border-border-default text-text-tertiary hover:bg-bg-hover'
+                  )}
+                >
+                  {loc === 'header' ? 'Header' : 'Query Param'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dirty && (
+        <div className="flex items-center gap-2 pt-2">
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-[12px] font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+          >
+            <Save className="w-3.5 h-3.5" />
+            保存认证
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Scripts Tab ── */
+function ScriptsTab({ collection }: { collection: Collection }) {
+  const [preScript, setPreScript] = useState(collection.preScript);
+  const [postScript, setPostScript] = useState(collection.postScript);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    setPreScript(collection.preScript);
+    setPostScript(collection.postScript);
+    setDirty(false);
+  }, [collection.id, collection.preScript, collection.postScript]);
+
+  const handleSave = async () => {
+    const { updateCollection } = await import('@/services/collectionService');
+    const col = useCollectionStore.getState().collections.find(c => c.id === collection.id);
+    if (!col) return;
+    const updated = { ...col, preScript, postScript, updatedAt: new Date().toISOString() };
+    await updateCollection(updated);
+    useCollectionStore.getState().fetchCollections();
+    setDirty(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-[12px] font-medium text-text-secondary">前置脚本</label>
+          <span className="text-[10px] text-text-disabled">请求发送前执行</span>
+        </div>
+        <textarea
+          value={preScript}
+          onChange={(e) => { setPreScript(e.target.value); setDirty(true); }}
+          rows={10}
+          placeholder={'// 在此合集下所有请求发送前执行\n// 可使用 pf.setVar("key", "value") 设置变量\n// 可使用 pf.getVar("key") 获取变量'}
+          className="w-full px-4 py-3 text-[12px] bg-bg-secondary border border-border-default rounded-lg outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary resize-none font-mono leading-relaxed transition-all"
+        />
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-[12px] font-medium text-text-secondary">后置脚本</label>
+          <span className="text-[10px] text-text-disabled">收到响应后执行</span>
+        </div>
+        <textarea
+          value={postScript}
+          onChange={(e) => { setPostScript(e.target.value); setDirty(true); }}
+          rows={10}
+          placeholder={'// 在此合集下所有请求收到响应后执行\n// 可使用 pf.test("name", () => { ... }) 编写测试\n// 可使用 pf.response 访问响应对象'}
+          className="w-full px-4 py-3 text-[12px] bg-bg-secondary border border-border-default rounded-lg outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary resize-none font-mono leading-relaxed transition-all"
+        />
+      </div>
+
+      {dirty && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-[12px] font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+          >
+            <Save className="w-3.5 h-3.5" />
+            保存脚本
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

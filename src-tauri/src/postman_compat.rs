@@ -1,7 +1,8 @@
-// ProtoForge - Postman Collection v2.1 解析器
-// 将 Postman 导出的 JSON 转换为 ProtoForge 的 Collection + CollectionItem 结构
+// ProtoForge - Postman Collection v2.1 解析器 + 导出器
+// 导入: 将 Postman 导出的 JSON 转换为 ProtoForge 的 Collection + CollectionItem 结构
+// 导出: 将 ProtoForge 的 Collection + CollectionItem 转换为 Postman v2.1 JSON
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use uuid::Uuid;
 use chrono::Utc;
@@ -169,7 +170,376 @@ pub struct PostmanVariable {
     pub value: Option<String>,
 }
 
-// ── Import Logic ──
+// ══════════════════════════════════════════════
+//  Export: ProtoForge → Postman v2.1
+// ══════════════════════════════════════════════
+
+pub async fn export_postman(pool: &SqlitePool, collection_id: &str) -> Result<String, String> {
+    let col = collections::get_collection(pool, collection_id).await?;
+    let items = collections::list_collection_items(pool, collection_id).await?;
+
+    // 构建集合级 auth
+    let auth_out = col.auth.as_ref().and_then(|s| build_export_auth_from_json(s));
+
+    // 构建集合级 variables
+    let variables_out = build_export_variables(&col.variables);
+
+    // 构建集合级 events
+    let mut events_out: Vec<serde_json::Value> = Vec::new();
+    if !col.pre_script.is_empty() {
+        events_out.push(build_export_event("prerequest", &col.pre_script));
+    }
+    if !col.post_script.is_empty() {
+        events_out.push(build_export_event("test", &col.post_script));
+    }
+
+    // 递归构建 item 树 (顶级 parent_id = None)
+    let item_tree = build_item_tree(&items, None);
+
+    let mut postman_json = serde_json::json!({
+        "info": {
+            "_postman_id": col.id,
+            "name": col.name,
+            "description": col.description,
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+        },
+        "item": item_tree
+    });
+
+    if let Some(auth) = auth_out {
+        postman_json["auth"] = auth;
+    }
+    if !variables_out.is_empty() {
+        postman_json["variable"] = serde_json::json!(variables_out);
+    }
+    if !events_out.is_empty() {
+        postman_json["event"] = serde_json::json!(events_out);
+    }
+
+    serde_json::to_string_pretty(&postman_json)
+        .map_err(|e| format!("导出 Postman JSON 失败: {}", e))
+}
+
+/// 递归构建 Postman item 树
+fn build_item_tree(all_items: &[CollectionItem], parent_id: Option<&str>) -> Vec<serde_json::Value> {
+    let mut result = Vec::new();
+
+    let children: Vec<&CollectionItem> = all_items.iter()
+        .filter(|i| i.parent_id.as_deref() == parent_id)
+        .collect();
+
+    let mut sorted_children = children;
+    sorted_children.sort_by_key(|i| i.sort_order);
+
+    for item in sorted_children {
+        if item.item_type == "folder" {
+            // 文件夹
+            let sub_items = build_item_tree(all_items, Some(&item.id));
+            let mut folder_json = serde_json::json!({
+                "name": item.name,
+                "item": sub_items
+            });
+
+            // 文件夹级 events
+            let mut events: Vec<serde_json::Value> = Vec::new();
+            if !item.pre_script.is_empty() {
+                events.push(build_export_event("prerequest", &item.pre_script));
+            }
+            if !item.post_script.is_empty() {
+                events.push(build_export_event("test", &item.post_script));
+            }
+            if !events.is_empty() {
+                folder_json["event"] = serde_json::json!(events);
+            }
+
+            result.push(folder_json);
+        } else {
+            // 请求
+            let method = item.method.clone().unwrap_or_else(|| "GET".to_string());
+            let url_str = item.url.clone().unwrap_or_default();
+
+            // 构建 URL 对象
+            let url_obj = build_export_url(&url_str, &item.query_params);
+
+            // 构建 headers
+            let headers_out = build_export_headers(&item.headers);
+
+            // 构建 body
+            let body_out = build_export_body(&item.body_type, &item.body_content);
+
+            // 构建 auth
+            let auth_out = if item.auth_type != "none" {
+                build_export_auth(&item.auth_type, &item.auth_config)
+            } else {
+                None
+            };
+
+            let mut request_json = serde_json::json!({
+                "method": method,
+                "header": headers_out,
+                "url": url_obj
+            });
+
+            if let Some(body) = body_out {
+                request_json["body"] = body;
+            }
+            if let Some(auth) = auth_out {
+                request_json["auth"] = auth;
+            }
+
+            let mut item_json = serde_json::json!({
+                "name": item.name,
+                "request": request_json,
+                "response": []
+            });
+
+            // 请求级 events
+            let mut events: Vec<serde_json::Value> = Vec::new();
+            if !item.pre_script.is_empty() {
+                events.push(build_export_event("prerequest", &item.pre_script));
+            }
+            if !item.post_script.is_empty() {
+                events.push(build_export_event("test", &item.post_script));
+            }
+            if !events.is_empty() {
+                item_json["event"] = serde_json::json!(events);
+            }
+
+            result.push(item_json);
+        }
+    }
+
+    result
+}
+
+fn build_export_url(url_str: &str, query_params_json: &str) -> serde_json::Value {
+    // 解析 query params
+    let mut query_arr: Vec<serde_json::Value> = Vec::new();
+    if let Ok(params) = serde_json::from_str::<serde_json::Value>(query_params_json) {
+        if let Some(obj) = params.as_object() {
+            for (k, v) in obj {
+                query_arr.push(serde_json::json!({
+                    "key": k,
+                    "value": v.as_str().unwrap_or("")
+                }));
+            }
+        }
+    }
+
+    // 分解 URL
+    let parsed = url::Url::parse(url_str);
+    let mut url_json = serde_json::json!({ "raw": url_str });
+
+    if let Ok(u) = parsed {
+        let host: Vec<String> = u.host_str()
+            .map(|h| h.split('.').map(|s| s.to_string()).collect())
+            .unwrap_or_default();
+        let path: Vec<String> = u.path().trim_start_matches('/')
+            .split('/')
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect();
+
+        if let Some(scheme) = Some(u.scheme().to_string()) {
+            url_json["protocol"] = serde_json::json!(scheme);
+        }
+        if !host.is_empty() {
+            url_json["host"] = serde_json::json!(host);
+        }
+        if let Some(port) = u.port() {
+            url_json["port"] = serde_json::json!(port.to_string());
+        }
+        if !path.is_empty() {
+            url_json["path"] = serde_json::json!(path);
+        }
+    }
+
+    if !query_arr.is_empty() {
+        url_json["query"] = serde_json::json!(query_arr);
+    }
+
+    url_json
+}
+
+fn build_export_headers(headers_json: &str) -> Vec<serde_json::Value> {
+    let mut result = Vec::new();
+    if let Ok(obj) = serde_json::from_str::<serde_json::Value>(headers_json) {
+        if let Some(map) = obj.as_object() {
+            for (k, v) in map {
+                result.push(serde_json::json!({
+                    "key": k,
+                    "value": v.as_str().unwrap_or(""),
+                    "type": "text"
+                }));
+            }
+        }
+    }
+    result
+}
+
+fn build_export_body(body_type: &str, body_content: &str) -> Option<serde_json::Value> {
+    match body_type {
+        "json" => Some(serde_json::json!({
+            "mode": "raw",
+            "raw": body_content,
+            "options": {
+                "raw": {
+                    "language": "json"
+                }
+            }
+        })),
+        "raw" => Some(serde_json::json!({
+            "mode": "raw",
+            "raw": body_content,
+            "options": {
+                "raw": {
+                    "language": "text"
+                }
+            }
+        })),
+        "formData" => {
+            let fields: Vec<serde_json::Value> = serde_json::from_str(body_content)
+                .unwrap_or_default();
+            let formdata: Vec<serde_json::Value> = fields.iter().map(|f| {
+                serde_json::json!({
+                    "key": f.get("key").and_then(|v| v.as_str()).unwrap_or(""),
+                    "value": f.get("value").and_then(|v| v.as_str()).unwrap_or(""),
+                    "type": f.get("fieldType").and_then(|v| v.as_str()).unwrap_or("text"),
+                    "disabled": f.get("enabled").and_then(|v| v.as_bool()).map(|e| !e).unwrap_or(false)
+                })
+            }).collect();
+            Some(serde_json::json!({
+                "mode": "formdata",
+                "formdata": formdata
+            }))
+        }
+        "formUrlencoded" => {
+            let mut urlencoded: Vec<serde_json::Value> = Vec::new();
+            if let Ok(obj) = serde_json::from_str::<serde_json::Value>(body_content) {
+                if let Some(map) = obj.as_object() {
+                    for (k, v) in map {
+                        urlencoded.push(serde_json::json!({
+                            "key": k,
+                            "value": v.as_str().unwrap_or(""),
+                            "type": "text"
+                        }));
+                    }
+                }
+            }
+            Some(serde_json::json!({
+                "mode": "urlencoded",
+                "urlencoded": urlencoded
+            }))
+        }
+        _ => None,
+    }
+}
+
+fn build_export_auth(auth_type: &str, auth_config: &str) -> Option<serde_json::Value> {
+    let config: serde_json::Value = serde_json::from_str(auth_config).unwrap_or_default();
+
+    match auth_type {
+        "bearer" => {
+            let token = config.get("bearerToken")
+                .or_else(|| {
+                    config.get("bearer").and_then(|b| b.as_array())
+                        .and_then(|arr| arr.iter().find(|kv| kv.get("key").and_then(|k| k.as_str()) == Some("token")))
+                        .and_then(|kv| kv.get("value"))
+                })
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            Some(serde_json::json!({
+                "type": "bearer",
+                "bearer": [{ "key": "token", "value": token, "type": "string" }]
+            }))
+        }
+        "basic" => {
+            let username = config.get("basicUsername")
+                .or_else(|| {
+                    config.get("basic").and_then(|b| b.as_array())
+                        .and_then(|arr| arr.iter().find(|kv| kv.get("key").and_then(|k| k.as_str()) == Some("username")))
+                        .and_then(|kv| kv.get("value"))
+                })
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let password = config.get("basicPassword")
+                .or_else(|| {
+                    config.get("basic").and_then(|b| b.as_array())
+                        .and_then(|arr| arr.iter().find(|kv| kv.get("key").and_then(|k| k.as_str()) == Some("password")))
+                        .and_then(|kv| kv.get("value"))
+                })
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            Some(serde_json::json!({
+                "type": "basic",
+                "basic": [
+                    { "key": "username", "value": username, "type": "string" },
+                    { "key": "password", "value": password, "type": "string" }
+                ]
+            }))
+        }
+        "apiKey" => {
+            let api_key = config.get("apiKeyName")
+                .and_then(|v| v.as_str())
+                .unwrap_or("api_key");
+            let api_value = config.get("apiKeyValue")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let api_in = config.get("apiKeyIn")
+                .and_then(|v| v.as_str())
+                .unwrap_or("header");
+            Some(serde_json::json!({
+                "type": "apikey",
+                "apikey": [
+                    { "key": "key", "value": api_key, "type": "string" },
+                    { "key": "value", "value": api_value, "type": "string" },
+                    { "key": "in", "value": api_in, "type": "string" }
+                ]
+            }))
+        }
+        _ => None,
+    }
+}
+
+fn build_export_auth_from_json(auth_json: &str) -> Option<serde_json::Value> {
+    let config: serde_json::Value = serde_json::from_str(auth_json).ok()?;
+    let auth_type = config.get("type").and_then(|v| v.as_str()).unwrap_or("none");
+    if auth_type == "none" || auth_type == "noauth" {
+        return None;
+    }
+    build_export_auth(auth_type, auth_json)
+}
+
+fn build_export_variables(variables_json: &str) -> Vec<serde_json::Value> {
+    let mut result = Vec::new();
+    if let Ok(obj) = serde_json::from_str::<serde_json::Value>(variables_json) {
+        if let Some(map) = obj.as_object() {
+            for (k, v) in map {
+                result.push(serde_json::json!({
+                    "key": k,
+                    "value": v.as_str().unwrap_or(""),
+                    "type": "default"
+                }));
+            }
+        }
+    }
+    result
+}
+
+fn build_export_event(listen: &str, script_code: &str) -> serde_json::Value {
+    let exec: Vec<&str> = script_code.lines().collect();
+    serde_json::json!({
+        "listen": listen,
+        "script": {
+            "exec": exec,
+            "type": "text/javascript"
+        }
+    })
+}
+
+// ══════════════════════════════════════════════
+//  Import: Postman v2.1 → ProtoForge
+// ══════════════════════════════════════════════
 
 pub async fn import_postman(pool: &SqlitePool, json: &str) -> Result<Collection, String> {
     let postman: PostmanCollection = serde_json::from_str(json)
@@ -186,9 +556,8 @@ pub async fn import_postman(pool: &SqlitePool, json: &str) -> Result<Collection,
     let col_id = Uuid::new_v4().to_string();
 
     // 处理集合级脚本
-    let mut pre_script = String::new();
-    let mut post_script = String::new();
-    // 集合级 events 不在 PostmanCollection 顶级，通常在 item 层
+    let pre_script = String::new();
+    let post_script = String::new();
 
     // 处理集合级变量
     let variables = if let Some(vars) = &postman.variable {
@@ -307,7 +676,7 @@ async fn import_items(
     Ok(())
 }
 
-// ── Helper extractors ──
+// ── Helper extractors (import) ──
 
 fn extract_url(url_opt: &Option<PostmanUrl>) -> String {
     match url_opt {

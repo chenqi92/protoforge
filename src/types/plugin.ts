@@ -12,6 +12,8 @@ export interface PluginManifest {
   protocolIds: string[];
   tags: string[];
   installed: boolean;
+  downloadUrl?: string;
+  source: 'builtin' | 'remote';
 }
 
 export interface ProtocolParser {

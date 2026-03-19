@@ -11,6 +11,7 @@ interface PluginStore {
   fetchInstalledPlugins: () => Promise<void>;
   fetchAvailablePlugins: () => Promise<void>;
   fetchProtocolParsers: () => Promise<void>;
+  refreshRegistry: () => Promise<void>;
   installPlugin: (pluginId: string) => Promise<void>;
   uninstallPlugin: (pluginId: string) => Promise<void>;
 }
@@ -47,6 +48,19 @@ export const usePluginStore = create<PluginStore>((set) => ({
       set({ protocolParsers: parsers });
     } catch (e) {
       console.error('Failed to fetch protocol parsers:', e);
+    }
+  },
+
+  refreshRegistry: async () => {
+    try {
+      set({ loading: true });
+      await pluginService.refreshRegistry();
+      // Re-fetch available after refresh
+      const plugins = await pluginService.listAvailablePlugins();
+      set({ availablePlugins: plugins, loading: false });
+    } catch (e) {
+      console.error('Failed to refresh registry:', e);
+      set({ loading: false });
     }
   },
 

@@ -161,7 +161,7 @@ pub async fn clear_history(pool: State<'_, SqlitePool>) -> Result<(), String> {
 }
 
 // ═══════════════════════════════════════════
-//  Postman 导入
+//  Postman 导入 / 导出
 // ═══════════════════════════════════════════
 
 #[tauri::command]
@@ -170,6 +170,35 @@ pub async fn import_postman_collection(
     json: String,
 ) -> Result<collections::Collection, String> {
     crate::postman_compat::import_postman(&pool, &json).await
+}
+
+#[tauri::command]
+pub async fn export_postman_collection(
+    pool: State<'_, SqlitePool>,
+    id: String,
+) -> Result<String, String> {
+    crate::postman_compat::export_postman(&pool, &id).await
+}
+
+// ═══════════════════════════════════════════
+//  Swagger / OpenAPI 导入
+// ═══════════════════════════════════════════
+
+use crate::swagger_import::{self, SwaggerParseResult, SwaggerEndpoint};
+
+#[tauri::command]
+pub async fn fetch_swagger(url: String) -> Result<SwaggerParseResult, String> {
+    swagger_import::fetch_and_parse(&url).await
+}
+
+#[tauri::command]
+pub async fn import_swagger_endpoints(
+    pool: State<'_, SqlitePool>,
+    collection_name: String,
+    base_url: String,
+    endpoints: Vec<SwaggerEndpoint>,
+) -> Result<collections::Collection, String> {
+    swagger_import::import_selected(&pool, &collection_name, &base_url, &endpoints).await
 }
 
 // ═══════════════════════════════════════════
@@ -246,8 +275,9 @@ pub async fn tcp_send(
     connections: State<'_, TcpConnections>,
     connection_id: String,
     data: String,
+    encoding: String,
 ) -> Result<(), String> {
-    crate::tcp_client::tcp_send(&connections, &connection_id, data).await
+    crate::tcp_client::tcp_send(&connections, &connection_id, data, encoding).await
 }
 
 #[tauri::command]
@@ -279,8 +309,9 @@ pub async fn tcp_server_send(
     server_id: String,
     client_id: String,
     data: String,
+    encoding: String,
 ) -> Result<(), String> {
-    crate::tcp_client::tcp_server_send(&servers, &server_id, &client_id, data).await
+    crate::tcp_client::tcp_server_send(&servers, &server_id, &client_id, data, encoding).await
 }
 
 #[tauri::command]
@@ -288,8 +319,9 @@ pub async fn tcp_server_broadcast(
     servers: State<'_, TcpServers>,
     server_id: String,
     data: String,
+    encoding: String,
 ) -> Result<usize, String> {
-    crate::tcp_client::tcp_server_broadcast(&servers, &server_id, data).await
+    crate::tcp_client::tcp_server_broadcast(&servers, &server_id, data, encoding).await
 }
 
 #[tauri::command]
@@ -320,8 +352,9 @@ pub async fn udp_send_to(
     socket_id: String,
     data: String,
     target_addr: String,
+    encoding: String,
 ) -> Result<(), String> {
-    crate::tcp_client::udp_send_to(&sockets, &socket_id, data, target_addr).await
+    crate::tcp_client::udp_send_to(&sockets, &socket_id, data, target_addr, encoding).await
 }
 
 #[tauri::command]
@@ -457,4 +490,11 @@ pub async fn plugin_get_protocol_parsers(
     mgr: State<'_, PluginManager>,
 ) -> Result<Vec<ProtocolParser>, String> {
     Ok(mgr.get_protocol_parsers().await)
+}
+
+#[tauri::command]
+pub async fn plugin_refresh_registry(
+    mgr: State<'_, PluginManager>,
+) -> Result<usize, String> {
+    mgr.refresh_registry().await
 }

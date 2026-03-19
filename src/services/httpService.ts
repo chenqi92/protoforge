@@ -3,6 +3,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { HttpRequestConfig, HttpResponse, FormDataField } from '@/types/http';
 import { useEnvStore } from '@/stores/envStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 // ── Variable substitution engine ──
 
@@ -137,10 +138,30 @@ function buildRequestPayload(config: HttpRequestConfig) {
 }
 
 export async function sendHttpRequest(config: HttpRequestConfig): Promise<HttpResponse> {
+  const settings = useSettingsStore.getState().settings;
+
   // Apply variable substitution before building payload
   const resolved = resolveConfigVariables(config);
   const payload = buildRequestPayload(resolved);
-  return await invoke<HttpResponse>('send_request', { request: payload });
+
+  // Merge global settings as fallback
+  const finalPayload = {
+    ...payload,
+    timeoutMs: payload.timeoutMs || settings.defaultTimeoutMs,
+    followRedirects: payload.followRedirects ?? settings.followRedirects,
+    sslVerify: settings.sslVerify,
+    proxy: settings.proxyEnabled ? {
+      type: settings.proxyType,
+      host: settings.proxyHost,
+      port: settings.proxyPort,
+      auth: settings.proxyAuth ? {
+        username: settings.proxyUsername,
+        password: settings.proxyPassword,
+      } : null,
+    } : null,
+  };
+
+  return await invoke<HttpResponse>('send_request', { request: finalPayload });
 }
 
 // ── File picker helper ──

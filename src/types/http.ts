@@ -9,6 +9,7 @@ export type AuthType = 'none' | 'bearer' | 'basic' | 'apiKey';
 export interface KeyValue {
   key: string;
   value: string;
+  description?: string;
   enabled: boolean;
 }
 
@@ -18,6 +19,7 @@ export interface FormDataField {
   value: string;        // text value or file path
   fieldType: 'text' | 'file';
   fileName?: string;    // display name for file
+  description?: string;
   enabled: boolean;
 }
 

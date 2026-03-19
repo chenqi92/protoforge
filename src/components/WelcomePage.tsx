@@ -3,16 +3,22 @@ import { Send, Zap, Network, Radio, Eye, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logoSvg from "@/assets/logo.svg";
 
-const features = [
-  { icon: Send, label: "HTTP 客户端", desc: "API 调试 · 环境变量 · 前后置脚本", color: "from-blue-500/10 to-transparent border-blue-500/20", iconColor: "text-blue-500 bg-blue-500/10" },
-  { icon: Zap, label: "WebSocket", desc: "实时连接 · 消息监控 · 自动重连", color: "from-amber-500/10 to-transparent border-amber-500/20", iconColor: "text-amber-500 bg-amber-500/10" },
-  { icon: Network, label: "TCP/UDP", desc: "Socket 测试 · 协议解析 · 十六进制", color: "from-indigo-500/10 to-transparent border-indigo-500/20", iconColor: "text-indigo-500 bg-indigo-500/10" },
-  { icon: Radio, label: "压测引擎", desc: "并发控制 · 实时 TPS · P99 延迟", color: "from-rose-500/10 to-transparent border-rose-500/20", iconColor: "text-rose-500 bg-rose-500/10" },
-  { icon: Eye, label: "网络抓包", desc: "HTTP 代理 · 请求/响应录制", color: "from-cyan-500/10 to-transparent border-cyan-500/20", iconColor: "text-cyan-500 bg-cyan-500/10" },
-  { icon: Puzzle, label: "插件系统", desc: "WASM 运行时 · 协议解析扩展", color: "from-violet-500/10 to-transparent border-violet-500/20", iconColor: "text-violet-500 bg-violet-500/10" },
+export type WelcomeAction = "http" | "ws" | "tcpudp" | "loadtest" | "capture" | "plugins";
+
+const features: { action: WelcomeAction; icon: typeof Send; label: string; desc: string; color: string; iconColor: string }[] = [
+  { action: "http", icon: Send, label: "HTTP 客户端", desc: "API 调试 · 环境变量 · 前后置脚本", color: "from-blue-500/10 to-transparent border-blue-500/20", iconColor: "text-blue-500 bg-blue-500/10" },
+  { action: "ws", icon: Zap, label: "WebSocket", desc: "实时连接 · 消息监控 · 自动重连", color: "from-amber-500/10 to-transparent border-amber-500/20", iconColor: "text-amber-500 bg-amber-500/10" },
+  { action: "tcpudp", icon: Network, label: "TCP/UDP", desc: "Socket 测试 · 协议解析 · 十六进制", color: "from-indigo-500/10 to-transparent border-indigo-500/20", iconColor: "text-indigo-500 bg-indigo-500/10" },
+  { action: "loadtest", icon: Radio, label: "压测引擎", desc: "并发控制 · 实时 TPS · P99 延迟", color: "from-rose-500/10 to-transparent border-rose-500/20", iconColor: "text-rose-500 bg-rose-500/10" },
+  { action: "capture", icon: Eye, label: "网络抓包", desc: "HTTP 代理 · 请求/响应录制", color: "from-cyan-500/10 to-transparent border-cyan-500/20", iconColor: "text-cyan-500 bg-cyan-500/10" },
+  { action: "plugins", icon: Puzzle, label: "插件系统", desc: "WASM 运行时 · 协议解析扩展", color: "from-violet-500/10 to-transparent border-violet-500/20", iconColor: "text-violet-500 bg-violet-500/10" },
 ];
 
-export function WelcomePage() {
+interface WelcomePageProps {
+  onAction?: (action: WelcomeAction) => void;
+}
+
+export function WelcomePage({ onAction }: WelcomePageProps) {
   return (
     <div className="h-full w-full flex items-center justify-center p-8 bg-bg-primary overflow-y-auto">
       <div className="max-w-3xl w-full">
@@ -42,9 +48,11 @@ export function WelcomePage() {
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.1 + i * 0.05, duration: 0.4 }}
+                onClick={() => onAction?.(f.action)}
                 className={cn(
                   "group relative p-5 rounded-2xl bg-gradient-to-br border border-border-default",
                   "hover:border-transparent hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-pointer overflow-hidden",
+                  "active:scale-[0.97]",
                   f.color
                 )}
               >
@@ -68,7 +76,10 @@ export function WelcomePage() {
           transition={{ delay: 0.5, duration: 0.5 }}
           className="mt-16 flex items-center justify-center gap-8 text-[13px] text-text-disabled"
         >
-          <div className="flex items-center gap-2 group cursor-pointer hover:text-text-secondary transition-colors">
+          <div
+            onClick={() => onAction?.("http")}
+            className="flex items-center gap-2 group cursor-pointer hover:text-text-secondary transition-colors"
+          >
             <kbd className="px-2 py-1 bg-bg-secondary border border-border-default rounded-md text-[11px] font-mono shadow-sm group-hover:border-border-strong transition-colors">Ctrl+N</kbd>
             <span>新建请求</span>
           </div>

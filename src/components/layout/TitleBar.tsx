@@ -1,5 +1,6 @@
 import { Minus, Square, X, Sun, Moon, Gauge, Radio, Puzzle, Settings, Network } from "lucide-react";
 import { useThemeStore } from "@/stores/themeStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { cn } from "@/lib/utils";
 import logoSvg from "@/assets/logo.svg";
 
@@ -67,7 +68,11 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
 
         {/* Theme */}
         <button
-          onClick={toggle}
+          onClick={() => {
+            const next = theme === 'dark' ? 'light' : 'dark';
+            toggle();
+            useSettingsStore.getState().update('theme', next);
+          }}
           className="w-8 h-8 flex items-center justify-center rounded-full text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors mr-2"
           title={theme === 'dark' ? '切换亮色' : '切换暗色'}
         >

@@ -23,6 +23,8 @@ interface CollectionStore {
   exportCollection: (id: string) => Promise<string>;
   importCollection: (json: string) => Promise<void>;
   importPostman: (json: string) => Promise<void>;
+  exportPostman: (id: string) => Promise<string>;
+  renameItem: (id: string, collectionId: string, name: string) => Promise<void>;
   saveRequest: (item: CollectionItem) => Promise<CollectionItem>;
   loadItems: (collectionId: string) => Promise<void>;
 }
@@ -155,6 +157,26 @@ export const useCollectionStore = create<CollectionStore>((set, get) => ({
   importPostman: async (json: string) => {
     await svc.importPostmanCollection(json);
     await get().fetchCollections();
+  },
+
+  exportPostman: async (id: string) => {
+    return svc.exportPostmanCollection(id);
+  },
+
+  renameItem: async (id: string, collectionId: string, name: string) => {
+    const items = get().items[collectionId] || [];
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+    const updated = { ...item, name, updatedAt: nowISO() };
+    await svc.updateCollectionItem(updated);
+    set((s) => ({
+      items: {
+        ...s.items,
+        [collectionId]: (s.items[collectionId] || []).map((i) =>
+          i.id === id ? updated : i
+        ),
+      },
+    }));
   },
 
   saveRequest: async (item: CollectionItem) => {

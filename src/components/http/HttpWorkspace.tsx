@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Play, Loader2, Copy, Check, ChevronDown, Braces, Upload, FileIcon, X, Save, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
@@ -183,8 +184,8 @@ export function HttpWorkspace() {
           </div>
           
           <div className="flex-1 overflow-auto bg-transparent">
-            {reqTab === "params" && <div className="p-2"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" /></div>}
-            {reqTab === "headers" && <div className="p-2"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" /></div>}
+            {reqTab === "params" && <div className="px-2 py-1"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" /></div>}
+            {reqTab === "headers" && <div className="px-2 py-1"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets /></div>}
             
             {reqTab === "body" && (
               <div className="p-4 flex flex-col h-full">
@@ -238,7 +239,7 @@ export function HttpWorkspace() {
                       />
                     </div>
                   )}
-                  {config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-2 px-2"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" /></div>}
+                  {config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-1 px-1"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" /></div>}
                   {config.bodyType === "formData" && <div className="overflow-auto h-full -mx-2 px-2"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
                   {config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
                 </div>
@@ -421,179 +422,323 @@ export function HttpWorkspace() {
   );
 }
 
-/* ── KV Editor (for params, headers, form-urlencoded) ── */
-function KVEditor({ items, onChange, kp, vp }: { items: KeyValue[]; onChange: (v: KeyValue[]) => void; kp: string; vp: string; }) {
+/* ── Header Dictionary: key → possible values ── */
+const HEADER_DICT: Record<string, string[]> = {
+  "Content-Type": [
+    "application/json",
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "text/plain",
+    "text/html",
+    "application/xml",
+    "application/octet-stream",
+    "application/javascript",
+    "text/css",
+    "image/png",
+    "image/jpeg",
+  ],
+  "Accept": [
+    "application/json",
+    "*/*",
+    "text/html",
+    "application/xml",
+    "text/plain",
+    "image/*",
+  ],
+  "Authorization": ["Bearer ", "Basic "],
+  "Cache-Control": ["no-cache", "no-store", "max-age=0", "max-age=3600", "public", "private"],
+  "Accept-Encoding": ["gzip, deflate, br", "gzip, deflate", "identity"],
+  "Accept-Language": ["zh-CN,zh;q=0.9,en;q=0.8", "en-US,en;q=0.9", "*"],
+  "User-Agent": ["ProtoForge/1.0", "Mozilla/5.0"],
+  "X-Requested-With": ["XMLHttpRequest"],
+  "Origin": [""],
+  "Referer": [""],
+  "Cookie": [""],
+  "If-None-Match": [""],
+  "If-Modified-Since": [""],
+  "X-Forwarded-For": [""],
+  "X-Real-IP": [""],
+  "X-CSRF-Token": [""],
+  "X-API-Key": [""],
+  "Connection": ["keep-alive", "close"],
+  "Transfer-Encoding": ["chunked"],
+  "Content-Length": [""],
+  "Content-Disposition": ["attachment; filename=\"\"", "inline"],
+  "Access-Control-Allow-Origin": ["*"],
+  "Access-Control-Allow-Methods": ["GET, POST, PUT, DELETE, OPTIONS"],
+  "Access-Control-Allow-Headers": ["Content-Type, Authorization"],
+  "Pragma": ["no-cache"],
+  "Expires": ["0"],
+  "Range": ["bytes=0-"],
+  "Host": [""],
+  "DNT": ["1"],
+};
+
+const ALL_HEADER_KEYS = Object.keys(HEADER_DICT);
+
+/* ── Header Presets (quick-add) ── */
+const HEADER_PRESETS: { key: string; value: string; desc: string }[] = [
+  { key: "Content-Type", value: "application/json", desc: "JSON" },
+  { key: "Content-Type", value: "application/x-www-form-urlencoded", desc: "表单" },
+  { key: "Accept", value: "application/json", desc: "JSON 响应" },
+  { key: "Authorization", value: "Bearer ", desc: "Token" },
+  { key: "Cache-Control", value: "no-cache", desc: "禁缓存" },
+  { key: "User-Agent", value: "ProtoForge/1.0", desc: "UA" },
+  { key: "Accept-Language", value: "zh-CN,zh;q=0.9,en;q=0.8", desc: "中文" },
+  { key: "Accept-Encoding", value: "gzip, deflate, br", desc: "压缩" },
+  { key: "Connection", value: "keep-alive", desc: "长连接" },
+  { key: "X-Requested-With", value: "XMLHttpRequest", desc: "AJAX" },
+];
+
+/* ── KV Editor (table-based, for params, headers, form-urlencoded) ── */
+function KVEditor({ items, onChange, kp, vp, showPresets }: {
+  items: KeyValue[];
+  onChange: (v: KeyValue[]) => void;
+  kp: string;
+  vp: string;
+  showPresets?: boolean;
+}) {
+  const [presetOpen, setPresetOpen] = useState(false);
+  const [activeKeySuggest, setActiveKeySuggest] = useState<number | null>(null);
+  const [activeValueSuggest, setActiveValueSuggest] = useState<number | null>(null);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
   const safe = items || [];
-  
-  const update = (i: number, f: "key" | "value", v: string) => { 
-    const n = [...safe]; 
-    n[i] = { ...n[i], [f]: v }; 
-    onChange(n); 
+
+  const update = (i: number, f: "key" | "value" | "description", v: string) => {
+    const n = [...safe]; n[i] = { ...n[i], [f]: v }; onChange(n);
   };
-  
-  const toggle = (i: number) => { 
-    const n = [...safe]; 
-    n[i] = { ...n[i], enabled: !n[i].enabled }; 
-    onChange(n); 
+  const toggle = (i: number) => {
+    const n = [...safe]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(n);
   };
-  
   const remove = (i: number) => onChange(safe.filter((_, j) => j !== i));
-  const add = () => onChange([...safe, { key: "", value: "", enabled: true }]);
+  const add = () => onChange([...safe, { key: "", value: "", description: "", enabled: true }]);
+  const addPreset = (preset: typeof HEADER_PRESETS[0]) => {
+    onChange([...safe, { key: preset.key, value: preset.value, description: preset.desc, enabled: true }]);
+    setPresetOpen(false);
+  };
+
+  const selectKeySuggestion = (i: number, key: string) => {
+    const n = [...safe]; n[i] = { ...n[i], key };
+    const vals = HEADER_DICT[key];
+    if (vals && vals.length > 0 && !n[i].value) n[i].value = vals[0];
+    onChange(n); setActiveKeySuggest(null); setHighlightIdx(-1);
+    if (vals && vals.length > 1) setActiveValueSuggest(i);
+  };
+  const selectValueSuggestion = (i: number, value: string) => {
+    update(i, "value", value); setActiveValueSuggest(null); setHighlightIdx(-1);
+  };
+  const getKeySuggestions = (input: string): string[] => {
+    if (!showPresets) return [];
+    if (!input) return ALL_HEADER_KEYS.slice(0, 12);
+    return ALL_HEADER_KEYS.filter(k => k.toLowerCase().includes(input.toLowerCase())).slice(0, 10);
+  };
+  const getValueSuggestions = (key: string): string[] => (!showPresets ? [] : HEADER_DICT[key] || []);
+  const handleKeyDown = (e: React.KeyboardEvent, sugs: string[], onSel: (v: string) => void, onCls: () => void) => {
+    if (!sugs.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setHighlightIdx(p => (p + 1) % sugs.length); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHighlightIdx(p => (p <= 0 ? sugs.length - 1 : p - 1)); }
+    else if (e.key === "Enter" && highlightIdx >= 0 && highlightIdx < sugs.length) { e.preventDefault(); onSel(sugs[highlightIdx]); }
+    else if (e.key === "Escape") { e.preventDefault(); onCls(); setHighlightIdx(-1); }
+  };
+
+  const cellInput = "w-full h-[30px] px-2 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled";
 
   return (
-    <div className="w-full flex flex-col pt-1">
-      {safe.length > 0 && (
-        <div className="flex items-center gap-2 mb-2 px-8 text-[11px] font-semibold text-text-disabled uppercase tracking-wider">
-          <div className="flex-1">{kp}</div>
-          <div className="flex-1">{vp}</div>
-          <div className="w-8" />
-        </div>
-      )}
-      
-      <div className="space-y-2">
-        {safe.map((item, i) => (
-          <div key={i} className="flex items-center gap-2 group">
-            <div className="w-6 flex justify-center">
-              <input 
-                type="checkbox" 
-                checked={item.enabled} 
-                onChange={() => toggle(i)} 
-                className="w-3.5 h-3.5 rounded accent-accent shrink-0 cursor-pointer" 
-              />
-            </div>
-            <input 
-              value={item.key} 
-              onChange={(e) => update(i, "key", e.target.value)} 
-              placeholder={kp} 
-              className={cn("input-field flex-1 font-mono text-[13px] py-1.5", !item.enabled && "opacity-40")} 
-            />
-            <input 
-              value={item.value} 
-              onChange={(e) => update(i, "value", e.target.value)} 
-              placeholder={vp} 
-              className={cn("input-field flex-1 font-mono text-[13px] py-1.5", !item.enabled && "opacity-40")} 
-            />
-            <div className="w-8 flex justify-center">
-              <button 
-                onClick={() => remove(i)} 
-                className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-lg"
-              >×</button>
-            </div>
-          </div>
-        ))}
+    <div className="w-full">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="text-[10px] font-semibold text-text-disabled uppercase tracking-wider">
+            <th className="w-7 p-0" />
+            <th className="text-left font-semibold px-2 pb-0.5">{kp}</th>
+            <th className="text-left font-semibold px-2 pb-0.5">{vp}</th>
+            <th className="text-left font-semibold px-2 pb-0.5">Description</th>
+            <th className="w-6 p-0" />
+          </tr>
+        </thead>
+        <tbody>
+          {safe.map((item, i) => {
+            const keySugs = activeKeySuggest === i ? getKeySuggestions(item.key) : [];
+            const valSugs = activeValueSuggest === i ? getValueSuggestions(item.key) : [];
+            return (
+              <tr key={i} className={cn("group border border-border-default", i > 0 && "border-t-0")}>
+                <td className="w-7 text-center border-r border-border-default align-middle">
+                  <input type="checkbox" checked={item.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer" />
+                </td>
+                <td className="border-r border-border-default p-0">
+                  <TableCellInput value={item.key} onChange={v => update(i, "key", v)}
+                    onFocus={() => { if (showPresets) { setActiveKeySuggest(i); setActiveValueSuggest(null); setHighlightIdx(-1); } }}
+                    onBlur={() => setTimeout(() => { setActiveKeySuggest(null); setHighlightIdx(-1); }, 150)}
+                    onKeyDown={e => handleKeyDown(e, keySugs, k => selectKeySuggestion(i, k), () => setActiveKeySuggest(null))}
+                    placeholder={kp} disabled={!item.enabled} suggestions={keySugs} highlightIdx={highlightIdx}
+                    onSelectSuggestion={k => selectKeySuggestion(i, k)} className={cellInput} />
+                </td>
+                <td className="border-r border-border-default p-0">
+                  <TableCellInput value={item.value} onChange={v => update(i, "value", v)}
+                    onFocus={() => { if (showPresets && HEADER_DICT[item.key]) { setActiveValueSuggest(i); setActiveKeySuggest(null); setHighlightIdx(-1); } }}
+                    onBlur={() => setTimeout(() => { setActiveValueSuggest(null); setHighlightIdx(-1); }, 150)}
+                    onKeyDown={e => handleKeyDown(e, valSugs, v => selectValueSuggestion(i, v), () => setActiveValueSuggest(null))}
+                    placeholder={vp} disabled={!item.enabled} suggestions={valSugs} highlightIdx={highlightIdx}
+                    onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cellInput} />
+                </td>
+                <td className="border-r border-border-default p-0">
+                  <input value={item.description || ""} onChange={e => update(i, "description", e.target.value)} placeholder="Description"
+                    className={cn("w-full h-[30px] px-2 bg-transparent text-[11px] text-text-tertiary outline-none placeholder:text-text-disabled", !item.enabled && "opacity-40")} />
+                </td>
+                <td className="w-6 text-center p-0 align-middle">
+                  <button onClick={() => remove(i)} className="w-6 h-[30px] inline-flex items-center justify-center text-text-disabled hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-sm">×</button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="flex items-center gap-2 mt-1.5">
+        <button onClick={add} className="text-[11px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors border border-dashed border-border-default hover:border-accent rounded px-2.5 py-1">
+          <span>+</span> 添加
+        </button>
+        {showPresets && <PresetDropdown presets={HEADER_PRESETS} isOpen={presetOpen} onToggle={() => setPresetOpen(!presetOpen)} onClose={() => setPresetOpen(false)} onSelect={addPreset} />}
       </div>
-      
-      <button 
-        onClick={add} 
-        className="mt-3 ml-8 text-[12px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors w-fit border border-dashed border-border-default hover:border-accent rounded-md px-3 py-1.5"
-      >
-        <span>+</span> 添加
-      </button>
     </div>
   );
 }
 
-/* ── FormData Editor (text + file fields) ── */
+/* ── TableCellInput: borderless input with portal suggestion dropdown ── */
+function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placeholder, disabled, suggestions, highlightIdx, onSelectSuggestion, className: cls }: {
+  value: string; onChange: (v: string) => void; onFocus: () => void; onBlur: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void; placeholder: string; disabled: boolean;
+  suggestions?: string[]; highlightIdx?: number; onSelectSuggestion?: (v: string) => void; className?: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const hasSugs = suggestions && suggestions.length > 0;
+  useEffect(() => { if (hasSugs && ref.current) setRect(ref.current.getBoundingClientRect()); }, [hasSugs, value]);
+
+  return (
+    <>
+      <input ref={ref} value={value} onChange={e => onChange(e.target.value)} onFocus={onFocus} onBlur={onBlur} onKeyDown={onKeyDown}
+        placeholder={placeholder} className={cn(cls, disabled && "opacity-40")} />
+      {hasSugs && rect && onSelectSuggestion && createPortal(
+        <div className="fixed bg-bg-elevated border border-border-default rounded-lg shadow-xl max-h-[220px] overflow-y-auto py-0.5"
+          style={{ top: rect.bottom + 2, left: rect.left, width: rect.width, zIndex: 9999 }}>
+          {suggestions!.map((s, si) => (
+            <button key={si} onMouseDown={e => { e.preventDefault(); onSelectSuggestion!(s); }}
+              className={cn("w-full px-3 py-1.5 text-left text-[12px] font-mono transition-colors",
+                si === (highlightIdx ?? -1) ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover",
+                value === s && si !== (highlightIdx ?? -1) && "text-accent font-semibold")}>
+              {s || <span className="text-text-disabled italic">(空值)</span>}
+            </button>
+          ))}
+        </div>, document.body
+      )}
+    </>
+  );
+}
+
+/* ── PresetDropdown: portal-based preset menu ── */
+function PresetDropdown({ presets, isOpen, onToggle, onClose, onSelect }: {
+  presets: typeof HEADER_PRESETS; isOpen: boolean; onToggle: () => void; onClose: () => void;
+  onSelect: (p: typeof HEADER_PRESETS[0]) => void;
+}) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  useEffect(() => { if (isOpen && btnRef.current) setRect(btnRef.current.getBoundingClientRect()); }, [isOpen]);
+
+  return (
+    <div className="relative">
+      <button ref={btnRef} onClick={onToggle}
+        className="text-[11px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors border border-dashed border-border-default hover:border-accent rounded px-2.5 py-1">
+        <ChevronDown className="w-3 h-3" /> 预设
+      </button>
+      {isOpen && rect && createPortal(
+        <>
+          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={onClose} />
+          <div className="fixed bg-bg-elevated border border-border-default rounded-lg shadow-xl overflow-hidden min-w-[340px] max-h-[300px] overflow-y-auto py-1"
+            style={{ top: rect.bottom + 4, left: rect.left, zIndex: 9999 }}>
+            {presets.map((p, i) => (
+              <button key={i} onClick={() => onSelect(p)}
+                className="w-full px-3 py-1.5 flex items-center gap-3 text-left hover:bg-bg-hover transition-colors">
+                <span className="text-[11px] font-mono font-semibold text-accent w-28 shrink-0 truncate">{p.key}</span>
+                <span className="text-[11px] font-mono text-text-secondary flex-1 truncate">{p.value || "(空)"}</span>
+                <span className="text-[10px] text-text-disabled shrink-0">{p.desc}</span>
+              </button>
+            ))}
+          </div>
+        </>, document.body
+      )}
+    </div>
+  );
+}
+
+/* ── FormData Editor (table-based, text + file fields) ── */
 function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChange: (v: FormDataField[]) => void }) {
   const safe = fields || [];
-
-  const update = (i: number, updates: Partial<FormDataField>) => {
-    const n = [...safe];
-    n[i] = { ...n[i], ...updates };
-    onChange(n);
-  };
-
-  const toggle = (i: number) => {
-    const n = [...safe];
-    n[i] = { ...n[i], enabled: !n[i].enabled };
-    onChange(n);
-  };
-
+  const update = (i: number, u: Partial<FormDataField>) => { const n = [...safe]; n[i] = { ...n[i], ...u }; onChange(n); };
+  const toggle = (i: number) => { const n = [...safe]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(n); };
   const remove = (i: number) => onChange(safe.filter((_, j) => j !== i));
   const add = () => onChange([...safe, { key: "", value: "", fieldType: "text", enabled: true }]);
-
   const handleFilePick = async (i: number) => {
     const { pickFile } = await import("@/services/httpService");
-    const result = await pickFile();
-    if (result) {
-      update(i, { value: result.path, fileName: result.name });
-    }
+    const r = await pickFile();
+    if (r) update(i, { value: r.path, fileName: r.name });
   };
 
   return (
-    <div className="w-full flex flex-col pt-1">
-      {safe.length > 0 && (
-        <div className="flex items-center gap-2 mb-2 px-8 text-[11px] font-semibold text-text-disabled uppercase tracking-wider">
-          <div className="w-16">类型</div>
-          <div className="flex-1">Key</div>
-          <div className="flex-1">Value</div>
-          <div className="w-8" />
-        </div>
-      )}
-
-      <div className="space-y-2">
-        {safe.map((field, i) => (
-          <div key={i} className="flex items-center gap-2 group">
-            <div className="w-6 flex justify-center">
-              <input
-                type="checkbox"
-                checked={field.enabled}
-                onChange={() => toggle(i)}
-                className="w-3.5 h-3.5 rounded accent-accent shrink-0 cursor-pointer"
-              />
-            </div>
-            {/* Type toggle */}
-            <select
-              value={field.fieldType}
-              onChange={(e) => update(i, { fieldType: e.target.value as 'text' | 'file', value: '', fileName: undefined })}
-              className={cn("w-16 h-[34px] px-1.5 text-[11px] bg-bg-input border border-border-default rounded-md text-text-secondary outline-none shrink-0", !field.enabled && "opacity-40")}
-            >
-              <option value="text">Text</option>
-              <option value="file">File</option>
-            </select>
-            <input
-              value={field.key}
-              onChange={(e) => update(i, { key: e.target.value })}
-              placeholder="Key"
-              className={cn("input-field flex-1 font-mono text-[13px] py-1.5", !field.enabled && "opacity-40")}
-            />
-            {field.fieldType === "text" ? (
-              <input
-                value={field.value}
-                onChange={(e) => update(i, { value: e.target.value })}
-                placeholder="Value"
-                className={cn("input-field flex-1 font-mono text-[13px] py-1.5", !field.enabled && "opacity-40")}
-              />
-            ) : (
-              <button
-                onClick={() => handleFilePick(i)}
-                className={cn("input-field flex-1 flex items-center gap-1.5 text-[12px] py-1.5 text-left cursor-pointer hover:border-accent", !field.enabled && "opacity-40")}
-              >
-                <Upload className="w-3.5 h-3.5 text-text-disabled shrink-0" />
-                <span className="truncate text-text-secondary">
-                  {field.fileName || field.value || "选择文件..."}
-                </span>
-              </button>
-            )}
-            <div className="w-8 flex justify-center">
-              <button
-                onClick={() => remove(i)}
-                className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-lg"
-              >×</button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <button
-        onClick={add}
-        className="mt-3 ml-8 text-[12px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors w-fit border border-dashed border-border-default hover:border-accent rounded-md px-3 py-1.5"
-      >
+    <div className="w-full">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="text-[10px] font-semibold text-text-disabled uppercase tracking-wider">
+            <th className="w-7 p-0" />
+            <th className="w-16 text-left font-semibold px-2 pb-0.5">类型</th>
+            <th className="text-left font-semibold px-2 pb-0.5">Key</th>
+            <th className="text-left font-semibold px-2 pb-0.5">Value</th>
+            <th className="w-6 p-0" />
+          </tr>
+        </thead>
+        <tbody>
+          {safe.map((field, i) => (
+            <tr key={i} className={cn("group border border-border-default", i > 0 && "border-t-0")}>
+              <td className="w-7 text-center border-r border-border-default align-middle">
+                <input type="checkbox" checked={field.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer" />
+              </td>
+              <td className="w-16 border-r border-border-default p-0 align-middle">
+                <select value={field.fieldType}
+                  onChange={e => update(i, { fieldType: e.target.value as 'text' | 'file', value: '', fileName: undefined })}
+                  className={cn("w-full h-[30px] px-1.5 bg-transparent text-[11px] text-text-secondary outline-none cursor-pointer", !field.enabled && "opacity-40")}>
+                  <option value="text">Text</option>
+                  <option value="file">File</option>
+                </select>
+              </td>
+              <td className="border-r border-border-default p-0">
+                <input value={field.key} onChange={e => update(i, { key: e.target.value })} placeholder="Key"
+                  className={cn("w-full h-[30px] px-2 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled", !field.enabled && "opacity-40")} />
+              </td>
+              <td className="border-r border-border-default p-0">
+                {field.fieldType === "text" ? (
+                  <input value={field.value} onChange={e => update(i, { value: e.target.value })} placeholder="Value"
+                    className={cn("w-full h-[30px] px-2 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled", !field.enabled && "opacity-40")} />
+                ) : (
+                  <button onClick={() => handleFilePick(i)}
+                    className={cn("w-full h-[30px] px-2 flex items-center gap-1.5 bg-transparent text-[11px] text-left cursor-pointer hover:bg-bg-hover transition-colors", !field.enabled && "opacity-40")}>
+                    <Upload className="w-3 h-3 text-text-disabled shrink-0" />
+                    <span className="truncate text-text-secondary">{field.fileName || field.value || "选择文件..."}</span>
+                  </button>
+                )}
+              </td>
+              <td className="w-6 text-center p-0 align-middle">
+                <button onClick={() => remove(i)} className="w-6 h-[30px] inline-flex items-center justify-center text-text-disabled hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-sm">×</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button onClick={add} className="mt-1.5 text-[11px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors border border-dashed border-border-default hover:border-accent rounded px-2.5 py-1">
         <span>+</span> 添加字段
       </button>
     </div>
   );
 }
+
+
 
 /* ── Binary File Picker ── */
 function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; fileName: string; onChange: (path: string, name: string) => void }) {

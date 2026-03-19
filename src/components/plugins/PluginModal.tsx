@@ -32,6 +32,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
   const fetchAvailable = usePluginStore((s) => s.fetchAvailablePlugins);
   const install = usePluginStore((s) => s.installPlugin);
   const uninstall = usePluginStore((s) => s.uninstallPlugin);
+  const refreshRegistry = usePluginStore((s) => s.refreshRegistry);
 
   useEffect(() => {
     if (open) {
@@ -52,8 +53,8 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
   const plugins = tab === "store" ? filteredAvailable : filteredInstalled;
 
   const handleRefresh = () => {
+    refreshRegistry();
     fetchInstalled();
-    fetchAvailable();
   };
 
   // ESC to close
@@ -300,6 +301,9 @@ function PluginListItem({
               <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
             </span>
           )}
+          {plugin.source === "remote" && (
+            <span className="text-[9px] font-medium px-1.5 py-[1px] rounded-full bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 shrink-0">远程</span>
+          )}
         </div>
         <p className="text-[11px] text-text-tertiary truncate mt-0.5">{plugin.description}</p>
       </div>
@@ -461,6 +465,12 @@ function PluginDetail({
             <div>
               <span className="text-text-disabled">入口文件</span>
               <p className="text-text-secondary font-mono mt-0.5">{plugin.entrypoint}</p>
+            </div>
+            <div>
+              <span className="text-text-disabled">来源</span>
+              <p className="text-text-secondary font-mono mt-0.5">
+                {plugin.source === "remote" ? "🌐 远程仓库" : "📦 内置"}
+              </p>
             </div>
           </div>
         </div>

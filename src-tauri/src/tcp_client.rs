@@ -16,6 +16,7 @@ pub struct TcpEvent {
     pub connection_id: String,
     pub event_type: String,
     pub data: Option<String>,
+    pub raw_hex: Option<String>,
     pub remote_addr: Option<String>,
     pub client_id: Option<String>,
     pub size: Option<usize>,
@@ -24,6 +25,45 @@ pub struct TcpEvent {
 
 fn now_iso() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+}
+
+/// Convert raw bytes to hex string like "48 65 6c 6c 6f"
+fn bytes_to_hex(data: &[u8]) -> String {
+    data.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" ")
+}
+
+/// Decode user input based on encoding format.
+/// Returns the raw bytes to send over the wire.
+fn decode_send_data(data: &str, encoding: &str) -> Result<Vec<u8>, String> {
+    match encoding {
+        "hex" => {
+            // Accept hex like "48656c6c6f" or "48 65 6c 6c 6f" or "0x48 0x65"
+            let cleaned: String = data
+                .replace("0x", "")
+                .replace("0X", "")
+                .replace(' ', "")
+                .replace(',', "")
+                .replace('\n', "")
+                .replace('\r', "");
+            if cleaned.len() % 2 != 0 {
+                return Err("Hex 字符串长度必须为偶数".into());
+            }
+            (0..cleaned.len())
+                .step_by(2)
+                .map(|i| {
+                    u8::from_str_radix(&cleaned[i..i + 2], 16)
+                        .map_err(|e| format!("无效的 Hex 字符: {}", e))
+                })
+                .collect()
+        }
+        "base64" => {
+            use base64::Engine;
+            base64::engine::general_purpose::STANDARD
+                .decode(data.trim())
+                .map_err(|e| format!("无效的 Base64: {}", e))
+        }
+        _ => Ok(data.as_bytes().to_vec()), // ascii / utf8
+    }
 }
 
 // ═══════════════════════════════════════════
@@ -77,6 +117,7 @@ pub async fn tcp_connect(
             connection_id: connection_id.clone(),
             event_type: "connected".into(),
             data: Some(addr),
+            raw_hex: None,
             remote_addr: Some(remote),
             client_id: None,
             size: None,
@@ -105,17 +146,10 @@ pub async fn tcp_connect(
                 Ok(0) => break, // 连接关闭
                 Ok(n) => {
                     let data = &buf[..n];
-                    // 尝试 UTF-8，失败则 hex
-                    let (text, _is_text) = match std::str::from_utf8(data) {
-                        Ok(s) => (s.to_string(), true),
-                        Err(_) => (
-                            data.iter()
-                                .map(|b| format!("{:02x} ", b))
-                                .collect::<String>()
-                                .trim()
-                                .to_string(),
-                            false,
-                        ),
+                    let hex_str = bytes_to_hex(data);
+                    let text = match std::str::from_utf8(data) {
+                        Ok(s) => s.to_string(),
+                        Err(_) => hex_str.clone(),
                     };
 
                     let _ = app_clone.emit(
@@ -124,6 +158,7 @@ pub async fn tcp_connect(
                             connection_id: cid.clone(),
                             event_type: "data".into(),
                             data: Some(text),
+                            raw_hex: Some(hex_str),
                             remote_addr: None,
                             client_id: None,
                             size: Some(n),
@@ -138,6 +173,7 @@ pub async fn tcp_connect(
                             connection_id: cid.clone(),
                             event_type: "error".into(),
                             data: Some(e.to_string()),
+                            raw_hex: None,
                             remote_addr: None,
                             client_id: None,
                             size: None,
@@ -156,6 +192,7 @@ pub async fn tcp_connect(
                 connection_id: cid.clone(),
                 event_type: "disconnected".into(),
                 data: None,
+                raw_hex: None,
                 remote_addr: None,
                 client_id: None,
                 size: None,
@@ -182,14 +219,16 @@ pub async fn tcp_send(
     connections: &TcpConnections,
     connection_id: &str,
     data: String,
+    encoding: String,
 ) -> Result<(), String> {
+    let bytes = decode_send_data(&data, &encoding)?;
     let conns = connections.connections.lock().await;
     let handle = conns
         .get(connection_id)
         .ok_or_else(|| "TCP 连接不存在或已断开".to_string())?;
     handle
         .sender
-        .send(data.into_bytes())
+        .send(bytes)
         .await
         .map_err(|_| "发送失败: 连接已关闭".to_string())
 }
@@ -253,6 +292,7 @@ pub async fn tcp_server_start(
             connection_id: server_id.clone(),
             event_type: "started".into(),
             data: Some(addr),
+            raw_hex: None,
             remote_addr: None,
             client_id: None,
             size: None,
@@ -282,6 +322,7 @@ pub async fn tcp_server_start(
                             connection_id: sid.clone(),
                             event_type: "client-connected".into(),
                             data: None,
+                            raw_hex: None,
                             remote_addr: Some(remote_addr.clone()),
                             client_id: Some(client_id.clone()),
                             size: None,
@@ -311,14 +352,10 @@ pub async fn tcp_server_start(
                                 Ok(0) => break,
                                 Ok(n) => {
                                     let data = &buf[..n];
+                                    let hex_str = bytes_to_hex(data);
                                     let text = match std::str::from_utf8(data) {
                                         Ok(s) => s.to_string(),
-                                        Err(_) => data
-                                            .iter()
-                                            .map(|b| format!("{:02x} ", b))
-                                            .collect::<String>()
-                                            .trim()
-                                            .to_string(),
+                                        Err(_) => hex_str.clone(),
                                     };
 
                                     let _ = c_app.emit(
@@ -327,6 +364,7 @@ pub async fn tcp_server_start(
                                             connection_id: c_sid.clone(),
                                             event_type: "client-data".into(),
                                             data: Some(text),
+                                            raw_hex: Some(hex_str),
                                             remote_addr: None,
                                             client_id: Some(c_cid.clone()),
                                             size: Some(n),
@@ -341,6 +379,7 @@ pub async fn tcp_server_start(
                                             connection_id: c_sid.clone(),
                                             event_type: "error".into(),
                                             data: Some(e.to_string()),
+                                            raw_hex: None,
                                             remote_addr: None,
                                             client_id: Some(c_cid.clone()),
                                             size: None,
@@ -360,6 +399,7 @@ pub async fn tcp_server_start(
                                 connection_id: c_sid.clone(),
                                 event_type: "client-disconnected".into(),
                                 data: None,
+                                raw_hex: None,
                                 remote_addr: None,
                                 client_id: Some(c_cid.clone()),
                                 size: None,
@@ -386,6 +426,7 @@ pub async fn tcp_server_start(
                             connection_id: sid.clone(),
                             event_type: "error".into(),
                             data: Some(e.to_string()),
+                            raw_hex: None,
                             remote_addr: None,
                             client_id: None,
                             size: None,
@@ -429,7 +470,9 @@ pub async fn tcp_server_send(
     server_id: &str,
     client_id: &str,
     data: String,
+    encoding: String,
 ) -> Result<(), String> {
+    let bytes = decode_send_data(&data, &encoding)?;
     let svrs = servers.servers.lock().await;
     let handle = svrs
         .get(server_id)
@@ -440,7 +483,7 @@ pub async fn tcp_server_send(
         .ok_or_else(|| "客户端不存在或已断开".to_string())?;
     client
         .sender
-        .send(data.into_bytes())
+        .send(bytes)
         .await
         .map_err(|_| "发送失败: 客户端已断开".to_string())
 }
@@ -450,7 +493,9 @@ pub async fn tcp_server_broadcast(
     servers: &TcpServers,
     server_id: &str,
     data: String,
+    encoding: String,
 ) -> Result<usize, String> {
+    let bytes = decode_send_data(&data, &encoding)?;
     let svrs = servers.servers.lock().await;
     let handle = svrs
         .get(server_id)
@@ -458,7 +503,7 @@ pub async fn tcp_server_broadcast(
     let clients = handle.clients.lock().await;
     let mut sent = 0;
     for (_id, client) in clients.iter() {
-        if client.sender.send(data.clone().into_bytes()).await.is_ok() {
+        if client.sender.send(bytes.clone()).await.is_ok() {
             sent += 1;
         }
     }
@@ -520,6 +565,7 @@ pub async fn udp_bind(
             connection_id: socket_id.clone(),
             event_type: "bound".into(),
             data: Some(local_addr),
+            raw_hex: None,
             remote_addr: None,
             client_id: None,
             size: None,
@@ -548,14 +594,10 @@ pub async fn udp_bind(
             match sock_clone.recv_from(&mut buf).await {
                 Ok((n, addr)) => {
                     let data = &buf[..n];
+                    let hex_str = bytes_to_hex(data);
                     let text = match std::str::from_utf8(data) {
                         Ok(s) => s.to_string(),
-                        Err(_) => data
-                            .iter()
-                            .map(|b| format!("{:02x} ", b))
-                            .collect::<String>()
-                            .trim()
-                            .to_string(),
+                        Err(_) => hex_str.clone(),
                     };
 
                     let _ = app_clone.emit(
@@ -564,6 +606,7 @@ pub async fn udp_bind(
                             connection_id: sid.clone(),
                             event_type: "data".into(),
                             data: Some(text),
+                            raw_hex: Some(hex_str),
                             remote_addr: Some(addr.to_string()),
                             client_id: None,
                             size: Some(n),
@@ -578,6 +621,7 @@ pub async fn udp_bind(
                             connection_id: sid.clone(),
                             event_type: "error".into(),
                             data: Some(e.to_string()),
+                            raw_hex: None,
                             remote_addr: None,
                             client_id: None,
                             size: None,
@@ -607,14 +651,16 @@ pub async fn udp_send_to(
     socket_id: &str,
     data: String,
     target_addr: String,
+    encoding: String,
 ) -> Result<(), String> {
+    let bytes = decode_send_data(&data, &encoding)?;
     let conns = sockets.sockets.lock().await;
     let handle = conns
         .get(socket_id)
         .ok_or_else(|| "UDP Socket 不存在".to_string())?;
     handle
         .sender
-        .send((data.into_bytes(), target_addr))
+        .send((bytes, target_addr))
         .await
         .map_err(|_| "发送失败: Socket 已关闭".to_string())
 }

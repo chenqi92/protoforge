@@ -18,6 +18,25 @@ pub struct HttpRequest {
     pub auth: Option<AuthConfig>,
     pub timeout_ms: Option<u64>,
     pub follow_redirects: Option<bool>,
+    pub ssl_verify: Option<bool>,
+    pub proxy: Option<ProxyConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxyConfig {
+    #[serde(rename = "type")]
+    pub proxy_type: String,     // "http" | "socks5"
+    pub host: String,
+    pub port: u16,
+    pub auth: Option<ProxyAuth>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxyAuth {
+    pub username: String,
+    pub password: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,8 +107,24 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
     }
 
     // 构建客户端
+    let ssl_verify = req.ssl_verify.unwrap_or(true);
     let mut client_builder = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true);
+        .danger_accept_invalid_certs(!ssl_verify);
+
+    // 代理
+    if let Some(proxy_cfg) = &req.proxy {
+        let proxy_url = if proxy_cfg.proxy_type == "socks5" {
+            format!("socks5://{}:{}", proxy_cfg.host, proxy_cfg.port)
+        } else {
+            format!("http://{}:{}", proxy_cfg.host, proxy_cfg.port)
+        };
+        let mut proxy = reqwest::Proxy::all(&proxy_url)
+            .map_err(|e| format!("代理配置失败: {}", e))?;
+        if let Some(auth) = &proxy_cfg.auth {
+            proxy = proxy.basic_auth(&auth.username, &auth.password);
+        }
+        client_builder = client_builder.proxy(proxy);
+    }
 
     if let Some(timeout) = req.timeout_ms {
         client_builder = client_builder.timeout(std::time::Duration::from_millis(timeout));

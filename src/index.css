@@ -202,4 +202,20 @@
   .cfg-input:disabled {
     opacity: 0.6;
   }
+
+  .cfg-select {
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+    background: var(--bg-input, var(--bg-secondary));
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    outline: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .cfg-select:focus {
+    border-color: var(--accent);
+  }
 }

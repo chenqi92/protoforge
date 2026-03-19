@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { HttpRequestConfig, HttpResponse } from '@/types/http';
 import { createDefaultRequest } from '@/types/http';
 
-export type ProtocolType = 'http' | 'ws' | 'sse' | 'mqtt';
+export type ProtocolType = 'http' | 'ws' | 'sse' | 'mqtt' | 'collection';
 
 export interface AppTab {
   id: string;
@@ -16,6 +16,8 @@ export interface AppTab {
   error: string | null;
   // WS (placeholder fields)
   wsUrl?: string;
+  // Collection settings
+  collectionId?: string;
 }
 
 interface AppStore {
@@ -23,6 +25,7 @@ interface AppStore {
   activeTabId: string | null;
 
   addTab: (protocol?: ProtocolType) => string;
+  addCollectionTab: (collectionId: string, name: string) => string;
   closeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
   updateTab: (id: string, updates: Partial<AppTab>) => void;
@@ -57,6 +60,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       ws: 'WebSocket',
       sse: 'SSE Stream',
       mqtt: 'MQTT Client',
+      collection: 'Collection',
     };
     const tab: AppTab = {
       id,
@@ -67,6 +71,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
       loading: false,
       error: null,
       wsUrl: protocol === 'ws' ? 'ws://localhost:8080' : undefined,
+    };
+    set((s) => ({ tabs: [...s.tabs, tab], activeTabId: id }));
+    return id;
+  },
+
+  addCollectionTab: (collectionId: string, name: string) => {
+    // Check if already open
+    const existing = get().tabs.find((t) => t.protocol === 'collection' && t.collectionId === collectionId);
+    if (existing) {
+      set({ activeTabId: existing.id });
+      return existing.id;
+    }
+    const id = crypto.randomUUID();
+    const tab: AppTab = {
+      id,
+      protocol: 'collection',
+      label: name,
+      collectionId,
+      loading: false,
+      error: null,
     };
     set((s) => ({ tabs: [...s.tabs, tab], activeTabId: id }));
     return id;
@@ -97,7 +121,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         if (t.id !== id) return t;
         const labels: Record<ProtocolType, string> = {
           http: 'Untitled Request', ws: 'WebSocket', sse: 'SSE Stream',
-          mqtt: 'MQTT Client',
+          mqtt: 'MQTT Client', collection: 'Collection',
         };
         return {
           ...t,

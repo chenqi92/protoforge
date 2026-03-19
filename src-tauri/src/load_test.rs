@@ -179,6 +179,8 @@ pub async fn start_load_test(
                         auth: config.auth.clone(),
                         timeout_ms: config.timeout_ms.or(Some(30000)),
                         follow_redirects: Some(true),
+                        ssl_verify: None,
+                        proxy: None,
                     };
 
                     // 速率限制: token bucket

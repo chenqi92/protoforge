@@ -5,7 +5,7 @@ import { useEffect, useCallback, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play, Square, Trash2, Shield, Search,
-  ChevronDown, ChevronRight, ArrowUpDown,
+  ChevronDown, ChevronRight, ArrowUpDown, X, Lightbulb, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCaptureStore } from "@/stores/captureStore";
@@ -218,7 +218,7 @@ export function CaptureWorkspace() {
                 onClick={() => setCaPath(null)}
                 className="text-text-tertiary hover:text-text-primary transition-colors px-1"
               >
-                ✕
+                <X className="w-3 h-3" />
               </button>
             </div>
           </motion.div>
@@ -309,7 +309,10 @@ function EmptyState({ running, port }: { running: boolean; port: number }) {
                 <span className="font-mono text-text-primary">127.0.0.1:{port}</span>
               </div>
               <p className="text-[10px] text-text-disabled">
-                💡 如需抓取 HTTPS，请先安装并信任 CA 证书（点击工具栏 &quot;CA 证书&quot;）
+                <div className="flex items-start gap-1.5">
+                  <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-[1px]" />
+                  <span>如需抓取 HTTPS，请先安装并信任 CA 证书（点击工具栏 &quot;CA 证书&quot;）</span>
+                </div>
               </p>
             </div>
           </>
@@ -366,7 +369,7 @@ function RequestRow({
         {entry.path || entry.url}
       </span>
       <span className={cn("w-[60px] shrink-0 text-center font-mono text-[10px] font-medium", statusColor(entry.status))}>
-        {entry.status || "⏳"}
+        {entry.status || <Clock className="w-3 h-3 text-text-disabled animate-pulse" />}
       </span>
       <span className="w-[80px] shrink-0 text-right text-[10px] text-text-disabled truncate" title={entry.contentType || ""}>
         {shortType}
@@ -438,7 +441,7 @@ function DetailPanel({
           onClick={onClose}
           className="w-7 h-7 flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-bg-hover rounded-md transition-colors mr-1"
         >
-          ✕
+          <X className="w-3 h-3" />
         </button>
       </div>
 

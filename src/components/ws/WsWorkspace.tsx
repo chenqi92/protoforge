@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown } from "lucide-react";
+import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
 import { InlineJsonViewer } from "@/components/ui/ResponseViewer";
@@ -76,7 +76,7 @@ export function WsWorkspace() {
               {
                 id: crypto.randomUUID(),
                 direction: "received",
-                data: `⚠ 错误: ${event.data}`,
+                data: `[ERROR] 错误: ${event.data}`,
                 dataType: "text",
                 timestamp: event.timestamp,
                 size: 0,
@@ -112,7 +112,7 @@ export function WsWorkspace() {
           {
             id: crypto.randomUUID(),
             direction: "received",
-            data: `⚠ 连接失败: ${errMsg}`,
+            data: `[ERROR] 连接失败: ${errMsg}`,
             dataType: "text",
             timestamp: new Date().toISOString(),
             size: 0,
@@ -147,7 +147,7 @@ export function WsWorkspace() {
         {
           id: crypto.randomUUID(),
           direction: "received",
-          data: `⚠ 发送失败: ${errMsg}`,
+          data: `[ERROR] 发送失败: ${errMsg}`,
           dataType: "text",
           timestamp: new Date().toISOString(),
           size: 0,
@@ -287,12 +287,19 @@ export function WsWorkspace() {
                       "max-w-[75%] px-4 py-2.5 rounded-2xl text-[13px] font-mono break-words shadow-sm",
                       m.direction === "sent"
                         ? "bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-100 rounded-tr-sm"
-                        : m.data.startsWith("⚠")
+                        : m.data.startsWith("[ERROR]")
                           ? "bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-300 rounded-tl-sm"
                           : "bg-bg-elevated border border-border-default text-text-secondary rounded-tl-sm"
                     )}>
                       <div className="whitespace-pre-wrap break-all" style={{ userSelect: "text" }}>
-                        <InlineJsonViewer data={m.data} />
+                        {m.data.startsWith("[ERROR]") ? (
+                          <span className="flex items-start gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                            <span><InlineJsonViewer data={m.data.replace(/^\[ERROR\]\s*/, '')} /></span>
+                          </span>
+                        ) : (
+                          <InlineJsonViewer data={m.data} />
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className="text-[10px] opacity-50">{formatTime(m.timestamp)}</span>

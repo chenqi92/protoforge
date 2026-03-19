@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::PathBuf;
 
 use boa_engine::{Context, Source, JsError};
+use flate2::read::GzDecoder;
 use serde::{Serialize, Deserialize};
 use tokio::sync::RwLock;
 
@@ -33,6 +35,16 @@ pub struct PluginManifest {
     /// Runtime-computed: whether the plugin is installed
     #[serde(default)]
     pub installed: bool,
+    /// Remote download URL (only present for remote plugins)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub download_url: Option<String>,
+    /// Source of this plugin: "builtin" or "remote"
+    #[serde(default = "default_source")]
+    pub source: String,
+}
+
+fn default_source() -> String {
+    "builtin".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,10 +80,62 @@ pub struct ParseResult {
     pub error: Option<String>,
 }
 
+// ── Remote Registry ──
+
+/// Registry JSON format from remote
+#[derive(Debug, Deserialize)]
+struct RemoteRegistry {
+    #[serde(default)]
+    plugins: Vec<RemotePluginEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RemotePluginEntry {
+    id: String,
+    name: String,
+    version: String,
+    description: String,
+    author: String,
+    #[serde(rename = "type")]
+    plugin_type: PluginType,
+    icon: String,
+    entrypoint: String,
+    #[serde(default)]
+    protocol_ids: Vec<String>,
+    #[serde(default)]
+    tags: Vec<String>,
+    download_url: String,
+}
+
+impl RemotePluginEntry {
+    fn into_manifest(self) -> PluginManifest {
+        PluginManifest {
+            id: self.id,
+            name: self.name,
+            version: self.version,
+            description: self.description,
+            author: self.author,
+            plugin_type: self.plugin_type,
+            icon: self.icon,
+            entrypoint: self.entrypoint,
+            protocol_ids: self.protocol_ids,
+            tags: self.tags,
+            installed: false,
+            download_url: Some(self.download_url),
+            source: "remote".to_string(),
+        }
+    }
+}
+
+/// Default registry URL — configurable in the future via settings
+const DEFAULT_REGISTRY_URL: &str =
+    "https://raw.githubusercontent.com/chenqi92/protoforge-plugins/main/registry.json";
+
 // ── Built-in Plugin Registry ──
 
 /// Built-in plugins are embedded at compile time.
-/// These serve as the "official plugin store".
+/// These serve as offline fallback when remote registry is unreachable.
 struct BuiltinPlugin {
     manifest_json: &'static str,
     script_js: &'static str,
@@ -96,6 +160,10 @@ pub struct PluginManager {
     plugins_dir: PathBuf,
     /// Cache of installed plugin manifests
     installed: RwLock<HashMap<String, PluginManifest>>,
+    /// Cached remote registry manifests (refreshed on demand)
+    remote_cache: RwLock<Option<Vec<PluginManifest>>>,
+    /// Registry URL
+    registry_url: String,
 }
 
 impl PluginManager {
@@ -104,6 +172,8 @@ impl PluginManager {
         Self {
             plugins_dir,
             installed: RwLock::new(HashMap::new()),
+            remote_cache: RwLock::new(None),
+            registry_url: DEFAULT_REGISTRY_URL.to_string(),
         }
     }
 
@@ -159,26 +229,92 @@ impl PluginManager {
         map.values().cloned().collect()
     }
 
-    /// List all available plugins from the built-in registry,
-    /// marking those that are already installed.
-    pub async fn list_available(&self) -> Vec<PluginManifest> {
-        let installed = self.installed.read().await;
-        let builtins = get_builtin_plugins();
+    /// Refresh remote registry — fetch from remote URL and cache.
+    /// Returns the number of remote plugins found.
+    pub async fn refresh_registry(&self) -> Result<usize, String> {
+        log::info!("正在从远程仓库刷新插件注册表: {}", self.registry_url);
 
-        builtins
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+        let resp = client
+            .get(&self.registry_url)
+            .send()
+            .await
+            .map_err(|e| format!("获取远程注册表失败: {}", e))?;
+
+        if !resp.status().is_success() {
+            return Err(format!("远程注册表返回 HTTP {}", resp.status()));
+        }
+
+        let registry: RemoteRegistry = resp
+            .json()
+            .await
+            .map_err(|e| format!("解析远程注册表 JSON 失败: {}", e))?;
+
+        let manifests: Vec<PluginManifest> = registry
+            .plugins
             .into_iter()
-            .filter_map(|bp| {
-                serde_json::from_str::<PluginManifest>(bp.manifest_json)
-                    .ok()
-                    .map(|mut m| {
-                        m.installed = installed.contains_key(&m.id);
-                        m
-                    })
+            .map(|e| e.into_manifest())
+            .collect();
+
+        let count = manifests.len();
+        *self.remote_cache.write().await = Some(manifests);
+
+        log::info!("远程注册表刷新成功，共 {} 个插件", count);
+        Ok(count)
+    }
+
+    /// List all available plugins: merge built-in + remote, mark installed.
+    /// Tries remote cache first; if empty, fetches from remote.
+    /// Falls back to built-in plugins if remote is unavailable.
+    pub async fn list_available(&self) -> Vec<PluginManifest> {
+        // Try to refresh remote if not cached
+        {
+            let cache = self.remote_cache.read().await;
+            if cache.is_none() {
+                drop(cache);
+                // Try to fetch remote, but don't fail
+                let _ = self.refresh_registry().await;
+            }
+        }
+
+        let installed = self.installed.read().await;
+        let remote_cache = self.remote_cache.read().await;
+
+        // Start with remote plugins if available
+        let mut all_plugins: HashMap<String, PluginManifest> = HashMap::new();
+
+        if let Some(remote_plugins) = remote_cache.as_ref() {
+            for p in remote_plugins {
+                all_plugins.insert(p.id.clone(), p.clone());
+            }
+        }
+
+        // Add built-in plugins (won't override remote entries)
+        let builtins = get_builtin_plugins();
+        for bp in &builtins {
+            if let Ok(mut m) = serde_json::from_str::<PluginManifest>(bp.manifest_json) {
+                m.source = "builtin".to_string();
+                m.download_url = None;
+                all_plugins.entry(m.id.clone()).or_insert(m);
+            }
+        }
+
+        // Mark installed
+        all_plugins
+            .into_values()
+            .map(|mut m| {
+                m.installed = installed.contains_key(&m.id);
+                m
             })
             .collect()
     }
 
-    /// Install a plugin from the built-in registry by its ID.
+    /// Install a plugin by its ID.
+    /// Priority: 1) built-in (fast, offline) 2) remote download
     pub async fn install(&self, plugin_id: &str) -> Result<PluginManifest, String> {
         // Check if already installed
         {
@@ -188,22 +324,40 @@ impl PluginManager {
             }
         }
 
-        // Find in built-in registry
+        // Try built-in first
         let builtins = get_builtin_plugins();
-        let builtin = builtins
-            .iter()
-            .find(|bp| {
-                serde_json::from_str::<PluginManifest>(bp.manifest_json)
-                    .ok()
-                    .map_or(false, |m| m.id == plugin_id)
-            })
-            .ok_or_else(|| format!("插件 '{}' 在仓库中不存在", plugin_id))?;
+        let builtin = builtins.iter().find(|bp| {
+            serde_json::from_str::<PluginManifest>(bp.manifest_json)
+                .ok()
+                .map_or(false, |m| m.id == plugin_id)
+        });
 
+        if let Some(bp) = builtin {
+            return self.install_from_builtin(bp).await;
+        }
+
+        // Try remote
+        let download_url = {
+            let cache = self.remote_cache.read().await;
+            cache
+                .as_ref()
+                .and_then(|ps| ps.iter().find(|p| p.id == plugin_id))
+                .and_then(|p| p.download_url.clone())
+        };
+
+        if let Some(url) = download_url {
+            return self.install_from_remote(plugin_id, &url).await;
+        }
+
+        Err(format!("插件 '{}' 在仓库中不存在", plugin_id))
+    }
+
+    /// Install from built-in embedded data
+    async fn install_from_builtin(&self, bp: &BuiltinPlugin) -> Result<PluginManifest, String> {
         let mut manifest: PluginManifest =
-            serde_json::from_str(builtin.manifest_json).map_err(|e| e.to_string())?;
+            serde_json::from_str(bp.manifest_json).map_err(|e| e.to_string())?;
 
-        // Create plugin directory
-        let plugin_dir = self.plugins_dir.join(plugin_id);
+        let plugin_dir = self.plugins_dir.join(&manifest.id);
         tokio::fs::create_dir_all(&plugin_dir)
             .await
             .map_err(|e| format!("创建插件目录失败: {}", e))?;
@@ -211,7 +365,7 @@ impl PluginManager {
         // Write manifest
         tokio::fs::write(
             plugin_dir.join("manifest.json"),
-            builtin.manifest_json.as_bytes(),
+            bp.manifest_json.as_bytes(),
         )
         .await
         .map_err(|e| format!("写入 manifest 失败: {}", e))?;
@@ -219,19 +373,97 @@ impl PluginManager {
         // Write script
         tokio::fs::write(
             plugin_dir.join(&manifest.entrypoint),
-            builtin.script_js.as_bytes(),
+            bp.script_js.as_bytes(),
         )
         .await
         .map_err(|e| format!("写入脚本失败: {}", e))?;
 
         manifest.installed = true;
+        manifest.source = "builtin".to_string();
 
-        // Cache
+        self.installed
+            .write()
+            .await
+            .insert(manifest.id.clone(), manifest.clone());
+
+        Ok(manifest)
+    }
+
+    /// Install from remote URL (download .tar.gz and extract)
+    async fn install_from_remote(
+        &self,
+        plugin_id: &str,
+        download_url: &str,
+    ) -> Result<PluginManifest, String> {
+        log::info!("正在从远程下载插件: {} → {}", plugin_id, download_url);
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(60))
+            .build()
+            .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+        let resp = client
+            .get(download_url)
+            .send()
+            .await
+            .map_err(|e| format!("下载插件失败: {}", e))?;
+
+        if !resp.status().is_success() {
+            return Err(format!("下载插件返回 HTTP {}", resp.status()));
+        }
+
+        let bytes = resp
+            .bytes()
+            .await
+            .map_err(|e| format!("读取下载数据失败: {}", e))?;
+
+        // Determine if it's a tar.gz or a single JS file
+        let plugin_dir = self.plugins_dir.join(plugin_id);
+        tokio::fs::create_dir_all(&plugin_dir)
+            .await
+            .map_err(|e| format!("创建插件目录失败: {}", e))?;
+
+        // Try to extract as tar.gz first
+        let bytes_vec = bytes.to_vec();
+        let plugin_dir_clone = plugin_dir.clone();
+
+        let extract_result = tokio::task::spawn_blocking(move || {
+            extract_tar_gz(&bytes_vec, &plugin_dir_clone)
+        })
+        .await
+        .map_err(|e| format!("解压任务失败: {}", e))?;
+
+        if let Err(tar_err) = extract_result {
+            // If tar.gz extraction fails, try treating it as raw JSON/JS content
+            // This handles the case where the download URL points to a single file
+            log::warn!("tar.gz 解压失败 ({}), 尝试作为原始文件处理", tar_err);
+
+            // Check if we have manifest + script in the directory already
+            if !plugin_dir.join("manifest.json").exists() {
+                // Clean up and report error
+                let _ = tokio::fs::remove_dir_all(&plugin_dir).await;
+                return Err(format!("插件下载格式无效: {}", tar_err));
+            }
+        }
+
+        // Read the manifest from the extracted directory
+        let manifest_path = plugin_dir.join("manifest.json");
+        let manifest_content = tokio::fs::read_to_string(&manifest_path)
+            .await
+            .map_err(|e| format!("读取已安装插件 manifest 失败: {}", e))?;
+
+        let mut manifest: PluginManifest = serde_json::from_str(&manifest_content)
+            .map_err(|e| format!("解析已安装插件 manifest 失败: {}", e))?;
+
+        manifest.installed = true;
+        manifest.source = "remote".to_string();
+
         self.installed
             .write()
             .await
             .insert(plugin_id.to_string(), manifest.clone());
 
+        log::info!("远程插件安装成功: {}", plugin_id);
         Ok(manifest)
     }
 
@@ -308,20 +540,58 @@ impl PluginManager {
     }
 }
 
+// ── tar.gz extraction ──
+
+/// Extract a .tar.gz archive into the target directory.
+fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), String> {
+    let gz = GzDecoder::new(data);
+    let mut archive = tar::Archive::new(gz);
+
+    for entry_result in archive.entries().map_err(|e| format!("读取 tar 条目失败: {}", e))? {
+        let mut entry = entry_result.map_err(|e| format!("读取 tar 条目失败: {}", e))?;
+        let path = entry.path().map_err(|e| format!("获取条目路径失败: {}", e))?;
+
+        // Strip the first component if the archive has a root directory
+        // e.g., "hj212-parser/manifest.json" → "manifest.json"
+        let relative: PathBuf = path
+            .components()
+            .skip(1) // skip root dir in archive
+            .collect();
+
+        // If stripping leaves nothing, use the original path
+        let relative = if relative.as_os_str().is_empty() {
+            path.to_path_buf()
+        } else {
+            relative
+        };
+
+        let target_path = target_dir.join(&relative);
+
+        if entry.header().entry_type().is_dir() {
+            std::fs::create_dir_all(&target_path)
+                .map_err(|e| format!("创建目录失败 {:?}: {}", target_path, e))?;
+        } else {
+            // Ensure parent directory exists
+            if let Some(parent) = target_path.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("创建父目录失败 {:?}: {}", parent, e))?;
+            }
+
+            let mut file_data = Vec::new();
+            entry.read_to_end(&mut file_data)
+                .map_err(|e| format!("读取条目数据失败: {}", e))?;
+
+            std::fs::write(&target_path, &file_data)
+                .map_err(|e| format!("写入文件失败 {:?}: {}", target_path, e))?;
+        }
+    }
+
+    Ok(())
+}
+
+// ── JS execution ──
+
 /// Execute a JS plugin script in a sandboxed boa_engine context.
-///
-/// The script must define a `parse(rawData)` function that returns:
-/// ```js
-/// {
-///   success: true,
-///   protocolName: "HJ212",
-///   summary: "数据采集上报",
-///   fields: [
-///     { key: "w01018", label: "COD", value: "12.5", unit: "mg/L", group: "污染物" },
-///   ],
-///   rawHex: "optional hex dump"
-/// }
-/// ```
 fn execute_parse_script(script: &str, raw_data: &str) -> Result<ParseResult, String> {
     let mut context = Context::default();
 

@@ -25,7 +25,7 @@ interface TabBarProps {
 }
 
 const protocolLabels: Record<ProtocolType, string> = {
-  http: "HTTP", ws: "WebSocket", sse: "SSE", mqtt: "MQTT",
+  http: "HTTP", ws: "WebSocket", sse: "SSE", mqtt: "MQTT", collection: "合集",
 };
 
 const protocolColors: Record<ProtocolType, string> = {
@@ -33,6 +33,7 @@ const protocolColors: Record<ProtocolType, string> = {
   ws: "bg-amber-500/15 text-amber-600",
   sse: "bg-orange-500/15 text-orange-600",
   mqtt: "bg-purple-500/15 text-purple-600",
+  collection: "bg-sky-500/15 text-sky-600",
 };
 
 const methodBadgeColors: Record<string, string> = {

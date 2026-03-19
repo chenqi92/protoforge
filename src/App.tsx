@@ -1,13 +1,16 @@
 import { useState, useCallback } from "react";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useSettingsEffect } from "@/hooks/useSettingsEffect";
 import { TitleBar } from "@/components/layout/TitleBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TabBar, type Tab } from "@/components/layout/TabBar";
 import { StatusBar } from "@/components/layout/StatusBar";
-import { WelcomePage } from "@/components/WelcomePage";
+import { WelcomePage, type WelcomeAction } from "@/components/WelcomePage";
 import { HttpWorkspace } from "@/components/http/HttpWorkspace";
 import { WsWorkspace } from "@/components/ws/WsWorkspace";
 import { PluginModal } from "@/components/plugins/PluginModal";
+import { SettingsModal } from "@/components/settings/SettingsModal";
+import { CollectionSettingsPanel } from "@/components/collections/CollectionSettingsPanel";
 import { useAppStore, type ProtocolType } from "@/stores/appStore";
 import { openToolWindow, type ToolWindowType } from "@/lib/windowManager";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
@@ -16,9 +19,11 @@ function App() {
   const sidebarPanelRef = usePanelRef();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [pluginModalOpen, setPluginModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Mount global keyboard shortcuts
   useKeyboardShortcuts();
+  useSettingsEffect();
 
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
@@ -49,11 +54,13 @@ function App() {
       setPluginModalOpen(true);
       return;
     }
+    if (tool === "settings") {
+      setSettingsOpen(true);
+      return;
+    }
     const toolWindows: string[] = ["capture", "loadtest", "tcpudp"];
     if (toolWindows.includes(tool)) {
       openToolWindow(tool as ToolWindowType);
-    } else {
-      console.log("Open tool:", tool);
     }
   }, []);
 
@@ -69,23 +76,35 @@ function App() {
     }
   }, [sidebarPanelRef]);
 
+  const handleWelcomeAction = useCallback((action: WelcomeAction) => {
+    switch (action) {
+      case 'http': addTab('http'); break;
+      case 'ws': addTab('ws'); break;
+      case 'tcpudp': handleOpenTool('tcpudp'); break;
+      case 'loadtest': handleOpenTool('loadtest'); break;
+      case 'capture': handleOpenTool('capture'); break;
+      case 'plugins': handleOpenTool('plugins'); break;
+    }
+  }, [addTab, handleOpenTool]);
+
   const renderWorkspace = () => {
-    if (!activeTab) return <WelcomePage />;
+    if (!activeTab) return <WelcomePage onAction={handleWelcomeAction} />;
 
     switch (activeTab.protocol) {
       case "http": return <HttpWorkspace />;
       case "ws": return <WsWorkspace />;
+      case "collection": return <CollectionSettingsPanel collectionId={activeTab.collectionId!} />;
       case "sse":
       case "mqtt":
         return (
           <div className="h-full flex items-center justify-center text-text-disabled">
             <div className="text-center">
               <p className="text-sm font-medium mb-1">{activeTab.protocol.toUpperCase()}</p>
-              <p className="text-[11px]">🚧 开发中</p>
+              <p className="text-[11px]">开发中</p>
             </div>
           </div>
         );
-      default: return <WelcomePage />;
+      default: return <WelcomePage onAction={handleWelcomeAction} />;
     }
   };
 
@@ -137,6 +156,7 @@ function App() {
       />
 
       <PluginModal open={pluginModalOpen} onClose={() => setPluginModalOpen(false)} />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

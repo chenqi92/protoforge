@@ -11,6 +11,7 @@ import { useAppStore } from "@/stores/appStore";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useEnvStore } from "@/stores/envStore";
+import { ImportModal } from "@/components/collections/ImportModal";
 import type { HistoryEntry, CollectionItem } from '@/types/collections';
 
 type SidebarView = "collections" | "history" | "environments";
@@ -29,13 +30,13 @@ const navItems: { id: SidebarView; icon: typeof FolderOpen; label: string }[] = 
 export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
   const [activeView, setActiveView] = useState<SidebarView>("collections");
   const [search, setSearch] = useState("");
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   // 初始化数据
   const fetchCollections = useCollectionStore((s) => s.fetchCollections);
   const fetchHistory = useHistoryStore((s) => s.fetchHistory);
   const fetchEnvironments = useEnvStore((s) => s.fetchEnvironments);
   const createCollection = useCollectionStore((s) => s.createCollection);
-  const importCollection = useCollectionStore((s) => s.importCollection);
   const createEnvironment = useEnvStore((s) => s.createEnvironment);
 
   useEffect(() => {
@@ -59,30 +60,8 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
     await createCollection("新建集合");
   };
 
-  const handleImport = async () => {
-    try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selected = await open({
-        multiple: false,
-        filters: [{ name: 'JSON', extensions: ['json'] }],
-        title: '导入 Postman 或 ProtoForge 集合',
-      });
-      if (!selected) return;
-      const filePath = typeof selected === 'string' ? selected : selected;
-      const { readTextFile } = await import('@tauri-apps/plugin-fs');
-      const json = await readTextFile(filePath as string);
-      // Detect whether it's Postman or ProtoForge format
-      const parsed = JSON.parse(json);
-      if (parsed.info && parsed.item) {
-        // Postman format
-        await useCollectionStore.getState().importPostman(json);
-      } else {
-        // ProtoForge format
-        await importCollection(json);
-      }
-    } catch (e) {
-      console.error('Import failed:', e);
-    }
+  const handleImport = () => {
+    setImportModalOpen(true);
   };
 
   const handleNewEnvironment = async () => {
@@ -120,15 +99,6 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
         })}
 
         <div className="flex-1" />
-
-        <div className="flex flex-col items-center gap-0.5">
-          <button
-            className="w-8 h-8 flex items-center justify-center rounded-md text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
-            title="设置"
-          >
-            <Settings className="w-4 h-4" strokeWidth={1.8} />
-          </button>
-        </div>
       </div>
 
       {/* ── Detail Panel ── */}
@@ -206,6 +176,9 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
           </div>
         </div>
       )}
+
+      {/* Import Modal */}
+      <ImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} />
     </div>
   );
 }
@@ -213,7 +186,10 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
 /* ── Collections View (Real Data) ── */
 function CollectionsView({ search }: { search: string }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const addTab = useAppStore((s) => s.addTab);
+  const openCollectionTab = useAppStore((s) => s.addCollectionTab);
   const { showMenu, MenuComponent } = useContextMenu();
 
   const collections = useCollectionStore((s) => s.collections);
@@ -221,8 +197,32 @@ function CollectionsView({ search }: { search: string }) {
   const fetchItems = useCollectionStore((s) => s.fetchItems);
   const deleteCollection = useCollectionStore((s) => s.deleteCollection);
   const renameCollection = useCollectionStore((s) => s.renameCollection);
+  const renameItem = useCollectionStore((s) => s.renameItem);
   const createItem = useCollectionStore((s) => s.createItem);
   const deleteItem = useCollectionStore((s) => s.deleteItem);
+
+  const startRename = (id: string, currentName: string) => {
+    setRenamingId(id);
+    setRenameValue(currentName);
+  };
+
+  const commitCollectionRename = (id: string) => {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== collections.find(c => c.id === id)?.name) {
+      renameCollection(id, trimmed);
+    }
+    setRenamingId(null);
+  };
+
+  const commitItemRename = (id: string, collectionId: string) => {
+    const colItems = items[collectionId] || [];
+    const item = colItems.find(i => i.id === id);
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== item?.name) {
+      renameItem(id, collectionId, trimmed);
+    }
+    setRenamingId(null);
+  };
 
   // 展开集合时加载子项
   const toggleExpand = (colId: string) => {
@@ -272,23 +272,43 @@ function CollectionsView({ search }: { search: string }) {
     PATCH: { text: "text-violet-600", bg: "bg-violet-500/8" },
   };
 
+  const exportPostman = useCollectionStore((s) => s.exportPostman);
+
+  const handleExportPostman = async (colId: string, colName: string) => {
+    try {
+      const json = await exportPostman(colId);
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const filePath = await save({
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+        defaultPath: `${colName}.postman_collection.json`,
+        title: '导出为 Postman 格式',
+      });
+      if (!filePath) return;
+      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+      await writeTextFile(filePath, json);
+    } catch (e) {
+      console.error('Export failed:', e);
+    }
+  };
+
   const handleFolderContextMenu = (e: React.MouseEvent, col: { id: string; name: string }) => {
     const menuItems: ContextMenuEntry[] = [
       { id: "new-req", label: "新建请求", icon: <Plus className="w-3.5 h-3.5" />, onClick: () => createItem(col.id, null, 'request', '新建请求') },
       { id: "new-folder", label: "新建文件夹", icon: <FolderPlus className="w-3.5 h-3.5" />, onClick: () => createItem(col.id, null, 'folder', '新建文件夹') },
       { type: "divider" },
-      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => {
-        const name = prompt("重命名集合:", col.name);
-        if (name) renameCollection(col.id, name);
-      }},
+      { id: "settings", label: "合集设置", icon: <Settings className="w-3.5 h-3.5" />, onClick: () => openCollectionTab(col.id, col.name) },
+      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(col.id, col.name) },
+      { id: "export-postman", label: "导出为 Postman", icon: <Download className="w-3.5 h-3.5" />, onClick: () => handleExportPostman(col.id, col.name) },
+      { type: "divider" },
       { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteCollection(col.id) },
     ];
     showMenu(e, menuItems);
   };
 
-  const handleItemContextMenu = (e: React.MouseEvent, item: { id: string; url: string | null; collectionId: string }) => {
+  const handleItemContextMenu = (e: React.MouseEvent, item: { id: string; name: string; url: string | null; collectionId: string }) => {
     const menuItems: ContextMenuEntry[] = [
       { id: "open", label: "在新标签打开", icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
+      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(item.id, item.name) },
       { id: "copy-url", label: "复制 URL", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { if (item.url) navigator.clipboard.writeText(item.url); } },
       { type: "divider" },
       { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteItem(item.id, item.collectionId) },
@@ -326,9 +346,29 @@ function CollectionsView({ search }: { search: string }) {
                 <ChevronRight className="w-3 h-3 shrink-0 text-text-disabled" />
               </motion.div>
               <Folder className="w-3.5 h-3.5 shrink-0 text-amber-500/70" fill="currentColor" strokeWidth={1.5} />
-              <span className="truncate">{col.name}</span>
-              <span className="text-[10px] text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
-              <MoreHorizontal className="w-3.5 h-3.5 text-text-disabled opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+              {renamingId === col.id ? (
+                <input
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onBlur={() => commitCollectionRename(col.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitCollectionRename(col.id);
+                    if (e.key === 'Escape') setRenamingId(null);
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-1 min-w-0 text-[12px] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
+                  autoFocus
+                />
+              ) : (
+                <span className="truncate">{col.name}</span>
+              )}
+              {renamingId !== col.id && (
+                <>
+                  <span className="text-[10px] text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
+                  <MoreHorizontal className="w-3.5 h-3.5 text-text-disabled opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                </>
+              )}
             </button>
             <AnimatePresence>
               {expanded[col.id] && (
@@ -345,11 +385,12 @@ function CollectionsView({ search }: { search: string }) {
                   {colItems.map((item) => {
                     const method = item.method || '';
                     const color = methodColors[method] || { text: "text-text-tertiary", bg: "" };
+                    const isRenamingItem = renamingId === item.id;
                     return (
                       <button
                         key={item.id}
-                        onDoubleClick={() => handleOpenItem(item)}
-                        onContextMenu={(e) => handleItemContextMenu(e, item)}
+                        onDoubleClick={() => isRenamingItem ? undefined : handleOpenItem(item)}
+                        onContextMenu={(e) => handleItemContextMenu(e, { ...item, name: item.name, url: item.url, collectionId: item.collectionId })}
                         className="w-full flex items-center gap-2 pl-[30px] pr-2 py-[5px] rounded-md text-[12px] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
                       >
                         {item.itemType === 'request' ? (
@@ -362,7 +403,23 @@ function CollectionsView({ search }: { search: string }) {
                         ) : (
                           <Folder className="w-3 h-3 shrink-0 text-amber-500/50" fill="currentColor" />
                         )}
-                        <span className="truncate font-mono text-[11px]">{item.name}</span>
+                        {isRenamingItem ? (
+                          <input
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onBlur={() => commitItemRename(item.id, item.collectionId)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') commitItemRename(item.id, item.collectionId);
+                              if (e.key === 'Escape') setRenamingId(null);
+                              e.stopPropagation();
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-1 min-w-0 text-[11px] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-mono"
+                            autoFocus
+                          />
+                        ) : (
+                          <span className="truncate font-mono text-[11px]">{item.name}</span>
+                        )}
                       </button>
                     );
                   })}
