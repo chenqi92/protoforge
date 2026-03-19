@@ -181,4 +181,25 @@
     transform: translateY(1px); 
     box-shadow: var(--shadow-sm);
   }
+
+  /* Load test config inputs */
+  .cfg-input {
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    background: var(--bg-input, var(--bg-secondary));
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    outline: none;
+    text-align: center;
+    color: var(--text-primary);
+    transition: border-color 0.15s;
+  }
+  .cfg-input:focus {
+    border-color: #f43f5e;
+  }
+  .cfg-input:disabled {
+    opacity: 0.6;
+  }
 }

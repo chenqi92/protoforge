@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen, Clock, Search, Plus,
@@ -8,6 +8,10 @@ import {
 import { cn } from "@/lib/utils";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
 import { useAppStore } from "@/stores/appStore";
+import { useCollectionStore } from "@/stores/collectionStore";
+import { useHistoryStore } from "@/stores/historyStore";
+import { useEnvStore } from "@/stores/envStore";
+import type { HistoryEntry, CollectionItem } from '@/types/collections';
 
 type SidebarView = "collections" | "history" | "environments";
 
@@ -26,6 +30,20 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
   const [activeView, setActiveView] = useState<SidebarView>("collections");
   const [search, setSearch] = useState("");
 
+  // 初始化数据
+  const fetchCollections = useCollectionStore((s) => s.fetchCollections);
+  const fetchHistory = useHistoryStore((s) => s.fetchHistory);
+  const fetchEnvironments = useEnvStore((s) => s.fetchEnvironments);
+  const createCollection = useCollectionStore((s) => s.createCollection);
+  const importCollection = useCollectionStore((s) => s.importCollection);
+  const createEnvironment = useEnvStore((s) => s.createEnvironment);
+
+  useEffect(() => {
+    fetchCollections();
+    fetchHistory();
+    fetchEnvironments();
+  }, [fetchCollections, fetchHistory, fetchEnvironments]);
+
   const handleNavClick = (view: SidebarView) => {
     if (panelCollapsed) {
       setActiveView(view);
@@ -37,10 +55,44 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
     }
   };
 
+  const handleNewCollection = async () => {
+    await createCollection("新建集合");
+  };
+
+  const handleImport = async () => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+        title: '导入 Postman 或 ProtoForge 集合',
+      });
+      if (!selected) return;
+      const filePath = typeof selected === 'string' ? selected : selected;
+      const { readTextFile } = await import('@tauri-apps/plugin-fs');
+      const json = await readTextFile(filePath as string);
+      // Detect whether it's Postman or ProtoForge format
+      const parsed = JSON.parse(json);
+      if (parsed.info && parsed.item) {
+        // Postman format
+        await useCollectionStore.getState().importPostman(json);
+      } else {
+        // ProtoForge format
+        await importCollection(json);
+      }
+    } catch (e) {
+      console.error('Import failed:', e);
+    }
+  };
+
+  const handleNewEnvironment = async () => {
+    await createEnvironment("新环境");
+  };
+
   return (
     <div className="h-full flex">
       {/* ── Icon Rail ── */}
-      <div className="w-12 h-full flex flex-col items-center pt-2 pb-3 bg-bg-tertiary/50 border-r border-border-default shrink-0">
+      <div className="w-11 h-full flex flex-col items-center pt-2 pb-3 bg-bg-tertiary/50 border-r border-border-default shrink-0">
         {navItems.map(({ id, icon: Icon, label }) => {
           const isActive = activeView === id && !panelCollapsed;
           return (
@@ -48,39 +100,49 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
               key={id}
               onClick={() => handleNavClick(id)}
               className={cn(
-                "w-10 h-10 flex flex-col items-center justify-center rounded-lg transition-all duration-150 relative mb-0.5",
+                "w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150 relative mb-0.5",
                 isActive
-                  ? "text-accent"
+                  ? "text-accent bg-accent-soft"
                   : "text-text-tertiary hover:bg-bg-hover hover:text-text-secondary"
               )}
               title={label}
             >
-              {/* Active indicator bar */}
               {isActive && (
                 <motion.div
                   layoutId="sidebar-active-indicator"
-                  className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-accent rounded-r-full"
+                  className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-accent rounded-r-full"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-              <Icon className={cn("w-[18px] h-[18px]", isActive && "drop-shadow-sm")} strokeWidth={isActive ? 2.2 : 1.8} />
-              <span className={cn(
-                "text-[9px] leading-tight mt-0.5",
-                isActive ? "font-semibold" : "font-medium"
-              )}>{label}</span>
+              <Icon className={cn("w-4 h-4", isActive && "drop-shadow-sm")} strokeWidth={isActive ? 2.2 : 1.8} />
             </button>
           );
         })}
 
         <div className="flex-1" />
 
-        {/* Bottom actions */}
         <div className="flex flex-col items-center gap-0.5">
           <button
-            className="w-9 h-9 flex items-center justify-center rounded-lg text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
+            onClick={() => {
+              const addTab = useAppStore.getState().addTab;
+              addTab('capture');
+            }}
+            className="w-8 h-8 flex items-center justify-center rounded-md text-text-tertiary hover:bg-bg-hover hover:text-orange-500 transition-colors"
+            title="网络抓包"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
+              <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4" />
+              <circle cx="12" cy="12" r="2" />
+              <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4" />
+              <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" />
+            </svg>
+          </button>
+          <button
+            className="w-8 h-8 flex items-center justify-center rounded-md text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
             title="设置"
           >
-            <Settings className="w-[17px] h-[17px]" strokeWidth={1.8} />
+            <Settings className="w-4 h-4" strokeWidth={1.8} />
           </button>
         </div>
       </div>
@@ -96,18 +158,20 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                   {navItems.find(n => n.id === activeView)?.label}
                 </span>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-0.5 shrink-0">
                 {activeView === "collections" && (
                   <>
                     <button
-                      className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-all active:scale-[0.96] shadow-sm"
-                      title="新建请求"
+                      onClick={handleNewCollection}
+                      className="h-6 px-2 flex items-center gap-1 text-[11px] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
+                      title="新建集合"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       新建
                     </button>
                     <button
-                      className="h-7 px-2 flex items-center gap-1 text-[11px] font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary rounded-md border border-border-default transition-colors"
+                      onClick={handleImport}
+                      className="h-6 px-2 flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary rounded-md transition-colors"
                       title="导入"
                     >
                       <Download className="w-3 h-3" />
@@ -117,7 +181,8 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 )}
                 {activeView === "environments" && (
                   <button
-                    className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-white bg-accent hover:bg-accent-hover rounded-md transition-all active:scale-[0.96] shadow-sm"
+                    onClick={handleNewEnvironment}
+                    className="h-6 px-2 flex items-center gap-1 text-[11px] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
                     title="新增环境"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -161,31 +226,59 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
   );
 }
 
-/* ── Collections View ── */
+/* ── Collections View (Real Data) ── */
 function CollectionsView({ search }: { search: string }) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ default: true, users: true });
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const addTab = useAppStore((s) => s.addTab);
   const { showMenu, MenuComponent } = useContextMenu();
 
-  const collections = [
-    {
-      id: "default",
-      name: "示例集合",
-      items: [
-        { id: "1", method: "GET", name: "/api/users", url: "https://api.example.com/users" },
-        { id: "2", method: "POST", name: "/api/users", url: "https://api.example.com/users" },
-        { id: "3", method: "DELETE", name: "/api/users/:id", url: "https://api.example.com/users/1" },
-      ],
-    },
-    {
-      id: "users",
-      name: "用户管理",
-      items: [
-        { id: "4", method: "GET", name: "/api/profile", url: "https://api.example.com/profile" },
-        { id: "5", method: "PUT", name: "/api/settings", url: "https://api.example.com/settings" },
-      ],
-    },
-  ];
+  const collections = useCollectionStore((s) => s.collections);
+  const items = useCollectionStore((s) => s.items);
+  const fetchItems = useCollectionStore((s) => s.fetchItems);
+  const deleteCollection = useCollectionStore((s) => s.deleteCollection);
+  const renameCollection = useCollectionStore((s) => s.renameCollection);
+  const createItem = useCollectionStore((s) => s.createItem);
+  const deleteItem = useCollectionStore((s) => s.deleteItem);
+
+  // 展开集合时加载子项
+  const toggleExpand = (colId: string) => {
+    const next = !expanded[colId];
+    setExpanded((e) => ({ ...e, [colId]: next }));
+    if (next && !items[colId]) {
+      fetchItems(colId);
+    }
+  };
+
+  // 双击打开集合请求项
+  const handleOpenItem = (item: CollectionItem) => {
+    const store = useAppStore.getState();
+    store.addTab('http');
+    const tab = store.tabs[store.tabs.length - 1];
+    if (tab && item.method && item.url) {
+      // Parse authConfig JSON if present
+      let authConfig: Record<string, string> = {};
+      try { if (item.authConfig) authConfig = JSON.parse(item.authConfig); } catch { /* ignore */ }
+      
+      store.updateHttpConfig(tab.id, {
+        method: (item.method || 'GET') as any,
+        url: item.url || '',
+        name: item.name,
+        headers: item.headers ? JSON.parse(item.headers) : [],
+        queryParams: item.queryParams ? JSON.parse(item.queryParams) : [],
+        rawBody: item.bodyContent || '',
+        bodyType: (item.bodyType || 'none') as any,
+        authType: (item.authType || 'none') as any,
+        bearerToken: authConfig.bearerToken || '',
+        basicUsername: authConfig.basicUsername || '',
+        basicPassword: authConfig.basicPassword || '',
+        apiKeyName: authConfig.apiKeyName || '',
+        apiKeyValue: authConfig.apiKeyValue || '',
+        apiKeyAddTo: (authConfig.apiKeyIn || 'header') as any,
+        preScript: item.preScript || '',
+        postScript: item.postScript || '',
+      });
+    }
+  };
 
   const methodColors: Record<string, { text: string; bg: string }> = {
     GET: { text: "text-emerald-600", bg: "bg-emerald-500/8" },
@@ -195,98 +288,118 @@ function CollectionsView({ search }: { search: string }) {
     PATCH: { text: "text-violet-600", bg: "bg-violet-500/8" },
   };
 
-  const handleFolderContextMenu = (e: React.MouseEvent, _colName: string) => {
-    const items: ContextMenuEntry[] = [
-      { id: "new-req", label: "新建请求", icon: <Plus className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
-      { id: "new-folder", label: "新建文件夹", icon: <FolderPlus className="w-3.5 h-3.5" />, onClick: () => {} },
+  const handleFolderContextMenu = (e: React.MouseEvent, col: { id: string; name: string }) => {
+    const menuItems: ContextMenuEntry[] = [
+      { id: "new-req", label: "新建请求", icon: <Plus className="w-3.5 h-3.5" />, onClick: () => createItem(col.id, null, 'request', '新建请求') },
+      { id: "new-folder", label: "新建文件夹", icon: <FolderPlus className="w-3.5 h-3.5" />, onClick: () => createItem(col.id, null, 'folder', '新建文件夹') },
       { type: "divider" },
-      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => {} },
-      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => {} },
+      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => {
+        const name = prompt("重命名集合:", col.name);
+        if (name) renameCollection(col.id, name);
+      }},
+      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteCollection(col.id) },
     ];
-    showMenu(e, items);
+    showMenu(e, menuItems);
   };
 
-  const handleItemContextMenu = (e: React.MouseEvent, item: { name: string; url: string }) => {
-    const items: ContextMenuEntry[] = [
+  const handleItemContextMenu = (e: React.MouseEvent, item: { id: string; url: string | null; collectionId: string }) => {
+    const menuItems: ContextMenuEntry[] = [
       { id: "open", label: "在新标签打开", icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
-      { id: "copy-url", label: "复制 URL", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => navigator.clipboard.writeText(item.url) },
+      { id: "copy-url", label: "复制 URL", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { if (item.url) navigator.clipboard.writeText(item.url); } },
       { type: "divider" },
-      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => {} },
-      { id: "duplicate", label: "复制", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => {} },
-      { type: "divider" },
-      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => {} },
+      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteItem(item.id, item.collectionId) },
     ];
-    showMenu(e, items);
+    showMenu(e, menuItems);
   };
 
-  const handleItemDoubleClick = () => {
-    addTab("http");
-  };
+  const filteredCollections = collections.filter(
+    (col) => !search || col.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="py-0.5">
-      {collections.map((col) => (
-        <div key={col.id} className="mb-0.5">
-          <button
-            onClick={() => setExpanded((e) => ({ ...e, [col.id]: !e[col.id] }))}
-            onContextMenu={(e) => handleFolderContextMenu(e, col.name)}
-            className="w-full flex items-center gap-1.5 px-2 py-[6px] rounded-md text-[12px] font-medium text-text-secondary hover:bg-bg-hover transition-colors group"
-          >
-            <motion.div
-              animate={{ rotate: expanded[col.id] ? 90 : 0 }}
-              transition={{ duration: 0.15 }}
+      {filteredCollections.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 text-text-disabled">
+          <FolderOpen className="w-8 h-8 mb-2 opacity-30" />
+          <p className="text-[12px]">{search ? "无匹配集合" : "暂无集合"}</p>
+          <p className="text-[11px] mt-0.5 opacity-60">点击"新建"创建第一个集合</p>
+        </div>
+      )}
+      {filteredCollections.map((col) => {
+        const colItems = items[col.id] || [];
+        const requestItems = colItems.filter((i) => i.itemType === 'request');
+        return (
+          <div key={col.id} className="mb-0.5">
+            <button
+              onClick={() => toggleExpand(col.id)}
+              onContextMenu={(e) => handleFolderContextMenu(e, col)}
+              className="w-full flex items-center gap-1.5 px-2 py-[6px] rounded-md text-[12px] font-medium text-text-secondary hover:bg-bg-hover transition-colors group"
             >
-              <ChevronRight className="w-3 h-3 shrink-0 text-text-disabled" />
-            </motion.div>
-            <Folder className="w-3.5 h-3.5 shrink-0 text-amber-500/70" fill="currentColor" strokeWidth={1.5} />
-            <span className="truncate">{col.name}</span>
-            <span className="text-[10px] text-text-disabled ml-auto tabular-nums">{col.items.length}</span>
-            <MoreHorizontal className="w-3.5 h-3.5 text-text-disabled opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-          </button>
-          <AnimatePresence>
-            {expanded[col.id] && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
+                animate={{ rotate: expanded[col.id] ? 90 : 0 }}
                 transition={{ duration: 0.15 }}
-                className="overflow-hidden"
               >
-                {col.items
-                  .filter((item) => !search || item.name.toLowerCase().includes(search.toLowerCase()))
-                  .map((item) => {
-                    const color = methodColors[item.method] || { text: "text-text-tertiary", bg: "" };
+                <ChevronRight className="w-3 h-3 shrink-0 text-text-disabled" />
+              </motion.div>
+              <Folder className="w-3.5 h-3.5 shrink-0 text-amber-500/70" fill="currentColor" strokeWidth={1.5} />
+              <span className="truncate">{col.name}</span>
+              <span className="text-[10px] text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
+              <MoreHorizontal className="w-3.5 h-3.5 text-text-disabled opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+            </button>
+            <AnimatePresence>
+              {expanded[col.id] && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="overflow-hidden"
+                >
+                  {colItems.length === 0 && (
+                    <p className="pl-[30px] pr-2 py-2 text-[11px] text-text-disabled">空集合</p>
+                  )}
+                  {colItems.map((item) => {
+                    const method = item.method || '';
+                    const color = methodColors[method] || { text: "text-text-tertiary", bg: "" };
                     return (
                       <button
                         key={item.id}
-                        onDoubleClick={handleItemDoubleClick}
+                        onDoubleClick={() => handleOpenItem(item)}
                         onContextMenu={(e) => handleItemContextMenu(e, item)}
                         className="w-full flex items-center gap-2 pl-[30px] pr-2 py-[5px] rounded-md text-[12px] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
                       >
-                        <span className={cn(
-                          "text-[10px] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
-                          color.text, color.bg
-                        )}>
-                          {item.method}
-                        </span>
+                        {item.itemType === 'request' ? (
+                          <span className={cn(
+                            "text-[10px] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
+                            color.text, color.bg
+                          )}>
+                            {method}
+                          </span>
+                        ) : (
+                          <Folder className="w-3 h-3 shrink-0 text-amber-500/50" fill="currentColor" />
+                        )}
                         <span className="truncate font-mono text-[11px]">{item.name}</span>
                       </button>
                     );
                   })}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
       {MenuComponent}
     </div>
   );
 }
 
-/* ── History View ── */
+/* ── History View (Real Data) ── */
 function HistoryView({ search }: { search: string }) {
   const addTab = useAppStore((s) => s.addTab);
   const { showMenu, MenuComponent } = useContextMenu();
+
+  const entries = useHistoryStore((s) => s.entries);
+  const deleteEntry = useHistoryStore((s) => s.deleteEntry);
 
   const methodColors: Record<string, { text: string; bg: string }> = {
     GET: { text: "text-emerald-600", bg: "bg-emerald-500/8" },
@@ -296,73 +409,91 @@ function HistoryView({ search }: { search: string }) {
     PATCH: { text: "text-violet-600", bg: "bg-violet-500/8" },
   };
 
-  const historyGroups = [
-    {
-      label: "今天",
-      items: [
-        { id: "h1", method: "GET", url: "/api/users", status: 200, time: "2 分钟前" },
-        { id: "h2", method: "POST", url: "/api/login", status: 401, time: "5 分钟前" },
-      ],
-    },
-    {
-      label: "昨天",
-      items: [
-        { id: "h3", method: "GET", url: "/api/products", status: 200, time: "昨天 15:30" },
-        { id: "h4", method: "DELETE", url: "/api/users/3", status: 204, time: "昨天 14:10" },
-      ],
-    },
-  ];
+  // 按日期分组
+  const groupByDate = (items: HistoryEntry[]) => {
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    const groups: { label: string; items: HistoryEntry[] }[] = [];
+    const todayItems: HistoryEntry[] = [];
+    const yesterdayItems: HistoryEntry[] = [];
+    const olderItems: HistoryEntry[] = [];
 
-  const handleHistoryContextMenu = (e: React.MouseEvent, item: { url: string }) => {
-    const items: ContextMenuEntry[] = [
+    for (const e of items) {
+      const d = new Date(e.createdAt).toDateString();
+      if (d === today) todayItems.push(e);
+      else if (d === yesterday) yesterdayItems.push(e);
+      else olderItems.push(e);
+    }
+
+    if (todayItems.length) groups.push({ label: "今天", items: todayItems });
+    if (yesterdayItems.length) groups.push({ label: "昨天", items: yesterdayItems });
+    if (olderItems.length) groups.push({ label: "更早", items: olderItems });
+    return groups;
+  };
+
+  const filtered = entries.filter((e) => !search || e.url.includes(search) || e.method.includes(search.toUpperCase()));
+  const groups = groupByDate(filtered);
+
+  const handleHistoryContextMenu = (e: React.MouseEvent, entry: { id: string; url: string }) => {
+    const menuItems: ContextMenuEntry[] = [
       { id: "open", label: "在新标签打开", icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
-      { id: "copy-url", label: "复制 URL", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => navigator.clipboard.writeText(item.url) },
+      { id: "copy-url", label: "复制 URL", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => navigator.clipboard.writeText(entry.url) },
       { type: "divider" },
-      { id: "delete", label: "删除记录", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => {} },
+      { id: "delete", label: "删除记录", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteEntry(entry.id) },
     ];
-    showMenu(e, items);
+    showMenu(e, menuItems);
+  };
+
+  const formatTime = (iso: string) => {
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    if (diff < 60000) return "刚刚";
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+    return d.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   return (
     <div className="py-0.5">
-      {historyGroups.map((group) => {
-        const filtered = group.items.filter((h) => !search || h.url.includes(search));
-        if (filtered.length === 0) return null;
-        return (
-          <div key={group.label} className="mb-2">
-            <div className="px-2 py-1 text-[10px] font-semibold text-text-disabled uppercase tracking-wider">
-              {group.label}
-            </div>
-            {filtered.map((h) => {
-              const color = methodColors[h.method] || { text: "text-text-tertiary", bg: "" };
-              return (
-                <button
-                  key={h.id}
-                  onDoubleClick={() => addTab("http")}
-                  onContextMenu={(e) => handleHistoryContextMenu(e, h)}
-                  className="w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[12px] hover:bg-bg-hover transition-colors group"
-                >
-                  <span className={cn(
-                    "text-[10px] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
-                    color.text, color.bg
-                  )}>
-                    {h.method}
-                  </span>
-                  <span className="truncate font-mono text-[11px] text-text-tertiary flex-1">{h.url}</span>
+      {groups.map((group) => (
+        <div key={group.label} className="mb-2">
+          <div className="px-2 py-1 text-[10px] font-semibold text-text-disabled uppercase tracking-wider">
+            {group.label}
+          </div>
+          {group.items.map((h) => {
+            const color = methodColors[h.method] || { text: "text-text-tertiary", bg: "" };
+            return (
+              <button
+                key={h.id}
+                onDoubleClick={() => addTab("http")}
+                onContextMenu={(e) => handleHistoryContextMenu(e, h)}
+                className="w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[12px] hover:bg-bg-hover transition-colors group"
+              >
+                <span className={cn(
+                  "text-[10px] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
+                  color.text, color.bg
+                )}>
+                  {h.method}
+                </span>
+                <span className="truncate font-mono text-[11px] text-text-tertiary flex-1">{h.url}</span>
+                {h.status && (
                   <span className={cn(
                     "text-[10px] shrink-0 tabular-nums font-medium",
                     h.status < 400 ? "text-emerald-600" : "text-red-500"
                   )}>
                     {h.status}
                   </span>
-                  <span className="text-[10px] text-text-disabled shrink-0 hidden group-hover:inline">{h.time}</span>
-                </button>
-              );
-            })}
-          </div>
-        );
-      })}
-      {historyGroups.every(g => g.items.filter(h => !search || h.url.includes(search)).length === 0) && (
+                )}
+                <span className="text-[10px] text-text-disabled shrink-0 hidden group-hover:inline">
+                  {formatTime(h.createdAt)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
+      {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-text-disabled">
           <Clock className="w-8 h-8 mb-2 opacity-30" />
           <p className="text-[12px]">{search ? "无匹配记录" : "暂无历史记录"}</p>
@@ -374,42 +505,67 @@ function HistoryView({ search }: { search: string }) {
   );
 }
 
-/* ── Environments View ── */
+/* ── Environments View (Real Data) ── */
 function EnvironmentsView() {
+  const environments = useEnvStore((s) => s.environments);
+  const activeEnvId = useEnvStore((s) => s.activeEnvId);
+  const setActive = useEnvStore((s) => s.setActive);
+  const deleteEnvironment = useEnvStore((s) => s.deleteEnvironment);
+  const { showMenu, MenuComponent } = useContextMenu();
+
+  const handleEnvContextMenu = (e: React.MouseEvent, env: { id: string; name: string }) => {
+    const isActive = env.id === activeEnvId;
+    const menuItems: ContextMenuEntry[] = [
+      { id: "activate", label: isActive ? "取消激活" : "设为活跃", icon: <Zap className="w-3.5 h-3.5" />, onClick: () => setActive(isActive ? null : env.id) },
+      { type: "divider" },
+      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteEnvironment(env.id) },
+    ];
+    showMenu(e, menuItems);
+  };
+
   return (
     <div className="py-0.5">
-      {/* Active env */}
-      <div className="flex items-center gap-2 px-2 py-[6px] rounded-md text-[12px] text-text-secondary bg-emerald-500/5 border border-emerald-500/10 cursor-pointer hover:bg-emerald-500/8 transition-colors mb-1">
-        <div className="w-[6px] h-[6px] rounded-full bg-emerald-500 shrink-0 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
-        <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span className="truncate font-medium">默认环境</span>
-        <span className="text-[10px] text-emerald-600 ml-auto font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded">活跃</span>
-      </div>
-
-      {/* Other envs */}
-      <div className="flex items-center gap-2 px-2 py-[6px] rounded-md text-[12px] text-text-tertiary hover:bg-bg-hover transition-colors cursor-pointer">
-        <div className="w-[6px] h-[6px] rounded-full bg-border-strong shrink-0" />
-        <Globe className="w-3.5 h-3.5 text-text-disabled shrink-0" />
-        <span className="truncate">生产环境</span>
-      </div>
-      <div className="flex items-center gap-2 px-2 py-[6px] rounded-md text-[12px] text-text-tertiary hover:bg-bg-hover transition-colors cursor-pointer">
-        <div className="w-[6px] h-[6px] rounded-full bg-border-strong shrink-0" />
-        <Globe className="w-3.5 h-3.5 text-text-disabled shrink-0" />
-        <span className="truncate">测试环境</span>
-      </div>
-
-      {/* Empty state action */}
-      <div className="mt-4 px-2">
-        <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-border-default text-text-tertiary hover:border-accent hover:text-accent transition-colors cursor-pointer group">
-          <div className="w-8 h-8 rounded-md bg-bg-hover flex items-center justify-center group-hover:bg-accent-soft transition-colors">
-            <Zap className="w-4 h-4" />
+      {environments.map((env) => {
+        const isActive = env.id === activeEnvId;
+        return (
+          <div
+            key={env.id}
+            onClick={() => setActive(isActive ? null : env.id)}
+            onContextMenu={(e) => handleEnvContextMenu(e, env)}
+            className={cn(
+              "flex items-center gap-2 px-2 py-[6px] rounded-md text-[12px] cursor-pointer transition-colors mb-0.5",
+              isActive
+                ? "text-text-secondary bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/8"
+                : "text-text-tertiary hover:bg-bg-hover border border-transparent"
+            )}
+          >
+            <div className={cn(
+              "w-[6px] h-[6px] rounded-full shrink-0",
+              isActive ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" : "bg-border-strong"
+            )} />
+            <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-emerald-600" : "text-text-disabled")} />
+            <span className={cn("truncate", isActive && "font-medium")}>{env.name}</span>
+            {isActive && (
+              <span className="text-[10px] text-emerald-600 ml-auto font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded">活跃</span>
+            )}
           </div>
-          <div className="min-w-0">
-            <p className="text-[12px] font-medium">环境变量</p>
-            <p className="text-[10px] text-text-disabled">管理不同环境的配置</p>
+        );
+      })}
+
+      {environments.length === 0 && (
+        <div className="mt-4 px-2">
+          <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-border-default text-text-tertiary hover:border-accent hover:text-accent transition-colors cursor-pointer group">
+            <div className="w-8 h-8 rounded-md bg-bg-hover flex items-center justify-center group-hover:bg-accent-soft transition-colors">
+              <Zap className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[12px] font-medium">环境变量</p>
+              <p className="text-[10px] text-text-disabled">点击"新增"创建第一个环境</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+      {MenuComponent}
     </div>
   );
 }

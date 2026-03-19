@@ -1,35 +1,50 @@
 mod http_client;
 mod commands;
 mod collections;
+mod database;
+mod postman_compat;
+mod ws_client;
+mod tcp_client;
+mod load_test;
+mod proxy_capture;
 
-use commands::AppState;
-use collections::CollectionManager;
 use tauri::Manager;
+use ws_client::WsConnections;
+use tcp_client::{TcpConnections, TcpServers, UdpSockets};
+use load_test::LoadTestState;
+use proxy_capture::ProxyState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(AppState::default())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let app_data = app.path().app_data_dir()
                 .expect("failed to get app data dir");
-            let mgr = CollectionManager::new(&app_data);
-            app.manage(mgr);
+
+            // 初始化 SQLite 数据库连接池
+            let handle = app.handle().clone();
+            tauri::async_runtime::block_on(async move {
+                let pool = database::init_pool(&app_data).await
+                    .expect("failed to init database");
+                handle.manage(pool);
+            });
+
+            // 初始化连接管理器
+            app.manage(WsConnections::new());
+            app.manage(TcpConnections::new());
+            app.manage(TcpServers::new());
+            app.manage(UdpSockets::new());
+            app.manage(LoadTestState::new());
+            app.manage(ProxyState::new());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             // HTTP
             commands::send_request,
-            // Environments
-            commands::get_environments,
-            commands::get_active_environment,
-            commands::set_active_environment,
-            commands::get_environment_variables,
-            commands::save_environment,
-            commands::delete_environment,
-            commands::get_global_variables,
-            commands::save_global_variables,
             // Collections
             commands::list_collections,
             commands::create_collection,
@@ -37,10 +52,59 @@ pub fn run() {
             commands::delete_collection,
             commands::export_collection,
             commands::import_collection,
+            // Collection Items
+            commands::list_collection_items,
+            commands::create_collection_item,
+            commands::update_collection_item,
+            commands::delete_collection_item,
+            // Environments
+            commands::list_environments,
+            commands::create_environment,
+            commands::set_active_environment,
+            commands::get_active_environment,
+            commands::delete_environment,
+            // Environment Variables
+            commands::list_env_variables,
+            commands::save_env_variables,
+            // Global Variables
+            commands::list_global_variables,
+            commands::save_global_variables,
             // History
             commands::add_history,
             commands::list_history,
+            commands::delete_history_entry,
             commands::clear_history,
+            // Postman Import
+            commands::import_postman_collection,
+            // Save Request
+            commands::save_request_to_collection,
+            // WebSocket
+            commands::ws_connect,
+            commands::ws_send,
+            commands::ws_disconnect,
+            // TCP Client
+            commands::tcp_connect,
+            commands::tcp_send,
+            commands::tcp_disconnect,
+            // TCP Server
+            commands::tcp_server_start,
+            commands::tcp_server_send,
+            commands::tcp_server_broadcast,
+            commands::tcp_server_stop,
+            // UDP
+            commands::udp_bind,
+            commands::udp_send_to,
+            commands::udp_close,
+            // Load Test
+            commands::start_load_test,
+            commands::stop_load_test,
+            // Proxy Capture
+            commands::proxy_start,
+            commands::proxy_stop,
+            commands::proxy_status,
+            commands::proxy_get_entries,
+            commands::proxy_clear,
+            commands::proxy_export_ca,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

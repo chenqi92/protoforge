@@ -1,7 +1,57 @@
 // ProtoForge HTTP Service — Tauri IPC wrapper
 
 import { invoke } from '@tauri-apps/api/core';
-import type { HttpRequestConfig, HttpResponse } from '@/types/http';
+import type { HttpRequestConfig, HttpResponse, FormDataField } from '@/types/http';
+import { useEnvStore } from '@/stores/envStore';
+
+// ── Variable substitution engine ──
+
+/**
+ * Replace {{variableName}} placeholders in a string
+ * with values from the active environment and global variables.
+ */
+function resolveVariables(input: string, vars: Record<string, string>): string {
+  return input.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (match, key) => {
+    return vars[key] !== undefined ? vars[key] : match;
+  });
+}
+
+function resolveConfigVariables(config: HttpRequestConfig): HttpRequestConfig {
+  const vars = useEnvStore.getState().getResolvedVariables();
+  if (Object.keys(vars).length === 0) return config;
+
+  return {
+    ...config,
+    url: resolveVariables(config.url, vars),
+    rawBody: resolveVariables(config.rawBody, vars),
+    jsonBody: resolveVariables(config.jsonBody, vars),
+    bearerToken: resolveVariables(config.bearerToken, vars),
+    basicUsername: resolveVariables(config.basicUsername, vars),
+    basicPassword: resolveVariables(config.basicPassword, vars),
+    apiKeyName: resolveVariables(config.apiKeyName, vars),
+    apiKeyValue: resolveVariables(config.apiKeyValue, vars),
+    headers: config.headers.map(h => ({
+      ...h,
+      key: resolveVariables(h.key, vars),
+      value: resolveVariables(h.value, vars),
+    })),
+    queryParams: config.queryParams.map(p => ({
+      ...p,
+      key: resolveVariables(p.key, vars),
+      value: resolveVariables(p.value, vars),
+    })),
+    formFields: config.formFields.map(f => ({
+      ...f,
+      key: resolveVariables(f.key, vars),
+      value: resolveVariables(f.value, vars),
+    })),
+    formDataFields: config.formDataFields.map(f => ({
+      ...f,
+      key: resolveVariables(f.key, vars),
+      value: f.fieldType === 'text' ? resolveVariables(f.value, vars) : f.value,
+    })),
+  };
+}
 
 function buildRequestPayload(config: HttpRequestConfig) {
   // Headers
@@ -39,6 +89,23 @@ function buildRequestPayload(config: HttpRequestConfig) {
       body = { type: 'formUrlencoded', fields };
       break;
     }
+    case 'formData': {
+      const fields: { key: string; value: string; fieldType: string }[] = [];
+      for (const f of config.formDataFields) {
+        if (f.enabled && f.key.trim()) {
+          fields.push({ key: f.key.trim(), value: f.value, fieldType: f.fieldType });
+        }
+      }
+      body = { type: 'formData', fields };
+      break;
+    }
+    case 'binary':
+      if (config.binaryFilePath) {
+        body = { type: 'binary', filePath: config.binaryFilePath };
+      } else {
+        body = { type: 'none' };
+      }
+      break;
     default:
       body = { type: 'none' };
   }
@@ -70,9 +137,37 @@ function buildRequestPayload(config: HttpRequestConfig) {
 }
 
 export async function sendHttpRequest(config: HttpRequestConfig): Promise<HttpResponse> {
-  const payload = buildRequestPayload(config);
+  // Apply variable substitution before building payload
+  const resolved = resolveConfigVariables(config);
+  const payload = buildRequestPayload(resolved);
   return await invoke<HttpResponse>('send_request', { request: payload });
 }
+
+// ── File picker helper ──
+
+export async function pickFile(): Promise<{ path: string; name: string } | null> {
+  try {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const result = await open({
+      multiple: false,
+      title: '选择文件',
+    });
+    if (result && typeof result === 'string') {
+      const name = result.split(/[\\/]/).pop() || 'file';
+      return { path: result, name };
+    }
+    if (result && typeof result === 'object' && 'path' in result) {
+      const r = result as { path: string; name?: string };
+      return { path: r.path, name: r.name || r.path.split(/[\\/]/).pop() || 'file' };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Re-export for convenience
+export type { FormDataField };
 
 export async function getEnvironments(): Promise<string[]> {
   return await invoke<string[]>('get_environments');

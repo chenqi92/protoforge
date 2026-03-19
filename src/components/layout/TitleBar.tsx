@@ -1,6 +1,7 @@
 import { Minus, Square, X, Sun, Moon, Gauge, Radio, Puzzle, Settings } from "lucide-react";
 import { useThemeStore } from "@/stores/themeStore";
 import { cn } from "@/lib/utils";
+import logoSvg from "@/assets/logo.svg";
 
 interface TitleBarProps {
   onOpenTool?: (tool: string) => void;
@@ -33,9 +34,7 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
     <div className="h-[var(--titlebar-height)] flex items-center justify-between bg-transparent drag-region select-none shrink-0">
       {/* Left: brand */}
       <div className="flex items-center gap-2.5 pl-5 no-drag">
-        <div className="w-5 h-5 rounded-[4px] bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm flex items-center justify-center">
-          <div className="w-2.5 h-2.5 rounded-sm bg-white/20" />
-        </div>
+        <img src={logoSvg} alt="ProtoForge" className="w-5 h-5 rounded-[4px]" />
         <span className="text-[13px] font-bold text-text-primary tracking-wide">ProtoForge</span>
       </div>
 

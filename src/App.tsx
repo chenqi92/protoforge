@@ -8,6 +8,8 @@ import { WelcomePage } from "@/components/WelcomePage";
 import { HttpWorkspace } from "@/components/http/HttpWorkspace";
 import { WsWorkspace } from "@/components/ws/WsWorkspace";
 import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
+import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
+import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
 import { useAppStore, type ProtocolType } from "@/stores/appStore";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 
@@ -66,6 +68,8 @@ function App() {
       case "ws": return <WsWorkspace />;
       case "tcp":
       case "udp": return <TcpWorkspace />;
+      case "capture": return <CaptureWorkspace />;
+      case "loadtest": return <LoadTestWorkspace />;
       case "sse":
       case "mqtt":
         return (
@@ -92,7 +96,7 @@ function App() {
             minSize="14"
             maxSize="50"
             collapsible
-            collapsedSize="48px"
+            collapsedSize="44px"
             panelRef={sidebarPanelRef}
             onResize={handleSidebarResize}
             className="flex flex-col h-full shrink-0 relative"

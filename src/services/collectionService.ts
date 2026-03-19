@@ -1,0 +1,58 @@
+// ProtoForge Collection Service — Tauri IPC wrapper
+
+import { invoke } from '@tauri-apps/api/core';
+import type { Collection, CollectionItem } from '@/types/collections';
+
+export async function listCollections(): Promise<Collection[]> {
+  return invoke<Collection[]>('list_collections');
+}
+
+export async function createCollection(collection: Collection): Promise<Collection> {
+  return invoke<Collection>('create_collection', { collection });
+}
+
+export async function updateCollection(collection: Collection): Promise<void> {
+  await invoke('update_collection', { collection });
+}
+
+export async function deleteCollection(id: string): Promise<void> {
+  await invoke('delete_collection', { id });
+}
+
+export async function exportCollection(id: string): Promise<string> {
+  return invoke<string>('export_collection', { id });
+}
+
+export async function importCollection(json: string): Promise<Collection> {
+  return invoke<Collection>('import_collection', { json });
+}
+
+// ── Collection Items ──
+
+export async function listCollectionItems(collectionId: string): Promise<CollectionItem[]> {
+  return invoke<CollectionItem[]>('list_collection_items', { collectionId });
+}
+
+export async function createCollectionItem(item: CollectionItem): Promise<CollectionItem> {
+  return invoke<CollectionItem>('create_collection_item', { item });
+}
+
+export async function updateCollectionItem(item: CollectionItem): Promise<void> {
+  await invoke('update_collection_item', { item });
+}
+
+export async function deleteCollectionItem(id: string): Promise<void> {
+  await invoke('delete_collection_item', { id });
+}
+
+// ── Postman Import ──
+
+export async function importPostmanCollection(json: string): Promise<Collection> {
+  return invoke<Collection>('import_postman_collection', { json });
+}
+
+// ── Save Request ──
+
+export async function saveRequestToCollection(item: CollectionItem): Promise<CollectionItem> {
+  return invoke<CollectionItem>('save_request_to_collection', { item });
+}

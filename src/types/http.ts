@@ -2,13 +2,22 @@
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
-export type BodyType = 'none' | 'raw' | 'json' | 'formUrlencoded' | 'binary';
+export type BodyType = 'none' | 'raw' | 'json' | 'formUrlencoded' | 'formData' | 'binary';
 
 export type AuthType = 'none' | 'bearer' | 'basic' | 'apiKey';
 
 export interface KeyValue {
   key: string;
   value: string;
+  enabled: boolean;
+}
+
+/** Form-Data field — supports text and file */
+export interface FormDataField {
+  key: string;
+  value: string;        // text value or file path
+  fieldType: 'text' | 'file';
+  fileName?: string;    // display name for file
   enabled: boolean;
 }
 
@@ -23,7 +32,10 @@ export interface HttpRequestConfig {
   rawBody: string;
   rawContentType: string;
   jsonBody: string;
-  formFields: KeyValue[];
+  formFields: KeyValue[];         // form-urlencoded
+  formDataFields: FormDataField[];  // multipart form-data
+  binaryFilePath: string;           // binary file path
+  binaryFileName: string;           // binary file display name
   authType: AuthType;
   bearerToken: string;
   basicUsername: string;
@@ -31,6 +43,8 @@ export interface HttpRequestConfig {
   apiKeyName: string;
   apiKeyValue: string;
   apiKeyAddTo: 'header' | 'query';
+  preScript: string;
+  postScript: string;
   timeoutMs: number;
   followRedirects: boolean;
 }
@@ -67,6 +81,9 @@ export function createDefaultRequest(): HttpRequestConfig {
     rawContentType: 'text/plain',
     jsonBody: '{\n  \n}',
     formFields: [{ key: '', value: '', enabled: true }],
+    formDataFields: [{ key: '', value: '', fieldType: 'text', enabled: true }],
+    binaryFilePath: '',
+    binaryFileName: '',
     authType: 'none',
     bearerToken: '',
     basicUsername: '',
@@ -74,6 +91,8 @@ export function createDefaultRequest(): HttpRequestConfig {
     apiKeyName: '',
     apiKeyValue: '',
     apiKeyAddTo: 'header',
+    preScript: '',
+    postScript: '',
     timeoutMs: 30000,
     followRedirects: true,
   };

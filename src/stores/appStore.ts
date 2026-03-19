@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { HttpRequestConfig, HttpResponse } from '@/types/http';
 import { createDefaultRequest } from '@/types/http';
 
-export type ProtocolType = 'http' | 'ws' | 'sse' | 'mqtt' | 'tcp' | 'udp';
+export type ProtocolType = 'http' | 'ws' | 'sse' | 'mqtt' | 'tcp' | 'udp' | 'capture' | 'loadtest';
 
 export interface AppTab {
   id: string;
@@ -61,6 +61,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       mqtt: 'MQTT Client',
       tcp: 'TCP Connection',
       udp: 'UDP Socket',
+      capture: '抓包',
+      loadtest: '压力测试',
     };
     const tab: AppTab = {
       id,
@@ -104,6 +106,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         const labels: Record<ProtocolType, string> = {
           http: 'Untitled Request', ws: 'WebSocket', sse: 'SSE Stream',
           mqtt: 'MQTT Client', tcp: 'TCP Connection', udp: 'UDP Socket',
+          capture: '抓包', loadtest: '压力测试',
         };
         return {
           ...t,

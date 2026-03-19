@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Send, Zap, Network, Radio, Eye, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import logoSvg from "@/assets/logo.svg";
 
 const features = [
   { icon: Send, label: "HTTP 客户端", desc: "API 调试 · 环境变量 · 前后置脚本", color: "from-blue-500/10 to-transparent border-blue-500/20", iconColor: "text-blue-500 bg-blue-500/10" },
@@ -22,9 +23,7 @@ export function WelcomePage() {
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="text-center mb-16"
         >
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/20 mb-6">
-            <div className="w-6 h-6 rounded-md bg-white/20 backdrop-blur-md border border-white/30" />
-          </div>
+          <img src={logoSvg} alt="ProtoForge" className="w-16 h-16 rounded-2xl shadow-lg shadow-blue-500/20 mb-6 mx-auto" />
           <h1 className="text-4xl font-extrabold text-text-primary mb-4 tracking-tight">
             探索 <span className="text-gradient">ProtoForge</span>
           </h1>

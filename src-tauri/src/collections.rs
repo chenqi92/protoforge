@@ -1,200 +1,362 @@
-// 集合管理 + 历史记录
-// 基于内存 + JSON 文件持久化
+// 集合管理 + 历史记录 — SQLite 持久化
+// 所有数据通过 SqlitePool 读写，无内存缓存
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Mutex;
-
-/// 集合中的请求项
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SavedRequest {
-    pub id: String,
-    pub name: String,
-    pub method: String,
-    pub url: String,
-    pub headers: HashMap<String, String>,
-    pub query_params: HashMap<String, String>,
-    pub body_type: String,
-    pub body_content: String,
-    pub auth_type: String,
-    pub auth_config: serde_json::Value,
-    pub pre_script: String,
-    pub post_script: String,
-}
-
-/// 文件夹
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Folder {
-    pub id: String,
-    pub name: String,
-    pub items: Vec<CollectionItem>,
-}
-
-/// 集合项（请求或文件夹）
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-pub enum CollectionItem {
-    #[serde(rename = "request")]
-    Request(SavedRequest),
-    #[serde(rename = "folder")]
-    Folder(Folder),
-}
+use sqlx::SqlitePool;
 
 /// 集合
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct Collection {
     pub id: String,
     pub name: String,
     pub description: String,
-    pub items: Vec<CollectionItem>,
-    pub auth: Option<serde_json::Value>,
+    pub auth: Option<String>,
     pub pre_script: String,
     pub post_script: String,
-    pub variables: HashMap<String, String>,
+    pub variables: String,
+    pub sort_order: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// 集合项（请求或文件夹）
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct CollectionItem {
+    pub id: String,
+    pub collection_id: String,
+    pub parent_id: Option<String>,
+    pub item_type: String,       // "request" | "folder"
+    pub name: String,
+    pub sort_order: i64,
+    pub method: Option<String>,
+    pub url: Option<String>,
+    pub headers: String,
+    pub query_params: String,
+    pub body_type: String,
+    pub body_content: String,
+    pub auth_type: String,
+    pub auth_config: String,
+    pub pre_script: String,
+    pub post_script: String,
     pub created_at: String,
     pub updated_at: String,
 }
 
 /// 历史记录条目
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct HistoryEntry {
     pub id: String,
     pub method: String,
     pub url: String,
-    pub status: Option<u16>,
-    pub duration_ms: Option<u64>,
-    pub body_size: Option<u64>,
-    pub timestamp: String,
-    pub request_config: serde_json::Value,
+    pub status: Option<i64>,
+    pub duration_ms: Option<i64>,
+    pub body_size: Option<i64>,
+    pub request_config: Option<String>,
     pub response_summary: Option<String>,
+    pub created_at: String,
 }
 
-/// 集合与历史管理器
-pub struct CollectionManager {
-    data_dir: PathBuf,
-    pub collections: Mutex<Vec<Collection>>,
-    pub history: Mutex<Vec<HistoryEntry>>,
+/// 环境
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct Environment {
+    pub id: String,
+    pub name: String,
+    pub is_active: i64,
+    pub sort_order: i64,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
-impl CollectionManager {
-    pub fn new(app_data_dir: &std::path::Path) -> Self {
-        let data_dir = app_data_dir.join("data");
-        let _ = std::fs::create_dir_all(&data_dir);
+/// 环境变量
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct EnvVariable {
+    pub id: String,
+    pub environment_id: String,
+    pub key: String,
+    pub value: String,
+    pub enabled: i64,
+    pub is_secret: i64,
+    pub sort_order: i64,
+}
 
-        let collections = Self::load_json(&data_dir.join("collections.json"))
-            .unwrap_or_default();
-        let history = Self::load_json(&data_dir.join("history.json"))
-            .unwrap_or_default();
+/// 全局变量
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct GlobalVariable {
+    pub id: String,
+    pub key: String,
+    pub value: String,
+    pub enabled: i64,
+}
 
-        Self {
-            data_dir,
-            collections: Mutex::new(collections),
-            history: Mutex::new(history),
+// ═══════════════════════════════════════════
+//  Collections CRUD
+// ═══════════════════════════════════════════
+
+pub async fn list_collections(pool: &SqlitePool) -> Result<Vec<Collection>, String> {
+    sqlx::query_as::<_, Collection>("SELECT * FROM collections ORDER BY sort_order, name")
+        .fetch_all(pool).await.map_err(|e| format!("查询集合失败: {}", e))
+}
+
+pub async fn get_collection(pool: &SqlitePool, id: &str) -> Result<Collection, String> {
+    sqlx::query_as::<_, Collection>("SELECT * FROM collections WHERE id = ?")
+        .bind(id)
+        .fetch_one(pool).await.map_err(|e| format!("集合不存在: {}", e))
+}
+
+pub async fn create_collection(pool: &SqlitePool, col: Collection) -> Result<Collection, String> {
+    sqlx::query(
+        "INSERT INTO collections (id, name, description, auth, pre_script, post_script, variables, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(&col.id).bind(&col.name).bind(&col.description).bind(&col.auth)
+    .bind(&col.pre_script).bind(&col.post_script).bind(&col.variables)
+    .bind(col.sort_order).bind(&col.created_at).bind(&col.updated_at)
+    .execute(pool).await.map_err(|e| format!("创建集合失败: {}", e))?;
+    Ok(col)
+}
+
+pub async fn update_collection(pool: &SqlitePool, col: Collection) -> Result<(), String> {
+    let result = sqlx::query(
+        "UPDATE collections SET name=?, description=?, auth=?, pre_script=?, post_script=?, variables=?, sort_order=?, updated_at=? WHERE id=?"
+    )
+    .bind(&col.name).bind(&col.description).bind(&col.auth)
+    .bind(&col.pre_script).bind(&col.post_script).bind(&col.variables)
+    .bind(col.sort_order).bind(&col.updated_at).bind(&col.id)
+    .execute(pool).await.map_err(|e| format!("更新集合失败: {}", e))?;
+    if result.rows_affected() == 0 {
+        return Err("集合不存在".to_string());
+    }
+    Ok(())
+}
+
+pub async fn delete_collection(pool: &SqlitePool, id: &str) -> Result<(), String> {
+    sqlx::query("DELETE FROM collections WHERE id = ?")
+        .bind(id)
+        .execute(pool).await.map_err(|e| format!("删除集合失败: {}", e))?;
+    Ok(())
+}
+
+pub async fn export_collection(pool: &SqlitePool, id: &str) -> Result<String, String> {
+    let col = get_collection(pool, id).await?;
+    let items = list_collection_items(pool, id).await?;
+    let export = serde_json::json!({ "collection": col, "items": items });
+    serde_json::to_string_pretty(&export).map_err(|e| format!("导出失败: {}", e))
+}
+
+pub async fn import_collection(pool: &SqlitePool, json: &str) -> Result<Collection, String> {
+    let data: serde_json::Value = serde_json::from_str(json)
+        .map_err(|e| format!("导入解析失败: {}", e))?;
+
+    let col: Collection = serde_json::from_value(
+        data.get("collection").cloned().unwrap_or(data.clone())
+    ).map_err(|e| format!("集合数据格式错误: {}", e))?;
+
+    create_collection(pool, col.clone()).await?;
+
+    if let Some(items) = data.get("items").and_then(|v| v.as_array()) {
+        for item_val in items {
+            if let Ok(item) = serde_json::from_value::<CollectionItem>(item_val.clone()) {
+                let _ = create_collection_item(pool, item).await;
+            }
         }
     }
+    Ok(col)
+}
 
-    fn load_json<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Option<T> {
-        let content = std::fs::read_to_string(path).ok()?;
-        serde_json::from_str(&content).ok()
+// ═══════════════════════════════════════════
+//  Collection Items CRUD
+// ═══════════════════════════════════════════
+
+pub async fn list_collection_items(pool: &SqlitePool, collection_id: &str) -> Result<Vec<CollectionItem>, String> {
+    sqlx::query_as::<_, CollectionItem>(
+        "SELECT * FROM collection_items WHERE collection_id = ? ORDER BY sort_order, name"
+    )
+    .bind(collection_id)
+    .fetch_all(pool).await.map_err(|e| format!("查询集合项失败: {}", e))
+}
+
+pub async fn create_collection_item(pool: &SqlitePool, item: CollectionItem) -> Result<CollectionItem, String> {
+    sqlx::query(
+        "INSERT INTO collection_items (id, collection_id, parent_id, item_type, name, sort_order,
+         method, url, headers, query_params, body_type, body_content, auth_type, auth_config,
+         pre_script, post_script, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(&item.id).bind(&item.collection_id).bind(&item.parent_id)
+    .bind(&item.item_type).bind(&item.name).bind(item.sort_order)
+    .bind(&item.method).bind(&item.url).bind(&item.headers).bind(&item.query_params)
+    .bind(&item.body_type).bind(&item.body_content).bind(&item.auth_type).bind(&item.auth_config)
+    .bind(&item.pre_script).bind(&item.post_script)
+    .bind(&item.created_at).bind(&item.updated_at)
+    .execute(pool).await.map_err(|e| format!("创建集合项失败: {}", e))?;
+    Ok(item)
+}
+
+pub async fn update_collection_item(pool: &SqlitePool, item: CollectionItem) -> Result<(), String> {
+    sqlx::query(
+        "UPDATE collection_items SET name=?, sort_order=?, method=?, url=?, headers=?, query_params=?,
+         body_type=?, body_content=?, auth_type=?, auth_config=?, pre_script=?, post_script=?, updated_at=?
+         WHERE id=?"
+    )
+    .bind(&item.name).bind(item.sort_order).bind(&item.method).bind(&item.url)
+    .bind(&item.headers).bind(&item.query_params).bind(&item.body_type).bind(&item.body_content)
+    .bind(&item.auth_type).bind(&item.auth_config).bind(&item.pre_script).bind(&item.post_script)
+    .bind(&item.updated_at).bind(&item.id)
+    .execute(pool).await.map_err(|e| format!("更新集合项失败: {}", e))?;
+    Ok(())
+}
+
+pub async fn delete_collection_item(pool: &SqlitePool, id: &str) -> Result<(), String> {
+    sqlx::query("DELETE FROM collection_items WHERE id = ?")
+        .bind(id)
+        .execute(pool).await.map_err(|e| format!("删除集合项失败: {}", e))?;
+    Ok(())
+}
+
+// ═══════════════════════════════════════════
+//  Environments CRUD
+// ═══════════════════════════════════════════
+
+pub async fn list_environments(pool: &SqlitePool) -> Result<Vec<Environment>, String> {
+    sqlx::query_as::<_, Environment>("SELECT * FROM environments ORDER BY sort_order, name")
+        .fetch_all(pool).await.map_err(|e| format!("查询环境失败: {}", e))
+}
+
+pub async fn create_environment(pool: &SqlitePool, env: Environment) -> Result<Environment, String> {
+    sqlx::query(
+        "INSERT INTO environments (id, name, is_active, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)"
+    )
+    .bind(&env.id).bind(&env.name).bind(env.is_active)
+    .bind(env.sort_order).bind(&env.created_at).bind(&env.updated_at)
+    .execute(pool).await.map_err(|e| format!("创建环境失败: {}", e))?;
+    Ok(env)
+}
+
+pub async fn set_active_environment(pool: &SqlitePool, id: Option<&str>) -> Result<(), String> {
+    // 先全部取消激活
+    sqlx::query("UPDATE environments SET is_active = 0")
+        .execute(pool).await.map_err(|e| format!("更新环境失败: {}", e))?;
+    // 激活指定环境
+    if let Some(env_id) = id {
+        sqlx::query("UPDATE environments SET is_active = 1 WHERE id = ?")
+            .bind(env_id)
+            .execute(pool).await.map_err(|e| format!("激活环境失败: {}", e))?;
     }
+    Ok(())
+}
 
-    fn save_collections(&self) -> Result<(), String> {
-        let cols = self.collections.lock().map_err(|e| e.to_string())?;
-        let json = serde_json::to_string_pretty(&*cols)
-            .map_err(|e| format!("序列化失败: {}", e))?;
-        std::fs::write(self.data_dir.join("collections.json"), json)
-            .map_err(|e| format!("写入失败: {}", e))
+pub async fn get_active_environment(pool: &SqlitePool) -> Result<Option<Environment>, String> {
+    sqlx::query_as::<_, Environment>("SELECT * FROM environments WHERE is_active = 1 LIMIT 1")
+        .fetch_optional(pool).await.map_err(|e| format!("查询活跃环境失败: {}", e))
+}
+
+pub async fn delete_environment(pool: &SqlitePool, id: &str) -> Result<(), String> {
+    sqlx::query("DELETE FROM environments WHERE id = ?")
+        .bind(id)
+        .execute(pool).await.map_err(|e| format!("删除环境失败: {}", e))?;
+    Ok(())
+}
+
+// ═══════════════════════════════════════════
+//  Environment Variables CRUD
+// ═══════════════════════════════════════════
+
+pub async fn list_env_variables(pool: &SqlitePool, env_id: &str) -> Result<Vec<EnvVariable>, String> {
+    sqlx::query_as::<_, EnvVariable>(
+        "SELECT * FROM environment_variables WHERE environment_id = ? ORDER BY sort_order"
+    )
+    .bind(env_id)
+    .fetch_all(pool).await.map_err(|e| format!("查询环境变量失败: {}", e))
+}
+
+pub async fn save_env_variables(pool: &SqlitePool, env_id: &str, vars: Vec<EnvVariable>) -> Result<(), String> {
+    // 清除旧变量并批量插入新变量
+    sqlx::query("DELETE FROM environment_variables WHERE environment_id = ?")
+        .bind(env_id)
+        .execute(pool).await.map_err(|e| format!("清除旧变量失败: {}", e))?;
+
+    for var in vars {
+        sqlx::query(
+            "INSERT INTO environment_variables (id, environment_id, key, value, enabled, is_secret, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )
+        .bind(&var.id).bind(env_id).bind(&var.key).bind(&var.value)
+        .bind(var.enabled).bind(var.is_secret).bind(var.sort_order)
+        .execute(pool).await.map_err(|e| format!("保存变量失败: {}", e))?;
     }
+    Ok(())
+}
 
-    fn save_history(&self) -> Result<(), String> {
-        let hist = self.history.lock().map_err(|e| e.to_string())?;
-        let json = serde_json::to_string_pretty(&*hist)
-            .map_err(|e| format!("序列化失败: {}", e))?;
-        std::fs::write(self.data_dir.join("history.json"), json)
-            .map_err(|e| format!("写入失败: {}", e))
+// ═══════════════════════════════════════════
+//  Global Variables CRUD
+// ═══════════════════════════════════════════
+
+pub async fn list_global_variables(pool: &SqlitePool) -> Result<Vec<GlobalVariable>, String> {
+    sqlx::query_as::<_, GlobalVariable>("SELECT * FROM global_variables ORDER BY key")
+        .fetch_all(pool).await.map_err(|e| format!("查询全局变量失败: {}", e))
+}
+
+pub async fn save_global_variables(pool: &SqlitePool, vars: Vec<GlobalVariable>) -> Result<(), String> {
+    sqlx::query("DELETE FROM global_variables")
+        .execute(pool).await.map_err(|e| format!("清除全局变量失败: {}", e))?;
+
+    for var in vars {
+        sqlx::query(
+            "INSERT INTO global_variables (id, key, value, enabled) VALUES (?, ?, ?, ?)"
+        )
+        .bind(&var.id).bind(&var.key).bind(&var.value).bind(var.enabled)
+        .execute(pool).await.map_err(|e| format!("保存全局变量失败: {}", e))?;
     }
+    Ok(())
+}
 
-    // ── Collections ──
+// ═══════════════════════════════════════════
+//  History CRUD
+// ═══════════════════════════════════════════
 
-    pub fn list_collections(&self) -> Result<Vec<Collection>, String> {
-        let cols = self.collections.lock().map_err(|e| e.to_string())?;
-        Ok(cols.clone())
-    }
+pub async fn add_history(pool: &SqlitePool, entry: HistoryEntry) -> Result<(), String> {
+    sqlx::query(
+        "INSERT INTO history (id, method, url, status, duration_ms, body_size, request_config, response_summary, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(&entry.id).bind(&entry.method).bind(&entry.url)
+    .bind(entry.status).bind(entry.duration_ms).bind(entry.body_size)
+    .bind(&entry.request_config).bind(&entry.response_summary).bind(&entry.created_at)
+    .execute(pool).await.map_err(|e| format!("保存历史失败: {}", e))?;
 
-    pub fn create_collection(&self, col: Collection) -> Result<(), String> {
-        let mut cols = self.collections.lock().map_err(|e| e.to_string())?;
-        cols.push(col);
-        drop(cols);
-        self.save_collections()
-    }
+    // 自动清理超过 500 条的旧记录
+    sqlx::query(
+        "DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY created_at DESC LIMIT 500)"
+    )
+    .execute(pool).await.map_err(|e| format!("清理历史失败: {}", e))?;
 
-    pub fn update_collection(&self, col: Collection) -> Result<(), String> {
-        let mut cols = self.collections.lock().map_err(|e| e.to_string())?;
-        if let Some(existing) = cols.iter_mut().find(|c| c.id == col.id) {
-            *existing = col;
-        } else {
-            return Err("集合不存在".to_string());
-        }
-        drop(cols);
-        self.save_collections()
-    }
+    Ok(())
+}
 
-    pub fn delete_collection(&self, id: &str) -> Result<(), String> {
-        let mut cols = self.collections.lock().map_err(|e| e.to_string())?;
-        cols.retain(|c| c.id != id);
-        drop(cols);
-        self.save_collections()
-    }
+pub async fn list_history(pool: &SqlitePool, limit: i64) -> Result<Vec<HistoryEntry>, String> {
+    sqlx::query_as::<_, HistoryEntry>(
+        "SELECT * FROM history ORDER BY created_at DESC LIMIT ?"
+    )
+    .bind(limit)
+    .fetch_all(pool).await.map_err(|e| format!("查询历史失败: {}", e))
+}
 
-    pub fn export_collection(&self, id: &str) -> Result<String, String> {
-        let cols = self.collections.lock().map_err(|e| e.to_string())?;
-        let col = cols.iter().find(|c| c.id == id)
-            .ok_or_else(|| "集合不存在".to_string())?;
-        serde_json::to_string_pretty(col)
-            .map_err(|e| format!("导出失败: {}", e))
-    }
+pub async fn delete_history_entry(pool: &SqlitePool, id: &str) -> Result<(), String> {
+    sqlx::query("DELETE FROM history WHERE id = ?")
+        .bind(id)
+        .execute(pool).await.map_err(|e| format!("删除历史失败: {}", e))?;
+    Ok(())
+}
 
-    pub fn import_collection(&self, json: &str) -> Result<Collection, String> {
-        let col: Collection = serde_json::from_str(json)
-            .map_err(|e| format!("导入解析失败: {}", e))?;
-        self.create_collection(col.clone())?;
-        Ok(col)
-    }
-
-    // ── History ──
-
-    pub fn add_history(&self, entry: HistoryEntry) -> Result<(), String> {
-        let mut hist = self.history.lock().map_err(|e| e.to_string())?;
-        hist.insert(0, entry); // 最新的在前面
-        if hist.len() > 500 {
-            hist.truncate(500); // 最多保留 500 条
-        }
-        drop(hist);
-        self.save_history()
-    }
-
-    pub fn list_history(&self, limit: usize) -> Result<Vec<HistoryEntry>, String> {
-        let hist = self.history.lock().map_err(|e| e.to_string())?;
-        let n = limit.min(hist.len());
-        Ok(hist[..n].to_vec())
-    }
-
-    pub fn clear_history(&self) -> Result<(), String> {
-        let mut hist = self.history.lock().map_err(|e| e.to_string())?;
-        hist.clear();
-        drop(hist);
-        self.save_history()
-    }
-
-    pub fn delete_history_entry(&self, id: &str) -> Result<(), String> {
-        let mut hist = self.history.lock().map_err(|e| e.to_string())?;
-        hist.retain(|h| h.id != id);
-        drop(hist);
-        self.save_history()
-    }
+pub async fn clear_history(pool: &SqlitePool) -> Result<(), String> {
+    sqlx::query("DELETE FROM history")
+        .execute(pool).await.map_err(|e| format!("清空历史失败: {}", e))?;
+    Ok(())
 }

@@ -1,19 +1,19 @@
 import { useState, useCallback } from "react";
-import { Play, Loader2, Copy, Check, ChevronDown, Braces } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, Braces, Upload, FileIcon, X, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
-import type { HttpMethod, KeyValue } from "@/types/http";
+import type { HttpMethod, KeyValue, FormDataField } from "@/types/http";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
+import { SaveRequestDialog } from "./SaveRequestDialog";
+import { ScriptEditor } from "./ScriptEditor";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
-/** Method text colors for the selector button */
 const methodTextColor: Record<string, string> = {
   GET: "text-emerald-600", POST: "text-amber-600", PUT: "text-blue-600",
   DELETE: "text-red-500", PATCH: "text-violet-600", HEAD: "text-cyan-600", OPTIONS: "text-gray-500",
 };
 
-/** Method bg colors for dropdown items */
 const methodDotColor: Record<string, string> = {
   GET: "bg-emerald-500", POST: "bg-amber-500", PUT: "bg-blue-500",
   DELETE: "bg-red-500", PATCH: "bg-violet-500", HEAD: "bg-cyan-500", OPTIONS: "bg-gray-400",
@@ -26,10 +26,11 @@ export function HttpWorkspace() {
   const setLoading = useAppStore((s) => s.setLoading);
   const setError = useAppStore((s) => s.setError);
 
-  const [reqTab, setReqTab] = useState<"params" | "headers" | "body" | "auth">("params");
+  const [reqTab, setReqTab] = useState<"params" | "headers" | "body" | "auth" | "pre-script" | "post-script">("params");
   const [resTab, setResTab] = useState<"pretty" | "raw" | "headers">("pretty");
   const [copied, setCopied] = useState(false);
   const [showMethods, setShowMethods] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   if (!activeTab?.httpConfig) return null;
   const config = activeTab.httpConfig;
@@ -63,6 +64,16 @@ export function HttpWorkspace() {
   const params = config.queryParams || [];
   const headers = config.headers || [];
   const formFields = config.formFields || [];
+  const formDataFields = config.formDataFields || [];
+
+  const reqTabs = [
+    { key: "params" as const, label: `参数${params.filter(p => p.key).length ? ` (${params.filter(p => p.key).length})` : ""}` },
+    { key: "headers" as const, label: `请求头${headers.filter(h => h.key).length ? ` (${headers.filter(h => h.key).length})` : ""}` },
+    { key: "body" as const, label: "请求体" },
+    { key: "auth" as const, label: "认证" },
+    { key: "pre-script" as const, label: "前置脚本" },
+    { key: "post-script" as const, label: "后置脚本" },
+  ];
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-bg-primary">
@@ -113,6 +124,16 @@ export function HttpWorkspace() {
           data-url-input
           className="flex-1 h-full px-2 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary"
         />
+
+        {/* Save Button */}
+        <button
+          onClick={() => setShowSaveDialog(true)}
+          data-save-button
+          className="h-7 px-2.5 rounded-md flex items-center justify-center gap-1 text-[12px] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors shrink-0"
+          title="保存请求 (Ctrl+S)"
+        >
+          <Save className="w-3.5 h-3.5" />
+        </button>
         
         {/* Send Button */}
         <button
@@ -133,18 +154,16 @@ export function HttpWorkspace() {
         {/* Request Panel */}
         <Panel minSize="15" defaultSize="50" className="flex flex-col h-full overflow-hidden">
           <div className="flex items-center px-2 bg-bg-secondary/40 border-b border-border-default shrink-0 overflow-x-auto scrollbar-hide">
-            {(["params", "headers", "body", "auth"] as const).map((t) => (
+            {reqTabs.map((t) => (
               <button
-                key={t}
-                onClick={() => setReqTab(t)}
+                key={t.key}
+                onClick={() => setReqTab(t.key)}
                 className={cn(
                   "px-4 py-3 text-[13px] font-medium border-b-[2px] transition-colors whitespace-nowrap",
-                  reqTab === t ? "text-accent border-accent" : "text-text-tertiary border-transparent hover:text-text-secondary"
+                  reqTab === t.key ? "text-accent border-accent" : "text-text-tertiary border-transparent hover:text-text-secondary"
                 )}
               >
-                {t === "params" ? `参数${params.filter(p=>p.key).length ? ` (${params.filter(p=>p.key).length})` : ""}` : 
-                 t === "headers" ? `请求头${headers.filter(h=>h.key).length ? ` (${headers.filter(h=>h.key).length})` : ""}` : 
-                 t === "body" ? "请求体" : "认证"}
+                {t.label}
               </button>
             ))}
           </div>
@@ -156,7 +175,7 @@ export function HttpWorkspace() {
             {reqTab === "body" && (
               <div className="p-4 flex flex-col h-full">
                 <div className="flex items-center gap-2 mb-4 shrink-0 bg-bg-secondary p-1 rounded-lg w-fit">
-                  {(["none", "json", "raw", "formUrlencoded"] as const).map((bt) => (
+                  {(["none", "json", "raw", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
                     <button
                       key={bt}
                       onClick={() => updateHttpConfig(tabId, { bodyType: bt })}
@@ -165,7 +184,7 @@ export function HttpWorkspace() {
                         config.bodyType === bt ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary"
                       )}
                     >
-                      {bt === "none" ? "None" : bt === "formUrlencoded" ? "Form URL-Encoded" : bt.toUpperCase()}
+                      {bt === "none" ? "None" : bt === "formUrlencoded" ? "URL-Encoded" : bt === "formData" ? "Form-Data" : bt === "binary" ? "Binary" : bt.toUpperCase()}
                     </button>
                   ))}
                 </div>
@@ -183,16 +202,31 @@ export function HttpWorkspace() {
                     />
                   )}
                   {config.bodyType === "raw" && (
-                    <textarea
-                      value={config.rawBody}
-                      onChange={(e) => updateHttpConfig(tabId, { rawBody: e.target.value })}
-                      placeholder="Enter raw request body..."
-                      className="w-full h-full p-3 font-mono text-[13px] bg-bg-input border border-border-default rounded-lg text-text-secondary resize-none outline-none focus:border-accent transition-colors"
-                      style={{ userSelect: "text" }}
-                      spellCheck={false}
-                    />
+                    <div className="flex flex-col h-full gap-2">
+                      <select
+                        value={config.rawContentType}
+                        onChange={(e) => updateHttpConfig(tabId, { rawContentType: e.target.value })}
+                        className="h-7 px-2 text-[12px] bg-bg-input border border-border-default rounded-md text-text-secondary outline-none w-fit"
+                      >
+                        <option value="text/plain">Text</option>
+                        <option value="text/html">HTML</option>
+                        <option value="application/xml">XML</option>
+                        <option value="application/javascript">JavaScript</option>
+                        <option value="text/css">CSS</option>
+                      </select>
+                      <textarea
+                        value={config.rawBody}
+                        onChange={(e) => updateHttpConfig(tabId, { rawBody: e.target.value })}
+                        placeholder="Enter raw request body..."
+                        className="w-full flex-1 p-3 font-mono text-[13px] bg-bg-input border border-border-default rounded-lg text-text-secondary resize-none outline-none focus:border-accent transition-colors"
+                        style={{ userSelect: "text" }}
+                        spellCheck={false}
+                      />
+                    </div>
                   )}
                   {config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-2 px-2"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" /></div>}
+                  {config.bodyType === "formData" && <div className="overflow-auto h-full -mx-2 px-2"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
+                  {config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
                 </div>
               </div>
             )}
@@ -200,7 +234,7 @@ export function HttpWorkspace() {
             {reqTab === "auth" && (
               <div className="p-4">
                 <div className="flex items-center gap-2 mb-4 bg-bg-secondary p-1 rounded-lg w-fit">
-                  {(["none", "bearer", "basic"] as const).map((at) => (
+                  {(["none", "bearer", "basic", "apiKey"] as const).map((at) => (
                     <button
                       key={at}
                       onClick={() => updateHttpConfig(tabId, { authType: at })}
@@ -209,7 +243,7 @@ export function HttpWorkspace() {
                         config.authType === at ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary"
                       )}
                     >
-                      {at === "none" ? "No Auth" : at === "bearer" ? "Bearer Token" : "Basic Auth"}
+                      {at === "none" ? "No Auth" : at === "bearer" ? "Bearer Token" : at === "basic" ? "Basic Auth" : "API Key"}
                     </button>
                   ))}
                 </div>
@@ -239,8 +273,46 @@ export function HttpWorkspace() {
                       </div>
                     </div>
                   )}
+                  {config.authType === "apiKey" && (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <label className="text-[12px] font-medium text-text-secondary">添加到</label>
+                        <div className="flex items-center gap-2 bg-bg-secondary p-1 rounded-lg w-fit">
+                          {(["header", "query"] as const).map((a) => (
+                            <button key={a} onClick={() => updateHttpConfig(tabId, { apiKeyAddTo: a })} className={cn("px-3 py-1 text-[12px] font-medium rounded-md transition-all", config.apiKeyAddTo === a ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary")}>
+                              {a === "header" ? "Header" : "Query Param"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[12px] font-medium text-text-secondary">Key</label>
+                        <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="input-field w-full font-mono text-[13px]" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[12px] font-medium text-text-secondary">Value</label>
+                        <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} className="input-field w-full font-mono text-[13px]" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+            )}
+            
+            {reqTab === "pre-script" && (
+              <ScriptEditor
+                type="pre"
+                value={config.preScript}
+                onChange={(v) => updateHttpConfig(tabId, { preScript: v })}
+              />
+            )}
+            
+            {reqTab === "post-script" && (
+              <ScriptEditor
+                type="post"
+                value={config.postScript}
+                onChange={(v) => updateHttpConfig(tabId, { postScript: v })}
+              />
             )}
           </div>
         </Panel>
@@ -268,7 +340,7 @@ export function HttpWorkspace() {
                         resTab === t ? "text-accent border-accent" : "text-text-tertiary border-transparent hover:text-text-secondary"
                       )}
                     >
-                      {t === "pretty" ? "JSON Format" : t === "raw" ? "Raw Array" : "响应头"}
+                      {t === "pretty" ? "JSON Format" : t === "raw" ? "Raw" : "响应头"}
                     </button>
                   ))}
                 </div>
@@ -323,10 +395,18 @@ export function HttpWorkspace() {
         
         </PanelGroup>
       </div>
+
+      {/* Save Request Dialog */}
+      <SaveRequestDialog
+        isOpen={showSaveDialog}
+        onClose={() => setShowSaveDialog(false)}
+        config={config}
+      />
     </div>
   );
 }
 
+/* ── KV Editor (for params, headers, form-urlencoded) ── */
 function KVEditor({ items, onChange, kp, vp }: { items: KeyValue[]; onChange: (v: KeyValue[]) => void; kp: string; vp: string; }) {
   const safe = items || [];
   
@@ -394,6 +474,145 @@ function KVEditor({ items, onChange, kp, vp }: { items: KeyValue[]; onChange: (v
       >
         <span>+</span> 添加
       </button>
+    </div>
+  );
+}
+
+/* ── FormData Editor (text + file fields) ── */
+function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChange: (v: FormDataField[]) => void }) {
+  const safe = fields || [];
+
+  const update = (i: number, updates: Partial<FormDataField>) => {
+    const n = [...safe];
+    n[i] = { ...n[i], ...updates };
+    onChange(n);
+  };
+
+  const toggle = (i: number) => {
+    const n = [...safe];
+    n[i] = { ...n[i], enabled: !n[i].enabled };
+    onChange(n);
+  };
+
+  const remove = (i: number) => onChange(safe.filter((_, j) => j !== i));
+  const add = () => onChange([...safe, { key: "", value: "", fieldType: "text", enabled: true }]);
+
+  const handleFilePick = async (i: number) => {
+    const { pickFile } = await import("@/services/httpService");
+    const result = await pickFile();
+    if (result) {
+      update(i, { value: result.path, fileName: result.name });
+    }
+  };
+
+  return (
+    <div className="w-full flex flex-col pt-1">
+      {safe.length > 0 && (
+        <div className="flex items-center gap-2 mb-2 px-8 text-[11px] font-semibold text-text-disabled uppercase tracking-wider">
+          <div className="w-16">类型</div>
+          <div className="flex-1">Key</div>
+          <div className="flex-1">Value</div>
+          <div className="w-8" />
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {safe.map((field, i) => (
+          <div key={i} className="flex items-center gap-2 group">
+            <div className="w-6 flex justify-center">
+              <input
+                type="checkbox"
+                checked={field.enabled}
+                onChange={() => toggle(i)}
+                className="w-3.5 h-3.5 rounded accent-accent shrink-0 cursor-pointer"
+              />
+            </div>
+            {/* Type toggle */}
+            <select
+              value={field.fieldType}
+              onChange={(e) => update(i, { fieldType: e.target.value as 'text' | 'file', value: '', fileName: undefined })}
+              className={cn("w-16 h-[34px] px-1.5 text-[11px] bg-bg-input border border-border-default rounded-md text-text-secondary outline-none shrink-0", !field.enabled && "opacity-40")}
+            >
+              <option value="text">Text</option>
+              <option value="file">File</option>
+            </select>
+            <input
+              value={field.key}
+              onChange={(e) => update(i, { key: e.target.value })}
+              placeholder="Key"
+              className={cn("input-field flex-1 font-mono text-[13px] py-1.5", !field.enabled && "opacity-40")}
+            />
+            {field.fieldType === "text" ? (
+              <input
+                value={field.value}
+                onChange={(e) => update(i, { value: e.target.value })}
+                placeholder="Value"
+                className={cn("input-field flex-1 font-mono text-[13px] py-1.5", !field.enabled && "opacity-40")}
+              />
+            ) : (
+              <button
+                onClick={() => handleFilePick(i)}
+                className={cn("input-field flex-1 flex items-center gap-1.5 text-[12px] py-1.5 text-left cursor-pointer hover:border-accent", !field.enabled && "opacity-40")}
+              >
+                <Upload className="w-3.5 h-3.5 text-text-disabled shrink-0" />
+                <span className="truncate text-text-secondary">
+                  {field.fileName || field.value || "选择文件..."}
+                </span>
+              </button>
+            )}
+            <div className="w-8 flex justify-center">
+              <button
+                onClick={() => remove(i)}
+                className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-lg"
+              >×</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={add}
+        className="mt-3 ml-8 text-[12px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors w-fit border border-dashed border-border-default hover:border-accent rounded-md px-3 py-1.5"
+      >
+        <span>+</span> 添加字段
+      </button>
+    </div>
+  );
+}
+
+/* ── Binary File Picker ── */
+function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; fileName: string; onChange: (path: string, name: string) => void }) {
+  const handlePick = async () => {
+    const { pickFile } = await import("@/services/httpService");
+    const result = await pickFile();
+    if (result) {
+      onChange(result.path, result.name);
+    }
+  };
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center">
+      {filePath ? (
+        <div className="flex items-center gap-3 p-4 rounded-lg border border-border-default bg-bg-secondary/50">
+          <FileIcon className="w-8 h-8 text-accent/60" />
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-text-primary truncate max-w-xs">{fileName}</p>
+            <p className="text-[11px] text-text-disabled font-mono truncate max-w-xs">{filePath}</p>
+          </div>
+          <button onClick={() => onChange('', '')} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-red-500 transition-colors" title="移除文件">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handlePick}
+          className="flex flex-col items-center gap-2 p-6 rounded-lg border-2 border-dashed border-border-default hover:border-accent text-text-disabled hover:text-accent transition-colors cursor-pointer"
+        >
+          <Upload className="w-8 h-8" />
+          <span className="text-[13px] font-medium">选择文件</span>
+          <span className="text-[11px]">文件将以 binary 形式发送</span>
+        </button>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 // ProtoForge HTTP 客户端引擎
-// 支持 7 种方法、多种 Body 类型、3 种认证、详细时序
+// 支持 7 种方法、多种 Body 类型（含 multipart form-data）、3 种认证、详细时序
 
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
@@ -30,8 +30,19 @@ pub enum RequestBody {
     Json { data: String },
     #[serde(rename = "formUrlencoded")]
     FormUrlencoded { fields: HashMap<String, String> },
+    #[serde(rename = "formData")]
+    FormData { fields: Vec<FormDataField> },
     #[serde(rename = "binary")]
-    Binary { data: Vec<u8>, filename: Option<String> },
+    Binary { file_path: String },
+}
+
+/// FormData 中的单个字段
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FormDataField {
+    pub key: String,
+    pub value: String,        // text value 或 file path
+    pub field_type: String,   // "text" | "file"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,7 +152,6 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
                         header_map.insert(name, val);
                     }
                 }
-                // query 方式已在 query_params 中处理
             }
         }
     }
@@ -170,10 +180,36 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .body(encoded);
             }
-            RequestBody::Binary { data, .. } => {
+            RequestBody::FormData { fields } => {
+                let mut form = reqwest::multipart::Form::new();
+                for field in fields {
+                    if field.field_type == "file" {
+                        // 读取文件
+                        let file_path = std::path::Path::new(&field.value);
+                        let file_bytes = tokio::fs::read(file_path).await
+                            .map_err(|e| format!("读取文件失败 '{}': {}", field.value, e))?;
+                        let file_name = file_path.file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_else(|| "file".to_string());
+                        let mime = mime_from_path(&field.value);
+                        let part = reqwest::multipart::Part::bytes(file_bytes)
+                            .file_name(file_name)
+                            .mime_str(&mime)
+                            .map_err(|e| format!("MIME 类型错误: {}", e))?;
+                        form = form.part(field.key.clone(), part);
+                    } else {
+                        form = form.text(field.key.clone(), field.value.clone());
+                    }
+                }
+                request_builder = request_builder.multipart(form);
+            }
+            RequestBody::Binary { file_path } => {
+                let data = tokio::fs::read(file_path).await
+                    .map_err(|e| format!("读取文件失败 '{}': {}", file_path, e))?;
+                let mime = mime_from_path(file_path);
                 request_builder = request_builder
-                    .header("Content-Type", "application/octet-stream")
-                    .body(data.clone());
+                    .header("Content-Type", mime)
+                    .body(data);
             }
         }
     }
@@ -203,7 +239,6 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
         .map_err(|e| format!("读取响应 body 失败: {}", e))?;
     let body_size = body_bytes.len() as u64;
 
-    // 尝试转为文本
     let body_text = String::from_utf8_lossy(&body_bytes).to_string();
 
     let total_duration = start.elapsed().as_millis() as u64;
@@ -220,4 +255,35 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
             total_ms: total_duration,
         },
     })
+}
+
+/// 根据文件扩展名猜测 MIME 类型
+fn mime_from_path(path: &str) -> String {
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    match ext.as_str() {
+        "json" => "application/json",
+        "xml" => "application/xml",
+        "html" | "htm" => "text/html",
+        "txt" => "text/plain",
+        "csv" => "text/csv",
+        "pdf" => "application/pdf",
+        "zip" => "application/zip",
+        "gz" | "gzip" => "application/gzip",
+        "tar" => "application/x-tar",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "webp" => "image/webp",
+        "mp4" => "video/mp4",
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "doc" | "docx" => "application/msword",
+        "xls" | "xlsx" => "application/vnd.ms-excel",
+        _ => "application/octet-stream",
+    }.to_string()
 }

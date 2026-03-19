@@ -1,0 +1,170 @@
+// ProtoForge Collection Store — Zustand
+
+import { create } from 'zustand';
+import type { Collection, CollectionItem } from '@/types/collections';
+import { nowISO } from '@/types/collections';
+import * as svc from '@/services/collectionService';
+
+interface CollectionStore {
+  collections: Collection[];
+  items: Record<string, CollectionItem[]>;  // collectionId → items
+  loading: boolean;
+  error: string | null;
+
+  // Actions
+  fetchCollections: () => Promise<void>;
+  fetchItems: (collectionId: string) => Promise<void>;
+  createCollection: (name: string) => Promise<Collection>;
+  renameCollection: (id: string, name: string) => Promise<void>;
+  deleteCollection: (id: string) => Promise<void>;
+  createItem: (collectionId: string, parentId: string | null, itemType: 'request' | 'folder', name: string, method?: string) => Promise<CollectionItem>;
+  updateItem: (item: CollectionItem) => Promise<void>;
+  deleteItem: (id: string, collectionId: string) => Promise<void>;
+  exportCollection: (id: string) => Promise<string>;
+  importCollection: (json: string) => Promise<void>;
+  importPostman: (json: string) => Promise<void>;
+  saveRequest: (item: CollectionItem) => Promise<CollectionItem>;
+  loadItems: (collectionId: string) => Promise<void>;
+}
+
+export const useCollectionStore = create<CollectionStore>((set, get) => ({
+  collections: [],
+  items: {},
+  loading: false,
+  error: null,
+
+  fetchCollections: async () => {
+    set({ loading: true, error: null });
+    try {
+      const collections = await svc.listCollections();
+      set({ collections, loading: false });
+    } catch (e) {
+      set({ error: String(e), loading: false });
+    }
+  },
+
+  fetchItems: async (collectionId: string) => {
+    try {
+      const items = await svc.listCollectionItems(collectionId);
+      set((s) => ({ items: { ...s.items, [collectionId]: items } }));
+    } catch (e) {
+      set({ error: String(e) });
+    }
+  },
+
+  createCollection: async (name: string) => {
+    const now = nowISO();
+    const col: Collection = {
+      id: crypto.randomUUID(),
+      name,
+      description: '',
+      auth: null,
+      preScript: '',
+      postScript: '',
+      variables: '{}',
+      sortOrder: get().collections.length,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const created = await svc.createCollection(col);
+    set((s) => ({ collections: [...s.collections, created] }));
+    return created;
+  },
+
+  renameCollection: async (id: string, name: string) => {
+    const col = get().collections.find((c) => c.id === id);
+    if (!col) return;
+    const updated = { ...col, name, updatedAt: nowISO() };
+    await svc.updateCollection(updated);
+    set((s) => ({
+      collections: s.collections.map((c) => (c.id === id ? updated : c)),
+    }));
+  },
+
+  deleteCollection: async (id: string) => {
+    await svc.deleteCollection(id);
+    set((s) => ({
+      collections: s.collections.filter((c) => c.id !== id),
+      items: Object.fromEntries(Object.entries(s.items).filter(([k]) => k !== id)),
+    }));
+  },
+
+  createItem: async (collectionId, parentId, itemType, name, method) => {
+    const now = nowISO();
+    const item: CollectionItem = {
+      id: crypto.randomUUID(),
+      collectionId,
+      parentId,
+      itemType,
+      name,
+      sortOrder: 0,
+      method: method || (itemType === 'request' ? 'GET' : null),
+      url: itemType === 'request' ? '' : null,
+      headers: '{}',
+      queryParams: '{}',
+      bodyType: 'none',
+      bodyContent: '',
+      authType: 'none',
+      authConfig: '{}',
+      preScript: '',
+      postScript: '',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const created = await svc.createCollectionItem(item);
+    set((s) => ({
+      items: {
+        ...s.items,
+        [collectionId]: [...(s.items[collectionId] || []), created],
+      },
+    }));
+    return created;
+  },
+
+  updateItem: async (item: CollectionItem) => {
+    await svc.updateCollectionItem(item);
+    set((s) => ({
+      items: {
+        ...s.items,
+        [item.collectionId]: (s.items[item.collectionId] || []).map((i) =>
+          i.id === item.id ? item : i
+        ),
+      },
+    }));
+  },
+
+  deleteItem: async (id: string, collectionId: string) => {
+    await svc.deleteCollectionItem(id);
+    set((s) => ({
+      items: {
+        ...s.items,
+        [collectionId]: (s.items[collectionId] || []).filter((i) => i.id !== id),
+      },
+    }));
+  },
+
+  exportCollection: async (id: string) => {
+    return svc.exportCollection(id);
+  },
+
+  importCollection: async (json: string) => {
+    await svc.importCollection(json);
+    await get().fetchCollections();
+  },
+
+  importPostman: async (json: string) => {
+    await svc.importPostmanCollection(json);
+    await get().fetchCollections();
+  },
+
+  saveRequest: async (item: CollectionItem) => {
+    const saved = await svc.saveRequestToCollection(item);
+    // Refresh items for the collection
+    await get().fetchItems(item.collectionId);
+    return saved;
+  },
+
+  loadItems: async (collectionId: string) => {
+    await get().fetchItems(collectionId);
+  },
+}));
