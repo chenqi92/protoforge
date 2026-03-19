@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
+import { InlineJsonViewer } from "@/components/ui/ResponseViewer";
 import type { WsMessage, WsEvent } from "@/types/ws";
 
 export function WsWorkspace() {
@@ -290,7 +291,9 @@ export function WsWorkspace() {
                           ? "bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-300 rounded-tl-sm"
                           : "bg-bg-elevated border border-border-default text-text-secondary rounded-tl-sm"
                     )}>
-                      <div className="whitespace-pre-wrap break-all" style={{ userSelect: "text" }}>{m.data}</div>
+                      <div className="whitespace-pre-wrap break-all" style={{ userSelect: "text" }}>
+                        <InlineJsonViewer data={m.data} />
+                      </div>
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className="text-[10px] opacity-50">{formatTime(m.timestamp)}</span>
                         {m.size > 0 && <span className="text-[10px] opacity-40">{formatSize(m.size)}</span>}

@@ -1,4 +1,4 @@
-import { Minus, Square, X, Sun, Moon, Gauge, Radio, Puzzle, Settings } from "lucide-react";
+import { Minus, Square, X, Sun, Moon, Gauge, Radio, Puzzle, Settings, Network } from "lucide-react";
 import { useThemeStore } from "@/stores/themeStore";
 import { cn } from "@/lib/utils";
 import logoSvg from "@/assets/logo.svg";
@@ -8,6 +8,7 @@ interface TitleBarProps {
 }
 
 const tools = [
+  { id: "tcpudp", icon: Network, label: "TCP/UDP", color: "hover:text-blue-400" },
   { id: "loadtest", icon: Gauge, label: "压测", color: "hover:text-rose-400" },
   { id: "capture", icon: Radio, label: "抓包", color: "hover:text-cyan-400" },
   { id: "plugins", icon: Puzzle, label: "插件", color: "hover:text-violet-400" },

@@ -123,22 +123,6 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
 
         <div className="flex flex-col items-center gap-0.5">
           <button
-            onClick={() => {
-              const addTab = useAppStore.getState().addTab;
-              addTab('capture');
-            }}
-            className="w-8 h-8 flex items-center justify-center rounded-md text-text-tertiary hover:bg-bg-hover hover:text-orange-500 transition-colors"
-            title="网络抓包"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
-              <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4" />
-              <circle cx="12" cy="12" r="2" />
-              <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4" />
-              <path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" />
-            </svg>
-          </button>
-          <button
             className="w-8 h-8 flex items-center justify-center rounded-md text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
             title="设置"
           >

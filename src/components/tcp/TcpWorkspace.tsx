@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Network, Send as SendIcon, X, Plug, Trash2, ArrowDown, Server, Monitor, Radio, Users } from "lucide-react";
+import { Network, Send as SendIcon, X, Plug, Trash2, ArrowDown, Server, Monitor, Radio, Users, Sparkles, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAppStore, type AppTab } from "@/stores/appStore";
+import { usePluginStore } from "@/stores/pluginStore";
+import * as pluginService from "@/services/pluginService";
 import type { TcpMessage, TcpEvent, TcpServerClient } from "@/types/tcp";
+import type { ParseResult, ProtocolParser } from "@/types/plugin";
 
 export function TcpWorkspace() {
-  const activeTab = useAppStore((s) => s.getActiveTab());
-  const updateTab = useAppStore((s) => s.updateTab);
+  // 自管理模式，不依赖 AppTab（后续将在独立窗口中重构）
+  const connectionId = useRef(crypto.randomUUID()).current;
+  const [protocol] = useState<"tcp" | "udp">("tcp");
 
-  if (!activeTab) return null;
-  const isTcp = activeTab.protocol === "tcp";
-
-  return isTcp ? <TcpPanel tab={activeTab} updateTab={updateTab} /> : <UdpPanel tab={activeTab} updateTab={updateTab} />;
+  return protocol === "tcp" ? (
+    <TcpPanel connectionId={connectionId} />
+  ) : (
+    <UdpPanel connectionId={connectionId} />
+  );
 }
 
 // ═══════════════════════════════════════════
@@ -20,7 +24,7 @@ export function TcpWorkspace() {
 
 type TcpModeType = "client" | "server";
 
-function TcpPanel({ tab, updateTab }: { tab: AppTab; updateTab: (id: string, updates: Partial<AppTab>) => void }) {
+function TcpPanel({ connectionId }: { connectionId: string }) {
   const [mode, setMode] = useState<TcpModeType>("client");
 
   return (
@@ -51,14 +55,14 @@ function TcpPanel({ tab, updateTab }: { tab: AppTab; updateTab: (id: string, upd
         </div>
       </div>
 
-      {mode === "client" ? <TcpClientView tab={tab} updateTab={updateTab} /> : <TcpServerView tab={tab} updateTab={updateTab} />}
+      {mode === "client" ? <TcpClientView connectionId={connectionId} /> : <TcpServerView connectionId={connectionId} />}
     </div>
   );
 }
 
 // ── TCP Client View ──
 
-function TcpClientView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string, updates: Partial<AppTab>) => void }) {
+function TcpClientView({ connectionId }: { connectionId: string }) {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [message, setMessage] = useState("");
@@ -66,9 +70,17 @@ function TcpClientView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
   const [autoScroll, setAutoScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [selectedParser, setSelectedParser] = useState<string>("");
+  const [parsedResults, setParsedResults] = useState<Record<string, ParseResult>>({});
+  const protocolParsers = usePluginStore((s) => s.protocolParsers);
+  const fetchParsers = usePluginStore((s) => s.fetchProtocolParsers);
 
-  const host = tab.tcpHost || "localhost";
-  const port = tab.tcpPort || 8080;
+  const [host, setHost] = useState("localhost");
+  const [port, setPort] = useState(8080);
+
+  useEffect(() => {
+    fetchParsers();
+  }, [fetchParsers]);
 
   useEffect(() => {
     if (autoScroll && messagesEndRef.current) {
@@ -87,18 +99,27 @@ function TcpClientView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
     const setup = async () => {
       const { onTcpEvent } = await import("@/services/tcpService");
       unlisten = await onTcpEvent((event: TcpEvent) => {
-        if (event.connectionId !== tab.id) return;
+        if (event.connectionId !== connectionId) return;
         switch (event.eventType) {
           case "connected":
             setConnected(true);
             setConnecting(false);
             break;
-          case "data":
+          case "data": {
+            const msgId = crypto.randomUUID();
             setMessages((prev) => [...prev, {
-              id: crypto.randomUUID(), direction: "received", data: event.data || "",
+              id: msgId, direction: "received", data: event.data || "",
               encoding: "utf8", timestamp: event.timestamp, size: event.size || 0,
             }]);
+            // Auto-parse if a parser is selected
+            const currentParser = selectedParser;
+            if (currentParser && event.data) {
+              pluginService.parseData(currentParser, event.data).then((result) => {
+                setParsedResults((prev) => ({ ...prev, [msgId]: result }));
+              }).catch(() => { /* ignore parse errors */ });
+            }
             break;
+          }
           case "disconnected":
             setConnected(false);
             setConnecting(false);
@@ -116,18 +137,18 @@ function TcpClientView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
     };
     setup();
     return () => { unlisten?.(); };
-  }, [tab.id]);
+  }, [connectionId]);
 
   const handleConnect = async () => {
     if (connected) {
       const { tcpDisconnect } = await import("@/services/tcpService");
-      await tcpDisconnect(tab.id);
+      await tcpDisconnect(connectionId);
       setConnected(false);
     } else {
       setConnecting(true);
       try {
         const { tcpConnect } = await import("@/services/tcpService");
-        await tcpConnect(tab.id, host, port);
+        await tcpConnect(connectionId, host, port);
       } catch (err: unknown) {
         setConnecting(false);
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -143,7 +164,7 @@ function TcpClientView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
     if (!connected || !message.trim()) return;
     try {
       const { tcpSend } = await import("@/services/tcpService");
-      await tcpSend(tab.id, message);
+      await tcpSend(connectionId, message);
       setMessages((prev) => [...prev, {
         id: crypto.randomUUID(), direction: "sent", data: message,
         encoding: "utf8", timestamp: new Date().toISOString(), size: new Blob([message]).size,
@@ -175,14 +196,14 @@ function TcpClientView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
           </div>
           <input
             value={host}
-            onChange={(e) => updateTab(tab.id, { tcpHost: e.target.value })}
+            onChange={(e) => setHost(e.target.value)}
             placeholder="主机地址"
             disabled={connected}
             className="flex-1 h-full px-4 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary border-r border-border-default disabled:opacity-60"
           />
           <input
             value={port}
-            onChange={(e) => updateTab(tab.id, { tcpPort: parseInt(e.target.value) || 0 })}
+            onChange={(e) => setPort(parseInt(e.target.value) || 0)}
             placeholder="端口"
             type="number"
             disabled={connected}
@@ -206,6 +227,13 @@ function TcpClientView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
         </div>
       </div>
 
+      {/* Protocol Parser Selector */}
+      <ProtocolParserSelector
+        parsers={protocolParsers}
+        selected={selectedParser}
+        onSelect={setSelectedParser}
+      />
+
       {/* Messages + Input */}
       <MessagePanel
         messages={messages}
@@ -224,6 +252,7 @@ function TcpClientView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
         icon={<Network className="w-8 h-8 opacity-20 text-blue-500" />}
         emptyTitle="TCP 客户端"
         emptyDesc="连接到 TCP 服务器开始收发数据"
+        parsedResults={parsedResults}
       />
     </>
   );
@@ -231,7 +260,7 @@ function TcpClientView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
 
 // ── TCP Server View ──
 
-function TcpServerView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string, updates: Partial<AppTab>) => void }) {
+function TcpServerView({ connectionId }: { connectionId: string }) {
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [message, setMessage] = useState("");
@@ -241,8 +270,8 @@ function TcpServerView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const host = tab.tcpHost || "0.0.0.0";
-  const port = tab.tcpPort || 9000;
+  const [host, setHost] = useState("0.0.0.0");
+  const [port, setPort] = useState(9000);
 
   useEffect(() => {
     if (autoScroll && messagesEndRef.current) {
@@ -261,7 +290,7 @@ function TcpServerView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
     const setup = async () => {
       const { onTcpServerEvent } = await import("@/services/tcpService");
       unlisten = await onTcpServerEvent((event: TcpEvent) => {
-        if (event.connectionId !== tab.id) return;
+        if (event.connectionId !== connectionId) return;
         switch (event.eventType) {
           case "started":
             setRunning(true);
@@ -302,19 +331,19 @@ function TcpServerView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
     };
     setup();
     return () => { unlisten?.(); };
-  }, [tab.id]);
+  }, [connectionId]);
 
   const handleStart = async () => {
     if (running) {
       const { tcpServerStop } = await import("@/services/tcpService");
-      await tcpServerStop(tab.id);
+      await tcpServerStop(connectionId);
       setRunning(false);
       setClients([]);
     } else {
       setStarting(true);
       try {
         const { tcpServerStart } = await import("@/services/tcpService");
-        await tcpServerStart(tab.id, host, port);
+        await tcpServerStart(connectionId, host, port);
       } catch (err: unknown) {
         setStarting(false);
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -330,7 +359,7 @@ function TcpServerView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
     if (!running || !message.trim()) return;
     try {
       const { tcpServerBroadcast } = await import("@/services/tcpService");
-      const count = await tcpServerBroadcast(tab.id, message);
+      const count = await tcpServerBroadcast(connectionId, message);
       setMessages((prev) => [...prev, {
         id: crypto.randomUUID(), direction: "sent", data: `[广播 → ${count} 客户端] ${message}`,
         encoding: "utf8", timestamp: new Date().toISOString(), size: new Blob([message]).size,
@@ -362,14 +391,14 @@ function TcpServerView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
           </div>
           <input
             value={host}
-            onChange={(e) => updateTab(tab.id, { tcpHost: e.target.value })}
+            onChange={(e) => setHost(e.target.value)}
             placeholder="绑定地址 (0.0.0.0)"
             disabled={running}
             className="flex-1 h-full px-4 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary border-r border-border-default disabled:opacity-60"
           />
           <input
             value={port}
-            onChange={(e) => updateTab(tab.id, { tcpPort: parseInt(e.target.value) || 0 })}
+            onChange={(e) => setPort(parseInt(e.target.value) || 0)}
             placeholder="端口"
             type="number"
             disabled={running}
@@ -438,7 +467,7 @@ function TcpServerView({ tab, updateTab }: { tab: AppTab; updateTab: (id: string
 //  UDP Panel
 // ═══════════════════════════════════════════
 
-function UdpPanel({ tab, updateTab }: { tab: AppTab; updateTab: (id: string, updates: Partial<AppTab>) => void }) {
+function UdpPanel({ connectionId }: { connectionId: string }) {
   const [bound, setBound] = useState(false);
   const [binding, setBinding] = useState(false);
   const [message, setMessage] = useState("");
@@ -448,8 +477,8 @@ function UdpPanel({ tab, updateTab }: { tab: AppTab; updateTab: (id: string, upd
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const host = tab.tcpHost || "0.0.0.0";
-  const port = tab.tcpPort || 9001;
+  const [host, setHost] = useState("0.0.0.0");
+  const [port, setPort] = useState(9001);
 
   useEffect(() => {
     if (autoScroll && messagesEndRef.current) {
@@ -468,7 +497,7 @@ function UdpPanel({ tab, updateTab }: { tab: AppTab; updateTab: (id: string, upd
     const setup = async () => {
       const { onUdpEvent } = await import("@/services/tcpService");
       unlisten = await onUdpEvent((event: TcpEvent) => {
-        if (event.connectionId !== tab.id) return;
+        if (event.connectionId !== connectionId) return;
         switch (event.eventType) {
           case "bound":
             setBound(true);
@@ -494,18 +523,18 @@ function UdpPanel({ tab, updateTab }: { tab: AppTab; updateTab: (id: string, upd
     };
     setup();
     return () => { unlisten?.(); };
-  }, [tab.id]);
+  }, [connectionId]);
 
   const handleBind = async () => {
     if (bound) {
       const { udpClose } = await import("@/services/tcpService");
-      await udpClose(tab.id);
+      await udpClose(connectionId);
       setBound(false);
     } else {
       setBinding(true);
       try {
         const { udpBind } = await import("@/services/tcpService");
-        await udpBind(tab.id, `${host}:${port}`);
+        await udpBind(connectionId, `${host}:${port}`);
       } catch (err: unknown) {
         setBinding(false);
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -521,7 +550,7 @@ function UdpPanel({ tab, updateTab }: { tab: AppTab; updateTab: (id: string, upd
     if (!bound || !message.trim() || !targetAddr.trim()) return;
     try {
       const { udpSendTo } = await import("@/services/tcpService");
-      await udpSendTo(tab.id, message, targetAddr);
+      await udpSendTo(connectionId, message, targetAddr);
       setMessages((prev) => [...prev, {
         id: crypto.randomUUID(), direction: "sent",
         data: message, encoding: "utf8", timestamp: new Date().toISOString(),
@@ -554,14 +583,14 @@ function UdpPanel({ tab, updateTab }: { tab: AppTab; updateTab: (id: string, upd
           </div>
           <input
             value={host}
-            onChange={(e) => updateTab(tab.id, { tcpHost: e.target.value })}
+            onChange={(e) => setHost(e.target.value)}
             placeholder="本地绑定地址"
             disabled={bound}
             className="flex-1 h-full px-4 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary border-r border-border-default disabled:opacity-60"
           />
           <input
             value={port}
-            onChange={(e) => updateTab(tab.id, { tcpPort: parseInt(e.target.value) || 0 })}
+            onChange={(e) => setPort(parseInt(e.target.value) || 0)}
             placeholder="端口"
             type="number"
             disabled={bound}
@@ -708,6 +737,7 @@ interface MessagePanelProps {
   emptyDesc: string;
   sendLabel?: string;
   inputPlaceholder?: string;
+  parsedResults?: Record<string, ParseResult>;
 }
 
 function MessagePanel({
@@ -716,6 +746,7 @@ function MessagePanel({
   handleScroll, handleSend, handleKeyDown,
   accentColor, icon, emptyTitle, emptyDesc,
   sendLabel = "发送", inputPlaceholder = "输入消息内容... (Enter 发送, Shift+Enter 换行)",
+  parsedResults = {},
 }: MessagePanelProps) {
   const accentMap: Record<string, { sent: string; border: string; focus: string; btn: string; btnHover: string }> = {
     blue: { sent: "from-blue-500/10 to-indigo-500/10", border: "border-blue-500/20", focus: "focus:border-blue-500 focus:ring-blue-500/50", btn: "bg-blue-500", btnHover: "hover:bg-blue-600" },
@@ -766,7 +797,7 @@ function MessagePanel({
           ) : (
             <div className="space-y-3">
               {messages.map((m) => (
-                <div key={m.id} className={cn("flex", m.direction === "sent" ? "justify-end" : "justify-start")}>
+                <div key={m.id} className={cn("flex flex-col", m.direction === "sent" ? "items-end" : "items-start")}>
                   <div className={cn(
                     "max-w-[75%] px-4 py-2.5 rounded-2xl text-[13px] font-mono break-words shadow-sm",
                     m.direction === "sent"
@@ -784,6 +815,10 @@ function MessagePanel({
                       {m.clientId && <span className="text-[10px] opacity-40">客户端: {m.clientId.slice(0, 8)}</span>}
                     </div>
                   </div>
+                  {/* Parsed data display */}
+                  {parsedResults[m.id] && (
+                    <ParsedDataView result={parsedResults[m.id]} />
+                  )}
                 </div>
               ))}
               <div ref={messagesEndRef} />
@@ -837,4 +872,105 @@ function formatTime(ts: string) {
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+// ═══════════════════════════════════════════
+//  协议解析器选择器
+// ═══════════════════════════════════════════
+
+function ProtocolParserSelector({
+  parsers, selected, onSelect,
+}: {
+  parsers: ProtocolParser[];
+  selected: string;
+  onSelect: (v: string) => void;
+}) {
+  if (parsers.length === 0) return null;
+
+  return (
+    <div className="shrink-0 px-4 pb-1">
+      <div className="flex items-center gap-2">
+        <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+        <span className="text-[11px] font-medium text-text-tertiary shrink-0">协议解析:</span>
+        <div className="relative">
+          <select
+            value={selected}
+            onChange={(e) => onSelect(e.target.value)}
+            className="appearance-none h-7 pl-2.5 pr-7 text-[12px] bg-bg-primary border border-border-default rounded-md outline-none focus:border-accent transition-colors text-text-primary cursor-pointer min-w-[140px]"
+          >
+            <option value="">不解析（原始数据）</option>
+            {parsers.map((p) => (
+              <option key={`${p.pluginId}-${p.protocolId}`} value={p.pluginId}>
+                {p.pluginName}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-text-disabled pointer-events-none" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+//  解析结果展示
+// ═══════════════════════════════════════════
+
+function ParsedDataView({ result }: { result: ParseResult }) {
+  if (!result.success) {
+    return (
+      <div className="mt-1 max-w-[75%] px-3 py-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-[11px] text-red-600 dark:text-red-400">
+        ⚠ 解析失败: {result.error}
+      </div>
+    );
+  }
+
+  // Group fields
+  const groups = new Map<string, typeof result.fields>();
+  for (const f of result.fields) {
+    const g = f.group || "其他";
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g)!.push(f);
+  }
+
+  return (
+    <div className="mt-1.5 max-w-[85%] rounded-xl border border-emerald-200 dark:border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-500/5 overflow-hidden shadow-sm">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100/50 dark:bg-emerald-500/10 border-b border-emerald-200 dark:border-emerald-500/20">
+        <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+        <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+          {result.protocolName}
+        </span>
+        <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70">
+          {result.summary}
+        </span>
+      </div>
+
+      {/* Fields grouped */}
+      <div className="px-3 py-2 space-y-2">
+        {Array.from(groups.entries()).map(([groupName, fields]) => (
+          <div key={groupName}>
+            <div className="text-[10px] font-semibold text-emerald-600/60 dark:text-emerald-400/60 uppercase tracking-wider mb-1">
+              {groupName}
+            </div>
+            <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-0.5">
+              {fields.map((f) => (
+                <>
+                  <span key={`${f.key}-label`} className="text-[11px] text-text-tertiary font-medium">
+                    {f.label}
+                  </span>
+                  <span key={`${f.key}-value`} className="text-[11px] text-text-primary font-mono truncate">
+                    {f.value}
+                  </span>
+                  <span key={`${f.key}-unit`} className="text-[10px] text-text-disabled">
+                    {f.unit || ""}
+                  </span>
+                </>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

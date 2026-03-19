@@ -63,6 +63,14 @@ export function useKeyboardShortcuts() {
         if (sendBtn && !sendBtn.disabled) sendBtn.click();
         return;
       }
+
+      // Ctrl+S — Save request
+      if (ctrl && !shift && e.key === "s") {
+        e.preventDefault();
+        const saveBtn = document.querySelector<HTMLButtonElement>("[data-save-button]");
+        if (saveBtn) saveBtn.click();
+        return;
+      }
     };
 
     window.addEventListener("keydown", handler);

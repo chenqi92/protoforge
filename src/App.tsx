@@ -7,15 +7,15 @@ import { StatusBar } from "@/components/layout/StatusBar";
 import { WelcomePage } from "@/components/WelcomePage";
 import { HttpWorkspace } from "@/components/http/HttpWorkspace";
 import { WsWorkspace } from "@/components/ws/WsWorkspace";
-import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
-import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
-import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
+import { PluginModal } from "@/components/plugins/PluginModal";
 import { useAppStore, type ProtocolType } from "@/stores/appStore";
+import { openToolWindow, type ToolWindowType } from "@/lib/windowManager";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 
 function App() {
   const sidebarPanelRef = usePanelRef();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [pluginModalOpen, setPluginModalOpen] = useState(false);
 
   // Mount global keyboard shortcuts
   useKeyboardShortcuts();
@@ -45,7 +45,16 @@ function App() {
   }, [setTabProtocol]);
 
   const handleOpenTool = useCallback((tool: string) => {
-    console.log("Open tool:", tool);
+    if (tool === "plugins") {
+      setPluginModalOpen(true);
+      return;
+    }
+    const toolWindows: string[] = ["capture", "loadtest", "tcpudp"];
+    if (toolWindows.includes(tool)) {
+      openToolWindow(tool as ToolWindowType);
+    } else {
+      console.log("Open tool:", tool);
+    }
   }, []);
 
   const handleSidebarResize = useCallback((size: { asPercentage: number; inPixels: number }) => {
@@ -66,10 +75,6 @@ function App() {
     switch (activeTab.protocol) {
       case "http": return <HttpWorkspace />;
       case "ws": return <WsWorkspace />;
-      case "tcp":
-      case "udp": return <TcpWorkspace />;
-      case "capture": return <CaptureWorkspace />;
-      case "loadtest": return <LoadTestWorkspace />;
       case "sse":
       case "mqtt":
         return (
@@ -130,6 +135,8 @@ function App() {
         responseTime={activeTab?.httpResponse?.durationMs}
         responseSize={activeTab?.httpResponse?.bodySize}
       />
+
+      <PluginModal open={pluginModalOpen} onClose={() => setPluginModalOpen(false)} />
     </div>
   );
 }

@@ -40,3 +40,5 @@ hudsucker = { version = "0.24", features = ["rcgen-ca"] }
 rcgen = "0.14"
 http = "1"
 bytes = "1"
+boa_engine = { version = "0.20", features = ["intl"] }
+boa_runtime = "0.20"

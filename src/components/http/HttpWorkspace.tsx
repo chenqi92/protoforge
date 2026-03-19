@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
-import { Play, Loader2, Copy, Check, ChevronDown, Braces, Upload, FileIcon, X, Save } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, Braces, Upload, FileIcon, X, Save, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
 import type { HttpMethod, KeyValue, FormDataField } from "@/types/http";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { SaveRequestDialog } from "./SaveRequestDialog";
 import { ScriptEditor } from "./ScriptEditor";
+import { ResponseViewer } from "@/components/ui/ResponseViewer";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -145,7 +146,20 @@ export function HttpWorkspace() {
           {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-white" />}
           {loading ? "发送中" : "发送"}
         </button>
-      </div>
+
+          {/* Load Test Button */}
+          <button
+            onClick={async () => {
+              const { pushLoadTestConfig } = await import("@/lib/loadTestBridge");
+              pushLoadTestConfig(config);
+            }}
+            disabled={!config.url.trim()}
+            className="h-7 px-2.5 rounded-md flex items-center justify-center gap-1 text-[12px] font-medium text-text-tertiary hover:bg-rose-500/10 hover:text-rose-600 transition-colors shrink-0 disabled:opacity-40"
+            title="发送到压测"
+          >
+            <Flame className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
       {/* Main Split Area */}
       <div className="flex-1 overflow-hidden">
@@ -364,21 +378,22 @@ export function HttpWorkspace() {
                 </div>
               </div>
               
-              <div className="flex-1 overflow-auto bg-bg-input/50 p-4">
+              <div className="flex-1 overflow-hidden">
                 {resTab === "headers" ? (
-                  <div className="max-w-3xl border border-border-default rounded-lg overflow-hidden bg-bg-primary">
-                    {Object.entries(response.headers).map(([k, v], i) => (
-                      <div key={k} className={cn("flex gap-4 p-2 text-[13px] font-mono", i > 0 && "border-t border-border-default")}>
-                        <span className="text-text-secondary font-medium w-1/3 break-words">{k}</span>
-                        <span className="text-text-primary break-all w-2/3">{v}</span>
-                      </div>
-                    ))}
+                  <div className="p-4 overflow-auto h-full">
+                    <div className="max-w-3xl border border-border-default rounded-lg overflow-hidden bg-bg-primary">
+                      {Object.entries(response.headers).map(([k, v], i) => (
+                        <div key={k} className={cn("flex gap-4 p-2 text-[13px] font-mono", i > 0 && "border-t border-border-default")}>
+                          <span className="text-text-secondary font-medium w-1/3 break-words">{k}</span>
+                          <span className="text-text-primary break-all w-2/3">{v}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+                ) : resTab === "pretty" ? (
+                  <ResponseViewer body={response.body} contentType={response.contentType} />
                 ) : (
-                  <pre 
-                    className="text-[13px] font-mono text-text-primary whitespace-pre-wrap break-all leading-[1.6]" 
-                    style={{ userSelect: "text" }}
-                  >{resTab === "pretty" ? tryFormat(response.body) : response.body}</pre>
+                  <ResponseViewer body={response.body} contentType={response.contentType} modes={['raw']} compact />
                 )}
               </div>
             </>
@@ -617,10 +632,3 @@ function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; file
   );
 }
 
-function tryFormat(body: string): string { 
-  try { 
-    return JSON.stringify(JSON.parse(body), null, 2); 
-  } catch { 
-    return body; 
-  } 
-}

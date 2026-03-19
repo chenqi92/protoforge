@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Flame, Play, Square, Settings2, Activity, BarChart3, Clock,
   AlertTriangle, Zap, TrendingUp, ChevronDown, ChevronUp,
   Plus, Trash2, Download, Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAppStore } from "@/stores/appStore";
 import { MetricsChart } from "./MetricsChart";
 import type { MetricsSnapshot, LoadTestComplete, LoadTestConfig } from "@/types/loadtest";
 
@@ -15,9 +14,9 @@ type BodyMode = "none" | "json" | "raw";
 type AuthMode = "none" | "bearer" | "basic";
 
 export function LoadTestWorkspace() {
-  const activeTab = useAppStore((s) => s.getActiveTab());
-  if (!activeTab) return null;
-  return <LoadTestPanel tabId={activeTab.id} />;
+  // 自管理 ID，不依赖 AppTab（独立窗口可用）
+  const testId = useRef(crypto.randomUUID()).current;
+  return <LoadTestPanel tabId={testId} />;
 }
 
 function LoadTestPanel({ tabId }: { tabId: string }) {
@@ -49,6 +48,53 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
   const [latestMetrics, setLatestMetrics] = useState<MetricsSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chartTab, setChartTab] = useState<"rps" | "latency">("rps");
+
+  // ─── Read prefill config from bridge ───
+  useEffect(() => {
+    (async () => {
+      const { popLoadTestConfig } = await import("@/lib/loadTestBridge");
+      const prefill = popLoadTestConfig();
+      if (!prefill) return;
+
+      if (prefill.url) setUrl(prefill.url);
+      if (prefill.method) setMethod(prefill.method as HttpMethod);
+      if (prefill.timeoutMs) setTimeoutMs(prefill.timeoutMs);
+
+      // Headers
+      if (prefill.headers && Object.keys(prefill.headers).length > 0) {
+        const h = Object.entries(prefill.headers).map(([key, value]) => ({ key, value }));
+        setHeaders([...h, { key: "", value: "" }]);
+        setShowAdvanced(true);
+      }
+
+      // Body
+      if (prefill.body) {
+        if (prefill.body.type === "json" && prefill.body.data) {
+          setBodyMode("json");
+          setBodyContent(prefill.body.data);
+          setShowAdvanced(true);
+        } else if (prefill.body.type === "raw" && prefill.body.content) {
+          setBodyMode("raw");
+          setBodyContent(prefill.body.content);
+          setShowAdvanced(true);
+        }
+      }
+
+      // Auth
+      if (prefill.auth) {
+        if (prefill.auth.type === "bearer" && prefill.auth.token) {
+          setAuthMode("bearer");
+          setBearerToken(prefill.auth.token);
+          setShowAdvanced(true);
+        } else if (prefill.auth.type === "basic" && prefill.auth.username) {
+          setAuthMode("basic");
+          setBasicUser(prefill.auth.username);
+          setBasicPass(prefill.auth.password || "");
+          setShowAdvanced(true);
+        }
+      }
+    })();
+  }, []); // run once on mount
 
   // Listen events
   useEffect(() => {

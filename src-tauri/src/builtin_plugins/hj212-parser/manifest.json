@@ -1,0 +1,12 @@
+{
+  "id": "hj212-parser",
+  "name": "HJ212 协议解析",
+  "version": "1.0.0",
+  "description": "国标 HJ 212-2017 环保数据传输协议解析器。支持解析环保监测设备上报的数据报文，自动识别数据段中的各项监测指标（COD、氨氮、pH等），将原始字节流转换为结构化可读数据。",
+  "author": "ProtoForge 官方",
+  "type": "protocol-parser",
+  "icon": "🔬",
+  "entrypoint": "index.js",
+  "protocolIds": ["hj212"],
+  "tags": ["环保", "协议", "HJ212", "国标"]
+}

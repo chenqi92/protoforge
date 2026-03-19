@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { HttpRequestConfig, HttpResponse } from '@/types/http';
 import { createDefaultRequest } from '@/types/http';
 
-export type ProtocolType = 'http' | 'ws' | 'sse' | 'mqtt' | 'tcp' | 'udp' | 'capture' | 'loadtest';
+export type ProtocolType = 'http' | 'ws' | 'sse' | 'mqtt';
 
 export interface AppTab {
   id: string;
@@ -14,10 +14,8 @@ export interface AppTab {
   // General
   loading: boolean;
   error: string | null;
-  // WS/TCP/UDP (placeholder fields)
+  // WS (placeholder fields)
   wsUrl?: string;
-  tcpHost?: string;
-  tcpPort?: number;
 }
 
 interface AppStore {
@@ -59,10 +57,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       ws: 'WebSocket',
       sse: 'SSE Stream',
       mqtt: 'MQTT Client',
-      tcp: 'TCP Connection',
-      udp: 'UDP Socket',
-      capture: '抓包',
-      loadtest: '压力测试',
     };
     const tab: AppTab = {
       id,
@@ -73,8 +67,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       loading: false,
       error: null,
       wsUrl: protocol === 'ws' ? 'ws://localhost:8080' : undefined,
-      tcpHost: protocol === 'tcp' || protocol === 'udp' ? 'localhost' : undefined,
-      tcpPort: protocol === 'tcp' || protocol === 'udp' ? 8080 : undefined,
     };
     set((s) => ({ tabs: [...s.tabs, tab], activeTabId: id }));
     return id;
@@ -105,8 +97,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         if (t.id !== id) return t;
         const labels: Record<ProtocolType, string> = {
           http: 'Untitled Request', ws: 'WebSocket', sse: 'SSE Stream',
-          mqtt: 'MQTT Client', tcp: 'TCP Connection', udp: 'UDP Socket',
-          capture: '抓包', loadtest: '压力测试',
+          mqtt: 'MQTT Client',
         };
         return {
           ...t,
@@ -114,8 +105,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
           label: t.label === labels[t.protocol] ? labels[protocol] : t.label,
           httpConfig: protocol === 'http' && !t.httpConfig ? createDefaultRequest() : t.httpConfig,
           wsUrl: protocol === 'ws' && !t.wsUrl ? 'ws://localhost:8080' : t.wsUrl,
-          tcpHost: (protocol === 'tcp' || protocol === 'udp') && !t.tcpHost ? 'localhost' : t.tcpHost,
-          tcpPort: (protocol === 'tcp' || protocol === 'udp') && !t.tcpPort ? 8080 : t.tcpPort,
         };
       }),
     }));

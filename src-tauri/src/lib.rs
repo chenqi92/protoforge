@@ -7,12 +7,14 @@ mod ws_client;
 mod tcp_client;
 mod load_test;
 mod proxy_capture;
+mod plugin_runtime;
 
 use tauri::Manager;
 use ws_client::WsConnections;
 use tcp_client::{TcpConnections, TcpServers, UdpSockets};
 use load_test::LoadTestState;
 use proxy_capture::ProxyState;
+use plugin_runtime::PluginManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -25,9 +27,10 @@ pub fn run() {
                 .expect("failed to get app data dir");
 
             // 初始化 SQLite 数据库连接池
+            let app_data_for_db = app_data.clone();
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                let pool = database::init_pool(&app_data).await
+                let pool = database::init_pool(&app_data_for_db).await
                     .expect("failed to init database");
                 handle.manage(pool);
             });
@@ -39,6 +42,16 @@ pub fn run() {
             app.manage(UdpSockets::new());
             app.manage(LoadTestState::new());
             app.manage(ProxyState::new());
+
+            // 初始化插件管理器
+            let plugin_mgr = PluginManager::new(&app_data);
+            let handle2 = app.handle().clone();
+            tauri::async_runtime::block_on(async move {
+                if let Err(e) = plugin_mgr.scan_installed().await {
+                    log::warn!("扫描插件目录失败: {}", e);
+                }
+                handle2.manage(plugin_mgr);
+            });
 
             Ok(())
         })
@@ -105,6 +118,13 @@ pub fn run() {
             commands::proxy_get_entries,
             commands::proxy_clear,
             commands::proxy_export_ca,
+            // Plugins
+            commands::plugin_list,
+            commands::plugin_list_available,
+            commands::plugin_install,
+            commands::plugin_uninstall,
+            commands::plugin_parse_data,
+            commands::plugin_get_protocol_parsers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

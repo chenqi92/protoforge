@@ -406,3 +406,55 @@ pub async fn proxy_export_ca(
 ) -> Result<String, String> {
     proxy_capture::export_ca_cert(&state).await
 }
+
+// ═══════════════════════════════════════════
+//  Plugins
+// ═══════════════════════════════════════════
+
+use crate::plugin_runtime::{PluginManager, PluginManifest, ProtocolParser, ParseResult};
+
+#[tauri::command]
+pub async fn plugin_list(
+    mgr: State<'_, PluginManager>,
+) -> Result<Vec<PluginManifest>, String> {
+    Ok(mgr.list_installed().await)
+}
+
+#[tauri::command]
+pub async fn plugin_list_available(
+    mgr: State<'_, PluginManager>,
+) -> Result<Vec<PluginManifest>, String> {
+    Ok(mgr.list_available().await)
+}
+
+#[tauri::command]
+pub async fn plugin_install(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+) -> Result<PluginManifest, String> {
+    mgr.install(&plugin_id).await
+}
+
+#[tauri::command]
+pub async fn plugin_uninstall(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+) -> Result<(), String> {
+    mgr.uninstall(&plugin_id).await
+}
+
+#[tauri::command]
+pub async fn plugin_parse_data(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+    raw_data: String,
+) -> Result<ParseResult, String> {
+    mgr.parse_data(&plugin_id, &raw_data).await
+}
+
+#[tauri::command]
+pub async fn plugin_get_protocol_parsers(
+    mgr: State<'_, PluginManager>,
+) -> Result<Vec<ProtocolParser>, String> {
+    Ok(mgr.get_protocol_parsers().await)
+}
