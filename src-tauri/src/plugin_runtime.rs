@@ -12,8 +12,18 @@ use tokio::sync::RwLock;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub enum PluginType {
+    /// 协议解析器 — 解析原始报文为结构化数据
     ProtocolParser,
-    UiPanel,
+    /// 请求钩子 — 请求发送前/后的处理（签名、加密、Token 注入）
+    RequestHook,
+    /// 响应渲染器 — 自定义渲染响应数据（图表、HEX、树形）
+    ResponseRenderer,
+    /// 数据生成器 — Mock 数据、随机值、模板填充
+    DataGenerator,
+    /// 导出格式 — 自定义导出（cURL、HTTPie、代码片段）
+    ExportFormat,
+    /// 侧边栏面板 — 独立功能面板（监控、日志、统计）
+    SidebarPanel,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,6 +51,9 @@ pub struct PluginManifest {
     /// Source of this plugin: "builtin" or "remote"
     #[serde(default = "default_source")]
     pub source: String,
+    /// 插件声明的扩展点贡献 (类似 VS Code contributes)
+    #[serde(default)]
+    pub contributes: PluginContributes,
 }
 
 fn default_source() -> String {
@@ -78,6 +91,82 @@ pub struct ParseResult {
     pub raw_hex: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+}
+
+// ── Plugin Contributes (Extension Points) ──
+
+/// 插件声明的扩展点贡献
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginContributes {
+    /// 协议解析器贡献
+    #[serde(default)]
+    pub parsers: Vec<ParserContribution>,
+    /// 请求钩子 (pre/post)
+    #[serde(default)]
+    pub request_hooks: Vec<RequestHookContribution>,
+    /// 响应渲染器
+    #[serde(default)]
+    pub response_renderers: Vec<RendererContribution>,
+    /// 侧边栏面板
+    #[serde(default)]
+    pub sidebar_panels: Vec<SidebarContribution>,
+    /// 数据生成器
+    #[serde(default)]
+    pub generators: Vec<GeneratorContribution>,
+    /// 导出格式
+    #[serde(default)]
+    pub export_formats: Vec<ExportFormatContribution>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserContribution {
+    pub protocol_id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestHookContribution {
+    /// 钩子类型: "pre-request" or "post-response"
+    pub hook_type: String,
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RendererContribution {
+    /// 支持的 Content-Type MIME 模式
+    pub content_types: Vec<String>,
+    pub name: String,
+    pub icon: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SidebarContribution {
+    pub panel_id: String,
+    pub name: String,
+    pub icon: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratorContribution {
+    pub generator_id: String,
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportFormatContribution {
+    pub format_id: String,
+    pub name: String,
+    pub file_extension: String,
 }
 
 // ── Remote Registry ──
@@ -124,6 +213,7 @@ impl RemotePluginEntry {
             installed: false,
             download_url: Some(self.download_url),
             source: "remote".to_string(),
+            contributes: PluginContributes::default(),
         }
     }
 }
@@ -137,7 +227,7 @@ const DEFAULT_REGISTRY_URL: &str =
 // 支持三种运行时：Native (Rust fn) / JavaScript (boa_engine) / WASM (wasmtime)
 
 /// 插件运行时类型
-pub enum ParserRuntime {
+pub enum PluginRuntime {
     /// Rust 原生函数指针 — 零开销，最快
     Native(fn(&str) -> ParseResult),
     /// JavaScript 脚本 (boa_engine 解释执行)
@@ -149,7 +239,7 @@ pub enum ParserRuntime {
 /// 注册到统一注册表中的插件条目
 pub struct RegisteredPlugin {
     pub manifest: PluginManifest,
-    pub runtime: ParserRuntime,
+    pub runtime: PluginRuntime,
 }
 
 // ── Plugin Manager ──
@@ -185,7 +275,7 @@ impl PluginManager {
         let id = manifest.id.clone();
         self.registry.write().await.insert(id, RegisteredPlugin {
             manifest,
-            runtime: ParserRuntime::Native(parse_fn),
+            runtime: PluginRuntime::Native(parse_fn),
         });
     }
 
@@ -222,9 +312,9 @@ impl PluginManager {
                             if !reg.contains_key(&id) {
                                 // 根据 entrypoint 扩展名决定运行时
                                 let runtime = if manifest.entrypoint.ends_with(".wasm") {
-                                    ParserRuntime::Wasm
+                                    PluginRuntime::Wasm
                                 } else {
-                                    ParserRuntime::JavaScript
+                                    PluginRuntime::JavaScript
                                 };
                                 reg.insert(id, RegisteredPlugin { manifest, runtime });
                             }
@@ -426,9 +516,9 @@ impl PluginManager {
 
         // 根据 entrypoint 确定运行时类型
         let runtime = if manifest.entrypoint.ends_with(".wasm") {
-            ParserRuntime::Wasm
+            PluginRuntime::Wasm
         } else {
-            ParserRuntime::JavaScript
+            PluginRuntime::JavaScript
         };
 
         self.registry
@@ -449,7 +539,7 @@ impl PluginManager {
         {
             let reg = self.registry.read().await;
             if let Some(rp) = reg.get(plugin_id) {
-                if matches!(rp.runtime, ParserRuntime::Native(_)) {
+                if matches!(rp.runtime, PluginRuntime::Native(_)) {
                     return Err(format!("插件 '{}' 是内置原生解析器，无法卸载", plugin_id));
                 }
             } else {
@@ -489,6 +579,15 @@ impl PluginManager {
         parsers
     }
 
+    /// 按插件类型查询已注册的插件列表
+    pub async fn get_plugins_by_type(&self, plugin_type: &PluginType) -> Vec<PluginManifest> {
+        let reg = self.registry.read().await;
+        reg.values()
+            .filter(|rp| &rp.manifest.plugin_type == plugin_type)
+            .map(|rp| rp.manifest.clone())
+            .collect()
+    }
+
     /// Execute a plugin's parse function on raw data.
     /// 通过统一注册表动态分发到正确的运行时，零硬编码。
     pub async fn parse_data(
@@ -504,13 +603,13 @@ impl PluginManager {
 
         match &rp.runtime {
             // Rust 原生函数指针 — 直接调用，零开销
-            ParserRuntime::Native(parse_fn) => {
+            PluginRuntime::Native(parse_fn) => {
                 let f = *parse_fn;
                 drop(reg); // 释放锁
                 Ok(f(raw_data))
             }
             // JavaScript — boa_engine 解释执行
-            ParserRuntime::JavaScript => {
+            PluginRuntime::JavaScript => {
                 let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
                 drop(reg);
                 let script = tokio::fs::read_to_string(&script_path)
@@ -525,7 +624,7 @@ impl PluginManager {
                 Ok(result)
             }
             // WASM — wasmtime JIT（委托给 WasmPluginRuntime）
-            ParserRuntime::Wasm => {
+            PluginRuntime::Wasm => {
                 drop(reg);
                 // WASM 执行通过独立的 WasmPluginRuntime 处理
                 Err(format!("WASM 插件 '{}' 请通过 wasm_parse_data 命令调用", plugin_id))

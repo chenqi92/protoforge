@@ -78,6 +78,13 @@ pub fn run() {
                         installed: true,
                         download_url: None,
                         source: "native".into(),
+                        contributes: plugin_runtime::PluginContributes {
+                            parsers: vec![plugin_runtime::ParserContribution {
+                                protocol_id: "hj212".into(),
+                                name: "HJ212 协议".into(),
+                            }],
+                            ..Default::default()
+                        },
                     },
                     builtin_parsers::parse_hj212,
                 ).await;
@@ -97,6 +104,13 @@ pub fn run() {
                         installed: true,
                         download_url: None,
                         source: "native".into(),
+                        contributes: plugin_runtime::PluginContributes {
+                            parsers: vec![plugin_runtime::ParserContribution {
+                                protocol_id: "sfjk200".into(),
+                                name: "SFJK200 协议".into(),
+                            }],
+                            ..Default::default()
+                        },
                     },
                     builtin_parsers::parse_sfjk200,
                 ).await;
