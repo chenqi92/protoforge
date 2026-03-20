@@ -34,6 +34,9 @@ export interface AppSettings {
   sidebarWidth: number;    // percentage
   windowWidth: number;
   windowHeight: number;
+
+  // ── 新建标签页 ──
+  defaultNewProtocol: string; // 上次选择的协议类型
 }
 
 interface SettingsStore {
@@ -68,6 +71,8 @@ const defaultSettings: AppSettings = {
   sidebarWidth: 22,
   windowWidth: 1280,
   windowHeight: 800,
+
+  defaultNewProtocol: 'http',
 };
 
 export const useSettingsStore = create<SettingsStore>()(

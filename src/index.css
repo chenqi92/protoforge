@@ -143,20 +143,22 @@
   html, body, #root {
     height: 100%;
     overflow: hidden;
-    background:
-      radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 32%),
-      radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 28%),
-      var(--color-bg-app);
+    background: var(--color-bg-app);
     color: var(--color-text-primary);
     font-family: var(--font-sans);
     font-size: 13px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    user-select: auto;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
-  button, label, summary, img {
-    user-select: none;
+  /* 可选中的内容区域：输入框、代码块、响应内容等 */
+  input, textarea, select,
+  pre, code,
+  .selectable {
+    user-select: text;
+    -webkit-user-select: text;
   }
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -166,7 +168,7 @@
 
   ::selection { background: var(--color-accent-muted); color: var(--color-text-primary); }
 
-  input, textarea, select { font-family: var(--font-sans); font-size: 13px; user-select: text; }
+  input, textarea, select { font-family: var(--font-sans); font-size: 13px; }
 }
 
 @layer utilities {

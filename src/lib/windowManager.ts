@@ -60,7 +60,9 @@ export async function openToolWindow(tool: ToolWindowType): Promise<void> {
     height: config.height,
     minWidth: config.minWidth,
     minHeight: config.minHeight,
-    decorations: false,
+    decorations: true,
+    titleBarStyle: "overlay",
+    hiddenTitle: true,
     center: true,
   });
 }

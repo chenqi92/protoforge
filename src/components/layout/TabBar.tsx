@@ -4,6 +4,7 @@ import { Plus, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { WorkspaceProtocol } from "@/stores/appStore";
 import { useAppStore } from "@/stores/appStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
 import { Copy, Trash2, Edit3, ArrowRightFromLine, ExternalLink } from "lucide-react";
 import type { ToolWindowType } from "@/lib/windowManager";
@@ -43,6 +44,16 @@ const protocolColors: Record<WorkspaceProtocol, string> = {
   capture: "bg-cyan-500/15 text-cyan-600",
 };
 
+const protocolDotColors: Record<string, string> = {
+  http: "bg-emerald-500",
+  ws: "bg-amber-500",
+  sse: "bg-orange-500",
+  mqtt: "bg-purple-500",
+  tcpudp: "bg-blue-500",
+  loadtest: "bg-rose-500",
+  capture: "bg-cyan-500",
+};
+
 const methodBadgeColors: Record<string, string> = {
   GET: "bg-emerald-500/15 text-emerald-600",
   POST: "bg-amber-500/15 text-amber-600",
@@ -56,25 +67,25 @@ const methodBadgeColors: Record<string, string> = {
 const createMenuSections: Array<{
   id: string;
   label: string;
-  options: Array<{ protocol: Exclude<WorkspaceProtocol, "collection">; label: string; desc: string }>;
+  options: Array<{ protocol: Exclude<WorkspaceProtocol, "collection">; label: string }>;
 }> = [
   {
     id: "protocols",
     label: "请求协议",
     options: [
-      { protocol: "http", label: "HTTP 请求", desc: "REST / GraphQL / 表单提交" },
-      { protocol: "ws", label: "WebSocket", desc: "实时连接与消息调试" },
-      { protocol: "sse", label: "SSE", desc: "事件流与服务推送" },
-      { protocol: "mqtt", label: "MQTT", desc: "Broker / 订阅 / 发布" },
+      { protocol: "http", label: "HTTP" },
+      { protocol: "ws", label: "WebSocket" },
+      { protocol: "sse", label: "SSE" },
+      { protocol: "mqtt", label: "MQTT" },
     ],
   },
   {
     id: "tools",
-    label: "工具工作台",
+    label: "工具",
     options: [
-      { protocol: "tcpudp", label: "TCP / UDP", desc: "Socket 测试与二进制调试" },
-      { protocol: "loadtest", label: "压力测试", desc: "并发压测与实时指标观测" },
-      { protocol: "capture", label: "网络抓包", desc: "HTTP 代理与请求响应录制" },
+      { protocol: "tcpudp", label: "TCP/UDP" },
+      { protocol: "loadtest", label: "压测" },
+      { protocol: "capture", label: "抓包" },
     ],
   },
 ];
@@ -88,6 +99,8 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   const createMenuAnchorRef = useRef<HTMLDivElement>(null);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [createMenuPos, setCreateMenuPos] = useState({ top: 0, left: 0 });
+
+  const defaultProtocol = useSettingsStore((s) => s.settings.defaultNewProtocol) as Exclude<WorkspaceProtocol, "collection">;
 
   useEffect(() => {
     if (tabs.length > prevTabCount.current && scrollRef.current) {
@@ -127,9 +140,15 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   const toggleCreateMenu = () => {
     if (createMenuAnchorRef.current) {
       const rect = createMenuAnchorRef.current.getBoundingClientRect();
-      setCreateMenuPos({ top: rect.bottom + 8, left: Math.max(12, rect.right - 240) });
+      setCreateMenuPos({ top: rect.bottom + 6, left: Math.max(12, rect.right - 180) });
     }
     setShowCreateMenu((prev) => !prev);
+  };
+
+  const handleCreateWithProtocol = (protocol: Exclude<WorkspaceProtocol, "collection">) => {
+    onNewTab(protocol);
+    useSettingsStore.getState().update("defaultNewProtocol", protocol);
+    setShowCreateMenu(false);
   };
 
   return (
@@ -159,20 +178,25 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
       <div ref={createMenuAnchorRef} className="shrink-0">
         <div className="flex items-center rounded-[14px] border border-border-default/75 bg-bg-primary/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
           <button
-            onClick={() => onNewTab("http")}
+            onClick={() => handleCreateWithProtocol(defaultProtocol)}
             className="flex h-8 items-center gap-1.5 rounded-l-[14px] px-3 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover/75 hover:text-text-primary"
-            title="新建 HTTP 请求 (Ctrl+N)"
+            title={`新建 ${protocolLabels[defaultProtocol] || "HTTP"} (Ctrl+N)`}
           >
             <Plus className="w-3.5 h-3.5" />
-            新建
+            <span className={cn("rounded-[5px] px-1.5 py-[1px] text-[10px] font-bold leading-none", protocolColors[defaultProtocol])}>
+              {protocolLabels[defaultProtocol] || "HTTP"}
+            </span>
           </button>
           <div className="h-4 w-px bg-border-default/70" />
           <button
             onClick={toggleCreateMenu}
-            className="flex h-8 w-8 items-center justify-center rounded-r-[14px] text-text-tertiary transition-colors hover:bg-bg-hover/75 hover:text-text-primary"
+            className={cn(
+              "flex h-8 w-7 items-center justify-center rounded-r-[14px] text-text-tertiary transition-colors hover:bg-bg-hover/75 hover:text-text-primary",
+              showCreateMenu && "bg-bg-hover/75 text-text-primary"
+            )}
             title="选择协议类型"
           >
-            <ChevronDown className="w-3.5 h-3.5" />
+            <ChevronDown className={cn("w-3 h-3 transition-transform", showCreateMenu && "rotate-180")} />
           </button>
         </div>
       </div>
@@ -181,37 +205,43 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
         <>
           <div className="fixed inset-0 z-[220]" onClick={() => setShowCreateMenu(false)} />
           <div
-            className="fixed z-[221] min-w-[240px] overflow-hidden rounded-[18px] border border-border-default/80 bg-bg-primary/96 p-1.5 shadow-[0_24px_64px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+            className="fixed z-[221] w-[180px] overflow-hidden rounded-[14px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
             style={{ top: createMenuPos.top, left: createMenuPos.left }}
           >
             {createMenuSections.map((section, sectionIndex) => (
               <div key={section.id}>
-                {sectionIndex > 0 ? <div className="mx-2 my-1.5 h-px bg-border-default/70" /> : null}
-                <div className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-disabled">
+                {sectionIndex > 0 ? <div className="mx-2 my-1 h-px bg-border-default/60" /> : null}
+                <div className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled">
                   {section.label}
                 </div>
-                {section.options.map((option) => (
-                  <button
-                    key={option.protocol}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNewTab(option.protocol);
-                      setShowCreateMenu(false);
-                    }}
-                    className="flex w-full items-start gap-2 rounded-[14px] px-3 py-2.5 text-left transition-colors hover:bg-bg-hover/70"
-                  >
-                    <span className={cn(
-                      "mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                      protocolColors[option.protocol]
-                    )}>
-                      {protocolLabels[option.protocol]}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[12px] font-semibold text-text-primary">{option.label}</span>
-                      <span className="mt-0.5 block text-[11px] leading-relaxed text-text-tertiary">{option.desc}</span>
-                    </span>
-                  </button>
-                ))}
+                {section.options.map((option) => {
+                  const isDefault = option.protocol === defaultProtocol;
+                  return (
+                    <button
+                      key={option.protocol}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateWithProtocol(option.protocol);
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-[10px] px-2.5 py-[7px] text-left transition-colors hover:bg-bg-hover/70",
+                        isDefault && "bg-bg-hover/40"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-[6px] w-[6px] shrink-0 rounded-full transition-opacity",
+                          protocolDotColors[option.protocol],
+                          isDefault ? "opacity-100" : "opacity-30"
+                        )}
+                      />
+                      <span className="text-[12px] font-medium text-text-primary">{option.label}</span>
+                      {isDefault && (
+                        <span className="ml-auto text-[10px] text-text-disabled">默认</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             ))}
           </div>

@@ -5,7 +5,6 @@ import { useAppStore } from "@/stores/appStore";
 import { Tooltip } from "@/components/common/Tooltip";
 import { cn } from "@/lib/utils";
 import logoSvg from "@/assets/logo.svg";
-import { WindowControls } from "@/components/layout/WindowControls";
 
 interface TitleBarProps {
   onOpenTool?: (tool: string) => void;
@@ -25,6 +24,9 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
 
   return (
     <div className="relative flex h-[var(--titlebar-height)] shrink-0 items-center justify-between border-b border-border-default/70 bg-bg-primary/80 px-3 backdrop-blur-md drag-region select-none">
+      {/* macOS 交通灯按钮占位区域 */}
+      <div className="w-[70px] shrink-0" />
+
       <button
         onClick={() => useAppStore.getState().setActiveTab(null)}
         className="flex items-center gap-3 rounded-[16px] px-2 py-1.5 no-drag transition-colors hover:bg-bg-hover/70"
@@ -81,8 +83,6 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
               <Moon className="w-4 h-4" />
             )}
           </button>
-          <div className="h-5 w-px bg-border-default/70" />
-          <WindowControls compact />
         </div>
       </div>
     </div>

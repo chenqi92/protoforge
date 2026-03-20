@@ -1,0 +1,63 @@
+import type { ToolWindowType } from "./windowManager";
+
+const CHANNEL_NAME = "protoforge:tool-docking";
+const STORAGE_KEY = "protoforge:tool-docking-request";
+
+interface DockRequest {
+  tool: ToolWindowType;
+  ts: number;
+}
+
+function isDockRequest(value: unknown): value is DockRequest {
+  return typeof value === "object"
+    && value !== null
+    && "tool" in value
+    && "ts" in value;
+}
+
+export function requestDockTool(tool: ToolWindowType) {
+  const payload: DockRequest = { tool, ts: Date.now() };
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // ignore storage failures and rely on channel
+  }
+
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel(CHANNEL_NAME);
+    channel.postMessage(payload);
+    channel.close();
+  }
+}
+
+export function subscribeDockToolRequests(callback: (tool: ToolWindowType) => void) {
+  let channel: BroadcastChannel | null = null;
+
+  const handlePayload = (payload: unknown) => {
+    if (isDockRequest(payload)) {
+      callback(payload.tool);
+    }
+  };
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key !== STORAGE_KEY || !event.newValue) return;
+    try {
+      handlePayload(JSON.parse(event.newValue));
+    } catch {
+      // ignore malformed payloads
+    }
+  };
+
+  if (typeof BroadcastChannel !== "undefined") {
+    channel = new BroadcastChannel(CHANNEL_NAME);
+    channel.addEventListener("message", (event) => handlePayload(event.data));
+  }
+
+  window.addEventListener("storage", handleStorage);
+
+  return () => {
+    channel?.close();
+    window.removeEventListener("storage", handleStorage);
+  };
+}
