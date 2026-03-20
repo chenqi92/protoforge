@@ -49,52 +49,59 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [chartTab, setChartTab] = useState<"rps" | "latency">("rps");
 
-  // ─── Read prefill config from bridge ───
-  useEffect(() => {
-    (async () => {
-      const { popLoadTestConfig } = await import("@/lib/loadTestBridge");
-      const prefill = popLoadTestConfig();
-      if (!prefill) return;
+  const applyPrefill = useCallback((prefill: Partial<LoadTestConfig> | null) => {
+    if (!prefill) return;
 
-      if (prefill.url) setUrl(prefill.url);
-      if (prefill.method) setMethod(prefill.method as HttpMethod);
-      if (prefill.timeoutMs) setTimeoutMs(prefill.timeoutMs);
+    if (prefill.url) setUrl(prefill.url);
+    if (prefill.method) setMethod(prefill.method as HttpMethod);
+    if (prefill.timeoutMs) setTimeoutMs(prefill.timeoutMs);
 
-      // Headers
-      if (prefill.headers && Object.keys(prefill.headers).length > 0) {
-        const h = Object.entries(prefill.headers).map(([key, value]) => ({ key, value }));
-        setHeaders([...h, { key: "", value: "" }]);
+    if (prefill.headers && Object.keys(prefill.headers).length > 0) {
+      const h = Object.entries(prefill.headers).map(([key, value]) => ({ key, value }));
+      setHeaders([...h, { key: "", value: "" }]);
+      setShowAdvanced(true);
+    }
+
+    if (prefill.body) {
+      if (prefill.body.type === "json" && prefill.body.data) {
+        setBodyMode("json");
+        setBodyContent(prefill.body.data);
+        setShowAdvanced(true);
+      } else if (prefill.body.type === "raw" && prefill.body.content) {
+        setBodyMode("raw");
+        setBodyContent(prefill.body.content);
         setShowAdvanced(true);
       }
+    }
 
-      // Body
-      if (prefill.body) {
-        if (prefill.body.type === "json" && prefill.body.data) {
-          setBodyMode("json");
-          setBodyContent(prefill.body.data);
-          setShowAdvanced(true);
-        } else if (prefill.body.type === "raw" && prefill.body.content) {
-          setBodyMode("raw");
-          setBodyContent(prefill.body.content);
-          setShowAdvanced(true);
-        }
+    if (prefill.auth) {
+      if (prefill.auth.type === "bearer" && prefill.auth.token) {
+        setAuthMode("bearer");
+        setBearerToken(prefill.auth.token);
+        setShowAdvanced(true);
+      } else if (prefill.auth.type === "basic" && prefill.auth.username) {
+        setAuthMode("basic");
+        setBasicUser(prefill.auth.username);
+        setBasicPass(prefill.auth.password || "");
+        setShowAdvanced(true);
       }
+    }
+  }, []);
 
-      // Auth
-      if (prefill.auth) {
-        if (prefill.auth.type === "bearer" && prefill.auth.token) {
-          setAuthMode("bearer");
-          setBearerToken(prefill.auth.token);
-          setShowAdvanced(true);
-        } else if (prefill.auth.type === "basic" && prefill.auth.username) {
-          setAuthMode("basic");
-          setBasicUser(prefill.auth.username);
-          setBasicPass(prefill.auth.password || "");
-          setShowAdvanced(true);
-        }
-      }
+  // ─── Read prefill config from bridge ───
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+
+    (async () => {
+      const { popLoadTestConfig, subscribeLoadTestPrefill } = await import("@/lib/loadTestBridge");
+      applyPrefill(popLoadTestConfig());
+      cleanup = subscribeLoadTestPrefill((prefill) => applyPrefill(prefill));
     })();
-  }, []); // run once on mount
+
+    return () => {
+      cleanup?.();
+    };
+  }, [applyPrefill]);
 
   // Listen events
   useEffect(() => {
@@ -211,7 +218,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
     : "—";
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-bg-app">
+    <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* ── Top Config Bar ── */}
       <div className="shrink-0 p-4 pb-2">
         <div className="flex items-center h-12 rounded-[var(--radius-lg)] bg-bg-primary border border-border-default shadow-sm focus-within:ring-2 focus-within:ring-rose-500/30 focus-within:border-rose-500 transition-all p-1">

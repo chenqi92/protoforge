@@ -92,45 +92,45 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="relative w-[780px] max-w-[90vw] h-[560px] max-h-[85vh] bg-bg-primary rounded-2xl shadow-2xl border border-border-default overflow-hidden flex flex-col"
+            className="relative flex h-[580px] max-h-[84vh] w-[840px] max-w-[92vw] flex-col overflow-hidden rounded-[26px] border border-white/60 bg-bg-primary/96 shadow-[0_28px_80px_rgba(15,23,42,0.22)] backdrop-blur-xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-border-default bg-bg-secondary/30">
+            <div className="shrink-0 flex items-center justify-between border-b border-border-default/75 bg-bg-primary/78 px-6 py-4">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.22)]">
                   <Puzzle className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-[15px] font-bold text-text-primary">插件中心</h2>
-                  <p className="text-[11px] text-text-tertiary">浏览、安装和管理插件以扩展 ProtoForge 功能</p>
+                  <h2 className="text-[15px] font-semibold text-text-primary">插件中心</h2>
+                  <p className="text-[11px] text-text-tertiary">浏览、安装和管理扩展，让工作台能力保持在同一处收口</p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Toolbar */}
-            <div className="shrink-0 flex items-center gap-3 px-6 py-3 border-b border-border-subtle bg-bg-primary">
+            <div className="shrink-0 flex items-center gap-3 border-b border-border-default/70 bg-bg-secondary/28 px-6 py-3.5">
               {/* Tabs */}
-              <div className="flex items-center gap-0.5 bg-bg-tertiary/50 p-0.5 rounded-lg">
+              <div className="flex items-center gap-1 rounded-[14px] border border-border-default/70 bg-bg-secondary/55 p-1">
                 <button
                   onClick={() => { setTab("store"); setSelectedPlugin(null); }}
                   className={cn(
-                    "flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-medium rounded-md transition-all",
+                    "flex items-center gap-1.5 rounded-[12px] px-4 py-1.5 text-[12px] font-medium transition-all",
                     tab === "store"
-                      ? "bg-bg-primary text-text-primary shadow-sm"
-                      : "text-text-tertiary hover:text-text-secondary"
+                      ? "bg-bg-primary text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]"
+                      : "text-text-tertiary hover:bg-bg-primary/70 hover:text-text-secondary"
                   )}
                 >
                   <StoreIcon className="w-3.5 h-3.5" />
                   插件仓库
                   {availablePlugins.filter((p) => !p.installed).length > 0 && (
-                    <span className="text-[9px] bg-gradient-to-r from-violet-500 to-indigo-500 text-white px-1.5 py-[1px] rounded-full min-w-[16px] text-center leading-tight font-bold">
+                    <span className="min-w-[16px] rounded-full bg-accent px-1.5 py-[1px] text-center text-[9px] font-bold leading-tight text-white">
                       {availablePlugins.filter((p) => !p.installed).length}
                     </span>
                   )}
@@ -138,16 +138,16 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                 <button
                   onClick={() => { setTab("installed"); setSelectedPlugin(null); }}
                   className={cn(
-                    "flex items-center gap-1.5 px-4 py-1.5 text-[12px] font-medium rounded-md transition-all",
+                    "flex items-center gap-1.5 rounded-[12px] px-4 py-1.5 text-[12px] font-medium transition-all",
                     tab === "installed"
-                      ? "bg-bg-primary text-text-primary shadow-sm"
-                      : "text-text-tertiary hover:text-text-secondary"
+                      ? "bg-bg-primary text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]"
+                      : "text-text-tertiary hover:bg-bg-primary/70 hover:text-text-secondary"
                   )}
                 >
                   <Package className="w-3.5 h-3.5" />
                   已安装
                   {installedPlugins.length > 0 && (
-                    <span className="text-[9px] text-text-disabled bg-bg-secondary px-1.5 py-[1px] rounded-full min-w-[16px] text-center leading-tight font-medium">
+                    <span className="min-w-[16px] rounded-full bg-bg-primary/90 px-1.5 py-[1px] text-center text-[9px] font-medium leading-tight text-text-disabled">
                       {installedPlugins.length}
                     </span>
                   )}
@@ -163,7 +163,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="搜索插件..."
-                  className="w-[200px] h-8 pl-8 pr-3 text-[12px] bg-bg-input border border-border-default rounded-lg outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(124,58,237,0.08)] text-text-primary placeholder:text-text-tertiary transition-all"
+                  className="h-8 w-[220px] rounded-[12px] border border-border-default/80 bg-bg-primary/78 pl-8 pr-3 text-[12px] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]"
                 />
               </div>
 
@@ -171,7 +171,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
               <button
                 onClick={handleRefresh}
                 disabled={loading}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
                 title="刷新"
               >
                 <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
@@ -228,7 +228,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                     animate={{ width: "55%", opacity: 1 }}
                     exit={{ width: 0, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className="border-l border-border-default overflow-hidden shrink-0"
+                    className="shrink-0 overflow-hidden border-l border-border-default/70 bg-bg-secondary/24"
                   >
                     <PluginDetail
                       plugin={selectedPlugin}
@@ -278,14 +278,14 @@ function PluginListItem({
       layout
       onClick={onSelect}
       className={cn(
-        "flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-all border",
+        "flex cursor-pointer items-center gap-3 rounded-[16px] border px-3.5 py-3 transition-all",
         selected
-          ? "bg-accent/5 border-accent/20 shadow-sm"
-          : "bg-bg-primary border-transparent hover:bg-bg-hover hover:border-border-default"
+          ? "border-border-default/80 bg-bg-primary/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]"
+          : "border-transparent bg-transparent hover:border-border-default/75 hover:bg-bg-hover/55"
       )}
     >
       {/* Icon */}
-      <div className="w-10 h-10 rounded-xl bg-bg-secondary border border-border-default flex items-center justify-center text-xl shrink-0 shadow-sm">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-border-default/75 bg-bg-primary/82 text-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
         {plugin.icon}
       </div>
 
@@ -316,7 +316,7 @@ function PluginListItem({
           "h-7 px-3 rounded-lg text-[11px] font-semibold transition-all shrink-0 flex items-center gap-1 active:scale-[0.97]",
           plugin.installed
             ? "text-text-tertiary border border-border-default hover:text-red-500 hover:border-red-200 dark:hover:border-red-500/30"
-            : "text-white bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 shadow-sm"
+            : "bg-accent text-white hover:bg-accent-hover shadow-sm"
         )}
       >
         {loading ? (
@@ -365,9 +365,9 @@ function PluginDetail({
   return (
     <div className="h-full flex flex-col overflow-auto">
       {/* Hero */}
-      <div className="px-6 pt-6 pb-5 bg-gradient-to-br from-violet-500/5 to-indigo-500/5 border-b border-border-subtle">
+      <div className="border-b border-border-default/70 bg-bg-primary/72 px-6 pb-5 pt-6">
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-bg-primary border border-border-default flex items-center justify-center text-3xl shadow-sm shrink-0">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-border-default/75 bg-bg-primary text-3xl shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
             {plugin.icon}
           </div>
           <div className="flex-1 min-w-0">
@@ -391,7 +391,7 @@ function PluginDetail({
             "w-full h-9 mt-4 rounded-xl flex items-center justify-center gap-2 text-[13px] font-bold transition-all active:scale-[0.98]",
             plugin.installed
               ? "text-red-500 border-2 border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10"
-              : "text-white bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 shadow-lg shadow-violet-500/20"
+              : "bg-accent text-white hover:bg-accent-hover shadow-sm"
           )}
         >
           {loading ? (

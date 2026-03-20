@@ -72,9 +72,9 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[999] backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed top-[15%] left-1/2 -translate-x-1/2 w-[560px] max-h-[420px] bg-bg-elevated border border-border-default rounded-xl shadow-2xl z-[1000] flex flex-col overflow-hidden">
+      <div className="fixed left-1/2 top-[15%] z-[1000] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden rounded-[24px] border border-white/60 bg-bg-primary/96 shadow-[0_28px_80px_rgba(15,23,42,0.22)] backdrop-blur-xl">
         {/* Search Input */}
-        <div className="flex items-center px-4 gap-3 border-b border-border-default">
+        <div className="flex items-center gap-3 border-b border-border-default/75 bg-bg-primary/78 px-5 py-3">
           <Search className="w-4 h-4 text-text-disabled shrink-0" />
           <input
             ref={inputRef}
@@ -82,15 +82,15 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
             onChange={(e) => { setQuery(e.target.value); setSelectedIdx(0); }}
             onKeyDown={handleKeyDown}
             placeholder="搜索操作、请求、集合..."
-            className="flex-1 h-12 bg-transparent text-[14px] text-text-primary outline-none placeholder:text-text-disabled"
+            className="h-10 flex-1 bg-transparent text-[14px] text-text-primary outline-none placeholder:text-text-disabled"
           />
-          <button onClick={onClose} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-text-primary transition-colors">
+          <button onClick={onClose} className="rounded-[12px] p-1.5 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Results */}
-        <div className="flex-1 overflow-auto py-2">
+        <div className="flex-1 overflow-auto bg-bg-secondary/18 py-2.5">
           {items.length === 0 ? (
             <div className="flex items-center justify-center h-20 text-text-disabled text-[13px]">
               未找到结果
@@ -104,8 +104,8 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
                   onClick={item.action}
                   onMouseEnter={() => setSelectedIdx(i)}
                   className={cn(
-                    "w-full px-4 py-2.5 flex items-center gap-3 text-left transition-colors",
-                    i === selectedIdx ? "bg-accent/10" : "hover:bg-bg-hover"
+                    "mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-[14px] px-4 py-3 text-left transition-colors",
+                    i === selectedIdx ? "bg-bg-primary/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]" : "hover:bg-bg-hover/70"
                   )}
                 >
                   <Icon className={cn("w-4 h-4 shrink-0", i === selectedIdx ? "text-accent" : "text-text-disabled")} />
@@ -130,7 +130,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
         </div>
 
         {/* Footer hint */}
-        <div className="px-4 py-2 border-t border-border-default flex items-center gap-4 text-[10px] text-text-disabled">
+        <div className="flex items-center gap-4 border-t border-border-default/75 bg-bg-primary/78 px-4 py-2.5 text-[10px] text-text-disabled">
           <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[9px]">↑↓</kbd> 选择</span>
           <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[9px]">Enter</kbd> 确认</span>
           <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[9px]">Esc</kbd> 关闭</span>

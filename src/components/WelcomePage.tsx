@@ -3,7 +3,7 @@ import { Send, Zap, Network, Radio, Eye, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import logoSvg from "@/assets/logo.svg";
 
-export type WelcomeAction = "http" | "ws" | "tcpudp" | "loadtest" | "capture" | "plugins";
+export type WelcomeAction = "http" | "ws" | "sse" | "mqtt" | "tcpudp" | "loadtest" | "capture" | "plugins";
 
 const features: { action: WelcomeAction; icon: typeof Send; label: string; desc: string; color: string; iconColor: string }[] = [
   { action: "http", icon: Send, label: "HTTP 客户端", desc: "API 调试 · 环境变量 · 前后置脚本", color: "from-blue-500/10 to-transparent border-blue-500/20", iconColor: "text-blue-500 bg-blue-500/10" },
@@ -19,9 +19,19 @@ interface WelcomePageProps {
 }
 
 export function WelcomePage({ onAction }: WelcomePageProps) {
+  const quickActions: Array<{ id: WelcomeAction; label: string }> = [
+    { id: "http", label: "HTTP 请求" },
+    { id: "ws", label: "WebSocket" },
+    { id: "sse", label: "SSE" },
+    { id: "mqtt", label: "MQTT" },
+    { id: "tcpudp", label: "TCP/UDP" },
+    { id: "loadtest", label: "压测" },
+    { id: "capture", label: "抓包" },
+  ];
+
   return (
-    <div className="h-full w-full flex items-center justify-center p-8 bg-bg-primary overflow-y-auto">
-      <div className="max-w-3xl w-full">
+    <div className="h-full w-full flex items-center justify-center overflow-y-auto bg-transparent p-8">
+      <div className="max-w-5xl w-full">
         {/* Heading */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
@@ -35,6 +45,22 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
           </h1>
           <p className="text-text-secondary text-base max-w-md mx-auto leading-relaxed">
             新一代协议调试与性能测试工作站。选择下方模块快速开始你的研发之旅。
+          </p>
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            {quickActions.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onAction?.(item.id)}
+                className="rounded-full border border-border-default/75 bg-bg-primary/72 px-3 py-1.5 text-[12px] font-medium text-text-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-colors hover:bg-bg-hover/75 hover:text-text-primary"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <p className="mt-3 text-[12px] text-text-disabled">
+            默认在当前工作台中打开，工具标签可以直接拖出为独立窗口。
           </p>
         </motion.div>
 
@@ -50,13 +76,14 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
                 transition={{ delay: 0.1 + i * 0.05, duration: 0.4 }}
                 onClick={() => onAction?.(f.action)}
                 className={cn(
-                  "group relative p-5 rounded-2xl bg-gradient-to-br border border-border-default",
-                  "hover:border-transparent hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 cursor-pointer overflow-hidden",
+                  "group relative overflow-hidden rounded-[22px] border border-border-default/75 bg-bg-primary/48 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-all duration-300",
+                  "cursor-pointer hover:border-border-strong/80 hover:bg-bg-primary/65 hover:shadow-[0_12px_36px_rgba(15,23,42,0.08)]",
                   "active:scale-[0.97]",
                   f.color
                 )}
               >
-                <div className="absolute inset-0 bg-white/40 dark:bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/90 to-transparent opacity-70 dark:via-white/12" />
+                <div className="absolute inset-0 bg-white/20 dark:bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="relative z-10">
                   <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 duration-300", f.iconColor)}>
                     <Icon className="w-5 h-5" />

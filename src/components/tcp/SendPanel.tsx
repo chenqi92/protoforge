@@ -19,12 +19,10 @@ interface SendPanelProps {
   onDeleteQuickCommand: (id: string) => void;
   onLoadQuickCommand: (cmd: QuickCommand) => void;
   sendLabel?: string;
-  // 定时发送
   timerEnabled: boolean;
   timerInterval: number;
   onTimerToggle: () => void;
   onTimerIntervalChange: (v: number) => void;
-  // 追加选项
   appendNewline: boolean;
   onAppendNewlineChange: (v: boolean) => void;
 }
@@ -55,192 +53,201 @@ export function SendPanel({
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* ── 发送编码选择 ── */}
-      <div>
-        <div className="flex items-center gap-1 px-1 pb-1.5">
-          <span className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">发送格式</span>
-        </div>
-        <div className="flex items-center gap-0.5 bg-bg-secondary/80 p-0.5 rounded-lg">
-          {FORMAT_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setSendFormat(opt.value)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1 py-1.5 text-[11px] font-medium rounded-md transition-all",
-                sendFormat === opt.value
-                  ? "bg-bg-primary text-text-primary shadow-sm"
-                  : "text-text-tertiary hover:text-text-secondary"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 选项 ── */}
-      <div className="flex items-center gap-3 px-1">
-        <label className="flex items-center gap-1.5 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={appendNewline}
-            onChange={(e) => onAppendNewlineChange(e.target.checked)}
-            className="w-3 h-3 rounded border-border-default text-accent focus:ring-accent/30 cursor-pointer"
-          />
-          <span className="text-[11px] text-text-tertiary group-hover:text-text-secondary transition-colors">
-            追加换行
-          </span>
-        </label>
-
-        <label className="flex items-center gap-1.5 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={timerEnabled}
-            onChange={onTimerToggle}
-            className="w-3 h-3 rounded border-border-default text-accent focus:ring-accent/30 cursor-pointer"
-          />
-          <span className="text-[11px] text-text-tertiary group-hover:text-text-secondary transition-colors">
-            定时发送
-          </span>
-        </label>
-        {timerEnabled && (
-          <div className="flex items-center gap-1">
-            <input
-              type="number"
-              value={timerInterval}
-              onChange={(e) => onTimerIntervalChange(Math.max(100, parseInt(e.target.value) || 1000))}
-              className="w-16 h-5 px-1.5 text-[11px] font-mono bg-bg-input border border-border-default rounded text-text-primary outline-none focus:border-accent text-center"
-              min={100}
-              step={100}
-            />
-            <span className="text-[10px] text-text-disabled">ms</span>
-          </div>
-        )}
-      </div>
-
-      {/* ── 发送输入区 ── */}
-      <div className="relative">
-        <textarea
-          ref={textareaRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={
-            sendFormat === "hex"
-              ? "输入十六进制数据 (48 65 6C 6C 6F 或 0x48,0x65)..."
-              : sendFormat === "base64"
-                ? "输入 Base64 编码数据..."
-                : "输入发送内容... (Enter 发送, Shift+Enter 换行)"
-          }
-          disabled={!connected}
-          className={cn(
-            "w-full min-h-[72px] max-h-[160px] p-3 text-[12px] font-mono bg-bg-input border border-border-default rounded-lg",
-            "focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all outline-none resize-y",
-            "disabled:opacity-40 disabled:cursor-not-allowed",
-            "placeholder:text-text-disabled"
-          )}
-        />
-        {/* Char count hint */}
-        {message.length > 0 && (
-          <div className="absolute bottom-2 right-2 text-[9px] text-text-disabled">
-            {sendFormat === "hex"
-              ? `${message.replace(/[\s,]/g, "").replace(/0[xX]/g, "").length / 2} 字节`
-              : `${new TextEncoder().encode(message).length} 字节`
-            }
-          </div>
-        )}
-      </div>
-
-      {/* ── 发送按钮行 ── */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onSend}
-          disabled={!connected || !message.trim()}
-          className={cn(
-            "flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg text-[12px] font-semibold text-white transition-all",
-            "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700",
-            "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-blue-500 disabled:hover:to-indigo-600",
-            "active:scale-[0.97] shadow-sm hover:shadow-md"
-          )}
-        >
-          <Send className="w-3.5 h-3.5" />
-          {sendLabel}
-          {timerEnabled && <Timer className="w-3 h-3 ml-0.5 opacity-60" />}
-        </button>
-      </div>
-
-      {/* ── 快捷指令 ── */}
-      {quickCommands.length > 0 && (
+    <div className="rounded-[18px] border border-border-default/80 bg-bg-primary/78 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <div className="flex items-center justify-between pb-3">
         <div>
-          <div className="flex items-center justify-between px-1 pb-1">
-            <span className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wider">快捷指令</span>
-            <button
-              onClick={onAddQuickCommand}
-              className="text-text-disabled hover:text-accent transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-            </button>
+          <div className="text-[12px] font-semibold text-text-primary">发送面板</div>
+          <div className="mt-1 text-[11px] text-text-tertiary">
+            {connected ? "准备发送数据" : "连接后可发送数据"}
           </div>
-          <div className="flex flex-wrap gap-1">
-            {quickCommands.map((cmd) => (
+        </div>
+        <span className={cn(
+          "rounded-full px-2.5 py-1 text-[10px] font-semibold",
+          connected ? "bg-emerald-500/10 text-emerald-600" : "bg-bg-secondary text-text-tertiary"
+        )}>
+          {connected ? "在线" : "离线"}
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <div className="mb-1.5 flex items-center gap-1 px-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">发送格式</span>
+          </div>
+          <div className="flex items-center gap-1 rounded-[14px] border border-border-default/70 bg-bg-secondary/70 p-1">
+            {FORMAT_OPTIONS.map((opt) => (
               <button
-                key={cmd.id}
-                onClick={() => onLoadQuickCommand(cmd)}
-                className="group relative inline-flex items-center gap-1 px-2 py-1 bg-bg-secondary border border-border-default rounded-md text-[10px] font-medium text-text-secondary hover:bg-bg-hover hover:border-accent/30 transition-all"
+                key={opt.value}
+                onClick={() => setSendFormat(opt.value)}
+                className={cn(
+                  "flex-1 rounded-[10px] px-2.5 py-1.5 text-[11px] font-medium transition-all",
+                  sendFormat === opt.value
+                    ? "bg-bg-primary text-text-primary shadow-sm"
+                    : "text-text-tertiary hover:bg-bg-hover/80 hover:text-text-secondary"
+                )}
               >
-                <CornerDownLeft className="w-2.5 h-2.5 text-text-disabled" />
-                {cmd.name}
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDeleteQuickCommand(cmd.id); }}
-                  className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white items-center justify-center text-[8px] hidden group-hover:flex"
-                >
-                  ×
-                </button>
+                {opt.label}
               </button>
             ))}
           </div>
         </div>
-      )}
 
-      {/* ── 发送历史 ── */}
-      {sendHistory.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between px-1 pb-1">
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center gap-1 text-[10px] font-semibold text-text-tertiary uppercase tracking-wider hover:text-text-secondary transition-colors"
-            >
-              <RotateCcw className="w-3 h-3" />
-              发送历史 ({sendHistory.length})
-              <ChevronDown className={cn("w-3 h-3 transition-transform", showHistory && "rotate-180")} />
-            </button>
-            <button
-              onClick={onClearHistory}
-              className="text-text-disabled hover:text-red-500 transition-colors"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
-          {showHistory && (
-            <div className="max-h-[120px] overflow-y-auto space-y-0.5">
-              {sendHistory.slice(0, 20).map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => onLoadHistory(item)}
-                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-bg-hover transition-colors group"
-                >
-                  <span className="text-[9px] font-bold text-text-disabled w-8 shrink-0 uppercase">{item.format}</span>
-                  <span className="text-[11px] font-mono text-text-secondary truncate flex-1">{item.data}</span>
-                  <span className="text-[9px] text-text-disabled shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {new Date(item.timestamp).toLocaleTimeString("zh-CN", { hour12: false })}
-                  </span>
-                </button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[14px] bg-bg-secondary/42 px-3 py-2">
+          <label className="flex items-center gap-1.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={appendNewline}
+              onChange={(e) => onAppendNewlineChange(e.target.checked)}
+              className="h-3.5 w-3.5 cursor-pointer rounded border-border-default text-accent focus:ring-accent/30"
+            />
+            <span className="text-[11px] text-text-tertiary transition-colors group-hover:text-text-secondary">
+              追加换行
+            </span>
+          </label>
+
+          <label className="flex items-center gap-1.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={timerEnabled}
+              onChange={onTimerToggle}
+              className="h-3.5 w-3.5 cursor-pointer rounded border-border-default text-accent focus:ring-accent/30"
+            />
+            <span className="text-[11px] text-text-tertiary transition-colors group-hover:text-text-secondary">
+              定时发送
+            </span>
+          </label>
+
+          {timerEnabled ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                value={timerInterval}
+                onChange={(e) => onTimerIntervalChange(Math.max(100, parseInt(e.target.value) || 1000))}
+                className="h-7 w-[76px] rounded-[10px] border border-border-default bg-bg-input px-2 text-center text-[11px] font-mono text-text-primary outline-none focus:border-accent"
+                min={100}
+                step={100}
+              />
+              <span className="text-[10px] text-text-disabled">ms</span>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              sendFormat === "hex"
+                ? "输入十六进制数据，如 48 65 6C 6C 6F"
+                : sendFormat === "base64"
+                  ? "输入 Base64 编码数据"
+                  : "输入发送内容，Enter 发送，Shift+Enter 换行"
+            }
+            disabled={!connected}
+            className={cn(
+              "min-h-[120px] max-h-[180px] w-full resize-y rounded-[16px] border border-border-default bg-bg-input/85 p-3 text-[12px] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled",
+              "focus:border-accent focus:ring-2 focus:ring-accent/20",
+              "disabled:cursor-not-allowed disabled:opacity-45"
+            )}
+          />
+          {message.length > 0 ? (
+            <div className="absolute bottom-2 right-3 text-[9px] text-text-disabled">
+              {sendFormat === "hex"
+                ? `${message.replace(/[\s,]/g, "").replace(/0[xX]/g, "").length / 2} 字节`
+                : `${new TextEncoder().encode(message).length} 字节`
+              }
+            </div>
+          ) : null}
+        </div>
+
+        <button
+          onClick={onSend}
+          disabled={!connected || !message.trim()}
+          className={cn(
+            "flex h-9 w-full items-center justify-center gap-1.5 rounded-[14px] text-[12px] font-semibold text-white transition-all",
+            "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700",
+            "shadow-sm hover:shadow-md active:scale-[0.98]",
+            "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:from-blue-500 disabled:hover:to-indigo-600"
+          )}
+        >
+          <Send className="h-3.5 w-3.5" />
+          {sendLabel}
+          {timerEnabled ? <Timer className="ml-0.5 h-3 w-3 opacity-60" /> : null}
+        </button>
+
+        {quickCommands.length > 0 ? (
+          <div className="border-t border-border-default/70 pt-3">
+            <div className="flex items-center justify-between px-1 pb-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">快捷指令</span>
+              <button
+                onClick={onAddQuickCommand}
+                className="rounded-[10px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {quickCommands.map((cmd) => (
+                <div key={cmd.id} className="group relative">
+                  <button
+                    onClick={() => onLoadQuickCommand(cmd)}
+                    className="inline-flex items-center gap-1 rounded-[12px] border border-border-default bg-bg-secondary/70 px-2.5 py-1.5 text-[10px] font-medium text-text-secondary transition-all hover:border-accent/30 hover:bg-bg-hover"
+                  >
+                    <CornerDownLeft className="h-2.5 w-2.5 text-text-disabled" />
+                    {cmd.name}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteQuickCommand(cmd.id); }}
+                    className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] text-white group-hover:flex"
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ) : null}
+
+        {sendHistory.length > 0 ? (
+          <div className="border-t border-border-default/70 pt-3">
+            <div className="flex items-center justify-between px-1 pb-1.5">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary transition-colors hover:text-text-secondary"
+              >
+                <RotateCcw className="h-3 w-3" />
+                发送历史 ({sendHistory.length})
+                <ChevronDown className={cn("h-3 w-3 transition-transform", showHistory && "rotate-180")} />
+              </button>
+              <button
+                onClick={onClearHistory}
+                className="rounded-[10px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            {showHistory ? (
+              <div className="max-h-[140px] space-y-1 overflow-y-auto">
+                {sendHistory.slice(0, 20).map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => onLoadHistory(item)}
+                    className="group flex w-full items-center gap-2 rounded-[12px] px-2.5 py-2 text-left transition-colors hover:bg-bg-hover"
+                  >
+                    <span className="w-8 shrink-0 text-[9px] font-bold uppercase text-text-disabled">{item.format}</span>
+                    <span className="flex-1 truncate font-mono text-[11px] text-text-secondary">{item.data}</span>
+                    <span className="shrink-0 text-[9px] text-text-disabled opacity-0 transition-opacity group-hover:opacity-100">
+                      {new Date(item.timestamp).toLocaleTimeString("zh-CN", { hour12: false })}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

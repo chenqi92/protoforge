@@ -3,11 +3,14 @@ import type { HttpRequestConfig, HttpResponse } from '@/types/http';
 import { createDefaultRequest } from '@/types/http';
 
 export type ProtocolType = 'http' | 'ws' | 'sse' | 'mqtt' | 'collection';
+export type DockableToolProtocol = 'tcpudp' | 'loadtest' | 'capture';
+export type WorkspaceProtocol = ProtocolType | DockableToolProtocol;
 
 export interface AppTab {
   id: string;
-  protocol: ProtocolType;
+  protocol: WorkspaceProtocol;
   label: string;
+  customLabel?: string | null;
   // HTTP-specific
   httpConfig?: HttpRequestConfig;
   httpResponse?: HttpResponse | null;
@@ -24,12 +27,13 @@ interface AppStore {
   tabs: AppTab[];
   activeTabId: string | null;
 
-  addTab: (protocol?: ProtocolType) => string;
+  addTab: (protocol?: WorkspaceProtocol) => string;
+  openToolTab: (tool: DockableToolProtocol) => string;
   addCollectionTab: (collectionId: string, name: string) => string;
   closeTab: (id: string) => void;
   setActiveTab: (id: string | null) => void;
   updateTab: (id: string, updates: Partial<AppTab>) => void;
-  setTabProtocol: (id: string, protocol: ProtocolType) => void;
+  setTabProtocol: (id: string, protocol: WorkspaceProtocol) => void;
 
   // Tab operations
   renameTab: (id: string, label: string) => void;
@@ -53,20 +57,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
   tabs: [],
   activeTabId: null,
 
-  addTab: (protocol: ProtocolType = 'http') => {
+  addTab: (protocol: WorkspaceProtocol = 'http') => {
     const id = crypto.randomUUID();
     const httpConfig = protocol === 'http' ? createDefaultRequest() : undefined;
-    const labels: Record<ProtocolType, string> = {
+    const labels: Record<WorkspaceProtocol, string> = {
       http: 'Untitled Request',
       ws: 'WebSocket',
       sse: 'SSE Stream',
       mqtt: 'MQTT Client',
       collection: 'Collection',
+      tcpudp: 'TCP/UDP',
+      loadtest: '压力测试',
+      capture: '网络抓包',
     };
     const tab: AppTab = {
       id,
       protocol,
       label: labels[protocol],
+      customLabel: null,
       httpConfig,
       httpResponse: null,
       loading: false,
@@ -75,6 +83,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
     };
     set((s) => ({ tabs: [...s.tabs, tab], activeTabId: id }));
     return id;
+  },
+
+  openToolTab: (tool) => {
+    const existing = get().tabs.find((t) => t.protocol === tool);
+    if (existing) {
+      set({ activeTabId: existing.id });
+      return existing.id;
+    }
+    return get().addTab(tool);
   },
 
   addCollectionTab: (collectionId: string, name: string) => {
@@ -89,6 +106,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       id,
       protocol: 'collection',
       label: name,
+      customLabel: null,
       collectionId,
       loading: false,
       error: null,
@@ -120,9 +138,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((s) => ({
       tabs: s.tabs.map((t) => {
         if (t.id !== id) return t;
-        const labels: Record<ProtocolType, string> = {
+        const labels: Record<WorkspaceProtocol, string> = {
           http: 'Untitled Request', ws: 'WebSocket', sse: 'SSE Stream',
           mqtt: 'MQTT Client', collection: 'Collection',
+          tcpudp: 'TCP/UDP', loadtest: '压力测试', capture: '网络抓包',
         };
         return {
           ...t,
@@ -137,7 +156,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   renameTab: (id, label) => {
     set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === id ? { ...t, label } : t)),
+      tabs: s.tabs.map((t) => (t.id === id ? { ...t, label, customLabel: label } : t)),
     }));
   },
 

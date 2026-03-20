@@ -75,9 +75,9 @@ export function SseWorkspace() {
   const isConnected = status === 'connected' || status === 'connecting';
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-bg-primary">
+    <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* URL Bar */}
-      <div className="shrink-0 flex items-center h-10 px-3 border-b border-border-default gap-2">
+      <div className="shrink-0 flex h-10 items-center gap-2 border-b border-border-default/70 bg-transparent px-3">
         <Radio className="w-4 h-4 text-accent shrink-0" />
         <input
           value={url}
@@ -99,7 +99,7 @@ export function SseWorkspace() {
       </div>
 
       {/* Status Bar */}
-      <div className="shrink-0 flex items-center h-8 px-3 bg-bg-secondary/40 border-b border-border-default gap-3 text-[11px]">
+      <div className="shrink-0 flex h-8 items-center gap-3 border-b border-border-default/70 bg-bg-secondary/20 px-3 text-[11px]">
         <span className={cn("flex items-center gap-1.5 font-medium",
           status === 'connected' ? "text-emerald-600" :
           status === 'connecting' ? "text-amber-600" :
@@ -125,7 +125,7 @@ export function SseWorkspace() {
       </div>
 
       {/* Events List */}
-      <div ref={listRef} className="flex-1 overflow-auto p-3 space-y-1">
+      <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/12 p-3 space-y-1">
         {events.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-text-disabled">
             <Radio className="w-10 h-10 mb-3 opacity-20" />
@@ -134,7 +134,7 @@ export function SseWorkspace() {
           </div>
         ) : (
           events.map((evt, i) => (
-            <div key={i} className="p-2 rounded-md bg-bg-secondary/60 border border-border-default hover:border-border-strong transition-colors">
+            <div key={i} className="rounded-[14px] border border-border-default/75 bg-bg-primary/80 p-2.5 transition-colors hover:border-border-strong">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] font-mono text-text-disabled">{new Date(evt.timestamp).toLocaleTimeString()}</span>
                 <span className="text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded">{evt.eventType}</span>

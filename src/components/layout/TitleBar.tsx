@@ -21,6 +21,7 @@ const tools = [
 
 export function TitleBar({ onOpenTool }: TitleBarProps) {
   const { mode, resolved, toggle } = useThemeStore();
+  const activeProtocol = useAppStore((s) => s.getActiveTab()?.protocol ?? null);
 
   return (
     <div className="relative flex h-[var(--titlebar-height)] shrink-0 items-center justify-between border-b border-border-default/70 bg-bg-primary/80 px-3 backdrop-blur-md drag-region select-none">
@@ -50,6 +51,7 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
                   onClick={() => onOpenTool?.(t.id)}
                   className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary",
+                    activeProtocol === t.id && "bg-bg-hover text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]",
                     t.color
                   )}
                 >

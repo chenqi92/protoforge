@@ -123,9 +123,9 @@ export function MqttWorkspace() {
   const isConnected = status === 'connected';
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-bg-primary">
+    <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Connection Bar */}
-      <div className="shrink-0 border-b border-border-default p-3 space-y-2">
+      <div className="shrink-0 space-y-2 border-b border-border-default/70 bg-transparent p-3">
         <div className="flex items-center gap-2">
           <Radio className="w-4 h-4 text-violet-500 shrink-0" />
           <input value={brokerUrl} onChange={(e) => setBrokerUrl(e.target.value)} placeholder="mqtt://broker:1883"
@@ -163,9 +163,9 @@ export function MqttWorkspace() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Subscriptions + Publish */}
-        <div className="w-72 shrink-0 border-r border-border-default flex flex-col overflow-hidden">
+        <div className="flex w-72 shrink-0 flex-col overflow-hidden border-r border-border-default/70 bg-bg-secondary/18">
           {/* Subscriptions */}
-          <div className="p-3 border-b border-border-default">
+          <div className="border-b border-border-default/70 p-3">
             <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider mb-2">订阅</h3>
             <div className="flex items-center gap-1 mb-2">
               <input value={newSubTopic} onChange={(e) => setNewSubTopic(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSubscribe()}
@@ -182,7 +182,7 @@ export function MqttWorkspace() {
             </div>
             <div className="space-y-1 max-h-24 overflow-auto">
               {subscriptions.map((sub, i) => (
-                <div key={i} className="flex items-center justify-between px-2 py-1 bg-bg-secondary rounded text-[11px]">
+                <div key={i} className="flex items-center justify-between rounded-[12px] bg-bg-primary/78 px-2 py-1 text-[11px] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
                   <span className="font-mono text-text-secondary truncate">{sub.topic}</span>
                   <div className="flex items-center gap-1 shrink-0">
                     <span className="text-text-disabled">Q{sub.qos}</span>
@@ -194,7 +194,7 @@ export function MqttWorkspace() {
           </div>
 
           {/* Publish */}
-          <div className="p-3 flex-1 flex flex-col">
+          <div className="flex flex-1 flex-col p-3">
             <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider mb-2">发布</h3>
             <input value={pubTopic} onChange={(e) => setPubTopic(e.target.value)} placeholder="topic/path" disabled={!isConnected}
               className="h-7 px-2 text-[12px] font-mono bg-bg-input border border-border-default rounded text-text-primary outline-none focus:border-accent mb-2 disabled:opacity-50" />
@@ -218,15 +218,15 @@ export function MqttWorkspace() {
         </div>
 
         {/* Right: Message List */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="shrink-0 flex items-center h-8 px-3 bg-bg-secondary/40 border-b border-border-default gap-3 text-[11px]">
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex h-8 shrink-0 items-center gap-3 border-b border-border-default/70 bg-bg-secondary/20 px-3 text-[11px]">
             <span className="text-text-disabled">{messages.length} 条消息</span>
             <button onClick={() => setAutoScroll(!autoScroll)} className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ml-auto", autoScroll ? "text-accent bg-accent/10" : "text-text-disabled hover:text-text-secondary")}>
               <ArrowDown className="w-3 h-3" /> 自动滚动
             </button>
             <button onClick={() => setMessages([])} className="text-text-disabled hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
           </div>
-          <div ref={listRef} className="flex-1 overflow-auto p-3 space-y-1">
+          <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/12 p-3 space-y-1">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-text-disabled">
                 <Radio className="w-10 h-10 mb-3 opacity-20" />
@@ -235,7 +235,7 @@ export function MqttWorkspace() {
               </div>
             ) : (
               messages.map((msg, i) => (
-                <div key={i} className={cn("p-2 rounded-md border transition-colors", msg.direction === 'out' ? "bg-violet-500/5 border-violet-500/20" : "bg-bg-secondary/60 border-border-default")}>
+                <div key={i} className={cn("rounded-[14px] border p-2.5 transition-colors", msg.direction === 'out' ? "bg-violet-500/5 border-violet-500/20" : "bg-bg-primary/78 border-border-default/75")}>
                   <div className="flex items-center gap-2 mb-1">
                     <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", msg.direction === 'out' ? "bg-violet-500/20 text-violet-600" : "bg-emerald-500/20 text-emerald-600")}>
                       {msg.direction === 'out' ? '发送' : '接收'}

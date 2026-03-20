@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ArrowLeftToLine } from "lucide-react";
 import logoSvg from "@/assets/logo.svg";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { WindowControls } from "@/components/layout/WindowControls";
@@ -6,8 +7,12 @@ import { WindowScaffold } from "@/components/layout/WindowScaffold";
 import { useSettingsEffect } from "@/hooks/useSettingsEffect";
 import { useRoundedCorners } from "@/hooks/useWindowMaximized";
 import { cn } from "@/lib/utils";
+import { requestDockTool } from "@/lib/toolDocking";
+import { focusMainWindow, type ToolWindowType } from "@/lib/windowManager";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 interface ToolWindowShellProps {
+  tool: ToolWindowType;
   title: string;
   module: string;
   accentClassName: string;
@@ -17,11 +22,12 @@ interface ToolWindowShellProps {
 }
 
 export function ToolWindowShell({
+  tool,
   title,
   module,
   accentClassName,
   children,
-  badgeLabel = "独立工具",
+  badgeLabel,
   stageClassName,
 }: ToolWindowShellProps) {
   useRoundedCorners(18);
@@ -52,9 +58,25 @@ export function ToolWindowShell({
           </div>
 
           <div className="flex items-center gap-2 no-drag">
-            <span className="rounded-full border border-border-default/70 bg-bg-secondary/80 px-2.5 py-1 text-[11px] text-text-tertiary">
-              {badgeLabel}
-            </span>
+            <button
+              onClick={async () => {
+                requestDockTool(tool);
+                await focusMainWindow();
+                setTimeout(() => {
+                  void getCurrentWebviewWindow().close();
+                }, 80);
+              }}
+              className="flex h-8 items-center gap-1 rounded-[12px] border border-border-default/70 bg-bg-secondary/80 px-2.5 text-[11px] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+              title="合并回主窗口"
+            >
+              <ArrowLeftToLine className="h-3.5 w-3.5" />
+              合并回主窗口
+            </button>
+            {badgeLabel ? (
+              <span className="rounded-full border border-border-default/70 bg-bg-secondary/80 px-2.5 py-1 text-[11px] text-text-tertiary">
+                {badgeLabel}
+              </span>
+            ) : null}
             <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <WindowControls compact />
             </div>
@@ -62,7 +84,8 @@ export function ToolWindowShell({
         </div>
       )}
       footer={<StatusBar activeModule={module} />}
-      stageClassName={stageClassName}
+      bodyClassName="p-0"
+      stageClassName={cn("rounded-none border-0 bg-transparent shadow-none", stageClassName)}
     >
       {children}
     </WindowScaffold>

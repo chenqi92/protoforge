@@ -194,10 +194,10 @@ export function WsWorkspace() {
   const removeHeader = (i: number) => setHeaders(headers.filter((_, idx) => idx !== i));
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-bg-app">
+    <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Top Connection Bar */}
-      <div className="shrink-0 p-4 pb-2">
-        <div className="flex items-center h-12 rounded-[var(--radius-lg)] bg-bg-primary border border-border-default shadow-sm focus-within:ring-2 focus-within:ring-accent-muted focus-within:border-accent transition-all p-1">
+      <div className="shrink-0 px-3 pb-2 pt-3">
+        <div className="flex h-11 items-center rounded-[16px] border border-border-default/75 bg-bg-primary/82 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
           <div className="relative h-full shrink-0">
             <div className="flex items-center justify-center gap-1.5 h-full px-4 rounded-[var(--radius-md)] text-[13px] font-bold text-white bg-amber-500 min-w-[90px] shadow-sm">
               <Zap className="w-3.5 h-3.5" /> WS
@@ -212,7 +212,7 @@ export function WsWorkspace() {
             className="flex-1 h-full px-4 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary disabled:opacity-60"
           />
           {/* Settings toggle */}
-          <button onClick={() => setShowHeaders(!showHeaders)} className={cn("h-8 w-8 flex items-center justify-center rounded-md mr-1 transition-colors", showHeaders ? "bg-amber-500/10 text-amber-600" : "text-text-tertiary hover:bg-bg-hover")} title="连接设置">
+          <button onClick={() => setShowHeaders(!showHeaders)} className={cn("mr-1 flex h-8 w-8 items-center justify-center rounded-[12px] transition-colors", showHeaders ? "bg-amber-500/10 text-amber-600" : "text-text-tertiary hover:bg-bg-hover")} title="连接设置">
             <Settings2 className="w-3.5 h-3.5" />
           </button>
           <button
@@ -230,7 +230,7 @@ export function WsWorkspace() {
 
         {/* Headers / Settings Panel */}
         {showHeaders && (
-          <div className="mt-2 p-3 bg-bg-primary border border-border-default rounded-xl space-y-3">
+          <div className="mt-2 space-y-3 rounded-[16px] border border-border-default/75 bg-bg-primary/82 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <h4 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider">自定义 Headers</h4>
@@ -267,10 +267,10 @@ export function WsWorkspace() {
       </div>
 
       {/* Main Area */}
-      <div className="flex-1 flex flex-col overflow-hidden p-4 pt-2">
-        <div className="flex-1 flex flex-col bg-bg-primary rounded-2xl border border-border-default shadow-sm overflow-hidden panel">
+      <div className="flex-1 flex flex-col overflow-hidden px-3 pb-3 pt-2">
+        <div className="panel flex flex-1 flex-col overflow-hidden rounded-[18px] border border-border-default/75 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
           {/* Status Header with search */}
-          <div className="flex items-center justify-between px-4 py-2.5 bg-bg-secondary/40 border-b border-border-default shrink-0">
+          <div className="flex shrink-0 items-center justify-between border-b border-border-default/70 bg-bg-secondary/24 px-4 py-2.5">
             <div className="flex items-center gap-2">
               <div className={cn("w-2 h-2 rounded-full transition-colors", connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-text-disabled")} />
               <span className="text-[13px] font-medium text-text-secondary">
@@ -297,7 +297,7 @@ export function WsWorkspace() {
           </div>
 
           {/* Messages */}
-          <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-auto p-5 bg-bg-input/30">
+          <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-auto bg-bg-secondary/12 p-5">
             {filteredMessages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-text-disabled">
                 <div className="w-16 h-16 rounded-full bg-bg-secondary flex items-center justify-center mb-4 border border-border-default shadow-sm">
@@ -342,7 +342,7 @@ export function WsWorkspace() {
           </div>
 
           {/* Input Bar */}
-          <div className="shrink-0 p-3 bg-bg-secondary/20 border-t border-border-default">
+          <div className="shrink-0 border-t border-border-default/70 bg-bg-secondary/18 p-3">
             <div className="flex items-end gap-2">
               {/* Send mode toggle */}
               <div className="flex flex-col gap-1 shrink-0">

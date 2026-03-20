@@ -53,24 +53,30 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className="relative w-full max-w-3xl max-h-[80vh] bg-bg-primary rounded-xl shadow-2xl border border-border-default flex flex-col overflow-hidden"
+        className="relative flex max-h-[82vh] w-full max-w-4xl flex-col overflow-hidden rounded-[24px] border border-white/60 bg-bg-primary/96 shadow-[0_28px_80px_rgba(15,23,42,0.22)] backdrop-blur-xl"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border-subtle shrink-0">
+        <div className="flex shrink-0 items-center justify-between border-b border-border-default/75 bg-bg-primary/78 px-5 py-4">
           <div className="flex items-center gap-3">
-            <Download className="w-4.5 h-4.5 text-accent" />
-            <span className="text-sm font-semibold text-text-primary">导入集合</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_10px_25px_rgba(37,99,235,0.22)]">
+              <Download className="h-4.5 w-4.5 text-white" />
+            </div>
+            <div>
+              <span className="block text-sm font-semibold text-text-primary">导入集合</span>
+              <span className="block text-[11px] text-text-tertiary">从文件或 OpenAPI 规范快速导入到当前工作台</span>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
+            className="rounded-[12px] p-1.5 text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-0 px-5 pt-3 border-b border-border-subtle shrink-0">
+        <div className="shrink-0 border-b border-border-default/70 bg-bg-secondary/18 px-5 py-3">
+          <div className="flex w-fit gap-1 rounded-[14px] border border-border-default/70 bg-bg-secondary/55 p-1">
           {[
             { id: 'file' as ImportTab, icon: FileJson, label: '文件导入' },
             { id: 'swagger' as ImportTab, icon: Globe, label: 'Swagger / OpenAPI' },
@@ -79,16 +85,17 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               key={id}
               onClick={() => setActiveTab(id)}
               className={cn(
-                'flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium rounded-t-md border-b-2 transition-all -mb-px',
+                'flex items-center gap-1.5 rounded-[12px] px-4 py-2 text-[12px] font-medium transition-all',
                 activeTab === id
-                  ? 'text-accent border-accent bg-accent-soft/30'
-                  : 'text-text-tertiary border-transparent hover:text-text-secondary hover:bg-bg-hover'
+                  ? 'bg-bg-primary text-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]'
+                  : 'text-text-tertiary hover:bg-bg-primary/70 hover:text-text-secondary'
               )}
             >
               <Icon className="w-3.5 h-3.5" />
               {label}
             </button>
           ))}
+          </div>
         </div>
 
         {/* Content */}
@@ -849,4 +856,3 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-

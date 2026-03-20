@@ -72,7 +72,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
   return (
     <div className="h-full flex">
       {/* ── Icon Rail ── */}
-      <div className="w-12 h-full flex flex-col items-center pt-2 pb-3 bg-bg-tertiary/50 border-r border-border-default shrink-0">
+      <div className="w-12 h-full flex flex-col items-center pt-2 pb-3 bg-transparent border-r border-border-default/60 shrink-0">
         {navItems.map(({ id, icon: Icon, label }) => {
           const isActive = activeView === id && !panelCollapsed;
           return (
@@ -104,9 +104,9 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
 
       {/* ── Detail Panel ── */}
       {!panelCollapsed && (
-        <div className="flex-1 h-full flex flex-col bg-bg-secondary overflow-hidden min-w-0">
+        <div className="flex-1 h-full flex flex-col bg-transparent overflow-hidden min-w-0">
           {/* Panel Header */}
-          <div className="shrink-0 px-3 py-3 border-b border-border-subtle">
+          <div className="shrink-0 px-3 py-3 border-b border-border-subtle/70 bg-bg-primary/24">
             <div className="flex items-center justify-between mb-2.5">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-[13px] font-semibold text-text-primary truncate">
@@ -154,13 +154,13 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`搜索${navItems.find(n => n.id === activeView)?.label}...`}
-                className="w-full h-8 pl-8 pr-3 text-[12px] bg-bg-primary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary transition-all"
+                className="w-full h-8 pl-8 pr-3 text-[12px] bg-bg-secondary/46 border border-border-default/80 rounded-[12px] outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary transition-all"
               />
             </div>
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 overflow-auto px-1.5 py-1">
+          <div className="flex-1 overflow-auto px-1.5 py-1.5">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeView}

@@ -112,9 +112,9 @@ export function HttpWorkspace() {
   ];
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-bg-primary">
+    <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Top Request Bar Area */}
-      <div className="shrink-0 flex items-center h-10 px-3 border-b border-border-default bg-bg-primary gap-2">
+      <div className="shrink-0 flex items-center h-10 px-3 border-b border-border-default/65 bg-transparent gap-2">
         {/* Method Selector */}
         <div className="relative h-full shrink-0 flex items-center">
           <button
@@ -230,7 +230,7 @@ export function HttpWorkspace() {
         
         {/* Request Panel */}
         <Panel minSize="15" defaultSize="50" className="flex flex-col h-full overflow-hidden">
-          <div className="flex items-center px-2 bg-bg-secondary/40 border-b border-border-default shrink-0 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center px-2 bg-bg-secondary/18 border-b border-border-default/65 shrink-0 overflow-x-auto scrollbar-hide">
             {reqTabs.map((t) => (
               <button
                 key={t.key}
@@ -251,7 +251,7 @@ export function HttpWorkspace() {
             
             {reqTab === "body" && (
               <div className="p-4 flex flex-col h-full">
-                <div className="flex items-center gap-2 mb-4 shrink-0 bg-bg-secondary p-1 rounded-lg w-fit">
+                <div className="flex items-center gap-2 mb-4 shrink-0 bg-bg-secondary/42 p-1 rounded-[14px] w-fit">
                   {(["none", "json", "raw", "graphql", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
                     <button
                       key={bt}
@@ -269,7 +269,7 @@ export function HttpWorkspace() {
                 <div className="flex-1 min-h-0 relative">
                   {config.bodyType === "none" && <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[13px]">无需请求体</div>}
                   {config.bodyType === "json" && (
-                    <div className="w-full h-full border border-border-default rounded-lg overflow-hidden bg-bg-input focus-within:border-accent transition-colors">
+                    <div className="w-full h-full border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                       <CodeEditor
                         value={config.jsonBody || ''}
                         onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
@@ -281,7 +281,7 @@ export function HttpWorkspace() {
                     <div className="flex flex-col h-full gap-3">
                       <div className="flex-1 min-h-0">
                         <label className="text-[11px] font-medium text-text-secondary mb-1 block">Query</label>
-                        <div className="w-full h-[calc(100%-20px)] border border-border-default rounded-lg overflow-hidden bg-bg-input focus-within:border-accent transition-colors">
+                        <div className="w-full h-[calc(100%-20px)] border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                           <CodeEditor
                             value={config.graphqlQuery || ''}
                             onChange={(v) => updateHttpConfig(tabId, { graphqlQuery: v })}
@@ -291,7 +291,7 @@ export function HttpWorkspace() {
                       </div>
                       <div className="h-28 shrink-0">
                         <label className="text-[11px] font-medium text-text-secondary mb-1 block">Variables (JSON)</label>
-                        <div className="w-full h-[calc(100%-20px)] border border-border-default rounded-lg overflow-hidden bg-bg-input focus-within:border-accent transition-colors">
+                        <div className="w-full h-[calc(100%-20px)] border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                           <CodeEditor
                             value={config.graphqlVariables || ''}
                             onChange={(v) => updateHttpConfig(tabId, { graphqlVariables: v })}
@@ -306,7 +306,7 @@ export function HttpWorkspace() {
                       <select
                         value={config.rawContentType}
                         onChange={(e) => updateHttpConfig(tabId, { rawContentType: e.target.value })}
-                        className="h-7 px-2 text-[12px] bg-bg-input border border-border-default rounded-md text-text-secondary outline-none w-fit"
+                        className="h-7 px-2 text-[12px] bg-bg-input/88 border border-border-default/75 rounded-[12px] text-text-secondary outline-none w-fit"
                       >
                         <option value="text/plain">Text</option>
                         <option value="text/html">HTML</option>
@@ -314,7 +314,7 @@ export function HttpWorkspace() {
                         <option value="application/javascript">JavaScript</option>
                         <option value="text/css">CSS</option>
                       </select>
-                      <div className="w-full flex-1 border border-border-default rounded-lg overflow-hidden bg-bg-input focus-within:border-accent transition-colors">
+                      <div className="w-full flex-1 border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                         <CodeEditor
                           value={config.rawBody || ''}
                           onChange={(v) => updateHttpConfig(tabId, { rawBody: v })}
@@ -332,7 +332,7 @@ export function HttpWorkspace() {
             
             {reqTab === "auth" && (
               <div className="p-4">
-                <div className="flex items-center gap-2 mb-4 bg-bg-secondary p-1 rounded-lg w-fit flex-wrap">
+                <div className="flex items-center gap-2 mb-4 bg-bg-secondary/42 p-1 rounded-[14px] w-fit flex-wrap">
                   {(["none", "bearer", "basic", "apiKey", "oauth2"] as const).map((at) => (
                     <button
                       key={at}
@@ -1006,4 +1006,3 @@ function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; file
     </div>
   );
 }
-

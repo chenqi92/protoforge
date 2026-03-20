@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { ConnectionBar } from "./ConnectionBar";
 import { SendPanel } from "./SendPanel";
 import { MessageLog } from "./MessageLog";
-import { StatsBar } from "./StatsBar";
 import { ClientList } from "./ClientList";
 import * as svc from "@/services/tcpService";
 import type {
@@ -26,19 +25,19 @@ export function TcpWorkspace() {
   const [mode, setMode] = useState<SocketMode>("tcp-client");
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-bg-app">
+    <div className="flex h-full flex-col overflow-hidden bg-transparent">
       {/* ── Mode Tabs ── */}
-      <div className="shrink-0 px-4 pt-3 pb-2">
-        <div className="flex items-center gap-0.5 bg-bg-secondary p-0.5 rounded-lg w-fit">
+      <div className="shrink-0 px-3 pt-3 pb-2">
+        <div className="inline-flex items-center gap-1 rounded-[14px] border border-border-default/75 bg-bg-primary/72 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           {MODES.map((m) => (
             <button
               key={m.value}
               onClick={() => setMode(m.value)}
               className={cn(
-                "flex items-center gap-1.5 px-3.5 py-1.5 text-[11px] font-semibold rounded-md transition-all",
+                "flex items-center gap-1.5 rounded-[10px] px-3.5 py-1.5 text-[11px] font-semibold transition-all",
                 mode === m.value
                   ? "bg-bg-primary text-text-primary shadow-sm"
-                  : "text-text-tertiary hover:text-text-secondary"
+                  : "text-text-tertiary hover:bg-bg-hover/75 hover:text-text-secondary"
               )}
             >
               {m.icon}
@@ -53,6 +52,39 @@ export function TcpWorkspace() {
       {mode === "tcp-server" && <TcpServerPanel />}
       {mode === "udp-client" && <UdpClientPanel />}
       {mode === "udp-server" && <UdpServerPanel />}
+    </div>
+  );
+}
+
+function WorkspaceSplit({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="grid min-h-0 flex-1 grid-cols-[304px_minmax(0,1fr)] gap-3">
+      <div className="min-h-0 overflow-auto">{sidebar}</div>
+      <div className="min-h-0">{children}</div>
+    </div>
+  );
+}
+
+function AddressField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-[14px] border border-border-default/75 bg-bg-primary/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <span className="shrink-0 text-[11px] font-medium text-text-tertiary">{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-7 flex-1 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-tertiary"
+      />
     </div>
   );
 }
@@ -207,9 +239,8 @@ function TcpClientPanel() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Connection Bar */}
-      <div className="shrink-0 px-4 pb-2">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3">
+      <div className="shrink-0 pb-3">
         <ConnectionBar
           mode="tcp-client" host={host} port={port}
           connected={connected} connecting={connecting}
@@ -218,10 +249,8 @@ function TcpClientPanel() {
         />
       </div>
 
-      {/* Main Area: Left (Send) + Right (Log) */}
-      <div className="flex-1 flex overflow-hidden px-4 pb-2 gap-3">
-        {/* Left Panel */}
-        <div className="w-[280px] shrink-0 overflow-y-auto pr-1">
+      <WorkspaceSplit
+        sidebar={(
           <SendPanel
             message={state.message} setMessage={state.setMessage}
             sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
@@ -246,25 +275,20 @@ function TcpClientPanel() {
             appendNewline={state.appendNewline}
             onAppendNewlineChange={state.setAppendNewline}
           />
-        </div>
-
-        {/* Right Panel */}
-        <div className="flex-1 flex flex-col min-w-0">
+        )}
+      >
+        <div className="flex min-h-0 flex-col">
           <MessageLog
             messages={state.messages}
             onClear={() => { state.setMessages([]); state.resetStats(); }}
             displayFormat={state.displayFormat}
             setDisplayFormat={state.setDisplayFormat}
+            connected={connected}
+            statusText={connected ? `${host}:${port} 已连接` : connecting ? "正在建立连接..." : "等待建立连接"}
+            stats={state.stats}
           />
         </div>
-      </div>
-
-      {/* Stats Bar */}
-      <StatsBar
-        stats={state.stats}
-        connected={connected}
-        statusText={connected ? `已连接 ${host}:${port}` : connecting ? "连接中..." : "未连接"}
-      />
+      </WorkspaceSplit>
     </div>
   );
 }
@@ -378,8 +402,8 @@ function TcpServerPanel() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="shrink-0 px-4 pb-2">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3">
+      <div className="shrink-0 pb-3">
         <ConnectionBar
           mode="tcp-server" host={host} port={port}
           connected={running} connecting={starting}
@@ -388,49 +412,49 @@ function TcpServerPanel() {
         />
       </div>
 
-      <div className="flex-1 flex overflow-hidden px-4 pb-2 gap-3">
-        <div className="w-[280px] shrink-0 overflow-y-auto pr-1">
-          <ClientList clients={clients} selectedClientId={selectedClientId} onSelectClient={setSelectedClientId} />
-          <SendPanel
-            message={state.message} setMessage={state.setMessage}
-            sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
-            connected={running} onSend={handleSend}
-            sendLabel={selectedClientId ? "发送" : "广播"}
-            sendHistory={state.sendHistory}
-            onClearHistory={() => state.setSendHistory([])}
-            onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
-            quickCommands={state.quickCommands}
-            onAddQuickCommand={() => {
-              if (state.message.trim()) {
-                state.setQuickCommands((prev) => [...prev, {
-                  id: crypto.randomUUID(), name: `指令${prev.length + 1}`, data: state.message, format: state.sendFormat,
-                }]);
-              }
-            }}
-            onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
-            onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
-            timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
-            onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
-            onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-            appendNewline={state.appendNewline}
-            onAppendNewlineChange={state.setAppendNewline}
-          />
-        </div>
-        <div className="flex-1 flex flex-col min-w-0">
+      <WorkspaceSplit
+        sidebar={(
+          <div className="space-y-3">
+            <ClientList clients={clients} selectedClientId={selectedClientId} onSelectClient={setSelectedClientId} />
+            <SendPanel
+              message={state.message} setMessage={state.setMessage}
+              sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
+              connected={running} onSend={handleSend}
+              sendLabel={selectedClientId ? "发送" : "广播"}
+              sendHistory={state.sendHistory}
+              onClearHistory={() => state.setSendHistory([])}
+              onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
+              quickCommands={state.quickCommands}
+              onAddQuickCommand={() => {
+                if (state.message.trim()) {
+                  state.setQuickCommands((prev) => [...prev, {
+                    id: crypto.randomUUID(), name: `指令${prev.length + 1}`, data: state.message, format: state.sendFormat,
+                  }]);
+                }
+              }}
+              onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
+              onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+              timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
+              onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
+              onTimerIntervalChange={(v) => state.setTimerInterval(v)}
+              appendNewline={state.appendNewline}
+              onAppendNewlineChange={state.setAppendNewline}
+            />
+          </div>
+        )}
+      >
+        <div className="flex min-h-0 flex-col">
           <MessageLog
             messages={state.messages}
             onClear={() => { state.setMessages([]); state.resetStats(); }}
             displayFormat={state.displayFormat}
             setDisplayFormat={state.setDisplayFormat}
+            connected={running}
+            statusText={running ? `${host}:${port} 监听中 · ${clients.length} 个客户端` : starting ? "正在启动服务端..." : "等待启动服务端"}
+            stats={state.stats}
           />
         </div>
-      </div>
-
-      <StatsBar
-        stats={state.stats}
-        connected={running}
-        statusText={running ? `监听中 ${host}:${port} (${clients.length} 客户端)` : starting ? "启动中..." : "未启动"}
-      />
+      </WorkspaceSplit>
     </div>
   );
 }
@@ -522,8 +546,8 @@ function UdpClientPanel() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="shrink-0 px-4 pb-2 space-y-2">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3">
+      <div className="shrink-0 space-y-3 pb-3">
         <ConnectionBar
           mode="udp-client" host={host} port={port}
           connected={bound} connecting={binding}
@@ -532,20 +556,17 @@ function UdpClientPanel() {
         />
         {/* Target address */}
         {bound && (
-          <div className="flex items-center gap-2 px-1">
-            <span className="text-[11px] text-text-tertiary font-medium shrink-0">目标地址:</span>
-            <input
-              value={targetAddr}
-              onChange={(e) => setTargetAddr(e.target.value)}
-              placeholder="目标 IP:端口 (如 127.0.0.1:9000)"
-              className="flex-1 h-7 px-2.5 text-[12px] font-mono bg-bg-input border border-border-default rounded-md outline-none focus:border-accent transition-colors text-text-primary"
-            />
-          </div>
+          <AddressField
+            label="目标地址"
+            value={targetAddr}
+            onChange={setTargetAddr}
+            placeholder="目标 IP:端口 (如 127.0.0.1:9000)"
+          />
         )}
       </div>
 
-      <div className="flex-1 flex overflow-hidden px-4 pb-2 gap-3">
-        <div className="w-[280px] shrink-0 overflow-y-auto pr-1">
+      <WorkspaceSplit
+        sidebar={(
           <SendPanel
             message={state.message} setMessage={state.setMessage}
             sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
@@ -569,22 +590,20 @@ function UdpClientPanel() {
             appendNewline={state.appendNewline}
             onAppendNewlineChange={state.setAppendNewline}
           />
-        </div>
-        <div className="flex-1 flex flex-col min-w-0">
+        )}
+      >
+        <div className="flex min-h-0 flex-col">
           <MessageLog
             messages={state.messages}
             onClear={() => { state.setMessages([]); state.resetStats(); }}
             displayFormat={state.displayFormat}
             setDisplayFormat={state.setDisplayFormat}
+            connected={bound}
+            statusText={bound ? `${host}:${port} 已绑定 · 目标 ${targetAddr}` : binding ? "正在绑定 UDP..." : "等待绑定 UDP"}
+            stats={state.stats}
           />
         </div>
-      </div>
-
-      <StatsBar
-        stats={state.stats}
-        connected={bound}
-        statusText={bound ? `已绑定 ${host}:${port}` : binding ? "绑定中..." : "未绑定"}
-      />
+      </WorkspaceSplit>
     </div>
   );
 }
@@ -680,8 +699,8 @@ function UdpServerPanel() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="shrink-0 px-4 pb-2 space-y-2">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3">
+      <div className="shrink-0 space-y-3 pb-3">
         <ConnectionBar
           mode="udp-server" host={host} port={port}
           connected={bound} connecting={binding}
@@ -689,20 +708,17 @@ function UdpServerPanel() {
           onToggle={handleBind}
         />
         {bound && (
-          <div className="flex items-center gap-2 px-1">
-            <span className="text-[11px] text-text-tertiary font-medium shrink-0">回复地址:</span>
-            <input
-              value={replyAddr}
-              onChange={(e) => setReplyAddr(e.target.value)}
-              placeholder="接收到数据后自动填充，或手动输入 IP:端口"
-              className="flex-1 h-7 px-2.5 text-[12px] font-mono bg-bg-input border border-border-default rounded-md outline-none focus:border-accent transition-colors text-text-primary"
-            />
-          </div>
+          <AddressField
+            label="回复地址"
+            value={replyAddr}
+            onChange={setReplyAddr}
+            placeholder="接收到数据后自动填充，或手动输入 IP:端口"
+          />
         )}
       </div>
 
-      <div className="flex-1 flex overflow-hidden px-4 pb-2 gap-3">
-        <div className="w-[280px] shrink-0 overflow-y-auto pr-1">
+      <WorkspaceSplit
+        sidebar={(
           <SendPanel
             message={state.message} setMessage={state.setMessage}
             sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
@@ -727,22 +743,20 @@ function UdpServerPanel() {
             appendNewline={state.appendNewline}
             onAppendNewlineChange={state.setAppendNewline}
           />
-        </div>
-        <div className="flex-1 flex flex-col min-w-0">
+        )}
+      >
+        <div className="flex min-h-0 flex-col">
           <MessageLog
             messages={state.messages}
             onClear={() => { state.setMessages([]); state.resetStats(); }}
             displayFormat={state.displayFormat}
             setDisplayFormat={state.setDisplayFormat}
+            connected={bound}
+            statusText={bound ? `${host}:${port} 监听中 · 回复 ${replyAddr || "等待来源地址"}` : binding ? "正在绑定 UDP 服务端..." : "等待启动 UDP 服务端"}
+            stats={state.stats}
           />
         </div>
-      </div>
-
-      <StatsBar
-        stats={state.stats}
-        connected={bound}
-        statusText={bound ? `监听中 ${host}:${port}` : binding ? "绑定中..." : "未启动"}
-      />
+      </WorkspaceSplit>
     </div>
   );
 }

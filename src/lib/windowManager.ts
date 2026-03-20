@@ -64,3 +64,16 @@ export async function openToolWindow(tool: ToolWindowType): Promise<void> {
     center: true,
   });
 }
+
+export async function isToolWindowOpen(tool: ToolWindowType): Promise<boolean> {
+  const label = `tool-${tool}`;
+  const existing = await WebviewWindow.getByLabel(label);
+  return Boolean(existing);
+}
+
+export async function focusMainWindow(): Promise<void> {
+  const mainWindow = await WebviewWindow.getByLabel("main");
+  if (!mainWindow) return;
+  await mainWindow.show();
+  await mainWindow.setFocus();
+}

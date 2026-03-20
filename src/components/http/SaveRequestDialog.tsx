@@ -105,21 +105,21 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
     : [];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-[480px] bg-bg-primary border border-border-default rounded-xl shadow-2xl flex flex-col max-h-[70vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[74vh] w-[520px] max-w-[92vw] flex-col overflow-hidden rounded-[24px] border border-white/60 bg-bg-primary/96 shadow-[0_28px_80px_rgba(15,23,42,0.22)] backdrop-blur-xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-default shrink-0">
+        <div className="flex shrink-0 items-center justify-between border-b border-border-default/75 bg-bg-primary/78 px-5 py-4">
           <h2 className="text-[15px] font-semibold text-text-primary flex items-center gap-2">
             <Save className="w-4 h-4 text-accent" />
             保存请求
           </h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-bg-hover text-text-tertiary hover:text-text-primary transition-colors">
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-auto p-5 space-y-4">
+        <div className="flex-1 space-y-4 overflow-auto bg-bg-secondary/18 p-5">
           {/* Name */}
           <div className="space-y-1.5">
             <label className="text-[12px] font-medium text-text-secondary">请求名称</label>
@@ -159,7 +159,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
               </div>
             )}
 
-            <div className="border border-border-default rounded-lg overflow-hidden max-h-[200px] overflow-y-auto">
+            <div className="max-h-[220px] overflow-y-auto rounded-[16px] border border-border-default/80 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
               {collections.length === 0 ? (
                 <div className="p-4 text-center text-[12px] text-text-disabled">暂无集合，请先创建</div>
               ) : (
@@ -172,7 +172,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
                         handleToggle(col.id);
                       }}
                       className={cn(
-                        'w-full flex items-center gap-2 px-3 py-2 text-[13px] text-left hover:bg-bg-hover transition-colors',
+                        'w-full flex items-center gap-2 px-3 py-2 text-[13px] text-left transition-colors hover:bg-bg-hover/70',
                         selectedCollectionId === col.id && !selectedParentId ? 'bg-accent/10 text-accent' : 'text-text-primary'
                       )}
                     >
@@ -187,7 +187,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
                             key={folder.id}
                             onClick={() => setSelectedParentId(folder.id)}
                             className={cn(
-                              'w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left hover:bg-bg-hover transition-colors',
+                              'w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left transition-colors hover:bg-bg-hover/70',
                               selectedParentId === folder.id ? 'bg-accent/10 text-accent' : 'text-text-secondary'
                             )}
                           >
@@ -205,17 +205,17 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border-default shrink-0">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border-default/75 bg-bg-primary/78 px-5 py-3">
           <button
             onClick={onClose}
-            className="h-8 px-4 text-[12px] font-medium text-text-secondary hover:bg-bg-hover rounded-md transition-colors"
+            className="h-8 rounded-[12px] px-4 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
           >
             取消
           </button>
           <button
             onClick={handleSave}
             disabled={!selectedCollectionId || !name.trim() || saving}
-            className="h-8 px-5 bg-accent text-white rounded-md text-[12px] font-semibold hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+            className="flex h-8 items-center gap-1.5 rounded-[12px] bg-accent px-5 text-[12px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             {saving ? '保存中...' : '保存'}
           </button>

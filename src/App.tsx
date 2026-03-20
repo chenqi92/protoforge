@@ -12,16 +12,20 @@ import { HttpWorkspace } from "@/components/http/HttpWorkspace";
 import { WsWorkspace } from "@/components/ws/WsWorkspace";
 import { SseWorkspace } from "@/components/sse/SseWorkspace";
 import { MqttWorkspace } from "@/components/mqtt/MqttWorkspace";
+import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
+import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
+import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
 import { PluginModal } from "@/components/plugins/PluginModal";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { CollectionSettingsPanel } from "@/components/collections/CollectionSettingsPanel";
-import { useAppStore, type ProtocolType } from "@/stores/appStore";
+import { useAppStore, type WorkspaceProtocol } from "@/stores/appStore";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { openToolWindow, type ToolWindowType } from "@/lib/windowManager";
+import { isToolWindowOpen, openToolWindow, type ToolWindowType } from "@/lib/windowManager";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { UpdateChecker } from "@/components/settings/UpdateChecker";
 import { WindowScaffold } from "@/components/layout/WindowScaffold";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
+import { subscribeDockToolRequests } from "@/lib/toolDocking";
 
 function App() {
   const sidebarPanelRef = usePanelRef();
@@ -47,28 +51,36 @@ function App() {
   const activeTabId = useAppStore((s) => s.activeTabId);
   const activeTab = useAppStore((s) => s.getActiveTab());
   const addTab = useAppStore((s) => s.addTab);
+  const openToolTab = useAppStore((s) => s.openToolTab);
   const closeTab = useAppStore((s) => s.closeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
-  const setTabProtocol = useAppStore((s) => s.setTabProtocol);
   const reorderTabs = useAppStore((s) => s.reorderTabs);
+
+  useEffect(() => {
+    return subscribeDockToolRequests((tool) => {
+      openToolTab(tool);
+    });
+  }, [openToolTab]);
 
   const displayTabs: Tab[] = tabs.map((t) => ({
     id: t.id,
-    label: t.httpConfig?.name || t.httpConfig?.url || t.label,
+    label: t.customLabel?.trim()
+      || (t.protocol === "http" && t.httpConfig?.name?.trim() && t.httpConfig.name !== "Untitled Request" ? t.httpConfig.name.trim() : "")
+      || (t.protocol === "http" ? t.httpConfig?.url?.trim() : "")
+      || t.label,
     protocol: t.protocol,
     method: t.protocol === "http" ? t.httpConfig?.method : undefined,
+    detachableTool: t.protocol === "tcpudp" || t.protocol === "loadtest" || t.protocol === "capture"
+      ? t.protocol
+      : undefined,
     modified: false,
   }));
 
-  const handleNewTab = useCallback((protocol?: ProtocolType) => {
+  const handleNewTab = useCallback((protocol?: WorkspaceProtocol) => {
     addTab(protocol || "http");
   }, [addTab]);
 
-  const handleProtocolChange = useCallback((id: string, protocol: ProtocolType) => {
-    setTabProtocol(id, protocol);
-  }, [setTabProtocol]);
-
-  const handleOpenTool = useCallback((tool: string) => {
+  const handleOpenTool = useCallback(async (tool: string) => {
     if (tool === "plugins") {
       setPluginModalOpen(true);
       return;
@@ -79,9 +91,19 @@ function App() {
     }
     const toolWindows: string[] = ["capture", "loadtest", "tcpudp"];
     if (toolWindows.includes(tool)) {
-      openToolWindow(tool as ToolWindowType);
+      const toolType = tool as ToolWindowType;
+      if (await isToolWindowOpen(toolType)) {
+        await openToolWindow(toolType);
+        return;
+      }
+      openToolTab(toolType);
     }
-  }, []);
+  }, [openToolTab]);
+
+  const handleDetachToolTab = useCallback(async (id: string, tool: ToolWindowType) => {
+    await openToolWindow(tool);
+    closeTab(id);
+  }, [closeTab]);
 
   const handleSidebarResize = useCallback((size: { asPercentage: number; inPixels: number }) => {
     // Collapsed when size equals the icon rail width (48px)
@@ -103,6 +125,8 @@ function App() {
     switch (action) {
       case 'http': addTab('http'); break;
       case 'ws': addTab('ws'); break;
+      case 'sse': addTab('sse'); break;
+      case 'mqtt': addTab('mqtt'); break;
       case 'tcpudp': handleOpenTool('tcpudp'); break;
       case 'loadtest': handleOpenTool('loadtest'); break;
       case 'capture': handleOpenTool('capture'); break;
@@ -119,6 +143,9 @@ function App() {
       case "collection": return <CollectionSettingsPanel collectionId={activeTab.collectionId!} />;
       case "sse": return <SseWorkspace />;
       case "mqtt": return <MqttWorkspace />;
+      case "tcpudp": return <TcpWorkspace />;
+      case "loadtest": return <LoadTestWorkspace />;
+      case "capture": return <CaptureWorkspace />;
       default: return <WelcomePage onAction={handleWelcomeAction} />;
     }
   };
@@ -134,7 +161,8 @@ function App() {
             responseSize={activeTab?.httpResponse?.bodySize}
           />
         )}
-        stageClassName="bg-bg-primary/72"
+        bodyClassName="p-0"
+        stageClassName="rounded-none border-0 bg-transparent shadow-none"
       >
         <div className="h-full">
           <PanelGroup orientation="horizontal">
@@ -156,14 +184,14 @@ function App() {
             </Panel>
             <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/70 transition-colors hover:bg-accent active:bg-accent" />
 
-            <Panel className="flex flex-col overflow-hidden bg-bg-primary/70">
+            <Panel className="flex flex-col overflow-hidden bg-transparent">
               <TabBar
                 tabs={displayTabs}
                 activeTabId={activeTabId}
                 onTabChange={setActiveTab}
                 onTabClose={closeTab}
                 onNewTab={handleNewTab}
-                onProtocolChange={handleProtocolChange}
+                onDetachTab={handleDetachToolTab}
                 onReorder={reorderTabs}
               />
 

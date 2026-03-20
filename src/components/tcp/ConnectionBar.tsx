@@ -48,9 +48,9 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
   const connectingLabel = isServer ? "启动中..." : "连接中...";
 
   return (
-    <div className="flex items-center h-10 rounded-lg bg-bg-primary border border-border-default shadow-sm focus-within:ring-2 focus-within:ring-accent-muted focus-within:border-accent transition-all p-0.5">
+    <div className="flex h-11 items-center rounded-[16px] border border-border-default/75 bg-bg-primary/78 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       {/* Protocol Badge */}
-      <div className={cn("flex items-center justify-center gap-1.5 h-full px-3.5 rounded-md text-[12px] font-bold text-white shrink-0 shadow-sm", cfg.color)}>
+      <div className={cn("flex h-full shrink-0 items-center justify-center gap-1.5 rounded-[12px] px-3.5 text-[12px] font-bold text-white shadow-sm", cfg.color)}>
         {cfg.icon}
         {cfg.label}
       </div>
@@ -61,7 +61,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
         onChange={(e) => onHostChange(e.target.value)}
         placeholder={isServer ? "绑定地址 (0.0.0.0)" : "主机地址"}
         disabled={connected}
-        className="flex-1 h-full px-3 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-tertiary border-r border-border-default disabled:opacity-60 min-w-0"
+        className="min-w-0 flex-1 h-full border-r border-border-default/70 bg-transparent px-3 text-[12px] font-mono text-text-primary outline-none placeholder:text-text-tertiary disabled:opacity-60"
       />
 
       {/* Port Input */}
@@ -71,7 +71,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
         placeholder="端口"
         type="number"
         disabled={connected}
-        className="w-20 h-full px-3 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-tertiary text-center disabled:opacity-60"
+        className="h-full w-[92px] bg-transparent px-3 text-center text-[12px] font-mono text-text-primary outline-none placeholder:text-text-tertiary disabled:opacity-60"
       />
 
       {/* Connect/Disconnect Button */}
@@ -79,7 +79,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
         onClick={onToggle}
         disabled={connecting}
         className={cn(
-          "h-full px-4 rounded-md flex items-center gap-1.5 text-[12px] font-semibold text-white ml-0.5 shrink-0 transition-all active:scale-[0.97]",
+          "ml-1 flex h-full shrink-0 items-center gap-1.5 rounded-[12px] px-4 text-[12px] font-semibold text-white transition-all active:scale-[0.98]",
           connected
             ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
             : connecting

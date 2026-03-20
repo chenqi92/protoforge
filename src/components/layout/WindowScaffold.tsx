@@ -22,7 +22,7 @@ export function WindowScaffold({
     <div className="h-screen overflow-hidden bg-bg-app p-3">
       <div
         className={cn(
-          "relative flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-white/70 bg-bg-primary/94 shadow-[0_28px_80px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:border-white/6 dark:bg-[#111214]/94 dark:shadow-[0_28px_80px_rgba(0,0,0,0.5)]",
+          "relative flex h-full min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/70 bg-bg-primary/94 shadow-[0_24px_64px_rgba(15,23,42,0.14)] backdrop-blur-xl dark:border-white/6 dark:bg-[#111214]/94 dark:shadow-[0_24px_64px_rgba(0,0,0,0.44)]",
           className
         )}
       >
@@ -31,7 +31,7 @@ export function WindowScaffold({
         <div className={cn("flex-1 min-h-0 overflow-hidden p-2 pt-0", bodyClassName)}>
           <div
             className={cn(
-              "flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-border-default/70 bg-bg-secondary/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] dark:bg-bg-secondary/80 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+              "flex h-full min-h-0 flex-col overflow-hidden rounded-[18px] border border-border-default/65 bg-bg-primary/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] dark:bg-bg-primary/82 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
               stageClassName
             )}
           >
