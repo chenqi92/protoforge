@@ -5,9 +5,11 @@ import { Minus, Square, X } from "lucide-react";
 import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
 import { useThemeStore } from "@/stores/themeStore";
 import { useEffect } from "react";
+import { useRoundedCorners } from "@/hooks/useWindowMaximized";
 
 export function LoadTestWindow() {
   const theme = useThemeStore((s) => s.resolved);
+  useRoundedCorners();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

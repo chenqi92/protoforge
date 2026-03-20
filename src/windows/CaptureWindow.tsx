@@ -5,10 +5,12 @@ import { Minus, Square, X } from "lucide-react";
 import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
 import { useThemeStore } from "@/stores/themeStore";
 import { useEffect } from "react";
+import { useRoundedCorners } from "@/hooks/useWindowMaximized";
 
 export function CaptureWindow() {
   // 确保主题同步
   const theme = useThemeStore((s) => s.resolved);
+  useRoundedCorners();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

@@ -14,6 +14,7 @@ mod sse_client;
 mod mqtt_client;
 mod wasm_runtime;
 mod builtin_parsers;
+mod plugins;
 
 use tauri::Manager;
 use ws_client::WsConnections;
@@ -234,6 +235,8 @@ pub fn run() {
             commands::wasm_unload_plugin,
             commands::wasm_parse_data,
             commands::wasm_list_loaded,
+            // macOS Rounded Corners
+            plugins::mac_rounded_corners::enable_rounded_corners,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
