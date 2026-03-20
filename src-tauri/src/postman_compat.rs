@@ -2,7 +2,7 @@
 // 导入: 将 Postman 导出的 JSON 转换为 ProtoForge 的 Collection + CollectionItem 结构
 // 导出: 将 ProtoForge 的 Collection + CollectionItem 转换为 Postman v2.1 JSON
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 use chrono::Utc;
@@ -44,6 +44,7 @@ pub struct PostmanItem {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct PostmanRequest {
     #[serde(default)]
     pub method: Option<String>,
@@ -67,6 +68,7 @@ pub enum PostmanUrl {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct PostmanUrlObj {
     #[serde(default)]
     pub raw: Option<String>,
@@ -89,6 +91,7 @@ pub struct PostmanQueryParam {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct PostmanKeyValue {
     pub key: String,
     #[serde(default)]
@@ -114,6 +117,7 @@ pub struct PostmanBody {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct PostmanFormData {
     pub key: String,
     #[serde(default)]
@@ -326,7 +330,7 @@ fn build_export_url(url_str: &str, query_params_json: &str) -> serde_json::Value
         }
     }
 
-    // 分解 URL
+    // 分解 URL（相对路径如 /api/v1/users 会解析失败，此时仅输出 raw 字段）
     let parsed = url::Url::parse(url_str);
     let mut url_json = serde_json::json!({ "raw": url_str });
 
@@ -542,6 +546,9 @@ fn build_export_event(listen: &str, script_code: &str) -> serde_json::Value {
 // ══════════════════════════════════════════════
 
 pub async fn import_postman(pool: &SqlitePool, json: &str) -> Result<Collection, String> {
+    // TODO: 整个导入过程（create_collection + import_items）理想情况下应包裹在事务中，
+    // 中途失败时可回滚，避免留下不完整的集合。当前 create_collection_item 直接使用 pool，
+    // 需要重构为接受 &mut Transaction 才能实现。
     let postman: PostmanCollection = serde_json::from_str(json)
         .map_err(|e| format!("Postman JSON 解析失败: {}", e))?;
 

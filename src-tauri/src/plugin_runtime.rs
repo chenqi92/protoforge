@@ -580,6 +580,7 @@ impl PluginManager {
     }
 
     /// 按插件类型查询已注册的插件列表
+    #[allow(dead_code)]
     pub async fn get_plugins_by_type(&self, plugin_type: &PluginType) -> Vec<PluginManifest> {
         let reg = self.registry.read().await;
         reg.values()
@@ -640,6 +641,10 @@ fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), Strin
     let gz = GzDecoder::new(data);
     let mut archive = tar::Archive::new(gz);
 
+    // 预先获取 target_dir 的规范路径用于安全校验
+    let canonical_target = std::fs::canonicalize(target_dir)
+        .unwrap_or_else(|_| target_dir.to_path_buf());
+
     for entry_result in archive.entries().map_err(|e| format!("读取 tar 条目失败: {}", e))? {
         let mut entry = entry_result.map_err(|e| format!("读取 tar 条目失败: {}", e))?;
         let path = entry.path().map_err(|e| format!("获取条目路径失败: {}", e))?;
@@ -658,7 +663,33 @@ fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), Strin
             relative
         };
 
+        // 安全检查：过滤掉包含 ".." 的路径组件以防止路径穿越攻击 (Zip Slip)
+        if relative.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+            log::warn!("跳过可疑路径 (路径穿越): {:?}", relative);
+            continue;
+        }
+
         let target_path = target_dir.join(&relative);
+
+        // 二次校验：确保最终路径在 target_dir 内
+        let canonical_path = if target_path.exists() {
+            std::fs::canonicalize(&target_path)
+                .unwrap_or_else(|_| target_path.clone())
+        } else {
+            // 文件尚不存在，检查父目录的规范路径
+            let parent = target_path.parent().unwrap_or(target_dir);
+            if parent.exists() {
+                std::fs::canonicalize(parent)
+                    .map(|p| p.join(target_path.file_name().unwrap_or_default()))
+                    .unwrap_or_else(|_| target_path.clone())
+            } else {
+                target_path.clone()
+            }
+        };
+        if !canonical_path.starts_with(&canonical_target) {
+            log::warn!("跳过路径穿越文件: {:?} → {:?}", relative, canonical_path);
+            continue;
+        }
 
         if entry.header().entry_type().is_dir() {
             std::fs::create_dir_all(&target_path)
@@ -693,14 +724,11 @@ fn execute_parse_script(script: &str, raw_data: &str) -> Result<ParseResult, Str
         .eval(Source::from_bytes(script))
         .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
 
-    // Build the call: parse("raw_data_escaped")
-    let escaped = raw_data
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r");
-
-    let call_script = format!("JSON.stringify(parse(\"{}\"))", escaped);
+    // 使用 serde_json::to_string 对 raw_data 进行安全转义，
+    // 可正确处理所有特殊字符（\0, \u2028, \u2029, 反引号等），防止 JS 注入。
+    let json_escaped = serde_json::to_string(raw_data)
+        .map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let call_script = format!("JSON.stringify(parse({}))", json_escaped);
 
     let result = context
         .eval(Source::from_bytes(call_script.as_bytes()))

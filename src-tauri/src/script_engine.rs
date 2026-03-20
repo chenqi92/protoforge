@@ -35,7 +35,7 @@ pub struct ScriptResponse {
     pub status: u16,
     pub status_text: String,
     pub body: String,
-    pub headers: HashMap<String, String>,
+    pub headers: Vec<(String, String)>,
     pub duration_ms: u64,
 }
 
@@ -181,7 +181,7 @@ fn run_script_internal(
     let console = ObjectInitializer::new(&mut context)
         .function(console_log, boa_engine::js_string!("log"), 0)
         .build();
-    context.register_global_property(
+    let _ = context.register_global_property(
         boa_engine::js_string!("console"),
         console,
         Attribute::all(),
@@ -199,7 +199,10 @@ fn run_script_internal(
         let body_for_json = resp.body.clone();
         let pm_resp_json = unsafe {
             NativeFunction::from_closure(move |_this, _args, ctx| {
-                let src = format!("({})", body_for_json);
+                // 使用 JSON.parse 代替 eval，避免恶意响应 body 注入执行任意 JS
+                let json_escaped = serde_json::to_string(&body_for_json)
+                    .unwrap_or_else(|_| "\"\"".to_string());
+                let src = format!("JSON.parse({})", json_escaped);
                 match ctx.eval(Source::from_bytes(&src)) {
                     Ok(val) => Ok(val),
                     Err(_) => Ok(JsValue::undefined()),
@@ -207,16 +210,16 @@ fn run_script_internal(
             })
         };
 
-        // response.headers 对象
-        let mut headers_obj = ObjectInitializer::new(&mut context);
-        for (k, v) in &resp.headers {
-            headers_obj.property(
-                boa_engine::JsString::from(k.as_str()),
-                JsValue::from(boa_engine::js_string!(v.as_str())),
-                Attribute::all(),
-            );
-        }
-        let headers_built = headers_obj.build();
+        // response.headers — 使用 JS Array [{key, value}, ...] 保留同名 Header
+        let headers_array = {
+            let src_pairs: Vec<String> = resp.headers.iter().map(|(k, v)| {
+                let k_escaped = serde_json::to_string(k).unwrap_or_else(|_| "\"\"".to_string());
+                let v_escaped = serde_json::to_string(v).unwrap_or_else(|_| "\"\"".to_string());
+                format!("{{\"key\":{},\"value\":{}}}", k_escaped, v_escaped)
+            }).collect();
+            let array_src = format!("[{}]", src_pairs.join(","));
+            context.eval(Source::from_bytes(&array_src)).unwrap_or(JsValue::undefined())
+        };
 
         // response 对象
         let resp_obj = ObjectInitializer::new(&mut context)
@@ -224,7 +227,7 @@ fn run_script_internal(
             .property(boa_engine::js_string!("statusText"), JsValue::from(boa_engine::js_string!(resp.status_text.as_str())), Attribute::all())
             .property(boa_engine::js_string!("body"), JsValue::from(boa_engine::js_string!(resp.body.as_str())), Attribute::all())
             .property(boa_engine::js_string!("durationMs"), JsValue::from(resp.duration_ms as i32), Attribute::all())
-            .property(boa_engine::js_string!("headers"), headers_built, Attribute::all())
+            .property(boa_engine::js_string!("headers"), headers_array, Attribute::all())
             .function(pm_resp_json, boa_engine::js_string!("json"), 0)
             .build();
 
@@ -242,7 +245,7 @@ fn run_script_internal(
             .build()
     };
 
-    context.register_global_property(
+    let _ = context.register_global_property(
         boa_engine::js_string!("pm"),
         pm,
         Attribute::all(),

@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Play, Loader2, Copy, Check, ChevronDown, Braces, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
+import { useHistoryStore } from "@/stores/historyStore";
 import type { HttpMethod, KeyValue, FormDataField, ScriptResult } from "@/types/http";
 import type { OAuth2Config } from "@/types/http";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
@@ -36,6 +37,27 @@ export function HttpWorkspace() {
   const [showMethods, setShowMethods] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [scriptResults, setScriptResults] = useState<{ pre: ScriptResult | null; post: ScriptResult | null }>({ pre: null, post: null });
+  const [urlFocused, setUrlFocused] = useState(false);
+  const [urlHighlight, setUrlHighlight] = useState(-1);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+  const urlRectRef = useRef<DOMRect | null>(null);
+
+  // URL history autocomplete
+  const historyEntries = useHistoryStore((s) => s.entries);
+  useEffect(() => { useHistoryStore.getState().fetchHistory(200); }, []);
+  const urlSuggestions = useMemo(() => {
+    const url = activeTab?.httpConfig?.url || '';
+    if (!url.trim() || !urlFocused) return [];
+    const seen = new Set<string>();
+    return historyEntries
+      .map((e) => e.url)
+      .filter((u) => {
+        if (!u || seen.has(u) || u === url) return false;
+        seen.add(u);
+        return u.toLowerCase().includes(url.toLowerCase());
+      })
+      .slice(0, 8);
+  }, [historyEntries, activeTab?.httpConfig?.url, urlFocused]);
 
   if (!activeTab?.httpConfig) return null;
   const config = activeTab.httpConfig;
@@ -129,15 +151,40 @@ export function HttpWorkspace() {
 
         <div className="w-[1px] h-4 bg-border-default shrink-0" />
         
-        {/* URL Input */}
-        <input
-          value={config.url}
-          onChange={(e) => updateHttpConfig(tabId, { url: e.target.value })}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="输入请求 URL，如 https://api.example.com/v1/users"
-          data-url-input
-          className="flex-1 h-full px-2 bg-transparent text-[14px] font-mono text-text-primary outline-none placeholder:text-text-tertiary"
-        />
+        {/* URL Input with autocomplete */}
+        <div className="flex-1 relative h-full">
+          <input
+            ref={urlInputRef}
+            value={config.url}
+            onChange={(e) => { updateHttpConfig(tabId, { url: e.target.value }); setUrlHighlight(-1); }}
+            onKeyDown={(e) => {
+              if (urlSuggestions.length > 0) {
+                if (e.key === 'ArrowDown') { e.preventDefault(); setUrlHighlight(h => (h + 1) % urlSuggestions.length); return; }
+                if (e.key === 'ArrowUp') { e.preventDefault(); setUrlHighlight(h => (h <= 0 ? urlSuggestions.length - 1 : h - 1)); return; }
+                if (e.key === 'Enter' && urlHighlight >= 0) { e.preventDefault(); updateHttpConfig(tabId, { url: urlSuggestions[urlHighlight] }); setUrlFocused(false); return; }
+                if (e.key === 'Escape') { setUrlFocused(false); return; }
+              }
+              if (e.key === 'Enter') handleSend();
+            }}
+            onFocus={() => { setUrlFocused(true); if (urlInputRef.current) urlRectRef.current = urlInputRef.current.getBoundingClientRect(); }}
+            onBlur={() => setTimeout(() => setUrlFocused(false), 150)}
+            placeholder="输入请求 URL，如 https://api.example.com/v1/users"
+            data-url-input
+            className="w-full h-full px-2 bg-transparent text-[14px] font-mono text-text-primary outline-none placeholder:text-text-tertiary"
+          />
+          {urlSuggestions.length > 0 && urlFocused && urlRectRef.current && createPortal(
+            <div className="fixed bg-bg-elevated border border-border-default rounded-lg shadow-xl max-h-[220px] overflow-y-auto py-0.5 z-[9999]"
+              style={{ top: (urlRectRef.current.bottom + 2), left: urlRectRef.current.left, width: urlRectRef.current.width }}>
+              {urlSuggestions.map((u, i) => (
+                <button key={u} onMouseDown={(e) => { e.preventDefault(); updateHttpConfig(tabId, { url: u }); setUrlFocused(false); }}
+                  className={cn("w-full px-3 py-1.5 text-left text-[12px] font-mono truncate transition-colors",
+                    i === urlHighlight ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover")}>
+                  {u}
+                </button>
+              ))}
+            </div>, document.body
+          )}
+        </div>
 
         {/* Save Button */}
         <button

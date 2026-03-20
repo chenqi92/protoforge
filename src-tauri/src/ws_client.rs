@@ -29,7 +29,7 @@ enum WsCmd {
 }
 
 /// 单个连接的发送通道
-struct WsHandle {
+pub(crate) struct WsHandle {
     sender: mpsc::Sender<WsCmd>,
     abort_handle: tokio::task::AbortHandle,
 }

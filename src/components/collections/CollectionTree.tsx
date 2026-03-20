@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderOpen, FolderPlus, ChevronRight, ChevronDown,
-  MoreHorizontal, Upload, Play,
+  MoreHorizontal, Upload, Play, GripVertical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getMethodColor } from '@/types/http';
@@ -34,26 +34,37 @@ interface CollectionTreeProps {
   onRunCollection?: (collectionId: string, collectionName: string) => void;
 }
 
-function TreeItem({ item, depth, onSelect }: {
+function TreeItem({ item, depth, onSelect, onDragStart, onDragOver, onDrop, dragOverId }: {
   item: CollectionRequest | CollectionFolder;
   depth: number;
   onSelect?: (r: CollectionRequest) => void;
+  onDragStart?: (id: string) => void;
+  onDragOver?: (e: React.DragEvent, id: string) => void;
+  onDrop?: (e: React.DragEvent, id: string) => void;
+  dragOverId?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isFolder = 'isFolder' in item && item.isFolder;
+  const isDragOver = dragOverId === item.id;
 
   if (isFolder) {
     const folder = item as CollectionFolder;
     return (
       <div>
-        <div
+      <div
           onClick={() => setExpanded(!expanded)}
+          draggable
+          onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.(folder.id); }}
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver?.(e, folder.id); }}
+          onDrop={(e) => { e.preventDefault(); onDrop?.(e, folder.id); }}
           className={cn(
             'flex items-center gap-1.5 px-2 py-1.5 cursor-pointer rounded-[var(--radius-sm)]',
             'hover:bg-bg-hover transition-colors group',
+            isDragOver && 'border-t-2 border-accent',
           )}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
         >
+          <GripVertical className="w-3 h-3 text-text-disabled opacity-0 group-hover:opacity-50 cursor-grab shrink-0" />
           {expanded ? <ChevronDown className="w-3 h-3 text-text-disabled" /> : <ChevronRight className="w-3 h-3 text-text-disabled" />}
           <FolderOpen className="w-3.5 h-3.5 text-method-post shrink-0" />
           <span className="text-xs text-text-primary truncate flex-1">{folder.name}</span>
@@ -68,7 +79,8 @@ function TreeItem({ item, depth, onSelect }: {
               transition={{ duration: 0.15 }}
             >
               {folder.items.map((child) => (
-                <TreeItem key={child.id} item={child} depth={depth + 1} onSelect={onSelect} />
+                <TreeItem key={child.id} item={child} depth={depth + 1} onSelect={onSelect}
+                  onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} dragOverId={dragOverId} />
               ))}
             </motion.div>
           )}
@@ -81,12 +93,18 @@ function TreeItem({ item, depth, onSelect }: {
   return (
     <div
       onClick={() => onSelect?.(req)}
+      draggable
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.(req.id); }}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver?.(e, req.id); }}
+      onDrop={(e) => { e.preventDefault(); onDrop?.(e, req.id); }}
       className={cn(
         'flex items-center gap-1.5 px-2 py-1.5 cursor-pointer rounded-[var(--radius-sm)]',
         'hover:bg-bg-hover transition-colors group',
+        isDragOver && 'border-t-2 border-accent',
       )}
       style={{ paddingLeft: `${depth * 16 + 8}px` }}
     >
+      <GripVertical className="w-3 h-3 text-text-disabled opacity-0 group-hover:opacity-50 cursor-grab shrink-0" />
       <span className={cn('text-[10px] font-bold w-8 shrink-0', getMethodColor(req.method))}>
         {req.method.slice(0, 3)}
       </span>
@@ -98,6 +116,16 @@ function TreeItem({ item, depth, onSelect }: {
 export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionTreeProps) {
   const [collections] = useState<Collection[]>([]);
   const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
+  const dragItemRef = useRef<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const handleDragStart = (id: string) => { dragItemRef.current = id; };
+  const handleDragOver = (_e: React.DragEvent, id: string) => { setDragOverId(id); };
+  const handleDrop = (_e: React.DragEvent, _targetId: string) => {
+    // TODO: reorder items in store when collection store has reorder support
+    dragItemRef.current = null;
+    setDragOverId(null);
+  };
 
   const toggleExpand = (id: string) => {
     setExpandedCols(prev => {
@@ -169,7 +197,8 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
                   exit={{ height: 0, opacity: 0 }}
                 >
                   {col.items.map((item) => (
-                    <TreeItem key={item.id} item={item as any} depth={1} onSelect={onSelectRequest} />
+                    <TreeItem key={item.id} item={item as any} depth={1} onSelect={onSelectRequest}
+                      onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} dragOverId={dragOverId} />
                   ))}
                 </motion.div>
               )}

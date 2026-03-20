@@ -2,7 +2,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import type { Collection, CollectionItem } from '@/types/collections';
-import type { SwaggerParseResult, SwaggerEndpoint } from '@/types/swagger';
+import type { SwaggerDiscoveryResult, SwaggerParseResult, SwaggerEndpoint } from '@/types/swagger';
 
 export async function listCollections(): Promise<Collection[]> {
   return invoke<Collection[]>('list_collections');
@@ -58,8 +58,12 @@ export async function exportPostmanCollection(id: string): Promise<string> {
 
 // ── Swagger Import ──
 
-export async function fetchSwagger(url: string): Promise<SwaggerParseResult> {
-  return invoke<SwaggerParseResult>('fetch_swagger', { url });
+export async function fetchSwagger(url: string): Promise<SwaggerDiscoveryResult> {
+  return invoke<SwaggerDiscoveryResult>('fetch_swagger', { url });
+}
+
+export async function fetchSwaggerGroup(url: string): Promise<SwaggerParseResult> {
+  return invoke<SwaggerParseResult>('fetch_swagger_group', { url });
 }
 
 export async function importSwaggerEndpoints(
@@ -75,4 +79,3 @@ export async function importSwaggerEndpoints(
 export async function saveRequestToCollection(item: CollectionItem): Promise<CollectionItem> {
   return invoke<CollectionItem>('save_request_to_collection', { item });
 }
-

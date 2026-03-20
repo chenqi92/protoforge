@@ -107,7 +107,8 @@ pub struct CookieInfo {
 pub struct HttpResponse {
     pub status: u16,
     pub status_text: String,
-    pub headers: HashMap<String, String>,
+    /// 使用 Vec 保留同名 Header 的多个值（如多个 Set-Cookie）
+    pub headers: Vec<(String, String)>,
     pub body: String,
     pub body_size: u64,
     pub content_type: Option<String>,
@@ -135,6 +136,8 @@ pub struct HttpResponseWithScripts {
 }
 
 /// 执行 HTTP 请求
+/// SECURITY NOTE: 作为桌面端 API 调试工具，接受用户指定的任意 URL 是核心功能 (by-design)。
+/// 不对内网地址 (127.0.0.1, 10.x.x.x 等) 做限制，因为这正是用户的使用场景。
 pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
     let start = Instant::now();
 
@@ -287,10 +290,7 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
         }
     }
 
-    // 发送请求 — 记录连接后到首字节的时间
-    let connect_done = Instant::now();
-    let connect_ms = connect_done.duration_since(start).as_millis() as u64;
-
+    // 发送请求
     let response = request_builder.send().await
         .map_err(|e| format!("请求发送失败: {}", e))?;
 
@@ -300,8 +300,8 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
     let status_text = response.status().canonical_reason()
         .unwrap_or("Unknown").to_string();
 
-    // 响应 headers
-    let mut resp_headers = HashMap::new();
+    // 响应 headers — 使用 Vec 保留同名 Header 的多个值（如多个 Set-Cookie）
+    let mut resp_headers: Vec<(String, String)> = Vec::new();
     let mut content_type = None;
     for (k, v) in response.headers() {
         let key = k.as_str().to_string();
@@ -309,7 +309,7 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
         if key.eq_ignore_ascii_case("content-type") {
             content_type = Some(value.clone());
         }
-        resp_headers.insert(key, value);
+        resp_headers.push((key, value));
     }
 
     // 解析 Cookies
@@ -336,7 +336,7 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
         duration_ms: total_duration,
         timing: ResponseTiming {
             total_ms: total_duration,
-            connect_ms: Some(connect_ms),
+            connect_ms: None, // reqwest 不暴露细粒度连接耗时
             ttfb_ms: Some(ttfb_ms),
             download_ms: Some(download_ms),
         },
@@ -403,8 +403,8 @@ pub async fn execute_request_with_scripts(
     })
 }
 
-/// 从响应 headers 解析 Set-Cookie
-fn parse_cookies_from_headers(headers: &HashMap<String, String>) -> Vec<CookieInfo> {
+/// 从响应 headers 解析 Set-Cookie（支持多个同名 header）
+fn parse_cookies_from_headers(headers: &[(String, String)]) -> Vec<CookieInfo> {
     let mut cookies = Vec::new();
     for (key, value) in headers {
         if key.eq_ignore_ascii_case("set-cookie") {

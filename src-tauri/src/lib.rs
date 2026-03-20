@@ -41,7 +41,8 @@ pub fn run() {
                 handle.manage(pool);
             });
 
-            // 注册 Tauri 插件
+            // 注册 Tauri 插件 (updater 仅在 release 模式启用)
+            #[cfg(not(debug_assertions))]
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             app.handle().plugin(tauri_plugin_process::init())?;
 
@@ -115,17 +116,24 @@ pub fn run() {
                     builtin_parsers::parse_sfjk200,
                 ).await;
 
+                handle2.manage(plugin_mgr);
+                handle2.manage(wasm_rt);
+            });
+
+            // 非关键初始化移至后台异步任务，避免阻塞应用启动
+            let handle3 = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
                 // 扫描磁盘上的 JS/WASM 插件
-                if let Err(e) = plugin_mgr.scan_installed().await {
+                let pm = handle3.state::<PluginManager>();
+                if let Err(e) = pm.scan_installed().await {
                     log::warn!("扫描插件目录失败: {}", e);
                 }
                 // 扫描 WASM 插件
-                let wasm_loaded = wasm_rt.scan_and_load().await;
+                let wrt = handle3.state::<wasm_runtime::WasmPluginRuntime>();
+                let wasm_loaded = wrt.scan_and_load().await;
                 if !wasm_loaded.is_empty() {
                     log::info!("已加载 {} 个 WASM 插件", wasm_loaded.len());
                 }
-                handle2.manage(plugin_mgr);
-                handle2.manage(wasm_rt);
             });
 
             Ok(())
@@ -146,6 +154,7 @@ pub fn run() {
             commands::create_collection_item,
             commands::update_collection_item,
             commands::delete_collection_item,
+            commands::reorder_collection_items,
             // Environments
             commands::list_environments,
             commands::create_environment,
@@ -168,6 +177,7 @@ pub fn run() {
             commands::export_postman_collection,
             // Swagger Import
             commands::fetch_swagger,
+            commands::fetch_swagger_group,
             commands::import_swagger_endpoints,
             // Save Request
             commands::save_request_to_collection,
@@ -192,6 +202,7 @@ pub fn run() {
             // Load Test
             commands::start_load_test,
             commands::stop_load_test,
+            commands::export_load_test_report,
             // Proxy Capture
             commands::proxy_start,
             commands::proxy_stop,

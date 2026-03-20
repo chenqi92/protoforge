@@ -62,7 +62,8 @@ pub struct ProxyState {
     pub running: Arc<AtomicBool>,
     pub abort_handle: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
     pub port: Arc<Mutex<u16>>,
-    pub entries: Arc<Mutex<Vec<CapturedEntry>>>,
+    /// 使用 VecDeque 以便 O(1) 移除最旧条目（而非 Vec::remove(0) 的 O(n)）
+    pub entries: Arc<Mutex<std::collections::VecDeque<CapturedEntry>>>,
     pub ca_cert_path: Arc<Mutex<Option<PathBuf>>>,
 }
 
@@ -72,7 +73,7 @@ impl ProxyState {
             running: Arc::new(AtomicBool::new(false)),
             abort_handle: Arc::new(Mutex::new(None)),
             port: Arc::new(Mutex::new(9090)),
-            entries: Arc::new(Mutex::new(Vec::new())),
+            entries: Arc::new(Mutex::new(std::collections::VecDeque::new())),
             ca_cert_path: Arc::new(Mutex::new(None)),
         }
     }
@@ -99,7 +100,7 @@ struct RequestMeta {
 #[derive(Clone)]
 struct CaptureHandler {
     app: tauri::AppHandle,
-    entries: Arc<Mutex<Vec<CapturedEntry>>>,
+    entries: Arc<Mutex<std::collections::VecDeque<CapturedEntry>>>,
     current_request: Arc<Mutex<Option<RequestMeta>>>,
 }
 
@@ -274,9 +275,9 @@ impl HttpHandler for CaptureHandler {
             // 存入历史列表（限制最大 5000 条）
             let mut entries = self.entries.lock().await;
             if entries.len() >= 5000 {
-                entries.remove(0);
+                entries.pop_front(); // VecDeque O(1) 操作
             }
-            entries.push(entry);
+            entries.push_back(entry);
         }
 
         res
@@ -288,6 +289,8 @@ impl HttpHandler for CaptureHandler {
 // ═══════════════════════════════════════════
 
 /// 获取或生成 CA 证书，返回 (cert_pem, key_pem, cert_path)
+/// SECURITY TODO: 私钥文件当前以明文储存，未设置严格文件权限。
+/// 在多用户 Windows 系统上，应考虑使用 ACL 限制访问或使用系统密钥库。
 fn get_or_create_ca(app_data_dir: &PathBuf) -> Result<(String, String, PathBuf), String> {
     let ca_dir = app_data_dir.join("proxy-ca");
     let cert_path = ca_dir.join("protoforge-ca.crt");
@@ -440,7 +443,7 @@ pub fn get_status(state: &ProxyState) -> ProxyStatusInfo {
 
 /// 获取所有已捕获条目
 pub async fn get_entries(state: &ProxyState) -> Vec<CapturedEntry> {
-    state.entries.lock().await.clone()
+    state.entries.lock().await.iter().cloned().collect()
 }
 
 /// 清空已捕获条目

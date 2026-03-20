@@ -87,6 +87,11 @@ pub async fn delete_collection_item(pool: State<'_, SqlitePool>, id: String) -> 
     collections::delete_collection_item(&pool, &id).await
 }
 
+#[tauri::command]
+pub async fn reorder_collection_items(pool: State<'_, SqlitePool>, item_ids: Vec<String>) -> Result<(), String> {
+    collections::reorder_collection_items(&pool, item_ids).await
+}
+
 // ═══════════════════════════════════════════
 //  Environments
 // ═══════════════════════════════════════════
@@ -192,11 +197,16 @@ pub async fn export_postman_collection(
 //  Swagger / OpenAPI 导入
 // ═══════════════════════════════════════════
 
-use crate::swagger_import::{self, SwaggerParseResult, SwaggerEndpoint};
+use crate::swagger_import::{self, SwaggerDiscoveryResult, SwaggerParseResult, SwaggerEndpoint};
 
 #[tauri::command]
-pub async fn fetch_swagger(url: String) -> Result<SwaggerParseResult, String> {
-    swagger_import::fetch_and_parse(&url).await
+pub async fn fetch_swagger(url: String) -> Result<SwaggerDiscoveryResult, String> {
+    swagger_import::discover_and_parse(&url).await
+}
+
+#[tauri::command]
+pub async fn fetch_swagger_group(url: String) -> Result<SwaggerParseResult, String> {
+    swagger_import::fetch_group(&url).await
 }
 
 #[tauri::command]
@@ -403,6 +413,68 @@ pub async fn stop_load_test(
     test_id: String,
 ) -> Result<(), String> {
     crate::load_test::stop_load_test(&state, &test_id).await
+}
+
+#[tauri::command]
+pub async fn export_load_test_report(
+    app: tauri::AppHandle,
+    report_json: String,
+    format: String, // "json" or "csv"
+) -> Result<String, String> {
+    use tauri_plugin_dialog::DialogExt;
+    
+    let extension = if format == "csv" { "csv" } else { "json" };
+    let file_name = format!("loadtest_report.{}", extension);
+    
+    // 将阻塞式文件对话框移入 spawn_blocking，避免阻塞 tokio 异步运行时线程
+    let app_clone = app.clone();
+    let ext = extension.to_string();
+    let fname = file_name.clone();
+    let file_path = tokio::task::spawn_blocking(move || {
+        app_clone.dialog()
+            .file()
+            .set_file_name(&fname)
+            .add_filter(ext.to_uppercase(), &[&ext])
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| format!("对话框任务失败: {}", e))?;
+    
+    let path = match file_path {
+        Some(p) => p.to_string(),
+        None => return Err("用户取消导出".to_string()),
+    };
+    
+    let content = if format == "csv" {
+        // Parse JSON and convert to CSV
+        let data: serde_json::Value = serde_json::from_str(&report_json)
+            .map_err(|e| format!("解析报告 JSON 失败: {}", e))?;
+        let mut csv = String::from("testId,totalRequests,totalErrors,totalDurationSecs,avgRps,avgLatencyMs,minLatencyMs,maxLatencyMs,p50Ms,p95Ms,p99Ms\n");
+        csv.push_str(&format!("{},{},{},{},{},{},{},{},{},{},{}\n",
+            data["testId"].as_str().unwrap_or(""),
+            data["totalRequests"].as_u64().unwrap_or(0),
+            data["totalErrors"].as_u64().unwrap_or(0),
+            data["totalDurationSecs"].as_f64().unwrap_or(0.0),
+            data["avgRps"].as_f64().unwrap_or(0.0),
+            data["avgLatencyMs"].as_f64().unwrap_or(0.0),
+            data["minLatencyMs"].as_u64().unwrap_or(0),
+            data["maxLatencyMs"].as_u64().unwrap_or(0),
+            data["p50Ms"].as_u64().unwrap_or(0),
+            data["p95Ms"].as_u64().unwrap_or(0),
+            data["p99Ms"].as_u64().unwrap_or(0),
+        ));
+        csv
+    } else {
+        // Pretty print JSON
+        let data: serde_json::Value = serde_json::from_str(&report_json)
+            .map_err(|e| format!("解析报告 JSON 失败: {}", e))?;
+        serde_json::to_string_pretty(&data).map_err(|e| format!("格式化失败: {}", e))?
+    };
+    
+    tokio::fs::write(&path, content).await
+        .map_err(|e| format!("写入文件失败: {}", e))?;
+    
+    Ok(path)
 }
 
 // ═══════════════════════════════════════════
@@ -635,11 +707,27 @@ pub async fn run_collection(
                 query_params: serde_json::from_str(&item.query_params).unwrap_or_default(),
                 body,
                 auth,
-                timeout_ms: None,
+                timeout_ms: Some(30_000), // 每个请求强制 30s 超时
                 follow_redirects: None,
                 ssl_verify: None,
                 proxy: None,
             };
+
+            // 全局超时保护：总时长超过 10 分钟自动中止
+            if start.elapsed().as_secs() > 600 {
+                all_results.push(RunItemResult {
+                    item_id: item.id.clone(),
+                    name: item.name.clone(),
+                    method: method.clone(),
+                    url: url.clone(),
+                    status: None,
+                    duration_ms: 0,
+                    success: false,
+                    error: Some("Collection Runner 全局超时（10 分钟）".to_string()),
+                });
+                failed += 1;
+                break;
+            }
 
             let result = match http_client::execute_request(req).await {
                 Ok(resp) => {

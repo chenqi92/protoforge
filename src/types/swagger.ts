@@ -1,5 +1,16 @@
 // ProtoForge Swagger/OpenAPI types — mirrors Rust structs
 
+export interface SwaggerGroup {
+  name: string;
+  url: string;
+  displayName: string;
+}
+
+export interface SwaggerDiscoveryResult {
+  groups: SwaggerGroup[];
+  defaultResult: SwaggerParseResult | null;
+}
+
 export interface SwaggerParseResult {
   title: string;
   version: string;

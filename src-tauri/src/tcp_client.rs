@@ -62,7 +62,41 @@ fn decode_send_data(data: &str, encoding: &str) -> Result<Vec<u8>, String> {
                 .decode(data.trim())
                 .map_err(|e| format!("无效的 Base64: {}", e))
         }
+        "gbk" => {
+            let (encoded, _, had_errors) = encoding_rs::GBK.encode(data);
+            if had_errors {
+                Err("GBK 编码失败: 包含无法编码的字符".into())
+            } else {
+                Ok(encoded.into_owned())
+            }
+        }
         _ => Ok(data.as_bytes().to_vec()), // ascii / utf8
+    }
+}
+
+/// Decode received bytes into a displayable string.
+/// "auto" = try UTF-8 first, then GBK fallback; "gbk" = always GBK.
+fn decode_received_data(data: &[u8], encoding: &str) -> String {
+    match encoding {
+        "gbk" => {
+            let (decoded, _, _) = encoding_rs::GBK.decode(data);
+            decoded.into_owned()
+        }
+        _ => {
+            // auto: UTF-8 first, GBK fallback if invalid
+            match std::str::from_utf8(data) {
+                Ok(s) => s.to_string(),
+                Err(_) => {
+                    // Try GBK before falling back to hex
+                    let (decoded, _, had_errors) = encoding_rs::GBK.decode(data);
+                    if had_errors {
+                        bytes_to_hex(data)
+                    } else {
+                        decoded.into_owned()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -70,7 +104,7 @@ fn decode_send_data(data: &str, encoding: &str) -> Result<Vec<u8>, String> {
 //  TCP 客户端
 // ═══════════════════════════════════════════
 
-struct TcpClientHandle {
+pub(crate) struct TcpClientHandle {
     sender: mpsc::Sender<Vec<u8>>,
     abort_handle: tokio::task::AbortHandle,
 }
@@ -147,10 +181,7 @@ pub async fn tcp_connect(
                 Ok(n) => {
                     let data = &buf[..n];
                     let hex_str = bytes_to_hex(data);
-                    let text = match std::str::from_utf8(data) {
-                        Ok(s) => s.to_string(),
-                        Err(_) => hex_str.clone(),
-                    };
+                    let text = decode_received_data(data, "auto");
 
                     let _ = app_clone.emit(
                         "tcp-event",
@@ -248,13 +279,13 @@ pub async fn tcp_disconnect(
 //  TCP 服务端
 // ═══════════════════════════════════════════
 
-struct ServerClientHandle {
+pub(crate) struct ServerClientHandle {
     sender: mpsc::Sender<Vec<u8>>,
     abort_handle: tokio::task::AbortHandle,
-    remote_addr: String,
+    pub(crate) remote_addr: String,
 }
 
-struct TcpServerHandle {
+pub(crate) struct TcpServerHandle {
     abort_handle: tokio::task::AbortHandle,
     clients: Arc<Mutex<HashMap<String, ServerClientHandle>>>,
 }
@@ -306,10 +337,22 @@ pub async fn tcp_server_start(
     let clients_clone = clients.clone();
     let app_clone = app.clone();
 
+    /// TCP 服务端单实例最大连接数限制
+    const MAX_TCP_CLIENTS: usize = 256;
+
     let task = tokio::spawn(async move {
         loop {
             match listener.accept().await {
                 Ok((stream, addr)) => {
+                    // 检查连接数上限
+                    {
+                        let c = clients_clone.lock().await;
+                        if c.len() >= MAX_TCP_CLIENTS {
+                            log::warn!("TCP 服务器 {} 连接数已达上限 {}，拒绝新连接 {}", sid, MAX_TCP_CLIENTS, addr);
+                            drop(stream);
+                            continue;
+                        }
+                    }
                     let client_id = uuid::Uuid::new_v4().to_string();
                     let remote_addr = addr.to_string();
                     let (mut reader, mut writer) = stream.into_split();
@@ -353,10 +396,7 @@ pub async fn tcp_server_start(
                                 Ok(n) => {
                                     let data = &buf[..n];
                                     let hex_str = bytes_to_hex(data);
-                                    let text = match std::str::from_utf8(data) {
-                                        Ok(s) => s.to_string(),
-                                        Err(_) => hex_str.clone(),
-                                    };
+                                    let text = decode_received_data(data, "auto");
 
                                     let _ = c_app.emit(
                                         "tcp-server-event",
@@ -449,6 +489,7 @@ pub async fn tcp_server_start(
 }
 
 /// 列出服务器当前所有连接客户端
+#[allow(dead_code)]
 pub async fn tcp_server_list_clients(
     servers: &TcpServers,
     server_id: &str,
@@ -528,7 +569,7 @@ pub async fn tcp_server_stop(servers: &TcpServers, server_id: &str) -> Result<()
 //  UDP
 // ═══════════════════════════════════════════
 
-struct UdpHandle {
+pub(crate) struct UdpHandle {
     sender: mpsc::Sender<(Vec<u8>, String)>, // (data, target_addr)
     abort_handle: tokio::task::AbortHandle,
 }
@@ -595,10 +636,7 @@ pub async fn udp_bind(
                 Ok((n, addr)) => {
                     let data = &buf[..n];
                     let hex_str = bytes_to_hex(data);
-                    let text = match std::str::from_utf8(data) {
-                        Ok(s) => s.to_string(),
-                        Err(_) => hex_str.clone(),
-                    };
+                    let text = decode_received_data(data, "auto");
 
                     let _ = app_clone.emit(
                         "udp-event",

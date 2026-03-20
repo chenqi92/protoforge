@@ -1,17 +1,17 @@
 // ProtoForge — ImportModal
-// 统一导入弹窗：支持 Postman 文件导入 + Swagger URL 导入
+// 统一导入弹窗：支持 Postman 文件导入 + Swagger URL 导入（含智能探测 & 分组选择）
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, FileJson, Globe, Search, ChevronRight,
   CheckSquare, Square, Loader2, Download, AlertCircle,
-  MinusSquare,
+  MinusSquare, Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCollectionStore } from '@/stores/collectionStore';
-import { fetchSwagger, importSwaggerEndpoints } from '@/services/collectionService';
-import type { SwaggerParseResult, SwaggerEndpoint } from '@/types/swagger';
+import { fetchSwagger, fetchSwaggerGroup, importSwaggerEndpoints } from '@/services/collectionService';
+import type { SwaggerParseResult, SwaggerEndpoint, SwaggerGroup } from '@/types/swagger';
 
 interface ImportModalProps {
   open: boolean;
@@ -207,29 +207,138 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
   const [url, setUrl] = useState('');
   const [collectionName, setCollectionName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [groupLoading, setGroupLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<SwaggerParseResult | null>(null);
+
+  // 探测到的分组
+  const [groups, setGroups] = useState<SwaggerGroup[]>([]);
+  // 已选中的分组 URL 集合
+  const [selectedGroupUrls, setSelectedGroupUrls] = useState<Set<string>>(new Set());
+  // 缓存：每个分组 URL → 解析结果
+  const [groupCache, setGroupCache] = useState<Record<string, SwaggerParseResult>>({});
+  // 正在加载的分组
+  const [loadingGroupUrls, setLoadingGroupUrls] = useState<Set<string>>(new Set());
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const fetchCollections = useCollectionStore((s) => s.fetchCollections);
 
+  // 合并所有选中分组的接口
+  const mergedEndpoints = useMemo(() => {
+    const all: SwaggerEndpoint[] = [];
+    for (const gUrl of selectedGroupUrls) {
+      const cached = groupCache[gUrl];
+      if (cached) {
+        all.push(...cached.endpoints);
+      }
+    }
+    return all;
+  }, [selectedGroupUrls, groupCache]);
+
+  // 合并后的 baseUrl（取第一个选中分组的）
+  const mergedBaseUrl = useMemo(() => {
+    for (const gUrl of selectedGroupUrls) {
+      const cached = groupCache[gUrl];
+      if (cached) return cached.baseUrl;
+    }
+    return '';
+  }, [selectedGroupUrls, groupCache]);
+
+  // 合并后的标题
+  const mergedTitle = useMemo(() => {
+    const titles: string[] = [];
+    for (const gUrl of selectedGroupUrls) {
+      const cached = groupCache[gUrl];
+      if (cached && cached.title) titles.push(cached.title);
+    }
+    return titles.join(' + ') || 'Swagger Import';
+  }, [selectedGroupUrls, groupCache]);
+
+  const hasResults = mergedEndpoints.length > 0;
+
   const handleFetch = async () => {
     if (!url.trim()) return;
     setError(null);
-    setResult(null);
+    setGroups([]);
+    setSelectedGroupUrls(new Set());
+    setGroupCache({});
+    setSelectedIds(new Set());
+    setExpandedTags(new Set());
+    setSearch('');
     setLoading(true);
     try {
-      const data = await fetchSwagger(url.trim());
-      setResult(data);
-      setCollectionName(data.title || 'Swagger Import');
-      // 默认全选
-      const allIds = new Set(data.endpoints.map((_, i) => `${i}`));
-      setSelectedIds(allIds);
-      // 展开所有 tag
-      const tags = new Set(data.endpoints.map(e => e.tag || 'default'));
-      setExpandedTags(tags);
+      const discovery = await fetchSwagger(url.trim());
+      setGroups(discovery.groups);
+
+      if (discovery.groups.length === 0) {
+        setError('未发现任何 API 分组或文档');
+        return;
+      }
+
+      // 缓存默认解析结果
+      const newCache: Record<string, SwaggerParseResult> = {};
+      if (discovery.defaultResult && discovery.groups.length > 0) {
+        newCache[discovery.groups[0].url] = discovery.defaultResult;
+      }
+
+      if (discovery.groups.length === 1) {
+        // 只有一个分组，自动选中并加载
+        const gUrl = discovery.groups[0].url;
+        if (newCache[gUrl]) {
+          setGroupCache(newCache);
+          setSelectedGroupUrls(new Set([gUrl]));
+          applyEndpoints(newCache[gUrl].endpoints);
+          setCollectionName(newCache[gUrl].title || 'Swagger Import');
+        } else {
+          setGroupCache(newCache);
+          // 需要加载
+          await loadAndSelectGroup(gUrl, newCache);
+        }
+      } else {
+        // 多个分组：默认全选 + 并行加载所有分组
+        setGroupCache(newCache);
+        const allUrls = new Set(discovery.groups.map(g => g.url));
+        setSelectedGroupUrls(allUrls);
+        setCollectionName('Swagger Import');
+
+        // 并行获取所有分组（跳过已缓存的）
+        const toFetch = discovery.groups.filter(g => !newCache[g.url]);
+        if (toFetch.length > 0) {
+          setGroupLoading(true);
+          const loadingUrls = new Set(toFetch.map(g => g.url));
+          setLoadingGroupUrls(loadingUrls);
+
+          const results = await Promise.allSettled(
+            toFetch.map(g => fetchSwaggerGroup(g.url).then(r => ({ url: g.url, result: r })))
+          );
+
+          const updatedCache = { ...newCache };
+          for (const res of results) {
+            if (res.status === 'fulfilled') {
+              updatedCache[res.value.url] = res.value.result;
+            }
+          }
+          setGroupCache(updatedCache);
+          setLoadingGroupUrls(new Set());
+          setGroupLoading(false);
+
+          // 应用合并后的接口
+          const allEps: SwaggerEndpoint[] = [];
+          for (const gUrl of allUrls) {
+            if (updatedCache[gUrl]) allEps.push(...updatedCache[gUrl].endpoints);
+          }
+          applyEndpoints(allEps);
+        } else {
+          // 全部已缓存
+          const allEps: SwaggerEndpoint[] = [];
+          for (const gUrl of allUrls) {
+            if (newCache[gUrl]) allEps.push(...newCache[gUrl].endpoints);
+          }
+          applyEndpoints(allEps);
+        }
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -237,15 +346,132 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const applyEndpoints = (endpoints: SwaggerEndpoint[]) => {
+    const allIds = new Set(endpoints.map((_, i) => `${i}`));
+    setSelectedIds(allIds);
+    const tags = new Set(endpoints.map(e => e.tag || 'default'));
+    setExpandedTags(tags);
+    setSearch('');
+  };
+
+  const loadAndSelectGroup = async (
+    groupUrl: string,
+    existingCache: Record<string, SwaggerParseResult>,
+  ) => {
+    setLoadingGroupUrls(prev => new Set([...prev, groupUrl]));
+    setGroupLoading(true);
+    try {
+      const data = await fetchSwaggerGroup(groupUrl);
+      const updatedCache = { ...existingCache, [groupUrl]: data };
+      setGroupCache(updatedCache);
+      setSelectedGroupUrls(prev => new Set([...prev, groupUrl]));
+      setCollectionName(data.title || 'Swagger Import');
+      // Re-compute merged endpoints with the updated selection
+      const allEps: SwaggerEndpoint[] = [];
+      const newSelection = new Set([...selectedGroupUrls, groupUrl]);
+      for (const gUrl of newSelection) {
+        if (updatedCache[gUrl]) allEps.push(...updatedCache[gUrl].endpoints);
+      }
+      applyEndpoints(allEps);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoadingGroupUrls(prev => {
+        const next = new Set(prev);
+        next.delete(groupUrl);
+        return next;
+      });
+      setGroupLoading(false);
+    }
+  };
+
+  const toggleGroupSelection = async (groupUrl: string) => {
+    if (selectedGroupUrls.has(groupUrl)) {
+      // 取消选中
+      const next = new Set(selectedGroupUrls);
+      next.delete(groupUrl);
+      setSelectedGroupUrls(next);
+      // 重新计算合并的接口
+      const allEps: SwaggerEndpoint[] = [];
+      for (const gUrl of next) {
+        if (groupCache[gUrl]) allEps.push(...groupCache[gUrl].endpoints);
+      }
+      applyEndpoints(allEps);
+    } else {
+      // 选中
+      if (groupCache[groupUrl]) {
+        // 已缓存，直接添加
+        const next = new Set([...selectedGroupUrls, groupUrl]);
+        setSelectedGroupUrls(next);
+        const allEps: SwaggerEndpoint[] = [];
+        for (const gUrl of next) {
+          if (groupCache[gUrl]) allEps.push(...groupCache[gUrl].endpoints);
+        }
+        applyEndpoints(allEps);
+      } else {
+        // 需从服务器加载
+        await loadAndSelectGroup(groupUrl, groupCache);
+      }
+    }
+  };
+
+  const selectAllGroups = () => {
+    const allUrls = new Set(groups.map(g => g.url));
+    const allSelected = groups.every(g => selectedGroupUrls.has(g.url));
+
+    if (allSelected) {
+      setSelectedGroupUrls(new Set());
+      applyEndpoints([]);
+    } else {
+      setSelectedGroupUrls(allUrls);
+      const allEps: SwaggerEndpoint[] = [];
+      for (const gUrl of allUrls) {
+        if (groupCache[gUrl]) allEps.push(...groupCache[gUrl].endpoints);
+      }
+      applyEndpoints(allEps);
+
+      // 加载未缓存的分组
+      const toFetch = groups.filter(g => !groupCache[g.url]);
+      if (toFetch.length > 0) {
+        (async () => {
+          setGroupLoading(true);
+          const loadingUrls = new Set(toFetch.map(g => g.url));
+          setLoadingGroupUrls(prev => new Set([...prev, ...loadingUrls]));
+
+          const results = await Promise.allSettled(
+            toFetch.map(g => fetchSwaggerGroup(g.url).then(r => ({ url: g.url, result: r })))
+          );
+
+          const updatedCache = { ...groupCache };
+          for (const res of results) {
+            if (res.status === 'fulfilled') {
+              updatedCache[res.value.url] = res.value.result;
+            }
+          }
+          setGroupCache(updatedCache);
+          setLoadingGroupUrls(new Set());
+          setGroupLoading(false);
+
+          // 重新应用
+          const merged: SwaggerEndpoint[] = [];
+          for (const gUrl of allUrls) {
+            if (updatedCache[gUrl]) merged.push(...updatedCache[gUrl].endpoints);
+          }
+          applyEndpoints(merged);
+        })();
+      }
+    }
+  };
+
   const handleImport = async () => {
-    if (!result || selectedIds.size === 0) return;
+    if (mergedEndpoints.length === 0 || selectedIds.size === 0) return;
     setImporting(true);
     setError(null);
     try {
-      const selected = result.endpoints.filter((_, i) => selectedIds.has(`${i}`));
+      const selected = mergedEndpoints.filter((_, i) => selectedIds.has(`${i}`));
       await importSwaggerEndpoints(
-        collectionName || result.title || 'Swagger Import',
-        result.baseUrl,
+        collectionName || mergedTitle || 'Swagger Import',
+        mergedBaseUrl,
         selected,
       );
       await fetchCollections();
@@ -259,15 +485,14 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
 
   // 按 tag 分组
   const groupedEndpoints = useMemo(() => {
-    if (!result) return {};
-    const groups: Record<string, { endpoint: SwaggerEndpoint; index: number }[]> = {};
-    result.endpoints.forEach((ep, i) => {
+    const grouped: Record<string, { endpoint: SwaggerEndpoint; index: number }[]> = {};
+    mergedEndpoints.forEach((ep, i) => {
       const tag = ep.tag || 'default';
-      if (!groups[tag]) groups[tag] = [];
-      groups[tag].push({ endpoint: ep, index: i });
+      if (!grouped[tag]) grouped[tag] = [];
+      grouped[tag].push({ endpoint: ep, index: i });
     });
-    return groups;
-  }, [result]);
+    return grouped;
+  }, [mergedEndpoints]);
 
   // 搜索过滤
   const filteredGroups = useMemo(() => {
@@ -315,11 +540,10 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
   };
 
   const selectAll = () => {
-    if (!result) return;
-    if (selectedIds.size === result.endpoints.length) {
+    if (selectedIds.size === mergedEndpoints.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(result.endpoints.map((_, i) => `${i}`)));
+      setSelectedIds(new Set(mergedEndpoints.map((_, i) => `${i}`)));
     }
   };
 
@@ -332,7 +556,7 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleFetch()}
-            placeholder="输入 Swagger / OpenAPI 文档 URL，如 https://petstore.swagger.io/v2/swagger.json"
+            placeholder="输入 Swagger/OpenAPI 地址，支持 doc.html、swagger-ui 页面或 API 文档 URL"
             className="flex-1 h-9 px-3 text-[12px] bg-bg-secondary border border-border-default rounded-lg outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-disabled transition-all font-mono"
           />
           <button
@@ -346,20 +570,75 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
             )}
           >
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
-            {loading ? '获取中...' : '获取'}
+            {loading ? '探测中...' : '获取'}
           </button>
         </div>
 
         {error && (
           <div className="flex items-start gap-2 mt-2 p-2.5 rounded-lg bg-red-500/5 border border-red-500/10">
             <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-red-600 break-all">{error}</p>
+            <p className="text-[11px] text-red-600 break-all whitespace-pre-wrap">{error}</p>
           </div>
         )}
       </div>
 
+      {/* Group Selector (multi-select with checkboxes) */}
+      {groups.length > 1 && (
+        <div className="px-4 py-2.5 border-b border-border-subtle shrink-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Layers className="w-3.5 h-3.5 text-text-disabled shrink-0" />
+            <span className="text-[11px] text-text-disabled shrink-0">
+              API 分组（{selectedGroupUrls.size}/{groups.length} 已选）
+            </span>
+            <button
+              onClick={selectAllGroups}
+              disabled={groupLoading}
+              className="text-[10px] text-accent hover:text-accent/80 ml-auto shrink-0 transition-colors"
+            >
+              {groups.every(g => selectedGroupUrls.has(g.url)) ? '取消全选' : '全选'}
+            </button>
+            {groupLoading && <Loader2 className="w-3 h-3 text-accent animate-spin shrink-0" />}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {groups.map((g) => {
+              const isSelected = selectedGroupUrls.has(g.url);
+              const isLoading = loadingGroupUrls.has(g.url);
+              const cached = groupCache[g.url];
+              const count = cached ? cached.endpoints.length : null;
+
+              return (
+                <button
+                  key={g.url}
+                  onClick={() => toggleGroupSelection(g.url)}
+                  disabled={isLoading}
+                  className={cn(
+                    'flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-md transition-all shrink-0 border',
+                    isSelected
+                      ? 'bg-accent/10 text-accent border-accent/30 font-medium'
+                      : 'bg-bg-secondary text-text-tertiary border-border-default hover:bg-bg-hover hover:text-text-secondary',
+                    isLoading && 'opacity-50 cursor-wait'
+                  )}
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : isSelected ? (
+                    <CheckSquare className="w-3 h-3" />
+                  ) : (
+                    <Square className="w-3 h-3" />
+                  )}
+                  {g.displayName || g.name}
+                  {count !== null && (
+                    <span className="text-[9px] opacity-60 tabular-nums">({count})</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Results */}
-      {result && (
+      {hasResults && (
         <>
           {/* Meta + Search */}
           <div className="px-4 py-2.5 border-b border-border-subtle shrink-0 space-y-2">
@@ -373,9 +652,13 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
                 />
               </div>
               <div className="flex items-center gap-2 text-[11px] text-text-disabled shrink-0">
-                <span>{result.title} v{result.version}</span>
-                <span>•</span>
-                <span>{result.endpoints.length} 接口</span>
+                <span>{mergedEndpoints.length} 接口</span>
+                {selectedGroupUrls.size > 0 && groups.length > 1 && (
+                  <>
+                    <span>•</span>
+                    <span>{selectedGroupUrls.size} 个分组</span>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -392,12 +675,12 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
                 onClick={selectAll}
                 className="flex items-center gap-1 h-7 px-2 text-[11px] text-text-tertiary hover:text-accent hover:bg-accent-soft rounded-md transition-colors"
               >
-                {selectedIds.size === result.endpoints.length ? (
+                {selectedIds.size === mergedEndpoints.length ? (
                   <MinusSquare className="w-3.5 h-3.5" />
                 ) : (
                   <CheckSquare className="w-3.5 h-3.5" />
                 )}
-                {selectedIds.size === result.endpoints.length ? '取消全选' : '全选'}
+                {selectedIds.size === mergedEndpoints.length ? '取消全选' : '全选'}
               </button>
             </div>
           </div>
@@ -507,7 +790,7 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
           {/* Footer */}
           <div className="flex items-center justify-between px-4 py-3 border-t border-border-subtle bg-bg-secondary/50 shrink-0">
             <span className="text-[11px] text-text-disabled">
-              已选择 <strong className="text-text-secondary">{selectedIds.size}</strong> / {result.endpoints.length} 个接口
+              已选择 <strong className="text-text-secondary">{selectedIds.size}</strong> / {mergedEndpoints.length} 个接口
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -534,14 +817,23 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
         </>
       )}
 
+      {/* Loading state */}
+      {(loading || (groupLoading && !hasResults)) && (
+        <div className="flex-1 flex flex-col items-center justify-center py-12 text-text-disabled">
+          <Loader2 className="w-8 h-8 text-accent animate-spin mb-3" />
+          <p className="text-[12px]">{loading ? '正在探测 API 文档...' : '正在获取分组文档...'}</p>
+        </div>
+      )}
+
       {/* Empty state before fetch */}
-      {!result && !loading && !error && (
+      {!hasResults && !loading && !groupLoading && !error && groups.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center py-12 text-text-disabled">
           <Globe className="w-10 h-10 mb-3 opacity-20" />
-          <p className="text-[12px]">输入 Swagger/OpenAPI 文档 URL 并点击获取</p>
-          <p className="text-[11px] mt-1 opacity-60">支持 OpenAPI 2.0 (Swagger) 和 3.x 格式</p>
+          <p className="text-[12px]">输入 Swagger/OpenAPI 地址并点击获取</p>
+          <p className="text-[11px] mt-1 opacity-60">支持 doc.html、swagger-ui 页面，自动发现所有分组</p>
         </div>
       )}
     </div>
   );
 }
+

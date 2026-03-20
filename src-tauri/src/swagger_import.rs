@@ -1,5 +1,8 @@
-// ProtoForge - Swagger / OpenAPI 2.0 & 3.x 解析器
-// 从 URL 获取 Swagger 文档，解析出所有接口列表，并支持选择性导入
+// ProtoForge - Swagger / OpenAPI 2.0 & 3.x 智能解析器
+// 支持：
+//   1. 从任意 URL（doc.html, swagger-ui, 直接 JSON 端点）自动探测 API 文档
+//   2. 分组发现（通过 swagger-config）
+//   3. Swagger 2.0 和 OpenAPI 3.x 兼容
 
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
@@ -8,6 +11,21 @@ use chrono::Utc;
 use crate::collections::{self, Collection, CollectionItem};
 
 // ── 输出类型 (返回给前端) ──
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwaggerGroup {
+    pub name: String,          // "default", "ais", "system" 等
+    pub url: String,           // 完整的 API 文档 URL
+    pub display_name: String,  // 展示名称
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwaggerDiscoveryResult {
+    pub groups: Vec<SwaggerGroup>,
+    pub default_result: Option<SwaggerParseResult>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,37 +69,297 @@ pub struct SwaggerRequestBody {
     pub required: bool,
 }
 
-// ── 核心函数 ──
+// ── HTTP 客户端 helper ──
 
-/// 从 URL 获取并解析 Swagger/OpenAPI 文档
-pub async fn fetch_and_parse(url: &str) -> Result<SwaggerParseResult, String> {
-    let client = reqwest::Client::builder()
+fn build_client() -> Result<reqwest::Client, String> {
+    // SECURITY NOTE: Swagger 探测常面向内网开发环境的自签证书服务，
+    // 因此默认接受无效证书。如需更严格的验证，可将此项改为 false 或暴露为参数。
+    reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
-        .timeout(std::time::Duration::from_secs(30))
+        .timeout(std::time::Duration::from_secs(15))
         .build()
-        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))
+}
 
+async fn fetch_json(client: &reqwest::Client, url: &str) -> Result<serde_json::Value, String> {
     let resp = client.get(url)
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| format!("获取 Swagger 文档失败: {}", e))?;
+        .map_err(|e| format!("请求失败 ({}): {}", url, e))?;
 
     if !resp.status().is_success() {
-        return Err(format!("HTTP 错误: {}", resp.status()));
+        return Err(format!("HTTP {} ({})", resp.status(), url));
     }
 
     let text = resp.text().await
         .map_err(|e| format!("读取响应失败: {}", e))?;
 
-    let doc: serde_json::Value = serde_json::from_str(&text)
-        .map_err(|e| format!("JSON 解析失败: {}", e))?;
+    serde_json::from_str(&text)
+        .map_err(|e| format!("JSON 解析失败 ({}): {}", url, e))
+}
 
-    // 判断版本
+// ── URL 规范化 ──
+
+/// 从用户输入的 URL 提取 base origin
+/// 例：http://host:port/doc.html#/home  →  http://host:port
+/// 例：http://host:port/swagger-ui/index.html  →  http://host:port
+/// 例：http://host:port/v3/api-docs/ais  →  保持原样（稍后直接请求）
+fn extract_base_origin(url: &str) -> String {
+    // 去掉 # 锚点
+    let url = url.split('#').next().unwrap_or(url);
+
+    if let Ok(parsed) = url::Url::parse(url) {
+        let port_str = parsed.port()
+            .map(|p| format!(":{}", p))
+            .unwrap_or_default();
+        format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or(""), port_str)
+    } else {
+        url.to_string()
+    }
+}
+
+/// 判断 URL 是否是文档页面（而非 API JSON 端点）
+fn is_doc_page_url(url: &str) -> bool {
+    let lower = url.to_lowercase();
+    let lower = lower.split('#').next().unwrap_or(&lower);
+    lower.ends_with("/doc.html")
+        || lower.ends_with("/swagger-ui.html")
+        || lower.ends_with("/swagger-ui/index.html")
+        || lower.contains("/doc.html")
+        || lower.contains("/swagger-ui.html")
+        || lower.contains("/swagger-ui/index.html")
+}
+
+/// 判断 URL 是否可能直接指向带 context-path 的 swagger-config
+/// 例如: http://host/context-path/v3/api-docs/swagger-config
+fn extract_context_path(url: &str) -> Option<String> {
+    let url_no_hash = url.split('#').next().unwrap_or(url);
+    if let Ok(parsed) = url::Url::parse(url_no_hash) {
+        let path = parsed.path();
+        // 如果路径包含 doc.html、swagger-ui 等，尝试提取它前面的部分作为 context-path
+        for page in &["/doc.html", "/swagger-ui.html", "/swagger-ui/index.html"] {
+            if let Some(idx) = path.to_lowercase().find(page) {
+                let ctx = &path[..idx];
+                if !ctx.is_empty() {
+                    return Some(ctx.to_string());
+                }
+                return None;
+            }
+        }
+        // 对于 v3/api-docs 或 v2/api-docs 路径，提取前缀
+        for api_path in &["/v3/api-docs", "/v2/api-docs", "/swagger-resources"] {
+            if let Some(idx) = path.to_lowercase().find(api_path) {
+                let ctx = &path[..idx];
+                if !ctx.is_empty() {
+                    return Some(ctx.to_string());
+                }
+                return None;
+            }
+        }
+    }
+    None
+}
+
+// ── 核心：智能探测 ──
+
+/// 智能探测 Swagger/OpenAPI 文档
+/// 支持从任意 URL 自动发现 API 文档端点和分组
+pub async fn discover_and_parse(url: &str) -> Result<SwaggerDiscoveryResult, String> {
+    let client = build_client()?;
+    let url = url.trim();
+
+    // Step 1: 如果用户直接给了 JSON 端点 URL，先尝试直接请求
+    if !is_doc_page_url(url) {
+        if let Ok(doc) = fetch_json(&client, url).await {
+            // 检查是否是 swagger-config 响应
+            if let Some(groups) = try_parse_swagger_config(&doc, url) {
+                if !groups.is_empty() {
+                    // 获取第一个分组的文档作为默认结果
+                    let default_result = fetch_and_parse_doc(&client, &groups[0].url).await.ok();
+                    return Ok(SwaggerDiscoveryResult { groups, default_result });
+                }
+            }
+
+            // 检查是否是 swagger-resources 响应（Spring Boot 旧版）
+            if let Some(groups) = try_parse_swagger_resources(&doc, url) {
+                if !groups.is_empty() {
+                    let default_result = fetch_and_parse_doc(&client, &groups[0].url).await.ok();
+                    return Ok(SwaggerDiscoveryResult { groups, default_result });
+                }
+            }
+
+            // 检查是否直接是 OpenAPI/Swagger 文档
+            if doc.get("openapi").is_some() || doc.get("swagger").is_some() {
+                let result = parse_doc(&doc, url)?;
+                return Ok(SwaggerDiscoveryResult {
+                    groups: vec![SwaggerGroup {
+                        name: "default".to_string(),
+                        url: url.to_string(),
+                        display_name: result.title.clone(),
+                    }],
+                    default_result: Some(result),
+                });
+            }
+        }
+    }
+
+    // Step 2: 从 URL 提取 base origin 和 context-path
+    let base = extract_base_origin(url);
+    let context_path = extract_context_path(url).unwrap_or_default();
+    let base_with_ctx = format!("{}{}", base, context_path);
+
+    // Step 3: 尝试 swagger-config 发现分组
+    let config_url = format!("{}/v3/api-docs/swagger-config", base_with_ctx);
+    if let Ok(config_doc) = fetch_json(&client, &config_url).await {
+        if let Some(groups) = try_parse_swagger_config(&config_doc, &base_with_ctx) {
+            if !groups.is_empty() {
+                let default_result = fetch_and_parse_doc(&client, &groups[0].url).await.ok();
+                return Ok(SwaggerDiscoveryResult { groups, default_result });
+            }
+        }
+    }
+
+    // Step 4: 尝试 swagger-resources（Spring Boot 旧版 Swagger 2）
+    let resources_url = format!("{}/swagger-resources", base_with_ctx);
+    if let Ok(resources_doc) = fetch_json(&client, &resources_url).await {
+        if let Some(groups) = try_parse_swagger_resources(&resources_doc, &base_with_ctx) {
+            if !groups.is_empty() {
+                let default_result = fetch_and_parse_doc(&client, &groups[0].url).await.ok();
+                return Ok(SwaggerDiscoveryResult { groups, default_result });
+            }
+        }
+    }
+
+    // Step 5: 逐个尝试常见端点
+    let candidates = vec![
+        format!("{}/v3/api-docs", base_with_ctx),
+        format!("{}/v2/api-docs", base_with_ctx),
+    ];
+
+    let mut last_error = String::new();
+    for candidate in &candidates {
+        match fetch_and_parse_doc(&client, candidate).await {
+            Ok(result) => {
+                return Ok(SwaggerDiscoveryResult {
+                    groups: vec![SwaggerGroup {
+                        name: "default".to_string(),
+                        url: candidate.clone(),
+                        display_name: result.title.clone(),
+                    }],
+                    default_result: Some(result),
+                });
+            }
+            Err(e) => { last_error = e; }
+        }
+    }
+
+    Err(format!(
+        "无法从 URL \"{}\" 发现 Swagger/OpenAPI 文档。\n\
+         已尝试以下端点均失败：\n  - {}\n  - swagger-config: {}\n  - swagger-resources: {}\n\
+         最后错误: {}",
+        url,
+        candidates.join("\n  - "),
+        config_url,
+        resources_url,
+        last_error,
+    ))
+}
+
+/// 尝试从 swagger-config JSON 中解析分组列表
+fn try_parse_swagger_config(doc: &serde_json::Value, base_url: &str) -> Option<Vec<SwaggerGroup>> {
+    // swagger-config 格式：{ "urls": [{ "url": "/v3/api-docs/xxx", "name": "xxx" }, ...] }
+    let urls = doc.get("urls")?.as_array()?;
+    if urls.is_empty() {
+        return None;
+    }
+
+    let base = extract_base_origin(base_url);
+    let context_path = extract_context_path(base_url).unwrap_or_default();
+
+    let groups: Vec<SwaggerGroup> = urls.iter().filter_map(|entry| {
+        let url_path = entry.get("url")?.as_str()?;
+        let name = entry.get("name").and_then(|v| v.as_str()).unwrap_or("default");
+
+        // url 可能是相对路径或绝对路径
+        let full_url = if url_path.starts_with("http://") || url_path.starts_with("https://") {
+            url_path.to_string()
+        } else {
+            format!("{}{}", base, url_path)
+        };
+
+        // 如果 URL 不包含 context path 但 context path 存在，尝试加上
+        let final_url = if !context_path.is_empty()
+            && !full_url.contains(&context_path)
+            && !url_path.starts_with("http")
+        {
+            format!("{}{}{}", base, context_path, url_path)
+        } else {
+            full_url
+        };
+
+        Some(SwaggerGroup {
+            name: name.to_string(),
+            url: final_url,
+            display_name: name.to_string(),
+        })
+    }).collect();
+
+    if groups.is_empty() { None } else { Some(groups) }
+}
+
+/// 尝试从 swagger-resources JSON 中解析分组列表（Spring Boot 旧版）
+fn try_parse_swagger_resources(doc: &serde_json::Value, base_url: &str) -> Option<Vec<SwaggerGroup>> {
+    // swagger-resources 格式: [{ "url": "/v2/api-docs?group=xxx", "name": "xxx", "location": "/v2/api-docs?group=xxx" }, ...]
+    let arr = doc.as_array()?;
+    if arr.is_empty() {
+        return None;
+    }
+
+    let base = extract_base_origin(base_url);
+
+    let groups: Vec<SwaggerGroup> = arr.iter().filter_map(|entry| {
+        let url_path = entry.get("url")
+            .or_else(|| entry.get("location"))
+            .and_then(|v| v.as_str())?;
+        let name = entry.get("name").and_then(|v| v.as_str()).unwrap_or("default");
+
+        let full_url = if url_path.starts_with("http://") || url_path.starts_with("https://") {
+            url_path.to_string()
+        } else {
+            format!("{}{}", base, url_path)
+        };
+
+        Some(SwaggerGroup {
+            name: name.to_string(),
+            url: full_url,
+            display_name: name.to_string(),
+        })
+    }).collect();
+
+    if groups.is_empty() { None } else { Some(groups) }
+}
+
+// ── 文档获取与解析 ──
+
+/// 获取并解析单个 Swagger/OpenAPI 文档 URL
+pub async fn fetch_and_parse_doc(client: &reqwest::Client, url: &str) -> Result<SwaggerParseResult, String> {
+    let doc = fetch_json(client, url).await?;
+    parse_doc(&doc, url)
+}
+
+/// 获取指定分组的文档（供前端分组切换时调用）
+pub async fn fetch_group(url: &str) -> Result<SwaggerParseResult, String> {
+    let client = build_client()?;
+    fetch_and_parse_doc(&client, url).await
+}
+
+/// 解析已获取的 JSON 文档
+fn parse_doc(doc: &serde_json::Value, url: &str) -> Result<SwaggerParseResult, String> {
     if doc.get("openapi").is_some() {
-        parse_openapi3(&doc, url)
+        parse_openapi3(doc, url)
     } else if doc.get("swagger").is_some() {
-        parse_swagger2(&doc, url)
+        parse_swagger2(doc, url)
     } else {
         Err("无法识别的文档格式：既非 OpenAPI 3.x 也非 Swagger 2.0".to_string())
     }
@@ -357,6 +635,14 @@ fn extract_request_body_v3(body_val: Option<&serde_json::Value>, doc: &serde_jso
 // ── $ref 解析 ──
 
 fn resolve_ref<'a>(val: &'a serde_json::Value, doc: &'a serde_json::Value) -> &'a serde_json::Value {
+    resolve_ref_depth(val, doc, 0)
+}
+
+/// 带深度限制的 $ref 解析，防止循环引用导致无限递归
+fn resolve_ref_depth<'a>(val: &'a serde_json::Value, doc: &'a serde_json::Value, depth: u32) -> &'a serde_json::Value {
+    if depth > 10 {
+        return val; // 超过深度限制，返回原始值
+    }
     if let Some(ref_str) = val.get("$ref").and_then(|v| v.as_str()) {
         // #/components/schemas/Xxx  or  #/definitions/Xxx
         let parts: Vec<&str> = ref_str.trim_start_matches('#').trim_start_matches('/')
@@ -365,7 +651,14 @@ fn resolve_ref<'a>(val: &'a serde_json::Value, doc: &'a serde_json::Value) -> &'
         for part in parts {
             current = current.get(part).unwrap_or(&serde_json::Value::Null);
         }
-        if current.is_null() { val } else { current }
+        if current.is_null() {
+            val
+        } else if current.get("$ref").is_some() {
+            // 递归解析嵌套 $ref
+            resolve_ref_depth(current, doc, depth + 1)
+        } else {
+            current
+        }
     } else {
         val
     }
@@ -501,6 +794,8 @@ pub async fn import_selected(
         updated_at: now.clone(),
     };
 
+    // TODO: 与 postman_compat::import_postman 相同，create_collection + 逐条 create_collection_item
+    // 应包裹在事务中，避免中途失败留下不完整集合。
     collections::create_collection(pool, collection.clone()).await?;
 
     // 按 tag 分组创建文件夹

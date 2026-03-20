@@ -203,7 +203,11 @@ fn compile_and_query_info(
     wasm_bytes: &[u8],
     fallback_id: &str,
 ) -> Result<CachedModule, String> {
-    let engine = Engine::default();
+    // 启用 fuel 资源限制，防止恶意 WASM 插件无限循环或消耗过量资源
+    let mut config = wasmtime::Config::new();
+    config.consume_fuel(true);
+    let engine = Engine::new(&config)
+        .map_err(|e| format!("WASM 引擎创建失败: {}", e))?;
     let module = Module::new(&engine, wasm_bytes)
         .map_err(|e| format!("WASM 编译失败: {}", e))?;
 
@@ -233,6 +237,8 @@ fn compile_and_query_info(
 /// Call the plugin_info() export to get plugin metadata.
 fn call_plugin_info(engine: &Engine, module: &Module) -> Result<WasmPluginInfo, String> {
     let mut store = Store::new(engine, ());
+    // 为 plugin_info 调用分配资源限制
+    store.set_fuel(1_000_000).map_err(|e| format!("fuel 设置失败: {}", e))?;
     let linker = Linker::new(engine);
     let instance = linker
         .instantiate(&mut store, module)
@@ -260,6 +266,8 @@ fn call_plugin_info(engine: &Engine, module: &Module) -> Result<WasmPluginInfo, 
 /// Execute the parse(ptr, len) -> ptr export.
 fn execute_parse(engine: &Engine, module: &Module, raw_data: &str) -> Result<ParseResult, String> {
     let mut store = Store::new(engine, ());
+    // 为 parse 执行分配充裕的 fuel 限制（10M 指令级别）
+    store.set_fuel(10_000_000).map_err(|e| format!("fuel 设置失败: {}", e))?;
     let linker = Linker::new(engine);
     let instance = linker
         .instantiate(&mut store, module)

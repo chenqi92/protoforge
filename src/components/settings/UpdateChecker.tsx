@@ -47,7 +47,7 @@ export function UpdateChecker() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('not configured') || msg.includes('No such plugin')) {
+      if (msg.includes('not configured') || msg.includes('No such plugin') || msg.includes('not found')) {
         setStatus('idle');
         return;
       }

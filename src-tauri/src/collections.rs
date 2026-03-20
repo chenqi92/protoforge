@@ -136,6 +136,10 @@ pub async fn update_collection(pool: &SqlitePool, col: Collection) -> Result<(),
 }
 
 pub async fn delete_collection(pool: &SqlitePool, id: &str) -> Result<(), String> {
+    // 级联删除关联的集合项（避免孤儿数据）
+    sqlx::query("DELETE FROM collection_items WHERE collection_id = ?")
+        .bind(id)
+        .execute(pool).await.map_err(|e| format!("删除集合项失败: {}", e))?;
     sqlx::query("DELETE FROM collections WHERE id = ?")
         .bind(id)
         .execute(pool).await.map_err(|e| format!("删除集合失败: {}", e))?;
@@ -219,6 +223,20 @@ pub async fn delete_collection_item(pool: &SqlitePool, id: &str) -> Result<(), S
     Ok(())
 }
 
+/// Batch update sort_order for collection items (used by drag-drop reorder)
+pub async fn reorder_collection_items(pool: &SqlitePool, item_ids: Vec<String>) -> Result<(), String> {
+    // 使用事务包裹批量更新，避免部分成功部分失败
+    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
+    for (idx, id) in item_ids.iter().enumerate() {
+        sqlx::query("UPDATE collection_items SET sort_order = ? WHERE id = ?")
+            .bind(idx as i64)
+            .bind(id)
+            .execute(&mut *tx).await.map_err(|e| format!("排序更新失败: {}", e))?;
+    }
+    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
+    Ok(())
+}
+
 // ═══════════════════════════════════════════
 //  Environments CRUD
 // ═══════════════════════════════════════════
@@ -240,15 +258,18 @@ pub async fn create_environment(pool: &SqlitePool, env: Environment) -> Result<E
 }
 
 pub async fn set_active_environment(pool: &SqlitePool, id: Option<&str>) -> Result<(), String> {
+    // 使用事务保证原子性：避免全部取消激活后设置激活失败
+    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
     // 先全部取消激活
     sqlx::query("UPDATE environments SET is_active = 0")
-        .execute(pool).await.map_err(|e| format!("更新环境失败: {}", e))?;
+        .execute(&mut *tx).await.map_err(|e| format!("更新环境失败: {}", e))?;
     // 激活指定环境
     if let Some(env_id) = id {
         sqlx::query("UPDATE environments SET is_active = 1 WHERE id = ?")
             .bind(env_id)
-            .execute(pool).await.map_err(|e| format!("激活环境失败: {}", e))?;
+            .execute(&mut *tx).await.map_err(|e| format!("激活环境失败: {}", e))?;
     }
+    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
     Ok(())
 }
 
@@ -258,6 +279,10 @@ pub async fn get_active_environment(pool: &SqlitePool) -> Result<Option<Environm
 }
 
 pub async fn delete_environment(pool: &SqlitePool, id: &str) -> Result<(), String> {
+    // 级联删除关联的环境变量（避免孤儿数据）
+    sqlx::query("DELETE FROM environment_variables WHERE environment_id = ?")
+        .bind(id)
+        .execute(pool).await.map_err(|e| format!("删除环境变量失败: {}", e))?;
     sqlx::query("DELETE FROM environments WHERE id = ?")
         .bind(id)
         .execute(pool).await.map_err(|e| format!("删除环境失败: {}", e))?;
@@ -277,10 +302,11 @@ pub async fn list_env_variables(pool: &SqlitePool, env_id: &str) -> Result<Vec<E
 }
 
 pub async fn save_env_variables(pool: &SqlitePool, env_id: &str, vars: Vec<EnvVariable>) -> Result<(), String> {
-    // 清除旧变量并批量插入新变量
+    // 使用事务保证原子性：避免删除后插入失败导致数据丢失
+    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
     sqlx::query("DELETE FROM environment_variables WHERE environment_id = ?")
         .bind(env_id)
-        .execute(pool).await.map_err(|e| format!("清除旧变量失败: {}", e))?;
+        .execute(&mut *tx).await.map_err(|e| format!("清除旧变量失败: {}", e))?;
 
     for var in vars {
         sqlx::query(
@@ -289,8 +315,9 @@ pub async fn save_env_variables(pool: &SqlitePool, env_id: &str, vars: Vec<EnvVa
         )
         .bind(&var.id).bind(env_id).bind(&var.key).bind(&var.value)
         .bind(var.enabled).bind(var.is_secret).bind(var.sort_order)
-        .execute(pool).await.map_err(|e| format!("保存变量失败: {}", e))?;
+        .execute(&mut *tx).await.map_err(|e| format!("保存变量失败: {}", e))?;
     }
+    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
     Ok(())
 }
 
@@ -304,16 +331,19 @@ pub async fn list_global_variables(pool: &SqlitePool) -> Result<Vec<GlobalVariab
 }
 
 pub async fn save_global_variables(pool: &SqlitePool, vars: Vec<GlobalVariable>) -> Result<(), String> {
+    // 使用事务保证原子性
+    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
     sqlx::query("DELETE FROM global_variables")
-        .execute(pool).await.map_err(|e| format!("清除全局变量失败: {}", e))?;
+        .execute(&mut *tx).await.map_err(|e| format!("清除全局变量失败: {}", e))?;
 
     for var in vars {
         sqlx::query(
             "INSERT INTO global_variables (id, key, value, enabled) VALUES (?, ?, ?, ?)"
         )
         .bind(&var.id).bind(&var.key).bind(&var.value).bind(var.enabled)
-        .execute(pool).await.map_err(|e| format!("保存全局变量失败: {}", e))?;
+        .execute(&mut *tx).await.map_err(|e| format!("保存全局变量失败: {}", e))?;
     }
+    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
     Ok(())
 }
 

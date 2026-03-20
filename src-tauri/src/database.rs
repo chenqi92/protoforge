@@ -51,8 +51,8 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         if version > current_version {
             log::info!("Running migration {}: {}", version, name);
 
-            // 分号分割执行多条 SQL
-            for statement in sql.split(';') {
+            // 使用感知字符串字面量的分割，避免拆分 SQL 字符串值中的分号
+            for statement in split_sql_statements(sql) {
                 let trimmed = statement.trim();
                 if !trimmed.is_empty() {
                     sqlx::query(trimmed).execute(pool).await?;
@@ -67,4 +67,38 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     }
 
     Ok(())
+}
+
+/// 感知字符串字面量的 SQL 语句分割。
+/// 跳过单引号内的分号，仅在语句级别的分号处拆分。
+/// 正确处理 SQL 转义单引号 '' (两个连续单引号 = 字面量 ')。
+fn split_sql_statements(sql: &str) -> Vec<&str> {
+    let mut statements = Vec::new();
+    let mut start = 0;
+    let mut in_string = false;
+    let bytes = sql.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        if bytes[i] == b'\'' {
+            if in_string && i + 1 < len && bytes[i + 1] == b'\'' {
+                // 连续两个单引号 '' — SQL 转义，跳过整对，不改变 in_string 状态
+                i += 2;
+                continue;
+            }
+            in_string = !in_string;
+        } else if bytes[i] == b';' && !in_string {
+            statements.push(&sql[start..i]);
+            start = i + 1;
+        }
+        i += 1;
+    }
+
+    // 最后一段
+    if start < len {
+        statements.push(&sql[start..]);
+    }
+
+    statements
 }
