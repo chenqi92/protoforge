@@ -26,8 +26,8 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
       } else {
         await onInstall?.(plugin.id);
       }
-    } catch {
-      // Error already logged by store
+    } catch (err) {
+      console.error('Plugin action failed:', err);
     } finally {
       setLoading(false);
     }

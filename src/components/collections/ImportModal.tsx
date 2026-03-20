@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCollectionStore } from '@/stores/collectionStore';
+import { useEnvStore } from '@/stores/envStore';
 import { fetchSwagger, fetchSwaggerGroup, importSwaggerEndpoints } from '@/services/collectionService';
 import type { SwaggerParseResult, SwaggerEndpoint, SwaggerGroup } from '@/types/swagger';
 
@@ -301,7 +302,9 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
         setGroupCache(newCache);
         const allUrls = new Set(discovery.groups.map(g => g.url));
         setSelectedGroupUrls(allUrls);
-        setCollectionName('Swagger Import');
+        // 使用默认解析结果的标题，而非硬编码
+        const defaultTitle = discovery.defaultResult?.title || '';
+        setCollectionName(defaultTitle || 'API 集合');
 
         // 并行获取所有分组（跳过已缓存的）
         const toFetch = discovery.groups.filter(g => !newCache[g.url]);
@@ -474,6 +477,16 @@ function SwaggerImportView({ onClose }: { onClose: () => void }) {
         mergedBaseUrl,
         selected,
       );
+      // 自动将 baseUrl 添加到全局变量（若不存在同名变量）
+      const envState = useEnvStore.getState();
+      const existingVars = envState.globalVariables;
+      const hasBaseUrl = existingVars.some(v => v.key === 'baseUrl');
+      if (!hasBaseUrl && mergedBaseUrl) {
+        await envState.saveGlobalVars([
+          ...existingVars,
+          { id: crypto.randomUUID(), key: 'baseUrl', value: mergedBaseUrl, enabled: 1 },
+        ]);
+      }
       await fetchCollections();
       onClose();
     } catch (e) {

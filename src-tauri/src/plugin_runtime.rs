@@ -34,7 +34,7 @@ pub struct PluginManifest {
     pub version: String,
     pub description: String,
     pub author: String,
-    #[serde(rename = "type")]
+    #[serde(alias = "type")]
     pub plugin_type: PluginType,
     pub icon: String,
     pub entrypoint: String,
@@ -333,10 +333,13 @@ impl PluginManager {
         Ok(())
     }
 
-    /// List all installed plugins.
+    /// List all installed plugins (excludes native built-in plugins).
     pub async fn list_installed(&self) -> Vec<PluginManifest> {
         let reg = self.registry.read().await;
-        reg.values().map(|r| r.manifest.clone()).collect()
+        reg.values()
+            .filter(|r| r.manifest.source != "native")
+            .map(|r| r.manifest.clone())
+            .collect()
     }
 
     /// Refresh remote registry — fetch from remote URL and cache.
@@ -395,9 +398,11 @@ impl PluginManager {
 
         let mut all_plugins: HashMap<String, PluginManifest> = HashMap::new();
 
-        // 1. 注册表中的插件（已安装，包含 native/JS/WASM）
+        // 1. 注册表中的非 native 插件（用户安装的 JS/WASM 插件）
         for (id, rp) in registry.iter() {
-            all_plugins.insert(id.clone(), rp.manifest.clone());
+            if rp.manifest.source != "native" {
+                all_plugins.insert(id.clone(), rp.manifest.clone());
+            }
         }
 
         // 2. 远程仓库中的插件
@@ -407,11 +412,13 @@ impl PluginManager {
             }
         }
 
-        // Mark installed
+        // Mark installed (只有在 registry 中且非 native 的才算用户安装)
         all_plugins
             .into_values()
             .map(|mut m| {
-                m.installed = registry.contains_key(&m.id);
+                m.installed = registry.get(&m.id)
+                    .map(|rp| rp.manifest.source != "native")
+                    .unwrap_or(false);
                 m
             })
             .collect()

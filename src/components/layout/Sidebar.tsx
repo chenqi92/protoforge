@@ -4,6 +4,7 @@ import {
   FolderOpen, Clock, Search, Plus,
   ChevronRight, Download, Settings, Globe,
   MoreHorizontal, Folder, Zap, Edit3, Trash2, ExternalLink, Copy, FolderPlus,
+  ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
@@ -189,6 +190,7 @@ function CollectionsView({ search }: { search: string }) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const addTab = useAppStore((s) => s.addTab);
+  const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const openCollectionTab = useAppStore((s) => s.addCollectionTab);
   const { showMenu, MenuComponent } = useContextMenu();
 
@@ -233,35 +235,57 @@ function CollectionsView({ search }: { search: string }) {
     }
   };
 
+  // 展开/折叠文件夹
+  const toggleFolder = (folderId: string) => {
+    const key = `folder:${folderId}`;
+    setExpanded((e) => ({ ...e, [key]: !e[key] }));
+  };
+
   // 双击打开集合请求项
   const handleOpenItem = (item: CollectionItem) => {
-    const store = useAppStore.getState();
-    store.addTab('http');
-    const tab = store.tabs[store.tabs.length - 1];
-    if (tab && item.method && item.url) {
-      // Parse authConfig JSON if present
-      let authConfig: Record<string, string> = {};
-      try { if (item.authConfig) authConfig = JSON.parse(item.authConfig); } catch { /* ignore */ }
-      
-      store.updateHttpConfig(tab.id, {
-        method: (item.method || 'GET') as any,
-        url: item.url || '',
-        name: item.name,
-        headers: item.headers ? JSON.parse(item.headers) : [],
-        queryParams: item.queryParams ? JSON.parse(item.queryParams) : [],
-        rawBody: item.bodyContent || '',
-        bodyType: (item.bodyType || 'none') as any,
-        authType: (item.authType || 'none') as any,
-        bearerToken: authConfig.bearerToken || '',
-        basicUsername: authConfig.basicUsername || '',
-        basicPassword: authConfig.basicPassword || '',
-        apiKeyName: authConfig.apiKeyName || '',
-        apiKeyValue: authConfig.apiKeyValue || '',
-        apiKeyAddTo: (authConfig.apiKeyIn || 'header') as any,
-        preScript: item.preScript || '',
-        postScript: item.postScript || '',
-      });
+    if (item.itemType !== 'request') return;
+    if (!item.method && !item.url) return;
+
+    // addTab 返回新 tab 的 ID，直接使用——不依赖旧快照
+    const tabId = addTab('http');
+
+    // Parse data
+    let parsedHeaders: any[] = [];
+    let parsedQueryParams: any[] = [];
+    let authConfig: Record<string, string> = {};
+    try { if (item.headers) parsedHeaders = JSON.parse(item.headers); } catch { /* ignore */ }
+    try { if (item.queryParams) parsedQueryParams = JSON.parse(item.queryParams); } catch { /* ignore */ }
+    try { if (item.authConfig) authConfig = JSON.parse(item.authConfig); } catch { /* ignore */ }
+
+    // 如果解析出的不是数组（旧格式兼容），转换为 KeyValue 数组
+    if (!Array.isArray(parsedHeaders)) {
+      parsedHeaders = Object.entries(parsedHeaders).map(([k, v]) => ({ key: k, value: String(v), enabled: true }));
     }
+    if (!Array.isArray(parsedQueryParams)) {
+      parsedQueryParams = Object.entries(parsedQueryParams).map(([k, v]) => ({ key: k, value: String(v), enabled: true }));
+    }
+
+    updateHttpConfig(tabId, {
+      method: (item.method || 'GET') as any,
+      url: item.url || '',
+      name: item.name,
+      headers: parsedHeaders.length > 0 ? parsedHeaders : [{ key: '', value: '', enabled: true }],
+      queryParams: parsedQueryParams.length > 0 ? parsedQueryParams : [{ key: '', value: '', enabled: true }],
+      rawBody: item.bodyContent || '',
+      bodyType: (item.bodyType || 'none') as any,
+      authType: (item.authType || 'none') as any,
+      bearerToken: authConfig.bearerToken || '',
+      basicUsername: authConfig.basicUsername || '',
+      basicPassword: authConfig.basicPassword || '',
+      apiKeyName: authConfig.apiKeyName || '',
+      apiKeyValue: authConfig.apiKeyValue || '',
+      apiKeyAddTo: (authConfig.apiKeyIn || 'header') as any,
+      preScript: item.preScript || '',
+      postScript: item.postScript || '',
+    });
+
+    // 同时更新 tab 标签名
+    useAppStore.getState().renameTab(tabId, item.name || `${item.method} ${item.url}`);
   };
 
   const methodColors: Record<string, { text: string; bg: string }> = {
@@ -291,16 +315,40 @@ function CollectionsView({ search }: { search: string }) {
     }
   };
 
+  // 全部展开/收起集合内的文件夹
+  const expandAllFolders = (colId: string, expand: boolean) => {
+    const colItems = items[colId] || [];
+    const folderKeys: Record<string, boolean> = {};
+    colItems.filter(it => it.itemType === 'folder').forEach(f => { folderKeys[`folder:${f.id}`] = expand; });
+    setExpanded(e => ({ ...e, ...folderKeys }));
+  };
+
   const handleFolderContextMenu = (e: React.MouseEvent, col: { id: string; name: string }) => {
     const menuItems: ContextMenuEntry[] = [
       { id: "new-req", label: "新建请求", icon: <Plus className="w-3.5 h-3.5" />, onClick: () => createItem(col.id, null, 'request', '新建请求') },
       { id: "new-folder", label: "新建文件夹", icon: <FolderPlus className="w-3.5 h-3.5" />, onClick: () => createItem(col.id, null, 'folder', '新建文件夹') },
+      { type: "divider" },
+      { id: "expand-all", label: "全部展开", icon: <ChevronsUpDown className="w-3.5 h-3.5" />, onClick: () => expandAllFolders(col.id, true) },
+      { id: "collapse-all", label: "全部收起", icon: <ChevronsUpDown className="w-3.5 h-3.5" />, onClick: () => expandAllFolders(col.id, false) },
       { type: "divider" },
       { id: "settings", label: "合集设置", icon: <Settings className="w-3.5 h-3.5" />, onClick: () => openCollectionTab(col.id, col.name) },
       { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(col.id, col.name) },
       { id: "export-postman", label: "导出为 Postman", icon: <Download className="w-3.5 h-3.5" />, onClick: () => handleExportPostman(col.id, col.name) },
       { type: "divider" },
       { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteCollection(col.id) },
+    ];
+    showMenu(e, menuItems);
+  };
+
+  // 子文件夹的右键菜单
+  const handleSubFolderContextMenu = (e: React.MouseEvent, item: CollectionItem) => {
+    const menuItems: ContextMenuEntry[] = [
+      { id: "new-req", label: "新建请求", icon: <Plus className="w-3.5 h-3.5" />, onClick: () => createItem(item.collectionId, item.id, 'request', '新建请求') },
+      { id: "new-folder", label: "新建文件夹", icon: <FolderPlus className="w-3.5 h-3.5" />, onClick: () => createItem(item.collectionId, item.id, 'folder', '新建文件夹') },
+      { type: "divider" },
+      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(item.id, item.name) },
+      { type: "divider" },
+      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteItem(item.id, item.collectionId) },
     ];
     showMenu(e, menuItems);
   };
@@ -320,6 +368,109 @@ function CollectionsView({ search }: { search: string }) {
     (col) => !search || col.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  // ── 递归渲染集合树节点 ──
+  const renderItems = (colItems: CollectionItem[], parentId: string | null, depth: number) => {
+    const children = colItems.filter(it => it.parentId === parentId);
+    if (children.length === 0) return null;
+    return children.map((item) => {
+      const method = item.method || '';
+      const color = methodColors[method] || { text: "text-text-tertiary", bg: "" };
+      const isRenamingItem = renamingId === item.id;
+      const folderKey = `folder:${item.id}`;
+      const isFolderExpanded = expanded[folderKey] === true; // 默认收起
+
+      if (item.itemType === 'folder') {
+        const childCount = colItems.filter(c => c.parentId === item.id && c.itemType === 'request').length;
+        return (
+          <div key={item.id}>
+            <button
+              onClick={() => toggleFolder(item.id)}
+              onContextMenu={(e) => handleSubFolderContextMenu(e, item)}
+              className="w-full flex items-center gap-1.5 pr-2 py-[5px] rounded-md text-[12px] text-text-secondary hover:bg-bg-hover transition-colors group/folder"
+              style={{ paddingLeft: `${12 + depth * 14}px` }}
+            >
+              <motion.div
+                animate={{ rotate: isFolderExpanded ? 90 : 0 }}
+                transition={{ duration: 0.12 }}
+              >
+                <ChevronRight className="w-3 h-3 shrink-0 text-text-disabled" />
+              </motion.div>
+              <Folder className="w-3 h-3 shrink-0 text-amber-500/50" fill="currentColor" />
+              {isRenamingItem ? (
+                <input
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onBlur={() => commitItemRename(item.id, item.collectionId)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitItemRename(item.id, item.collectionId);
+                    if (e.key === 'Escape') setRenamingId(null);
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-1 min-w-0 text-[11px] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
+                  autoFocus
+                />
+              ) : (
+                <span className="truncate text-[11px] font-medium">{item.name}</span>
+              )}
+              {childCount > 0 && (
+                <span className="text-[10px] text-text-disabled ml-auto tabular-nums">{childCount}</span>
+              )}
+            </button>
+            <AnimatePresence>
+              {isFolderExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.12 }}
+                  className="overflow-hidden"
+                >
+                  {renderItems(colItems, item.id, depth + 1)}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      }
+
+      // request item
+      return (
+        <button
+          key={item.id}
+          onDoubleClick={() => isRenamingItem ? undefined : handleOpenItem(item)}
+          onContextMenu={(e) => handleItemContextMenu(e, { ...item, name: item.name, url: item.url, collectionId: item.collectionId })}
+          className="w-full flex items-center gap-2 pr-2 py-[5px] rounded-md text-[12px] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
+          style={{ paddingLeft: `${12 + depth * 14}px` }}
+        >
+          <span className={cn(
+            "text-[10px] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
+            color.text, color.bg
+          )}>
+            {method}
+          </span>
+          {isRenamingItem ? (
+            <input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onBlur={() => commitItemRename(item.id, item.collectionId)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitItemRename(item.id, item.collectionId);
+                if (e.key === 'Escape') setRenamingId(null);
+                e.stopPropagation();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 min-w-0 text-[11px] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-mono"
+              autoFocus
+            />
+          ) : (
+            <span className="truncate font-mono text-[11px]">{item.name}</span>
+          )}
+        </button>
+      );
+    });
+  };
+
   return (
     <div className="py-0.5">
       {filteredCollections.length === 0 && (
@@ -328,7 +479,7 @@ function CollectionsView({ search }: { search: string }) {
             <FolderOpen className="w-6 h-6 text-text-tertiary" />
           </div>
           <p className="text-[13px] font-medium text-text-secondary">{search ? "无匹配集合" : "暂无集合"}</p>
-          <p className="text-[11px] mt-1 text-text-disabled">点击上方“新建”开始构建您的 API 库。</p>
+          <p className="text-[11px] mt-1 text-text-disabled">点击上方"新建"开始构建您的 API 库。</p>
         </div>
       )}
       {filteredCollections.map((col) => {
@@ -368,7 +519,13 @@ function CollectionsView({ search }: { search: string }) {
               {renamingId !== col.id && (
                 <>
                   <span className="text-[10px] text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
-                  <MoreHorizontal className="w-3.5 h-3.5 text-text-disabled opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); handleFolderContextMenu(e, col); }}
+                    className="w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-bg-hover transition-all shrink-0"
+                  >
+                    <MoreHorizontal className="w-3.5 h-3.5 text-text-disabled" />
+                  </span>
                 </>
               )}
             </button>
@@ -384,47 +541,7 @@ function CollectionsView({ search }: { search: string }) {
                   {colItems.length === 0 && (
                     <p className="pl-[30px] pr-2 py-2 text-[11px] text-text-disabled">空集合</p>
                   )}
-                  {colItems.map((item) => {
-                    const method = item.method || '';
-                    const color = methodColors[method] || { text: "text-text-tertiary", bg: "" };
-                    const isRenamingItem = renamingId === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onDoubleClick={() => isRenamingItem ? undefined : handleOpenItem(item)}
-                        onContextMenu={(e) => handleItemContextMenu(e, { ...item, name: item.name, url: item.url, collectionId: item.collectionId })}
-                        className="w-full flex items-center gap-2 pl-[30px] pr-2 py-[5px] rounded-md text-[12px] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
-                      >
-                        {item.itemType === 'request' ? (
-                          <span className={cn(
-                            "text-[10px] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
-                            color.text, color.bg
-                          )}>
-                            {method}
-                          </span>
-                        ) : (
-                          <Folder className="w-3 h-3 shrink-0 text-amber-500/50" fill="currentColor" />
-                        )}
-                        {isRenamingItem ? (
-                          <input
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onBlur={() => commitItemRename(item.id, item.collectionId)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') commitItemRename(item.id, item.collectionId);
-                              if (e.key === 'Escape') setRenamingId(null);
-                              e.stopPropagation();
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex-1 min-w-0 text-[11px] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-mono"
-                            autoFocus
-                          />
-                        ) : (
-                          <span className="truncate font-mono text-[11px]">{item.name}</span>
-                        )}
-                      </button>
-                    );
-                  })}
+                  {renderItems(colItems, null, 1)}
                 </motion.div>
               )}
             </AnimatePresence>

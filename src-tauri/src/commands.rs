@@ -648,7 +648,7 @@ pub async fn run_collection(
     let mut failed = 0usize;
     let start = std::time::Instant::now();
 
-    for iter in 0..iterations {
+    'outer: for iter in 0..iterations {
         for (idx, item) in requests.iter().enumerate() {
             let method = item.method.clone().unwrap_or_else(|| "GET".to_string());
             let url = item.url.clone().unwrap_or_default();
@@ -726,7 +726,7 @@ pub async fn run_collection(
                     error: Some("Collection Runner 全局超时（10 分钟）".to_string()),
                 });
                 failed += 1;
-                break;
+                break 'outer; // 退出外层循环
             }
 
             let result = match http_client::execute_request(req).await {

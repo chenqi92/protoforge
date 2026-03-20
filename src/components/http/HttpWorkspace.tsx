@@ -97,10 +97,10 @@ export function HttpWorkspace() {
     }
   }, [response]);
 
-  const params = config.queryParams || [];
-  const headers = config.headers || [];
-  const formFields = config.formFields || [];
-  const formDataFields = config.formDataFields || [];
+  const params = Array.isArray(config.queryParams) ? config.queryParams : [];
+  const headers = Array.isArray(config.headers) ? config.headers : [];
+  const formFields = Array.isArray(config.formFields) ? config.formFields : [];
+  const formDataFields = Array.isArray(config.formDataFields) ? config.formDataFields : [];
 
   const reqTabs = [
     { key: "params" as const, label: `参数${params.filter(p => p.key).length ? ` (${params.filter(p => p.key).length})` : ""}` },
@@ -495,8 +495,8 @@ export function HttpWorkspace() {
                 {resTab === "headers" ? (
                   <div className="p-4 overflow-auto h-full">
                     <div className="max-w-3xl border border-border-default rounded-lg overflow-hidden bg-bg-primary">
-                      {Object.entries(response.headers).map(([k, v], i) => (
-                        <div key={k} className={cn("flex gap-4 p-2 text-[13px] font-mono", i > 0 && "border-t border-border-default")}>
+                      {(Array.isArray(response.headers) ? response.headers : Object.entries(response.headers)).map(([k, v]: [string, string], i: number) => (
+                        <div key={`${k}-${i}`} className={cn("flex gap-4 p-2 text-[13px] font-mono", i > 0 && "border-t border-border-default")}>
                           <span className="text-text-secondary font-medium w-1/3 break-words">{k}</span>
                           <span className="text-text-primary break-all w-2/3">{v}</span>
                         </div>

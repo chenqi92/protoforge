@@ -788,7 +788,7 @@ pub async fn import_selected(
         auth: None,
         pre_script: String::new(),
         post_script: String::new(),
-        variables: "{}".to_string(),
+        variables: serde_json::json!({"baseUrl": base_url.trim_end_matches('/')}).to_string(),
         sort_order: 0,
         created_at: now.clone(),
         updated_at: now.clone(),
@@ -834,22 +834,32 @@ pub async fn import_selected(
             Some(tag_folders[&ep.tag].clone())
         };
 
-        // 构造 URL
-        let full_url = format!("{}{}", base_url.trim_end_matches('/'), ep.path);
+        // 构造 URL — 使用 {{baseUrl}} 变量，发送时由前端变量系统解析
+        let full_url = format!("{{{{baseUrl}}}}{}", ep.path);
 
-        // 构造 query params
-        let query_obj: serde_json::Map<String, serde_json::Value> = ep.parameters.iter()
+        // 构造 query params — 前端期望格式: [{key, value, description, enabled}]
+        let query_arr: Vec<serde_json::Value> = ep.parameters.iter()
             .filter(|p| p.location == "query")
-            .map(|p| (p.name.clone(), serde_json::json!(p.default_value.trim_matches('"'))))
+            .map(|p| serde_json::json!({
+                "key": p.name,
+                "value": p.default_value.trim_matches('"'),
+                "description": p.description,
+                "enabled": true
+            }))
             .collect();
-        let query_params = serde_json::to_string(&query_obj).unwrap_or_else(|_| "{}".to_string());
+        let query_params = serde_json::to_string(&query_arr).unwrap_or_else(|_| "[]".to_string());
 
-        // 构造 headers
-        let header_obj: serde_json::Map<String, serde_json::Value> = ep.parameters.iter()
+        // 构造 headers — 前端期望格式: [{key, value, description, enabled}]
+        let header_arr: Vec<serde_json::Value> = ep.parameters.iter()
             .filter(|p| p.location == "header")
-            .map(|p| (p.name.clone(), serde_json::json!(p.default_value.trim_matches('"'))))
+            .map(|p| serde_json::json!({
+                "key": p.name,
+                "value": p.default_value.trim_matches('"'),
+                "description": p.description,
+                "enabled": true
+            }))
             .collect();
-        let headers = serde_json::to_string(&header_obj).unwrap_or_else(|_| "{}".to_string());
+        let headers = serde_json::to_string(&header_arr).unwrap_or_else(|_| "[]".to_string());
 
         // 构造 body
         let (body_type, body_content) = if let Some(ref rb) = ep.request_body {

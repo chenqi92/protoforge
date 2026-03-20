@@ -109,6 +109,7 @@ pub async fn connect(
         let mut current_event_type = String::from("message");
         let mut current_id: Option<String> = None;
         let mut current_data = String::new();
+        const MAX_SSE_BUFFER: usize = 10 * 1024 * 1024; // 10MB 防止内存无限增长
 
         loop {
             tokio::select! {
@@ -121,6 +122,10 @@ pub async fn connect(
                         Some(Ok(bytes)) => {
                             let text = String::from_utf8_lossy(&bytes);
                             buffer.push_str(&text);
+                            if buffer.len() > MAX_SSE_BUFFER {
+                                emit_status("error:buffer 超过 10MB 限制");
+                                break;
+                            }
 
                             // 按行解析 SSE 流
                             while let Some(line_end) = buffer.find('\n') {

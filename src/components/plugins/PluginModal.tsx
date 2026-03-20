@@ -267,7 +267,7 @@ function PluginListItem({
     try {
       if (plugin.installed) await onUninstall(plugin.id);
       else await onInstall(plugin.id);
-    } catch { /* logged by store */ }
+    } catch (err) { console.error('Plugin action failed:', err); }
     finally { setLoading(false); }
   };
 
@@ -355,7 +355,7 @@ function PluginDetail({
     try {
       if (plugin.installed) await onUninstall(plugin.id);
       else await onInstall(plugin.id);
-    } catch { /* */ }
+    } catch (err) { console.error('Plugin action failed:', err); }
     finally { setLoading(false); }
   };
 

@@ -323,6 +323,7 @@ fn execute_parse(engine: &Engine, module: &Module, raw_data: &str) -> Result<Par
 fn read_guest_string(store: &Store<()>, memory: &Memory, ptr: u32) -> Result<String, String> {
     let data = memory.data(store);
     let ptr = ptr as usize;
+    const MAX_GUEST_STRING: usize = 64 * 1024 * 1024; // 64MB 上限
 
     if ptr + 4 > data.len() {
         return Err("指针超出内存边界".to_string());
@@ -334,6 +335,10 @@ fn read_guest_string(store: &Store<()>, memory: &Memory, ptr: u32) -> Result<Str
         data[ptr + 2],
         data[ptr + 3],
     ]) as usize;
+
+    if len > MAX_GUEST_STRING {
+        return Err(format!("guest 字符串长度 {} 超过最大限制 {}MB", len, MAX_GUEST_STRING / 1024 / 1024));
+    }
 
     if ptr + 4 + len > data.len() {
         return Err(format!("字符串长度 {} 超出内存边界", len));

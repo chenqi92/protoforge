@@ -195,8 +195,9 @@ pub async fn publish(
 pub async fn disconnect(conn_id: &str, connections: MqttConnections) -> Result<(), String> {
     let mut conns = connections.lock().await;
     if let Some(conn) = conns.remove(conn_id) {
-        let _ = conn.client.disconnect().await;
+        // 先通知后台任务退出，再执行协议层断开（避免 broker 不响应导致阻塞）
         let _ = conn.cancel_tx.send(());
+        let _ = conn.client.disconnect().await;
         Ok(())
     } else {
         Err("连接不存在".to_string())
