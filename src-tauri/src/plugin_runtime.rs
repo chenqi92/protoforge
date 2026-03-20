@@ -132,56 +132,32 @@ impl RemotePluginEntry {
 const DEFAULT_REGISTRY_URL: &str =
     "https://raw.githubusercontent.com/chenqi92/protoforge-plugins/main/registry.json";
 
-// ── Built-in Native Parsers ──
-// 内置解析器已用 Rust 原生实现 (builtin_parsers.rs)，无需 JS 文件。
-// 这里仅提供 manifest 元信息供插件列表 UI 展示。
+// ── Plugin Runtime Dispatch ──
+// 统一插件运行时：通过注册表动态分发，零硬编码。
+// 支持三种运行时：Native (Rust fn) / JavaScript (boa_engine) / WASM (wasmtime)
 
-fn get_native_parser_manifests() -> Vec<PluginManifest> {
-    vec![
-        PluginManifest {
-            id: "hj212-parser".into(),
-            name: "HJ212 协议解析".into(),
-            version: "2.0.0".into(),
-            description: "国标 HJ 212-2017 环保数据传输协议解析器（Rust 原生实现）".into(),
-            author: "ProtoForge 官方".into(),
-            plugin_type: PluginType::ProtocolParser,
-            icon: "🔬".into(),
-            entrypoint: "native".into(),
-            protocol_ids: vec!["hj212".into()],
-            tags: vec!["环保".into(), "HJ212".into()],
-            installed: true,
-            download_url: None,
-            source: "native".into(),
-        },
-        PluginManifest {
-            id: "sfjk200-parser".into(),
-            name: "SFJK200 协议解析".into(),
-            version: "2.0.0".into(),
-            description: "SFJK200 水文监测数据通信协议解析器（Rust 原生实现）".into(),
-            author: "ProtoForge 官方".into(),
-            plugin_type: PluginType::ProtocolParser,
-            icon: "🌊".into(),
-            entrypoint: "native".into(),
-            protocol_ids: vec!["sfjk200".into()],
-            tags: vec!["水文".into(), "SFJK200".into()],
-            installed: true,
-            download_url: None,
-            source: "native".into(),
-        },
-    ]
+/// 插件运行时类型
+pub enum ParserRuntime {
+    /// Rust 原生函数指针 — 零开销，最快
+    Native(fn(&str) -> ParseResult),
+    /// JavaScript 脚本 (boa_engine 解释执行)
+    JavaScript,
+    /// WASM 模块 (wasmtime JIT)
+    Wasm,
 }
 
-/// 检查 plugin_id 是否为内置原生解析器
-fn is_native_parser(plugin_id: &str) -> bool {
-    matches!(plugin_id, "hj212-parser" | "sfjk200-parser")
+/// 注册到统一注册表中的插件条目
+pub struct RegisteredPlugin {
+    pub manifest: PluginManifest,
+    pub runtime: ParserRuntime,
 }
 
 // ── Plugin Manager ──
 
 pub struct PluginManager {
     plugins_dir: PathBuf,
-    /// Cache of installed plugin manifests
-    installed: RwLock<HashMap<String, PluginManifest>>,
+    /// 统一插件注册表：包含所有已注册的插件（native + installed JS/WASM）
+    registry: RwLock<HashMap<String, RegisteredPlugin>>,
     /// Cached remote registry manifests (refreshed on demand)
     remote_cache: RwLock<Option<Vec<PluginManifest>>>,
     /// Registry URL
@@ -193,25 +169,32 @@ impl PluginManager {
         let plugins_dir = app_data_dir.join("plugins");
         Self {
             plugins_dir,
-            installed: RwLock::new(HashMap::new()),
+            registry: RwLock::new(HashMap::new()),
             remote_cache: RwLock::new(None),
             registry_url: DEFAULT_REGISTRY_URL.to_string(),
         }
     }
 
-    /// Scan the plugins directory and load all installed plugin manifests.
+    /// 注册一个 Rust 原生解析器到统一注册表。
+    /// 在 lib.rs 启动时调用，完全可拓展 — 新增解析器无需修改 PluginManager 代码。
+    pub async fn register_native(
+        &self,
+        manifest: PluginManifest,
+        parse_fn: fn(&str) -> ParseResult,
+    ) {
+        let id = manifest.id.clone();
+        self.registry.write().await.insert(id, RegisteredPlugin {
+            manifest,
+            runtime: ParserRuntime::Native(parse_fn),
+        });
+    }
+
+    /// 扫描插件目录，加载所有已安装的 JS/WASM 插件到注册表。
+    /// 注意：native 插件通过 register_native() 单独注册，不在此处理。
     pub async fn scan_installed(&self) -> Result<(), String> {
-        // Ensure plugins directory exists
         tokio::fs::create_dir_all(&self.plugins_dir)
             .await
             .map_err(|e| format!("创建插件目录失败: {}", e))?;
-
-        let mut manifests = HashMap::new();
-
-        // 注入内置原生解析器（始终可用）
-        for m in get_native_parser_manifests() {
-            manifests.insert(m.id.clone(), m);
-        }
 
         let mut entries = tokio::fs::read_dir(&self.plugins_dir)
             .await
@@ -233,7 +216,18 @@ impl PluginManager {
                     match serde_json::from_str::<PluginManifest>(&content) {
                         Ok(mut manifest) => {
                             manifest.installed = true;
-                            manifests.insert(manifest.id.clone(), manifest);
+                            let id = manifest.id.clone();
+                            // 不覆盖已注册的 native 插件
+                            let mut reg = self.registry.write().await;
+                            if !reg.contains_key(&id) {
+                                // 根据 entrypoint 扩展名决定运行时
+                                let runtime = if manifest.entrypoint.ends_with(".wasm") {
+                                    ParserRuntime::Wasm
+                                } else {
+                                    ParserRuntime::JavaScript
+                                };
+                                reg.insert(id, RegisteredPlugin { manifest, runtime });
+                            }
                         }
                         Err(e) => {
                             log::warn!("解析插件 manifest 失败 {:?}: {}", manifest_path, e);
@@ -246,14 +240,13 @@ impl PluginManager {
             }
         }
 
-        *self.installed.write().await = manifests;
         Ok(())
     }
 
     /// List all installed plugins.
     pub async fn list_installed(&self) -> Vec<PluginManifest> {
-        let map = self.installed.read().await;
-        map.values().cloned().collect()
+        let reg = self.registry.read().await;
+        reg.values().map(|r| r.manifest.clone()).collect()
     }
 
     /// Refresh remote registry — fetch from remote URL and cache.
@@ -296,56 +289,50 @@ impl PluginManager {
 
     /// List all available plugins: merge built-in + remote, mark installed.
     /// Tries remote cache first; if empty, fetches from remote.
-    /// Falls back to built-in plugins if remote is unavailable.
+    /// List all available plugins: merge registered + remote, mark installed.
     pub async fn list_available(&self) -> Vec<PluginManifest> {
         // Try to refresh remote if not cached
         {
             let cache = self.remote_cache.read().await;
             if cache.is_none() {
                 drop(cache);
-                // Try to fetch remote, but don't fail
                 let _ = self.refresh_registry().await;
             }
         }
 
-        let installed = self.installed.read().await;
+        let registry = self.registry.read().await;
         let remote_cache = self.remote_cache.read().await;
 
-        // Start with remote plugins if available
         let mut all_plugins: HashMap<String, PluginManifest> = HashMap::new();
 
-        if let Some(remote_plugins) = remote_cache.as_ref() {
-            for p in remote_plugins {
-                all_plugins.insert(p.id.clone(), p.clone());
-            }
+        // 1. 注册表中的插件（已安装，包含 native/JS/WASM）
+        for (id, rp) in registry.iter() {
+            all_plugins.insert(id.clone(), rp.manifest.clone());
         }
 
-        // 注入内置原生解析器
-        for m in get_native_parser_manifests() {
-            all_plugins.entry(m.id.clone()).or_insert(m);
+        // 2. 远程仓库中的插件
+        if let Some(remote_plugins) = remote_cache.as_ref() {
+            for p in remote_plugins {
+                all_plugins.entry(p.id.clone()).or_insert(p.clone());
+            }
         }
 
         // Mark installed
         all_plugins
             .into_values()
             .map(|mut m| {
-                m.installed = installed.contains_key(&m.id);
+                m.installed = registry.contains_key(&m.id);
                 m
             })
             .collect()
     }
 
-    /// Install a plugin by its ID (remote only, native parsers are always available).
+    /// Install a plugin by its ID.
     pub async fn install(&self, plugin_id: &str) -> Result<PluginManifest, String> {
-        // 内置原生解析器无需安装
-        if is_native_parser(plugin_id) {
-            return Err(format!("插件 '{}' 是内置原生解析器，无需安装", plugin_id));
-        }
-
-        // Check if already installed
+        // 检查是否已在注册表中
         {
-            let map = self.installed.read().await;
-            if map.contains_key(plugin_id) {
+            let reg = self.registry.read().await;
+            if reg.contains_key(plugin_id) {
                 return Err(format!("插件 '{}' 已安装", plugin_id));
             }
         }
@@ -437,10 +424,20 @@ impl PluginManager {
         manifest.installed = true;
         manifest.source = "remote".to_string();
 
-        self.installed
+        // 根据 entrypoint 确定运行时类型
+        let runtime = if manifest.entrypoint.ends_with(".wasm") {
+            ParserRuntime::Wasm
+        } else {
+            ParserRuntime::JavaScript
+        };
+
+        self.registry
             .write()
             .await
-            .insert(plugin_id.to_string(), manifest.clone());
+            .insert(plugin_id.to_string(), RegisteredPlugin {
+                manifest: manifest.clone(),
+                runtime,
+            });
 
         log::info!("远程插件安装成功: {}", plugin_id);
         Ok(manifest)
@@ -448,12 +445,14 @@ impl PluginManager {
 
     /// Uninstall a plugin by removing its directory.
     pub async fn uninstall(&self, plugin_id: &str) -> Result<(), String> {
-        if is_native_parser(plugin_id) {
-            return Err(format!("插件 '{}' 是内置原生解析器，无法卸载", plugin_id));
-        }
+        // 检查是否为 native 插件（不可卸载）
         {
-            let map = self.installed.read().await;
-            if !map.contains_key(plugin_id) {
+            let reg = self.registry.read().await;
+            if let Some(rp) = reg.get(plugin_id) {
+                if matches!(rp.runtime, ParserRuntime::Native(_)) {
+                    return Err(format!("插件 '{}' 是内置原生解析器，无法卸载", plugin_id));
+                }
+            } else {
                 return Err(format!("插件 '{}' 未安装", plugin_id));
             }
         }
@@ -465,17 +464,18 @@ impl PluginManager {
                 .map_err(|e| format!("删除插件目录失败: {}", e))?;
         }
 
-        self.installed.write().await.remove(plugin_id);
+        self.registry.write().await.remove(plugin_id);
         Ok(())
     }
 
     /// Get all protocol parsers from installed plugins.
     pub async fn get_protocol_parsers(&self) -> Vec<ProtocolParser> {
-        let map = self.installed.read().await;
+        let reg = self.registry.read().await;
         let mut parsers = Vec::new();
 
-        for manifest in map.values() {
-            if manifest.plugin_type == PluginType::ProtocolParser {
+        for rp in reg.values() {
+            if rp.manifest.plugin_type == PluginType::ProtocolParser {
+                let manifest = &rp.manifest;
                 for protocol_id in &manifest.protocol_ids {
                     parsers.push(ProtocolParser {
                         plugin_id: manifest.id.clone(),
@@ -490,41 +490,47 @@ impl PluginManager {
     }
 
     /// Execute a plugin's parse function on raw data.
-    /// 优先使用 Rust 原生解析器（零开销），回退到 JS 运行时。
+    /// 通过统一注册表动态分发到正确的运行时，零硬编码。
     pub async fn parse_data(
         &self,
         plugin_id: &str,
         raw_data: &str,
     ) -> Result<ParseResult, String> {
-        // 短路：内置 Rust 原生解析器（比 JS 快 50-100x）
-        match plugin_id {
-            "hj212-parser" => return Ok(crate::builtin_parsers::parse_hj212(raw_data)),
-            "sfjk200-parser" => return Ok(crate::builtin_parsers::parse_sfjk200(raw_data)),
-            _ => {}
+        // 从注册表查找插件及其运行时类型
+        let reg = self.registry.read().await;
+        let rp = reg
+            .get(plugin_id)
+            .ok_or_else(|| format!("插件 '{}' 未注册", plugin_id))?;
+
+        match &rp.runtime {
+            // Rust 原生函数指针 — 直接调用，零开销
+            ParserRuntime::Native(parse_fn) => {
+                let f = *parse_fn;
+                drop(reg); // 释放锁
+                Ok(f(raw_data))
+            }
+            // JavaScript — boa_engine 解释执行
+            ParserRuntime::JavaScript => {
+                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                drop(reg);
+                let script = tokio::fs::read_to_string(&script_path)
+                    .await
+                    .map_err(|e| format!("读取插件脚本失败: {}", e))?;
+                let raw_data = raw_data.to_string();
+                let result = tokio::task::spawn_blocking(move || {
+                    execute_parse_script(&script, &raw_data)
+                })
+                .await
+                .map_err(|e| format!("执行插件失败: {}", e))??;
+                Ok(result)
+            }
+            // WASM — wasmtime JIT（委托给 WasmPluginRuntime）
+            ParserRuntime::Wasm => {
+                drop(reg);
+                // WASM 执行通过独立的 WasmPluginRuntime 处理
+                Err(format!("WASM 插件 '{}' 请通过 wasm_parse_data 命令调用", plugin_id))
+            }
         }
-
-        // 回退: JS 运行时 (boa_engine)
-        let script_path = {
-            let map = self.installed.read().await;
-            let manifest = map
-                .get(plugin_id)
-                .ok_or_else(|| format!("插件 '{}' 未安装", plugin_id))?;
-            self.plugins_dir.join(plugin_id).join(&manifest.entrypoint)
-        };
-
-        let script = tokio::fs::read_to_string(&script_path)
-            .await
-            .map_err(|e| format!("读取插件脚本失败: {}", e))?;
-
-        let raw_data = raw_data.to_string();
-
-        let result = tokio::task::spawn_blocking(move || {
-            execute_parse_script(&script, &raw_data)
-        })
-        .await
-        .map_err(|e| format!("执行插件失败: {}", e))??;
-
-        Ok(result)
     }
 }
 

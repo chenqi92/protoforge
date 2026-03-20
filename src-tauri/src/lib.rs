@@ -20,7 +20,7 @@ use ws_client::WsConnections;
 use tcp_client::{TcpConnections, TcpServers, UdpSockets};
 use load_test::LoadTestState;
 use proxy_capture::ProxyState;
-use plugin_runtime::PluginManager;
+use plugin_runtime::{PluginManager, PluginManifest, PluginType};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -62,6 +62,46 @@ pub fn run() {
             let wasm_rt = wasm_runtime::WasmPluginRuntime::new(&app_data);
             let handle2 = app.handle().clone();
             tauri::async_runtime::block_on(async move {
+                // ── 注册内置 Rust 原生解析器（通过统一插件 API，非硬编码）──
+                plugin_mgr.register_native(
+                    PluginManifest {
+                        id: "hj212-parser".into(),
+                        name: "HJ212 协议解析".into(),
+                        version: "2.0.0".into(),
+                        description: "国标 HJ 212-2017 环保数据传输协议解析器（Rust 原生实现）".into(),
+                        author: "ProtoForge 官方".into(),
+                        plugin_type: PluginType::ProtocolParser,
+                        icon: "🔬".into(),
+                        entrypoint: "native".into(),
+                        protocol_ids: vec!["hj212".into()],
+                        tags: vec!["环保".into(), "HJ212".into()],
+                        installed: true,
+                        download_url: None,
+                        source: "native".into(),
+                    },
+                    builtin_parsers::parse_hj212,
+                ).await;
+
+                plugin_mgr.register_native(
+                    PluginManifest {
+                        id: "sfjk200-parser".into(),
+                        name: "SFJK200 协议解析".into(),
+                        version: "2.0.0".into(),
+                        description: "SFJK200 水文监测数据通信协议解析器（Rust 原生实现）".into(),
+                        author: "ProtoForge 官方".into(),
+                        plugin_type: PluginType::ProtocolParser,
+                        icon: "🌊".into(),
+                        entrypoint: "native".into(),
+                        protocol_ids: vec!["sfjk200".into()],
+                        tags: vec!["水文".into(), "SFJK200".into()],
+                        installed: true,
+                        download_url: None,
+                        source: "native".into(),
+                    },
+                    builtin_parsers::parse_sfjk200,
+                ).await;
+
+                // 扫描磁盘上的 JS/WASM 插件
                 if let Err(e) = plugin_mgr.scan_installed().await {
                     log::warn!("扫描插件目录失败: {}", e);
                 }
