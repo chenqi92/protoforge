@@ -20,6 +20,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { openToolWindow, type ToolWindowType } from "@/lib/windowManager";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { UpdateChecker } from "@/components/settings/UpdateChecker";
+import { WindowScaffold } from "@/components/layout/WindowScaffold";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 
 function App() {
@@ -33,7 +34,7 @@ function App() {
   useKeyboardShortcuts();
   useSettingsEffect();
   useLanguageSync();
-  useRoundedCorners();
+  useRoundedCorners(18);
 
   // Listen for Ctrl+K command palette toggle
   useEffect(() => {
@@ -123,58 +124,62 @@ function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-bg-primary">
-      <TitleBar onOpenTool={handleOpenTool} />
+    <>
+      <WindowScaffold
+        header={<TitleBar onOpenTool={handleOpenTool} />}
+        footer={(
+          <StatusBar
+            activeModule={activeTab?.protocol || "ready"}
+            responseTime={activeTab?.httpResponse?.durationMs}
+            responseSize={activeTab?.httpResponse?.bodySize}
+          />
+        )}
+        stageClassName="bg-bg-primary/72"
+      >
+        <div className="h-full">
+          <PanelGroup orientation="horizontal">
+            <Panel
+              id="sidebar"
+              defaultSize={String(useSettingsStore.getState().settings.sidebarWidth || 22)}
+              minSize="14"
+              maxSize="50"
+              collapsible
+              collapsedSize="44px"
+              panelRef={sidebarPanelRef}
+              onResize={handleSidebarResize}
+              className="relative flex h-full shrink-0 flex-col"
+            >
+              <Sidebar
+                panelCollapsed={sidebarCollapsed}
+                onTogglePanel={handleSidebarToggle}
+              />
+            </Panel>
+            <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/70 transition-colors hover:bg-accent active:bg-accent" />
 
-      <div className="flex-1 overflow-hidden">
-        <PanelGroup orientation="horizontal">
-          <Panel
-            id="sidebar"
-            defaultSize={String(useSettingsStore.getState().settings.sidebarWidth || 22)}
-            minSize="14"
-            maxSize="50"
-            collapsible
-            collapsedSize="44px"
-            panelRef={sidebarPanelRef}
-            onResize={handleSidebarResize}
-            className="flex flex-col h-full shrink-0 relative"
-          >
-            <Sidebar
-              panelCollapsed={sidebarCollapsed}
-              onTogglePanel={handleSidebarToggle}
-            />
-          </Panel>
-          <PanelResizeHandle className="w-[1px] bg-border-default relative shrink-0 cursor-col-resize hover:bg-accent active:bg-accent transition-colors" />
+            <Panel className="flex flex-col overflow-hidden bg-bg-primary/70">
+              <TabBar
+                tabs={displayTabs}
+                activeTabId={activeTabId}
+                onTabChange={setActiveTab}
+                onTabClose={closeTab}
+                onNewTab={handleNewTab}
+                onProtocolChange={handleProtocolChange}
+                onReorder={reorderTabs}
+              />
 
-          <Panel className="flex flex-col overflow-hidden bg-bg-primary">
-            <TabBar
-              tabs={displayTabs}
-              activeTabId={activeTabId}
-              onTabChange={setActiveTab}
-              onTabClose={closeTab}
-              onNewTab={handleNewTab}
-              onProtocolChange={handleProtocolChange}
-              onReorder={reorderTabs}
-            />
-
-            <div className="flex-1 overflow-hidden">
-              {renderWorkspace()}
-            </div>
-          </Panel>
-        </PanelGroup>
-      </div>
-
-      <StatusBar
-        activeModule={activeTab?.protocol || "ready"}
-        responseTime={activeTab?.httpResponse?.durationMs}
-        responseSize={activeTab?.httpResponse?.bodySize}
-      />
+              <div className="flex-1 overflow-hidden">
+                {renderWorkspace()}
+              </div>
+            </Panel>
+          </PanelGroup>
+        </div>
+      </WindowScaffold>
 
       <PluginModal open={pluginModalOpen} onClose={() => setPluginModalOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
       <UpdateChecker />
-    </div>
+    </>
   );
 }
 

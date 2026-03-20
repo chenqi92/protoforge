@@ -51,11 +51,11 @@
   --tabbar-height: 44px;
   --statusbar-height: 28px;
 
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
 
   /* Button height tiers */
   --btn-height-xs: 24px;
@@ -143,12 +143,19 @@
   html, body, #root {
     height: 100%;
     overflow: hidden;
-    background: var(--color-bg-app);
+    background:
+      radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 32%),
+      radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 28%),
+      var(--color-bg-app);
     color: var(--color-text-primary);
     font-family: var(--font-sans);
     font-size: 13px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    user-select: auto;
+  }
+
+  button, label, summary, img {
     user-select: none;
   }
 

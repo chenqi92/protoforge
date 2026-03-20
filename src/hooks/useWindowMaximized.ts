@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
-export function useRoundedCorners(cornerRadius: number = 10) {
+export function useRoundedCorners(cornerRadius: number = 18) {
   useEffect(() => {
     async function enableRoundedCorners() {
       try {

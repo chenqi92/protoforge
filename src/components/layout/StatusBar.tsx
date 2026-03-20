@@ -1,5 +1,3 @@
-
-
 interface StatusBarProps {
   connectionStatus?: "connected" | "disconnected";
   responseTime?: number;
@@ -19,9 +17,9 @@ export function StatusBar({
   };
 
   return (
-    <div className="h-[var(--statusbar-height)] flex items-center justify-between px-4 bg-transparent text-[11px] text-text-tertiary select-none shrink-0 border-t border-border-default md:border-transparent">
+    <div className="flex h-[var(--statusbar-height)] shrink-0 items-center justify-between border-t border-border-default/70 bg-bg-primary/72 px-4 text-[11px] text-text-tertiary backdrop-blur-sm select-none">
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 font-medium px-2 py-0.5 rounded-full bg-border-subtle/50">
+        <div className="flex items-center gap-1.5 rounded-full border border-border-default/60 bg-bg-secondary/85 px-2.5 py-1 font-medium">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
           <span className="text-text-secondary tracking-wider">{activeModule.toUpperCase()}</span>
         </div>
