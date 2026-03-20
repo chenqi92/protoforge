@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "./i18n"; // i18n 初始化 — 必须在组件渲染前
 import "./index.css";
 
 // 根据 URL query param 决定渲染哪个窗口

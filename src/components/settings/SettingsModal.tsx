@@ -210,6 +210,17 @@ function GeneralSection({ settings, update, onThemeChange }: SectionProps & { on
           <option value="system">系统字体</option>
         </select>
       </SettingRow>
+
+      <SettingRow label="界面语言" desc="切换应用界面语言 / Switch UI language">
+        <select
+          value={settings.language}
+          onChange={(e) => update('language', e.target.value as AppSettings['language'])}
+          className="cfg-select text-[12px]"
+        >
+          <option value="zh-CN">中文</option>
+          <option value="en">English</option>
+        </select>
+      </SettingRow>
     </>
   );
 }

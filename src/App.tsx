@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSettingsEffect } from "@/hooks/useSettingsEffect";
+import { useLanguageSync } from "@/hooks/useLanguageSync";
 import { TitleBar } from "@/components/layout/TitleBar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TabBar, type Tab } from "@/components/layout/TabBar";
@@ -30,6 +31,7 @@ function App() {
   // Mount global keyboard shortcuts
   useKeyboardShortcuts();
   useSettingsEffect();
+  useLanguageSync();
 
   // Listen for Ctrl+K command palette toggle
   useEffect(() => {
