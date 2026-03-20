@@ -52,7 +52,7 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
       {/* Right: tools + theme + window controls */}
       <div className="flex items-center no-drag">
         {/* Tool buttons */}
-        <div className="flex items-center border-r border-border-default mr-2 pr-2 h-5">
+        <div className="flex items-center border-r border-border-default mr-2 pr-2 h-6">
           {tools.map((t) => {
             const Icon = t.icon;
             return (
@@ -65,7 +65,7 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
                     t.color
                   )}
                 >
-                  <Icon className="w-[14px] h-[14px]" />
+                  <Icon className="w-[15px] h-[15px]" />
                 </button>
               </Tooltip>
             );
@@ -81,7 +81,7 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
             const nextIdx = (nextModes.indexOf(mode) + 1) % nextModes.length;
             useSettingsStore.getState().update('theme', nextModes[nextIdx]);
           }}
-          className="w-8 h-8 flex items-center justify-center rounded-full text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors mr-2"
+          className="w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)] text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors mr-2"
           title={mode === 'system' ? '跟随系统' : mode === 'dark' ? '深色模式' : '浅色模式'}
         >
           {mode === 'system' ? <Monitor className="w-4 h-4" /> : resolved === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

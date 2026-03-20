@@ -208,22 +208,31 @@ function TabItem({ tab, index: _index, isActive, isDragOver, onClick, onClose, o
         onDrop={onDrop}
         onDragEnd={onDragEnd}
         className={cn(
-          "group relative flex items-center gap-2 px-3 h-[34px] rounded-t-lg rounded-b-none",
-          "cursor-pointer transition-all duration-[var(--transition-fast)] border-t-[2.5px] border-x border-b",
-          "min-w-[130px] max-w-[240px] shrink-0",
+          "group relative flex items-center gap-2 px-3 h-[32px] rounded-lg",
+          "cursor-pointer transition-all duration-[var(--transition-fast)] border",
+          "min-w-[110px] max-w-[220px] shrink-0",
           isActive
-            ? "bg-bg-primary border-t-accent border-x-border-default border-b-[3px] border-b-transparent text-text-primary shadow-[0_-4px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.3)] z-10 font-medium"
-            : "bg-transparent border-transparent border-b-border-default text-text-tertiary hover:text-text-secondary hover:bg-bg-hover/80",
+            ? "bg-bg-primary border-border-default text-text-primary shadow-sm z-10 font-medium"
+            : "bg-transparent border-transparent text-text-tertiary hover:text-text-secondary hover:bg-bg-hover/80",
           isDragOver && "ring-2 ring-accent/50"
         )}
       >
+        {/* Active indicator line */}
+        {isActive && (
+          <motion.div
+            layoutId="tab-active-indicator"
+            className="absolute bottom-0 left-2 right-2 h-[2px] bg-accent rounded-full"
+            transition={{ type: "spring", stiffness: 500, damping: 35 }}
+          />
+        )}
+
         {/* Protocol badge */}
         <div className="relative">
           <button
             ref={badgeRef}
             onClick={openPicker}
             className={cn(
-              "text-[10px] font-bold px-1.5 py-0.5 rounded-[4px] leading-none shrink-0",
+              "text-[10px] font-bold px-1.5 py-0.5 rounded-[4px] leading-none shrink-0 transition-colors",
               badgeColor
             )}
           >

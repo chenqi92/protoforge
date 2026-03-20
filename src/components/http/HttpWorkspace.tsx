@@ -120,7 +120,7 @@ export function HttpWorkspace() {
           <button
             onClick={() => setShowMethods(!showMethods)}
             className={cn(
-              "flex items-center gap-1 h-7 px-2.5 rounded-md text-[12px] font-bold transition-colors hover:bg-bg-hover",
+              "flex items-center gap-1 h-8 px-2.5 rounded-md text-[12px] font-bold transition-colors hover:bg-bg-hover",
               methodTextColor[config.method] || "text-text-primary"
             )}
           >
@@ -190,7 +190,7 @@ export function HttpWorkspace() {
         <button
           onClick={() => setShowSaveDialog(true)}
           data-save-button
-          className="h-7 px-2.5 rounded-md flex items-center justify-center gap-1 text-[12px] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors shrink-0"
+          className="h-8 px-2.5 rounded-md flex items-center justify-center gap-1 text-[12px] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors shrink-0"
           title="保存请求 (Ctrl+S)"
         >
           <Save className="w-3.5 h-3.5" />
@@ -202,7 +202,7 @@ export function HttpWorkspace() {
           disabled={loading || !config.url.trim()}
           data-send-button
           className={cn(
-            "h-7 px-4 rounded-md flex items-center justify-center gap-1.5 text-[12px] font-semibold text-white bg-accent transition-all shrink-0",
+            "h-8 px-4 rounded-md flex items-center justify-center gap-1.5 text-[12px] font-semibold text-white bg-accent transition-all shrink-0",
             loading ? "opacity-90 cursor-wait shadow-[0_0_12px_rgba(59,130,246,0.6)] animate-pulse" : "hover:bg-accent-hover active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
           )}
         >
@@ -217,7 +217,7 @@ export function HttpWorkspace() {
               pushLoadTestConfig(config);
             }}
             disabled={!config.url.trim()}
-            className="h-7 px-2.5 rounded-md flex items-center justify-center gap-1 text-[12px] font-medium text-text-tertiary hover:bg-rose-500/10 hover:text-rose-600 transition-colors shrink-0 disabled:opacity-40"
+            className="h-8 px-2.5 rounded-md flex items-center justify-center gap-1 text-[12px] font-medium text-text-tertiary hover:bg-rose-500/10 hover:text-rose-600 transition-colors shrink-0 disabled:opacity-40"
             title="发送到压测"
           >
             <Flame className="w-3.5 h-3.5" />
@@ -236,7 +236,7 @@ export function HttpWorkspace() {
                 key={t.key}
                 onClick={() => setReqTab(t.key)}
                 className={cn(
-                  "px-4 py-3 text-[13px] font-medium border-b-[2px] transition-colors whitespace-nowrap",
+                  "px-4 py-2.5 text-[13px] font-medium border-b-[2px] transition-colors whitespace-nowrap",
                   reqTab === t.key ? "text-accent border-accent" : "text-text-tertiary border-transparent hover:text-text-secondary"
                 )}
               >
@@ -463,7 +463,7 @@ export function HttpWorkspace() {
                       key={t}
                       onClick={() => setResTab(t)}
                       className={cn(
-                        "px-4 py-3 text-[13px] font-medium border-b-[2px] transition-colors whitespace-nowrap",
+                        "px-4 py-2.5 text-[13px] font-medium border-b-[2px] transition-colors whitespace-nowrap",
                         resTab === t ? "text-accent border-accent" : "text-text-tertiary border-transparent hover:text-text-secondary"
                       )}
                     >

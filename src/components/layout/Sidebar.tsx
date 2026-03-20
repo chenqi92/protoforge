@@ -72,7 +72,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
   return (
     <div className="h-full flex">
       {/* ── Icon Rail ── */}
-      <div className="w-11 h-full flex flex-col items-center pt-2 pb-3 bg-bg-tertiary/50 border-r border-border-default shrink-0">
+      <div className="w-12 h-full flex flex-col items-center pt-2 pb-3 bg-bg-tertiary/50 border-r border-border-default shrink-0">
         {navItems.map(({ id, icon: Icon, label }) => {
           const isActive = activeView === id && !panelCollapsed;
           return (
@@ -106,7 +106,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
       {!panelCollapsed && (
         <div className="flex-1 h-full flex flex-col bg-bg-secondary overflow-hidden min-w-0">
           {/* Panel Header */}
-          <div className="shrink-0 px-3 pt-3 pb-2.5 border-b border-border-subtle">
+          <div className="shrink-0 px-3 py-3 border-b border-border-subtle">
             <div className="flex items-center justify-between mb-2.5">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-[13px] font-semibold text-text-primary truncate">
@@ -118,7 +118,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                   <>
                     <button
                       onClick={handleNewCollection}
-                      className="h-6 px-2 flex items-center gap-1 text-[11px] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
+                      className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
                       title="新建集合"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -126,7 +126,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                     </button>
                     <button
                       onClick={handleImport}
-                      className="h-6 px-2 flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary rounded-md transition-colors"
+                      className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary rounded-md transition-colors"
                       title="导入"
                     >
                       <Download className="w-3 h-3" />
@@ -137,7 +137,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 {activeView === "environments" && (
                   <button
                     onClick={handleNewEnvironment}
-                    className="h-6 px-2 flex items-center gap-1 text-[11px] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
+                    className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
                     title="新增环境"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -154,7 +154,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`搜索${navItems.find(n => n.id === activeView)?.label}...`}
-                className="w-full h-[30px] pl-8 pr-3 text-[12px] bg-bg-primary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary transition-all"
+                className="w-full h-8 pl-8 pr-3 text-[12px] bg-bg-primary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary transition-all"
               />
             </div>
           </div>

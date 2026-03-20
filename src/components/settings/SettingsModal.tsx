@@ -136,14 +136,14 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
     <button
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative w-9 h-5 rounded-full transition-colors',
+        'relative w-10 h-[22px] rounded-full transition-colors',
         checked ? 'bg-accent' : 'bg-bg-tertiary'
       )}
     >
       <div
         className={cn(
-          'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform',
-          checked && 'translate-x-4'
+          'absolute top-[2px] left-[2px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform',
+          checked && 'translate-x-[18px]'
         )}
       />
     </button>
@@ -173,7 +173,7 @@ function GeneralSection({ settings, update, onThemeChange }: SectionProps & { on
               key={t.id}
               onClick={() => onThemeChange(t.id)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all border',
+                'flex items-center gap-1.5 px-3 h-8 rounded-lg text-[11px] font-medium transition-all border',
                 settings.theme === t.id
                   ? 'bg-accent/10 border-accent/30 text-accent'
                   : 'bg-bg-secondary border-border-default text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
@@ -285,7 +285,7 @@ function ProxySection({ settings, update }: SectionProps) {
                   key={t}
                   onClick={() => update('proxyType', t)}
                   className={cn(
-                    'px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-all',
+                    'px-3 h-8 rounded-lg text-[11px] font-medium border transition-all',
                     settings.proxyType === t
                       ? 'bg-accent/10 border-accent/30 text-accent'
                       : 'bg-bg-secondary border-border-default text-text-tertiary hover:bg-bg-hover'
