@@ -27,7 +27,7 @@ interface AppStore {
   addTab: (protocol?: ProtocolType) => string;
   addCollectionTab: (collectionId: string, name: string) => string;
   closeTab: (id: string) => void;
-  setActiveTab: (id: string) => void;
+  setActiveTab: (id: string | null) => void;
   updateTab: (id: string, updates: Partial<AppTab>) => void;
   setTabProtocol: (id: string, protocol: ProtocolType) => void;
 
@@ -36,6 +36,7 @@ interface AppStore {
   closeOtherTabs: (id: string) => void;
   closeTabsToRight: (id: string) => void;
   duplicateTab: (id: string) => void;
+  reorderTabs: (fromIndex: number, toIndex: number) => void;
   nextTab: () => void;
   prevTab: () => void;
 
@@ -140,6 +141,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }));
   },
 
+  reorderTabs: (fromIndex, toIndex) => {
+    set((state) => {
+      const tabs = [...state.tabs];
+      const [moved] = tabs.splice(fromIndex, 1);
+      tabs.splice(toIndex, 0, moved);
+      return { tabs };
+    });
+  },
   closeOtherTabs: (id) => {
     set((s) => ({
       tabs: s.tabs.filter((t) => t.id === id),

@@ -39,6 +39,10 @@ pub fn run() {
                 handle.manage(pool);
             });
 
+            // 注册 Tauri 插件
+            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            app.handle().plugin(tauri_plugin_process::init())?;
+
             // 初始化连接管理器
             app.manage(WsConnections::new());
             app.manage(TcpConnections::new());
@@ -107,6 +111,7 @@ pub fn run() {
             // WebSocket
             commands::ws_connect,
             commands::ws_send,
+            commands::ws_send_binary,
             commands::ws_disconnect,
             // TCP Client
             commands::tcp_connect,

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderOpen, FolderPlus, ChevronRight, ChevronDown,
-  MoreHorizontal, Upload,
+  MoreHorizontal, Upload, Play,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getMethodColor } from '@/types/http';
@@ -31,6 +31,7 @@ interface Collection {
 
 interface CollectionTreeProps {
   onSelectRequest?: (request: CollectionRequest) => void;
+  onRunCollection?: (collectionId: string, collectionName: string) => void;
 }
 
 function TreeItem({ item, depth, onSelect }: {
@@ -94,7 +95,7 @@ function TreeItem({ item, depth, onSelect }: {
   );
 }
 
-export function CollectionTree({ onSelectRequest }: CollectionTreeProps) {
+export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionTreeProps) {
   const [collections] = useState<Collection[]>([]);
   const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
 
@@ -149,6 +150,13 @@ export function CollectionTree({ onSelectRequest }: CollectionTreeProps) {
               }
               <FolderOpen className="w-3.5 h-3.5 text-accent shrink-0" />
               <span className="text-xs font-medium text-text-primary truncate flex-1">{col.name}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onRunCollection?.(col.id, col.name); }}
+                className="p-0.5 opacity-0 group-hover:opacity-100 text-emerald-500 hover:text-emerald-600 transition-all"
+                title="批量运行"
+              >
+                <Play className="w-3 h-3" />
+              </button>
               <button className="p-0.5 opacity-0 group-hover:opacity-100 text-text-disabled hover:text-text-secondary transition-all">
                 <MoreHorizontal className="w-3 h-3" />
               </button>

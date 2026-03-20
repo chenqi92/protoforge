@@ -1,6 +1,8 @@
 import { Minus, Square, X, Sun, Moon, Monitor, Gauge, Radio, Puzzle, Settings, Network } from "lucide-react";
 import { useThemeStore } from "@/stores/themeStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useAppStore } from "@/stores/appStore";
+import { Tooltip } from "@/components/common/Tooltip";
 import { cn } from "@/lib/utils";
 import logoSvg from "@/assets/logo.svg";
 
@@ -35,10 +37,14 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
   return (
     <div className="h-[var(--titlebar-height)] flex items-center justify-between bg-transparent drag-region select-none shrink-0">
       {/* Left: brand */}
-      <div className="flex items-center gap-2.5 pl-5 no-drag">
+      <button 
+        onClick={() => useAppStore.getState().setActiveTab(null)}
+        className="flex items-center gap-2.5 pl-5 no-drag hover:opacity-80 transition-opacity"
+        title="返回主页"
+      >
         <img src={logoSvg} alt="ProtoForge" className="w-5 h-5 rounded-[4px]" />
         <span className="text-[13px] font-bold text-text-primary tracking-wide">ProtoForge</span>
-      </div>
+      </button>
 
       {/* Center: spacer for drag */}
       <div className="flex-1" />
@@ -50,18 +56,18 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
           {tools.map((t) => {
             const Icon = t.icon;
             return (
-              <button
-                key={t.id}
-                onClick={() => onOpenTool?.(t.id)}
-                className={cn(
-                  "w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)]",
-                  "text-text-tertiary transition-colors mx-0.5 hover:bg-bg-hover",
-                  t.color
-                )}
-                title={t.label}
-              >
-                <Icon className="w-[14px] h-[14px]" />
-              </button>
+              <Tooltip key={t.id} content={t.label}>
+                <button
+                  onClick={() => onOpenTool?.(t.id)}
+                  className={cn(
+                    "w-8 h-8 flex items-center justify-center rounded-[var(--radius-sm)]",
+                    "text-text-tertiary transition-colors mx-0.5 hover:bg-bg-hover",
+                    t.color
+                  )}
+                >
+                  <Icon className="w-[14px] h-[14px]" />
+                </button>
+              </Tooltip>
             );
           })}
         </div>

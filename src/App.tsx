@@ -17,6 +17,7 @@ import { useAppStore, type ProtocolType } from "@/stores/appStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { openToolWindow, type ToolWindowType } from "@/lib/windowManager";
 import { CommandPalette } from "@/components/ui/CommandPalette";
+import { UpdateChecker } from "@/components/settings/UpdateChecker";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
   const closeTab = useAppStore((s) => s.closeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
+  const reorderTabs = useAppStore((s) => s.reorderTabs);
 
   const displayTabs: Tab[] = tabs.map((t) => ({
     id: t.id,
@@ -148,6 +150,7 @@ function App() {
               onTabClose={closeTab}
               onNewTab={handleNewTab}
               onProtocolChange={handleProtocolChange}
+              onReorder={reorderTabs}
             />
 
             <div className="flex-1 overflow-hidden">
@@ -166,6 +169,7 @@ function App() {
       <PluginModal open={pluginModalOpen} onClose={() => setPluginModalOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
+      <UpdateChecker />
     </div>
   );
 }

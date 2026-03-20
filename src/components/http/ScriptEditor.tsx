@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Code, Copy, Check, Eraser, BookOpen, ChevronDown } from 'lucide-react';
+import { CodeEditor } from '@/components/common/CodeEditor';
 
 
 interface ScriptEditorProps {
@@ -29,15 +30,10 @@ const SNIPPETS: Record<string, { label: string; code: string }[]> = {
   ],
 };
 
-export function ScriptEditor({ value, onChange, placeholder, type }: ScriptEditorProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
+  const editorRef = useRef<any>(null);
   const [copied, setCopied] = useState(false);
   const [showSnippets, setShowSnippets] = useState(false);
-  const [lineCount, setLineCount] = useState(1);
-
-  useEffect(() => {
-    setLineCount(Math.max(1, (value || '').split('\n').length));
-  }, [value]);
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(value);
@@ -47,42 +43,23 @@ export function ScriptEditor({ value, onChange, placeholder, type }: ScriptEdito
 
   const handleClear = useCallback(() => {
     onChange('');
-    textareaRef.current?.focus();
+    editorRef.current?.focus();
   }, [onChange]);
 
   const insertSnippet = useCallback((code: string) => {
-    const ta = textareaRef.current;
-    if (ta) {
-      const start = ta.selectionStart;
-      const before = value.substring(0, start);
-      const after = value.substring(ta.selectionEnd);
-      const newVal = before + code + after;
-      onChange(newVal);
-      // Set cursor after inserted snippet
-      requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = start + code.length;
-        ta.focus();
-      });
+    const editor = editorRef.current;
+    if (editor) {
+      const selection = editor.getSelection();
+      editor.executeEdits('snippet', [{
+        range: selection,
+        text: code,
+        forceMoveMarkers: true
+      }]);
+      editor.focus();
     } else {
-      onChange(value + code);
+      onChange(value + "\n" + code);
     }
     setShowSnippets(false);
-  }, [value, onChange]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Tab 键插入 2 个空格
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const ta = e.currentTarget;
-      const start = ta.selectionStart;
-      const before = value.substring(0, start);
-      const after = value.substring(ta.selectionEnd);
-      const newVal = before + '  ' + after;
-      onChange(newVal);
-      requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = start + 2;
-      });
-    }
   }, [value, onChange]);
 
   const snippets = SNIPPETS[type] || [];
@@ -151,30 +128,14 @@ export function ScriptEditor({ value, onChange, placeholder, type }: ScriptEdito
 
       {/* Editor Area */}
       <div className="flex-1 flex border border-border-default rounded-lg overflow-hidden bg-bg-input focus-within:border-accent transition-colors">
-        {/* Line Numbers */}
-        <div className="w-10 shrink-0 border-r border-border-default bg-bg-secondary/50 py-3 select-none overflow-hidden">
-          {Array.from({ length: lineCount }, (_, i) => (
-            <div key={i} className="text-[12px] font-mono text-text-disabled text-right pr-2 leading-[20px]">
-              {i + 1}
-            </div>
-          ))}
+        <div className="flex-1 h-full w-full">
+          <CodeEditor
+            value={value}
+            onChange={onChange}
+            language="javascript"
+            onMount={(editor) => { editorRef.current = editor; }}
+          />
         </div>
-
-        {/* Code Area */}
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder || (type === 'pre'
-            ? '// 在发送请求前执行的脚本\n// 可用于设置变量、生成签名等'
-            : '// 在收到响应后执行的脚本\n// 可用于断言、提取变量等'
-          )}
-          className="flex-1 px-3 py-3 font-mono text-[13px] text-text-secondary bg-transparent resize-none outline-none leading-[20px] placeholder:text-text-tertiary/50"
-          style={{ tabSize: 2, userSelect: 'text' }}
-          spellCheck={false}
-          wrap="off"
-        />
       </div>
 
       {/* Helper text */}

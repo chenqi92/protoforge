@@ -241,8 +241,9 @@ pub async fn ws_connect(
     connections: State<'_, WsConnections>,
     connection_id: String,
     url: String,
+    headers: Option<std::collections::HashMap<String, String>>,
 ) -> Result<(), String> {
-    crate::ws_client::connect(app, &connections, connection_id, url).await
+    crate::ws_client::connect(app, &connections, connection_id, url, headers).await
 }
 
 #[tauri::command]
@@ -260,6 +261,15 @@ pub async fn ws_disconnect(
     connection_id: String,
 ) -> Result<(), String> {
     crate::ws_client::disconnect(&connections, &connection_id).await
+}
+
+#[tauri::command]
+pub async fn ws_send_binary(
+    connections: State<'_, WsConnections>,
+    connection_id: String,
+    data: Vec<u8>,
+) -> Result<(), String> {
+    crate::ws_client::send_binary(&connections, &connection_id, data).await
 }
 
 // ═══════════════════════════════════════════

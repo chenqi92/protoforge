@@ -22,6 +22,7 @@ interface TabBarProps {
   onTabClose: (id: string) => void;
   onNewTab: (protocol?: ProtocolType) => void;
   onProtocolChange: (id: string, protocol: ProtocolType) => void;
+  onReorder?: (fromIndex: number, toIndex: number) => void;
 }
 
 const protocolLabels: Record<ProtocolType, string> = {
@@ -46,9 +47,11 @@ const methodBadgeColors: Record<string, string> = {
   OPTIONS: "bg-gray-500/15 text-gray-600",
 };
 
-export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, onProtocolChange }: TabBarProps) {
+export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, onProtocolChange, onReorder }: TabBarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevTabCount = useRef(tabs.length);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (tabs.length > prevTabCount.current && scrollRef.current) {
@@ -59,19 +62,35 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
     prevTabCount.current = tabs.length;
   }, [tabs.length]);
 
+  const handleDragStart = (idx: number) => { dragIndexRef.current = idx; };
+  const handleDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); setDragOverIndex(idx); };
+  const handleDrop = (idx: number) => {
+    if (dragIndexRef.current !== null && dragIndexRef.current !== idx) {
+      onReorder?.(dragIndexRef.current, idx);
+    }
+    dragIndexRef.current = null; setDragOverIndex(null);
+  };
+  const handleDragEnd = () => { dragIndexRef.current = null; setDragOverIndex(null); };
+
   return (
     <div className="h-[var(--tabbar-height)] flex items-center bg-bg-secondary/50 border-b border-border-default shrink-0 px-2">
       <div ref={scrollRef} className="flex-1 flex items-center overflow-x-auto scrollbar-hide py-1.5 gap-1">
         <AnimatePresence mode="popLayout">
-          {tabs.map((tab) => (
+          {tabs.map((tab, idx) => (
             <TabItem
               key={tab.id}
               tab={tab}
+              index={idx}
               isActive={tab.id === activeTabId}
+              isDragOver={dragOverIndex === idx}
               onClick={() => onTabChange(tab.id)}
               onClose={() => onTabClose(tab.id)}
               onProtocolChange={(p) => onProtocolChange(tab.id, p)}
               totalTabs={tabs.length}
+              onDragStart={() => handleDragStart(idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDrop={() => handleDrop(idx)}
+              onDragEnd={handleDragEnd}
             />
           ))}
         </AnimatePresence>
@@ -90,13 +109,19 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
 }
 
 
-function TabItem({ tab, isActive, onClick, onClose, onProtocolChange, totalTabs }: {
+function TabItem({ tab, index: _index, isActive, isDragOver, onClick, onClose, onProtocolChange, totalTabs, onDragStart, onDragOver, onDrop, onDragEnd }: {
   tab: Tab;
+  index: number;
   isActive: boolean;
+  isDragOver: boolean;
   onClick: () => void;
   onClose: () => void;
   onProtocolChange: (p: ProtocolType) => void;
   totalTabs: number;
+  onDragStart: () => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
 }) {
   const [showPicker, setShowPicker] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -177,13 +202,19 @@ function TabItem({ tab, isActive, onClick, onClose, onProtocolChange, totalTabs 
         onDoubleClick={handleDoubleClick}
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
+        draggable
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onDragEnd={onDragEnd}
         className={cn(
           "group relative flex items-center gap-2 px-3 h-[34px] rounded-t-lg rounded-b-none",
           "cursor-pointer transition-all duration-[var(--transition-fast)] border-t-[2.5px] border-x border-b",
           "min-w-[130px] max-w-[240px] shrink-0",
           isActive
-            ? "bg-bg-primary border-t-accent border-x-border-default border-b-transparent text-text-primary shadow-[0_-2px_10px_rgba(0,0,0,0.02)] z-10"
-            : "bg-transparent border-transparent border-b-border-default text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
+            ? "bg-bg-primary border-t-accent border-x-border-default border-b-[3px] border-b-transparent text-text-primary shadow-[0_-4px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.3)] z-10 font-medium"
+            : "bg-transparent border-transparent border-b-border-default text-text-tertiary hover:text-text-secondary hover:bg-bg-hover/80",
+          isDragOver && "ring-2 ring-accent/50"
         )}
       >
         {/* Protocol badge */}

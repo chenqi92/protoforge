@@ -165,20 +165,30 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
   }, [tabId]);
 
   // ─── Export ───
-  const handleExport = useCallback(() => {
-    const data = {
-      config: buildConfig(),
-      summary,
-      snapshots,
-    };
+  const handleExportJson = useCallback(() => {
+    const data = { config: buildConfig(), summary, snapshots };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
+    const u = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
+    a.href = u;
     a.download = `loadtest-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(u);
   }, [summary, snapshots, buildConfig]);
+
+  const handleExportCsv = useCallback(() => {
+    if (snapshots.length === 0) return;
+    const csvHeaders = ["elapsed_secs","total_requests","total_errors","rps","avg_latency_ms","min_latency_ms","max_latency_ms","p50_ms","p95_ms","p99_ms"];
+    const rows = snapshots.map(s => [s.elapsedSecs,s.totalRequests,s.totalErrors,s.rps.toFixed(2),s.avgLatencyMs.toFixed(2),s.minLatencyMs,s.maxLatencyMs,s.p50Ms,s.p95Ms,s.p99Ms].join(","));
+    const csv = [csvHeaders.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = u;
+    a.download = `loadtest-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
+    a.click();
+    URL.revokeObjectURL(u);
+  }, [snapshots]);
 
   // ─── Progress ───
   const progress = useMemo(() => {
@@ -289,9 +299,14 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
               高级配置
             </button>
             {(summary || snapshots.length > 0) && (
-              <button onClick={handleExport} className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:text-rose-600 hover:bg-rose-500/5 rounded-md transition-colors" title="导出 JSON">
-                <Download className="w-3 h-3" />导出
-              </button>
+              <>
+                <button onClick={handleExportJson} className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:text-rose-600 hover:bg-rose-500/5 rounded-md transition-colors" title="导出 JSON">
+                  <Download className="w-3 h-3" />JSON
+                </button>
+                <button onClick={handleExportCsv} className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:text-rose-600 hover:bg-rose-500/5 rounded-md transition-colors" title="导出 CSV">
+                  <Download className="w-3 h-3" />CSV
+                </button>
+              </>
             )}
           </div>
         </div>

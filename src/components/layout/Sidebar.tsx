@@ -323,10 +323,12 @@ function CollectionsView({ search }: { search: string }) {
   return (
     <div className="py-0.5">
       {filteredCollections.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-text-disabled">
-          <FolderOpen className="w-8 h-8 mb-2 opacity-30" />
-          <p className="text-[12px]">{search ? "无匹配集合" : "暂无集合"}</p>
-          <p className="text-[11px] mt-0.5 opacity-60">点击"新建"创建第一个集合</p>
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+          <div className="w-12 h-12 rounded-full bg-bg-hover flex items-center justify-center mb-3 shadow-sm border border-border-subtle">
+            <FolderOpen className="w-6 h-6 text-text-tertiary" />
+          </div>
+          <p className="text-[13px] font-medium text-text-secondary">{search ? "无匹配集合" : "暂无集合"}</p>
+          <p className="text-[11px] mt-1 text-text-disabled">点击上方“新建”开始构建您的 API 库。</p>
         </div>
       )}
       {filteredCollections.map((col) => {
@@ -535,10 +537,12 @@ function HistoryView({ search }: { search: string }) {
         </div>
       ))}
       {filtered.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-text-disabled">
-          <Clock className="w-8 h-8 mb-2 opacity-30" />
-          <p className="text-[12px]">{search ? "无匹配记录" : "暂无历史记录"}</p>
-          <p className="text-[11px] mt-0.5 opacity-60">发送请求后将自动记录</p>
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+          <div className="w-12 h-12 rounded-full bg-bg-hover flex items-center justify-center mb-3 shadow-sm border border-border-subtle">
+            <Clock className="w-6 h-6 text-text-tertiary" />
+          </div>
+          <p className="text-[13px] font-medium text-text-secondary">{search ? "无匹配记录" : "暂无历史记录"}</p>
+          <p className="text-[11px] mt-1 text-text-disabled leading-relaxed">发送的网络请求将在此留下足迹。</p>
         </div>
       )}
       {MenuComponent}

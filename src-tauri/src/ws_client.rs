@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio::sync::{mpsc, Mutex};
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::http;
 
 /// WebSocket 事件（后端 → 前端推送）
 #[derive(Debug, Clone, Serialize)]
@@ -21,9 +22,15 @@ pub struct WsEvent {
     pub timestamp: String,
 }
 
+/// 发送命令
+enum WsCmd {
+    Text(String),
+    Binary(Vec<u8>),
+}
+
 /// 单个连接的发送通道
 struct WsHandle {
-    sender: mpsc::Sender<String>,
+    sender: mpsc::Sender<WsCmd>,
     abort_handle: tokio::task::AbortHandle,
 }
 
@@ -44,24 +51,34 @@ fn now_iso() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
 
-/// 建立 WebSocket 连接
+/// 建立 WebSocket 连接（支持自定义 Headers）
 pub async fn connect(
     app: tauri::AppHandle,
     connections: &WsConnections,
     connection_id: String,
     url: String,
+    headers: Option<HashMap<String, String>>,
 ) -> Result<(), String> {
     // 先断开已有同 id 连接
     disconnect(connections, &connection_id).await.ok();
 
-    let (ws_stream, _response) = tokio_tungstenite::connect_async(&url)
+    // 构造带 headers 的请求
+    let mut req_builder = http::Request::builder().uri(&url);
+    if let Some(hdrs) = &headers {
+        for (k, v) in hdrs {
+            req_builder = req_builder.header(k.as_str(), v.as_str());
+        }
+    }
+    let request = req_builder.body(()).map_err(|e| format!("构建请求失败: {}", e))?;
+
+    let (ws_stream, _response) = tokio_tungstenite::connect_async(request)
         .await
         .map_err(|e| format!("WebSocket 连接失败: {}", e))?;
 
     let (mut write, mut read) = ws_stream.split();
 
     // 创建发送通道
-    let (tx, mut rx) = mpsc::channel::<String>(256);
+    let (tx, mut rx) = mpsc::channel::<WsCmd>(256);
 
     // 通知前端已连接
     let _ = app.emit(
@@ -84,8 +101,12 @@ pub async fn connect(
     let task = tokio::spawn(async move {
         // spawn 写入子任务
         let write_task = tokio::spawn(async move {
-            while let Some(msg) = rx.recv().await {
-                if write.send(Message::Text(msg.into())).await.is_err() {
+            while let Some(cmd) = rx.recv().await {
+                let msg = match cmd {
+                    WsCmd::Text(s) => Message::Text(s.into()),
+                    WsCmd::Binary(b) => Message::Binary(b.into()),
+                };
+                if write.send(msg).await.is_err() {
                     break;
                 }
             }
@@ -174,7 +195,7 @@ pub async fn connect(
     Ok(())
 }
 
-/// 发送 WebSocket 消息
+/// 发送 WebSocket 文本消息
 pub async fn send(
     connections: &WsConnections,
     connection_id: &str,
@@ -187,7 +208,25 @@ pub async fn send(
 
     handle
         .sender
-        .send(message)
+        .send(WsCmd::Text(message))
+        .await
+        .map_err(|_| "发送失败: 连接已关闭".to_string())
+}
+
+/// 发送 WebSocket 二进制消息
+pub async fn send_binary(
+    connections: &WsConnections,
+    connection_id: &str,
+    data: Vec<u8>,
+) -> Result<(), String> {
+    let conns = connections.connections.lock().await;
+    let handle = conns
+        .get(connection_id)
+        .ok_or_else(|| "连接不存在或已断开".to_string())?;
+
+    handle
+        .sender
+        .send(WsCmd::Binary(data))
         .await
         .map_err(|_| "发送失败: 连接已关闭".to_string())
 }

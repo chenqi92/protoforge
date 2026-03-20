@@ -8,6 +8,7 @@ import type { OAuth2Config } from "@/types/http";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { SaveRequestDialog } from "./SaveRequestDialog";
 import { ScriptEditor } from "./ScriptEditor";
+import { CodeEditor } from "@/components/common/CodeEditor";
 import { ResponseViewer } from "@/components/ui/ResponseViewer";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
@@ -135,7 +136,7 @@ export function HttpWorkspace() {
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="输入请求 URL，如 https://api.example.com/v1/users"
           data-url-input
-          className="flex-1 h-full px-2 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary"
+          className="flex-1 h-full px-2 bg-transparent text-[14px] font-mono text-text-primary outline-none placeholder:text-text-tertiary"
         />
 
         {/* Save Button */}
@@ -153,7 +154,10 @@ export function HttpWorkspace() {
           onClick={handleSend}
           disabled={loading || !config.url.trim()}
           data-send-button
-          className="h-7 px-4 rounded-md flex items-center justify-center gap-1.5 text-[12px] font-semibold text-white bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] transition-all shrink-0"
+          className={cn(
+            "h-7 px-4 rounded-md flex items-center justify-center gap-1.5 text-[12px] font-semibold text-white bg-accent transition-all shrink-0",
+            loading ? "opacity-90 cursor-wait shadow-[0_0_12px_rgba(59,130,246,0.6)] animate-pulse" : "hover:bg-accent-hover active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
+          )}
         >
           {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-white" />}
           {loading ? "发送中" : "发送"}
@@ -218,38 +222,35 @@ export function HttpWorkspace() {
                 <div className="flex-1 min-h-0 relative">
                   {config.bodyType === "none" && <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[13px]">无需请求体</div>}
                   {config.bodyType === "json" && (
-                    <textarea
-                      value={config.jsonBody}
-                      onChange={(e) => updateHttpConfig(tabId, { jsonBody: e.target.value })}
-                      placeholder={'{\n  "key": "value"\n}'}
-                      className="w-full h-full p-3 font-mono text-[13px] bg-bg-input border border-border-default rounded-lg text-text-secondary resize-none outline-none focus:border-accent transition-colors"
-                      style={{ userSelect: "text", tabSize: 2 }}
-                      spellCheck={false}
-                    />
+                    <div className="w-full h-full border border-border-default rounded-lg overflow-hidden bg-bg-input focus-within:border-accent transition-colors">
+                      <CodeEditor
+                        value={config.jsonBody || ''}
+                        onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
+                        language="json"
+                      />
+                    </div>
                   )}
                   {config.bodyType === "graphql" && (
                     <div className="flex flex-col h-full gap-3">
                       <div className="flex-1 min-h-0">
                         <label className="text-[11px] font-medium text-text-secondary mb-1 block">Query</label>
-                        <textarea
-                          value={config.graphqlQuery}
-                          onChange={(e) => updateHttpConfig(tabId, { graphqlQuery: e.target.value })}
-                          placeholder={'query {\n  users {\n    id\n    name\n  }\n}'}
-                          className="w-full h-[calc(100%-20px)] p-3 font-mono text-[13px] bg-bg-input border border-border-default rounded-lg text-text-secondary resize-none outline-none focus:border-accent transition-colors"
-                          style={{ userSelect: "text", tabSize: 2 }}
-                          spellCheck={false}
-                        />
+                        <div className="w-full h-[calc(100%-20px)] border border-border-default rounded-lg overflow-hidden bg-bg-input focus-within:border-accent transition-colors">
+                          <CodeEditor
+                            value={config.graphqlQuery || ''}
+                            onChange={(v) => updateHttpConfig(tabId, { graphqlQuery: v })}
+                            language="graphql"
+                          />
+                        </div>
                       </div>
                       <div className="h-28 shrink-0">
                         <label className="text-[11px] font-medium text-text-secondary mb-1 block">Variables (JSON)</label>
-                        <textarea
-                          value={config.graphqlVariables}
-                          onChange={(e) => updateHttpConfig(tabId, { graphqlVariables: e.target.value })}
-                          placeholder={'{\n  "id": 1\n}'}
-                          className="w-full h-[calc(100%-20px)] p-3 font-mono text-[12px] bg-bg-input border border-border-default rounded-lg text-text-secondary resize-none outline-none focus:border-accent transition-colors"
-                          style={{ userSelect: "text", tabSize: 2 }}
-                          spellCheck={false}
-                        />
+                        <div className="w-full h-[calc(100%-20px)] border border-border-default rounded-lg overflow-hidden bg-bg-input focus-within:border-accent transition-colors">
+                          <CodeEditor
+                            value={config.graphqlVariables || ''}
+                            onChange={(v) => updateHttpConfig(tabId, { graphqlVariables: v })}
+                            language="json"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -266,14 +267,13 @@ export function HttpWorkspace() {
                         <option value="application/javascript">JavaScript</option>
                         <option value="text/css">CSS</option>
                       </select>
-                      <textarea
-                        value={config.rawBody}
-                        onChange={(e) => updateHttpConfig(tabId, { rawBody: e.target.value })}
-                        placeholder="Enter raw request body..."
-                        className="w-full flex-1 p-3 font-mono text-[13px] bg-bg-input border border-border-default rounded-lg text-text-secondary resize-none outline-none focus:border-accent transition-colors"
-                        style={{ userSelect: "text" }}
-                        spellCheck={false}
-                      />
+                      <div className="w-full flex-1 border border-border-default rounded-lg overflow-hidden bg-bg-input focus-within:border-accent transition-colors">
+                        <CodeEditor
+                          value={config.rawBody || ''}
+                          onChange={(v) => updateHttpConfig(tabId, { rawBody: v })}
+                          language={config.rawContentType === 'application/javascript' ? 'javascript' : config.rawContentType === 'text/css' ? 'css' : config.rawContentType === 'text/html' ? 'html' : config.rawContentType === 'application/xml' ? 'xml' : 'plaintext'}
+                        />
+                      </div>
                     </div>
                   )}
                   {config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-1 px-1"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" /></div>}

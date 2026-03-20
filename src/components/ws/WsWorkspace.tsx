@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown, AlertTriangle } from "lucide-react";
+import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown, AlertTriangle, Search, Settings2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
 import { InlineJsonViewer } from "@/components/ui/ResponseViewer";
 import type { WsMessage, WsEvent } from "@/types/ws";
+
+interface KVItem { key: string; value: string; enabled: boolean }
 
 export function WsWorkspace() {
   const activeTab = useAppStore((s) => s.getActiveTab());
@@ -12,185 +14,195 @@ export function WsWorkspace() {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [message, setMessage] = useState("");
+  const [sendMode, setSendMode] = useState<"text" | "binary">("text");
   const [messages, setMessages] = useState<WsMessage[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showHeaders, setShowHeaders] = useState(false);
+  const [headers, setHeaders] = useState<KVItem[]>([{ key: "", value: "", enabled: true }]);
+  const [autoReconnect, setAutoReconnect] = useState(false);
+  const [heartbeatEnabled, setHeartbeatEnabled] = useState(false);
+  const [heartbeatInterval, setHeartbeatInterval] = useState(30);
+  const [heartbeatMsg, setHeartbeatMsg] = useState("ping");
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const tabId = activeTab?.id;
 
-  // 自动滚动到底部
+  // 自动滚动
   useEffect(() => {
     if (autoScroll && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, autoScroll]);
 
-  // 监听滚动判断是否在底部
   const handleScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-    setAutoScroll(atBottom);
+    setAutoScroll(el.scrollHeight - el.scrollTop - el.clientHeight < 50);
   }, []);
 
-  // 监听 WebSocket 事件
+  // 心跳定时器
+  useEffect(() => {
+    if (connected && heartbeatEnabled && heartbeatInterval > 0) {
+      heartbeatTimerRef.current = setInterval(async () => {
+        try {
+          const { wsSend } = await import("@/services/wsService");
+          if (tabId) await wsSend(tabId, heartbeatMsg);
+        } catch {}
+      }, heartbeatInterval * 1000);
+    }
+    return () => { if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current); };
+  }, [connected, heartbeatEnabled, heartbeatInterval, heartbeatMsg, tabId]);
+
+  // 监听 WS 事件
   useEffect(() => {
     if (!tabId) return;
-
     let unlisten: (() => void) | null = null;
 
     const setup = async () => {
       const { onWsEvent } = await import("@/services/wsService");
       unlisten = await onWsEvent((event: WsEvent) => {
         if (event.connectionId !== tabId) return;
-
         switch (event.eventType) {
           case "connected":
             setConnected(true);
             setConnecting(false);
+            if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
             break;
           case "message":
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: crypto.randomUUID(),
-                direction: "received",
-                data: event.data || "",
-                dataType: (event.dataType as "text" | "binary") || "text",
-                timestamp: event.timestamp,
-                size: event.size || 0,
-              },
-            ]);
+            setMessages((prev) => [...prev, {
+              id: crypto.randomUUID(),
+              direction: "received",
+              data: event.data || "",
+              dataType: (event.dataType as "text" | "binary") || "text",
+              timestamp: event.timestamp,
+              size: event.size || 0,
+            }]);
             break;
           case "disconnected":
             setConnected(false);
             setConnecting(false);
+            // 自动重连
+            if (autoReconnect && !reconnectTimerRef.current) {
+              reconnectTimerRef.current = setTimeout(() => {
+                reconnectTimerRef.current = null;
+                doConnect();
+              }, 3000);
+            }
             break;
           case "error":
             setConnected(false);
             setConnecting(false);
-            // 添加错误消息到消息列表
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: crypto.randomUUID(),
-                direction: "received",
-                data: `[ERROR] 错误: ${event.data}`,
-                dataType: "text",
-                timestamp: event.timestamp,
-                size: 0,
-              },
-            ]);
+            setMessages((prev) => [...prev, {
+              id: crypto.randomUUID(), direction: "received",
+              data: `[ERROR] 错误: ${event.data}`, dataType: "text",
+              timestamp: event.timestamp, size: 0,
+            }]);
             break;
         }
       });
     };
-
     setup();
-    return () => { unlisten?.(); };
-  }, [tabId]);
+    return () => { unlisten?.(); if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabId, autoReconnect]);
 
   if (!activeTab) return null;
   const url = activeTab.wsUrl || "ws://localhost:8080";
 
+  const doConnect = async () => {
+    setConnecting(true);
+    try {
+      const { wsConnect } = await import("@/services/wsService");
+      const headerMap: Record<string, string> = {};
+      headers.filter(h => h.enabled && h.key.trim()).forEach(h => { headerMap[h.key] = h.value; });
+      await wsConnect(activeTab.id, url, Object.keys(headerMap).length > 0 ? headerMap : null);
+    } catch (err: unknown) {
+      setConnecting(false);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setMessages((prev) => [...prev, {
+        id: crypto.randomUUID(), direction: "received",
+        data: `[ERROR] 连接失败: ${errMsg}`, dataType: "text",
+        timestamp: new Date().toISOString(), size: 0,
+      }]);
+    }
+  };
+
   const handleConnect = async () => {
     if (connected) {
+      setAutoReconnect(false); // 手动断开时停止自动重连
       const { wsDisconnect } = await import("@/services/wsService");
       await wsDisconnect(activeTab.id);
       setConnected(false);
     } else {
-      setConnecting(true);
-      try {
-        const { wsConnect } = await import("@/services/wsService");
-        await wsConnect(activeTab.id, url);
-      } catch (err: unknown) {
-        setConnecting(false);
-        const errMsg = err instanceof Error ? err.message : String(err);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            direction: "received",
-            data: `[ERROR] 连接失败: ${errMsg}`,
-            dataType: "text",
-            timestamp: new Date().toISOString(),
-            size: 0,
-          },
-        ]);
-      }
+      await doConnect();
     }
   };
 
   const handleSend = async () => {
     if (!connected || !message.trim()) return;
     try {
-      const { wsSend } = await import("@/services/wsService");
-      await wsSend(activeTab.id, message);
-      // 添加已发送消息
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          direction: "sent",
-          data: message,
-          dataType: "text",
-          timestamp: new Date().toISOString(),
-          size: new Blob([message]).size,
-        },
-      ]);
+      if (sendMode === "binary") {
+        // Parse hex string to bytes
+        const { wsSendBinary } = await import("@/services/wsService");
+        const bytes = message.trim().split(/\s+/).map(h => parseInt(h, 16)).filter(n => !isNaN(n));
+        await wsSendBinary(activeTab.id, bytes);
+        setMessages((prev) => [...prev, {
+          id: crypto.randomUUID(), direction: "sent",
+          data: bytes.map(b => b.toString(16).padStart(2, '0')).join(' '),
+          dataType: "binary", timestamp: new Date().toISOString(), size: bytes.length,
+        }]);
+      } else {
+        const { wsSend } = await import("@/services/wsService");
+        await wsSend(activeTab.id, message);
+        setMessages((prev) => [...prev, {
+          id: crypto.randomUUID(), direction: "sent", data: message,
+          dataType: "text", timestamp: new Date().toISOString(), size: new Blob([message]).size,
+        }]);
+      }
       setMessage("");
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          direction: "received",
-          data: `[ERROR] 发送失败: ${errMsg}`,
-          dataType: "text",
-          timestamp: new Date().toISOString(),
-          size: 0,
-        },
-      ]);
+      setMessages((prev) => [...prev, {
+        id: crypto.randomUUID(), direction: "received",
+        data: `[ERROR] 发送失败: ${errMsg}`, dataType: "text",
+        timestamp: new Date().toISOString(), size: 0,
+      }]);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const formatTime = (ts: string) => {
-    try {
-      const d = new Date(ts);
-      return d.toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    } catch {
-      return ts;
-    }
+    try { return new Date(ts).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+    catch { return ts; }
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  };
+  const formatSize = (bytes: number) => bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
+
+  // 消息过滤
+  const filteredMessages = searchQuery
+    ? messages.filter(m => m.data.toLowerCase().includes(searchQuery.toLowerCase()))
+    : messages;
+
+  const addHeader = () => setHeaders([...headers, { key: "", value: "", enabled: true }]);
+  const removeHeader = (i: number) => setHeaders(headers.filter((_, idx) => idx !== i));
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-bg-app">
       {/* Top Connection Bar */}
       <div className="shrink-0 p-4 pb-2">
         <div className="flex items-center h-12 rounded-[var(--radius-lg)] bg-bg-primary border border-border-default shadow-sm focus-within:ring-2 focus-within:ring-accent-muted focus-within:border-accent transition-all p-1">
-          {/* Protocol Badge */}
           <div className="relative h-full shrink-0">
             <div className="flex items-center justify-center gap-1.5 h-full px-4 rounded-[var(--radius-md)] text-[13px] font-bold text-white bg-amber-500 min-w-[90px] shadow-sm">
-              <Zap className="w-3.5 h-3.5" />
-              WS
+              <Zap className="w-3.5 h-3.5" /> WS
             </div>
           </div>
-
-          {/* URL Input */}
           <input
             value={url}
             onChange={(e) => updateTab(activeTab.id, { wsUrl: e.target.value })}
@@ -199,89 +211,104 @@ export function WsWorkspace() {
             disabled={connected}
             className="flex-1 h-full px-4 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary disabled:opacity-60"
           />
-
-          {/* Connect Button */}
+          {/* Settings toggle */}
+          <button onClick={() => setShowHeaders(!showHeaders)} className={cn("h-8 w-8 flex items-center justify-center rounded-md mr-1 transition-colors", showHeaders ? "bg-amber-500/10 text-amber-600" : "text-text-tertiary hover:bg-bg-hover")} title="连接设置">
+            <Settings2 className="w-3.5 h-3.5" />
+          </button>
           <button
             onClick={handleConnect}
             disabled={connecting}
             className={cn(
               "h-full px-6 rounded-[var(--radius-md)] flex items-center gap-2 text-[13px] font-semibold text-white ml-1 shrink-0 transition-all",
-              connected
-                ? "bg-red-500 hover:bg-red-600 hover:shadow-md active:scale-[0.98]"
-                : connecting
-                  ? "bg-amber-400 cursor-wait"
-                  : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 hover:shadow-md active:scale-[0.98]"
+              connected ? "bg-red-500 hover:bg-red-600" : connecting ? "bg-amber-400 cursor-wait" : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
             )}
           >
             {connected ? <X className="w-4 h-4" /> : <Plug className="w-4 h-4" />}
             {connected ? "断开" : connecting ? "连接中..." : "连接"}
           </button>
         </div>
+
+        {/* Headers / Settings Panel */}
+        {showHeaders && (
+          <div className="mt-2 p-3 bg-bg-primary border border-border-default rounded-xl space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <h4 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider">自定义 Headers</h4>
+                <button onClick={addHeader} className="text-[10px] text-accent hover:underline">+ 添加</button>
+              </div>
+              {headers.map((h, i) => (
+                <div key={i} className="flex items-center gap-1.5 mb-1">
+                  <input type="checkbox" checked={h.enabled} onChange={() => { const c = [...headers]; c[i].enabled = !c[i].enabled; setHeaders(c); }} className="accent-accent" />
+                  <input value={h.key} onChange={(e) => { const c = [...headers]; c[i].key = e.target.value; setHeaders(c); }} placeholder="Key" className="flex-1 h-7 px-2 text-[11px] bg-bg-input border border-border-default rounded text-text-primary outline-none" />
+                  <input value={h.value} onChange={(e) => { const c = [...headers]; c[i].value = e.target.value; setHeaders(c); }} placeholder="Value" className="flex-1 h-7 px-2 text-[11px] bg-bg-input border border-border-default rounded text-text-primary outline-none" />
+                  <button onClick={() => removeHeader(i)} className="text-text-disabled hover:text-red-500 p-0.5"><X className="w-3 h-3" /></button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-1.5 text-[11px] text-text-secondary cursor-pointer">
+                <input type="checkbox" checked={autoReconnect} onChange={() => setAutoReconnect(!autoReconnect)} className="accent-accent" />
+                <RefreshCw className="w-3 h-3" /> 自动重连
+              </label>
+              <label className="flex items-center gap-1.5 text-[11px] text-text-secondary cursor-pointer">
+                <input type="checkbox" checked={heartbeatEnabled} onChange={() => setHeartbeatEnabled(!heartbeatEnabled)} className="accent-accent" />
+                心跳
+              </label>
+              {heartbeatEnabled && (
+                <>
+                  <input value={heartbeatInterval} onChange={(e) => setHeartbeatInterval(Math.max(1, parseInt(e.target.value) || 30))} className="w-12 h-6 px-1 text-[10px] text-center bg-bg-input border border-border-default rounded text-text-primary" />
+                  <span className="text-[10px] text-text-disabled">秒</span>
+                  <input value={heartbeatMsg} onChange={(e) => setHeartbeatMsg(e.target.value)} className="w-20 h-6 px-1 text-[10px] bg-bg-input border border-border-default rounded text-text-primary" placeholder="ping" />
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col overflow-hidden p-4 pt-2">
         <div className="flex-1 flex flex-col bg-bg-primary rounded-2xl border border-border-default shadow-sm overflow-hidden panel">
-          {/* Status Header */}
+          {/* Status Header with search */}
           <div className="flex items-center justify-between px-4 py-2.5 bg-bg-secondary/40 border-b border-border-default shrink-0">
             <div className="flex items-center gap-2">
-              <div className={cn(
-                "w-2 h-2 rounded-full transition-colors",
-                connected
-                  ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"
-                  : "bg-text-disabled"
-              )} />
+              <div className={cn("w-2 h-2 rounded-full transition-colors", connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-text-disabled")} />
               <span className="text-[13px] font-medium text-text-secondary">
-                {connected ? "已连接" : connecting ? "连接中..." : "未连接"}
+                {connected ? "已连接" : connecting ? "连接中..." : autoReconnect ? "等待重连..." : "未连接"}
               </span>
-              {messages.length > 0 && (
-                <span className="text-[11px] text-text-tertiary ml-2">
-                  {messages.length} 条消息
-                </span>
-              )}
+              {messages.length > 0 && <span className="text-[11px] text-text-tertiary ml-2">{filteredMessages.length}/{messages.length} 条</span>}
             </div>
             <div className="flex items-center gap-1">
+              {/* 搜索框 */}
+              <div className="flex items-center gap-1 px-2 h-7 bg-bg-input border border-border-default rounded-md">
+                <Search className="w-3 h-3 text-text-disabled" />
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索消息..." className="w-28 text-[11px] bg-transparent outline-none text-text-primary placeholder:text-text-disabled" />
+                {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3 h-3" /></button>}
+              </div>
               {!autoScroll && messages.length > 0 && (
-                <button
-                  onClick={() => {
-                    setAutoScroll(true);
-                    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="flex items-center gap-1 px-2 py-1 text-[11px] text-accent hover:bg-accent-soft rounded-md transition-colors"
-                >
-                  <ArrowDown className="w-3 h-3" />
-                  滚到底部
+                <button onClick={() => { setAutoScroll(true); messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }} className="flex items-center gap-1 px-2 py-1 text-[11px] text-accent hover:bg-accent-soft rounded-md">
+                  <ArrowDown className="w-3 h-3" /> 底部
                 </button>
               )}
               {messages.length > 0 && (
-                <button
-                  onClick={() => setMessages([])}
-                  className="flex items-center gap-1 px-2 py-1 text-[11px] text-text-tertiary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"
-                  title="清空消息"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
+                <button onClick={() => setMessages([])} className="flex items-center gap-1 px-2 py-1 text-[11px] text-text-tertiary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md" title="清空"><Trash2 className="w-3 h-3" /></button>
               )}
             </div>
           </div>
 
-          {/* Messages Area */}
-          <div
-            ref={messagesContainerRef}
-            onScroll={handleScroll}
-            className="flex-1 overflow-auto p-5 bg-bg-input/30"
-          >
-            {messages.length === 0 ? (
+          {/* Messages */}
+          <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-auto p-5 bg-bg-input/30">
+            {filteredMessages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-text-disabled">
                 <div className="w-16 h-16 rounded-full bg-bg-secondary flex items-center justify-center mb-4 border border-border-default shadow-sm">
                   <Zap className="w-8 h-8 opacity-20 text-amber-500" />
                 </div>
-                <p className="text-[14px] font-medium text-text-secondary">WebSocket 调试</p>
-                <p className="text-[12px] mt-1">连接到服务器开始收发消息</p>
+                <p className="text-[14px] font-medium text-text-secondary">{searchQuery ? "无匹配消息" : "WebSocket 调试"}</p>
+                <p className="text-[12px] mt-1">{searchQuery ? "尝试调整搜索关键词" : "连接到服务器开始收发消息"}</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {messages.map((m) => (
+                {filteredMessages.map((m) => (
                   <div key={m.id} className={cn("flex", m.direction === "sent" ? "justify-end" : "justify-start")}>
                     <div className={cn(
                       "max-w-[75%] px-4 py-2.5 rounded-2xl text-[13px] font-mono break-words shadow-sm",
@@ -304,9 +331,7 @@ export function WsWorkspace() {
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className="text-[10px] opacity-50">{formatTime(m.timestamp)}</span>
                         {m.size > 0 && <span className="text-[10px] opacity-40">{formatSize(m.size)}</span>}
-                        {m.dataType === "binary" && (
-                          <span className="text-[9px] px-1.5 py-0.5 bg-bg-tertiary rounded text-text-tertiary font-sans">BIN</span>
-                        )}
+                        {m.dataType === "binary" && <span className="text-[9px] px-1.5 py-0.5 bg-bg-tertiary rounded text-text-tertiary font-sans">BIN</span>}
                       </div>
                     </div>
                   </div>
@@ -316,14 +341,20 @@ export function WsWorkspace() {
             )}
           </div>
 
-          {/* Message Input Bar */}
+          {/* Input Bar */}
           <div className="shrink-0 p-3 bg-bg-secondary/20 border-t border-border-default">
             <div className="flex items-end gap-2">
+              {/* Send mode toggle */}
+              <div className="flex flex-col gap-1 shrink-0">
+                <button onClick={() => setSendMode(sendMode === "text" ? "binary" : "text")} className={cn("h-7 px-2 text-[10px] font-semibold rounded border transition-colors", sendMode === "binary" ? "bg-violet-500/10 text-violet-600 border-violet-300" : "bg-bg-hover text-text-tertiary border-border-default")}>
+                  {sendMode === "text" ? "TEXT" : "HEX"}
+                </button>
+              </div>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="输入消息内容... (Enter 发送, Shift+Enter 换行)"
+                placeholder={sendMode === "binary" ? "输入十六进制字节，如 48 65 6C 6C 6F" : "输入消息内容... (Enter 发送, Shift+Enter 换行)"}
                 disabled={!connected}
                 className="flex-1 max-h-[120px] min-h-[44px] h-[44px] p-3 text-[13px] font-mono bg-bg-input border border-border-default rounded-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all outline-none resize-y disabled:opacity-50 disabled:cursor-not-allowed"
               />
@@ -332,8 +363,7 @@ export function WsWorkspace() {
                 disabled={!connected || !message.trim()}
                 className="h-[44px] px-5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center gap-1.5 text-[13px] font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95 shrink-0"
               >
-                <SendIcon className="w-4 h-4" />
-                发送
+                <SendIcon className="w-4 h-4" /> 发送
               </button>
             </div>
           </div>
