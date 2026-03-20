@@ -12,6 +12,8 @@ mod plugin_runtime;
 mod script_engine;
 mod sse_client;
 mod mqtt_client;
+mod wasm_runtime;
+mod builtin_parsers;
 
 use tauri::Manager;
 use ws_client::WsConnections;
@@ -57,12 +59,19 @@ pub fn run() {
 
             // 初始化插件管理器
             let plugin_mgr = PluginManager::new(&app_data);
+            let wasm_rt = wasm_runtime::WasmPluginRuntime::new(&app_data);
             let handle2 = app.handle().clone();
             tauri::async_runtime::block_on(async move {
                 if let Err(e) = plugin_mgr.scan_installed().await {
                     log::warn!("扫描插件目录失败: {}", e);
                 }
+                // 扫描 WASM 插件
+                let wasm_loaded = wasm_rt.scan_and_load().await;
+                if !wasm_loaded.is_empty() {
+                    log::info!("已加载 {} 个 WASM 插件", wasm_loaded.len());
+                }
                 handle2.manage(plugin_mgr);
+                handle2.manage(wasm_rt);
             });
 
             Ok(())
@@ -155,6 +164,11 @@ pub fn run() {
             commands::mqtt_publish,
             // Collection Runner
             commands::run_collection,
+            // WASM Plugins
+            commands::wasm_load_plugin,
+            commands::wasm_unload_plugin,
+            commands::wasm_parse_data,
+            commands::wasm_list_loaded,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

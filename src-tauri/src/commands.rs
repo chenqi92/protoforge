@@ -11,6 +11,7 @@ use crate::tcp_client::{TcpConnections, TcpServers, UdpSockets};
 use crate::load_test::{LoadTestConfig, LoadTestState};
 use crate::sse_client::{self, SseConnections, SseConnectRequest};
 use crate::mqtt_client::{self, MqttConnections, MqttConnectRequest};
+use crate::wasm_runtime::WasmPluginRuntime;
 use sqlx::SqlitePool;
 use tauri::{Manager, State, AppHandle};
 
@@ -769,4 +770,44 @@ pub async fn mqtt_publish(
     retain: bool,
 ) -> Result<(), String> {
     mqtt_client::publish(&conn_id, &topic, &payload, qos, retain, connections.inner().clone()).await
+}
+
+// ═══════════════════════════════════════════
+//  WASM Plugins
+// ═══════════════════════════════════════════
+
+#[tauri::command]
+pub async fn wasm_load_plugin(
+    runtime: State<'_, WasmPluginRuntime>,
+    plugin_id: String,
+) -> Result<serde_json::Value, String> {
+    let info = runtime.load_plugin(&plugin_id).await?;
+    serde_json::to_value(info).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn wasm_unload_plugin(
+    runtime: State<'_, WasmPluginRuntime>,
+    plugin_id: String,
+) -> Result<(), String> {
+    runtime.unload_plugin(&plugin_id).await;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn wasm_parse_data(
+    runtime: State<'_, WasmPluginRuntime>,
+    plugin_id: String,
+    raw_data: String,
+) -> Result<serde_json::Value, String> {
+    let result = runtime.parse_data(&plugin_id, &raw_data).await?;
+    serde_json::to_value(result).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn wasm_list_loaded(
+    runtime: State<'_, WasmPluginRuntime>,
+) -> Result<serde_json::Value, String> {
+    let list = runtime.list_loaded().await;
+    serde_json::to_value(list).map_err(|e| e.to_string())
 }
