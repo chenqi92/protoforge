@@ -60,7 +60,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
   };
 
   const handleNewCollection = async () => {
-    await createCollection(t('contextMenu.newFolder'));
+    await createCollection(t('sidebar.newCollection'));
   };
 
   const handleImport = () => {
@@ -110,11 +110,13 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
         <div className="flex-1 h-full flex flex-col bg-transparent overflow-hidden min-w-0">
           {/* Panel Header */}
           <div className="shrink-0 border-b border-border-subtle/70 bg-transparent px-3 py-2.5">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[13px] font-semibold text-text-primary truncate">
-                  {t(navItems.find(n => n.id === activeView)?.labelKey || '')}
-                </span>
+            <div className={cn("flex items-center justify-between", activeView === "collections" ? "mb-2" : "mb-2")}>
+              <div className="flex min-w-0 items-center gap-2">
+                {activeView !== "collections" ? (
+                  <span className="truncate text-[13px] font-semibold text-text-primary">
+                    {t(navItems.find(n => n.id === activeView)?.labelKey || '')}
+                  </span>
+                ) : null}
               </div>
               <div className="flex items-center gap-0.5 shrink-0">
                 {activeView === "collections" && (
@@ -122,10 +124,10 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                     <button
                       onClick={handleNewCollection}
                       className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[11px] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
-                      title={t('contextMenu.newFolder')}
+                      title={t('sidebar.new')}
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      {t('contextMenu.newFolder')}
+                      {t('sidebar.new')}
                     </button>
                     <button
                       onClick={handleImport}
@@ -256,10 +258,10 @@ function CollectionsView({ search }: { search: string }) {
     // Parse data
     let parsedHeaders: any[] = [];
     let parsedQueryParams: any[] = [];
-    let authConfig: Record<string, string> = {};
+    let authConfigRaw: Record<string, any> = {};
     try { if (item.headers) parsedHeaders = JSON.parse(item.headers); } catch { /* ignore */ }
     try { if (item.queryParams) parsedQueryParams = JSON.parse(item.queryParams); } catch { /* ignore */ }
-    try { if (item.authConfig) authConfig = JSON.parse(item.authConfig); } catch { /* ignore */ }
+    try { if (item.authConfig) authConfigRaw = JSON.parse(item.authConfig); } catch { /* ignore */ }
 
     // 如果解析出的不是数组（旧格式兼容），转换为 KeyValue 数组
     if (!Array.isArray(parsedHeaders)) {
@@ -269,21 +271,94 @@ function CollectionsView({ search }: { search: string }) {
       parsedQueryParams = Object.entries(parsedQueryParams).map(([k, v]) => ({ key: k, value: String(v), enabled: true }));
     }
 
+    // 适配两种 authConfig 格式（Postman 嵌套数组 vs ProtoForge 平面格式）
+    const findKV = (arr: any[] | undefined, key: string): string =>
+      arr?.find((kv: any) => kv.key === key)?.value ?? '';
+    const authConfig = (authConfigRaw.bearerToken !== undefined || authConfigRaw.basicUsername !== undefined)
+      ? {  // 平面格式（SaveRequestDialog 保存的）
+          bearerToken: authConfigRaw.bearerToken || '',
+          basicUsername: authConfigRaw.basicUsername || '',
+          basicPassword: authConfigRaw.basicPassword || '',
+          apiKeyName: authConfigRaw.apiKeyName || '',
+          apiKeyValue: authConfigRaw.apiKeyValue || '',
+          apiKeyAddTo: authConfigRaw.apiKeyAddTo || authConfigRaw.apiKeyIn || 'header',
+        }
+      : {  // Postman 嵌套数组格式
+          bearerToken: findKV(authConfigRaw.bearer, 'token'),
+          basicUsername: findKV(authConfigRaw.basic, 'username'),
+          basicPassword: findKV(authConfigRaw.basic, 'password'),
+          apiKeyName: findKV(authConfigRaw.apikey, 'key'),
+          apiKeyValue: findKV(authConfigRaw.apikey, 'value'),
+          apiKeyAddTo: findKV(authConfigRaw.apikey, 'in') || 'header',
+        };
+
+    // 根据 bodyType 正确恢复 body 到对应字段
+    const bodyContent = item.bodyContent || '';
+    const normalizedBodyType = item.bodyType === 'sse' ? 'none' : item.bodyType === 'graphql' ? 'json' : (item.bodyType || 'none');
+    const bodyUpdates: Partial<import('@/types/http').HttpRequestConfig> = {
+      requestMode: item.bodyType === 'sse' ? 'sse' : item.bodyType === 'graphql' ? 'graphql' : 'rest',
+      bodyType: normalizedBodyType as any,
+    };
+
+    switch (item.bodyType) {
+      case 'json':
+        bodyUpdates.jsonBody = bodyContent || '{\n  \n}';
+        break;
+      case 'raw':
+        bodyUpdates.rawBody = bodyContent;
+        break;
+      case 'formUrlencoded':
+        try {
+          const formObj = JSON.parse(bodyContent);
+          if (typeof formObj === 'object' && !Array.isArray(formObj)) {
+            bodyUpdates.formFields = Object.entries(formObj).map(([k, v]) => ({ key: k, value: String(v), enabled: true }));
+          } else if (Array.isArray(formObj)) {
+            bodyUpdates.formFields = formObj;
+          }
+        } catch { bodyUpdates.rawBody = bodyContent; }
+        break;
+      case 'formData':
+        try {
+          const fdArr = JSON.parse(bodyContent);
+          if (Array.isArray(fdArr)) {
+            bodyUpdates.formDataFields = fdArr;
+          }
+        } catch { bodyUpdates.rawBody = bodyContent; }
+        break;
+      case 'binary':
+        bodyUpdates.binaryFilePath = bodyContent;
+        break;
+      case 'graphql':
+        try {
+          const gql = JSON.parse(bodyContent);
+          bodyUpdates.graphqlQuery = gql.query || '';
+          bodyUpdates.graphqlVariables = gql.variables || '';
+        } catch {
+          bodyUpdates.graphqlQuery = bodyContent;
+        }
+        break;
+      case 'sse':
+        bodyUpdates.bodyType = 'none';
+        break;
+      default:
+        bodyUpdates.rawBody = bodyContent;
+        break;
+    }
+
     updateHttpConfig(tabId, {
       method: (item.method || 'GET') as any,
       url: item.url || '',
       name: item.name,
       headers: parsedHeaders.length > 0 ? parsedHeaders : [{ key: '', value: '', enabled: true }],
       queryParams: parsedQueryParams.length > 0 ? parsedQueryParams : [{ key: '', value: '', enabled: true }],
-      rawBody: item.bodyContent || '',
-      bodyType: (item.bodyType || 'none') as any,
+      ...bodyUpdates,
       authType: (item.authType || 'none') as any,
-      bearerToken: authConfig.bearerToken || '',
-      basicUsername: authConfig.basicUsername || '',
-      basicPassword: authConfig.basicPassword || '',
-      apiKeyName: authConfig.apiKeyName || '',
-      apiKeyValue: authConfig.apiKeyValue || '',
-      apiKeyAddTo: (authConfig.apiKeyIn || 'header') as any,
+      bearerToken: authConfig.bearerToken,
+      basicUsername: authConfig.basicUsername,
+      basicPassword: authConfig.basicPassword,
+      apiKeyName: authConfig.apiKeyName,
+      apiKeyValue: authConfig.apiKeyValue,
+      apiKeyAddTo: authConfig.apiKeyAddTo as any,
       preScript: item.preScript || '',
       postScript: item.postScript || '',
     });
@@ -561,10 +636,22 @@ function CollectionsView({ search }: { search: string }) {
 function HistoryView({ search }: { search: string }) {
   const { t } = useTranslation();
   const addTab = useAppStore((s) => s.addTab);
+  const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const { showMenu, MenuComponent } = useContextMenu();
 
   const entries = useHistoryStore((s) => s.entries);
   const deleteEntry = useHistoryStore((s) => s.deleteEntry);
+
+  // 从历史记录恢复请求到新 tab
+  const handleOpenHistoryEntry = (entry: HistoryEntry) => {
+    const tabId = addTab('http');
+    if (!entry.requestConfig) return;
+    try {
+      const config = JSON.parse(entry.requestConfig);
+      updateHttpConfig(tabId, config);
+      useAppStore.getState().renameTab(tabId, `${entry.method} ${entry.url}`);
+    } catch { /* requestConfig 解析失败时保留空 tab */ }
+  };
 
   const methodColors: Record<string, { text: string; bg: string }> = {
     GET: { text: "text-emerald-600", bg: "bg-emerald-500/8" },
@@ -599,9 +686,9 @@ function HistoryView({ search }: { search: string }) {
   const filtered = entries.filter((e) => !search || e.url.includes(search) || e.method.includes(search.toUpperCase()));
   const groups = groupByDate(filtered);
 
-  const handleHistoryContextMenu = (e: React.MouseEvent, entry: { id: string; url: string }) => {
+  const handleHistoryContextMenu = (e: React.MouseEvent, entry: HistoryEntry) => {
     const menuItems: ContextMenuEntry[] = [
-      { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
+      { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => handleOpenHistoryEntry(entry) },
       { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => navigator.clipboard.writeText(entry.url) },
       { type: "divider" },
       { id: "delete", label: t('sidebar.deleteRecord'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteEntry(entry.id) },
@@ -631,7 +718,7 @@ function HistoryView({ search }: { search: string }) {
             return (
               <button
                 key={h.id}
-                onDoubleClick={() => addTab("http")}
+                onDoubleClick={() => handleOpenHistoryEntry(h)}
                 onContextMenu={(e) => handleHistoryContextMenu(e, h)}
                 className="w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[12px] hover:bg-bg-hover transition-colors group"
               >

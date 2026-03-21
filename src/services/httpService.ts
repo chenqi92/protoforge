@@ -79,7 +79,11 @@ function resolveConfigVariables(config: HttpRequestConfig): HttpRequestConfig {
   };
 }
 
-function buildRequestPayload(config: HttpRequestConfig) {
+export function resolveHttpConfig(config: HttpRequestConfig): HttpRequestConfig {
+  return resolveConfigVariables(config);
+}
+
+export function buildRequestPayload(config: HttpRequestConfig) {
   // Headers
   const headers: Record<string, string> = {};
   for (const h of config.headers) {
@@ -98,9 +102,9 @@ function buildRequestPayload(config: HttpRequestConfig) {
 
   // Body
   let body = null;
-  switch (config.bodyType) {
+  switch (config.requestMode === 'graphql' ? 'graphql' : config.bodyType) {
     case 'raw':
-      body = { type: 'raw', content: config.rawBody, contentType: config.rawContentType };
+      body = { type: 'raw', content: config.rawBody, contentType: config.rawContentType || 'text/plain' };
       break;
     case 'json':
       body = { type: 'json', data: config.jsonBody };
@@ -244,6 +248,36 @@ export async function pickFile(): Promise<{ path: string; name: string } | null>
   }
 }
 
+/** 选择多个文件 */
+export async function pickFiles(): Promise<{ paths: string; names: string } | null> {
+  try {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const result = await open({
+      multiple: true,
+      title: '选择文件',
+    });
+    if (!result) return null;
+    // multiple: true returns string[] or object[]
+    if (Array.isArray(result)) {
+      const files = result.map(r => {
+        if (typeof r === 'string') return { path: r, name: r.split(/[\\/]/).pop() || 'file' };
+        if (typeof r === 'object' && r && 'path' in r) {
+          const f = r as { path: string; name?: string };
+          return { path: f.path, name: f.name || f.path.split(/[\\/]/).pop() || 'file' };
+        }
+        return null;
+      }).filter(Boolean) as { path: string; name: string }[];
+      if (files.length === 0) return null;
+      return {
+        paths: files.map(f => f.path).join(','),
+        names: files.map(f => f.name).join(', '),
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // Re-export for convenience
 export type { FormDataField };
-

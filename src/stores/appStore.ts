@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { HttpRequestConfig, HttpResponse } from "@/types/http";
 import { createDefaultRequest } from "@/types/http";
 
-export type RequestProtocol = "http" | "ws" | "sse" | "mqtt";
+export type RequestProtocol = "http" | "ws" | "mqtt";
 export type ToolWorkbench = "tcpudp" | "loadtest" | "capture";
 export type WorkbenchView = "requests" | ToolWorkbench;
 export type WorkspaceProtocol = RequestProtocol | ToolWorkbench | "collection";
@@ -65,7 +65,6 @@ interface AppStore {
 const requestLabels: Record<RequestProtocol, string> = {
   http: "Untitled Request",
   ws: "WebSocket",
-  sse: "SSE Stream",
   mqtt: "MQTT Client",
 };
 

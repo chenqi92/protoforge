@@ -2,7 +2,7 @@
 // 全局搜索：集合/请求/环境/历史
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, FileText, Globe, X, Network, Gauge, Radio, Puzzle, Settings } from 'lucide-react';
+import { Search, FileText, Globe, X, Network, Gauge, Radio, Puzzle, Settings, Braces, Waves } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
@@ -20,6 +20,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const addTab = useAppStore((s) => s.addTab);
+  const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const openToolTab = useAppStore((s) => s.openToolTab);
   const { t } = useTranslation();
 
@@ -39,8 +40,27 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
     // Quick actions
     results.push(
       { type: 'action', label: t('commandPalette.newHttpRequest'), description: 'Ctrl+N', icon: FileText, action: () => { addTab('http'); onClose(); } },
+      {
+        type: 'action',
+        label: t('commandPalette.newGraphqlRequest'),
+        icon: Braces,
+        action: () => {
+          const tabId = addTab('http');
+          updateHttpConfig(tabId, { requestMode: 'graphql', name: 'GraphQL Request', method: 'POST' });
+          onClose();
+        }
+      },
       { type: 'action', label: t('commandPalette.newWsConnection'), icon: Globe, action: () => { addTab('ws'); onClose(); } },
-      { type: 'action', label: t('commandPalette.newSseConnection'), icon: Globe, action: () => { addTab('sse'); onClose(); } },
+      {
+        type: 'action',
+        label: t('commandPalette.newSseConnection'),
+        icon: Waves,
+        action: () => {
+          const tabId = addTab('http');
+          updateHttpConfig(tabId, { requestMode: 'sse', name: 'SSE Stream', method: 'GET' });
+          onClose();
+        }
+      },
       { type: 'action', label: t('commandPalette.newMqttConnection'), icon: Globe, action: () => { addTab('mqtt'); onClose(); } },
       { type: 'action', label: t('commandPalette.openTcpUdp'), icon: Network, action: () => { openToolTab('tcpudp'); onClose(); } },
       { type: 'action', label: t('commandPalette.openCapture'), icon: Radio, action: () => { openToolTab('capture'); onClose(); } },
@@ -56,7 +76,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
       item.label.toLowerCase().includes(q) ||
       (item.description?.toLowerCase().includes(q))
     );
-  }, [query, addTab, onClose, openToolTab, t]);
+  }, [query, addTab, onClose, openToolTab, t, updateHttpConfig]);
 
   // 键盘导航
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {

@@ -140,13 +140,27 @@ function useSocketState() {
     setStats({ sentBytes: 0, receivedBytes: 0, sentCount: 0, receivedCount: 0 });
   }, []);
 
+  const saveQuickCommand = useCallback((command: { id?: string; name: string; data: string; format: DataFormat }) => {
+    setQuickCommands((prev) => {
+      const normalized = {
+        name: command.name.trim(),
+        data: command.data,
+        format: command.format,
+      };
+      if (command.id) {
+        return prev.map((item) => item.id === command.id ? { ...item, ...normalized } : item);
+      }
+      return [...prev, { id: crypto.randomUUID(), ...normalized }];
+    });
+  }, []);
+
   return {
     messages, setMessages, message, setMessage,
     sendFormat, setSendFormat, displayFormat, setDisplayFormat,
     sendHistory, setSendHistory, quickCommands, setQuickCommands,
     appendNewline, setAppendNewline, timerEnabled, setTimerEnabled,
     timerInterval, setTimerInterval, stats, setStats,
-    addMessage, addToHistory, systemMessage, resetStats,
+    addMessage, addToHistory, systemMessage, resetStats, saveQuickCommand,
   };
 }
 
@@ -266,16 +280,11 @@ function TcpClientPanel() {
               onClearHistory={() => state.setSendHistory([])}
               onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
               quickCommands={state.quickCommands}
-              onAddQuickCommand={() => {
-                if (state.message.trim()) {
-                  const name = `${t('tcp.system.command')}${state.quickCommands.length + 1}`;
-                  state.setQuickCommands((prev) => [...prev, {
-                    id: crypto.randomUUID(), name, data: state.message, format: state.sendFormat,
-                  }]);
-                }
-              }}
+              onSaveQuickCommand={state.saveQuickCommand}
               onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
               onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+              sendTargetLabel={connected ? `${host}:${port}` : undefined}
+              sendTargetHint={connected ? t("tcp.sendPanel.directTargetHint") : undefined}
               timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
               onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
               onTimerIntervalChange={(v) => state.setTimerInterval(v)}
@@ -318,6 +327,7 @@ function TcpServerPanel() {
   const [clients, setClients] = useState<TcpServerClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const selectedClient = selectedClientId ? clients.find((client) => client.id === selectedClientId) ?? null : null;
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
@@ -438,15 +448,11 @@ function TcpServerPanel() {
               onClearHistory={() => state.setSendHistory([])}
               onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
               quickCommands={state.quickCommands}
-              onAddQuickCommand={() => {
-                if (state.message.trim()) {
-                  state.setQuickCommands((prev) => [...prev, {
-                    id: crypto.randomUUID(), name: `${t('tcp.system.command')}${prev.length + 1}`, data: state.message, format: state.sendFormat,
-                  }]);
-                }
-              }}
+              onSaveQuickCommand={state.saveQuickCommand}
               onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
               onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+              sendTargetLabel={selectedClient ? `${t("tcp.clientList.unicast")} · ${selectedClient.remoteAddr}` : t("tcp.sendPanel.broadcastAllClients")}
+              sendTargetHint={selectedClient ? t("tcp.sendPanel.unicastHint") : t("tcp.sendPanel.broadcastHint")}
               timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
               onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
               onTimerIntervalChange={(v) => state.setTimerInterval(v)}
@@ -593,15 +599,11 @@ function UdpClientPanel() {
               onClearHistory={() => state.setSendHistory([])}
               onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
               quickCommands={state.quickCommands}
-              onAddQuickCommand={() => {
-                if (state.message.trim()) {
-                  state.setQuickCommands((prev) => [...prev, {
-                    id: crypto.randomUUID(), name: `${t('tcp.system.command')}${prev.length + 1}`, data: state.message, format: state.sendFormat,
-                  }]);
-                }
-              }}
+              onSaveQuickCommand={state.saveQuickCommand}
               onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
               onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+              sendTargetLabel={bound ? targetAddr : undefined}
+              sendTargetHint={bound ? t("tcp.sendPanel.directTargetHint") : undefined}
               timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
               onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
               onTimerIntervalChange={(v) => state.setTimerInterval(v)}
@@ -751,15 +753,11 @@ function UdpServerPanel() {
               onClearHistory={() => state.setSendHistory([])}
               onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
               quickCommands={state.quickCommands}
-              onAddQuickCommand={() => {
-                if (state.message.trim()) {
-                  state.setQuickCommands((prev) => [...prev, {
-                    id: crypto.randomUUID(), name: `${t('tcp.system.command')}${prev.length + 1}`, data: state.message, format: state.sendFormat,
-                  }]);
-                }
-              }}
+              onSaveQuickCommand={state.saveQuickCommand}
               onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
               onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+              sendTargetLabel={replyAddr || t("tcp.system.waitingSource")}
+              sendTargetHint={replyAddr ? t("tcp.sendPanel.replyHint") : t("tcp.replyAddrPlaceholder")}
               timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
               onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
               onTimerIntervalChange={(v) => state.setTimerInterval(v)}

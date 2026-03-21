@@ -6,9 +6,9 @@ import { listen } from '@tauri-apps/api/event';
 import { Play, Square, Trash2, Send, Plus, X, Radio, ArrowDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import { useAppStore, type RequestProtocol } from '@/stores/appStore';
+import { useAppStore } from '@/stores/appStore';
 import { RequestWorkbenchHeader } from '@/components/request/RequestWorkbenchHeader';
-import { RequestProtocolSwitcher } from '@/components/request/RequestProtocolSwitcher';
+import { RequestProtocolSwitcher, type RequestKind } from '@/components/request/RequestProtocolSwitcher';
 
 interface MqttMessage {
   topic: string;
@@ -22,6 +22,7 @@ interface MqttMessage {
 export function MqttWorkspace() {
   const activeTab = useAppStore((s) => s.getActiveTab());
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
+  const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const tabId = activeTab?.id || '';
   const { t } = useTranslation();
 
@@ -127,22 +128,35 @@ export function MqttWorkspace() {
 
   const isConnected = status === 'connected';
 
-  const handleProtocolChange = useCallback(async (protocol: RequestProtocol) => {
-    if (!activeTab || protocol === activeTab.protocol) return;
+  const handleRequestKindChange = useCallback(async (kind: RequestKind) => {
+    if (!activeTab || kind === activeTab.protocol) return;
     try {
       if (status === 'connected' || status === 'connecting') {
         await invoke('mqtt_disconnect', { connId });
       }
     } catch {}
-    setTabProtocol(activeTab.id, protocol);
-  }, [activeTab, connId, setTabProtocol, status]);
+
+    if (kind === "mqtt") return;
+
+    if (kind === "ws") {
+      setTabProtocol(activeTab.id, "ws");
+      return;
+    }
+
+    setTabProtocol(activeTab.id, "http");
+    updateHttpConfig(activeTab.id, {
+      requestMode: kind === "http" ? "rest" : kind,
+      name: kind === "graphql" ? "GraphQL Request" : kind === "sse" ? "SSE Stream" : "Untitled Request",
+      method: kind === "graphql" ? "POST" : "GET",
+    });
+  }, [activeTab, connId, setTabProtocol, status, updateHttpConfig]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Connection Bar */}
       <RequestWorkbenchHeader
         prefix={(
-          <RequestProtocolSwitcher activeProtocol={activeTab?.protocol || "mqtt"} onChange={handleProtocolChange} />
+          <RequestProtocolSwitcher activeProtocol={activeTab?.protocol || "mqtt"} onChange={handleRequestKindChange} />
         )}
         main={(
           <div className="flex min-w-0 flex-1 items-center">

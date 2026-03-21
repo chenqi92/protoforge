@@ -4,7 +4,7 @@
  * 可复用于 HTTP 响应、WebSocket 消息、TCP 数据等
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { ChevronRight, ChevronDown, Copy, Check, WrapText, Search, Minimize2, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -34,7 +34,7 @@ interface JsonNodeProps {
 function JsonNode({ data, nodeKey, depth, isLast, defaultExpanded = true }: JsonNodeProps) {
   const [expanded, setExpanded] = useState(defaultExpanded && depth < 3);
 
-  const indent = depth * 16;
+  const indent = depth === 0 ? 0 : depth * 14;
 
   if (data === null) {
     return (
@@ -67,12 +67,11 @@ function JsonNode({ data, nodeKey, depth, isLast, defaultExpanded = true }: Json
   }
 
   if (typeof data === 'string') {
-    // Long strings: truncate on display
-    const display = data.length > 500 ? data.slice(0, 500) + '...' : data;
+    const display = JSON.stringify(data);
     return (
       <div style={{ paddingLeft: indent }} className="leading-[22px]">
         {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
-        <span className="text-[#16a34a]">&quot;{display}&quot;</span>
+        <span className="whitespace-pre-wrap break-all text-[#16a34a]">{display}</span>
         {!isLast && <span className="text-text-disabled">,</span>}
       </div>
     );
@@ -93,12 +92,15 @@ function JsonNode({ data, nodeKey, depth, isLast, defaultExpanded = true }: Json
       <div>
         <div
           style={{ paddingLeft: indent }}
-          className="leading-[22px] cursor-pointer select-none hover:bg-bg-hover/50 rounded-sm transition-colors"
-          onClick={() => setExpanded(!expanded)}
+          className="leading-[22px] rounded-sm transition-colors"
         >
-          <span className="inline-flex items-center justify-center w-4 h-4 -ml-1 mr-0.5 text-text-disabled">
+          <button
+            type="button"
+            className="inline-flex h-4 w-4 select-none items-center justify-center align-middle text-text-disabled hover:text-text-secondary"
+            onClick={() => setExpanded(!expanded)}
+          >
             {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-          </span>
+          </button>
           {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
           <span className="text-text-primary">[</span>
           {!expanded && (
@@ -139,12 +141,15 @@ function JsonNode({ data, nodeKey, depth, isLast, defaultExpanded = true }: Json
       <div>
         <div
           style={{ paddingLeft: indent }}
-          className="leading-[22px] cursor-pointer select-none hover:bg-bg-hover/50 rounded-sm transition-colors"
-          onClick={() => setExpanded(!expanded)}
+          className="leading-[22px] rounded-sm transition-colors"
         >
-          <span className="inline-flex items-center justify-center w-4 h-4 -ml-1 mr-0.5 text-text-disabled">
+          <button
+            type="button"
+            className="inline-flex h-4 w-4 select-none items-center justify-center align-middle text-text-disabled hover:text-text-secondary"
+            onClick={() => setExpanded(!expanded)}
+          >
             {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-          </span>
+          </button>
           {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
           <span className="text-text-primary">{'{'}</span>
           {!expanded && (
@@ -195,19 +200,26 @@ function HexView({ data }: { data: string }) {
   }, [data]);
 
   return (
-    <div className="font-mono text-[11px] leading-[18px]">
-      {lines.map((line, i) => (
-        <div key={i} className="flex gap-4 hover:bg-bg-hover/30 px-1 rounded-sm">
-          <span className="text-text-disabled w-[70px] shrink-0">{line.offset}</span>
-          <span className="text-[#0284c7] flex-1">{line.hex}</span>
-          <span className="text-text-tertiary w-[140px] shrink-0">{line.ascii}</span>
+    <div className="selectable overflow-x-auto font-mono text-[11px] leading-[18px]">
+      <div className="min-w-[620px]">
+        <div className="mb-2 grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[10px] border border-border-default/70 bg-bg-secondary/30 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+          <span>Offset</span>
+          <span>Hex</span>
+          <span>ASCII</span>
         </div>
-      ))}
-      {data.length > 4096 && (
-        <div className="text-text-disabled text-[10px] mt-2 italic">
-          {t('response.truncated', { total: data.length })}
-        </div>
-      )}
+        {lines.map((line, i) => (
+          <div key={i} className="grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[8px] px-2 py-1 hover:bg-bg-hover/30">
+            <span className="shrink-0 text-text-disabled">{line.offset}</span>
+            <span className="min-w-0 text-[#0284c7]">{line.hex}</span>
+            <span className="shrink-0 text-text-tertiary">{line.ascii}</span>
+          </div>
+        ))}
+        {data.length > 4096 && (
+          <div className="mt-2 text-[10px] italic text-text-disabled">
+            {t('response.truncated', { total: data.length })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -247,6 +259,10 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
 
   const [activeMode, setActiveMode] = useState<ViewMode>(() => availableModes[0] || 'raw');
 
+  useEffect(() => {
+    setActiveMode(availableModes[0] || 'raw');
+  }, [availableModes, body, contentType, compact, modes]);
+
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(body);
     setCopied(true);
@@ -260,7 +276,7 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
   }, [body, isJson]);
 
   // Formatted raw text (for XML/JSON pretty-print)
-  const formattedBody = useMemo(() => {
+  const prettyBody = useMemo(() => {
     if (isJson) {
       try { return JSON.stringify(JSON.parse(body), null, 2); } catch { return body; }
     }
@@ -273,13 +289,16 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
 
   const searchCount = useMemo(() => {
     if (!searchText) return 0;
-    const target = activeMode === 'raw' ? formattedBody : body;
+    const target =
+      activeMode === 'json' ? prettyBody :
+      activeMode === 'raw' ? body :
+      body;
     const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
     return (target.match(regex) || []).length;
-  }, [searchText, formattedBody, body, activeMode]);
+  }, [searchText, prettyBody, body, activeMode]);
 
   const modeLabels: Record<ViewMode, string> = {
-    json: 'JSON',
+    json: 'Pretty',
     raw: 'Raw',
     preview: t('response.preview'),
     hex: 'Hex',
@@ -288,20 +307,18 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
   if (!body) return null;
 
   return (
-    <div className={cn('flex flex-col h-full overflow-hidden', className)}>
+    <div className={cn('selectable flex h-full flex-col overflow-hidden bg-bg-primary/60', className)}>
       {/* Mode Bar */}
       {!compact && (
-        <div className="flex items-center shrink-0 border-b border-border-default bg-bg-secondary/30">
-          <div className="flex h-9">
+        <div className="flex items-center shrink-0 border-b border-border-default bg-bg-secondary/42 px-3 py-2">
+          <div className="response-viewer-tabs">
             {availableModes.map((mode) => (
               <button
                 key={mode}
                 onClick={() => setActiveMode(mode)}
                 className={cn(
-                  'px-4 text-[12px] font-medium border-b-[2px] transition-colors whitespace-nowrap',
-                  activeMode === mode
-                    ? 'text-accent border-accent'
-                    : 'text-text-tertiary border-transparent hover:text-text-secondary'
+                  'response-viewer-tab',
+                  activeMode === mode && 'is-active'
                 )}
               >
                 {modeLabels[mode]}
@@ -348,7 +365,7 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
 
       {/* Search Bar */}
       {showSearch && (
-        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border-default bg-bg-secondary/20 shrink-0">
+        <div className="flex items-center gap-2 border-b border-border-default bg-bg-secondary/24 px-3 py-1.5 shrink-0">
           <Search className="w-3 h-3 text-text-disabled shrink-0" />
           <input
             value={searchText}
@@ -366,40 +383,44 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-3" style={{ userSelect: 'text' }}>
-        {activeMode === 'json' && jsonData !== null && (
-          <div className="font-mono text-[12px]">
-            <JsonNode data={jsonData} depth={0} isLast={true} defaultExpanded={true} />
-          </div>
-        )}
+      <div className="flex-1 overflow-auto bg-[linear-gradient(180deg,rgba(148,163,184,0.05),transparent_22%)] p-2" style={{ userSelect: 'text' }}>
+        <div className="min-h-full py-1">
+          {activeMode === 'json' && jsonData !== null && (
+            <div className="font-mono text-[12px]">
+              <JsonNode data={jsonData} depth={0} isLast={true} defaultExpanded={true} />
+            </div>
+          )}
 
-        {activeMode === 'raw' && (
-          <pre
-            className={cn(
-              'text-[12px] font-mono text-text-primary leading-[20px]',
-              wordWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'
-            )}
-          >
-            {searchText ? (
-              <HighlightedText text={formattedBody} search={searchText} />
-            ) : (
-              formattedBody
-            )}
-          </pre>
-        )}
+          {activeMode === 'raw' && (
+            <div className={cn("max-w-full", !wordWrap && "overflow-x-auto")}>
+              <pre
+                className={cn(
+                  'text-[12px] font-mono text-text-primary leading-[20px]',
+                  wordWrap ? 'whitespace-pre-wrap break-all' : 'min-w-max whitespace-pre'
+                )}
+              >
+                {searchText ? (
+                  <HighlightedText text={body} search={searchText} />
+                ) : (
+                  body
+                )}
+              </pre>
+            </div>
+          )}
 
-        {activeMode === 'preview' && isHtml && (
-          <iframe
-            srcDoc={body}
-            sandbox="allow-same-origin"
-            className="w-full h-full border border-border-default rounded-lg bg-white"
-            title="HTML Preview"
-          />
-        )}
+          {activeMode === 'preview' && isHtml && (
+            <iframe
+              srcDoc={body}
+              sandbox="allow-same-origin"
+              className="min-h-[420px] w-full rounded-[12px] border border-border-default bg-white"
+              title="HTML Preview"
+            />
+          )}
 
-        {activeMode === 'hex' && (
-          <HexView data={body} />
-        )}
+          {activeMode === 'hex' && (
+            <HexView data={body} />
+          )}
+        </div>
       </div>
     </div>
   );

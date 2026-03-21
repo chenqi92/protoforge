@@ -19,6 +19,8 @@ pub struct PostmanCollection {
     pub auth: Option<PostmanAuth>,
     #[serde(default)]
     pub variable: Option<Vec<PostmanVariable>>,
+    #[serde(default)]
+    pub event: Option<Vec<PostmanEvent>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -95,11 +97,13 @@ pub struct PostmanQueryParam {
 pub struct PostmanKeyValue {
     pub key: String,
     #[serde(default)]
-    pub value: Option<String>,
+    pub value: Option<serde_json::Value>,
     #[serde(rename = "type", default)]
     pub kv_type: Option<String>,
     #[serde(default)]
     pub disabled: Option<bool>,
+    #[serde(default)]
+    pub description: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -112,6 +116,10 @@ pub struct PostmanBody {
     pub formdata: Option<Vec<PostmanFormData>>,
     #[serde(default)]
     pub urlencoded: Option<Vec<PostmanKeyValue>>,
+    #[serde(default)]
+    pub graphql: Option<serde_json::Value>,
+    #[serde(default)]
+    pub file: Option<serde_json::Value>,
     #[serde(default)]
     pub options: Option<PostmanBodyOptions>,
 }
@@ -128,6 +136,10 @@ pub struct PostmanFormData {
     pub src: Option<String>,
     #[serde(default)]
     pub disabled: Option<bool>,
+    #[serde(default)]
+    pub description: Option<serde_json::Value>,
+    #[serde(rename = "contentType", default)]
+    pub content_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -317,10 +329,28 @@ fn build_item_tree(all_items: &[CollectionItem], parent_id: Option<&str>) -> Vec
 }
 
 fn build_export_url(url_str: &str, query_params_json: &str) -> serde_json::Value {
-    // 解析 query params
+    // 解析 query params（兼容数组和 Object 两种格式）
     let mut query_arr: Vec<serde_json::Value> = Vec::new();
     if let Ok(params) = serde_json::from_str::<serde_json::Value>(query_params_json) {
-        if let Some(obj) = params.as_object() {
+        if let Some(arr) = params.as_array() {
+            // 新数组格式 [{key, value, enabled, description}]
+            for item in arr {
+                let mut entry = serde_json::json!({
+                    "key": item.get("key").and_then(|v| v.as_str()).unwrap_or(""),
+                    "value": item.get("value").and_then(|v| v.as_str()).unwrap_or("")
+                });
+                if item.get("enabled").and_then(|v| v.as_bool()) == Some(false) {
+                    entry["disabled"] = serde_json::json!(true);
+                }
+                if let Some(desc) = item.get("description").and_then(|v| v.as_str()) {
+                    if !desc.is_empty() {
+                        entry["description"] = serde_json::json!(desc);
+                    }
+                }
+                query_arr.push(entry);
+            }
+        } else if let Some(obj) = params.as_object() {
+            // 旧 Object 格式 {key: value} 兼容
             for (k, v) in obj {
                 query_arr.push(serde_json::json!({
                     "key": k,
@@ -367,8 +397,27 @@ fn build_export_url(url_str: &str, query_params_json: &str) -> serde_json::Value
 
 fn build_export_headers(headers_json: &str) -> Vec<serde_json::Value> {
     let mut result = Vec::new();
-    if let Ok(obj) = serde_json::from_str::<serde_json::Value>(headers_json) {
-        if let Some(map) = obj.as_object() {
+    if let Ok(val) = serde_json::from_str::<serde_json::Value>(headers_json) {
+        if let Some(arr) = val.as_array() {
+            // 新数组格式 [{key, value, enabled, description}]
+            for item in arr {
+                let mut entry = serde_json::json!({
+                    "key": item.get("key").and_then(|v| v.as_str()).unwrap_or(""),
+                    "value": item.get("value").and_then(|v| v.as_str()).unwrap_or(""),
+                    "type": "text"
+                });
+                if item.get("enabled").and_then(|v| v.as_bool()) == Some(false) {
+                    entry["disabled"] = serde_json::json!(true);
+                }
+                if let Some(desc) = item.get("description").and_then(|v| v.as_str()) {
+                    if !desc.is_empty() {
+                        entry["description"] = serde_json::json!(desc);
+                    }
+                }
+                result.push(entry);
+            }
+        } else if let Some(map) = val.as_object() {
+            // 旧 Object 格式 {key: value} 兼容
             for (k, v) in map {
                 result.push(serde_json::json!({
                     "key": k,
@@ -405,12 +454,23 @@ fn build_export_body(body_type: &str, body_content: &str) -> Option<serde_json::
             let fields: Vec<serde_json::Value> = serde_json::from_str(body_content)
                 .unwrap_or_default();
             let formdata: Vec<serde_json::Value> = fields.iter().map(|f| {
-                serde_json::json!({
+                let mut entry = serde_json::json!({
                     "key": f.get("key").and_then(|v| v.as_str()).unwrap_or(""),
                     "value": f.get("value").and_then(|v| v.as_str()).unwrap_or(""),
                     "type": f.get("fieldType").and_then(|v| v.as_str()).unwrap_or("text"),
                     "disabled": f.get("enabled").and_then(|v| v.as_bool()).map(|e| !e).unwrap_or(false)
-                })
+                });
+                if let Some(desc) = f.get("description").and_then(|v| v.as_str()) {
+                    if !desc.is_empty() {
+                        entry["description"] = serde_json::json!(desc);
+                    }
+                }
+                if let Some(ct) = f.get("contentType").and_then(|v| v.as_str()) {
+                    if !ct.is_empty() {
+                        entry["contentType"] = serde_json::json!(ct);
+                    }
+                }
+                entry
             }).collect();
             Some(serde_json::json!({
                 "mode": "formdata",
@@ -419,8 +479,27 @@ fn build_export_body(body_type: &str, body_content: &str) -> Option<serde_json::
         }
         "formUrlencoded" => {
             let mut urlencoded: Vec<serde_json::Value> = Vec::new();
-            if let Ok(obj) = serde_json::from_str::<serde_json::Value>(body_content) {
-                if let Some(map) = obj.as_object() {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(body_content) {
+                if let Some(arr) = val.as_array() {
+                    // 新数组格式 [{key, value, enabled, description}]
+                    for item in arr {
+                        let mut entry = serde_json::json!({
+                            "key": item.get("key").and_then(|v| v.as_str()).unwrap_or(""),
+                            "value": item.get("value").and_then(|v| v.as_str()).unwrap_or(""),
+                            "type": "text"
+                        });
+                        if item.get("enabled").and_then(|v| v.as_bool()) == Some(false) {
+                            entry["disabled"] = serde_json::json!(true);
+                        }
+                        if let Some(desc) = item.get("description").and_then(|v| v.as_str()) {
+                            if !desc.is_empty() {
+                                entry["description"] = serde_json::json!(desc);
+                            }
+                        }
+                        urlencoded.push(entry);
+                    }
+                } else if let Some(map) = val.as_object() {
+                    // 旧 Object 格式 {key: value} 兼容
                     for (k, v) in map {
                         urlencoded.push(serde_json::json!({
                             "key": k,
@@ -433,6 +512,31 @@ fn build_export_body(body_type: &str, body_content: &str) -> Option<serde_json::
             Some(serde_json::json!({
                 "mode": "urlencoded",
                 "urlencoded": urlencoded
+            }))
+        }
+        "graphql" => {
+            // graphql body: body_content = JSON string {query, variables}
+            if let Ok(gql) = serde_json::from_str::<serde_json::Value>(body_content) {
+                Some(serde_json::json!({
+                    "mode": "graphql",
+                    "graphql": {
+                        "query": gql.get("query").and_then(|v| v.as_str()).unwrap_or(""),
+                        "variables": gql.get("variables").and_then(|v| v.as_str()).unwrap_or("")
+                    }
+                }))
+            } else {
+                Some(serde_json::json!({
+                    "mode": "graphql",
+                    "graphql": { "query": body_content, "variables": "" }
+                }))
+            }
+        }
+        "binary" => {
+            Some(serde_json::json!({
+                "mode": "file",
+                "file": {
+                    "src": body_content
+                }
             }))
         }
         _ => None,
@@ -563,8 +667,7 @@ pub async fn import_postman(pool: &SqlitePool, json: &str) -> Result<Collection,
     let col_id = Uuid::new_v4().to_string();
 
     // 处理集合级脚本
-    let pre_script = String::new();
-    let post_script = String::new();
+    let (pre_script, post_script) = extract_scripts(&postman.event);
 
     // 处理集合级变量
     let variables = if let Some(vars) = &postman.variable {
@@ -693,34 +796,58 @@ fn extract_url(url_opt: &Option<PostmanUrl>) -> String {
     }
 }
 
+/// 提取 description 字段的文本内容（兼容字符串和 {content, type} 对象两种格式）
+fn extract_description_text(desc: &Option<serde_json::Value>) -> String {
+    match desc {
+        Some(serde_json::Value::String(s)) => s.clone(),
+        Some(serde_json::Value::Object(obj)) => {
+            obj.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string()
+        }
+        _ => String::new(),
+    }
+}
+
 fn extract_headers(headers: &Option<Vec<PostmanKeyValue>>) -> String {
-    let obj: serde_json::Value = match headers {
+    let arr: Vec<serde_json::Value> = match headers {
         Some(h) => h.iter()
-            .filter(|kv| kv.disabled != Some(true))
-            .map(|kv| (kv.key.clone(), serde_json::Value::String(kv.value.clone().unwrap_or_default())))
-            .collect::<serde_json::Map<String, serde_json::Value>>()
-            .into(),
-        None => serde_json::Value::Object(Default::default()),
+            .map(|kv| {
+                let mut entry = serde_json::json!({
+                    "key": kv.key,
+                    "value": kv.value.as_ref().and_then(|v| v.as_str()).unwrap_or(""),
+                    "enabled": kv.disabled != Some(true)
+                });
+                let desc = extract_description_text(&kv.description);
+                if !desc.is_empty() {
+                    entry["description"] = serde_json::json!(desc);
+                }
+                entry
+            })
+            .collect(),
+        None => Vec::new(),
     };
-    serde_json::to_string(&obj).unwrap_or_else(|_| "{}".to_string())
+    serde_json::to_string(&arr).unwrap_or_else(|_| "[]".to_string())
 }
 
 fn extract_query_params(url_opt: &Option<PostmanUrl>) -> String {
-    let params = match url_opt {
+    let arr: Vec<serde_json::Value> = match url_opt {
         Some(PostmanUrl::Structured(obj)) => {
             if let Some(ref query) = obj.query {
-                let map: serde_json::Map<String, serde_json::Value> = query.iter()
-                    .filter(|q| q.disabled != Some(true))
-                    .filter_map(|q| q.key.as_ref().map(|k| (k.clone(), serde_json::Value::String(q.value.clone().unwrap_or_default()))))
-                    .collect();
-                serde_json::Value::Object(map)
+                query.iter()
+                    .filter_map(|q| q.key.as_ref().map(|k| {
+                        serde_json::json!({
+                            "key": k,
+                            "value": q.value.clone().unwrap_or_default(),
+                            "enabled": q.disabled != Some(true)
+                        })
+                    }))
+                    .collect()
             } else {
-                serde_json::Value::Object(Default::default())
+                Vec::new()
             }
         }
-        _ => serde_json::Value::Object(Default::default()),
+        _ => Vec::new(),
     };
-    serde_json::to_string(&params).unwrap_or_else(|_| "{}".to_string())
+    serde_json::to_string(&arr).unwrap_or_else(|_| "[]".to_string())
 }
 
 fn extract_body(body: &Option<PostmanBody>) -> (String, String) {
@@ -740,24 +867,72 @@ fn extract_body(body: &Option<PostmanBody>) -> (String, String) {
                 "formdata" => {
                     let fields: Vec<serde_json::Value> = b.formdata.as_ref()
                         .map(|fd| fd.iter().map(|f| {
-                            serde_json::json!({
+                            let mut entry = serde_json::json!({
                                 "key": f.key,
                                 "value": f.value.clone().unwrap_or_default(),
                                 "fieldType": f.data_type.clone().unwrap_or_else(|| "text".to_string()),
                                 "enabled": f.disabled != Some(true),
-                            })
+                            });
+                            let desc = extract_description_text(&f.description);
+                            if !desc.is_empty() {
+                                entry["description"] = serde_json::json!(desc);
+                            }
+                            if let Some(ref ct) = f.content_type {
+                                if !ct.is_empty() {
+                                    entry["contentType"] = serde_json::json!(ct);
+                                }
+                            }
+                            entry
                         }).collect())
                         .unwrap_or_default();
                     ("formData".to_string(), serde_json::to_string(&fields).unwrap_or_else(|_| "[]".to_string()))
                 }
                 "urlencoded" => {
-                    let fields: serde_json::Map<String, serde_json::Value> = b.urlencoded.as_ref()
+                    let fields: Vec<serde_json::Value> = b.urlencoded.as_ref()
                         .map(|ue| ue.iter()
-                            .filter(|kv| kv.disabled != Some(true))
-                            .map(|kv| (kv.key.clone(), serde_json::Value::String(kv.value.clone().unwrap_or_default())))
+                            .map(|kv| {
+                                let mut entry = serde_json::json!({
+                                    "key": kv.key,
+                                    "value": kv.value.as_ref().and_then(|v| v.as_str()).unwrap_or(""),
+                                    "enabled": kv.disabled != Some(true)
+                                });
+                                let desc = extract_description_text(&kv.description);
+                                if !desc.is_empty() {
+                                    entry["description"] = serde_json::json!(desc);
+                                }
+                                entry
+                            })
                             .collect())
                         .unwrap_or_default();
-                    ("formUrlencoded".to_string(), serde_json::to_string(&fields).unwrap_or_else(|_| "{}".to_string()))
+                    ("formUrlencoded".to_string(), serde_json::to_string(&fields).unwrap_or_else(|_| "[]".to_string()))
+                }
+                "graphql" => {
+                    let content = b.graphql.as_ref().map(|gql| {
+                        let variables_str = gql.get("variables")
+                            .and_then(|v| {
+                                if v.is_string() {
+                                    v.as_str().map(|s| s.to_string())
+                                } else if v.is_null() {
+                                    Some(String::new())
+                                } else {
+                                    Some(v.to_string())
+                                }
+                            })
+                            .unwrap_or_default();
+                        serde_json::json!({
+                            "query": gql.get("query").and_then(|v| v.as_str()).unwrap_or(""),
+                            "variables": variables_str
+                        }).to_string()
+                    }).unwrap_or_else(|| "{}".to_string());
+                    ("graphql".to_string(), content)
+                }
+                "file" => {
+                    let src = b.file.as_ref()
+                        .and_then(|f| f.get("src"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    ("binary".to_string(), src)
                 }
                 _ => ("none".to_string(), String::new()),
             }
@@ -766,11 +941,19 @@ fn extract_body(body: &Option<PostmanBody>) -> (String, String) {
 }
 
 fn convert_auth(auth: &PostmanAuth) -> String {
+    let convert_kvs = |kvs: &[PostmanKeyValue]| -> Vec<serde_json::Value> {
+        kvs.iter().map(|kv| {
+            serde_json::json!({
+                "key": kv.key,
+                "value": kv.value.clone().unwrap_or(serde_json::Value::String(String::new()))
+            })
+        }).collect()
+    };
     let obj = serde_json::json!({
         "type": auth.auth_type,
-        "bearer": auth.bearer.as_ref().map(|kvs| kvs.iter().map(|kv| serde_json::json!({"key": kv.key, "value": kv.value})).collect::<Vec<_>>()),
-        "basic": auth.basic.as_ref().map(|kvs| kvs.iter().map(|kv| serde_json::json!({"key": kv.key, "value": kv.value})).collect::<Vec<_>>()),
-        "apikey": auth.apikey.as_ref().map(|kvs| kvs.iter().map(|kv| serde_json::json!({"key": kv.key, "value": kv.value})).collect::<Vec<_>>()),
+        "bearer": auth.bearer.as_ref().map(|kvs| convert_kvs(kvs)),
+        "basic": auth.basic.as_ref().map(|kvs| convert_kvs(kvs)),
+        "apikey": auth.apikey.as_ref().map(|kvs| convert_kvs(kvs)),
     });
     serde_json::to_string(&obj).unwrap_or_else(|_| "{}".to_string())
 }

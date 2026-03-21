@@ -6,10 +6,10 @@ import { listen } from '@tauri-apps/api/event';
 import { Play, Square, Trash2, ArrowDown, Waves } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import { useAppStore, type RequestProtocol } from '@/stores/appStore';
+import { useAppStore } from '@/stores/appStore';
 import type { KeyValue } from '@/types/http';
 import { RequestWorkbenchHeader } from '@/components/request/RequestWorkbenchHeader';
-import { RequestProtocolSwitcher } from '@/components/request/RequestProtocolSwitcher';
+import { RequestProtocolSwitcher, type RequestKind } from '@/components/request/RequestProtocolSwitcher';
 
 interface SseEvent {
   id: string | null;
@@ -21,6 +21,7 @@ interface SseEvent {
 export function SseWorkspace() {
   const activeTab = useAppStore((s) => s.getActiveTab());
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
+  const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const tabId = activeTab?.id || '';
   const { t } = useTranslation();
 
@@ -79,22 +80,35 @@ export function SseWorkspace() {
 
   const isConnected = status === 'connected' || status === 'connecting';
 
-  const handleProtocolChange = useCallback(async (protocol: RequestProtocol) => {
-    if (!activeTab || protocol === activeTab.protocol) return;
+  const handleRequestKindChange = useCallback(async (kind: RequestKind) => {
+    if (!activeTab) return;
     try {
       if (isConnected) {
         await invoke('sse_disconnect', { connId });
       }
     } catch {}
-    setTabProtocol(activeTab.id, protocol);
-  }, [activeTab, connId, isConnected, setTabProtocol]);
+
+    if (kind === "sse") return;
+
+    if (kind === "ws" || kind === "mqtt") {
+      setTabProtocol(activeTab.id, kind);
+      return;
+    }
+
+    setTabProtocol(activeTab.id, "http");
+    updateHttpConfig(activeTab.id, {
+      requestMode: kind === "http" ? "rest" : "graphql",
+      name: kind === "graphql" ? "GraphQL Request" : "Untitled Request",
+      method: kind === "graphql" ? "POST" : "GET",
+    });
+  }, [activeTab, connId, isConnected, setTabProtocol, updateHttpConfig]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* URL Bar */}
       <RequestWorkbenchHeader
         prefix={(
-          <RequestProtocolSwitcher activeProtocol={activeTab?.protocol || "sse"} onChange={handleProtocolChange} />
+          <RequestProtocolSwitcher activeProtocol={activeTab?.protocol || "http"} activeHttpMode="sse" onChange={handleRequestKindChange} />
         )}
         main={(
           <div className="flex min-w-0 flex-1 items-center">

@@ -17,6 +17,7 @@
     "core:window:allow-create",
     "core:webview:allow-create-webview-window",
     "updater:default",
+    "dialog:allow-confirm",
     "dialog:allow-open",
     "dialog:allow-save",
     "fs:allow-read-text-file",

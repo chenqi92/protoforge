@@ -805,36 +805,132 @@ pub async fn run_collection(
                 continue;
             }
 
-            // 解析 headers
-            let headers: Vec<(String, String)> = serde_json::from_str(&item.headers)
-                .unwrap_or_default();
-            let header_map: std::collections::HashMap<String, String> = headers.into_iter().collect();
+            // 解析 headers（兼容数组格式和 Object 格式）
+            let header_map: std::collections::HashMap<String, String> = {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&item.headers) {
+                    if let Some(arr) = val.as_array() {
+                        arr.iter()
+                            .filter(|h| h.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true))
+                            .filter_map(|h| {
+                                let k = h.get("key")?.as_str()?.to_string();
+                                let v = h.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                Some((k, v))
+                            })
+                            .collect()
+                    } else if let Some(obj) = val.as_object() {
+                        obj.iter()
+                            .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+                            .collect()
+                    } else {
+                        std::collections::HashMap::new()
+                    }
+                } else {
+                    std::collections::HashMap::new()
+                }
+            };
 
             // 构造 body：从 body_type + body_content 反序列化
             let body = if item.body_content.is_empty() || item.body_type == "none" {
                 None
             } else {
-                // 尝试将 body_content 按照 body_type 构造为 RequestBody
                 match item.body_type.as_str() {
                     "json" => Some(http_client::RequestBody::Json { data: item.body_content.clone() }),
                     "raw" => Some(http_client::RequestBody::Raw { content: item.body_content.clone(), content_type: "text/plain".to_string() }),
                     "binary" => Some(http_client::RequestBody::Binary { file_path: item.body_content.clone() }),
+                    "formUrlencoded" => {
+                        // 从数组格式解析 [{key, value, enabled}] -> FormUrlEncoded {fields: HashMap}
+                        let mut fields = std::collections::HashMap::new();
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&item.body_content) {
+                            if let Some(arr) = val.as_array() {
+                                for f in arr {
+                                    if f.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true) {
+                                        if let Some(k) = f.get("key").and_then(|v| v.as_str()) {
+                                            let v = f.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                            fields.insert(k.to_string(), v);
+                                        }
+                                    }
+                                }
+                            } else if let Some(obj) = val.as_object() {
+                                for (k, v) in obj {
+                                    fields.insert(k.clone(), v.as_str().unwrap_or("").to_string());
+                                }
+                            }
+                        }
+                        Some(http_client::RequestBody::FormUrlencoded { fields })
+                    }
+                    "graphql" => {
+                        // graphql: {query, variables}
+                        if let Ok(gql) = serde_json::from_str::<serde_json::Value>(&item.body_content) {
+                            let query = gql.get("query").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let variables = gql.get("variables").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                            let raw = if variables.is_empty() {
+                                serde_json::json!({"query": query}).to_string()
+                            } else {
+                                serde_json::json!({"query": query, "variables": variables}).to_string()
+                            };
+                            Some(http_client::RequestBody::Json { data: raw })
+                        } else {
+                            Some(http_client::RequestBody::Json { data: item.body_content.clone() })
+                        }
+                    }
                     _ => serde_json::from_str(&item.body_content).ok(),
                 }
             };
 
-            // 构造 auth
+            // 构造 auth（兼容 ProtoForge 平面格式和 Postman 嵌套数组格式）
             let auth: Option<http_client::AuthConfig> = if item.auth_type == "none" || item.auth_config.is_empty() {
                 None
             } else {
-                serde_json::from_str(&item.auth_config).ok()
+                serde_json::from_str::<http_client::AuthConfig>(&item.auth_config)
+                    .ok()
+                    .or_else(|| {
+                        // Postman 嵌套数组格式 fallback
+                        let v: serde_json::Value = serde_json::from_str(&item.auth_config).ok()?;
+                        let find_kv = |arr: Option<&serde_json::Value>, key: &str| -> String {
+                            arr.and_then(|a| a.as_array())
+                                .and_then(|a| a.iter().find(|kv| kv.get("key").and_then(|k| k.as_str()) == Some(key)))
+                                .and_then(|kv| kv.get("value").and_then(|v| v.as_str()))
+                                .unwrap_or("")
+                                .to_string()
+                        };
+                        match item.auth_type.as_str() {
+                            "bearer" => Some(http_client::AuthConfig::Bearer { token: find_kv(v.get("bearer"), "token") }),
+                            "basic" => Some(http_client::AuthConfig::Basic {
+                                username: find_kv(v.get("basic"), "username"),
+                                password: find_kv(v.get("basic"), "password"),
+                            }),
+                            "apiKey" => Some(http_client::AuthConfig::ApiKey {
+                                key: find_kv(v.get("apikey"), "key"),
+                                value: find_kv(v.get("apikey"), "value"),
+                                add_to: find_kv(v.get("apikey"), "in"),
+                            }),
+                            _ => None,
+                        }
+                    })
             };
 
             let req = HttpRequest {
                 method: method.clone(),
                 url: url.clone(),
                 headers: header_map,
-                query_params: serde_json::from_str(&item.query_params).unwrap_or_default(),
+                query_params: {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&item.query_params) {
+                        if let Some(arr) = val.as_array() {
+                            arr.iter()
+                                .filter(|q| q.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true))
+                                .filter_map(|q| {
+                                    let k = q.get("key")?.as_str()?.to_string();
+                                    let v = q.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    Some((k, v))
+                                })
+                                .collect()
+                        } else {
+                            serde_json::from_value(val).unwrap_or_default()
+                        }
+                    } else {
+                        std::collections::HashMap::new()
+                    }
+                },
                 body,
                 auth,
                 timeout_ms: Some(30_000), // 每个请求强制 30s 超时

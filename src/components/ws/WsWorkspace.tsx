@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown, AlertTriangle, Search, Settings2, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { useAppStore, type RequestProtocol } from "@/stores/appStore";
+import { useAppStore } from "@/stores/appStore";
 import { InlineJsonViewer } from "@/components/ui/ResponseViewer";
 import type { WsMessage, WsEvent } from "@/types/ws";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
-import { RequestProtocolSwitcher } from "@/components/request/RequestProtocolSwitcher";
+import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
 
 interface KVItem { key: string; value: string; enabled: boolean }
 
@@ -14,6 +14,7 @@ export function WsWorkspace() {
   const activeTab = useAppStore((s) => s.getActiveTab());
   const updateTab = useAppStore((s) => s.updateTab);
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
+  const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const { t } = useTranslation();
 
   const [connected, setConnected] = useState(false);
@@ -201,8 +202,8 @@ export function WsWorkspace() {
   const addHeader = () => setHeaders([...headers, { key: "", value: "", enabled: true }]);
   const removeHeader = (i: number) => setHeaders(headers.filter((_, idx) => idx !== i));
 
-  const handleProtocolChange = useCallback(async (protocol: RequestProtocol) => {
-    if (!activeTab || protocol === activeTab.protocol) return;
+  const handleRequestKindChange = useCallback(async (kind: RequestKind) => {
+    if (!activeTab || kind === activeTab.protocol) return;
     try {
       if (connected || connecting) {
         const { wsDisconnect } = await import("@/services/wsService");
@@ -210,15 +211,28 @@ export function WsWorkspace() {
       }
     } catch {}
     setShowHeaders(false);
-    setTabProtocol(activeTab.id, protocol);
-  }, [activeTab, connected, connecting, setTabProtocol]);
+
+    if (kind === "ws") return;
+
+    if (kind === "mqtt") {
+      setTabProtocol(activeTab.id, "mqtt");
+      return;
+    }
+
+    setTabProtocol(activeTab.id, "http");
+    updateHttpConfig(activeTab.id, {
+      requestMode: kind === "http" ? "rest" : kind,
+      name: kind === "graphql" ? "GraphQL Request" : kind === "sse" ? "SSE Stream" : "Untitled Request",
+      method: kind === "graphql" ? "POST" : "GET",
+    });
+  }, [activeTab, connected, connecting, setTabProtocol, updateHttpConfig]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Top Connection Bar */}
       <RequestWorkbenchHeader
         prefix={(
-          <RequestProtocolSwitcher activeProtocol={activeTab.protocol} onChange={handleProtocolChange} />
+          <RequestProtocolSwitcher activeProtocol={activeTab.protocol} onChange={handleRequestKindChange} />
         )}
         main={(
           <div className="flex min-w-0 flex-1 items-center">

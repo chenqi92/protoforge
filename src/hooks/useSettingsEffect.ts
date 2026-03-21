@@ -50,6 +50,10 @@ export function useSettingsEffect() {
         link.rel = 'stylesheet';
         link.href = entry.url;
         link.dataset.font = settings.fontFamily;
+        link.onerror = () => {
+          // Google Fonts unreachable (offline / GFW), silently remove the broken link
+          link.remove();
+        };
         document.head.appendChild(link);
       }
     }

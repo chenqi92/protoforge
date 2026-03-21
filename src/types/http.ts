@@ -3,6 +3,7 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
 export type BodyType = 'none' | 'raw' | 'json' | 'formUrlencoded' | 'formData' | 'binary' | 'graphql';
+export type HttpRequestMode = 'rest' | 'graphql' | 'sse';
 
 export type AuthType = 'none' | 'bearer' | 'basic' | 'apiKey' | 'oauth2';
 
@@ -11,15 +12,17 @@ export interface KeyValue {
   value: string;
   description?: string;
   enabled: boolean;
+  isAuto?: boolean;  // auto-generated default header
 }
 
 /** Form-Data field — supports text and file */
 export interface FormDataField {
   key: string;
-  value: string;        // text value or file path
+  value: string;        // text value or file path(s), multiple separated by comma
   fieldType: 'text' | 'file';
-  fileName?: string;    // display name for file
+  fileName?: string;    // display name for file(s)
   description?: string;
+  contentType?: string;
   enabled: boolean;
 }
 
@@ -43,6 +46,7 @@ export interface OAuth2Config {
 export interface HttpRequestConfig {
   id: string;
   name: string;
+  requestMode: HttpRequestMode;
   method: HttpMethod;
   url: string;
   headers: KeyValue[];
@@ -137,9 +141,14 @@ export function createDefaultRequest(): HttpRequestConfig {
   return {
     id: crypto.randomUUID(),
     name: 'Untitled Request',
+    requestMode: 'rest',
     method: 'GET',
     url: '',
-    headers: [{ key: '', value: '', enabled: true }],
+    headers: [
+      { key: 'User-Agent', value: 'ProtoForge/0.1.0', enabled: true, isAuto: true },
+      { key: 'Accept', value: '*/*', enabled: true, isAuto: true },
+      { key: '', value: '', enabled: true },
+    ],
     queryParams: [{ key: '', value: '', enabled: true }],
     bodyType: 'none',
     rawBody: '',
@@ -197,4 +206,3 @@ export function getStatusColor(status: number): string {
   if (status < 500) return 'text-method-post';
   return 'text-error';
 }
-

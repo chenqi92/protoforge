@@ -101,18 +101,34 @@ function httpToLoadTestConfig(http: HttpRequestConfig): Partial<LoadTestConfig> 
 
   // Body
   let body: LoadTestConfig["body"] = undefined;
-  switch (http.bodyType) {
-    case "json":
-      if (http.jsonBody?.trim()) {
-        body = { type: "json", data: http.jsonBody };
-      }
-      break;
-    case "raw":
-      if (http.rawBody?.trim()) {
-        body = { type: "raw", content: http.rawBody, contentType: http.rawContentType || "text/plain" };
-      }
-      break;
-    // form-urlencoded/formData/binary 不适合压测，忽略
+  if (http.requestMode === "graphql") {
+    body = {
+      type: "json",
+      data: JSON.stringify({
+        query: http.graphqlQuery || "",
+        variables: (() => {
+          try {
+            return JSON.parse(http.graphqlVariables || "{}");
+          } catch {
+            return http.graphqlVariables || {};
+          }
+        })(),
+      }),
+    };
+  } else {
+    switch (http.bodyType) {
+      case "json":
+        if (http.jsonBody?.trim()) {
+          body = { type: "json", data: http.jsonBody };
+        }
+        break;
+      case "raw":
+        if (http.rawBody?.trim()) {
+          body = { type: "raw", content: http.rawBody, contentType: http.rawContentType || "text/plain" };
+        }
+        break;
+      // form-urlencoded/formData/binary 不适合压测，忽略
+    }
   }
 
   // Auth

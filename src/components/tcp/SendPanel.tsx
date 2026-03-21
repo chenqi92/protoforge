@@ -1,6 +1,6 @@
 // 发送面板组件 — 编码选择、定时发送、发送控制
 import { useState, useRef } from "react";
-import { Send, Timer, Plus, Trash2, ChevronDown, RotateCcw, CornerDownLeft } from "lucide-react";
+import { Send, Timer, Plus, Trash2, ChevronDown, RotateCcw, CornerDownLeft, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { DataFormat, SendHistoryItem, QuickCommand } from "@/types/tcp";
@@ -16,10 +16,12 @@ interface SendPanelProps {
   onClearHistory: () => void;
   onLoadHistory: (item: SendHistoryItem) => void;
   quickCommands: QuickCommand[];
-  onAddQuickCommand: () => void;
+  onSaveQuickCommand: (command: { id?: string; name: string; data: string; format: DataFormat }) => void;
   onDeleteQuickCommand: (id: string) => void;
   onLoadQuickCommand: (cmd: QuickCommand) => void;
   sendLabel?: string;
+  sendTargetLabel?: string;
+  sendTargetHint?: string;
   timerEnabled: boolean;
   timerInterval: number;
   onTimerToggle: () => void;
@@ -39,8 +41,10 @@ export function SendPanel({
   message, setMessage, sendFormat, setSendFormat,
   connected, onSend,
   sendHistory, onClearHistory, onLoadHistory,
-  quickCommands, onAddQuickCommand, onDeleteQuickCommand, onLoadQuickCommand,
+  quickCommands, onSaveQuickCommand, onDeleteQuickCommand, onLoadQuickCommand,
   sendLabel = "Send",
+  sendTargetLabel,
+  sendTargetHint,
   timerEnabled, timerInterval, onTimerToggle, onTimerIntervalChange,
   appendNewline, onAppendNewlineChange,
   embedded = false,
@@ -48,6 +52,48 @@ export function SendPanel({
   const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showCommandEditor, setShowCommandEditor] = useState(false);
+  const [editingCommandId, setEditingCommandId] = useState<string | null>(null);
+  const [commandName, setCommandName] = useState("");
+  const [commandData, setCommandData] = useState("");
+  const [commandFormat, setCommandFormat] = useState<DataFormat>("ascii");
+
+  const openNewQuickCommand = () => {
+    setEditingCommandId(null);
+    setCommandName(`${t("tcp.system.command")}${quickCommands.length + 1}`);
+    setCommandData(message);
+    setCommandFormat(sendFormat);
+    setShowCommandEditor(true);
+  };
+
+  const openEditQuickCommand = (cmd: QuickCommand) => {
+    setEditingCommandId(cmd.id);
+    setCommandName(cmd.name);
+    setCommandData(cmd.data);
+    setCommandFormat(cmd.format);
+    setShowCommandEditor(true);
+  };
+
+  const closeQuickCommandEditor = () => {
+    setShowCommandEditor(false);
+    setEditingCommandId(null);
+    setCommandName("");
+    setCommandData("");
+    setCommandFormat(sendFormat);
+  };
+
+  const handleSaveQuickCommand = () => {
+    const nextName = commandName.trim();
+    const nextData = commandData.trim();
+    if (!nextName || !nextData) return;
+    onSaveQuickCommand({
+      id: editingCommandId ?? undefined,
+      name: nextName,
+      data: commandData,
+      format: commandFormat,
+    });
+    closeQuickCommandEditor();
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -132,6 +178,18 @@ export function SendPanel({
             ) : null}
           </div>
 
+          {sendTargetLabel ? (
+            <div className="rounded-[10px] border border-border-default/65 bg-bg-secondary/26 px-3 py-2.5">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+                {t("tcp.sendPanel.currentTarget")}
+              </div>
+              <div className="mt-1 text-[12px] font-medium text-text-primary">{sendTargetLabel}</div>
+              {sendTargetHint ? (
+                <div className="mt-1 text-[11px] text-text-tertiary">{sendTargetHint}</div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="flex min-h-[188px] flex-1 flex-col">
             <div className="relative flex min-h-[188px] flex-1">
               <textarea
@@ -167,10 +225,8 @@ export function SendPanel({
               onClick={onSend}
               disabled={!connected || !message.trim()}
               className={cn(
-                "wb-primary-btn mt-3 flex h-8 w-full items-center justify-center gap-1.5 text-[12px] font-semibold text-white transition-all",
-                "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700",
-                "shadow-sm hover:shadow-md active:scale-[0.98]",
-                "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:from-blue-500 disabled:hover:to-indigo-600"
+                "wb-primary-btn mt-3 flex h-8 w-full items-center justify-center gap-1.5 bg-accent",
+                "hover:bg-accent-hover disabled:cursor-not-allowed disabled:hover:bg-accent"
               )}
             >
               <Send className="h-3.5 w-3.5" />
@@ -179,38 +235,131 @@ export function SendPanel({
             </button>
           </div>
 
-          {quickCommands.length > 0 ? (
-            <div className="border-t border-border-default/70 pt-3">
-              <div className="flex items-center justify-between px-1 pb-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">{t('tcp.sendPanel.quickCommands')}</span>
-                <button
-                  onClick={onAddQuickCommand}
-                  className="rounded-[10px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
+          <div className="border-t border-border-default/70 pt-3">
+            <div className="flex items-center justify-between px-1 pb-1.5">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">{t('tcp.sendPanel.quickCommands')}</div>
+                <div className="mt-0.5 text-[10px] text-text-disabled">{t("tcp.sendPanel.newCommandHint")}</div>
               </div>
+              <button
+                onClick={openNewQuickCommand}
+                className="rounded-[10px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent"
+                title={t("tcp.sendPanel.addCommand")}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {showCommandEditor ? (
+              <div className="mb-3 rounded-[12px] border border-border-default/70 bg-bg-secondary/30 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-semibold text-text-primary">
+                    {editingCommandId ? t("tcp.sendPanel.editCommand") : t("tcp.sendPanel.addCommand")}
+                  </div>
+                  <button
+                    onClick={closeQuickCommandEditor}
+                    className="text-[10px] font-medium text-text-tertiary transition-colors hover:text-text-primary"
+                  >
+                    {t("tcp.sendPanel.cancelCommand")}
+                  </button>
+                </div>
+
+                <div className="mt-2 space-y-2.5">
+                  <div>
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+                      {t("tcp.sendPanel.commandName")}
+                    </div>
+                    <input
+                      value={commandName}
+                      onChange={(e) => setCommandName(e.target.value)}
+                      className="wb-field w-full"
+                      placeholder={t("tcp.sendPanel.commandName")}
+                    />
+                  </div>
+
+                  <div>
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+                      {t("tcp.sendPanel.sendFormat")}
+                    </div>
+                    <div className="wb-tool-segment">
+                      {FORMAT_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setCommandFormat(opt.value)}
+                          className={cn("flex-1", commandFormat === opt.value && "is-active")}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+                      {t("tcp.sendPanel.commandContent")}
+                    </div>
+                    <textarea
+                      value={commandData}
+                      onChange={(e) => setCommandData(e.target.value)}
+                      className="min-h-[96px] w-full resize-none rounded-[12px] border border-border-default bg-bg-input/85 p-3 text-[12px] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:ring-2 focus:ring-accent/20"
+                      placeholder={t("tcp.sendPanel.placeholder")}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <button onClick={closeQuickCommandEditor} className="wb-ghost-btn px-3">
+                    {t("tcp.sendPanel.cancelCommand")}
+                  </button>
+                  <button
+                    onClick={handleSaveQuickCommand}
+                    disabled={!commandName.trim() || !commandData.trim()}
+                    className="wb-primary-btn bg-accent hover:bg-accent-hover disabled:hover:bg-accent"
+                  >
+                    {t("tcp.sendPanel.saveCommand")}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {quickCommands.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {quickCommands.map((cmd) => (
-                  <div key={cmd.id} className="group relative">
+                  <div key={cmd.id} className="flex items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-secondary/70 px-1.5 py-1">
                     <button
                       onClick={() => onLoadQuickCommand(cmd)}
-                      className="inline-flex items-center gap-1 rounded-[10px] border border-border-default bg-bg-secondary/70 px-2.5 py-1.5 text-[10px] font-medium text-text-secondary transition-all hover:border-accent/30 hover:bg-bg-hover"
+                      className="inline-flex min-w-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[10px] font-medium text-text-secondary transition-all hover:bg-bg-hover hover:text-text-primary"
                     >
-                      <CornerDownLeft className="h-2.5 w-2.5 text-text-disabled" />
-                      {cmd.name}
+                      <CornerDownLeft className="h-2.5 w-2.5 shrink-0 text-text-disabled" />
+                      <span className="truncate">{cmd.name}</span>
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); onDeleteQuickCommand(cmd.id); }}
-                      className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-[7px] bg-red-500 text-[8px] text-white group-hover:flex"
+                      onClick={() => openEditQuickCommand(cmd)}
+                      className="flex h-6 w-6 items-center justify-center rounded-[8px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent"
+                      title={t("tcp.sendPanel.editCommand")}
                     >
-                      ×
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => onDeleteQuickCommand(cmd.id)}
+                      className="flex h-6 w-6 items-center justify-center rounded-[8px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"
+                      title={t("contextMenu.delete")}
+                    >
+                      <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
               </div>
-            </div>
-          ) : null}
+            ) : (
+              <button
+                onClick={openNewQuickCommand}
+                className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-dashed border-border-default px-3 py-3 text-[11px] font-medium text-text-tertiary transition-colors hover:border-accent hover:bg-bg-hover/60 hover:text-accent"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {t("tcp.sendPanel.quickCommandEmpty")}
+              </button>
+            )}
+          </div>
 
           {sendHistory.length > 0 ? (
             <div className="border-t border-border-default/70 pt-3">

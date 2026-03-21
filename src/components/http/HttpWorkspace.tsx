@@ -1,11 +1,13 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, Braces, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Braces, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDown, Trash2 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
-import { useAppStore, type RequestProtocol } from "@/stores/appStore";
+import { useAppStore } from "@/stores/appStore";
 import { useHistoryStore } from "@/stores/historyStore";
-import type { HttpMethod, KeyValue, FormDataField, ScriptResult } from "@/types/http";
+import type { HttpMethod, KeyValue, FormDataField, ScriptResult, HttpRequestMode } from "@/types/http";
 import type { OAuth2Config } from "@/types/http";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { SaveRequestDialog } from "./SaveRequestDialog";
@@ -13,7 +15,7 @@ import { ScriptEditor } from "./ScriptEditor";
 import { CodeEditor } from "@/components/common/CodeEditor";
 import { ResponseViewer } from "@/components/ui/ResponseViewer";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
-import { RequestProtocolSwitcher } from "@/components/request/RequestProtocolSwitcher";
+import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -27,6 +29,13 @@ const methodDotColor: Record<string, string> = {
   DELETE: "bg-red-500", PATCH: "bg-violet-500", HEAD: "bg-cyan-500", OPTIONS: "bg-gray-400",
 };
 
+interface SseEvent {
+  id: string | null;
+  eventType: string;
+  data: string;
+  timestamp: string;
+}
+
 export function HttpWorkspace() {
   const { t } = useTranslation();
   const activeTab = useAppStore((s) => s.getActiveTab());
@@ -37,15 +46,22 @@ export function HttpWorkspace() {
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
 
   const [reqTab, setReqTab] = useState<"params" | "headers" | "body" | "auth" | "pre-script" | "post-script">("params");
-  const [resTab, setResTab] = useState<"pretty" | "raw" | "headers" | "cookies" | "timing">("pretty");
+  const [resTab, setResTab] = useState<"body" | "headers" | "cookies" | "timing">("body");
   const [copied, setCopied] = useState(false);
   const [showMethods, setShowMethods] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [scriptResults, setScriptResults] = useState<{ pre: ScriptResult | null; post: ScriptResult | null }>({ pre: null, post: null });
   const [urlFocused, setUrlFocused] = useState(false);
   const [urlHighlight, setUrlHighlight] = useState(-1);
+  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  const [sseStatus, setSseStatus] = useState<'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'>('idle');
+  const [sseEvents, setSseEvents] = useState<SseEvent[]>([]);
+  const [sseError, setSseError] = useState('');
+  const [sseAutoScroll, setSseAutoScroll] = useState(true);
+  const toggleSecret = (field: string) => setShowSecrets(prev => ({ ...prev, [field]: !prev[field] }));
   const urlInputRef = useRef<HTMLInputElement>(null);
   const urlRectRef = useRef<DOMRect | null>(null);
+  const sseListRef = useRef<HTMLDivElement>(null);
 
   // URL history autocomplete
   const historyEntries = useHistoryStore((s) => s.entries);
@@ -69,30 +85,224 @@ export function HttpWorkspace() {
   const response = activeTab.httpResponse;
   const { loading, error } = activeTab;
   const tabId = activeTab.id;
+  const sseConnId = `sse-${tabId}`;
+  const isSseMode = config.requestMode === "sse";
+  const isGraphqlMode = config.requestMode === "graphql";
+  const isSseConnected = sseStatus === "connected" || sseStatus === "connecting";
+  const responseHeaderEntries = useMemo(
+    () => response ? Object.entries(response.headers ?? {}) : [],
+    [response]
+  );
+  const responseHeaderMap = useMemo(
+    () => new Map(responseHeaderEntries.map(([key, value]) => [key.toLowerCase(), value])),
+    [responseHeaderEntries]
+  );
+  const responseSizeLabel = useMemo(() => {
+    if (!response) return "0 B";
+    return response.bodySize < 1024 ? `${response.bodySize} B` : `${(response.bodySize / 1024).toFixed(1)} KB`;
+  }, [response]);
+  const responseCookies = useMemo(() => response?.cookies ?? [], [response]);
+  const secureCookieCount = useMemo(
+    () => responseCookies.filter((cookie) => cookie.secure).length,
+    [responseCookies]
+  );
+  const httpOnlyCookieCount = useMemo(
+    () => responseCookies.filter((cookie) => cookie.httpOnly).length,
+    [responseCookies]
+  );
+  const timingCards = useMemo(() => {
+    if (!response) return [];
+    return [
+      { label: t('http.connectTime'), value: response.timing.connectMs, color: "bg-sky-500" },
+      { label: t('http.ttfb'), value: response.timing.ttfbMs, color: "bg-emerald-500" },
+      { label: t('http.download'), value: response.timing.downloadMs, color: "bg-amber-500" },
+      { label: t('http.totalTime'), value: response.timing.totalMs, color: "bg-violet-500" },
+    ];
+  }, [response, t]);
+
+  useEffect(() => {
+    const unlistenEvent = listen<SseEvent>(`sse-event-${sseConnId}`, (event) => {
+      setSseEvents((prev) => [...prev, event.payload]);
+    });
+    const unlistenStatus = listen<string>(`sse-status-${sseConnId}`, (event) => {
+      const nextStatus = event.payload;
+      if (nextStatus === "connecting") {
+        setSseStatus("connecting");
+        return;
+      }
+      if (nextStatus === "connected") {
+        setSseStatus("connected");
+        setSseError("");
+        return;
+      }
+      if (nextStatus === "disconnected") {
+        setSseStatus("disconnected");
+        return;
+      }
+      if (nextStatus.startsWith("error:")) {
+        setSseStatus("error");
+        setSseError(nextStatus.slice(6));
+      }
+    });
+
+    return () => {
+      unlistenEvent.then((fn) => fn());
+      unlistenStatus.then((fn) => fn());
+      void invoke("sse_disconnect", { connId: sseConnId }).catch(() => {});
+    };
+  }, [sseConnId]);
+
+  useEffect(() => {
+    if (sseAutoScroll && sseListRef.current) {
+      sseListRef.current.scrollTop = sseListRef.current.scrollHeight;
+    }
+  }, [sseAutoScroll, sseEvents]);
+
+  useEffect(() => {
+    const allowedTabs = isSseMode ? ["params", "headers", "auth"] : ["params", "headers", "body", "auth", "pre-script", "post-script"];
+    if (!allowedTabs.includes(reqTab)) {
+      setReqTab(isGraphqlMode ? "body" : "params");
+    }
+  }, [isGraphqlMode, isSseMode, reqTab]);
+
+  useEffect(() => {
+    if (!isSseMode && isSseConnected) {
+      void invoke("sse_disconnect", { connId: sseConnId }).catch(() => {});
+      setSseStatus("disconnected");
+    }
+  }, [isSseConnected, isSseMode, sseConnId]);
+
+  const resolveSseRequest = useCallback(async () => {
+    const { resolveHttpConfig, buildRequestPayload } = await import("@/services/httpService");
+    const resolved = resolveHttpConfig(config);
+    const payload = buildRequestPayload(resolved);
+    const targetUrl = new URL(payload.url);
+
+    for (const [key, value] of Object.entries(payload.queryParams)) {
+      targetUrl.searchParams.append(key, value);
+    }
+
+    const headers: Record<string, string> = { ...payload.headers };
+    if (!Object.keys(headers).some((key) => key.toLowerCase() === "accept")) {
+      headers.Accept = "text/event-stream";
+    }
+
+    if (payload.auth) {
+      switch (payload.auth.type) {
+        case "bearer":
+          headers.Authorization = `Bearer ${payload.auth.token}`;
+          break;
+        case "basic":
+          headers.Authorization = `Basic ${btoa(`${payload.auth.username}:${payload.auth.password}`)}`;
+          break;
+        case "apiKey":
+          if (payload.auth.addTo === "query") {
+            targetUrl.searchParams.set(payload.auth.key, payload.auth.value);
+          } else if (payload.auth.key) {
+            headers[payload.auth.key] = payload.auth.value;
+          }
+          break;
+      }
+    }
+
+    return { url: targetUrl.toString(), headers };
+  }, [config]);
+
+  const handleSseConnect = useCallback(async () => {
+    if (!config.url.trim()) return;
+    setError(tabId, null);
+    setHttpResponse(tabId, null);
+    setSseEvents([]);
+    setSseError("");
+    setSseStatus("connecting");
+    try {
+      const request = await resolveSseRequest();
+      await invoke("sse_connect", { connId: sseConnId, request });
+    } catch (err: any) {
+      setSseStatus("error");
+      setSseError(err?.message || String(err));
+    }
+  }, [config.url, resolveSseRequest, setError, setHttpResponse, sseConnId, tabId]);
+
+  const handleSseDisconnect = useCallback(async () => {
+    try {
+      await invoke("sse_disconnect", { connId: sseConnId });
+    } catch {}
+  }, [sseConnId]);
+
+  const handleModeChange = useCallback(async (mode: HttpRequestMode) => {
+    if (mode === config.requestMode) return;
+
+    if (config.requestMode === "sse" && isSseConnected) {
+      try {
+        await invoke("sse_disconnect", { connId: sseConnId });
+      } catch {}
+    }
+
+    const currentName = config.name.trim();
+    const usingGeneratedName = !currentName || ["Untitled Request", "GraphQL Request", "SSE Stream"].includes(currentName);
+
+    updateHttpConfig(tabId, {
+      requestMode: mode,
+      name: usingGeneratedName
+        ? mode === "graphql"
+          ? "GraphQL Request"
+          : mode === "sse"
+            ? "SSE Stream"
+            : "Untitled Request"
+        : config.name,
+      method: mode === "graphql" ? (config.method === "GET" || config.method === "HEAD" ? "POST" : config.method) : mode === "sse" ? "GET" : config.method,
+    });
+    setReqTab(mode === "graphql" ? "body" : "params");
+    setResTab("body");
+  }, [config, isSseConnected, sseConnId, tabId, updateHttpConfig]);
 
   const handleSend = useCallback(async () => {
+    if (isSseMode) {
+      if (isSseConnected) {
+        await handleSseDisconnect();
+      } else {
+        await handleSseConnect();
+      }
+      return;
+    }
     if (!config.url.trim()) return;
     setLoading(tabId, true);
     setError(tabId, null);
     setScriptResults({ pre: null, post: null });
+    let finalResponse: import("@/types/http").HttpResponse | null = null;
     try {
       const hasScripts = (config.preScript?.trim() || config.postScript?.trim());
       if (hasScripts) {
         const { sendRequestWithScripts } = await import("@/services/httpService");
         const result = await sendRequestWithScripts(config);
+        finalResponse = result.response;
         setHttpResponse(tabId, result.response);
         setScriptResults({ pre: result.preScriptResult, post: result.postScriptResult });
       } else {
         const { sendHttpRequest } = await import("@/services/httpService");
         const res = await sendHttpRequest(config);
+        finalResponse = res;
         setHttpResponse(tabId, res);
       }
     } catch (err: any) {
       setError(tabId, err.message || String(err));
     } finally {
       setLoading(tabId, false);
+      // 记录到历史
+      useHistoryStore.getState().addEntry({
+        id: crypto.randomUUID(),
+        method: config.method,
+        url: config.url,
+        status: finalResponse?.status ?? null,
+        durationMs: finalResponse?.durationMs ?? null,
+        bodySize: finalResponse?.bodySize ?? null,
+        requestConfig: JSON.stringify(config),
+        responseSummary: null,
+        createdAt: new Date().toISOString(),
+      });
     }
-  }, [tabId, config, setLoading, setHttpResponse, setError]);
+  }, [tabId, config, setLoading, setHttpResponse, setError, handleSseConnect, handleSseDisconnect, isSseConnected, isSseMode]);
 
   const handleCopy = useCallback(() => {
     if (response?.body) {
@@ -102,11 +312,36 @@ export function HttpWorkspace() {
     }
   }, [response]);
 
-  const handleProtocolChange = useCallback((protocol: RequestProtocol) => {
-    if (protocol === activeTab.protocol) return;
-    setShowMethods(false);
-    setTabProtocol(tabId, protocol);
-  }, [activeTab.protocol, setTabProtocol, tabId]);
+  const handleRequestKindChange = useCallback((kind: RequestKind) => {
+    const activeKind: RequestKind = activeTab.protocol === "http" && config.requestMode !== "rest"
+      ? config.requestMode
+      : activeTab.protocol;
+
+    if (kind === activeKind) return;
+
+    const switchKind = async () => {
+      if (isSseConnected) {
+        try {
+          await invoke("sse_disconnect", { connId: sseConnId });
+        } catch {}
+      }
+
+      setShowMethods(false);
+
+      if (kind === "ws" || kind === "mqtt") {
+        setTabProtocol(tabId, kind);
+        return;
+      }
+
+      if (activeTab.protocol !== "http") {
+        setTabProtocol(tabId, "http");
+      }
+
+      await handleModeChange(kind === "http" ? "rest" : kind);
+    };
+
+    void switchKind();
+  }, [activeTab.protocol, config.requestMode, handleModeChange, isSseConnected, setTabProtocol, sseConnId, tabId]);
 
   const params = Array.isArray(config.queryParams) ? config.queryParams : [];
   const headers = Array.isArray(config.headers) ? config.headers : [];
@@ -116,10 +351,12 @@ export function HttpWorkspace() {
   const reqTabs = [
     { key: "params" as const, label: `${t('http.params')}${params.filter(p => p.key).length ? ` (${params.filter(p => p.key).length})` : ""}` },
     { key: "headers" as const, label: `${t('http.headers')}${headers.filter(h => h.key).length ? ` (${headers.filter(h => h.key).length})` : ""}` },
-    { key: "body" as const, label: t('http.body') },
+    ...(!isSseMode ? [{ key: "body" as const, label: isGraphqlMode ? t('http.graphql.modeLabel') : t('http.body') }] : []),
     { key: "auth" as const, label: t('http.auth') },
-    { key: "pre-script" as const, label: t('http.preScript') },
-    { key: "post-script" as const, label: t('http.postScript') },
+    ...(!isSseMode ? [
+      { key: "pre-script" as const, label: t('http.preScript') },
+      { key: "post-script" as const, label: t('http.postScript') },
+    ] : []),
   ];
 
   return (
@@ -127,7 +364,11 @@ export function HttpWorkspace() {
       {/* Top Request Bar Area */}
       <RequestWorkbenchHeader
         prefix={(
-          <RequestProtocolSwitcher activeProtocol={activeTab.protocol} onChange={handleProtocolChange} />
+          <RequestProtocolSwitcher
+            activeProtocol={activeTab.protocol}
+            activeHttpMode={config.requestMode}
+            onChange={handleRequestKindChange}
+          />
         )}
         main={(
           <div className="relative flex min-w-0 flex-1 items-center gap-2">
@@ -219,7 +460,7 @@ export function HttpWorkspace() {
                   const { pushLoadTestConfig } = await import("@/lib/loadTestBridge");
                   pushLoadTestConfig(config);
                 }}
-                disabled={!config.url.trim()}
+                disabled={!config.url.trim() || isSseMode}
                 className="wb-icon-btn hover:text-rose-600"
                 title={t('http.sendToLoadtest')}
               >
@@ -228,22 +469,36 @@ export function HttpWorkspace() {
             </div>
             <button
               onClick={handleSend}
-              disabled={loading || !config.url.trim()}
+              disabled={(isSseMode ? sseStatus === "connecting" : loading) || !config.url.trim()}
               data-send-button
               className={cn(
                 "wb-primary-btn min-w-[88px] bg-accent",
-                loading ? "animate-pulse opacity-90 shadow-[0_0_12px_rgba(59,130,246,0.45)] cursor-wait" : "hover:bg-accent-hover"
+                isSseMode
+                  ? sseStatus === "connected"
+                    ? "bg-red-500 hover:bg-red-600"
+                    : sseStatus === "connecting"
+                      ? "animate-pulse opacity-90 shadow-[0_0_12px_rgba(59,130,246,0.45)] cursor-wait"
+                      : "hover:bg-accent-hover"
+                  : loading
+                    ? "animate-pulse opacity-90 shadow-[0_0_12px_rgba(59,130,246,0.45)] cursor-wait"
+                    : "hover:bg-accent-hover"
               )}
             >
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-white" />}
-              {loading ? t('http.sending') : t('http.send')}
+              {isSseMode ? (
+                sseStatus === "connected" ? <Square className="w-3 h-3 fill-white" /> : sseStatus === "connecting" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-white" />
+              ) : loading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Play className="w-3 h-3 fill-white" />
+              )}
+              {isSseMode ? (sseStatus === "connected" ? t('sse.disconnect') : sseStatus === "connecting" ? t('sse.connecting') : t('sse.connect')) : loading ? t('http.sending') : t('http.send')}
             </button>
           </>
         )}
       />
 
       {/* Main Split Area */}
-      <div className="flex-1 overflow-hidden px-3 pb-3 pt-1.5">
+      <div className="flex-1 overflow-hidden pb-3 pt-1.5">
         <div className="http-workbench-shell">
           <PanelGroup orientation="vertical">
         
@@ -266,28 +521,45 @@ export function HttpWorkspace() {
           
             <div className="http-workbench-body">
               {reqTab === "params" && <div className="px-1.5 py-1"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" /></div>}
-              {reqTab === "headers" && <div className="px-1.5 py-1"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets /></div>}
+              {reqTab === "headers" && <div className="px-1.5 py-1"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle /></div>}
             
               {reqTab === "body" && (
                 <div className="p-4 flex flex-col h-full">
-                  <div className="wb-segmented mb-4 w-fit shrink-0">
-                    {(["none", "json", "raw", "graphql", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
-                      <button
-                        key={bt}
-                        onClick={() => updateHttpConfig(tabId, { bodyType: bt })}
-                        className={cn(
-                          "wb-segment",
-                          config.bodyType === bt && "wb-segment-active"
-                        )}
-                      >
-                        {bt === "none" ? "None" : bt === "formUrlencoded" ? "URL-Encoded" : bt === "formData" ? "Form-Data" : bt === "binary" ? "Binary" : bt === "graphql" ? "GraphQL" : bt.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
+                  {!isGraphqlMode ? (
+                    <div className="wb-segmented mb-4 w-fit shrink-0">
+                      {(["none", "json", "raw", "graphql", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
+                        <button
+                          key={bt}
+                          onClick={() => updateHttpConfig(tabId, { bodyType: bt })}
+                          className={cn(
+                            "wb-segment",
+                            config.bodyType === bt && "wb-segment-active"
+                          )}
+                        >
+                          {bt === "none" ? "None" : bt === "formUrlencoded" ? "URL-Encoded" : bt === "formData" ? "Form-Data" : bt === "binary" ? "Binary" : bt === "graphql" ? "GraphQL" : bt.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[13px] font-semibold text-text-primary">{t('http.graphql.modeTitle')}</div>
+                        <div className="mt-1 text-[11px] text-text-tertiary">{t('http.graphql.modeDesc')}</div>
+                      </div>
+                      <span className="wb-tool-chip">GraphQL</span>
+                    </div>
+                  )}
                 
                   <div className="flex-1 min-h-0 relative">
-                    {config.bodyType === "none" && <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[13px]">{t('http.noBody')}</div>}
-                    {config.bodyType === "json" && (
+                    {isGraphqlMode ? (
+                      <GraphQLBodyEditor
+                        query={config.graphqlQuery || ""}
+                        variables={config.graphqlVariables || ""}
+                        onQueryChange={(v) => updateHttpConfig(tabId, { graphqlQuery: v })}
+                        onVariablesChange={(v) => updateHttpConfig(tabId, { graphqlVariables: v })}
+                      />
+                    ) : config.bodyType === "none" ? <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[13px]">{t('http.noBody')}</div> : null}
+                    {!isGraphqlMode && config.bodyType === "json" && (
                       <div className="w-full h-full border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                         <CodeEditor
                           value={config.jsonBody || ''}
@@ -296,7 +568,7 @@ export function HttpWorkspace() {
                         />
                       </div>
                     )}
-                    {config.bodyType === "graphql" && (
+                    {!isGraphqlMode && config.bodyType === "graphql" && (
                       <GraphQLBodyEditor
                         query={config.graphqlQuery || ""}
                         variables={config.graphqlVariables || ""}
@@ -304,7 +576,7 @@ export function HttpWorkspace() {
                         onVariablesChange={(v) => updateHttpConfig(tabId, { graphqlVariables: v })}
                       />
                     )}
-                    {config.bodyType === "raw" && (
+                    {!isGraphqlMode && config.bodyType === "raw" && (
                       <div className="flex flex-col h-full gap-2">
                         <select
                           value={config.rawContentType}
@@ -326,9 +598,9 @@ export function HttpWorkspace() {
                         </div>
                       </div>
                     )}
-                    {config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-1 px-1"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" /></div>}
-                    {config.bodyType === "formData" && <div className="overflow-auto h-full -mx-2 px-2"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
-                    {config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
+                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-1 px-1"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" /></div>}
+                    {!isGraphqlMode && config.bodyType === "formData" && <div className="overflow-auto h-full -mx-2 px-2"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
+                    {!isGraphqlMode && config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
                   </div>
                 </div>
               )}
@@ -355,12 +627,18 @@ export function HttpWorkspace() {
                     {config.authType === "bearer" && (
                       <div className="space-y-2">
                         <label className="text-[12px] font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
-                        <input
-                          value={config.bearerToken}
-                          onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
-                          placeholder="ey..."
-                          className="wb-field w-full font-mono text-[13px]"
-                        />
+                        <div className="relative">
+                          <input
+                            value={config.bearerToken}
+                            onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
+                            type={showSecrets['bearer'] ? 'text' : 'password'}
+                            placeholder="ey..."
+                            className="wb-field w-full font-mono text-[13px] pr-9"
+                          />
+                          <button type="button" onClick={() => toggleSecret('bearer')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
+                            {showSecrets['bearer'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                       </div>
                     )}
                     {config.authType === "basic" && (
@@ -371,7 +649,12 @@ export function HttpWorkspace() {
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-[12px] font-medium text-text-secondary">Password</label>
-                          <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type="password" className="wb-field w-full text-[13px]" />
+                          <div className="relative">
+                            <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full text-[13px] pr-9" />
+                            <button type="button" onClick={() => toggleSecret('basicPwd')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
+                              {showSecrets['basicPwd'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -393,7 +676,12 @@ export function HttpWorkspace() {
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-[12px] font-medium text-text-secondary">Value</label>
-                          <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} className="wb-field w-full font-mono text-[13px]" />
+                          <div className="relative">
+                            <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono text-[13px] pr-9" />
+                            <button type="button" onClick={() => toggleSecret('apiKey')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
+                              {showSecrets['apiKey'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -432,7 +720,17 @@ export function HttpWorkspace() {
               </div>
             )}
           
-            {response ? (
+            {isSseMode ? (
+              <HttpSseResponsePanel
+                status={sseStatus}
+                error={sseError}
+                events={sseEvents}
+                autoScroll={sseAutoScroll}
+                onToggleAutoScroll={() => setSseAutoScroll((prev) => !prev)}
+                onClear={() => setSseEvents([])}
+                listRef={sseListRef}
+              />
+            ) : response ? (
               <>
                 {/* Script results notification */}
                 {(scriptResults.pre || scriptResults.post) && (
@@ -461,29 +759,29 @@ export function HttpWorkspace() {
                 )}
                 <div className="http-response-head shrink-0">
                   <div className="http-response-tabs scrollbar-hide">
-                    {(["pretty", "raw", "headers", "cookies", "timing"] as const).map((tab) => (
+                    {(["body", "headers", "cookies", "timing"] as const).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setResTab(tab)}
                         className={cn(
-                          "wb-tab",
-                          resTab === tab && "wb-tab-active text-text-primary"
+                          "http-response-tab",
+                          resTab === tab && "is-active"
                         )}
                       >
-                        {tab === "pretty" ? "JSON Format" : tab === "raw" ? "Raw" : tab === "headers" ? t('http.responseHeaders') : tab === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}` : t('http.timing')}
+                        {tab === "body" ? t('http.responseBody') : tab === "headers" ? t('http.responseHeaders') : tab === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}` : t('http.timing')}
                       </button>
                     ))}
                   </div>
                   
-                  <div className="flex shrink-0 flex-wrap items-center gap-1.5 text-[11px]">
-                    <span className={cn("wb-status-chip font-semibold", response.status < 400 ? "text-emerald-600" : "text-red-500")}>
+                  <div className="http-response-meta">
+                    <span className={cn("http-response-status", getHttpStatusTone(response.status))}>
+                      <span className={cn("http-response-status-dot", getHttpStatusDotTone(response.status))} />
                       {response.status} {response.statusText}
                     </span>
-                    <span className="text-text-secondary font-mono">{response.durationMs}ms</span>
-                    <span className="text-text-secondary font-mono">{response.bodySize < 1024 ? `${response.bodySize} B` : `${(response.bodySize / 1024).toFixed(1)} KB`}</span>
-                    
-                    <div className="w-[1px] h-4 bg-border-strong mx-1" />
-                    
+
+                    <ResponseMetaPill label="Time" value={`${response.durationMs} ms`} />
+                    <ResponseMetaPill label="Size" value={responseSizeLabel} />
+
                     <button
                       onClick={handleCopy}
                       className="wb-icon-btn"
@@ -496,72 +794,156 @@ export function HttpWorkspace() {
                 
                 <div className="flex-1 overflow-hidden">
                   {resTab === "headers" ? (
-                    <div className="p-4 overflow-auto h-full">
-                      <div className="max-w-3xl border border-border-default rounded-lg overflow-hidden bg-bg-primary">
-                        {(Array.isArray(response.headers) ? response.headers : Object.entries(response.headers)).map(([k, v]: [string, string], i: number) => (
-                          <div key={`${k}-${i}`} className={cn("flex gap-4 p-2 text-[13px] font-mono", i > 0 && "border-t border-border-default")}>
-                            <span className="text-text-secondary font-medium w-1/3 break-words">{k}</span>
-                            <span className="text-text-primary break-all w-2/3">{v}</span>
+                    <div className="selectable p-4 overflow-auto h-full">
+                      <div className="flex min-h-full flex-col gap-3">
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                          <ResponseHeaderMetric
+                            label={t('http.responseHeaders')}
+                            value={`${responseHeaderEntries.length}`}
+                            hint="Items"
+                          />
+                          <ResponseHeaderMetric
+                            label="Content-Type"
+                            value={responseHeaderMap.get("content-type") || response.contentType || "—"}
+                          />
+                          <ResponseHeaderMetric
+                            label="Content-Length"
+                            value={responseHeaderMap.get("content-length") || `${response.bodySize} B`}
+                          />
+                          <ResponseHeaderMetric
+                            label="Allow"
+                            value={responseHeaderMap.get("allow") || "—"}
+                          />
+                        </div>
+
+                        <div className="rounded-[16px] border border-border-default bg-bg-primary/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                          <div className="grid grid-cols-[minmax(180px,0.34fr)_minmax(0,0.66fr)] border-b border-border-default/75 bg-bg-secondary/42 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                            <span>Header</span>
+                            <span>Value</span>
                           </div>
-                        ))}
+
+                          <div className="grid gap-0">
+                            {responseHeaderEntries.map(([key, value], index) => (
+                              <div
+                                key={`${key}-${index}`}
+                                className={cn(
+                                  "grid grid-cols-[minmax(180px,0.34fr)_minmax(0,0.66fr)] gap-4 px-4 py-3",
+                                  index > 0 && "border-t border-border-default/70"
+                                )}
+                              >
+                                <div className="min-w-0 text-[12px] font-semibold text-text-secondary break-words">
+                                  {key}
+                                </div>
+                                <div className="min-w-0 break-all text-[12px] font-mono text-text-primary">
+                                  {value}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ) : resTab === "cookies" ? (
-                    <div className="p-4 overflow-auto h-full">
-                      {response.cookies?.length ? (
-                        <div className="max-w-4xl border border-border-default rounded-lg overflow-hidden bg-bg-primary">
-                          <table className="w-full text-[12px] font-mono">
-                            <thead><tr className="bg-bg-secondary text-text-disabled text-[10px] font-semibold uppercase">
-                              <th className="text-left px-3 py-2">Name</th>
-                              <th className="text-left px-3 py-2">Value</th>
-                              <th className="text-left px-3 py-2">Domain</th>
-                              <th className="text-left px-3 py-2">Path</th>
-                              <th className="text-left px-3 py-2">Flags</th>
-                            </tr></thead>
-                            <tbody>
-                              {response.cookies.map((c, i) => (
-                                <tr key={i} className={cn(i > 0 && "border-t border-border-default")}>
-                                  <td className="px-3 py-2 text-text-primary font-semibold">{c.name}</td>
-                                  <td className="px-3 py-2 text-text-secondary break-all max-w-[200px] truncate">{c.value}</td>
-                                  <td className="px-3 py-2 text-text-tertiary">{c.domain || "-"}</td>
-                                  <td className="px-3 py-2 text-text-tertiary">{c.path || "-"}</td>
-                                  <td className="px-3 py-2 text-text-tertiary">
-                                    {[c.httpOnly && "HttpOnly", c.secure && "Secure", c.sameSite].filter(Boolean).join(", ") || "-"}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                    <div className="selectable p-4 overflow-auto h-full">
+                      {responseCookies.length ? (
+                        <div className="flex min-h-full flex-col gap-3">
+                          <div className="grid gap-3 md:grid-cols-3">
+                            <ResponseHeaderMetric label="Cookies" value={`${responseCookies.length}`} hint="Items" />
+                            <ResponseHeaderMetric label="Secure" value={`${secureCookieCount}`} hint="Flagged" />
+                            <ResponseHeaderMetric label="HttpOnly" value={`${httpOnlyCookieCount}`} hint="Flagged" />
+                          </div>
+
+                          <div className="w-full overflow-hidden rounded-[16px] border border-border-default bg-bg-primary/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full text-[12px] font-mono">
+                                <thead>
+                                  <tr className="bg-bg-secondary/42 text-text-disabled text-[10px] font-semibold uppercase tracking-[0.08em]">
+                                    <th className="w-[16%] min-w-[120px] px-4 py-3 text-left">Name</th>
+                                    <th className="w-[30%] min-w-[220px] px-4 py-3 text-left">Value</th>
+                                    <th className="w-[18%] min-w-[160px] px-4 py-3 text-left">Domain</th>
+                                    <th className="w-[14%] min-w-[120px] px-4 py-3 text-left">Path</th>
+                                    <th className="w-[22%] min-w-[180px] px-4 py-3 text-left">Flags</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {responseCookies.map((cookie, index) => (
+                                    <tr key={index} className={cn(index > 0 && "border-t border-border-default/70")}>
+                                      <td className="px-4 py-3 break-words font-semibold text-text-primary">{cookie.name}</td>
+                                      <td className="px-4 py-3 break-all text-text-secondary">{cookie.value}</td>
+                                      <td className="px-4 py-3 break-all text-text-tertiary">{cookie.domain || "-"}</td>
+                                      <td className="px-4 py-3 break-all text-text-tertiary">{cookie.path || "-"}</td>
+                                      <td className="px-4 py-3 break-words text-text-tertiary">
+                                        {[cookie.httpOnly && "HttpOnly", cookie.secure && "Secure", cookie.sameSite].filter(Boolean).join(", ") || "-"}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex items-center justify-center h-full text-text-disabled text-[13px]"><Cookie className="w-4 h-4 mr-2 opacity-40" />{t('http.noCookies')}</div>
                       )}
                     </div>
                   ) : resTab === "timing" ? (
-                    <div className="p-6 overflow-auto h-full">
-                      <div className="max-w-lg space-y-4">
-                        {[
-                          { label: t('http.connectTime'), value: response.timing.connectMs, color: "bg-blue-500" },
-                          { label: t('http.ttfb'), value: response.timing.ttfbMs, color: "bg-emerald-500" },
-                          { label: t('http.download'), value: response.timing.downloadMs, color: "bg-amber-500" },
-                          { label: t('http.totalTime'), value: response.timing.totalMs, color: "bg-violet-500" },
-                        ].map(({ label, value, color }) => (
-                          <div key={label}>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[12px] text-text-secondary">{label}</span>
-                              <span className="text-[12px] font-mono font-bold text-text-primary">{value ?? "—"} ms</span>
-                            </div>
-                            <div className="h-2 bg-bg-secondary rounded-full overflow-hidden">
-                              <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${value && response.timing.totalMs ? Math.max(5, (value / response.timing.totalMs) * 100) : 0}%` }} />
+                    <div className="selectable p-4 overflow-auto h-full">
+                      <div className="flex min-h-full flex-col gap-3">
+                        <div className="grid gap-3 xl:grid-cols-[minmax(260px,0.88fr)_minmax(0,1.12fr)]">
+                          <div className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.totalTime')}</div>
+                            <div className="mt-3 text-[26px] font-semibold tracking-tight text-text-primary">{response.durationMs} ms</div>
+                            <div className="mt-2 text-[12px] leading-5 text-text-tertiary">
+                              请求往返耗时，包含连接建立、首字节等待与下载阶段。
                             </div>
                           </div>
-                        ))}
+
+                          <div className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.timing')}</div>
+                              <div className="text-[11px] font-mono text-text-tertiary">{response.durationMs} ms</div>
+                            </div>
+                            <div className="mt-4 h-3 overflow-hidden rounded-full bg-bg-secondary">
+                              {timingCards.slice(0, 3).map(({ label, value, color }) => {
+                                const width = value && response.timing.totalMs ? Math.max(6, (value / response.timing.totalMs) * 100) : 0;
+                                if (!width) return null;
+                                return <div key={label} className={cn("h-full transition-all", color)} style={{ width: `${width}%` }} />;
+                              })}
+                            </div>
+                            <div className="mt-4 grid gap-2 md:grid-cols-3">
+                              {timingCards.slice(0, 3).map(({ label, value, color }) => (
+                                <div key={label} className="rounded-[12px] border border-border-default/75 bg-bg-secondary/24 px-3 py-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className={cn("h-2.5 w-2.5 rounded-full", color)} />
+                                    <span className="text-[11px] font-medium text-text-secondary">{label}</span>
+                                  </div>
+                                  <div className="mt-1 font-mono text-[13px] font-semibold text-text-primary">{value ?? "—"} ms</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                          {timingCards.map(({ label, value, color }) => (
+                            <div key={label} className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[12px] font-medium text-text-secondary">{label}</span>
+                                <span className="font-mono text-[13px] font-semibold text-text-primary">{value ?? "—"} ms</span>
+                              </div>
+                              <div className="mt-3 h-2 overflow-hidden rounded-full bg-bg-secondary">
+                                <div
+                                  className={cn("h-full rounded-full transition-all", color)}
+                                  style={{ width: `${value && response.timing.totalMs ? Math.max(6, (value / response.timing.totalMs) * 100) : 0}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  ) : resTab === "pretty" ? (
-                    <ResponseViewer body={response.body} contentType={response.contentType} />
                   ) : (
-                    <ResponseViewer body={response.body} contentType={response.contentType} modes={['raw']} compact />
+                    <ResponseViewer body={response.body} contentType={response.contentType} />
                   )}
                 </div>
               </>
@@ -586,6 +968,139 @@ export function HttpWorkspace() {
         onClose={() => setShowSaveDialog(false)}
         config={config}
       />
+    </div>
+  );
+}
+
+function ResponseMetaPill({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="http-response-meta-pill">
+      <span className="http-response-meta-label">{label}</span>
+      <span className="http-response-meta-value font-mono">{value}</span>
+    </span>
+  );
+}
+
+function HttpSseResponsePanel({
+  status,
+  error,
+  events,
+  autoScroll,
+  onToggleAutoScroll,
+  onClear,
+  listRef,
+}: {
+  status: 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
+  error: string;
+  events: SseEvent[];
+  autoScroll: boolean;
+  onToggleAutoScroll: () => void;
+  onClear: () => void;
+  listRef: { current: HTMLDivElement | null };
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="http-response-head shrink-0">
+        <div className="http-response-tabs scrollbar-hide">
+          <span className="http-response-tab is-active">{t('sse.events')}</span>
+        </div>
+
+        <div className="http-response-meta">
+          <span className={cn("http-response-status",
+            status === 'connected'
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300"
+              : status === 'connecting'
+                ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300"
+                : status === 'error'
+                  ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300"
+                  : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-300"
+          )}>
+            <span className={cn("http-response-status-dot",
+              status === 'connected' ? "bg-emerald-500" : status === 'connecting' ? "bg-amber-500" : status === 'error' ? "bg-red-500" : "bg-slate-400"
+            )} />
+            {status === 'idle' ? t('sse.idle') : status === 'connecting' ? t('sse.connecting') : status === 'connected' ? t('sse.connected') : status === 'disconnected' ? t('sse.disconnected') : t('sse.error')}
+          </span>
+          <ResponseMetaPill label={t('sse.events')} value={`${events.length}`} />
+          <button
+            type="button"
+            onClick={onToggleAutoScroll}
+            className={cn("wb-icon-btn", autoScroll && "bg-accent/10 text-accent")}
+            title={t('sse.autoScroll')}
+          >
+            <ArrowDown className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" onClick={onClear} className="wb-icon-btn" title={t('common.delete')}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {error ? (
+        <div className="border-b border-red-200 bg-red-50/80 px-4 py-2 text-[12px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+          {error}
+        </div>
+      ) : null}
+
+      <div ref={listRef} className="selectable flex-1 overflow-auto bg-bg-secondary/8">
+        {events.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary/35">
+              <Waves className="h-7 w-7 text-orange-500/40" />
+            </div>
+            <div className="text-[14px] font-semibold text-text-secondary">{t('sse.emptyTitle')}</div>
+            <div className="mt-2 max-w-xl text-[12px] leading-6 text-text-tertiary">{t('sse.emptyDesc')}</div>
+          </div>
+        ) : (
+          <div className="divide-y divide-border-default/55">
+            {events.map((event, index) => (
+              <div key={`${event.timestamp}-${index}`} className="px-4 py-3">
+                <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-mono text-text-disabled">{new Date(event.timestamp).toLocaleTimeString()}</span>
+                  <span className="rounded-[7px] bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-orange-600">{event.eventType}</span>
+                  {event.id ? <span className="text-[10px] text-text-disabled">ID {event.id}</span> : null}
+                </div>
+                <pre className="selectable whitespace-pre-wrap break-words text-[12px] font-mono text-text-primary">{event.data}</pre>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function getHttpStatusTone(status: number) {
+  if (status < 200) return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-300";
+  if (status < 300) return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300";
+  if (status < 400) return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300";
+  if (status < 500) return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-300";
+  return "border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300";
+}
+
+function getHttpStatusDotTone(status: number) {
+  if (status < 200) return "bg-sky-500";
+  if (status < 300) return "bg-emerald-500";
+  if (status < 400) return "bg-amber-500";
+  if (status < 500) return "bg-orange-500";
+  return "bg-red-500";
+}
+
+function ResponseHeaderMetric({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-[14px] border border-border-default/75 bg-bg-primary/88 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{label}</div>
+      <div className="mt-2 truncate text-[13px] font-semibold text-text-primary">{value}</div>
+      {hint ? <div className="mt-1 text-[10px] text-text-disabled">{hint}</div> : null}
     </div>
   );
 }
@@ -807,19 +1322,24 @@ const HEADER_PRESETS: { key: string; value: string; desc: string }[] = [
 ];
 
 /* ── KV Editor (table-based, for params, headers, form-urlencoded) ── */
-function KVEditor({ items, onChange, kp, vp, showPresets }: {
+function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle }: {
   items: KeyValue[];
   onChange: (v: KeyValue[]) => void;
   kp: string;
   vp: string;
   showPresets?: boolean;
+  showAutoToggle?: boolean;
 }) {
   const { t } = useTranslation();
   const [presetOpen, setPresetOpen] = useState(false);
+  const [showAuto, setShowAuto] = useState(false);
   const [activeKeySuggest, setActiveKeySuggest] = useState<number | null>(null);
   const [activeValueSuggest, setActiveValueSuggest] = useState<number | null>(null);
   const [highlightIdx, setHighlightIdx] = useState(-1);
   const safe = items || [];
+
+  const autoCount = safe.filter(h => h.isAuto).length;
+  const hasAuto = showAutoToggle && autoCount > 0;
 
   const update = (i: number, f: "key" | "value" | "description", v: string) => {
     const n = [...safe]; n[i] = { ...n[i], [f]: v }; onChange(n);
@@ -860,6 +1380,51 @@ function KVEditor({ items, onChange, kp, vp, showPresets }: {
 
   const cellInput = "h-7 w-full bg-transparent px-2 text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled";
 
+  // 可见行的全选/取消逻辑仅对可见行生效
+  const visibleItems = safe.filter(item => !item.isAuto || showAuto);
+  const allVisibleEnabled = visibleItems.length > 0 && visibleItems.every(item => item.enabled);
+
+  const renderRow = (item: KeyValue, i: number, rowIdx: number) => {
+    const keySugs = activeKeySuggest === i ? getKeySuggestions(item.key) : [];
+    const valSugs = activeValueSuggest === i ? getValueSuggestions(item.key) : [];
+    return (
+      <tr key={i} className={cn(
+        "group border border-border-default",
+        rowIdx > 0 && "border-t-0",
+        item.isAuto && "bg-bg-tertiary/30"
+      )}>
+        <td className="w-7 text-center border-r border-border-default align-middle">
+          <input type="checkbox" checked={item.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer" />
+        </td>
+        <td className="border-r border-border-default p-0">
+          <TableCellInput value={item.key} onChange={v => update(i, "key", v)}
+            onFocus={() => { if (showPresets) { setActiveKeySuggest(i); setActiveValueSuggest(null); setHighlightIdx(-1); } }}
+            onBlur={() => setTimeout(() => { setActiveKeySuggest(null); setHighlightIdx(-1); }, 150)}
+            onKeyDown={e => handleKeyDown(e, keySugs, k => selectKeySuggestion(i, k), () => setActiveKeySuggest(null))}
+            placeholder={kp} disabled={!item.enabled} suggestions={keySugs} highlightIdx={highlightIdx}
+            onSelectSuggestion={k => selectKeySuggestion(i, k)} className={cellInput} />
+        </td>
+        <td className="border-r border-border-default p-0">
+          <TableCellInput value={item.value} onChange={v => update(i, "value", v)}
+            onFocus={() => { if (showPresets && HEADER_DICT[item.key]) { setActiveValueSuggest(i); setActiveKeySuggest(null); setHighlightIdx(-1); } }}
+            onBlur={() => setTimeout(() => { setActiveValueSuggest(null); setHighlightIdx(-1); }, 150)}
+            onKeyDown={e => handleKeyDown(e, valSugs, v => selectValueSuggestion(i, v), () => setActiveValueSuggest(null))}
+            placeholder={vp} disabled={!item.enabled} suggestions={valSugs} highlightIdx={highlightIdx}
+            onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cellInput} />
+        </td>
+        <td className="border-r border-border-default p-0">
+          <input value={item.description || ""} onChange={e => update(i, "description", e.target.value)} placeholder="Description"
+            className={cn("h-7 w-full bg-transparent px-2 text-[11px] text-text-tertiary outline-none placeholder:text-text-disabled", !item.enabled && "opacity-40")} />
+        </td>
+        <td className="w-6 text-center p-0 align-middle">
+          <button onClick={() => remove(i)} className="inline-flex h-7 w-6 items-center justify-center text-sm text-text-disabled opacity-0 transition-all hover:text-red-500 group-hover:opacity-100">×</button>
+        </td>
+      </tr>
+    );
+  };
+
+  let rowIdx = 0;
+
   return (
     <div className="w-full">
       <table className="w-full border-collapse">
@@ -868,13 +1433,15 @@ function KVEditor({ items, onChange, kp, vp, showPresets }: {
             <th className="w-7 border-r border-border-default">
               <input
                 type="checkbox"
-                checked={safe.length > 0 && safe.every(item => item.enabled)}
+                checked={allVisibleEnabled}
                 onChange={() => {
-                  const allEnabled = safe.every(item => item.enabled);
-                  onChange(safe.map(item => ({ ...item, enabled: !allEnabled })));
+                  onChange(safe.map(item => {
+                    if (item.isAuto && !showAuto) return item; // 隐藏的 auto 行不受影响
+                    return { ...item, enabled: !allVisibleEnabled };
+                  }));
                 }}
                 className="w-3 h-3 rounded accent-accent cursor-pointer"
-                title={safe.every(item => item.enabled) ? t('import.deselectAll') : t('import.selectAll')}
+                title={allVisibleEnabled ? t('import.deselectAll') : t('import.selectAll')}
               />
             </th>
             <th className="text-left font-semibold px-2">{kp}</th>
@@ -884,39 +1451,33 @@ function KVEditor({ items, onChange, kp, vp, showPresets }: {
           </tr>
         </thead>
         <tbody>
+          {/* Auto headers 折叠切换行 */}
+          {hasAuto && (
+            <tr className="border border-border-default border-t-0 cursor-pointer select-none" onClick={() => setShowAuto(!showAuto)}>
+              <td colSpan={5} className="px-2 py-1">
+                <div className="flex items-center gap-1 text-[10px] text-text-tertiary hover:text-text-secondary transition-colors">
+                  {showAuto ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  <span className="font-medium">{autoCount} auto headers</span>
+                  <span className="text-text-disabled">— {showAuto ? '点击隐藏' : '点击展示默认请求头'}</span>
+                </div>
+              </td>
+            </tr>
+          )}
+          {/* Auto header 行 */}
+          {hasAuto && showAuto && safe.map((item, i) => {
+            if (!item.isAuto) return null;
+            return renderRow(item, i, rowIdx++);
+          })}
+          {/* 分割线 */}
+          {hasAuto && showAuto && (
+            <tr className="border-x border-border-default">
+              <td colSpan={5} className="h-0 border-t border-dashed border-border-default" />
+            </tr>
+          )}
+          {/* 用户自定义 header 行 */}
           {safe.map((item, i) => {
-            const keySugs = activeKeySuggest === i ? getKeySuggestions(item.key) : [];
-            const valSugs = activeValueSuggest === i ? getValueSuggestions(item.key) : [];
-            return (
-              <tr key={i} className={cn("group border border-border-default", i > 0 && "border-t-0")}>
-                <td className="w-7 text-center border-r border-border-default align-middle">
-                  <input type="checkbox" checked={item.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer" />
-                </td>
-                <td className="border-r border-border-default p-0">
-                  <TableCellInput value={item.key} onChange={v => update(i, "key", v)}
-                    onFocus={() => { if (showPresets) { setActiveKeySuggest(i); setActiveValueSuggest(null); setHighlightIdx(-1); } }}
-                    onBlur={() => setTimeout(() => { setActiveKeySuggest(null); setHighlightIdx(-1); }, 150)}
-                    onKeyDown={e => handleKeyDown(e, keySugs, k => selectKeySuggestion(i, k), () => setActiveKeySuggest(null))}
-                    placeholder={kp} disabled={!item.enabled} suggestions={keySugs} highlightIdx={highlightIdx}
-                    onSelectSuggestion={k => selectKeySuggestion(i, k)} className={cellInput} />
-                </td>
-                <td className="border-r border-border-default p-0">
-                  <TableCellInput value={item.value} onChange={v => update(i, "value", v)}
-                    onFocus={() => { if (showPresets && HEADER_DICT[item.key]) { setActiveValueSuggest(i); setActiveKeySuggest(null); setHighlightIdx(-1); } }}
-                    onBlur={() => setTimeout(() => { setActiveValueSuggest(null); setHighlightIdx(-1); }, 150)}
-                    onKeyDown={e => handleKeyDown(e, valSugs, v => selectValueSuggestion(i, v), () => setActiveValueSuggest(null))}
-                    placeholder={vp} disabled={!item.enabled} suggestions={valSugs} highlightIdx={highlightIdx}
-                    onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cellInput} />
-                </td>
-                <td className="border-r border-border-default p-0">
-                  <input value={item.description || ""} onChange={e => update(i, "description", e.target.value)} placeholder="Description"
-                    className={cn("h-7 w-full bg-transparent px-2 text-[11px] text-text-tertiary outline-none placeholder:text-text-disabled", !item.enabled && "opacity-40")} />
-                </td>
-                <td className="w-6 text-center p-0 align-middle">
-                  <button onClick={() => remove(i)} className="inline-flex h-7 w-6 items-center justify-center text-sm text-text-disabled opacity-0 transition-all hover:text-red-500 group-hover:opacity-100">×</button>
-                </td>
-              </tr>
-            );
+            if (item.isAuto) return null;
+            return renderRow(item, i, rowIdx++);
           })}
         </tbody>
       </table>
@@ -1008,14 +1569,14 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
   const remove = (i: number) => onChange(safe.filter((_, j) => j !== i));
   const add = () => onChange([...safe, { key: "", value: "", fieldType: "text", enabled: true }]);
   const handleFilePick = async (i: number) => {
-    const { pickFile } = await import("@/services/httpService");
-    const r = await pickFile();
-    if (r) update(i, { value: r.path, fileName: r.name });
+    const { pickFiles } = await import("@/services/httpService");
+    const r = await pickFiles();
+    if (r) update(i, { value: r.paths, fileName: r.names });
   };
 
   return (
     <div className="w-full">
-      <table className="w-full border-collapse">
+      <table className="w-full border-collapse table-fixed">
         <thead>
           <tr className="h-[28px] bg-bg-tertiary text-[10px] font-semibold text-text-tertiary uppercase tracking-wider border border-border-default">
             <th className="w-7 border-r border-border-default">
@@ -1031,8 +1592,9 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
               />
             </th>
             <th className="w-16 text-left font-semibold px-2">{t('http.type')}</th>
-            <th className="text-left font-semibold px-2 border-l border-border-default">Key</th>
-            <th className="text-left font-semibold px-2 border-l border-border-default">Value</th>
+            <th className="text-left font-semibold px-2 border-l border-border-default" style={{ width: '25%' }}>Key</th>
+            <th className="text-left font-semibold px-2 border-l border-border-default" style={{ width: '30%' }}>Value</th>
+            <th className="text-left font-semibold px-2 border-l border-border-default" style={{ width: '20%' }}>Description</th>
             <th className="w-6 border-l border-border-default" />
           </tr>
         </thead>
@@ -1059,12 +1621,19 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
                   <input value={field.value} onChange={e => update(i, { value: e.target.value })} placeholder="Value"
                     className={cn("w-full h-[30px] px-2 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled", !field.enabled && "opacity-40")} />
                 ) : (
-                  <button onClick={() => handleFilePick(i)}
-                    className={cn("w-full h-[30px] px-2 flex items-center gap-1.5 bg-transparent text-[11px] text-left cursor-pointer hover:bg-bg-hover transition-colors", !field.enabled && "opacity-40")}>
-                    <Upload className="w-3 h-3 text-text-disabled shrink-0" />
-                    <span className="truncate text-text-secondary">{field.fileName || field.value || "{t('http.selectFile')}"}</span>
-                  </button>
+                  <div className={cn("flex items-center w-full h-[30px]", !field.enabled && "opacity-40")}>
+                    <button onClick={() => handleFilePick(i)}
+                      className="shrink-0 h-[30px] px-2 flex items-center gap-1 bg-transparent text-[11px] cursor-pointer hover:bg-bg-hover transition-colors border-r border-border-default">
+                      <Upload className="w-3 h-3 text-text-disabled shrink-0" />
+                      <span className="text-text-tertiary whitespace-nowrap">{t('http.selectFile')}</span>
+                    </button>
+                    <span className="truncate text-[11px] text-text-secondary px-2 min-w-0 flex-1">{field.fileName || field.value || ''}</span>
+                  </div>
                 )}
+              </td>
+              <td className="border-r border-border-default p-0">
+                <input value={field.description || ''} onChange={e => update(i, { description: e.target.value })} placeholder="Description"
+                  className={cn("w-full h-[30px] px-2 bg-transparent text-[12px] text-text-secondary outline-none placeholder:text-text-disabled", !field.enabled && "opacity-40")} />
               </td>
               <td className="w-6 text-center p-0 align-middle">
                 <button onClick={() => remove(i)} className="w-6 h-[30px] inline-flex items-center justify-center text-text-disabled hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-sm">×</button>

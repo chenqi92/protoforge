@@ -1,33 +1,42 @@
-import { ChevronDown, FileText, Radio, Waves, Zap } from "lucide-react";
+import { Braces, ChevronDown, FileText, Radio, Waves, Zap } from "lucide-react";
 import { useState } from "react";
 import type { RequestProtocol } from "@/stores/appStore";
+import type { HttpRequestMode } from "@/types/http";
 import { cn } from "@/lib/utils";
 
 const options: Array<{
-  protocol: RequestProtocol;
+  kind: RequestKind;
   label: string;
   icon: typeof FileText;
   activeClass: string;
   iconBgClass: string;
   description: string;
 }> = [
-  { protocol: "http", label: "HTTP", icon: FileText, activeClass: "text-emerald-600", iconBgClass: "bg-emerald-500/12", description: "API Request" },
-  { protocol: "ws", label: "WebSocket", icon: Zap, activeClass: "text-amber-600", iconBgClass: "bg-amber-500/12", description: "Live Connection" },
-  { protocol: "sse", label: "SSE", icon: Waves, activeClass: "text-orange-600", iconBgClass: "bg-orange-500/12", description: "Event Stream" },
-  { protocol: "mqtt", label: "MQTT", icon: Radio, activeClass: "text-violet-600", iconBgClass: "bg-violet-500/12", description: "Message Broker" },
+  { kind: "http", label: "HTTP", icon: FileText, activeClass: "text-emerald-600", iconBgClass: "bg-emerald-500/12", description: "REST Request" },
+  { kind: "graphql", label: "GraphQL", icon: Braces, activeClass: "text-fuchsia-600", iconBgClass: "bg-fuchsia-500/12", description: "Schema Query" },
+  { kind: "sse", label: "SSE", icon: Waves, activeClass: "text-orange-600", iconBgClass: "bg-orange-500/12", description: "Event Stream" },
+  { kind: "ws", label: "WebSocket", icon: Zap, activeClass: "text-amber-600", iconBgClass: "bg-amber-500/12", description: "Live Connection" },
+  { kind: "mqtt", label: "MQTT", icon: Radio, activeClass: "text-violet-600", iconBgClass: "bg-violet-500/12", description: "Message Broker" },
 ];
+
+export type RequestKind = RequestProtocol | Extract<HttpRequestMode, "graphql" | "sse">;
 
 interface RequestProtocolSwitcherProps {
   activeProtocol: RequestProtocol;
-  onChange: (protocol: RequestProtocol) => void;
+  activeHttpMode?: HttpRequestMode;
+  onChange: (kind: RequestKind) => void;
 }
 
 export function RequestProtocolSwitcher({
   activeProtocol,
+  activeHttpMode,
   onChange,
 }: RequestProtocolSwitcherProps) {
   const [open, setOpen] = useState(false);
-  const activeOption = options.find((option) => option.protocol === activeProtocol) ?? options[0];
+  const activeKind: RequestKind = activeProtocol === "http" && activeHttpMode && activeHttpMode !== "rest"
+    ? activeHttpMode
+    : activeProtocol;
+  const activeOption = options.find((option) => option.kind === activeKind) ?? options[0];
   const ActiveIcon = activeOption.icon;
 
   return (
@@ -37,7 +46,7 @@ export function RequestProtocolSwitcher({
         onClick={() => setOpen((prev) => !prev)}
         className={cn("wb-protocol-dropdown", activeOption.activeClass)}
         aria-expanded={open}
-        title={`Protocol: ${activeOption.label}`}
+        title={`Request Type: ${activeOption.label}`}
       >
         <span className={cn("wb-protocol-dropdown-icon", activeOption.iconBgClass)}>
           <ActiveIcon className="h-3.5 w-3.5" />
@@ -51,19 +60,19 @@ export function RequestProtocolSwitcher({
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="wb-protocol-menu absolute left-0 top-full z-50 mt-2 min-w-[180px]">
             <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled">
-              Switch Protocol
+              Switch Request Type
             </div>
             {options.map((option) => {
               const Icon = option.icon;
-              const active = option.protocol === activeProtocol;
+              const active = option.kind === activeKind;
 
               return (
                 <button
-                  key={option.protocol}
+                  key={option.kind}
                   type="button"
                   onClick={() => {
                     setOpen(false);
-                    if (!active) onChange(option.protocol);
+                    if (!active) onChange(option.kind);
                   }}
                   className={cn(
                     "wb-protocol-menu-item",

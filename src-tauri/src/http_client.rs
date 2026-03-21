@@ -56,7 +56,7 @@ pub struct ProxyAuth {
 pub enum RequestBody {
     None,
     #[serde(rename = "raw")]
-    Raw { content: String, content_type: String },
+    Raw { content: String, #[serde(default = "default_content_type")] content_type: String },
     #[serde(rename = "json")]
     Json { data: String },
     #[serde(rename = "formUrlencoded")]
@@ -65,6 +65,10 @@ pub enum RequestBody {
     FormData { fields: Vec<FormDataField> },
     #[serde(rename = "binary")]
     Binary { file_path: String },
+}
+
+fn default_content_type() -> String {
+    "text/plain".to_string()
 }
 
 /// FormData 中的单个字段

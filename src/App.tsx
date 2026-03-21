@@ -12,7 +12,6 @@ import { StatusBar } from "@/components/layout/StatusBar";
 import { WelcomePage, type WelcomeAction } from "@/components/WelcomePage";
 import { HttpWorkspace } from "@/components/http/HttpWorkspace";
 import { WsWorkspace } from "@/components/ws/WsWorkspace";
-import { SseWorkspace } from "@/components/sse/SseWorkspace";
 import { MqttWorkspace } from "@/components/mqtt/MqttWorkspace";
 import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
 import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
@@ -28,6 +27,7 @@ import { UpdateChecker } from "@/components/settings/UpdateChecker";
 import { WindowScaffold } from "@/components/layout/WindowScaffold";
 import { subscribeDockToolRequests } from "@/lib/toolDocking";
 import { cn } from "@/lib/utils";
+import type { HttpRequestMode } from "@/types/http";
 
 const toolWorkbenchMeta: Record<ToolWorkbench, {
   titleKey: string;
@@ -171,10 +171,10 @@ function ToolWorkbenchPanel({
               <div
                 key={session.id}
                 className={cn(
-                  "group flex h-8 shrink-0 items-center gap-1 border-b-2 px-2 text-[12px] transition-colors",
+                  "group flex h-8 shrink-0 items-center gap-1 rounded-[9px] px-2 text-[12px] transition-colors",
                   isActive
-                    ? cn(meta.accentBorderClassName, "bg-bg-primary/72 text-text-primary")
-                    : "border-transparent bg-transparent text-text-secondary hover:border-border-default/75 hover:text-text-primary"
+                    ? "bg-accent/10 text-text-primary"
+                    : "bg-transparent text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                 )}
               >
                 <button
@@ -343,6 +343,7 @@ function App() {
   const toolSessions = useAppStore((s) => s.toolSessions);
   const activeToolSessionIds = useAppStore((s) => s.activeToolSessionIds);
   const addTab = useAppStore((s) => s.addTab);
+  const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const openToolTab = useAppStore((s) => s.openToolTab);
   const addToolSession = useAppStore((s) => s.addToolSession);
   const setActiveToolSession = useAppStore((s) => s.setActiveToolSession);
@@ -409,8 +410,19 @@ function App() {
       || tab.label,
     protocol: tab.protocol,
     method: tab.protocol === "http" ? tab.httpConfig?.method : undefined,
+    requestMode: tab.protocol === "http" ? tab.httpConfig?.requestMode : undefined,
     modified: false,
   }));
+
+  const createHttpModeTab = useCallback((mode: HttpRequestMode) => {
+    const tabId = addTab("http");
+    updateHttpConfig(tabId, {
+      requestMode: mode,
+      name: mode === "graphql" ? "GraphQL Request" : mode === "sse" ? "SSE Stream" : "Untitled Request",
+      method: mode === "graphql" ? "POST" : "GET",
+    });
+    return tabId;
+  }, [addTab, updateHttpConfig]);
 
   const handleNewTab = useCallback((protocol?: RequestProtocol) => {
     addTab(protocol || "http");
@@ -461,8 +473,15 @@ function App() {
   const handleWelcomeAction = useCallback((action: WelcomeAction) => {
     switch (action) {
       case "http":
-      case "ws":
+        addTab(action);
+        break;
+      case "graphql":
+        createHttpModeTab("graphql");
+        break;
       case "sse":
+        createHttpModeTab("sse");
+        break;
+      case "ws":
       case "mqtt":
         addTab(action);
         break;
@@ -475,7 +494,7 @@ function App() {
         setPluginModalOpen(true);
         break;
     }
-  }, [addTab, handleSelectWorkbench]);
+  }, [addTab, createHttpModeTab, handleSelectWorkbench]);
 
   const renderRequestWorkspace = () => {
     if (activeCollectionId) {
@@ -491,8 +510,6 @@ function App() {
         return <HttpWorkspace />;
       case "ws":
         return <WsWorkspace />;
-      case "sse":
-        return <SseWorkspace />;
       case "mqtt":
         return <MqttWorkspace />;
       default:
@@ -615,7 +632,9 @@ function App() {
     activeWorkbench === "requests"
       ? activeCollectionId
         ? "collection"
-        : activeTab?.protocol || "requests"
+        : activeTab?.protocol === "http" && activeTab.httpConfig?.requestMode && activeTab.httpConfig.requestMode !== "rest"
+          ? activeTab.httpConfig.requestMode
+          : activeTab?.protocol || "requests"
       : activeWorkbench;
 
   const detachedToolFlags: Record<ToolWorkbench, boolean> = {

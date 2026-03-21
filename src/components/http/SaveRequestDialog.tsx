@@ -76,8 +76,23 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
         url: config.url,
         headers: JSON.stringify(config.headers),
         queryParams: JSON.stringify(config.queryParams),
-        bodyType: config.bodyType,
-        bodyContent: config.bodyType === 'json' ? config.jsonBody : config.bodyType === 'raw' ? config.rawBody : '',
+        bodyType: config.requestMode === 'graphql' ? 'graphql' : config.requestMode === 'sse' ? 'sse' : config.bodyType,
+        bodyContent: (() => {
+          if (config.requestMode === 'graphql') {
+            return JSON.stringify({ query: config.graphqlQuery || '', variables: config.graphqlVariables || '' });
+          }
+          if (config.requestMode === 'sse') {
+            return '';
+          }
+          switch (config.bodyType) {
+            case 'json': return config.jsonBody || '';
+            case 'raw': return config.rawBody || '';
+            case 'formUrlencoded': return JSON.stringify(config.formFields || []);
+            case 'formData': return JSON.stringify(config.formDataFields || []);
+            case 'binary': return config.binaryFilePath || '';
+            default: return '';
+          }
+        })(),
         authType: config.authType,
         authConfig: JSON.stringify({
           bearerToken: config.bearerToken,

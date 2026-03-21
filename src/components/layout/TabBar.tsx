@@ -7,12 +7,14 @@ import type { RequestProtocol } from "@/stores/appStore";
 import { useAppStore } from "@/stores/appStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
+import type { HttpRequestMode } from "@/types/http";
 
 export interface Tab {
   id: string;
   label: string;
   protocol: RequestProtocol;
   method?: string;
+  requestMode?: HttpRequestMode;
   modified?: boolean;
 }
 
@@ -28,22 +30,31 @@ interface TabBarProps {
 const protocolLabels: Record<RequestProtocol, string> = {
   http: "HTTP",
   ws: "WebSocket",
-  sse: "SSE",
   mqtt: "MQTT",
 };
 
 const protocolColors: Record<RequestProtocol, string> = {
   http: "bg-emerald-500/15 text-emerald-600",
   ws: "bg-amber-500/15 text-amber-600",
-  sse: "bg-orange-500/15 text-orange-600",
   mqtt: "bg-purple-500/15 text-purple-600",
 };
 
 const protocolDotColors: Record<RequestProtocol, string> = {
   http: "bg-emerald-500",
   ws: "bg-amber-500",
-  sse: "bg-orange-500",
   mqtt: "bg-purple-500",
+};
+
+const modeBadgeColors: Record<HttpRequestMode, string> = {
+  rest: "bg-emerald-500/15 text-emerald-600",
+  graphql: "bg-fuchsia-500/15 text-fuchsia-600",
+  sse: "bg-orange-500/15 text-orange-600",
+};
+
+const modeLabels: Record<HttpRequestMode, string> = {
+  rest: "HTTP",
+  graphql: "GraphQL",
+  sse: "SSE",
 };
 
 const methodBadgeColors: Record<string, string> = {
@@ -59,7 +70,6 @@ const methodBadgeColors: Record<string, string> = {
 const createOptions: Array<{ protocol: RequestProtocol; label: string }> = [
   { protocol: "http", label: "HTTP" },
   { protocol: "ws", label: "WebSocket" },
-  { protocol: "sse", label: "SSE" },
   { protocol: "mqtt", label: "MQTT" },
 ];
 
@@ -322,7 +332,11 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
             </div>
             <div className="max-h-[320px] overflow-y-auto">
               {tabs.map((tab) => {
-                const badgeLabel = tab.protocol === "http" && tab.method ? tab.method : protocolLabels[tab.protocol];
+                const badgeLabel = tab.protocol === "http"
+                  ? tab.requestMode && tab.requestMode !== "rest"
+                    ? modeLabels[tab.requestMode]
+                    : tab.method || protocolLabels[tab.protocol]
+                  : protocolLabels[tab.protocol];
                 const isActive = tab.id === activeTabId;
 
                 return (
@@ -337,7 +351,18 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
                       isActive && "bg-bg-hover/45"
                     )}
                   >
-                    <span className={cn("rounded-[5px] px-1.5 py-[1px] text-[10px] font-bold leading-none", tab.protocol === "http" && tab.method ? methodBadgeColors[tab.method] || protocolColors[tab.protocol] : protocolColors[tab.protocol])}>
+                    <span
+                      className={cn(
+                        "rounded-[5px] px-1.5 py-[1px] text-[10px] font-bold leading-none",
+                        tab.protocol === "http"
+                          ? tab.requestMode && tab.requestMode !== "rest"
+                            ? modeBadgeColors[tab.requestMode]
+                            : tab.method
+                              ? methodBadgeColors[tab.method] || protocolColors[tab.protocol]
+                              : protocolColors[tab.protocol]
+                          : protocolColors[tab.protocol]
+                      )}
+                    >
                       {badgeLabel}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-text-primary">{tab.label}</span>
@@ -448,8 +473,12 @@ function TabItem({
     showMenu(event, items);
   };
 
-  const badgeColor = tab.protocol === "http" && tab.method
-    ? methodBadgeColors[tab.method] || protocolColors[tab.protocol]
+  const badgeColor = tab.protocol === "http"
+    ? tab.requestMode && tab.requestMode !== "rest"
+      ? modeBadgeColors[tab.requestMode]
+      : tab.method
+        ? methodBadgeColors[tab.method] || protocolColors[tab.protocol]
+        : protocolColors[tab.protocol]
     : protocolColors[tab.protocol];
 
   return (
@@ -470,24 +499,20 @@ function TabItem({
         onDrop={onDrop}
         onDragEnd={onDragEnd}
         className={cn(
-          "group relative flex h-8 min-w-[112px] max-w-[228px] shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2 no-drag",
+          "group relative flex h-8 min-w-[112px] max-w-[228px] shrink-0 items-center gap-1.5 rounded-[9px] px-2 no-drag",
           "cursor-pointer transition-all duration-[var(--transition-fast)]",
           isActive
-            ? "z-10 bg-transparent font-medium text-text-primary"
-            : "bg-transparent text-text-tertiary hover:text-text-secondary",
+            ? "z-10 bg-accent/10 font-medium text-text-primary"
+            : "bg-transparent text-text-tertiary hover:bg-bg-hover hover:text-text-secondary",
           isDragOver && "ring-2 ring-accent/50"
         )}
       >
-        {isActive ? (
-          <motion.div
-            layoutId="tab-active-indicator"
-            className="absolute bottom-0 left-1.5 right-1.5 h-[2px] rounded-full bg-accent"
-            transition={{ type: "spring", stiffness: 500, damping: 35 }}
-          />
-        ) : null}
-
         <span className={cn("shrink-0 rounded-[4px] px-1 py-0.5 text-[10px] font-bold leading-none", badgeColor)}>
-          {tab.protocol === "http" && tab.method ? tab.method : protocolLabels[tab.protocol]}
+          {tab.protocol === "http"
+            ? tab.requestMode && tab.requestMode !== "rest"
+              ? modeLabels[tab.requestMode]
+              : tab.method || protocolLabels[tab.protocol]
+            : protocolLabels[tab.protocol]}
         </span>
 
         {isRenaming ? (
