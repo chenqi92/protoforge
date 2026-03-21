@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, FolderOpen, Plus, Save, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 import { useCollectionStore } from '@/stores/collectionStore';
 import type { HttpRequestConfig } from '@/types/http';
 import type { CollectionItem } from '@/types/collections';
@@ -13,6 +14,7 @@ interface SaveRequestDialogProps {
 }
 
 export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequestDialogProps) {
+  const { t } = useTranslation();
   const { collections, fetchCollections, loadItems, items, saveRequest } = useCollectionStore();
   const [name, setName] = useState(config.name || 'Untitled Request');
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
@@ -111,7 +113,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
         <div className="flex shrink-0 items-center justify-between border-b border-border-default/75 bg-bg-primary/78 px-5 py-4">
           <h2 className="text-[15px] font-semibold text-text-primary flex items-center gap-2">
             <Save className="w-4 h-4 text-accent" />
-            保存请求
+            {t('saveDialog.title')}
           </h2>
           <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary">
             <X className="w-4 h-4" />
@@ -122,12 +124,12 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
         <div className="flex-1 space-y-4 overflow-auto bg-bg-secondary/18 p-5">
           {/* Name */}
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-text-secondary">请求名称</label>
+            <label className="text-[12px] font-medium text-text-secondary">{t('saveDialog.requestName')}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="input-field w-full text-[13px]"
-              placeholder="请求名称"
+              placeholder={t('saveDialog.requestNamePlaceholder')}
               autoFocus
             />
           </div>
@@ -135,12 +137,12 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
           {/* Collection Selector */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-[12px] font-medium text-text-secondary">保存到集合</label>
+              <label className="text-[12px] font-medium text-text-secondary">{t('saveDialog.saveToCollection')}</label>
               <button
                 onClick={() => setShowNewCollection(!showNewCollection)}
                 className="text-[11px] text-accent hover:text-accent-hover flex items-center gap-1 font-medium"
               >
-                <Plus className="w-3 h-3" /> 新建
+                <Plus className="w-3 h-3" /> {t('saveDialog.newCollection')}
               </button>
             </div>
 
@@ -149,19 +151,19 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
                 <input
                   value={newCollectionName}
                   onChange={(e) => setNewCollectionName(e.target.value)}
-                  placeholder="集合名称"
+                  placeholder={t('saveDialog.collectionNamePlaceholder')}
                   className="input-field flex-1 text-[12px]"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateCollection()}
                 />
                 <button onClick={handleCreateCollection} className="h-7 px-3 bg-accent text-white rounded-md text-[11px] font-medium hover:bg-accent-hover">
-                  创建
+                  {t('saveDialog.create')}
                 </button>
               </div>
             )}
 
             <div className="max-h-[220px] overflow-y-auto rounded-[16px] border border-border-default/80 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
               {collections.length === 0 ? (
-                <div className="p-4 text-center text-[12px] text-text-disabled">暂无集合，请先创建</div>
+                <div className="p-4 text-center text-[12px] text-text-disabled">{t('saveDialog.noCollections')}</div>
               ) : (
                 collections.map((col) => (
                   <div key={col.id}>
@@ -210,14 +212,14 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
             onClick={onClose}
             className="h-8 rounded-[12px] px-4 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
           >
-            取消
+            {t('saveDialog.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!selectedCollectionId || !name.trim() || saving}
             className="flex h-8 items-center gap-1.5 rounded-[12px] bg-accent px-5 text-[12px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {saving ? '保存中...' : '保存'}
+            {saving ? t('saveDialog.saving') : t('saveDialog.save')}
           </button>
         </div>
       </div>

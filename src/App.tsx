@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { ArrowUpRight, Gauge, Network, Radio } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSettingsEffect } from "@/hooks/useSettingsEffect";
@@ -27,20 +28,20 @@ import { UpdateChecker } from "@/components/settings/UpdateChecker";
 import { WindowScaffold } from "@/components/layout/WindowScaffold";
 import { subscribeDockToolRequests } from "@/lib/toolDocking";
 
-const toolWorkbenchMeta: Record<ToolWorkbench, { title: string; description: string; icon: typeof Network }> = {
+const toolWorkbenchMeta: Record<ToolWorkbench, { titleKey: string; descKey: string; icon: typeof Network }> = {
   tcpudp: {
-    title: "TCP/UDP 工作台",
-    description: "Socket 调试与报文收发",
+    titleKey: "toolWorkbench.tcpudp.title",
+    descKey: "toolWorkbench.tcpudp.description",
     icon: Network,
   },
   capture: {
-    title: "网络抓包工作台",
-    description: "代理监听与流量分析",
+    titleKey: "toolWorkbench.capture.title",
+    descKey: "toolWorkbench.capture.description",
     icon: Radio,
   },
   loadtest: {
-    title: "压测工作台",
-    description: "并发配置与结果分析",
+    titleKey: "toolWorkbench.loadtest.title",
+    descKey: "toolWorkbench.loadtest.description",
     icon: Gauge,
   },
 };
@@ -54,6 +55,7 @@ function ToolWorkbenchPanel({
   onPopout: (tool: ToolWorkbench) => void;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const meta = toolWorkbenchMeta[tool];
   const Icon = meta.icon;
 
@@ -62,17 +64,17 @@ function ToolWorkbenchPanel({
       <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border-default/65 bg-bg-primary/38 px-3">
         <div className="flex min-w-0 items-center gap-2">
           <Icon className="h-3.5 w-3.5 shrink-0 text-accent" />
-          <div className="truncate text-[12px] font-semibold text-text-primary">{meta.title}</div>
-          <div className="truncate text-[11px] text-text-disabled">{meta.description}</div>
+          <div className="truncate text-[12px] font-semibold text-text-primary">{t(meta.titleKey)}</div>
+          <div className="truncate text-[11px] text-text-disabled">{t(meta.descKey)}</div>
         </div>
 
         <button
           onClick={() => onPopout(tool)}
           className="wb-ghost-btn px-2.5"
-          title="弹出为独立窗口"
+          title={t('toolWorkbench.popoutWindow')}
         >
           <ArrowUpRight className="h-3.5 w-3.5" />
-          弹出窗口
+          {t('toolWorkbench.popoutWindow')}
         </button>
       </div>
 

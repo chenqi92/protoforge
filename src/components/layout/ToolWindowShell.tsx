@@ -5,9 +5,10 @@ import { WindowScaffold } from "@/components/layout/WindowScaffold";
 import { useSettingsEffect } from "@/hooks/useSettingsEffect";
 import { useWindowFrameGestures } from "@/hooks/useWindowFrameGestures";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 import { requestDockTool } from "@/lib/toolDocking";
 import { focusMainWindow, type ToolWindowType } from "@/lib/windowManager";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 interface ToolWindowShellProps {
   tool: ToolWindowType;
@@ -26,6 +27,7 @@ export function ToolWindowShell({
   children,
   badgeLabel,
 }: ToolWindowShellProps) {
+  const { t } = useTranslation();
   useSettingsEffect();
   const frameGestures = useWindowFrameGestures();
 
@@ -56,15 +58,21 @@ export function ToolWindowShell({
               onClick={async () => {
                 requestDockTool(tool);
                 await focusMainWindow();
-                setTimeout(() => {
-                  void getCurrentWebviewWindow().close();
-                }, 80);
+                // 给主窗口足够时间处理 dock 请求
+                await new Promise(r => setTimeout(r, 300));
+                try {
+                  const win = getCurrentWindow();
+                  await win.destroy();
+                } catch {
+                  // destroy 失败则尝试 close
+                  try { await getCurrentWindow().close(); } catch { /* ignore */ }
+                }
               }}
               className="wb-ghost-btn px-2.5"
-              title="合并回主窗口"
+              title={t('toolWindow.mergeBack')}
             >
               <ArrowLeftToLine className="h-3.5 w-3.5" />
-              合并回主窗口
+              {t('toolWindow.mergeBack')}
             </button>
             {badgeLabel ? (
               <span className="rounded-full border border-border-default/70 bg-bg-secondary/80 px-2.5 py-1 text-[11px] text-text-tertiary">

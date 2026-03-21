@@ -26,6 +26,15 @@ pub enum PluginType {
     SidebarPanel,
 }
 
+/// 插件可翻译字段
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct PluginI18nEntry {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginManifest {
@@ -54,6 +63,9 @@ pub struct PluginManifest {
     /// 插件声明的扩展点贡献 (类似 VS Code contributes)
     #[serde(default)]
     pub contributes: PluginContributes,
+    /// 多语言翻译 — 键为语言代码 ("en"), 值为可翻译字段
+    #[serde(default)]
+    pub i18n: HashMap<String, PluginI18nEntry>,
 }
 
 fn default_source() -> String {
@@ -195,6 +207,9 @@ struct RemotePluginEntry {
     #[serde(default)]
     tags: Vec<String>,
     download_url: String,
+    /// 多语言翻译
+    #[serde(default)]
+    i18n: HashMap<String, PluginI18nEntry>,
 }
 
 impl RemotePluginEntry {
@@ -214,6 +229,7 @@ impl RemotePluginEntry {
             download_url: Some(self.download_url),
             source: "remote".to_string(),
             contributes: PluginContributes::default(),
+            i18n: self.i18n,
         }
     }
 }

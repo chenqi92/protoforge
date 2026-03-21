@@ -16,6 +16,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useCollectionStore } from '@/stores/collectionStore';
 import { useEnvStore } from '@/stores/envStore';
@@ -48,15 +49,15 @@ type SourceMeta = {
 const sourceItems: SourceMeta[] = [
   {
     id: 'file',
-    label: '文件导入',
-    desc: 'Postman 与 ProtoForge JSON 集合文件',
+    label: 'import.fileImport',
+    desc: 'import.fileImportDesc',
     icon: FileJson,
     accentClassName: 'bg-blue-500/10 text-blue-600 ring-1 ring-inset ring-blue-500/15',
   },
   {
     id: 'swagger',
-    label: 'OpenAPI 导入',
-    desc: 'Swagger / OpenAPI URL 探测与接口预览',
+    label: 'import.openApiImport',
+    desc: 'import.openApiImportDesc',
     icon: Globe,
     accentClassName: 'bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/15',
   },
@@ -76,6 +77,7 @@ const inputClassName =
   'h-9 rounded-[12px] border border-border-default/80 bg-bg-secondary/60 px-3 text-[12px] text-text-primary outline-none transition-all focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]';
 
 export function ImportModal({ open, onClose }: ImportModalProps) {
+  const { t } = useTranslation();
   const [activeSource, setActiveSource] = useState<ImportSource>('file');
 
   const currentSource = useMemo(
@@ -96,7 +98,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
         className="w-[1080px] max-w-[96vw] min-h-[680px] max-h-[88vh] gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary/96 p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] backdrop-blur-xl sm:max-w-[1080px]"
         showCloseButton={false}
       >
-        <DialogTitle className="sr-only">导入集合</DialogTitle>
+        <DialogTitle className="sr-only">{t('import.title')}</DialogTitle>
 
         <div className="flex h-full min-h-[680px] flex-col">
           <div className="flex shrink-0 items-start justify-between border-b border-border-default/75 px-6 py-5">
@@ -106,23 +108,23 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               </div>
 
               <div className="min-w-0">
-                <p className="text-[16px] font-semibold tracking-tight text-text-primary">导入集合</p>
+                <p className="text-[16px] font-semibold tracking-tight text-text-primary">{t('import.title')}</p>
                 <p className="mt-1 text-[12px] leading-6 text-text-secondary">
-                  从本地集合文件或 OpenAPI 文档快速生成请求工作区。
+                  {t('import.subtitle')}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-3 py-1 text-[11px] font-medium text-text-secondary">
-                当前来源: {currentSource.label}
+                {t('import.currentSource')}: {t(currentSource.label)}
               </span>
               <button
                 onClick={onClose}
                 className="flex h-9 w-9 items-center justify-center rounded-[14px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="h-4 w-4" />
-                <span className="sr-only">关闭</span>
+                <span className="sr-only">{t('import.close')}</span>
               </button>
             </div>
           </div>
@@ -131,10 +133,10 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
             <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-5 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
               <div className="px-1 pb-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-disabled">
-                  导入来源
+                  {t('import.sourceTitle')}
                 </p>
                 <p className="mt-2 text-[11px] leading-5 text-text-tertiary">
-                  选择导入方式，右侧会显示相应的配置和预览流程。
+                  {t('import.sourceDesc')}
                 </p>
               </div>
 
@@ -164,8 +166,8 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-semibold text-text-primary">{item.label}</div>
-                        <div className="mt-1 text-[11px] leading-5 text-text-tertiary">{item.desc}</div>
+                        <div className="text-[13px] font-semibold text-text-primary">{t(item.label)}</div>
+                        <div className="mt-1 text-[11px] leading-5 text-text-tertiary">{t(item.desc)}</div>
                       </div>
 
                       <ChevronRight
@@ -182,11 +184,11 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               </div>
 
               <div className="mt-auto rounded-[20px] border border-border-default/75 bg-bg-primary/78 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <p className="text-[12px] font-semibold text-text-primary">导入说明</p>
+                <p className="text-[12px] font-semibold text-text-primary">{t('import.instructions')}</p>
                 <ul className="mt-3 space-y-2 text-[11px] leading-5 text-text-tertiary">
-                  <li>文件导入支持 Postman v2.0/v2.1 与 ProtoForge JSON。</li>
-                  <li>OpenAPI 导入支持 `doc.html`、`swagger-ui` 页面和原始规范地址。</li>
-                  <li>所有导入内容会直接同步到当前集合工作台。</li>
+                  <li>{t('import.instructionTip1')}</li>
+                  <li>{t('import.instructionTip2')}</li>
+                  <li>{t('import.instructionTip3')}</li>
                 </ul>
               </div>
             </aside>
@@ -308,6 +310,7 @@ function FileImportView({
   icon: LucideIcon;
   accentClassName: string;
 }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -323,7 +326,7 @@ function FileImportView({
       const selected = await open({
         multiple: false,
         filters: [{ name: 'JSON', extensions: ['json'] }],
-        title: '选择 Postman 或 ProtoForge 集合文件',
+        title: t('import.selectFile'),
       });
 
       if (!selected) return;
@@ -359,16 +362,16 @@ function FileImportView({
         <ContentHeader
           icon={icon}
           accentClassName={accentClassName}
-          title="从集合文件导入"
-          desc="选择本地 JSON 文件，系统会自动识别 Postman Collection 或 ProtoForge 集合格式。"
+          title={t('import.fromFile')}
+          desc={t('import.fromFileDesc')}
         />
 
         <div className="grid min-h-0 flex-1 gap-5 p-6 xl:grid-cols-[minmax(0,1.1fr)_300px]">
           <PanelCard className="flex min-h-[360px] flex-col border-dashed bg-bg-primary/72">
             <div className="border-b border-border-default/70 px-5 py-4">
-              <p className="text-[13px] font-semibold text-text-primary">集合文件</p>
+              <p className="text-[13px] font-semibold text-text-primary">{t('import.collectionFile')}</p>
               <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
-                点击下方区域选择要导入的本地文件。
+                {t('import.clickToSelect')}
               </p>
             </div>
 
@@ -399,40 +402,40 @@ function FileImportView({
               )}
 
               <p className="mt-4 text-[14px] font-semibold text-text-primary">
-                {loading ? '正在导入文件...' : success ? '导入完成' : '选择集合文件'}
+                {loading ? t('import.importing') : success ? t('import.importDone') : t('import.selectCollectionFile')}
               </p>
               <p className="mt-2 max-w-sm text-[11px] leading-5 text-text-tertiary">
                 {loading
-                  ? '系统正在解析并写入集合数据，请稍候。'
+                  ? t('import.importingDesc')
                   : success
-                    ? '集合已经成功导入，窗口即将自动关闭。'
-                    : '支持 `.json` 文件，导入后会自动同步到集合侧栏。'}
+                    ? t('import.importDoneDesc')
+                    : t('import.supportedFiles')}
               </p>
             </button>
           </PanelCard>
 
           <PanelCard className="flex min-h-[360px] flex-col">
             <div className="border-b border-border-default/70 px-5 py-4">
-              <p className="text-[13px] font-semibold text-text-primary">支持内容</p>
+              <p className="text-[13px] font-semibold text-text-primary">{t('import.supportedContent')}</p>
               <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
-                当前文件导入会自动识别以下结构。
+                {t('import.fileRecognition')}
               </p>
             </div>
 
             <div className="space-y-4 px-5 py-5 text-[11px] text-text-tertiary">
               <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 p-4">
                 <p className="text-[12px] font-semibold text-text-primary">Postman Collection</p>
-                <p className="mt-1 leading-5">兼容 v2.0 / v2.1 结构，自动转换请求、文件夹和基础元数据。</p>
+                <p className="mt-1 leading-5">{t('import.postmanCompat')}</p>
               </div>
 
               <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 p-4">
                 <p className="text-[12px] font-semibold text-text-primary">ProtoForge JSON</p>
-                <p className="mt-1 leading-5">直接恢复本地集合数据，适合跨设备迁移或备份恢复。</p>
+                <p className="mt-1 leading-5">{t('import.protoforgeCompat')}</p>
               </div>
 
               <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 p-4">
-                <p className="text-[12px] font-semibold text-text-primary">导入行为</p>
-                <p className="mt-1 leading-5">导入完成后会立即刷新侧栏集合列表，不需要手动重载。</p>
+                <p className="text-[12px] font-semibold text-text-primary">{t('import.importBehavior')}</p>
+                <p className="mt-1 leading-5">{t('import.importBehaviorDesc')}</p>
               </div>
             </div>
           </PanelCard>
@@ -443,7 +446,7 @@ function FileImportView({
 
           <div className="flex items-center justify-between">
             <p className="text-[11px] text-text-tertiary">
-              {success ? '导入成功，集合已同步到当前工作台。' : '建议优先使用导出的原始 JSON 文件进行导入。'}
+              {success ? t('import.importSuccess') : t('import.importHint')}
             </p>
 
             <div className="flex items-center gap-2">
@@ -451,7 +454,7 @@ function FileImportView({
                 onClick={onClose}
                 className="h-9 rounded-[12px] px-4 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
               >
-                取消
+                {t('import.cancel')}
               </button>
               <button
                 onClick={handleSelectFile}
@@ -464,7 +467,7 @@ function FileImportView({
                 )}
               >
                 {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                {loading ? '导入中...' : '选择文件'}
+                {loading ? t('import.importingBtn') : t('import.selectFileBtn')}
               </button>
             </div>
           </div>
@@ -483,6 +486,7 @@ function SwaggerImportView({
   icon: LucideIcon;
   accentClassName: string;
 }) {
+  const { t } = useTranslation();
   const [url, setUrl] = useState('');
   const [collectionName, setCollectionName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -627,7 +631,7 @@ function SwaggerImportView({
       setGroups(discovery.groups);
 
       if (discovery.groups.length === 0) {
-        setError('未发现任何 API 分组或文档');
+        setError(t('import.noApiFound'));
         return;
       }
 
@@ -652,7 +656,7 @@ function SwaggerImportView({
 
       const allUrls = new Set(discovery.groups.map((group) => group.url));
       setSelectedGroupUrls(allUrls);
-      setCollectionName(discovery.defaultResult?.title || 'API 集合');
+      setCollectionName(discovery.defaultResult?.title || t('import.apiCollection'));
 
       const toFetch = discovery.groups.filter((group) => !initialCache[group.url]);
       if (toFetch.length === 0) {
@@ -837,18 +841,18 @@ function SwaggerImportView({
         <ContentHeader
           icon={icon}
           accentClassName={accentClassName}
-          title="从 OpenAPI 文档导入"
-          desc="输入 Swagger / OpenAPI 地址，自动探测分组并按需预览后导入。"
+          title={t('import.fromOpenApi')}
+          desc={t('import.fromOpenApiDesc')}
           extra={
             <div className="flex items-center gap-2 text-[11px] text-text-tertiary">
               {groups.length > 0 ? (
                 <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-2.5 py-1">
-                  {groups.length} 个分组
+                  {t('import.groupCount', { count: groups.length })}
                 </span>
               ) : null}
               {hasResults ? (
                 <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-2.5 py-1">
-                  {mergedEndpoints.length} 个接口
+                  {t('import.endpointCount', { count: mergedEndpoints.length })}
                 </span>
               ) : null}
             </div>
@@ -859,15 +863,15 @@ function SwaggerImportView({
           <div className="flex min-h-0 flex-col gap-5">
             <PanelCard>
               <div className="border-b border-border-default/70 px-5 py-4">
-                <p className="text-[13px] font-semibold text-text-primary">连接文档</p>
+                <p className="text-[13px] font-semibold text-text-primary">{t('import.connectDoc')}</p>
                 <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
-                  输入文档 URL，支持 `doc.html`、`swagger-ui` 页面或原始规范地址。
+                  {t('import.urlInputDesc')}
                 </p>
               </div>
 
               <div className="space-y-4 px-5 py-5">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-medium text-text-secondary">文档地址</label>
+                  <label className="text-[11px] font-medium text-text-secondary">{t('import.docUrl')}</label>
                   <div className="flex gap-2">
                     <input
                       value={url}
@@ -891,13 +895,13 @@ function SwaggerImportView({
                       )}
                     >
                       {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
-                      {loading ? '探测中...' : '获取'}
+                      {loading ? t('import.detecting') : t('import.fetch')}
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-medium text-text-secondary">集合名称</label>
+                  <label className="text-[11px] font-medium text-text-secondary">{t('import.collectionName')}</label>
                   <input
                     value={collectionName}
                     onChange={(event) => setCollectionName(event.target.value)}
@@ -908,7 +912,7 @@ function SwaggerImportView({
 
                 {mergedBaseUrl ? (
                   <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 px-4 py-3">
-                    <p className="text-[11px] font-medium text-text-secondary">解析结果</p>
+                    <p className="text-[11px] font-medium text-text-secondary">{t('import.parseResult')}</p>
                     <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
                       Base URL: <span className="font-mono text-text-secondary">{mergedBaseUrl}</span>
                     </p>
@@ -924,24 +928,24 @@ function SwaggerImportView({
                 <div className="border-b border-border-default/70 px-5 py-4">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-text-disabled" />
-                    <p className="text-[13px] font-semibold text-text-primary">API 分组</p>
+                    <p className="text-[13px] font-semibold text-text-primary">{t('import.apiGroups')}</p>
                   </div>
                   <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
-                    选择需要导入的文档分组，未缓存的分组会自动拉取。
+                    {t('import.groupSelectDesc')}
                   </p>
                 </div>
 
                 <div className="px-5 py-5">
                   <div className="mb-3 flex items-center justify-between">
                     <span className="text-[11px] text-text-tertiary">
-                      已选 {selectedGroupUrls.size} / {groups.length}
+                      {t('import.selectedGroups', { selected: selectedGroupUrls.size, total: groups.length })}
                     </span>
                     <button
                       onClick={selectAllGroups}
                       disabled={groupLoading}
                       className="text-[11px] font-medium text-accent transition-colors hover:text-accent-hover"
                     >
-                      {allGroupsSelected ? '取消全选' : '全选'}
+                      {allGroupsSelected ? t('import.deselectAll') : t('import.selectAll')}
                     </button>
                   </div>
 
@@ -987,8 +991,8 @@ function SwaggerImportView({
               <PanelCard className="flex flex-1 flex-col">
                 <EmptyState
                   icon={Globe}
-                  title="等待探测文档"
-                  desc="输入文档地址后，系统会自动识别分组、解析接口并生成可导入预览。"
+                  title={t('import.waitDetect')}
+                  desc={t('import.waitDetectDesc')}
                 />
               </PanelCard>
             ) : null}
@@ -998,15 +1002,15 @@ function SwaggerImportView({
             <div className="border-b border-border-default/70 px-5 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-text-primary">接口预览</p>
+                  <p className="text-[13px] font-semibold text-text-primary">{t('import.endpointPreview')}</p>
                   <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
-                    按标签分组浏览接口，并控制最终导入项。
+                    {t('import.endpointPreviewDesc')}
                   </p>
                 </div>
 
                 {hasResults ? (
                   <div className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-2.5 py-1 text-[11px] text-text-secondary">
-                    已选择 {selectedIds.size} / {mergedEndpoints.length}
+                    {t('import.selectedEndpoints', { selected: selectedIds.size, total: mergedEndpoints.length })}
                   </div>
                 ) : null}
               </div>
@@ -1034,7 +1038,7 @@ function SwaggerImportView({
                     ) : (
                       <CheckSquare className="h-3.5 w-3.5" />
                     )}
-                    {selectedIds.size === mergedEndpoints.length ? '取消全选' : '全选'}
+                    {selectedIds.size === mergedEndpoints.length ? t('import.deselectAll') : t('import.selectAll')}
                   </button>
                 </div>
 
@@ -1142,8 +1146,8 @@ function SwaggerImportView({
                   ) : (
                     <EmptyState
                       icon={Search}
-                      title="没有匹配的接口"
-                      desc="尝试调整搜索关键字，或者重新选择需要导入的 API 分组。"
+                      title={t('import.noMatchEndpoints')}
+                      desc={t('import.noMatchEndpointsDesc')}
                     />
                   )}
                 </div>
@@ -1155,10 +1159,10 @@ function SwaggerImportView({
                     <div className="text-[11px] text-text-tertiary">
                       {mergedTitle ? (
                         <span>
-                          文档标题: <span className="text-text-secondary">{mergedTitle}</span>
+                          {t('import.docTitle')}: <span className="text-text-secondary">{mergedTitle}</span>
                         </span>
                       ) : (
-                        <span>导入时会自动创建集合并写入选中的接口。</span>
+                        <span>{t('import.importAutoCreate')}</span>
                       )}
                     </div>
 
@@ -1167,7 +1171,7 @@ function SwaggerImportView({
                         onClick={onClose}
                         className="h-9 rounded-[12px] px-4 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
                       >
-                        取消
+                        {t('import.cancel')}
                       </button>
                       <button
                         onClick={() => void handleImport()}
@@ -1180,7 +1184,7 @@ function SwaggerImportView({
                         )}
                       >
                         {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                        {importing ? '导入中...' : `导入 ${selectedIds.size} 个接口`}
+                        {importing ? t('import.importingBtn') : t('import.importEndpoints', { count: selectedIds.size })}
                       </button>
                     </div>
                   </div>
@@ -1189,14 +1193,14 @@ function SwaggerImportView({
             ) : loading || groupLoading ? (
               <EmptyState
                 icon={Loader2}
-                title={loading ? '正在探测文档' : '正在获取分组'}
-                desc={loading ? '系统正在识别可用的 API 文档分组。' : '正在拉取选中分组的接口详情，请稍候。'}
+                title={loading ? t('import.detectingDoc') : t('import.fetchingGroups')}
+                desc={loading ? t('import.detectingDocDesc') : t('import.fetchingGroupsDesc')}
               />
             ) : (
               <EmptyState
                 icon={Layers}
-                title="等待接口预览"
-                desc="完成文档探测后，这里会展示分组后的接口预览和导入选择。"
+                title={t('import.waitPreview')}
+                desc={t('import.waitPreviewDesc')}
               />
             )}
           </PanelCard>

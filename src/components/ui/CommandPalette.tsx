@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, FileText, Globe, X, Network, Gauge, Radio, Puzzle, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
 
@@ -20,6 +21,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
   const inputRef = useRef<HTMLInputElement>(null);
   const addTab = useAppStore((s) => s.addTab);
   const openToolTab = useAppStore((s) => s.openToolTab);
+  const { t } = useTranslation();
 
   // 重置状态
   useEffect(() => {
@@ -36,15 +38,15 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
     // Quick actions
     results.push(
-      { type: 'action', label: '新建 HTTP 请求', description: 'Ctrl+N', icon: FileText, action: () => { addTab('http'); onClose(); } },
-      { type: 'action', label: '新建 WebSocket 连接', icon: Globe, action: () => { addTab('ws'); onClose(); } },
-      { type: 'action', label: '新建 SSE 连接', icon: Globe, action: () => { addTab('sse'); onClose(); } },
-      { type: 'action', label: '新建 MQTT 连接', icon: Globe, action: () => { addTab('mqtt'); onClose(); } },
-      { type: 'action', label: '打开 TCP/UDP 工作台', icon: Network, action: () => { openToolTab('tcpudp'); onClose(); } },
-      { type: 'action', label: '打开抓包工作台', icon: Radio, action: () => { openToolTab('capture'); onClose(); } },
-      { type: 'action', label: '打开压测工作台', icon: Gauge, action: () => { openToolTab('loadtest'); onClose(); } },
-      { type: 'action', label: '打开插件中心', icon: Puzzle, action: () => { window.dispatchEvent(new CustomEvent('open-plugin-modal')); onClose(); } },
-      { type: 'action', label: '打开偏好设置', icon: Settings, action: () => { window.dispatchEvent(new CustomEvent('open-settings-modal')); onClose(); } },
+      { type: 'action', label: t('commandPalette.newHttpRequest'), description: 'Ctrl+N', icon: FileText, action: () => { addTab('http'); onClose(); } },
+      { type: 'action', label: t('commandPalette.newWsConnection'), icon: Globe, action: () => { addTab('ws'); onClose(); } },
+      { type: 'action', label: t('commandPalette.newSseConnection'), icon: Globe, action: () => { addTab('sse'); onClose(); } },
+      { type: 'action', label: t('commandPalette.newMqttConnection'), icon: Globe, action: () => { addTab('mqtt'); onClose(); } },
+      { type: 'action', label: t('commandPalette.openTcpUdp'), icon: Network, action: () => { openToolTab('tcpudp'); onClose(); } },
+      { type: 'action', label: t('commandPalette.openCapture'), icon: Radio, action: () => { openToolTab('capture'); onClose(); } },
+      { type: 'action', label: t('commandPalette.openLoadtest'), icon: Gauge, action: () => { openToolTab('loadtest'); onClose(); } },
+      { type: 'action', label: t('commandPalette.openPlugins'), icon: Puzzle, action: () => { window.dispatchEvent(new CustomEvent('open-plugin-modal')); onClose(); } },
+      { type: 'action', label: t('commandPalette.openSettings'), icon: Settings, action: () => { window.dispatchEvent(new CustomEvent('open-settings-modal')); onClose(); } },
     );
 
     // Filter by query
@@ -54,7 +56,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
       item.label.toLowerCase().includes(q) ||
       (item.description?.toLowerCase().includes(q))
     );
-  }, [query, addTab, onClose, openToolTab]);
+  }, [query, addTab, onClose, openToolTab, t]);
 
   // 键盘导航
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -87,7 +89,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
             value={query}
             onChange={(e) => { setQuery(e.target.value); setSelectedIdx(0); }}
             onKeyDown={handleKeyDown}
-            placeholder="搜索操作、请求、集合..."
+            placeholder={t('commandPalette.placeholder')}
             className="h-10 flex-1 bg-transparent text-[14px] text-text-primary outline-none placeholder:text-text-disabled"
           />
           <button onClick={onClose} className="rounded-[12px] p-1.5 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
@@ -99,7 +101,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
         <div className="flex-1 overflow-auto bg-bg-secondary/18 py-2.5">
           {items.length === 0 ? (
             <div className="flex items-center justify-center h-20 text-text-disabled text-[13px]">
-              未找到结果
+              {t('commandPalette.noResults')}
             </div>
           ) : (
             items.map((item, i) => {
@@ -127,7 +129,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
                     item.type === 'environment' ? "text-emerald-500/60" :
                     "text-text-disabled"
                   )}>
-                    {item.type === 'action' ? '操作' : item.type === 'collection' ? '集合' : item.type === 'environment' ? '环境' : item.type === 'history' ? '历史' : '请求'}
+                    {item.type === 'action' ? t('commandPalette.typeAction') : item.type === 'collection' ? t('commandPalette.typeCollection') : item.type === 'environment' ? t('commandPalette.typeEnvironment') : item.type === 'history' ? t('commandPalette.typeHistory') : t('commandPalette.typeRequest')}
                   </span>
                 </button>
               );
@@ -137,9 +139,9 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
         {/* Footer hint */}
         <div className="flex items-center gap-4 border-t border-border-default/75 bg-bg-primary/78 px-4 py-2.5 text-[10px] text-text-disabled">
-          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[9px]">↑↓</kbd> 选择</span>
-          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[9px]">Enter</kbd> 确认</span>
-          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[9px]">Esc</kbd> 关闭</span>
+          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[9px]">↑↓</kbd> {t('commandPalette.select')}</span>
+          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[9px]">Enter</kbd> {t('commandPalette.confirm')}</span>
+          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[9px]">Esc</kbd> {t('commandPalette.closeLabel')}</span>
         </div>
       </div>
     </>

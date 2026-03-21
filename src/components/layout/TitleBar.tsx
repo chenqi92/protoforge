@@ -11,6 +11,7 @@ import {
   FileText,
   ArrowUpRight,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useThemeStore } from "@/stores/themeStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import type { ToolWorkbench, WorkbenchView } from "@/stores/appStore";
@@ -28,14 +29,14 @@ interface TitleBarProps {
 
 const workbenches: Array<{
   id: WorkbenchView;
-  label: string;
+  labelKey: string;
   icon: typeof FileText;
   accentClassName: string;
 }> = [
-  { id: "requests", label: "请求", icon: FileText, accentClassName: "text-emerald-600" },
-  { id: "tcpudp", label: "TCP/UDP", icon: Network, accentClassName: "text-blue-600" },
-  { id: "capture", label: "抓包", icon: Radio, accentClassName: "text-cyan-600" },
-  { id: "loadtest", label: "压测", icon: Gauge, accentClassName: "text-rose-600" },
+  { id: "requests", labelKey: "titleBar.requests", icon: FileText, accentClassName: "text-emerald-600" },
+  { id: "tcpudp", labelKey: "titleBar.tcpudp", icon: Network, accentClassName: "text-blue-600" },
+  { id: "capture", labelKey: "titleBar.capture", icon: Radio, accentClassName: "text-cyan-600" },
+  { id: "loadtest", labelKey: "titleBar.loadtest", icon: Gauge, accentClassName: "text-rose-600" },
 ];
 
 export function TitleBar({
@@ -45,6 +46,7 @@ export function TitleBar({
   onOpenPlugins,
   onOpenSettings,
 }: TitleBarProps) {
+  const { t } = useTranslation();
   const { mode, resolved, toggle } = useThemeStore();
   const frameGestures = useWindowFrameGestures();
   const workbenchRailRef = useRef<HTMLDivElement>(null);
@@ -133,6 +135,7 @@ export function TitleBar({
             const Icon = workbench.icon;
             const isActive = activeWorkbench === workbench.id;
             const isToolWorkbench = workbench.id !== "requests";
+            const label = t(workbench.labelKey);
 
             return (
               <button
@@ -153,10 +156,10 @@ export function TitleBar({
                     ? "bg-bg-primary text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
                     : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
                 )}
-                title={isToolWorkbench ? `${workbench.label}，拖动可弹出为独立窗口` : workbench.label}
+                title={isToolWorkbench ? t('titleBar.dragToDetach', { label }) : label}
               >
                 <Icon className={cn("h-3.5 w-3.5", isActive ? workbench.accentClassName : "text-current")} />
-                <span>{workbench.label}</span>
+                <span>{label}</span>
                 {isToolWorkbench ? (
                   <ArrowUpRight className={cn("h-3 w-3 text-text-disabled transition-colors", isActive && "text-text-tertiary")} />
                 ) : null}
@@ -168,7 +171,7 @@ export function TitleBar({
 
       <div className="flex items-center gap-2 no-drag">
         <div className="flex items-center gap-1 rounded-[16px] border border-border-default/70 bg-bg-secondary/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <Tooltip content="插件">
+          <Tooltip content={t('titleBar.plugins')}>
             <button
               onClick={onOpenPlugins}
               className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-violet-500"
@@ -176,7 +179,7 @@ export function TitleBar({
               <Puzzle className="h-[15px] w-[15px]" />
             </button>
           </Tooltip>
-          <Tooltip content="设置">
+          <Tooltip content={t('titleBar.settings')}>
             <button
               onClick={onOpenSettings}
               className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
@@ -195,7 +198,7 @@ export function TitleBar({
               useSettingsStore.getState().update("theme", nextModes[nextIndex]);
             }}
             className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
-            title={mode === "system" ? "跟随系统" : mode === "dark" ? "深色模式" : "浅色模式"}
+            title={mode === "system" ? t('titleBar.themeSystem') : mode === "dark" ? t('titleBar.themeDark') : t('titleBar.themeLight')}
           >
             {mode === "system" ? (
               <Monitor className="h-4 w-4" />

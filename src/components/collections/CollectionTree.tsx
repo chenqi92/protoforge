@@ -5,6 +5,7 @@ import {
   MoreHorizontal, Upload, Play, GripVertical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 import { getMethodColor } from '@/types/http';
 import type { HttpMethod } from '@/types/http';
 
@@ -114,6 +115,7 @@ function TreeItem({ item, depth, onSelect, onDragStart, onDragOver, onDrop, drag
 }
 
 export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionTreeProps) {
+  const { t } = useTranslation();
   const [collections] = useState<Collection[]>([]);
   const [expandedCols, setExpandedCols] = useState<Set<string>>(new Set());
   const dragItemRef = useRef<string | null>(null);
@@ -139,11 +141,11 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
     return (
       <div className="h-full flex flex-col items-center justify-center text-text-disabled px-4">
         <FolderOpen className="w-10 h-10 mb-3 opacity-30" />
-        <p className="text-sm">暂无集合</p>
-        <p className="text-xs mt-1 text-center">创建集合来组织你的 API 请求</p>
+        <p className="text-sm">{t('sidebar.noCollections')}</p>
+        <p className="text-xs mt-1 text-center">{t('sidebar.noCollectionsHint')}</p>
         <button className="mt-4 flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] gradient-accent text-white text-xs font-medium">
           <FolderPlus className="w-3.5 h-3.5" />
-          新建集合
+          {t('contextMenu.newFolder')}
         </button>
       </div>
     );
@@ -153,12 +155,12 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle">
-        <span className="text-xs font-medium text-text-secondary">集合</span>
+        <span className="text-xs font-medium text-text-secondary">{t('sidebar.collections')}</span>
         <div className="flex items-center gap-1">
-          <button className="p-1 text-text-tertiary hover:text-text-secondary transition-colors" title="新建集合">
+          <button className="p-1 text-text-tertiary hover:text-text-secondary transition-colors" title={t('contextMenu.newFolder')}>
             <FolderPlus className="w-3.5 h-3.5" />
           </button>
-          <button className="p-1 text-text-tertiary hover:text-text-secondary transition-colors" title="导入集合">
+          <button className="p-1 text-text-tertiary hover:text-text-secondary transition-colors" title={t('sidebar.import')}>
             <Upload className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -181,7 +183,7 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
               <button
                 onClick={(e) => { e.stopPropagation(); onRunCollection?.(col.id, col.name); }}
                 className="p-0.5 opacity-0 group-hover:opacity-100 text-emerald-500 hover:text-emerald-600 transition-all"
-                title="批量运行"
+                title={t('runner.run')}
               >
                 <Play className="w-3 h-3" />
               </button>

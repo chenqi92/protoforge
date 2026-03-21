@@ -2,7 +2,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Download, Trash2, Check, Loader2, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 import type { PluginManifest } from "@/types/plugin";
+import { pluginT } from "@/lib/pluginI18n";
 
 interface PluginCardProps {
   plugin: PluginManifest;
@@ -11,11 +13,12 @@ interface PluginCardProps {
 }
 
 const typeLabels: Record<string, { label: string; color: string }> = {
-  "protocol-parser": { label: "协议解析", color: "text-blue-600 bg-blue-500/10" },
-  "ui-panel": { label: "界面扩展", color: "text-violet-600 bg-violet-500/10" },
+  "protocol-parser": { label: "Protocol Parser", color: "text-blue-600 bg-blue-500/10" },
+  "ui-panel": { label: "UI Extension", color: "text-violet-600 bg-violet-500/10" },
 };
 
 export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   const handleAction = async () => {
@@ -52,7 +55,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-[13px] font-semibold text-text-primary truncate">
-                {plugin.name}
+                {pluginT(plugin, 'name')}
               </h3>
               <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0", typeInfo.color)}>
                 {typeInfo.label}
@@ -67,7 +70,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
 
         {/* Description */}
         <p className="text-[12px] text-text-secondary leading-relaxed line-clamp-2 mb-3">
-          {plugin.description}
+          {pluginT(plugin, 'description')}
         </p>
 
         {/* Tags */}
@@ -101,12 +104,12 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
           ) : plugin.installed ? (
             <>
               <Trash2 className="w-3.5 h-3.5" />
-              卸载
+              {t('plugin.uninstall')}
             </>
           ) : (
             <>
               <Download className="w-3.5 h-3.5" />
-              安装
+              {t('plugin.install')}
             </>
           )}
         </button>

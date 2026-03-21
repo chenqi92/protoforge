@@ -11,10 +11,10 @@ const options: Array<{
   iconBgClass: string;
   description: string;
 }> = [
-  { protocol: "http", label: "HTTP", icon: FileText, activeClass: "text-emerald-600", iconBgClass: "bg-emerald-500/12", description: "API 请求" },
-  { protocol: "ws", label: "WebSocket", icon: Zap, activeClass: "text-amber-600", iconBgClass: "bg-amber-500/12", description: "实时连接" },
-  { protocol: "sse", label: "SSE", icon: Waves, activeClass: "text-orange-600", iconBgClass: "bg-orange-500/12", description: "事件流" },
-  { protocol: "mqtt", label: "MQTT", icon: Radio, activeClass: "text-violet-600", iconBgClass: "bg-violet-500/12", description: "消息代理" },
+  { protocol: "http", label: "HTTP", icon: FileText, activeClass: "text-emerald-600", iconBgClass: "bg-emerald-500/12", description: "API Request" },
+  { protocol: "ws", label: "WebSocket", icon: Zap, activeClass: "text-amber-600", iconBgClass: "bg-amber-500/12", description: "Live Connection" },
+  { protocol: "sse", label: "SSE", icon: Waves, activeClass: "text-orange-600", iconBgClass: "bg-orange-500/12", description: "Event Stream" },
+  { protocol: "mqtt", label: "MQTT", icon: Radio, activeClass: "text-violet-600", iconBgClass: "bg-violet-500/12", description: "Message Broker" },
 ];
 
 interface RequestProtocolSwitcherProps {
@@ -37,7 +37,7 @@ export function RequestProtocolSwitcher({
         onClick={() => setOpen((prev) => !prev)}
         className={cn("wb-protocol-dropdown", activeOption.activeClass)}
         aria-expanded={open}
-        title={`当前协议: ${activeOption.label}`}
+        title={`Protocol: ${activeOption.label}`}
       >
         <span className={cn("wb-protocol-dropdown-icon", activeOption.iconBgClass)}>
           <ActiveIcon className="h-3.5 w-3.5" />
@@ -51,7 +51,7 @@ export function RequestProtocolSwitcher({
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="wb-protocol-menu absolute left-0 top-full z-50 mt-2 min-w-[180px]">
             <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled">
-              切换协议
+              Switch Protocol
             </div>
             {options.map((option) => {
               const Icon = option.icon;

@@ -13,6 +13,7 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
 import { useThemeStore } from "@/stores/themeStore";
@@ -35,8 +36,8 @@ type SectionId = "general" | "request" | "proxy" | "data";
 
 type SectionMeta = {
   id: SectionId;
-  label: string;
-  desc: string;
+  labelKey: string;
+  descKey: string;
   icon: LucideIcon;
   accentClassName: string;
 };
@@ -44,29 +45,29 @@ type SectionMeta = {
 const sections: SectionMeta[] = [
   {
     id: "general",
-    label: "通用",
-    desc: "主题、语言和界面偏好",
+    labelKey: "settings.sections.general",
+    descKey: "settings.sections.generalDesc",
     icon: Globe,
     accentClassName: "bg-blue-500/10 text-blue-600 ring-1 ring-inset ring-blue-500/15",
   },
   {
     id: "request",
-    label: "请求",
-    desc: "请求默认值和安全行为",
+    labelKey: "settings.sections.request",
+    descKey: "settings.sections.requestDesc",
     icon: Send,
     accentClassName: "bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/15",
   },
   {
     id: "proxy",
-    label: "代理",
-    desc: "代理连接和认证信息",
+    labelKey: "settings.sections.proxy",
+    descKey: "settings.sections.proxyDesc",
     icon: Shield,
     accentClassName: "bg-amber-500/10 text-amber-600 ring-1 ring-inset ring-amber-500/15",
   },
   {
     id: "data",
-    label: "数据",
-    desc: "历史、保存与本地数据策略",
+    labelKey: "settings.sections.data",
+    descKey: "settings.sections.dataDesc",
     icon: Database,
     accentClassName: "bg-violet-500/10 text-violet-600 ring-1 ring-inset ring-violet-500/15",
   },
@@ -83,6 +84,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [section, setSection] = useState<SectionId>("general");
   const { settings, update, reset } = useSettingsStore();
   const { setMode } = useThemeStore();
+  const { t } = useTranslation();
 
   const currentSection = useMemo(
     () => sections.find((item) => item.id === section) ?? sections[0],
@@ -97,7 +99,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   };
 
   const handleReset = () => {
-    if (confirm("确定恢复所有设置为默认值？")) {
+    if (confirm(t('settings.resetConfirm'))) {
       reset();
       setMode("light");
     }
@@ -114,7 +116,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         className="w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary/96 p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] backdrop-blur-xl sm:max-w-[920px]"
         showCloseButton={false}
       >
-        <DialogTitle className="sr-only">设置</DialogTitle>
+        <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
 
         <div className="flex h-full min-h-[560px] flex-col">
           <div className="flex shrink-0 items-start justify-between border-b border-border-default/75 px-6 py-5">
@@ -124,23 +126,23 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
 
               <div className="min-w-0">
-                <p className="text-[16px] font-semibold tracking-tight text-text-primary">偏好设置</p>
+                <p className="text-[16px] font-semibold tracking-tight text-text-primary">{t('settings.title')}</p>
                 <p className="mt-1 text-[12px] leading-6 text-text-secondary">
-                  管理主题、请求行为、代理连接和本地数据策略。
+                  {t('settings.subtitle')}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-3 py-1 text-[11px] font-medium text-text-secondary">
-                当前分类: {currentSection.label}
+                {t('settings.currentSection', { section: t(currentSection.labelKey) })}
               </span>
               <button
                 onClick={onClose}
                 className="flex h-9 w-9 items-center justify-center rounded-[14px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="h-4 w-4" />
-                <span className="sr-only">关闭</span>
+                <span className="sr-only">{t('settings.close')}</span>
               </button>
             </div>
           </div>
@@ -149,10 +151,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-5 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
               <div className="px-1 pb-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-disabled">
-                  分类导航
+                  {t('settings.categoryNav')}
                 </p>
                 <p className="mt-2 text-[11px] leading-5 text-text-tertiary">
-                  选择要调整的工作台区域，右侧会显示对应设置项。
+                  {t('settings.categoryNavDesc')}
                 </p>
               </div>
 
@@ -182,8 +184,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-semibold text-text-primary">{item.label}</div>
-                        <div className="mt-1 text-[11px] leading-5 text-text-tertiary">{item.desc}</div>
+                        <div className="text-[13px] font-semibold text-text-primary">{t(item.labelKey)}</div>
+                        <div className="mt-1 text-[11px] leading-5 text-text-tertiary">{t(item.descKey)}</div>
                       </div>
 
                       <ChevronRight
@@ -203,7 +205,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   className="flex w-full items-center gap-2 rounded-[16px] border border-border-default/75 bg-bg-primary/72 px-3.5 py-3 text-[12px] font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
                 >
                   <RotateCcw className="h-4 w-4" />
-                  恢复默认设置
+                  {t('settings.resetDefaults')}
                 </button>
               </div>
             </aside>
@@ -224,10 +226,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                       <div className="min-w-0">
                         <p className="text-[17px] font-semibold tracking-tight text-text-primary">
-                          {currentSection.label}
+                          {t(currentSection.labelKey)}
                         </p>
                         <p className="mt-1 text-[12px] leading-6 text-text-secondary">
-                          {currentSection.desc}
+                          {t(currentSection.descKey)}
                         </p>
                       </div>
                     </div>
@@ -332,21 +334,23 @@ function GeneralSection({
   update,
   onThemeChange,
 }: SectionProps & { onThemeChange: (theme: AppSettings["theme"]) => void }) {
+  const { t } = useTranslation();
+
   return (
     <>
-      <SettingRow label="外观主题" desc="控制应用配色方案以及日夜模式行为。">
+      <SettingRow label={t('settings.general.theme')} desc={t('settings.general.themeDesc')}>
         <SegmentedControl
           value={settings.theme}
           onChange={onThemeChange}
           options={[
-            { value: "light", label: "浅色", icon: Sun },
-            { value: "dark", label: "深色", icon: Moon },
-            { value: "system", label: "跟随系统", icon: Monitor },
+            { value: "light", label: t('settings.general.themeLight'), icon: Sun },
+            { value: "dark", label: t('settings.general.themeDark'), icon: Moon },
+            { value: "system", label: t('settings.general.themeSystem'), icon: Monitor },
           ]}
         />
       </SettingRow>
 
-      <SettingRow label="界面字号" desc="调整编辑器和界面的默认字体大小。">
+      <SettingRow label={t('settings.general.fontSize')} desc={t('settings.general.fontSizeDesc')}>
         <Select
           value={String(settings.fontSize)}
           onValueChange={(value) => update("fontSize", Number(value) as AppSettings["fontSize"])}
@@ -364,22 +368,25 @@ function GeneralSection({
         </Select>
       </SettingRow>
 
-      <SettingRow label="字体" desc="代码区域默认使用的字体族。">
+      <SettingRow label={t('settings.general.fontFamily')} desc={t('settings.general.fontFamilyDesc')}>
         <Select
           value={settings.fontFamily}
           onValueChange={(value) => update("fontFamily", value as AppSettings["fontFamily"])}
         >
-          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-36")}>
+          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-44")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
-            <SelectItem value="mono">等宽字体</SelectItem>
-            <SelectItem value="system">系统字体</SelectItem>
+            <SelectItem value="inter">Inter</SelectItem>
+            <SelectItem value="system">{t('settings.general.fontSystem')}</SelectItem>
+            <SelectItem value="noto-sans-sc">Noto Sans SC</SelectItem>
+            <SelectItem value="lxgw-wenkai">{t('settings.general.fontLxgw')}</SelectItem>
+            <SelectItem value="source-han-sans">{t('settings.general.fontSourceHan')}</SelectItem>
           </SelectContent>
         </Select>
       </SettingRow>
 
-      <SettingRow label="界面语言" desc="切换应用界面语言。">
+      <SettingRow label={t('settings.general.language')} desc={t('settings.general.languageDesc')}>
         <Select
           value={settings.language}
           onValueChange={(value) => update("language", value as AppSettings["language"])}
@@ -388,8 +395,8 @@ function GeneralSection({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
-            <SelectItem value="zh-CN">中文</SelectItem>
-            <SelectItem value="en">English</SelectItem>
+            <SelectItem value="zh-CN">{t('settings.general.langZh')}</SelectItem>
+            <SelectItem value="en">{t('settings.general.langEn')}</SelectItem>
           </SelectContent>
         </Select>
       </SettingRow>
@@ -398,11 +405,13 @@ function GeneralSection({
 }
 
 function RequestSection({ settings, update }: SectionProps) {
+  const { t } = useTranslation();
+
   return (
     <>
       <SettingRow
-        label="默认超时时间"
-        desc="HTTP 请求的默认超时，仍可在单个请求中覆盖。"
+        label={t('settings.request.timeout')}
+        desc={t('settings.request.timeoutDesc')}
       >
         <div className="flex items-center gap-2">
           <input
@@ -414,11 +423,11 @@ function RequestSection({ settings, update }: SectionProps) {
             min={1000}
             className={cn(inputClassName, "w-28 text-center font-mono")}
           />
-          <span className="text-[11px] text-text-tertiary">ms</span>
+          <span className="text-[11px] text-text-tertiary">{t('common.ms')}</span>
         </div>
       </SettingRow>
 
-      <SettingRow label="自动跟随重定向" desc="发送请求时自动跟随 HTTP 3xx 重定向。">
+      <SettingRow label={t('settings.request.followRedirects')} desc={t('settings.request.followRedirectsDesc')}>
         <Switch
           checked={settings.followRedirects}
           onCheckedChange={(checked) => update("followRedirects", checked)}
@@ -426,7 +435,7 @@ function RequestSection({ settings, update }: SectionProps) {
       </SettingRow>
 
       {settings.followRedirects ? (
-        <SettingRow label="最大重定向次数" desc="防止无限重定向，超过此次数后会报错。">
+        <SettingRow label={t('settings.request.maxRedirects')} desc={t('settings.request.maxRedirectsDesc')}>
           <input
             type="number"
             value={settings.maxRedirects}
@@ -441,8 +450,8 @@ function RequestSection({ settings, update }: SectionProps) {
       ) : null}
 
       <SettingRow
-        label="SSL 证书验证"
-        desc="关闭后可访问自签名 HTTPS 接口，不建议在生产环境关闭。"
+        label={t('settings.request.sslVerify')}
+        desc={t('settings.request.sslVerifyDesc')}
       >
         <Switch
           checked={settings.sslVerify}
@@ -450,7 +459,7 @@ function RequestSection({ settings, update }: SectionProps) {
         />
       </SettingRow>
 
-      <SettingRow label="自动保存 Cookie" desc="自动保存响应中的 Cookie 并供后续请求复用。">
+      <SettingRow label={t('settings.request.autoSaveCookies')} desc={t('settings.request.autoSaveCookiesDesc')}>
         <Switch
           checked={settings.autoSaveCookies}
           onCheckedChange={(checked) => update("autoSaveCookies", checked)}
@@ -461,9 +470,11 @@ function RequestSection({ settings, update }: SectionProps) {
 }
 
 function ProxySection({ settings, update }: SectionProps) {
+  const { t } = useTranslation();
+
   return (
     <>
-      <SettingRow label="启用代理" desc="通过代理服务器发送 HTTP 请求。">
+      <SettingRow label={t('settings.proxy.enable')} desc={t('settings.proxy.enableDesc')}>
         <Switch
           checked={settings.proxyEnabled}
           onCheckedChange={(checked) => update("proxyEnabled", checked)}
@@ -472,7 +483,7 @@ function ProxySection({ settings, update }: SectionProps) {
 
       {settings.proxyEnabled ? (
         <>
-          <SettingRow label="代理类型" desc="选择当前请求链路使用的代理协议。">
+          <SettingRow label={t('settings.proxy.type')} desc={t('settings.proxy.typeDesc')}>
             <SegmentedControl
               value={settings.proxyType}
               onChange={(value) => update("proxyType", value)}
@@ -483,7 +494,7 @@ function ProxySection({ settings, update }: SectionProps) {
             />
           </SettingRow>
 
-          <SettingRow label="主机地址" desc="代理服务监听地址，例如 127.0.0.1。">
+          <SettingRow label={t('settings.proxy.host')} desc={t('settings.proxy.hostDesc')}>
             <input
               value={settings.proxyHost}
               onChange={(e) => update("proxyHost", e.target.value)}
@@ -492,7 +503,7 @@ function ProxySection({ settings, update }: SectionProps) {
             />
           </SettingRow>
 
-          <SettingRow label="端口" desc="代理服务使用的端口号。">
+          <SettingRow label={t('settings.proxy.port')} desc={t('settings.proxy.portDesc')}>
             <input
               type="number"
               value={settings.proxyPort}
@@ -503,7 +514,7 @@ function ProxySection({ settings, update }: SectionProps) {
             />
           </SettingRow>
 
-          <SettingRow label="代理认证" desc="如果代理需要用户名和密码，请启用此项。">
+          <SettingRow label={t('settings.proxy.auth')} desc={t('settings.proxy.authDesc')}>
             <Switch
               checked={settings.proxyAuth}
               onCheckedChange={(checked) => update("proxyAuth", checked)}
@@ -512,7 +523,7 @@ function ProxySection({ settings, update }: SectionProps) {
 
           {settings.proxyAuth ? (
             <>
-              <SettingRow label="用户名">
+              <SettingRow label={t('settings.proxy.username')}>
                 <input
                   value={settings.proxyUsername}
                   onChange={(e) => update("proxyUsername", e.target.value)}
@@ -520,7 +531,7 @@ function ProxySection({ settings, update }: SectionProps) {
                 />
               </SettingRow>
 
-              <SettingRow label="密码">
+              <SettingRow label={t('settings.proxy.password')}>
                 <input
                   type="password"
                   value={settings.proxyPassword}
@@ -537,11 +548,13 @@ function ProxySection({ settings, update }: SectionProps) {
 }
 
 function DataSection({ settings, update }: SectionProps) {
+  const { t } = useTranslation();
+
   return (
     <>
       <SettingRow
-        label="最大历史记录"
-        desc="超过数量后，系统会自动清理最早的历史请求。"
+        label={t('settings.data.maxHistory')}
+        desc={t('settings.data.maxHistoryDesc')}
       >
         <Select
           value={String(settings.maxHistoryCount)}
@@ -553,18 +566,18 @@ function DataSection({ settings, update }: SectionProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
-            <SelectItem value="50">50 条</SelectItem>
-            <SelectItem value="100">100 条</SelectItem>
-            <SelectItem value="200">200 条</SelectItem>
-            <SelectItem value="500">500 条</SelectItem>
-            <SelectItem value="1000">1000 条</SelectItem>
+            <SelectItem value="50">{t('settings.data.historyCount', { count: 50 })}</SelectItem>
+            <SelectItem value="100">{t('settings.data.historyCount', { count: 100 })}</SelectItem>
+            <SelectItem value="200">{t('settings.data.historyCount', { count: 200 })}</SelectItem>
+            <SelectItem value="500">{t('settings.data.historyCount', { count: 500 })}</SelectItem>
+            <SelectItem value="1000">{t('settings.data.historyCount', { count: 1000 })}</SelectItem>
           </SelectContent>
         </Select>
       </SettingRow>
 
       <SettingRow
-        label="自动保存间隔"
-        desc="定时保存当前请求内容，0 表示关闭自动保存。"
+        label={t('settings.data.autoSaveInterval')}
+        desc={t('settings.data.autoSaveIntervalDesc')}
       >
         <Select
           value={String(settings.autoSaveInterval)}
@@ -576,10 +589,10 @@ function DataSection({ settings, update }: SectionProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
-            <SelectItem value="0">不自动保存</SelectItem>
-            <SelectItem value="30">每 30 秒</SelectItem>
-            <SelectItem value="60">每 1 分钟</SelectItem>
-            <SelectItem value="300">每 5 分钟</SelectItem>
+            <SelectItem value="0">{t('settings.data.noAutoSave')}</SelectItem>
+            <SelectItem value="30">{t('settings.data.every30s')}</SelectItem>
+            <SelectItem value="60">{t('settings.data.every1m')}</SelectItem>
+            <SelectItem value="300">{t('settings.data.every5m')}</SelectItem>
           </SelectContent>
         </Select>
       </SettingRow>

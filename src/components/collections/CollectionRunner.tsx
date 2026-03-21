@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Play, CheckCircle, XCircle, Clock, BarChart3, ArrowLeft, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface RunItemResult {
   itemId: string;
@@ -40,6 +41,7 @@ interface CollectionRunnerProps {
 }
 
 export function CollectionRunner({ collectionId, collectionName, onClose }: CollectionRunnerProps) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [delayMs, setDelayMs] = useState(0);
@@ -120,7 +122,7 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
           </div>
         ) : (
           <button onClick={handleRun} disabled={selectedIds.length === 0} className="h-7 px-4 rounded-md text-[12px] font-semibold text-white bg-accent hover:bg-accent-hover disabled:opacity-40 flex items-center gap-1">
-            <Play className="w-3 h-3 fill-white" /> 运行
+            <Play className="w-3 h-3 fill-white" /> {t('runner.run')}
           </button>
         )}
       </div>
@@ -131,9 +133,9 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
           {/* Request selection */}
           <div className="p-3 border-b border-border-default">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider">请求</h3>
+              <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider">{t('runner.requests')}</h3>
               <button onClick={toggleAll} className="text-[10px] text-accent hover:underline">
-                {selectedIds.length === items.length ? '取消全选' : '全选'}
+                {selectedIds.length === items.length ? t('runner.deselectAll') : t('runner.selectAll')}
               </button>
             </div>
             <div className="space-y-0.5 max-h-48 overflow-auto">
@@ -149,14 +151,14 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
 
           {/* Config */}
           <div className="p-3 space-y-3">
-            <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider flex items-center gap-1"><Settings2 className="w-3 h-3" /> 配置</h3>
+            <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider flex items-center gap-1"><Settings2 className="w-3 h-3" /> {t('runner.config')}</h3>
             <div>
-              <label className="text-[11px] text-text-tertiary">迭代次数</label>
+              <label className="text-[11px] text-text-tertiary">{t('runner.iterations')}</label>
               <input type="number" min={1} max={100} value={iterations} onChange={(e) => setIterations(Math.max(1, parseInt(e.target.value) || 1))}
                 className="w-full h-7 px-2 mt-1 text-[12px] bg-bg-input border border-border-default rounded text-text-primary outline-none focus:border-accent" />
             </div>
             <div>
-              <label className="text-[11px] text-text-tertiary">请求间延迟 (ms)</label>
+              <label className="text-[11px] text-text-tertiary">{t('runner.delay')}</label>
               <input type="number" min={0} max={10000} value={delayMs} onChange={(e) => setDelayMs(Math.max(0, parseInt(e.target.value) || 0))}
                 className="w-full h-7 px-2 mt-1 text-[12px] bg-bg-input border border-border-default rounded text-text-primary outline-none focus:border-accent" />
             </div>
@@ -165,19 +167,19 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
           {/* Summary */}
           {summary && (
             <div className="mt-auto p-3 border-t border-border-default bg-bg-secondary/30">
-              <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider mb-2">结果</h3>
+              <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider mb-2">{t('runner.results')}</h3>
               <div className="grid grid-cols-2 gap-2 text-[20px] font-bold">
                 <div className="text-center">
                   <p className="text-emerald-600">{summary.passed}</p>
-                  <p className="text-[9px] text-text-disabled font-normal">通过</p>
+                  <p className="text-[9px] text-text-disabled font-normal">{t('runner.passed')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-red-500">{summary.failed}</p>
-                  <p className="text-[9px] text-text-disabled font-normal">失败</p>
+                  <p className="text-[9px] text-text-disabled font-normal">{t('runner.failed')}</p>
                 </div>
               </div>
               <div className="flex items-center justify-center mt-2 gap-1 text-[11px] text-text-tertiary">
-                <Clock className="w-3 h-3" /> 总耗时 {summary.totalMs}ms
+                <Clock className="w-3 h-3" /> {t('runner.totalTime')} {summary.totalMs}ms
               </div>
             </div>
           )}
@@ -188,8 +190,8 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
           {results.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-text-disabled">
               <BarChart3 className="w-10 h-10 mb-3 opacity-20" />
-              <p className="text-[13px] font-medium">点击"运行"开始批量执行</p>
-              <p className="text-[11px] mt-1">选择要运行的请求，设置迭代次数和延迟</p>
+              <p className="text-[13px] font-medium">{t('runner.emptyTitle')}</p>
+              <p className="text-[11px] mt-1">{t('runner.emptyDesc')}</p>
             </div>
           ) : (
             results.map((r, i) => (

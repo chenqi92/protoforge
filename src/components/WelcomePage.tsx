@@ -1,35 +1,31 @@
 import { motion } from "framer-motion";
 import { Send, Zap, Network, Radio, Eye, Puzzle, Waves } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 export type WelcomeAction = "http" | "ws" | "sse" | "mqtt" | "tcpudp" | "loadtest" | "capture" | "plugins";
 
-const requestFeatures: Array<{
+interface FeatureItem {
   action: WelcomeAction;
   icon: typeof Send;
-  label: string;
-  desc: string;
+  labelKey: string;
+  descKey: string;
   color: string;
   iconColor: string;
-}> = [
-  { action: "http", icon: Send, label: "HTTP 请求", desc: "环境变量、前后置脚本、响应分析", color: "from-blue-500/10 to-transparent border-blue-500/20", iconColor: "text-blue-500 bg-blue-500/10" },
-  { action: "ws", icon: Zap, label: "WebSocket", desc: "实时连接、消息监控、自动重连", color: "from-amber-500/10 to-transparent border-amber-500/20", iconColor: "text-amber-500 bg-amber-500/10" },
-  { action: "sse", icon: Waves, label: "SSE", desc: "流式事件订阅、实时查看推送数据", color: "from-orange-500/10 to-transparent border-orange-500/20", iconColor: "text-orange-500 bg-orange-500/10" },
-  { action: "mqtt", icon: Radio, label: "MQTT", desc: "主题订阅、消息发布、连接凭证配置", color: "from-purple-500/10 to-transparent border-purple-500/20", iconColor: "text-purple-500 bg-purple-500/10" },
+}
+
+const requestFeatures: FeatureItem[] = [
+  { action: "http", icon: Send, labelKey: "welcome.httpRequest", descKey: "welcome.httpRequestDesc", color: "from-blue-500/10 to-transparent border-blue-500/20", iconColor: "text-blue-500 bg-blue-500/10" },
+  { action: "ws", icon: Zap, labelKey: "welcome.websocket", descKey: "welcome.websocketDesc", color: "from-amber-500/10 to-transparent border-amber-500/20", iconColor: "text-amber-500 bg-amber-500/10" },
+  { action: "sse", icon: Waves, labelKey: "welcome.sse", descKey: "welcome.sseDesc", color: "from-orange-500/10 to-transparent border-orange-500/20", iconColor: "text-orange-500 bg-orange-500/10" },
+  { action: "mqtt", icon: Radio, labelKey: "welcome.mqtt", descKey: "welcome.mqttDesc", color: "from-purple-500/10 to-transparent border-purple-500/20", iconColor: "text-purple-500 bg-purple-500/10" },
 ];
 
-const toolFeatures: Array<{
-  action: WelcomeAction;
-  icon: typeof Network;
-  label: string;
-  desc: string;
-  color: string;
-  iconColor: string;
-}> = [
-  { action: "tcpudp", icon: Network, label: "TCP/UDP", desc: "Socket 调试、协议收发、十六进制查看", color: "from-indigo-500/10 to-transparent border-indigo-500/20", iconColor: "text-indigo-500 bg-indigo-500/10" },
-  { action: "capture", icon: Eye, label: "网络抓包", desc: "HTTP 代理、请求录制、证书导出", color: "from-cyan-500/10 to-transparent border-cyan-500/20", iconColor: "text-cyan-500 bg-cyan-500/10" },
-  { action: "loadtest", icon: Radio, label: "压测引擎", desc: "并发控制、实时 TPS、P99 延迟", color: "from-rose-500/10 to-transparent border-rose-500/20", iconColor: "text-rose-500 bg-rose-500/10" },
-  { action: "plugins", icon: Puzzle, label: "插件系统", desc: "WASM 运行时、协议解析扩展", color: "from-violet-500/10 to-transparent border-violet-500/20", iconColor: "text-violet-500 bg-violet-500/10" },
+const toolFeatures: FeatureItem[] = [
+  { action: "tcpudp", icon: Network, labelKey: "welcome.tcpudp", descKey: "welcome.tcpudpDesc", color: "from-indigo-500/10 to-transparent border-indigo-500/20", iconColor: "text-indigo-500 bg-indigo-500/10" },
+  { action: "capture", icon: Eye, labelKey: "welcome.capture", descKey: "welcome.captureDesc", color: "from-cyan-500/10 to-transparent border-cyan-500/20", iconColor: "text-cyan-500 bg-cyan-500/10" },
+  { action: "loadtest", icon: Radio, labelKey: "welcome.loadtest", descKey: "welcome.loadtestDesc", color: "from-rose-500/10 to-transparent border-rose-500/20", iconColor: "text-rose-500 bg-rose-500/10" },
+  { action: "plugins", icon: Puzzle, labelKey: "welcome.pluginSystem", descKey: "welcome.pluginSystemDesc", color: "from-violet-500/10 to-transparent border-violet-500/20", iconColor: "text-violet-500 bg-violet-500/10" },
 ];
 
 interface WelcomePageProps {
@@ -44,16 +40,11 @@ function FeatureSection({
 }: {
   title: string;
   desc: string;
-  items: Array<{
-    action: WelcomeAction;
-    icon: typeof Send;
-    label: string;
-    desc: string;
-    color: string;
-    iconColor: string;
-  }>;
+  items: FeatureItem[];
   onAction?: (action: WelcomeAction) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <section>
       <div className="mb-5 flex items-end justify-between gap-4">
@@ -66,9 +57,10 @@ function FeatureSection({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {items.map((item, index) => {
           const Icon = item.icon;
+          const label = t(item.labelKey);
           return (
             <motion.button
-              key={item.label}
+              key={item.action}
               type="button"
               initial={{ y: 16, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -85,8 +77,8 @@ function FeatureSection({
                 <div className={cn("mb-4 flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110", item.iconColor)}>
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="mb-1.5 text-sm font-semibold text-text-primary">{item.label}</h3>
-                <p className="text-[12px] leading-relaxed text-text-tertiary">{item.desc}</p>
+                <h3 className="mb-1.5 text-sm font-semibold text-text-primary">{label}</h3>
+                <p className="text-[12px] leading-relaxed text-text-tertiary">{t(item.descKey)}</p>
               </div>
             </motion.button>
           );
@@ -97,6 +89,8 @@ function FeatureSection({
 }
 
 export function WelcomePage({ onAction }: WelcomePageProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="h-full w-full overflow-y-auto bg-transparent px-8 py-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-10">
@@ -107,26 +101,26 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
           className="max-w-2xl"
         >
           <h1 className="text-4xl font-extrabold tracking-tight text-text-primary">
-            请求工作台与工具工作台已经分层
+            {t('welcome.badge')}
           </h1>
           <p className="mt-4 text-[15px] leading-7 text-text-secondary">
-            请求类协议使用上方 tab 管理会话，TCP/UDP、抓包、压测作为独立工作台切换，不再和请求文档混排。
+            {t('welcome.title')}
           </p>
           <p className="mt-2 text-[12px] text-text-disabled">
-            顶部工具工作台支持直接拖出为独立窗口，独立窗口内也可以一键合并回主界面。
+            {t('welcome.subtitle')}
           </p>
         </motion.div>
 
         <FeatureSection
-          title="请求工作台"
-          desc="这些会话会出现在上方请求 tab 中，适合并行调试不同协议连接。"
+          title={t('welcome.requestFeatures')}
+          desc={t('welcome.httpRequestDesc')}
           items={requestFeatures}
           onAction={onAction}
         />
 
         <FeatureSection
-          title="工具工作台"
-          desc="这些模块是完整的一级工作台，用于流量观察、Socket 调试和压力测试。"
+          title={t('welcome.toolFeatures')}
+          desc={t('welcome.tcpudpDesc')}
           items={toolFeatures}
           onAction={onAction}
         />
@@ -139,15 +133,15 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
         >
           <div className="flex items-center gap-2">
             <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[11px] font-mono shadow-sm">Ctrl+N</kbd>
-            <span>新建请求</span>
+            <span>{t('welcome.newRequest')}</span>
           </div>
           <div className="flex items-center gap-2">
             <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[11px] font-mono shadow-sm">Ctrl+K</kbd>
-            <span>命令面板</span>
+            <span>{t('welcome.commandPalette')}</span>
           </div>
           <div className="flex items-center gap-2">
             <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[11px] font-mono shadow-sm">Ctrl+,</kbd>
-            <span>偏好设置</span>
+            <span>{t('welcome.preferences')}</span>
           </div>
         </motion.div>
       </div>

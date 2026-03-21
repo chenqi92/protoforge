@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronRight, ArrowUpDown, X, Lightbulb, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 import { useCaptureStore } from "@/stores/captureStore";
 import type { CapturedEntry } from "@/types/capture";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
@@ -47,6 +48,7 @@ function formatDuration(ms: number): string {
 }
 
 export function CaptureWorkspace() {
+  const { t } = useTranslation();
   const running = useCaptureStore((s) => s.running);
   const entries = useCaptureStore((s) => s.entries);
   const selectedEntryId = useCaptureStore((s) => s.selectedEntryId);
@@ -126,12 +128,12 @@ export function CaptureWorkspace() {
                 : "text-text-tertiary"
             )}
           >
-            <span className={cn("h-2 w-2 rounded-full", running ? "bg-emerald-500" : "bg-text-disabled")} />
-            {running ? "代理监听中" : "抓包未启动"}
+          <span className={cn("h-2 w-2 rounded-[3px]", running ? "bg-emerald-500" : "bg-text-disabled")} />
+            {running ? t('capture.proxyRunning') : t('capture.proxyStopped')}
           </span>
 
           <div className="wb-tool-field w-[110px]">
-            <span>端口</span>
+            <span>{t('capture.port')}</span>
             <input
               value={portInput}
               onChange={(e) => setPortInput(e.target.value)}
@@ -145,28 +147,28 @@ export function CaptureWorkspace() {
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="过滤 URL / Host / 状态"
+              placeholder={t('capture.filterPlaceholder')}
             />
           </div>
         </div>
 
         <div className="wb-tool-strip-actions">
-          <span className="wb-tool-chip">{filteredEntries.length} 条请求</span>
+          <span className="wb-tool-chip">{t('capture.requestCount', { count: filteredEntries.length })}</span>
           <button
             onClick={clearEntries}
             className="wb-ghost-btn"
-            title="清空列表"
+            title={t('capture.clear')}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            清空
+            {t('capture.clear')}
           </button>
           <button
             onClick={handleExportCA}
             className="wb-ghost-btn"
-            title="导出 CA 证书（用于 HTTPS 解密）"
+            title={t('capture.caCert')}
           >
             <Shield className="h-3.5 w-3.5" />
-            CA 证书
+            {t('capture.caCert')}
           </button>
           <button
             onClick={handleToggleCapture}
@@ -176,7 +178,7 @@ export function CaptureWorkspace() {
             )}
           >
             {running ? <Square className="h-3.5 w-3.5" fill="currentColor" /> : <Play className="h-3.5 w-3.5" fill="currentColor" />}
-            {running ? "停止" : "开始抓包"}
+            {running ? t('capture.stopCapture') : t('capture.startCapture')}
           </button>
         </div>
       </div>
@@ -190,11 +192,11 @@ export function CaptureWorkspace() {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-3 flex items-center justify-between rounded-[14px] border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-[11px]">
+            <div className="mt-3 flex items-center justify-between rounded-[10px] border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-[11px]">
               <div className="flex items-center gap-2">
                 <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                 <span className="text-amber-700">
-                  CA 证书路径：<code className="font-mono text-[10px] bg-amber-500/10 px-1 py-0.5 rounded">{caPath}</code>
+                  {t('capture.caPath')}: <code className="font-mono text-[10px] bg-amber-500/10 px-1 py-0.5 rounded">{caPath}</code>
                 </span>
               </div>
               <button
@@ -222,25 +224,28 @@ export function CaptureWorkspace() {
       {/* ── 主内容区 ── */}
       <div className="min-h-0 flex-1 pt-3">
       {entries.length === 0 ? (
-        <EmptyState running={running} port={parseInt(portInput, 10)} />
+        <div className="wb-workbench-stack">
+          <EmptyState running={running} port={parseInt(portInput, 10)} embedded />
+        </div>
       ) : (
+        <div className="wb-workbench-stack">
         <PanelGroup orientation="vertical">
-          <Panel defaultSize="60" minSize="30">
-            <div className="wb-panel flex h-full flex-col overflow-hidden">
-              <div className="wb-panel-header shrink-0">
+          <Panel defaultSize="60" minSize="30" className="flex min-h-0 flex-col">
+            <div className="flex h-full flex-col overflow-hidden">
+              <div className="wb-pane-header shrink-0">
                 <div>
-                  <div className="text-[12px] font-semibold text-text-primary">捕获请求</div>
-                  <div className="text-[11px] text-text-tertiary">代理流量会在这里按时间顺序刷新</div>
+                  <div className="text-[12px] font-semibold text-text-primary">{t('capture.requestCount', { count: filteredEntries.length })}</div>
+                  <div className="text-[11px] text-text-tertiary">{t('capture.emptyDesc')}</div>
                 </div>
-                <span className="wb-tool-chip">{running ? `监听 127.0.0.1:${portInput}` : "等待启动代理"}</span>
+                <span className="wb-tool-chip">{running ? t('capture.listening', { port: portInput }) : t('capture.awaitingStart')}</span>
               </div>
               <div className="flex items-center h-8 bg-bg-secondary/36 border-b border-border-subtle text-[11px] font-semibold text-text-disabled uppercase tracking-wider select-none shrink-0 px-3">
-                <span className="w-[60px] shrink-0">方法</span>
+                <span className="w-[60px] shrink-0">{t('capture.method')}</span>
                 <span className="flex-1 min-w-0">URL</span>
-                <span className="w-[60px] shrink-0 text-center">状态</span>
-                <span className="w-[80px] shrink-0 text-right">类型</span>
-                <span className="w-[70px] shrink-0 text-right">大小</span>
-                <span className="w-[70px] shrink-0 text-right">耗时</span>
+                <span className="w-[60px] shrink-0 text-center">{t('capture.status')}</span>
+                <span className="w-[80px] shrink-0 text-right">{t('capture.size')}</span>
+                <span className="w-[70px] shrink-0 text-right">{t('capture.size')}</span>
+                <span className="w-[70px] shrink-0 text-right">{t('capture.duration')}</span>
               </div>
               {/* 请求列表 */}
               <div className="flex-1 overflow-auto">
@@ -259,18 +264,20 @@ export function CaptureWorkspace() {
 
           {selectedEntry && (
             <>
-              <PanelResizeHandle className="h-[1px] bg-border-default relative shrink-0 cursor-row-resize hover:bg-accent active:bg-accent transition-colors" />
-              <Panel defaultSize="40" minSize="20">
+              <PanelResizeHandle className="wb-workbench-divider" />
+              <Panel defaultSize="40" minSize="20" className="flex min-h-0 flex-col">
                 <DetailPanel
                   entry={selectedEntry}
                   activeTab={detailTab}
                   onTabChange={setDetailTab}
                   onClose={() => setSelectedEntry(null)}
+                  embedded
                 />
               </Panel>
             </>
           )}
         </PanelGroup>
+        </div>
       )}
       </div>
     </div>
@@ -278,9 +285,10 @@ export function CaptureWorkspace() {
 }
 
 // ── 空状态 ──
-function EmptyState({ running, port }: { running: boolean; port: number }) {
+function EmptyState({ running, port, embedded = false }: { running: boolean; port: number; embedded?: boolean }) {
+  const { t } = useTranslation();
   return (
-    <div className="wb-panel flex h-full items-center justify-center">
+    <div className={cn("flex h-full items-center justify-center", !embedded && "wb-panel")}>
       <div className="w-full max-w-3xl px-6 py-10 text-center">
         <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent/5 flex items-center justify-center border border-border-default/70">
           <ArrowUpDown className="w-7 h-7 text-accent/40" />
@@ -288,25 +296,25 @@ function EmptyState({ running, port }: { running: boolean; port: number }) {
         {running ? (
           <>
             <h3 className="text-[14px] font-semibold text-text-primary mb-1">
-              等待流量...
+              {t('capture.emptyTitle')}
             </h3>
             <p className="text-[12px] text-text-tertiary mb-4">
-              代理已在 <code className="font-mono text-accent bg-accent/5 px-1.5 py-0.5 rounded text-[11px]">127.0.0.1:{port}</code> 上运行
+              {t('capture.proxyRunning')} <code className="font-mono text-accent bg-accent/5 px-1.5 py-0.5 rounded text-[11px]">127.0.0.1:{port}</code> {t('capture.proxyRunningOn')}
             </p>
-            <div className="grid gap-3 text-left sm:grid-cols-2">
-              <div className="wb-subpanel p-4 text-[11px] text-text-tertiary">
-                <p className="font-medium text-text-secondary">代理地址</p>
+            <div className="grid gap-4 text-left sm:grid-cols-2">
+              <div className="border-t border-border-default/70 pt-3 text-[11px] text-text-tertiary">
+                <p className="font-medium text-text-secondary">{t('capture.general')}</p>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="rounded bg-bg-tertiary px-2 py-0.5 text-[10px] font-mono">HTTP 代理</span>
+                  <span className="rounded bg-bg-tertiary px-2 py-0.5 text-[10px] font-mono">{t('capture.httpProxy')}</span>
                   <span className="font-mono text-text-primary">127.0.0.1:{port}</span>
                 </div>
-                <p className="mt-2 text-[10px] text-text-disabled">把浏览器或系统 HTTP 代理指向这个地址后，请求就会实时出现在上方列表中。</p>
+                <p className="mt-2 text-[10px] text-text-disabled">{t('capture.proxyHint')}</p>
               </div>
-              <div className="wb-subpanel p-4 text-[11px] text-text-tertiary">
-                <p className="font-medium text-text-secondary">HTTPS 解密</p>
+              <div className="border-t border-border-default/70 pt-3 text-[11px] text-text-tertiary">
+                <p className="font-medium text-text-secondary">{t('capture.general')}</p>
                 <div className="mt-2 flex items-start gap-1.5 text-[10px] text-text-disabled">
                   <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-[1px]" />
-                  <span>如需抓取 HTTPS，请先导出并信任 CA 证书，然后刷新浏览器或目标应用。</span>
+                  <span>{t('capture.httpsHint')}</span>
                 </div>
               </div>
             </div>
@@ -314,23 +322,23 @@ function EmptyState({ running, port }: { running: boolean; port: number }) {
         ) : (
           <>
             <h3 className="text-[14px] font-semibold text-text-primary mb-1">
-              网络抓包
+              {t('capture.emptyTitle')}
             </h3>
             <p className="text-[12px] text-text-tertiary">
-              点击 <span className="text-accent font-medium">&quot;开始抓包&quot;</span> 启动本地 HTTP 代理，然后配置浏览器代理以捕获流量
+              {t('capture.emptyState')}
             </p>
-            <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
-              <div className="wb-subpanel p-4">
-                <div className="text-[11px] font-semibold text-text-secondary">1. 启动代理</div>
-                <div className="mt-1 text-[10px] text-text-tertiary">确认监听端口，然后点击右上角开始抓包。</div>
+            <div className="mt-6 grid gap-4 text-left sm:grid-cols-3">
+              <div className="border-t border-border-default/70 pt-3">
+                <div className="text-[11px] font-semibold text-text-secondary">{t('capture.emptyStep1')}</div>
+                <div className="mt-1 text-[10px] text-text-tertiary">{t('capture.emptyStep1Desc')}</div>
               </div>
-              <div className="wb-subpanel p-4">
-                <div className="text-[11px] font-semibold text-text-secondary">2. 配置目标</div>
-                <div className="mt-1 text-[10px] text-text-tertiary">把浏览器或系统代理切到本机端口，开始访问目标站点。</div>
+              <div className="border-t border-border-default/70 pt-3">
+                <div className="text-[11px] font-semibold text-text-secondary">{t('capture.emptyStep2')}</div>
+                <div className="mt-1 text-[10px] text-text-tertiary">{t('capture.emptyStep2Desc')}</div>
               </div>
-              <div className="wb-subpanel p-4">
-                <div className="text-[11px] font-semibold text-text-secondary">3. 分析流量</div>
-                <div className="mt-1 text-[10px] text-text-tertiary">列表支持过滤、查看头信息、请求体和响应元数据。</div>
+              <div className="border-t border-border-default/70 pt-3">
+                <div className="text-[11px] font-semibold text-text-secondary">{t('capture.emptyStep3')}</div>
+                <div className="mt-1 text-[10px] text-text-tertiary">{t('capture.emptyStep3Desc')}</div>
               </div>
             </div>
           </>
@@ -399,11 +407,13 @@ function DetailPanel({
   activeTab,
   onTabChange,
   onClose,
+  embedded = false,
 }: {
   entry: CapturedEntry;
   activeTab: "headers" | "body" | "preview";
   onTabChange: (tab: "headers" | "body" | "preview") => void;
   onClose: () => void;
+  embedded?: boolean;
 }) {
   const tabs = [
     { id: "headers" as const, label: "Headers" },
@@ -412,11 +422,11 @@ function DetailPanel({
   ];
 
   return (
-    <div className="wb-panel h-full flex flex-col overflow-hidden bg-bg-primary">
+    <div className={cn("h-full flex flex-col overflow-hidden bg-bg-primary", !embedded && "wb-panel")}>
       {/* 详情头部 */}
-      <div className="wb-panel-header shrink-0">
-        <div className="flex items-center gap-0.5 px-3">
-          {tabs.map((tab) => (
+      <div className={cn("shrink-0", embedded ? "wb-pane-header" : "wb-panel-header")}>
+      <div className="flex items-center gap-0.5 px-3">
+        {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
@@ -431,7 +441,7 @@ function DetailPanel({
               {activeTab === tab.id && (
                 <motion.div
                   layoutId="detail-tab-indicator"
-                  className="absolute bottom-0 left-2 right-2 h-[2px] bg-accent rounded-t-full"
+                  className="absolute bottom-0 left-2 right-2 h-[2px] bg-accent"
                   transition={{ type: "spring", stiffness: 500, damping: 35 }}
                 />
               )}
@@ -448,7 +458,7 @@ function DetailPanel({
         </div>
         <button
           onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center text-text-tertiary hover:text-text-primary hover:bg-bg-hover rounded-md transition-colors mr-1"
+          className="mr-1 flex h-7 w-7 items-center justify-center rounded-[8px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
         >
           <X className="w-3 h-3" />
         </button>
@@ -534,10 +544,10 @@ function HeaderSection({
   onToggle: () => void;
 }) {
   return (
-    <div>
+    <div className="border-t border-border-default/70 pt-3">
       <button
         onClick={onToggle}
-        className="flex items-center gap-1.5 text-[10px] font-semibold text-text-secondary uppercase tracking-wider hover:text-text-primary transition-colors mb-1"
+        className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:text-text-primary"
       >
         {expanded ? (
           <ChevronDown className="w-3 h-3" />
@@ -558,7 +568,7 @@ function HeaderSection({
             transition={{ duration: 0.15 }}
             className="overflow-hidden"
           >
-            <div className="bg-bg-secondary/50 rounded-md border border-border-subtle overflow-hidden">
+            <div className="overflow-hidden rounded-[8px] border border-border-default/65 bg-bg-secondary/28">
               {headers.map(([key, value], i) => (
                 <div
                   key={`${key}-${i}`}
@@ -581,32 +591,33 @@ function HeaderSection({
 
 // ── Body 视图 ──
 function BodyView({ entry }: { entry: CapturedEntry }) {
+  const { t } = useTranslation();
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {entry.requestBody ? (
-        <div>
-          <h4 className="text-[10px] font-semibold text-text-disabled uppercase tracking-wider mb-1">Request Body</h4>
-          <pre className="bg-bg-secondary/50 rounded-md border border-border-subtle p-3 text-[10px] font-mono text-text-secondary whitespace-pre-wrap break-all overflow-auto max-h-[200px]">
+        <div className="border-t border-border-default/70 pt-3">
+          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-disabled">Request Body</h4>
+          <pre className="max-h-[200px] overflow-auto rounded-[8px] border border-border-default/65 bg-bg-secondary/28 p-3 text-[10px] font-mono text-text-secondary whitespace-pre-wrap break-all">
             {entry.requestBody}
           </pre>
         </div>
       ) : (
-        <div className="text-[11px] text-text-disabled">
-          <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-1">Request Body</h4>
-          <p>无请求体</p>
+        <div className="border-t border-border-default/70 pt-3 text-[11px] text-text-disabled">
+          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider">Request Body</h4>
+          <p>{t('capture.noRequestBody')}</p>
         </div>
       )}
       {entry.responseBody ? (
-        <div>
-          <h4 className="text-[10px] font-semibold text-text-disabled uppercase tracking-wider mb-1">Response Body</h4>
-          <pre className="bg-bg-secondary/50 rounded-md border border-border-subtle p-3 text-[10px] font-mono text-text-secondary whitespace-pre-wrap break-all overflow-auto max-h-[300px]">
+        <div className="border-t border-border-default/70 pt-3">
+          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-disabled">Response Body</h4>
+          <pre className="max-h-[300px] overflow-auto rounded-[8px] border border-border-default/65 bg-bg-secondary/28 p-3 text-[10px] font-mono text-text-secondary whitespace-pre-wrap break-all">
             {entry.responseBody}
           </pre>
         </div>
       ) : (
-        <div className="text-[11px] text-text-disabled">
-          <h4 className="text-[10px] font-semibold uppercase tracking-wider mb-1">Response Body</h4>
-          <p>响应体抓取暂不支持（仅记录 Headers 和元数据）</p>
+        <div className="border-t border-border-default/70 pt-3 text-[11px] text-text-disabled">
+          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider">Response Body</h4>
+          <p>{t('capture.bodyNotSupported')}</p>
         </div>
       )}
     </div>

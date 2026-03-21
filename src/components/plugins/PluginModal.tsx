@@ -6,9 +6,11 @@ import {
   FileOutput, LayoutDashboard, ChevronRight, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 import { usePluginStore } from "@/stores/pluginStore";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { PluginManifest, PluginType } from "@/types/plugin";
+import { pluginT } from "@/lib/pluginI18n";
 
 interface PluginModalProps {
   open: boolean;
@@ -28,50 +30,50 @@ type CategoryMeta = {
 const categories: CategoryMeta[] = [
   {
     id: "all",
-    label: "全部插件",
-    desc: "浏览所有可用的扩展插件",
+    label: "plugin.allPlugins",
+    desc: "plugin.allPluginsDesc",
     icon: Puzzle,
     accentClassName: "bg-blue-500/10 text-blue-600 ring-1 ring-inset ring-blue-500/15",
   },
   {
     id: "protocol-parser",
-    label: "协议解析",
-    desc: "解析原始报文为结构化数据",
+    label: "plugin.protocolParser",
+    desc: "plugin.protocolParserDesc",
     icon: Code2,
     accentClassName: "bg-blue-500/10 text-blue-600 ring-1 ring-inset ring-blue-500/15",
   },
   {
     id: "request-hook",
-    label: "请求钩子",
-    desc: "请求发送前后的签名、加密、注入",
+    label: "plugin.requestHook",
+    desc: "plugin.requestHookDesc",
     icon: Terminal,
     accentClassName: "bg-amber-500/10 text-amber-600 ring-1 ring-inset ring-amber-500/15",
   },
   {
     id: "response-renderer",
-    label: "响应渲染",
-    desc: "自定义渲染图表、HEX、树形等",
+    label: "plugin.responseRenderer",
+    desc: "plugin.responseRendererDesc",
     icon: Sparkles,
     accentClassName: "bg-violet-500/10 text-violet-600 ring-1 ring-inset ring-violet-500/15",
   },
   {
     id: "data-generator",
-    label: "数据生成",
-    desc: "Mock 数据、随机值、模板填充",
+    label: "plugin.dataGenerator",
+    desc: "plugin.dataGeneratorDesc",
     icon: Wand2,
     accentClassName: "bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/15",
   },
   {
     id: "export-format",
-    label: "导出格式",
-    desc: "cURL、HTTPie、代码片段导出",
+    label: "plugin.exportFormat",
+    desc: "plugin.exportFormatDesc",
     icon: FileOutput,
     accentClassName: "bg-cyan-500/10 text-cyan-600 ring-1 ring-inset ring-cyan-500/15",
   },
   {
     id: "sidebar-panel",
-    label: "侧边面板",
-    desc: "监控、日志、统计等独立面板",
+    label: "plugin.sidebarPanel",
+    desc: "plugin.sidebarPanelDesc",
     icon: LayoutDashboard,
     accentClassName: "bg-rose-500/10 text-rose-600 ring-1 ring-inset ring-rose-500/15",
   },
@@ -82,6 +84,7 @@ const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c]));
 // ── 主 Modal ──
 
 export function PluginModal({ open, onClose }: PluginModalProps) {
+  const { t } = useTranslation();
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [selectedPlugin, setSelectedPlugin] = useState<PluginManifest | null>(null);
@@ -116,8 +119,8 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
       const q = search.toLowerCase();
       list = list.filter(
         (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q) ||
+          pluginT(p, 'name').toLowerCase().includes(q) ||
+          pluginT(p, 'description').toLowerCase().includes(q) ||
           p.tags.some((t) => t.toLowerCase().includes(q))
       );
     }
@@ -147,7 +150,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
         className="w-[1080px] max-w-[96vw] min-h-[680px] max-h-[88vh] gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary/96 p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] backdrop-blur-xl sm:max-w-[1080px]"
         showCloseButton={false}
       >
-        <DialogTitle className="sr-only">插件中心</DialogTitle>
+        <DialogTitle className="sr-only">{t('plugin.centerTitle')}</DialogTitle>
 
         <div className="flex h-full min-h-[680px] flex-col">
           {/* Header */}
@@ -157,9 +160,9 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                 <Puzzle className="h-5 w-5 text-white" />
               </div>
               <div className="min-w-0">
-                <p className="text-[16px] font-semibold tracking-tight text-text-primary">插件中心</p>
+                <p className="text-[16px] font-semibold tracking-tight text-text-primary">{t('plugin.centerTitle')}</p>
                 <p className="mt-1 text-[12px] leading-6 text-text-secondary">
-                  浏览、安装和管理扩展插件，为工作台注入更多能力。
+                  {t('plugin.centerDesc')}
                 </p>
               </div>
             </div>
@@ -176,7 +179,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       : "text-text-tertiary hover:text-text-secondary"
                   )}
                 >
-                  仓库
+                  {t('plugin.store')}
                   {availablePlugins.filter((p) => !p.installed).length > 0 && (
                     <span className="min-w-[16px] rounded-full bg-violet-500 px-1.5 py-[1px] text-center text-[9px] font-bold leading-tight text-white">
                       {availablePlugins.filter((p) => !p.installed).length}
@@ -192,7 +195,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       : "text-text-tertiary hover:text-text-secondary"
                   )}
                 >
-                  已安装
+                  {t('plugin.installed')}
                   {installedPlugins.length > 0 && (
                     <span className="min-w-[16px] rounded-full bg-bg-secondary px-1.5 py-[1px] text-center text-[9px] font-medium leading-tight text-text-disabled">
                       {installedPlugins.length}
@@ -216,7 +219,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
             <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-4 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
               <div className="px-1 pb-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-disabled">
-                  插件分类
+                  {t('plugin.categories')}
                 </p>
               </div>
 
@@ -245,7 +248,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="text-[12px] font-semibold text-text-primary">{cat.label}</div>
+                        <div className="text-[12px] font-semibold text-text-primary">{t(cat.label)}</div>
                       </div>
 
                       <div className="flex items-center gap-1.5">
@@ -271,11 +274,11 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
 
               {/* Info card */}
               <div className="mt-3 rounded-[16px] border border-border-default/75 bg-bg-primary/78 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <p className="text-[11px] font-semibold text-text-primary">关于插件系统</p>
+                <p className="text-[11px] font-semibold text-text-primary">{t('plugin.aboutSystem')}</p>
                 <ul className="mt-2 space-y-1.5 text-[10px] leading-4 text-text-tertiary">
-                  <li>插件从远程仓库下载安装，支持热加载。</li>
-                  <li>所有插件运行在沙箱中，不影响核心功能。</li>
-                  <li>卸载插件会同时删除其本地数据。</li>
+                  <li>{t('plugin.aboutTip1')}</li>
+                  <li>{t('plugin.aboutTip2')}</li>
+                  <li>{t('plugin.aboutTip3')}</li>
                 </ul>
               </div>
             </aside>
@@ -290,8 +293,8 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       <CurrentIcon className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[14px] font-semibold text-text-primary">{currentCategory.label}</p>
-                      <p className="text-[11px] text-text-tertiary">{currentCategory.desc}</p>
+                      <p className="text-[14px] font-semibold text-text-primary">{t(currentCategory.label)}</p>
+                      <p className="text-[11px] text-text-tertiary">{t(currentCategory.desc)}</p>
                     </div>
                   </div>
 
@@ -302,7 +305,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="搜索插件..."
+                        placeholder={t('plugin.searchPlaceholder')}
                         className="h-8 w-[200px] rounded-[12px] border border-border-default/80 bg-bg-primary/78 pl-8 pr-3 text-[12px] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-violet-400 focus:shadow-[0_0_0_2px_rgba(124,58,237,0.08)]"
                       />
                     </div>
@@ -311,7 +314,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       onClick={handleRefresh}
                       disabled={loading}
                       className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
-                      title="刷新仓库"
+                      title={t('plugin.refreshRegistry')}
                     >
                       <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
                     </button>
@@ -329,7 +332,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                   {loading ? (
                     <div className="flex flex-col items-center justify-center h-full text-text-disabled">
                       <RefreshCw className="w-8 h-8 animate-spin mb-3 opacity-30" />
-                      <p className="text-[13px]">加载中...</p>
+                      <p className="text-[13px]">{t('plugin.loading')}</p>
                     </div>
                   ) : filteredPlugins.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-text-disabled">
@@ -337,10 +340,10 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                         <Package className="h-6 w-6 opacity-50" />
                       </div>
                       <p className="text-[13px] font-semibold text-text-secondary">
-                        {search ? "没有找到匹配插件" : tab === "installed" ? "暂无已安装插件" : "该分类暂无插件"}
+                        {search ? t('plugin.noMatch') : tab === "installed" ? t('plugin.noInstalled') : t('plugin.noCategory')}
                       </p>
                       <p className="text-[11px] mt-1 text-text-tertiary">
-                        {tab === "installed" ? "从插件仓库中安装插件以扩展功能" : "尝试选择其他分类或清除搜索条件"}
+                        {tab === "installed" ? t('plugin.installFromStore') : t('plugin.trySwitchCategory')}
                       </p>
                     </div>
                   ) : (
@@ -403,6 +406,7 @@ function PluginCard({
   onInstall: (id: string) => Promise<void>;
   onUninstall: (id: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   const handleAction = async (e: React.MouseEvent) => {
@@ -437,23 +441,23 @@ function PluginCard({
         {/* Info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-semibold text-text-primary truncate">{plugin.name}</span>
+            <span className="text-[13px] font-semibold text-text-primary truncate">{pluginT(plugin, 'name')}</span>
             {plugin.installed && (
               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 shadow-sm">
                 <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
               </span>
             )}
           </div>
-          <p className="text-[11px] text-text-tertiary mt-0.5 line-clamp-2 leading-4">{plugin.description}</p>
+          <p className="text-[11px] text-text-tertiary mt-0.5 line-clamp-2 leading-4">{pluginT(plugin, 'description')}</p>
 
           {/* Tags row */}
           {!compact && (
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
               <span className={cn("text-[9px] font-medium px-1.5 py-[2px] rounded-full border shrink-0", cat.accentClassName)}>
-                {cat.label}
+                {t(cat.label)}
               </span>
               {plugin.source === "remote" && (
-                <span className="text-[9px] font-medium px-1.5 py-[2px] rounded-full bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 shrink-0">远程</span>
+                <span className="text-[9px] font-medium px-1.5 py-[2px] rounded-full bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 shrink-0">{t('plugin.remote')}</span>
               )}
               <span className="text-[9px] text-text-disabled">v{plugin.version}</span>
             </div>
@@ -474,9 +478,9 @@ function PluginCard({
           {loading ? (
             <Loader2 className="w-3 h-3 animate-spin" />
           ) : plugin.installed ? (
-            <><Trash2 className="w-3 h-3" /> 卸载</>
+            <><Trash2 className="w-3 h-3" /> {t('plugin.uninstall')}</>
           ) : (
-            <><Download className="w-3 h-3" /> 安装</>
+            <><Download className="w-3 h-3" /> {t('plugin.install')}</>
           )}
         </button>
       </div>
@@ -494,6 +498,7 @@ function PluginDetail({
   onUninstall: (id: string) => Promise<void>;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   const handleAction = async () => {
@@ -518,13 +523,13 @@ function PluginDetail({
               {plugin.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-[17px] font-bold text-text-primary">{plugin.name}</h3>
+              <h3 className="text-[17px] font-bold text-text-primary">{pluginT(plugin, 'name')}</h3>
               <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
                 <span className="text-[11px] text-text-tertiary">{plugin.author}</span>
                 <span className="text-[11px] text-text-disabled">v{plugin.version}</span>
                 <span className={cn("text-[10px] font-medium px-2 py-[2px] rounded-full border flex items-center gap-1", cat.accentClassName)}>
                   <CatIcon className="w-3 h-3" />
-                  {cat.label}
+                  {t(cat.label)}
                 </span>
               </div>
             </div>
@@ -549,9 +554,9 @@ function PluginDetail({
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : plugin.installed ? (
-            <><Trash2 className="w-4 h-4" /> 卸载插件</>
+            <><Trash2 className="w-4 h-4" /> {t('plugin.uninstallPlugin')}</>
           ) : (
-            <><Download className="w-4 h-4" /> 安装插件</>
+            <><Download className="w-4 h-4" /> {t('plugin.installPlugin')}</>
           )}
         </button>
       </div>
@@ -559,14 +564,14 @@ function PluginDetail({
       {/* Content */}
       <div className="px-6 py-5 flex-1">
         <div className="mb-4">
-          <h4 className="text-[12px] font-bold text-text-secondary uppercase tracking-wider mb-2">插件介绍</h4>
-          <p className="text-[13px] text-text-secondary leading-relaxed">{plugin.description}</p>
+          <h4 className="text-[12px] font-bold text-text-secondary uppercase tracking-wider mb-2">{t('plugin.about')}</h4>
+          <p className="text-[13px] text-text-secondary leading-relaxed">{pluginT(plugin, 'description')}</p>
         </div>
 
         {/* Protocol IDs */}
         {plugin.protocolIds.length > 0 && (
           <div className="mb-4">
-            <h4 className="text-[12px] font-bold text-text-secondary uppercase tracking-wider mb-2">支持协议</h4>
+            <h4 className="text-[12px] font-bold text-text-secondary uppercase tracking-wider mb-2">{t('plugin.protocols')}</h4>
             <div className="flex items-center gap-2 flex-wrap">
               {plugin.protocolIds.map((pid) => (
                 <span key={pid} className="inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-mono font-medium bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-200 dark:border-blue-500/20">
@@ -581,7 +586,7 @@ function PluginDetail({
         {/* Tags */}
         {plugin.tags.length > 0 && (
           <div className="mb-4">
-            <h4 className="text-[12px] font-bold text-text-secondary uppercase tracking-wider mb-2">标签</h4>
+            <h4 className="text-[12px] font-bold text-text-secondary uppercase tracking-wider mb-2">{t('plugin.tags')}</h4>
             <div className="flex items-center gap-1.5 flex-wrap">
               {plugin.tags.map((tag) => (
                 <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-text-tertiary bg-bg-secondary rounded-md border border-border-subtle">
@@ -597,17 +602,17 @@ function PluginDetail({
         <div className="mt-auto pt-4 border-t border-border-subtle">
           <div className="grid grid-cols-2 gap-3 text-[11px]">
             <div>
-              <span className="text-text-disabled">插件 ID</span>
+              <span className="text-text-disabled">{t('plugin.pluginId')}</span>
               <p className="text-text-secondary font-mono mt-0.5">{plugin.id}</p>
             </div>
             <div>
-              <span className="text-text-disabled">入口文件</span>
+              <span className="text-text-disabled">{t('plugin.entrypoint')}</span>
               <p className="text-text-secondary font-mono mt-0.5">{plugin.entrypoint}</p>
             </div>
             <div>
-              <span className="text-text-disabled">来源</span>
+              <span className="text-text-disabled">{t('plugin.source')}</span>
               <p className="text-text-secondary font-mono mt-0.5">
-                {plugin.source === "remote" ? "🌐 远程仓库" : "📦 本地"}
+                {plugin.source === "remote" ? `🌐 ${t('plugin.remoteRegistry')}` : `📦 ${t('plugin.local')}`}
               </p>
             </div>
           </div>

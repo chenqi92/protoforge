@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown, AlertTriangle, Search, Settings2, RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useAppStore, type RequestProtocol } from "@/stores/appStore";
 import { InlineJsonViewer } from "@/components/ui/ResponseViewer";
@@ -13,6 +14,7 @@ export function WsWorkspace() {
   const activeTab = useAppStore((s) => s.getActiveTab());
   const updateTab = useAppStore((s) => s.updateTab);
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
+  const { t } = useTranslation();
 
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -27,7 +29,7 @@ export function WsWorkspace() {
   const [heartbeatEnabled, setHeartbeatEnabled] = useState(false);
   const [heartbeatInterval, setHeartbeatInterval] = useState(30);
   const [heartbeatMsg, setHeartbeatMsg] = useState("ping");
-  const [reconnectCount, setReconnectCount] = useState(0);
+  const reconnectCountRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -74,7 +76,7 @@ export function WsWorkspace() {
           case "connected":
             setConnected(true);
             setConnecting(false);
-            setReconnectCount(0); // 连接成功后重置重连计数
+            reconnectCountRef.current = 0; // 连接成功后重置重连计数
             if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
             break;
           case "message":
@@ -92,7 +94,7 @@ export function WsWorkspace() {
             setConnecting(false);
             // 仅在非正常断开时自动重连（error 或 server_close）
             if (autoReconnect && event.reason !== "normal" && !reconnectTimerRef.current) {
-              setReconnectCount((prev) => prev + 1);
+              reconnectCountRef.current += 1;
               reconnectTimerRef.current = setTimeout(() => {
                 reconnectTimerRef.current = null;
                 doConnect();
@@ -104,7 +106,7 @@ export function WsWorkspace() {
             setConnecting(false);
             setMessages((prev) => [...prev, {
               id: crypto.randomUUID(), direction: "received",
-              data: `[ERROR] 错误: ${event.data}`, dataType: "text",
+              data: `[ERROR] ${t('ws.error')}: ${event.data}`, dataType: "text",
               timestamp: event.timestamp, size: 0,
             }]);
             break;
@@ -131,7 +133,7 @@ export function WsWorkspace() {
       const errMsg = err instanceof Error ? err.message : String(err);
       setMessages((prev) => [...prev, {
         id: crypto.randomUUID(), direction: "received",
-        data: `[ERROR] 连接失败: ${errMsg}`, dataType: "text",
+        data: `[ERROR] ${t('ws.connectionFailed')}: ${errMsg}`, dataType: "text",
         timestamp: new Date().toISOString(), size: 0,
       }]);
     }
@@ -174,7 +176,7 @@ export function WsWorkspace() {
       const errMsg = err instanceof Error ? err.message : String(err);
       setMessages((prev) => [...prev, {
         id: crypto.randomUUID(), direction: "received",
-        data: `[ERROR] 发送失败: ${errMsg}`, dataType: "text",
+        data: `[ERROR] ${t('ws.sendFailed')}: ${errMsg}`, dataType: "text",
         timestamp: new Date().toISOString(), size: 0,
       }]);
     }
@@ -224,7 +226,7 @@ export function WsWorkspace() {
               value={url}
               onChange={(e) => updateTab(activeTab.id, { wsUrl: e.target.value })}
               onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-              placeholder="输入 WebSocket 地址，如 ws://localhost:8080/ws"
+              placeholder={t('ws.placeholder')}
               disabled={connected}
               className="wb-request-input disabled:opacity-60"
             />
@@ -233,7 +235,7 @@ export function WsWorkspace() {
         actions={(
           <>
             <div className="wb-request-toolgroup">
-              <button onClick={() => setShowHeaders(!showHeaders)} className={cn("wb-icon-btn", showHeaders && "bg-amber-500/10 text-amber-600 border-amber-200")} title="连接设置">
+              <button onClick={() => setShowHeaders(!showHeaders)} className={cn("wb-icon-btn", showHeaders && "bg-amber-500/10 text-amber-600 border-amber-200")} title={t('ws.connectionSettings')}>
                 <Settings2 className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -246,7 +248,7 @@ export function WsWorkspace() {
               )}
             >
               {connected ? <X className="w-4 h-4" /> : <Plug className="w-4 h-4" />}
-              {connected ? "断开" : connecting ? "连接中..." : "连接"}
+              {connected ? t('ws.disconnect') : connecting ? t('ws.connecting') : t('ws.connect')}
             </button>
           </>
         )}
@@ -255,11 +257,11 @@ export function WsWorkspace() {
       {/* Headers / Settings Panel */}
       {showHeaders && (
         <div className="shrink-0 px-3 pb-1.5">
-          <div className="wb-subpanel space-y-2.5 p-2.5">
+          <div className="space-y-2.5 rounded-[10px] border border-border-default/65 bg-bg-secondary/24 p-2.5">
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-3">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-text-disabled">自定义 Headers</h4>
-                <button onClick={addHeader} className="text-[10px] text-accent hover:underline">+ 添加</button>
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-text-disabled">{t('ws.customHeaders')}</h4>
+                <button onClick={addHeader} className="text-[10px] text-accent hover:underline">+ {t('ws.addHeader')}</button>
               </div>
               {headers.map((h, i) => (
                 <div key={i} className="mb-1 flex items-center gap-2">
@@ -273,16 +275,16 @@ export function WsWorkspace() {
             <div className="flex flex-wrap items-center gap-4">
               <label className="flex items-center gap-1.5 text-[11px] text-text-secondary cursor-pointer">
                 <input type="checkbox" checked={autoReconnect} onChange={() => setAutoReconnect(!autoReconnect)} className="accent-accent" />
-                <RefreshCw className="w-3 h-3" /> 自动重连
+                <RefreshCw className="w-3 h-3" /> {t('ws.autoReconnect')}
               </label>
               <label className="flex items-center gap-1.5 text-[11px] text-text-secondary cursor-pointer">
                 <input type="checkbox" checked={heartbeatEnabled} onChange={() => setHeartbeatEnabled(!heartbeatEnabled)} className="accent-accent" />
-                心跳
+                {t('ws.heartbeat')}
               </label>
               {heartbeatEnabled && (
                 <>
                   <input value={heartbeatInterval} onChange={(e) => setHeartbeatInterval(Math.max(1, parseInt(e.target.value) || 30))} className="wb-field-sm w-14 text-center" />
-                  <span className="text-[10px] text-text-disabled">秒</span>
+                  <span className="text-[10px] text-text-disabled">{t('ws.seconds')}</span>
                   <input value={heartbeatMsg} onChange={(e) => setHeartbeatMsg(e.target.value)} className="wb-field-sm w-24" placeholder="ping" />
                 </>
               )}
@@ -297,26 +299,26 @@ export function WsWorkspace() {
           {/* Status Header with search */}
           <div className="wb-panel-header shrink-0">
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              <div className={cn("w-2 h-2 rounded-full transition-colors", connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-text-disabled")} />
+              <div className={cn("h-2 w-2 rounded-[3px] transition-colors", connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-text-disabled")} />
               <span className="text-[12px] font-medium text-text-secondary">
-                {connected ? "已连接" : connecting ? "连接中..." : autoReconnect && reconnectCount > 0 ? `等待重连... (第 ${reconnectCount} 次)` : autoReconnect ? "等待重连..." : "未连接"}
+                {connected ? t('ws.connected') : connecting ? t('ws.connecting') : t('ws.disconnected')}
               </span>
-              {messages.length > 0 && <span className="text-[11px] text-text-tertiary ml-2">{filteredMessages.length}/{messages.length} 条</span>}
+              {messages.length > 0 && <span className="text-[11px] text-text-tertiary ml-2">{filteredMessages.length}/{messages.length}</span>}
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
               {/* 搜索框 */}
               <div className="wb-search w-[200px] max-w-full">
                 <Search className="w-3 h-3 text-text-disabled" />
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索消息..." className="min-w-0 flex-1" />
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('ws.searchMessages')} className="min-w-0 flex-1" />
                 {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3 h-3" /></button>}
               </div>
               {!autoScroll && messages.length > 0 && (
                 <button onClick={() => { setAutoScroll(true); messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }} className="wb-ghost-btn px-2.5 text-[11px] text-accent">
-                  <ArrowDown className="w-3 h-3" /> 底部
+                  <ArrowDown className="w-3 h-3" /> {t('ws.scrollToBottom')}
                 </button>
               )}
               {messages.length > 0 && (
-                <button onClick={() => setMessages([])} className="wb-icon-btn hover:text-red-500" title="清空"><Trash2 className="w-3 h-3" /></button>
+                <button onClick={() => setMessages([])} className="wb-icon-btn hover:text-red-500" title={t('ws.clearMessages')}><Trash2 className="w-3 h-3" /></button>
               )}
             </div>
           </div>
@@ -325,23 +327,23 @@ export function WsWorkspace() {
           <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-auto bg-bg-secondary/12 p-4">
             {filteredMessages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-text-disabled">
-                <div className="w-16 h-16 rounded-full bg-bg-secondary flex items-center justify-center mb-4 border border-border-default shadow-sm">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default bg-bg-secondary shadow-sm">
                   <Zap className="w-8 h-8 opacity-20 text-amber-500" />
                 </div>
-                <p className="text-[14px] font-medium text-text-secondary">{searchQuery ? "无匹配消息" : "WebSocket 调试"}</p>
-                <p className="text-[12px] mt-1">{searchQuery ? "尝试调整搜索关键词" : "连接到服务器开始收发消息"}</p>
+                <p className="text-[14px] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
+                <p className="text-[12px] mt-1">{searchQuery ? '' : t('ws.emptyDesc')}</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {filteredMessages.map((m) => (
                   <div key={m.id} className={cn("flex", m.direction === "sent" ? "justify-end" : "justify-start")}>
                     <div className={cn(
-                      "max-w-[75%] px-4 py-2.5 rounded-2xl text-[13px] font-mono break-words shadow-sm",
+                      "max-w-[75%] rounded-[12px] px-4 py-2.5 text-[13px] font-mono break-words shadow-sm",
                       m.direction === "sent"
-                        ? "bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-100 rounded-tr-sm"
+                        ? "rounded-tr-[8px] border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-500/10 text-amber-900 dark:text-amber-100"
                         : m.data.startsWith("[ERROR]")
-                          ? "bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-300 rounded-tl-sm"
-                          : "bg-bg-elevated border border-border-default text-text-secondary rounded-tl-sm"
+                          ? "rounded-tl-[8px] border border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
+                          : "rounded-tl-[8px] border border-border-default bg-bg-elevated text-text-secondary"
                     )}>
                       <div className="whitespace-pre-wrap break-all" style={{ userSelect: "text" }}>
                         {m.data.startsWith("[ERROR]") ? (
@@ -356,7 +358,7 @@ export function WsWorkspace() {
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className="text-[10px] opacity-50">{formatTime(m.timestamp)}</span>
                         {m.size > 0 && <span className="text-[10px] opacity-40">{formatSize(m.size)}</span>}
-                        {m.dataType === "binary" && <span className="text-[9px] px-1.5 py-0.5 bg-bg-tertiary rounded text-text-tertiary font-sans">BIN</span>}
+                        {m.dataType === "binary" && <span className="rounded-[7px] bg-bg-tertiary px-1.5 py-0.5 text-[9px] font-sans text-text-tertiary">BIN</span>}
                       </div>
                     </div>
                   </div>
@@ -379,7 +381,7 @@ export function WsWorkspace() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={sendMode === "binary" ? "输入十六进制字节，如 48 65 6C 6C 6F" : "输入消息内容... (Enter 发送, Shift+Enter 换行)"}
+                placeholder={sendMode === "binary" ? t('tcp.sendPanel.hexPlaceholder') : t('ws.messagePlaceholder')}
                 disabled={!connected}
                 className="wb-textarea h-10 min-h-10 max-h-[108px] flex-1 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 disabled:cursor-not-allowed disabled:opacity-50"
               />
@@ -388,7 +390,7 @@ export function WsWorkspace() {
                 disabled={!connected || !message.trim()}
                 className="wb-primary-btn h-10 min-w-[84px] bg-amber-500 hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <SendIcon className="w-4 h-4" /> 发送
+                <SendIcon className="w-4 h-4" /> {t('ws.send')}
               </button>
             </div>
           </div>

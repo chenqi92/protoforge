@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, ChevronDown, X, Copy, Trash2, Edit3, ArrowRightFromLine } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 import type { RequestProtocol } from "@/stores/appStore";
 import { useAppStore } from "@/stores/appStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -68,6 +69,7 @@ function isRequestProtocol(value: string): value is RequestProtocol {
 }
 
 export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, onReorder }: TabBarProps) {
+  const { t } = useTranslation();
   const tabBarRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevTabCount = useRef(tabs.length);
@@ -157,7 +159,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
           <button
             onClick={() => handleCreateWithProtocol(defaultProtocol)}
             className="flex h-8 items-center gap-1.5 rounded-l-[11px] px-3 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover/75 hover:text-text-primary"
-            title={`新建 ${protocolLabels[defaultProtocol]} (Ctrl+N)`}
+            title={`${t('tabBar.new')} ${protocolLabels[defaultProtocol]} (Ctrl+N)`}
           >
             <Plus className="h-3.5 w-3.5" />
             <span className={cn("rounded-[5px] px-1.5 py-[1px] text-[10px] font-bold leading-none", protocolColors[defaultProtocol])}>
@@ -171,7 +173,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
               "flex h-8 w-7 items-center justify-center rounded-r-[11px] text-text-tertiary transition-colors hover:bg-bg-hover/75 hover:text-text-primary",
               showCreateMenu && "bg-bg-hover/75 text-text-primary"
             )}
-            title="选择请求协议"
+            title={t('tabBar.selectProtocol')}
           >
             <ChevronDown className={cn("h-3 w-3 transition-transform", showCreateMenu && "rotate-180")} />
           </button>
@@ -186,7 +188,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
             style={{ top: createMenuPos.top, left: createMenuPos.left }}
           >
             <div className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled">
-              请求协议
+              {t('tabBar.requestProtocol')}
             </div>
             {createOptions.map((option) => {
               const isDefault = option.protocol === defaultProtocol;
@@ -210,7 +212,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
                     )}
                   />
                   <span className="text-[12px] font-medium text-text-primary">{option.label}</span>
-                  {isDefault ? <span className="ml-auto text-[10px] text-text-disabled">默认</span> : null}
+                  {isDefault ? <span className="ml-auto text-[10px] text-text-disabled">{t('tabBar.default')}</span> : null}
                 </button>
               );
             })}
@@ -244,6 +246,7 @@ function TabItem({
   onDrop: () => void;
   onDragEnd: () => void;
 }) {
+  const { t } = useTranslation();
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(tab.label);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -281,7 +284,7 @@ function TabItem({
     const items: ContextMenuEntry[] = [
       {
         id: "rename",
-        label: "重命名",
+        label: t('contextMenu.rename'),
         icon: <Edit3 className="h-3.5 w-3.5" />,
         onClick: () => {
           setRenameValue(tab.label);
@@ -291,23 +294,23 @@ function TabItem({
       },
       {
         id: "duplicate",
-        label: "复制标签页",
+        label: t('tabBar.duplicate'),
         icon: <Copy className="h-3.5 w-3.5" />,
         onClick: () => duplicateTab(tab.id),
       },
       { type: "divider" },
-      { id: "close", label: "关闭", shortcut: "Ctrl+W", onClick: onClose },
-      { id: "close-others", label: "关闭其他", onClick: () => closeOtherTabs(tab.id), disabled: totalTabs <= 1 },
+      { id: "close", label: t('tabBar.close'), shortcut: "Ctrl+W", onClick: onClose },
+      { id: "close-others", label: t('tabBar.closeOthers'), onClick: () => closeOtherTabs(tab.id), disabled: totalTabs <= 1 },
       {
         id: "close-right",
-        label: "关闭右侧",
+        label: t('tabBar.closeRight'),
         icon: <ArrowRightFromLine className="h-3.5 w-3.5" />,
         onClick: () => closeTabsToRight(tab.id),
       },
       { type: "divider" },
       {
         id: "delete",
-        label: "删除",
+        label: t('contextMenu.delete'),
         icon: <Trash2 className="h-3.5 w-3.5" />,
         danger: true,
         onClick: onClose,

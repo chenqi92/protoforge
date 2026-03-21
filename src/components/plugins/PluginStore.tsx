@@ -2,12 +2,15 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Package, Store, RefreshCw, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 import { usePluginStore } from "@/stores/pluginStore";
 import { PluginCard } from "./PluginCard";
+import { pluginT } from "@/lib/pluginI18n";
 
 type StoreTab = "installed" | "store";
 
 export function PluginsView({ search }: { search: string }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<StoreTab>("store");
 
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
@@ -24,13 +27,13 @@ export function PluginsView({ search }: { search: string }) {
   }, [fetchInstalled, fetchAvailable]);
 
   const filteredInstalled = installedPlugins.filter(
-    (p) => !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.description.toLowerCase().includes(search.toLowerCase())
+    (p) => !search || pluginT(p, 'name').toLowerCase().includes(search.toLowerCase()) ||
+      pluginT(p, 'description').toLowerCase().includes(search.toLowerCase())
   );
 
   const filteredAvailable = availablePlugins.filter(
-    (p) => !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.description.toLowerCase().includes(search.toLowerCase())
+    (p) => !search || pluginT(p, 'name').toLowerCase().includes(search.toLowerCase()) ||
+      pluginT(p, 'description').toLowerCase().includes(search.toLowerCase())
   );
 
   const handleRefresh = () => {
@@ -53,7 +56,7 @@ export function PluginsView({ search }: { search: string }) {
             )}
           >
             <Store className="w-3 h-3" />
-            仓库
+            {t('plugin.store')}
             {availablePlugins.filter((p) => !p.installed).length > 0 && (
               <span className="text-[9px] bg-accent text-white px-1 py-[1px] rounded-full min-w-[14px] text-center leading-tight">
                 {availablePlugins.filter((p) => !p.installed).length}
@@ -70,7 +73,7 @@ export function PluginsView({ search }: { search: string }) {
             )}
           >
             <Package className="w-3 h-3" />
-            已安装
+            {t('plugin.installed')}
             {installedPlugins.length > 0 && (
               <span className="text-[9px] text-text-disabled bg-bg-secondary px-1 py-[1px] rounded-full min-w-[14px] text-center leading-tight">
                 {installedPlugins.length}
@@ -82,7 +85,7 @@ export function PluginsView({ search }: { search: string }) {
           onClick={handleRefresh}
           disabled={loading}
           className="w-7 h-7 flex items-center justify-center rounded-md text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors shrink-0"
-          title="刷新"
+          title={t('plugin.refreshRegistry')}
         >
           <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
         </button>
@@ -103,13 +106,13 @@ export function PluginsView({ search }: { search: string }) {
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-text-disabled">
                   <RefreshCw className="w-6 h-6 animate-spin mb-3 opacity-40" />
-                  <p className="text-[12px]">加载中...</p>
+                  <p className="text-[12px]">{t('plugin.loading')}</p>
                 </div>
               ) : filteredAvailable.length === 0 ? (
                 <EmptyState
                   icon={<Store className="w-8 h-8 opacity-30" />}
-                  title={search ? "无匹配插件" : "仓库为空"}
-                  desc="暂无可用插件"
+                  title={search ? t('plugin.noMatch') : t('plugin.storeEmpty')}
+                  desc={t('plugin.noPlugins')}
                 />
               ) : (
                 filteredAvailable.map((plugin) => (
@@ -129,8 +132,8 @@ export function PluginsView({ search }: { search: string }) {
               {filteredInstalled.length === 0 ? (
                 <EmptyState
                   icon={<Puzzle className="w-8 h-8 opacity-30" />}
-                  title={search ? "无匹配插件" : "暂无已安装插件"}
-                  desc="从仓库中安装插件以扩展功能"
+                  title={search ? t('plugin.noMatch') : t('plugin.noInstalled')}
+                  desc={t('plugin.installFromStore')}
                 />
               ) : (
                 filteredInstalled.map((plugin) => (

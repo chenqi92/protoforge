@@ -8,6 +8,7 @@ import {
   Plus, Trash2, Eye, EyeOff, GripVertical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 import { useCollectionStore } from '@/stores/collectionStore';
 import type { Collection } from '@/types/collections';
 
@@ -18,10 +19,10 @@ interface CollectionSettingsPanelProps {
 }
 
 const tabs: { id: SettingsTab; label: string; icon: typeof Info }[] = [
-  { id: 'overview', label: '概览', icon: Info },
-  { id: 'variables', label: '变量', icon: Variable },
-  { id: 'auth', label: '认证', icon: Shield },
-  { id: 'scripts', label: '脚本', icon: Code },
+  { id: 'overview', label: 'collectionSettings.overview', icon: Info },
+  { id: 'variables', label: 'collectionSettings.variables', icon: Variable },
+  { id: 'auth', label: 'collectionSettings.auth', icon: Shield },
+  { id: 'scripts', label: 'collectionSettings.scripts', icon: Code },
 ];
 
 interface VarEntry {
@@ -32,6 +33,7 @@ interface VarEntry {
 }
 
 export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPanelProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>('overview');
   const collections = useCollectionStore((s) => s.collections);
   const collection = collections.find((c) => c.id === collectionId);
@@ -39,7 +41,7 @@ export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPane
   if (!collection) {
     return (
       <div className="h-full flex items-center justify-center text-text-disabled">
-        <p className="text-sm">合集不存在或已被删除</p>
+        <p className="text-sm">{t('collectionSettings.notFound')}</p>
       </div>
     );
   }
@@ -54,13 +56,13 @@ export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPane
           </div>
           <div className="min-w-0">
             <h1 className="text-[15px] font-semibold text-text-primary truncate">{collection.name}</h1>
-            <p className="text-[11px] text-text-tertiary">合集设置</p>
+            <p className="text-[11px] text-text-tertiary">{t('collectionSettings.title')}</p>
           </div>
         </div>
 
         {/* Tab bar */}
         <div className="flex items-center gap-0.5">
-          {tabs.map(({ id, label, icon: Icon }) => (
+          {tabs.map(({ id, label: labelKey, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
@@ -72,7 +74,7 @@ export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPane
               )}
             >
               <Icon className="w-3.5 h-3.5" />
-              {label}
+              {t(labelKey)}
               {activeTab === id && (
                 <motion.div
                   layoutId={`col-settings-tab-${collectionId}`}
@@ -98,6 +100,7 @@ export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPane
 
 /* ── Overview Tab ── */
 function OverviewTab({ collection }: { collection: Collection }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(collection.name);
   const [description, setDescription] = useState(collection.description);
   const [dirty, setDirty] = useState(false);
@@ -124,7 +127,7 @@ function OverviewTab({ collection }: { collection: Collection }) {
   return (
     <div className="max-w-lg space-y-5">
       <div>
-        <label className="block text-[12px] font-medium text-text-secondary mb-1.5">合集名称</label>
+        <label className="block text-[12px] font-medium text-text-secondary mb-1.5">{t('collectionSettings.name')}</label>
         <input
           value={name}
           onChange={(e) => { setName(e.target.value); setDirty(true); }}
@@ -133,12 +136,12 @@ function OverviewTab({ collection }: { collection: Collection }) {
       </div>
 
       <div>
-        <label className="block text-[12px] font-medium text-text-secondary mb-1.5">描述</label>
+        <label className="block text-[12px] font-medium text-text-secondary mb-1.5">{t('collectionSettings.description')}</label>
         <textarea
           value={description}
           onChange={(e) => { setDescription(e.target.value); setDirty(true); }}
           rows={4}
-          placeholder="用于描述此合集的用途..."
+          placeholder={t('collectionSettings.descPlaceholder')}
           className="w-full px-3 py-2 text-[13px] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary resize-none transition-all"
         />
       </div>
@@ -155,7 +158,7 @@ function OverviewTab({ collection }: { collection: Collection }) {
           )}
         >
           <Save className="w-3.5 h-3.5" />
-          保存
+          {t('collectionSettings.save')}
         </button>
       </div>
     </div>
@@ -164,6 +167,7 @@ function OverviewTab({ collection }: { collection: Collection }) {
 
 /* ── Variables Tab ── */
 function VariablesTab({ collection }: { collection: Collection }) {
+  const { t } = useTranslation();
   const [vars, setVars] = useState<VarEntry[]>([]);
   const [dirty, setDirty] = useState(false);
 
@@ -213,22 +217,22 @@ function VariablesTab({ collection }: { collection: Collection }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-[12px] text-text-tertiary">
-          合集级别的变量可在该合集下所有请求中通过 <code className="px-1 py-0.5 bg-bg-hover rounded text-[11px] font-mono text-accent">{'{{key}}'}</code> 引用。
+          {t('collectionSettings.varsDesc')}
         </p>
         <button
           onClick={addVar}
           className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
         >
           <Plus className="w-3.5 h-3.5" />
-          添加变量
+          {t('collectionSettings.addVar')}
         </button>
       </div>
 
       {vars.length === 0 ? (
         <div className="py-12 flex flex-col items-center text-text-disabled">
           <Variable className="w-8 h-8 mb-2 opacity-30" />
-          <p className="text-[12px]">暂无变量</p>
-          <p className="text-[11px] mt-0.5 opacity-60">点击"添加变量"开始</p>
+          <p className="text-[12px]">{t('collectionSettings.noVars')}</p>
+          <p className="text-[11px] mt-0.5 opacity-60">{t('collectionSettings.noVarsHint')}</p>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -266,7 +270,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
               <button
                 onClick={() => updateVar(i, 'isSecret', !v.isSecret)}
                 className="w-7 h-7 flex items-center justify-center text-text-disabled hover:text-text-secondary transition-colors rounded"
-                title={v.isSecret ? '显示值' : '隐藏值'}
+                title={v.isSecret ? t('collectionSettings.showValue') : t('collectionSettings.hideValue')}
               >
                 {v.isSecret ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
               </button>
@@ -276,7 +280,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
                   'w-7 h-7 flex items-center justify-center rounded transition-colors',
                   v.enabled ? 'text-emerald-500' : 'text-text-disabled'
                 )}
-                title={v.enabled ? '禁用' : '启用'}
+                title={v.enabled ? t('collectionSettings.disable') : t('collectionSettings.enable')}
               >
                 <div className={cn('w-3 h-3 rounded-full border-2', v.enabled ? 'border-emerald-500 bg-emerald-500' : 'border-text-disabled')} />
               </button>
@@ -298,7 +302,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
             className="flex items-center gap-1.5 px-4 py-2 rounded-md text-[12px] font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
           >
             <Save className="w-3.5 h-3.5" />
-            保存变量
+            {t('collectionSettings.saveVars')}
           </button>
         </div>
       )}
@@ -308,6 +312,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
 
 /* ── Auth Tab ── */
 function AuthTab({ collection }: { collection: Collection }) {
+  const { t } = useTranslation();
   const [authType, setAuthType] = useState<'none' | 'bearer' | 'basic' | 'apikey'>('none');
   const [authConfig, setAuthConfig] = useState<Record<string, string>>({});
   const [dirty, setDirty] = useState(false);
@@ -346,7 +351,7 @@ function AuthTab({ collection }: { collection: Collection }) {
   };
 
   const authTypes = [
-    { value: 'none', label: '无认证' },
+    { value: 'none', label: t('collectionSettings.noAuth') },
     { value: 'bearer', label: 'Bearer Token' },
     { value: 'basic', label: 'Basic Auth' },
     { value: 'apikey', label: 'API Key' },
@@ -355,7 +360,7 @@ function AuthTab({ collection }: { collection: Collection }) {
   return (
     <div className="max-w-lg space-y-5">
       <div>
-        <label className="block text-[12px] font-medium text-text-secondary mb-1.5">认证类型</label>
+        <label className="block text-[12px] font-medium text-text-secondary mb-1.5">{t('collectionSettings.authType')}</label>
         <div className="flex gap-1.5">
           {authTypes.map(({ value, label }) => (
             <button
@@ -389,7 +394,7 @@ function AuthTab({ collection }: { collection: Collection }) {
       {authType === 'basic' && (
         <div className="space-y-3">
           <div>
-            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">用户名</label>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">{t('collectionSettings.username')}</label>
             <input
               value={authConfig.basicUsername || ''}
               onChange={(e) => updateField('basicUsername', e.target.value)}
@@ -398,7 +403,7 @@ function AuthTab({ collection }: { collection: Collection }) {
             />
           </div>
           <div>
-            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">密码</label>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">{t('collectionSettings.password')}</label>
             <input
               type="password"
               value={authConfig.basicPassword || ''}
@@ -413,7 +418,7 @@ function AuthTab({ collection }: { collection: Collection }) {
       {authType === 'apikey' && (
         <div className="space-y-3">
           <div>
-            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Key 名称</label>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">{t('collectionSettings.keyName')}</label>
             <input
               value={authConfig.apiKeyName || ''}
               onChange={(e) => updateField('apiKeyName', e.target.value)}
@@ -422,7 +427,7 @@ function AuthTab({ collection }: { collection: Collection }) {
             />
           </div>
           <div>
-            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">Key 值</label>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">{t('collectionSettings.keyValue')}</label>
             <input
               value={authConfig.apiKeyValue || ''}
               onChange={(e) => updateField('apiKeyValue', e.target.value)}
@@ -431,7 +436,7 @@ function AuthTab({ collection }: { collection: Collection }) {
             />
           </div>
           <div>
-            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">添加到</label>
+            <label className="block text-[12px] font-medium text-text-secondary mb-1.5">{t('collectionSettings.addTo')}</label>
             <div className="flex gap-1.5">
               {['header', 'query'].map((loc) => (
                 <button
@@ -459,7 +464,7 @@ function AuthTab({ collection }: { collection: Collection }) {
             className="flex items-center gap-1.5 px-4 py-2 rounded-md text-[12px] font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
           >
             <Save className="w-3.5 h-3.5" />
-            保存认证
+            {t('collectionSettings.saveAuth')}
           </button>
         </div>
       )}
@@ -469,6 +474,7 @@ function AuthTab({ collection }: { collection: Collection }) {
 
 /* ── Scripts Tab ── */
 function ScriptsTab({ collection }: { collection: Collection }) {
+  const { t } = useTranslation();
   const [preScript, setPreScript] = useState(collection.preScript);
   const [postScript, setPostScript] = useState(collection.postScript);
   const [dirty, setDirty] = useState(false);
@@ -493,8 +499,8 @@ function ScriptsTab({ collection }: { collection: Collection }) {
     <div className="space-y-6">
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-[12px] font-medium text-text-secondary">前置脚本</label>
-          <span className="text-[10px] text-text-disabled">请求发送前执行</span>
+          <label className="text-[12px] font-medium text-text-secondary">{t('collectionSettings.preScript')}</label>
+          <span className="text-[10px] text-text-disabled">{t('collectionSettings.preScriptHint')}</span>
         </div>
         <textarea
           value={preScript}
@@ -507,8 +513,8 @@ function ScriptsTab({ collection }: { collection: Collection }) {
 
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-[12px] font-medium text-text-secondary">后置脚本</label>
-          <span className="text-[10px] text-text-disabled">收到响应后执行</span>
+          <label className="text-[12px] font-medium text-text-secondary">{t('collectionSettings.postScript')}</label>
+          <span className="text-[10px] text-text-disabled">{t('collectionSettings.postScriptHint')}</span>
         </div>
         <textarea
           value={postScript}
@@ -526,7 +532,7 @@ function ScriptsTab({ collection }: { collection: Collection }) {
             className="flex items-center gap-1.5 px-4 py-2 rounded-md text-[12px] font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
           >
             <Save className="w-3.5 h-3.5" />
-            保存脚本
+            {t('collectionSettings.saveScripts')}
           </button>
         </div>
       )}

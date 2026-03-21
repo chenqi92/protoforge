@@ -7,6 +7,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { ChevronRight, ChevronDown, Copy, Check, WrapText, Search, Minimize2, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 export type ViewMode = 'json' | 'raw' | 'preview' | 'hex';
 
@@ -179,6 +180,7 @@ function JsonNode({ data, nodeKey, depth, isLast, defaultExpanded = true }: Json
 
 /* ── Hex view ── */
 function HexView({ data }: { data: string }) {
+  const { t } = useTranslation();
   const lines = useMemo(() => {
     const result: { offset: string; hex: string; ascii: string }[] = [];
     const bytes = new TextEncoder().encode(data);
@@ -203,7 +205,7 @@ function HexView({ data }: { data: string }) {
       ))}
       {data.length > 4096 && (
         <div className="text-text-disabled text-[10px] mt-2 italic">
-          仅显示前 4096 字节 (总 {data.length} 字节)
+          {t('response.truncated', { total: data.length })}
         </div>
       )}
     </div>
@@ -212,6 +214,7 @@ function HexView({ data }: { data: string }) {
 
 /* ── Main Component ── */
 export function ResponseViewer({ body, contentType, modes, compact, className }: ResponseViewerProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [wordWrap, setWordWrap] = useState(true);
   const [searchText, setSearchText] = useState('');
@@ -278,7 +281,7 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
   const modeLabels: Record<ViewMode, string> = {
     json: 'JSON',
     raw: 'Raw',
-    preview: '预览',
+    preview: t('response.preview'),
     hex: 'Hex',
   };
 
@@ -314,7 +317,7 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
                 'h-6 w-6 flex items-center justify-center rounded-md transition-colors',
                 showSearch ? 'text-accent bg-accent/10' : 'text-text-tertiary hover:bg-bg-hover'
               )}
-              title="搜索 (Ctrl+F)"
+              title={t('response.search')}
             >
               <Search className="w-3 h-3" />
             </button>
@@ -326,7 +329,7 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
                 'h-6 w-6 flex items-center justify-center rounded-md transition-colors',
                 wordWrap ? 'text-accent bg-accent/10' : 'text-text-tertiary hover:bg-bg-hover'
               )}
-              title="自动换行"
+              title={t('response.wordWrap')}
             >
               <WrapText className="w-3 h-3" />
             </button>
@@ -335,7 +338,7 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
             <button
               onClick={handleCopy}
               className="h-6 w-6 flex items-center justify-center rounded-md text-text-tertiary hover:bg-bg-hover transition-colors"
-              title="复制"
+              title={t('response.copy')}
             >
               {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
             </button>
@@ -350,13 +353,13 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
           <input
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="搜索内容..."
+            placeholder={t('response.searchPlaceholder')}
             className="flex-1 h-6 text-[12px] bg-transparent outline-none text-text-primary placeholder:text-text-tertiary"
             autoFocus
           />
           {searchText && (
             <span className="text-[10px] text-text-disabled tabular-nums shrink-0">
-              {searchCount} 个匹配
+              {t('response.matchCount', { count: searchCount })}
             </span>
           )}
         </div>

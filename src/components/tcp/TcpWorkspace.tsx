@@ -2,6 +2,7 @@
 // 四模式 Tab + 左右分栏布局
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Server, Radio, Square, Monitor } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { ConnectionBar } from "./ConnectionBar";
 import { SendPanel } from "./SendPanel";
@@ -14,17 +15,17 @@ import type {
 } from "@/types/tcp";
 
 // ── Mode Tab 配置 ──
-const MODES: { value: SocketMode; label: string; hint: string; icon: React.ReactNode }[] = [
-  { value: "tcp-client", label: "TCP 客户端", hint: "面向连接的单点调试", icon: <Monitor className="w-3.5 h-3.5" /> },
-  { value: "tcp-server", label: "TCP 服务端", hint: "监听连接并向客户端广播", icon: <Server className="w-3.5 h-3.5" /> },
-  { value: "udp-client", label: "UDP 客户端", hint: "无连接报文发送与接收", icon: <Radio className="w-3.5 h-3.5" /> },
-  { value: "udp-server", label: "UDP 服务端", hint: "端口监听与多端报文收集", icon: <Square className="w-3.5 h-3.5" /> },
+const MODES: { value: SocketMode; labelKey: string; hintKey: string; icon: React.ReactNode }[] = [
+  { value: "tcp-client", labelKey: "tcp.modes.tcpClient", hintKey: "tcp.modes.tcpClientHint", icon: <Monitor className="w-3.5 h-3.5" /> },
+  { value: "tcp-server", labelKey: "tcp.modes.tcpServer", hintKey: "tcp.modes.tcpServerHint", icon: <Server className="w-3.5 h-3.5" /> },
+  { value: "udp-client", labelKey: "tcp.modes.udpClient", hintKey: "tcp.modes.udpClientHint", icon: <Radio className="w-3.5 h-3.5" /> },
+  { value: "udp-server", labelKey: "tcp.modes.udpServer", hintKey: "tcp.modes.udpServerHint", icon: <Square className="w-3.5 h-3.5" /> },
 ];
 
 export function TcpWorkspace() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<SocketMode>("tcp-client");
   const activeMode = MODES.find((item) => item.value === mode) || MODES[0];
-  const modeTone = mode.startsWith("tcp") ? "面向连接" : "无连接报文";
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-transparent p-3">
@@ -38,15 +39,15 @@ export function TcpWorkspace() {
                 className={cn(mode === m.value && "is-active")}
               >
                 {m.icon}
-                {m.label}
+                {t(m.labelKey)}
               </button>
             ))}
           </div>
-          <span className="wb-tool-inline-note">{activeMode.hint}</span>
+          <span className="wb-tool-inline-note">{t(activeMode.hintKey)}</span>
         </div>
 
         <div className="wb-tool-strip-actions">
-          <span className="wb-tool-chip">{modeTone}</span>
+          <span className="wb-tool-chip">{mode.startsWith("tcp") ? t('tcp.connectionOriented') : t('tcp.connectionless')}</span>
         </div>
       </div>
 
@@ -62,9 +63,9 @@ export function TcpWorkspace() {
 
 function WorkspaceSplit({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[320px_minmax(0,1fr)] gap-3">
-      <div className="min-h-0 overflow-auto">{sidebar}</div>
-      <div className="min-h-0">{children}</div>
+    <div className="wb-workbench-grid h-full min-h-0 flex-1">
+      <div className="wb-workbench-sidebar">{sidebar}</div>
+      <div className="wb-workbench-main">{children}</div>
     </div>
   );
 }
@@ -81,7 +82,7 @@ function AddressField({
   placeholder: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-[15px] border border-border-default/75 bg-bg-primary/78 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <div className="flex items-center gap-2 rounded-[11px] border border-border-default/75 bg-bg-primary/78 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{label}</span>
       <input
         value={value}
@@ -104,7 +105,7 @@ function useSocketState() {
   const [displayFormat, setDisplayFormat] = useState<DataFormat>("ascii");
   const [sendHistory, setSendHistory] = useState<SendHistoryItem[]>([]);
   const [quickCommands, setQuickCommands] = useState<QuickCommand[]>([
-    { id: "hb", name: "心跳", data: "PING", format: "ascii" },
+    { id: "hb", name: "Heartbeat", data: "PING", format: "ascii" },
     { id: "ack", name: "ACK", data: "06", format: "hex" },
   ]);
   const [appendNewline, setAppendNewline] = useState(false);
@@ -154,6 +155,7 @@ function useSocketState() {
 // ═══════════════════════════════════════════
 
 function TcpClientPanel() {
+  const { t } = useTranslation();
   const connectionId = useRef(crypto.randomUUID()).current;
   const state = useSocketState();
   const [connected, setConnected] = useState(false);
@@ -172,7 +174,7 @@ function TcpClientPanel() {
           case "connected":
             setConnected(true);
             setConnecting(false);
-            state.systemMessage(`✓ 已连接到 ${event.data}`);
+            state.systemMessage(`✓ ${t('tcp.system.connectedTo')} ${event.data}`);
             break;
           case "data":
             state.addMessage({
@@ -184,12 +186,12 @@ function TcpClientPanel() {
           case "disconnected":
             setConnected(false);
             setConnecting(false);
-            state.systemMessage("✗ 连接已断开");
+            state.systemMessage(`✗ ${t('tcp.system.disconnected')}`);
             break;
           case "error":
             setConnected(false);
             setConnecting(false);
-            state.systemMessage(`⚠ 错误: ${event.data}`);
+            state.systemMessage(`⚠ ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
       });
@@ -216,7 +218,7 @@ function TcpClientPanel() {
         await svc.tcpConnect(connectionId, host, port);
       } catch (err: unknown) {
         setConnecting(false);
-        state.systemMessage(`⚠ 连接失败: ${err instanceof Error ? err.message : String(err)}`);
+        state.systemMessage(`⚠ ${t('tcp.system.connectFailed')}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
@@ -238,7 +240,7 @@ function TcpClientPanel() {
       state.addToHistory(state.message, state.sendFormat);
       if (!state.timerEnabled) state.setMessage("");
     } catch (err: unknown) {
-      state.systemMessage(`⚠ 发送失败: ${err instanceof Error ? err.message : String(err)}`);
+      state.systemMessage(`⚠ ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -265,7 +267,7 @@ function TcpClientPanel() {
             quickCommands={state.quickCommands}
             onAddQuickCommand={() => {
               if (state.message.trim()) {
-                const name = `指令${state.quickCommands.length + 1}`;
+                const name = `${t('tcp.system.command')}${state.quickCommands.length + 1}`;
                 state.setQuickCommands((prev) => [...prev, {
                   id: crypto.randomUUID(), name, data: state.message, format: state.sendFormat,
                 }]);
@@ -278,6 +280,7 @@ function TcpClientPanel() {
             onTimerIntervalChange={(v) => state.setTimerInterval(v)}
             appendNewline={state.appendNewline}
             onAppendNewlineChange={state.setAppendNewline}
+            embedded
           />
         )}
       >
@@ -288,8 +291,9 @@ function TcpClientPanel() {
             displayFormat={state.displayFormat}
             setDisplayFormat={state.setDisplayFormat}
             connected={connected}
-            statusText={connected ? `${host}:${port} 已连接` : connecting ? "正在建立连接..." : "等待建立连接"}
+            statusText={connected ? `${host}:${port} ${t('tcp.system.connected')}` : connecting ? t('tcp.system.connecting') : t('tcp.system.waitingConnection')}
             stats={state.stats}
+            embedded
           />
         </div>
       </WorkspaceSplit>
@@ -302,6 +306,7 @@ function TcpClientPanel() {
 // ═══════════════════════════════════════════
 
 function TcpServerPanel() {
+  const { t } = useTranslation();
   const serverId = useRef(crypto.randomUUID()).current;
   const state = useSocketState();
   const [running, setRunning] = useState(false);
@@ -321,12 +326,12 @@ function TcpServerPanel() {
           case "started":
             setRunning(true);
             setStarting(false);
-            state.systemMessage(`✓ 服务器已启动 ${event.data}`);
+            state.systemMessage(`✓ ${t('tcp.system.serverStarted')} ${event.data}`);
             break;
           case "client-connected":
             if (event.clientId && event.remoteAddr) {
               setClients((prev) => [...prev, { id: event.clientId!, remoteAddr: event.remoteAddr!, connectedAt: event.timestamp }]);
-              state.systemMessage(`🔗 客户端连接: ${event.remoteAddr}`);
+              state.systemMessage(`🔗 ${t('tcp.system.clientConnected')}: ${event.remoteAddr}`);
             }
             break;
           case "client-data":
@@ -340,11 +345,11 @@ function TcpServerPanel() {
           case "client-disconnected":
             if (event.clientId) {
               setClients((prev) => prev.filter((c) => c.id !== event.clientId));
-              state.systemMessage(`🔌 客户端断开: ${event.clientId.slice(0, 8)}`);
+              state.systemMessage(`🔌 ${t('tcp.system.clientDisconnected')}: ${event.clientId.slice(0, 8)}`);
             }
             break;
           case "error":
-            state.systemMessage(`⚠ 错误: ${event.data}`);
+            state.systemMessage(`⚠ ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
       });
@@ -365,14 +370,14 @@ function TcpServerPanel() {
       await svc.tcpServerStop(serverId);
       setRunning(false);
       setClients([]);
-      state.systemMessage("✗ 服务器已停止");
+      state.systemMessage(`✗ ${t('tcp.system.serverStopped')}`);
     } else {
       setStarting(true);
       try {
         await svc.tcpServerStart(serverId, host, port);
       } catch (err: unknown) {
         setStarting(false);
-        state.systemMessage(`⚠ 启动失败: ${err instanceof Error ? err.message : String(err)}`);
+        state.systemMessage(`⚠ ${t('tcp.system.startFailed')}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
@@ -394,14 +399,14 @@ function TcpServerPanel() {
         const size = new TextEncoder().encode(data).length;
         state.addMessage({
           id: crypto.randomUUID(), direction: "sent",
-          data: `[广播 → ${count} 客户端] ${data}`, rawHex: svc.asciiToHex(data),
+          data: `[${t('tcp.system.broadcast')} → ${count}] ${data}`, rawHex: svc.asciiToHex(data),
           encoding: "utf8", timestamp: new Date().toISOString(), size,
         });
       }
       state.addToHistory(state.message, state.sendFormat);
       if (!state.timerEnabled) state.setMessage("");
     } catch (err: unknown) {
-      state.systemMessage(`⚠ 发送失败: ${err instanceof Error ? err.message : String(err)}`);
+      state.systemMessage(`⚠ ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -418,13 +423,15 @@ function TcpServerPanel() {
 
       <WorkspaceSplit
         sidebar={(
-          <div className="space-y-3">
-            <ClientList clients={clients} selectedClientId={selectedClientId} onSelectClient={setSelectedClientId} />
+          <div className="flex h-full min-h-0 flex-col">
+            <ClientList clients={clients} selectedClientId={selectedClientId} onSelectClient={setSelectedClientId} embedded />
+            {clients.length > 0 ? <div className="wb-pane-divider" /> : null}
+            <div className="min-h-0 flex-1">
             <SendPanel
               message={state.message} setMessage={state.setMessage}
               sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
               connected={running} onSend={handleSend}
-              sendLabel={selectedClientId ? "发送" : "广播"}
+              sendLabel={selectedClientId ? t('tcp.send') : t('tcp.system.broadcast')}
               sendHistory={state.sendHistory}
               onClearHistory={() => state.setSendHistory([])}
               onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
@@ -432,7 +439,7 @@ function TcpServerPanel() {
               onAddQuickCommand={() => {
                 if (state.message.trim()) {
                   state.setQuickCommands((prev) => [...prev, {
-                    id: crypto.randomUUID(), name: `指令${prev.length + 1}`, data: state.message, format: state.sendFormat,
+                    id: crypto.randomUUID(), name: `${t('tcp.system.command')}${prev.length + 1}`, data: state.message, format: state.sendFormat,
                   }]);
                 }
               }}
@@ -443,7 +450,9 @@ function TcpServerPanel() {
               onTimerIntervalChange={(v) => state.setTimerInterval(v)}
               appendNewline={state.appendNewline}
               onAppendNewlineChange={state.setAppendNewline}
+              embedded
             />
+            </div>
           </div>
         )}
       >
@@ -454,8 +463,9 @@ function TcpServerPanel() {
             displayFormat={state.displayFormat}
             setDisplayFormat={state.setDisplayFormat}
             connected={running}
-            statusText={running ? `${host}:${port} 监听中 · ${clients.length} 个客户端` : starting ? "正在启动服务端..." : "等待启动服务端"}
+            statusText={running ? `${host}:${port} ${t('tcp.system.listening')} · ${t('tcp.clientList.connections', { count: clients.length })}` : starting ? t('tcp.system.startingServer') : t('tcp.system.waitingServer')}
             stats={state.stats}
+            embedded
           />
         </div>
       </WorkspaceSplit>
@@ -468,6 +478,7 @@ function TcpServerPanel() {
 // ═══════════════════════════════════════════
 
 function UdpClientPanel() {
+  const { t } = useTranslation();
   const socketId = useRef(crypto.randomUUID()).current;
   const state = useSocketState();
   const [bound, setBound] = useState(false);
@@ -486,7 +497,7 @@ function UdpClientPanel() {
           case "bound":
             setBound(true);
             setBinding(false);
-            state.systemMessage(`✓ 已绑定 ${event.data}`);
+            state.systemMessage(`✓ ${t('tcp.system.bound')} ${event.data}`);
             break;
           case "data":
             state.addMessage({
@@ -499,7 +510,7 @@ function UdpClientPanel() {
           case "error":
             setBound(false);
             setBinding(false);
-            state.systemMessage(`⚠ 错误: ${event.data}`);
+            state.systemMessage(`⚠ ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
       });
@@ -519,14 +530,14 @@ function UdpClientPanel() {
     if (bound) {
       await svc.udpClose(socketId);
       setBound(false);
-      state.systemMessage("✗ UDP 已关闭");
+      state.systemMessage(`✗ ${t('tcp.system.udpClosed')}`);
     } else {
       setBinding(true);
       try {
         await svc.udpBind(socketId, `${host}:${port}`);
       } catch (err: unknown) {
         setBinding(false);
-        state.systemMessage(`⚠ 绑定失败: ${err instanceof Error ? err.message : String(err)}`);
+        state.systemMessage(`⚠ ${t('tcp.system.bindFailed')}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
@@ -545,7 +556,7 @@ function UdpClientPanel() {
       state.addToHistory(state.message, state.sendFormat);
       if (!state.timerEnabled) state.setMessage("");
     } catch (err: unknown) {
-      state.systemMessage(`⚠ 发送失败: ${err instanceof Error ? err.message : String(err)}`);
+      state.systemMessage(`⚠ ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -561,10 +572,10 @@ function UdpClientPanel() {
         {/* Target address */}
         {bound && (
           <AddressField
-            label="目标地址"
+            label={t('tcp.targetAddress')}
             value={targetAddr}
             onChange={setTargetAddr}
-            placeholder="目标 IP:端口 (如 127.0.0.1:9000)"
+            placeholder={t('tcp.targetAddrPlaceholder')}
           />
         )}
       </div>
@@ -582,7 +593,7 @@ function UdpClientPanel() {
             onAddQuickCommand={() => {
               if (state.message.trim()) {
                 state.setQuickCommands((prev) => [...prev, {
-                  id: crypto.randomUUID(), name: `指令${prev.length + 1}`, data: state.message, format: state.sendFormat,
+                  id: crypto.randomUUID(), name: `${t('tcp.system.command')}${prev.length + 1}`, data: state.message, format: state.sendFormat,
                 }]);
               }
             }}
@@ -593,6 +604,7 @@ function UdpClientPanel() {
             onTimerIntervalChange={(v) => state.setTimerInterval(v)}
             appendNewline={state.appendNewline}
             onAppendNewlineChange={state.setAppendNewline}
+            embedded
           />
         )}
       >
@@ -603,8 +615,9 @@ function UdpClientPanel() {
             displayFormat={state.displayFormat}
             setDisplayFormat={state.setDisplayFormat}
             connected={bound}
-            statusText={bound ? `${host}:${port} 已绑定 · 目标 ${targetAddr}` : binding ? "正在绑定 UDP..." : "等待绑定 UDP"}
+            statusText={bound ? `${host}:${port} ${t('tcp.system.bound')} · ${t('tcp.targetAddress')} ${targetAddr}` : binding ? t('tcp.system.bindingUdp') : t('tcp.system.waitingUdp')}
             stats={state.stats}
+            embedded
           />
         </div>
       </WorkspaceSplit>
@@ -617,6 +630,7 @@ function UdpClientPanel() {
 // ═══════════════════════════════════════════
 
 function UdpServerPanel() {
+  const { t } = useTranslation();
   const socketId = useRef(crypto.randomUUID()).current;
   const state = useSocketState();
   const [bound, setBound] = useState(false);
@@ -635,7 +649,7 @@ function UdpServerPanel() {
           case "bound":
             setBound(true);
             setBinding(false);
-            state.systemMessage(`✓ UDP 服务端已绑定 ${event.data}`);
+            state.systemMessage(`✓ ${t('tcp.system.udpServerBound')} ${event.data}`);
             break;
           case "data":
             state.addMessage({
@@ -652,7 +666,7 @@ function UdpServerPanel() {
           case "error":
             setBound(false);
             setBinding(false);
-            state.systemMessage(`⚠ 错误: ${event.data}`);
+            state.systemMessage(`⚠ ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
       });
@@ -672,14 +686,14 @@ function UdpServerPanel() {
     if (bound) {
       await svc.udpClose(socketId);
       setBound(false);
-      state.systemMessage("✗ UDP 服务端已关闭");
+      state.systemMessage(`✗ ${t('tcp.system.udpServerClosed')}`);
     } else {
       setBinding(true);
       try {
         await svc.udpBind(socketId, `${host}:${port}`);
       } catch (err: unknown) {
         setBinding(false);
-        state.systemMessage(`⚠ 绑定失败: ${err instanceof Error ? err.message : String(err)}`);
+        state.systemMessage(`⚠ ${t('tcp.system.bindFailed')}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
@@ -698,7 +712,7 @@ function UdpServerPanel() {
       state.addToHistory(state.message, state.sendFormat);
       if (!state.timerEnabled) state.setMessage("");
     } catch (err: unknown) {
-      state.systemMessage(`⚠ 发送失败: ${err instanceof Error ? err.message : String(err)}`);
+      state.systemMessage(`⚠ ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -713,10 +727,10 @@ function UdpServerPanel() {
         />
         {bound && (
           <AddressField
-            label="回复地址"
+            label={t('tcp.replyAddress')}
             value={replyAddr}
             onChange={setReplyAddr}
-            placeholder="接收到数据后自动填充，或手动输入 IP:端口"
+            placeholder={t('tcp.replyAddrPlaceholder')}
           />
         )}
       </div>
@@ -727,7 +741,7 @@ function UdpServerPanel() {
             message={state.message} setMessage={state.setMessage}
             sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
             connected={bound && !!replyAddr} onSend={handleSend}
-            sendLabel="回复"
+            sendLabel={t('tcp.reply')}
             sendHistory={state.sendHistory}
             onClearHistory={() => state.setSendHistory([])}
             onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
@@ -735,7 +749,7 @@ function UdpServerPanel() {
             onAddQuickCommand={() => {
               if (state.message.trim()) {
                 state.setQuickCommands((prev) => [...prev, {
-                  id: crypto.randomUUID(), name: `指令${prev.length + 1}`, data: state.message, format: state.sendFormat,
+                  id: crypto.randomUUID(), name: `${t('tcp.system.command')}${prev.length + 1}`, data: state.message, format: state.sendFormat,
                 }]);
               }
             }}
@@ -746,6 +760,7 @@ function UdpServerPanel() {
             onTimerIntervalChange={(v) => state.setTimerInterval(v)}
             appendNewline={state.appendNewline}
             onAppendNewlineChange={state.setAppendNewline}
+            embedded
           />
         )}
       >
@@ -756,8 +771,9 @@ function UdpServerPanel() {
             displayFormat={state.displayFormat}
             setDisplayFormat={state.setDisplayFormat}
             connected={bound}
-            statusText={bound ? `${host}:${port} 监听中 · 回复 ${replyAddr || "等待来源地址"}` : binding ? "正在绑定 UDP 服务端..." : "等待启动 UDP 服务端"}
+            statusText={bound ? `${host}:${port} ${t('tcp.system.listening')} · ${t('tcp.replyAddress')} ${replyAddr || t('tcp.system.waitingSource')}` : binding ? t('tcp.system.bindingUdpServer') : t('tcp.system.waitingUdpServer')}
             stats={state.stats}
+            embedded
           />
         </div>
       </WorkspaceSplit>

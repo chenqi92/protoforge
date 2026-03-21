@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Trash2, Search, ChevronRight, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 import { getMethodColor, getStatusColor } from '@/types/http';
 
 export interface HistoryItem {
@@ -21,6 +22,7 @@ interface HistoryPanelProps {
 }
 
 export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
+  const { t } = useTranslation();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -42,10 +44,10 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
       const date = new Date(item.timestamp);
       const diff = Math.floor((now.getTime() - date.getTime()) / 86400000);
       let label: string;
-      if (diff === 0) label = '今天';
-      else if (diff === 1) label = '昨天';
-      else if (diff < 7) label = '7 天内';
-      else label = '更早';
+      if (diff === 0) label = t('sidebar.today');
+      else if (diff === 1) label = t('sidebar.yesterday');
+      else if (diff < 7) label = t('history.lastWeek');
+      else label = t('sidebar.earlier');
       if (!groups[label]) groups[label] = [];
       groups[label].push(item);
     }
@@ -59,8 +61,8 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-text-disabled">
         <Clock className="w-10 h-10 mb-3 opacity-30" />
-        <p className="text-sm">暂无请求历史</p>
-        <p className="text-xs mt-1">发送请求后，历史记录将自动保存</p>
+        <p className="text-sm">{t('sidebar.noHistory')}</p>
+        <p className="text-xs mt-1">{t('sidebar.noHistoryHint')}</p>
       </div>
     );
   }
@@ -74,14 +76,14 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="搜索历史..."
+            placeholder={t('history.searchPlaceholder')}
             className="flex-1 bg-transparent text-xs text-text-primary placeholder:text-text-disabled focus:outline-none"
           />
         </div>
         <button
           onClick={() => { setHistory([]); /* invoke('clear_history') */ }}
           className="text-text-tertiary hover:text-error transition-colors p-1"
-          title="清空历史"
+          title={t('history.clearHistory')}
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -142,7 +144,7 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
                         className="flex items-center gap-1 text-[11px] text-accent hover:text-accent-hover transition-colors"
                       >
                         <RotateCcw className="w-3 h-3" />
-                        恢复到工作区
+                        {t('history.restore')}
                       </button>
                     </motion.div>
                   )}

@@ -8,7 +8,7 @@ export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   language: 'zh-CN' | 'en';
   fontSize: 12 | 13 | 14 | 15 | 16;
-  fontFamily: 'mono' | 'system';
+  fontFamily: 'inter' | 'system' | 'noto-sans-sc' | 'lxgw-wenkai' | 'source-han-sans';
 
   // ── 请求默认值 ──
   defaultTimeoutMs: number;
@@ -49,7 +49,7 @@ const defaultSettings: AppSettings = {
   theme: 'light',
   language: 'zh-CN',
   fontSize: 13,
-  fontFamily: 'mono',
+  fontFamily: 'inter',
 
   defaultTimeoutMs: 30000,
   followRedirects: true,
@@ -87,6 +87,18 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: 'protoforge-settings',
+      migrate: (persistedState: unknown) => {
+        const state = persistedState as { settings?: Record<string, unknown> };
+        if (state?.settings) {
+          // 迁移旧的 fontFamily 值
+          const ff = state.settings.fontFamily;
+          if (ff === 'mono' || !['inter', 'system', 'noto-sans-sc', 'lxgw-wenkai', 'source-han-sans'].includes(ff as string)) {
+            state.settings.fontFamily = 'inter';
+          }
+        }
+        return state as unknown as SettingsStore;
+      },
+      version: 1,
     }
   )
 );

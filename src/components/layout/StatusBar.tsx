@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 interface StatusBarProps {
   connectionStatus?: "connected" | "disconnected";
   responseTime?: number;
@@ -5,24 +7,15 @@ interface StatusBarProps {
   activeModule: string;
 }
 
-const moduleLabels: Record<string, string> = {
-  requests: "请求工作台",
-  collection: "合集设置",
-  http: "HTTP",
-  ws: "WebSocket",
-  sse: "SSE",
-  mqtt: "MQTT",
-  tcpudp: "TCP/UDP",
-  capture: "抓包",
-  loadtest: "压测",
-  ready: "READY",
-};
-
 export function StatusBar({
   responseTime,
   responseSize,
   activeModule,
 }: StatusBarProps) {
+  const { t } = useTranslation();
+
+  const moduleLabel = t(`statusBar.${activeModule}`, { defaultValue: activeModule.toUpperCase() });
+
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -34,7 +27,7 @@ export function StatusBar({
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 rounded-full border border-border-default/60 bg-bg-secondary/85 px-2.5 py-1 font-medium">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
-          <span className="text-text-secondary tracking-wider">{moduleLabels[activeModule] || activeModule.toUpperCase()}</span>
+          <span className="text-text-secondary tracking-wider">{moduleLabel}</span>
         </div>
       </div>
 

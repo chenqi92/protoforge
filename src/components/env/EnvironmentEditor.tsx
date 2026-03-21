@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Globe, Plus, Trash2, Check, Eye, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 import { useEnvStore } from '@/stores/envStore';
 import type { EnvVariable } from '@/types/collections';
 
 type EditorTab = 'environments' | 'global';
 
 export function EnvironmentEditor() {
+  const { t } = useTranslation();
   const {
     environments, activeEnvId,
     fetchEnvironments, createEnvironment, deleteEnvironment,
@@ -99,7 +101,7 @@ export function EnvironmentEditor() {
       <div className="shrink-0 px-5 pt-4 pb-0">
         <div className="flex items-center gap-3 mb-3">
           <Globe className="w-5 h-5 text-accent" />
-          <h2 className="text-[15px] font-semibold text-text-primary">环境管理</h2>
+          <h2 className="text-[15px] font-semibold text-text-primary">{t('env.title')}</h2>
         </div>
         <div className="flex items-center gap-1 bg-bg-secondary p-1 rounded-lg w-fit">
           <button
@@ -109,7 +111,7 @@ export function EnvironmentEditor() {
               tab === 'environments' ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary"
             )}
           >
-            环境变量
+            {t('env.envVars')}
           </button>
           <button
             onClick={() => setTab('global')}
@@ -118,7 +120,7 @@ export function EnvironmentEditor() {
               tab === 'global' ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary"
             )}
           >
-            全局变量
+            {t('env.globalVars')}
           </button>
         </div>
       </div>
@@ -133,7 +135,7 @@ export function EnvironmentEditor() {
                   value={newEnvName}
                   onChange={(e) => setNewEnvName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateEnv()}
-                  placeholder="新建环境..."
+                  placeholder={t('env.newEnvPlaceholder')}
                   className="input-field flex-1 text-[12px] py-1.5"
                 />
                 <button onClick={handleCreateEnv} className="h-7 px-2 bg-accent text-white rounded-md text-[11px] font-medium hover:bg-accent-hover shrink-0">
@@ -143,7 +145,7 @@ export function EnvironmentEditor() {
             </div>
             <div className="flex-1 overflow-auto py-1">
               {environments.length === 0 ? (
-                <div className="p-4 text-center text-[12px] text-text-disabled">暂无环境</div>
+                <div className="p-4 text-center text-[12px] text-text-disabled">{t('env.noEnvs')}</div>
               ) : (
                 environments.map((env) => (
                   <div
@@ -183,7 +185,7 @@ export function EnvironmentEditor() {
             {activeEnvId && (
               <div className="shrink-0 px-3 py-2 border-t border-border-default text-[11px] text-emerald-600 font-medium flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                激活: {environments.find((e) => e.id === activeEnvId)?.name || ''}
+                {t('env.active')}: {environments.find((e) => e.id === activeEnvId)?.name || ''}
               </div>
             )}
           </div>
@@ -194,16 +196,16 @@ export function EnvironmentEditor() {
               <>
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default bg-bg-secondary/30 shrink-0">
                   <span className="text-[13px] font-medium text-text-secondary">
-                    {environments.find((e) => e.id === selectedEnvId)?.name} 的变量
+                    {t('env.varsOf', { name: environments.find((e) => e.id === selectedEnvId)?.name })}
                   </span>
                   <div className="flex items-center gap-2">
-                    {dirty && <span className="text-[11px] text-amber-500 font-medium">● 未保存</span>}
+                    {dirty && <span className="text-[11px] text-amber-500 font-medium">{t('env.unsaved')}</span>}
                     <button
                       onClick={handleSaveVariables}
                       disabled={!dirty}
                       className="h-7 px-3 bg-accent text-white rounded-md text-[11px] font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      保存
+                      {t('env.save')}
                     </button>
                   </div>
                 </div>
@@ -211,9 +213,9 @@ export function EnvironmentEditor() {
                   {/* Header */}
                   {editing.length > 0 && (
                     <div className="flex items-center gap-2 mb-2 px-8 text-[11px] font-semibold text-text-disabled uppercase tracking-wider">
-                      <div className="flex-1">变量名</div>
-                      <div className="flex-1">值</div>
-                      <div className="w-16 text-center">秘密</div>
+                      <div className="flex-1">{t('env.varName')}</div>
+                      <div className="flex-1">{t('env.varValue')}</div>
+                      <div className="w-16 text-center">{t('env.secret')}</div>
                       <div className="w-8" />
                     </div>
                   )}
@@ -244,7 +246,7 @@ export function EnvironmentEditor() {
                         <button
                           onClick={() => updateVar(i, { isSecret: v.isSecret === 1 ? 0 : 1 })}
                           className={cn("w-16 h-[34px] flex items-center justify-center rounded-md text-[11px] border transition-colors", v.isSecret === 1 ? "bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-500/10 dark:border-amber-500/30" : "border-border-default text-text-disabled hover:text-text-secondary")}
-                          title={v.isSecret === 1 ? '取消加密' : '标记为秘密'}
+                          title={v.isSecret === 1 ? t('env.unmarkSecret') : t('env.markSecret')}
                         >
                           {v.isSecret === 1 ? <Lock className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                         </button>
@@ -258,7 +260,7 @@ export function EnvironmentEditor() {
                     onClick={addVariable}
                     className="mt-3 ml-8 text-[12px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors w-fit border border-dashed border-border-default hover:border-accent rounded-md px-3 py-1.5"
                   >
-                    <span>+</span> 添加变量
+                    <span>+</span> {t('env.addVar')}
                   </button>
                 </div>
               </>
@@ -266,8 +268,8 @@ export function EnvironmentEditor() {
               <div className="flex-1 flex items-center justify-center text-text-disabled">
                 <div className="text-center">
                   <Globe className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                  <p className="text-[13px] text-text-secondary">选择一个环境</p>
-                  <p className="text-[12px] mt-1">或在左侧创建新环境</p>
+                  <p className="text-[13px] text-text-secondary">{t('env.selectEnv')}</p>
+                  <p className="text-[12px] mt-1">{t('env.selectEnvHint')}</p>
                 </div>
               </div>
             )}
@@ -277,19 +279,19 @@ export function EnvironmentEditor() {
         /* Global Variables Tab */
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default bg-bg-secondary/30 shrink-0">
-            <span className="text-[13px] text-text-secondary">全局变量在所有环境中可用，优先级低于环境变量。</span>
+            <span className="text-[13px] text-text-secondary">{t('env.globalVarsDesc')}</span>
             <button
               onClick={handleSaveGlobal}
               className="h-7 px-3 bg-accent text-white rounded-md text-[11px] font-medium hover:bg-accent-hover transition-colors"
             >
-              保存
+              {t('env.save')}
             </button>
           </div>
           <div className="flex-1 overflow-auto p-4">
             {globalEditing.length > 0 && (
               <div className="flex items-center gap-2 mb-2 px-8 text-[11px] font-semibold text-text-disabled uppercase tracking-wider">
-                <div className="flex-1">变量名</div>
-                <div className="flex-1">值</div>
+                <div className="flex-1">{t('env.varName')}</div>
+                <div className="flex-1">{t('env.varValue')}</div>
                 <div className="w-8" />
               </div>
             )}
@@ -326,7 +328,7 @@ export function EnvironmentEditor() {
               onClick={addGlobalVariable}
               className="mt-3 ml-8 text-[12px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors w-fit border border-dashed border-border-default hover:border-accent rounded-md px-3 py-1.5"
             >
-              <span>+</span> 添加全局变量
+              <span>+</span> {t('env.addGlobalVar')}
             </button>
           </div>
         </div>

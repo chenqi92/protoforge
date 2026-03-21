@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Play, Loader2, Copy, Check, ChevronDown, Braces, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 import { useAppStore, type RequestProtocol } from "@/stores/appStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import type { HttpMethod, KeyValue, FormDataField, ScriptResult } from "@/types/http";
@@ -27,6 +28,7 @@ const methodDotColor: Record<string, string> = {
 };
 
 export function HttpWorkspace() {
+  const { t } = useTranslation();
   const activeTab = useAppStore((s) => s.getActiveTab());
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const setHttpResponse = useAppStore((s) => s.setHttpResponse);
@@ -112,12 +114,12 @@ export function HttpWorkspace() {
   const formDataFields = Array.isArray(config.formDataFields) ? config.formDataFields : [];
 
   const reqTabs = [
-    { key: "params" as const, label: `参数${params.filter(p => p.key).length ? ` (${params.filter(p => p.key).length})` : ""}` },
-    { key: "headers" as const, label: `请求头${headers.filter(h => h.key).length ? ` (${headers.filter(h => h.key).length})` : ""}` },
-    { key: "body" as const, label: "请求体" },
-    { key: "auth" as const, label: "认证" },
-    { key: "pre-script" as const, label: "前置脚本" },
-    { key: "post-script" as const, label: "后置脚本" },
+    { key: "params" as const, label: `${t('http.params')}${params.filter(p => p.key).length ? ` (${params.filter(p => p.key).length})` : ""}` },
+    { key: "headers" as const, label: `${t('http.headers')}${headers.filter(h => h.key).length ? ` (${headers.filter(h => h.key).length})` : ""}` },
+    { key: "body" as const, label: t('http.body') },
+    { key: "auth" as const, label: t('http.auth') },
+    { key: "pre-script" as const, label: t('http.preScript') },
+    { key: "post-script" as const, label: t('http.postScript') },
   ];
 
   return (
@@ -183,7 +185,7 @@ export function HttpWorkspace() {
               }}
               onFocus={() => { setUrlFocused(true); if (urlInputRef.current) urlRectRef.current = urlInputRef.current.getBoundingClientRect(); }}
               onBlur={() => setTimeout(() => setUrlFocused(false), 150)}
-              placeholder="输入请求 URL，如 https://api.example.com/v1/users"
+              placeholder={t('http.urlPlaceholder')}
               data-url-input
               className="wb-request-input"
             />
@@ -208,7 +210,7 @@ export function HttpWorkspace() {
                 onClick={() => setShowSaveDialog(true)}
                 data-save-button
                 className="wb-icon-btn"
-                title="保存请求 (Ctrl+S)"
+                title={t('http.saveRequest')}
               >
                 <Save className="w-3.5 h-3.5" />
               </button>
@@ -219,7 +221,7 @@ export function HttpWorkspace() {
                 }}
                 disabled={!config.url.trim()}
                 className="wb-icon-btn hover:text-rose-600"
-                title="发送到压测"
+                title={t('http.sendToLoadtest')}
               >
                 <Flame className="w-3.5 h-3.5" />
               </button>
@@ -234,7 +236,7 @@ export function HttpWorkspace() {
               )}
             >
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-white" />}
-              {loading ? "发送中" : "发送"}
+              {loading ? t('http.sending') : t('http.send')}
             </button>
           </>
         )}
@@ -284,7 +286,7 @@ export function HttpWorkspace() {
                   </div>
                 
                   <div className="flex-1 min-h-0 relative">
-                    {config.bodyType === "none" && <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[13px]">无需请求体</div>}
+                    {config.bodyType === "none" && <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[13px]">{t('http.noBody')}</div>}
                     {config.bodyType === "json" && (
                       <div className="w-full h-full border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                         <CodeEditor
@@ -349,10 +351,10 @@ export function HttpWorkspace() {
                   </div>
                   
                   <div className="max-w-md">
-                    {config.authType === "none" && <p className="text-[13px] text-text-disabled mt-6">该请求不携带任何认证信息。</p>}
+                    {config.authType === "none" && <p className="text-[13px] text-text-disabled mt-6">{t('http.noAuth')}</p>}
                     {config.authType === "bearer" && (
                       <div className="space-y-2">
-                        <label className="text-[12px] font-medium text-text-secondary">Token (无需携带 &apos;Bearer &apos; 前缀)</label>
+                        <label className="text-[12px] font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
                         <input
                           value={config.bearerToken}
                           onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
@@ -376,7 +378,7 @@ export function HttpWorkspace() {
                     {config.authType === "apiKey" && (
                       <div className="space-y-3">
                         <div className="space-y-1.5">
-                          <label className="text-[12px] font-medium text-text-secondary">添加到</label>
+                          <label className="text-[12px] font-medium text-text-secondary">{t('http.addTo')}</label>
                           <div className="wb-segmented w-fit">
                             {(["header", "query"] as const).map((a) => (
                               <button key={a} onClick={() => updateHttpConfig(tabId, { apiKeyAddTo: a })} className={cn("wb-segment", config.apiKeyAddTo === a && "wb-segment-active")}>
@@ -426,7 +428,7 @@ export function HttpWorkspace() {
           <Panel minSize="15" defaultSize="50" className="http-workbench-section">
             {error && (
               <div className="p-3 bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-[13px] shrink-0 font-medium">
-                请求失败: {error}
+                {t('http.requestFailed')}: {error}
               </div>
             )}
           
@@ -438,37 +440,37 @@ export function HttpWorkspace() {
                     {scriptResults.pre && (
                       <span className={cn("flex items-center gap-1 font-medium", scriptResults.pre.success ? "text-emerald-600" : "text-red-500")}>
                         {scriptResults.pre.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                        前置脚本{scriptResults.pre.success ? "通过" : "失败"}
+                        {t('http.preScript')}{scriptResults.pre.success ? t('http.preScriptPass') : t('http.preScriptFail')}
                       </span>
                     )}
                     {scriptResults.post && (
                       <span className={cn("flex items-center gap-1 font-medium", scriptResults.post.success ? "text-emerald-600" : "text-red-500")}>
                         {scriptResults.post.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                        后置脚本{scriptResults.post.success ? "通过" : "失败"}
+                        {t('http.postScript')}{scriptResults.post.success ? t('http.preScriptPass') : t('http.preScriptFail')}
                       </span>
                     )}
                     {scriptResults.post?.testResults && scriptResults.post.testResults.length > 0 && (
                       <span className="text-text-tertiary">
-                        测试: {scriptResults.post.testResults.filter(t => t.passed).length}/{scriptResults.post.testResults.length} 通过
+                        {t('http.tests')}: {scriptResults.post.testResults.filter(tr => tr.passed).length}/{scriptResults.post.testResults.length} {t('http.preScriptPass')}
                       </span>
                     )}
                     {(scriptResults.pre?.logs?.length || scriptResults.post?.logs?.length) ? (
-                      <span className="text-text-disabled flex items-center gap-1"><Terminal className="w-3 h-3" />{(scriptResults.pre?.logs?.length || 0) + (scriptResults.post?.logs?.length || 0)} 条日志</span>
+                      <span className="text-text-disabled flex items-center gap-1"><Terminal className="w-3 h-3" />{(scriptResults.pre?.logs?.length || 0) + (scriptResults.post?.logs?.length || 0)} {t('http.logs')}</span>
                     ) : null}
                   </div>
                 )}
                 <div className="http-response-head shrink-0">
                   <div className="http-response-tabs scrollbar-hide">
-                    {(["pretty", "raw", "headers", "cookies", "timing"] as const).map((t) => (
+                    {(["pretty", "raw", "headers", "cookies", "timing"] as const).map((tab) => (
                       <button
-                        key={t}
-                        onClick={() => setResTab(t)}
+                        key={tab}
+                        onClick={() => setResTab(tab)}
                         className={cn(
                           "wb-tab",
-                          resTab === t && "wb-tab-active text-text-primary"
+                          resTab === tab && "wb-tab-active text-text-primary"
                         )}
                       >
-                        {t === "pretty" ? "JSON Format" : t === "raw" ? "Raw" : t === "headers" ? "响应头" : t === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}` : "时序"}
+                        {tab === "pretty" ? "JSON Format" : tab === "raw" ? "Raw" : tab === "headers" ? t('http.responseHeaders') : tab === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}` : t('http.timing')}
                       </button>
                     ))}
                   </div>
@@ -485,7 +487,7 @@ export function HttpWorkspace() {
                     <button
                       onClick={handleCopy}
                       className="wb-icon-btn"
-                      title="复制响应内容"
+                      title={t('http.copyResponse')}
                     >
                       {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                     </button>
@@ -532,17 +534,17 @@ export function HttpWorkspace() {
                           </table>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center h-full text-text-disabled text-[13px]"><Cookie className="w-4 h-4 mr-2 opacity-40" />无 Cookie 数据</div>
+                        <div className="flex items-center justify-center h-full text-text-disabled text-[13px]"><Cookie className="w-4 h-4 mr-2 opacity-40" />{t('http.noCookies')}</div>
                       )}
                     </div>
                   ) : resTab === "timing" ? (
                     <div className="p-6 overflow-auto h-full">
                       <div className="max-w-lg space-y-4">
                         {[
-                          { label: "连接建立", value: response.timing.connectMs, color: "bg-blue-500" },
-                          { label: "首字节到达 (TTFB)", value: response.timing.ttfbMs, color: "bg-emerald-500" },
-                          { label: "内容下载", value: response.timing.downloadMs, color: "bg-amber-500" },
-                          { label: "总耗时", value: response.timing.totalMs, color: "bg-violet-500" },
+                          { label: t('http.connectTime'), value: response.timing.connectMs, color: "bg-blue-500" },
+                          { label: t('http.ttfb'), value: response.timing.ttfbMs, color: "bg-emerald-500" },
+                          { label: t('http.download'), value: response.timing.downloadMs, color: "bg-amber-500" },
+                          { label: t('http.totalTime'), value: response.timing.totalMs, color: "bg-violet-500" },
                         ].map(({ label, value, color }) => (
                           <div key={label}>
                             <div className="flex items-center justify-between mb-1">
@@ -568,8 +570,8 @@ export function HttpWorkspace() {
                 <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary shadow-sm">
                   <Braces className="h-7 w-7 opacity-20" />
                 </div>
-                <p className="text-[13px] font-medium text-text-secondary">准备就绪</p>
-                <p className="mt-1 text-[11px]">输入 URL 并点击发送以调试 API</p>
+                <p className="text-[13px] font-medium text-text-secondary">{t('http.ready')}</p>
+                <p className="mt-1 text-[11px]">{t('http.readyDesc')}</p>
               </div>
             )}
           </Panel>
@@ -599,11 +601,12 @@ function GraphQLBodyEditor({
   onQueryChange: (value: string) => void;
   onVariablesChange: (value: string) => void;
 }) {
+  const { t } = useTranslation();
   const trimmedVariables = variables.trim();
   const hasVariables = trimmedVariables.length > 0 && trimmedVariables !== "{}";
   const variableState = useMemo(() => {
     if (!trimmedVariables) {
-      return { valid: true, label: "变量可选", detail: "不传变量时会自动只发送 query。" };
+      return { valid: true, label: t('http.graphql.variablesOptional'), detail: t('http.graphql.variablesOptionalDetail') };
     }
 
     try {
@@ -613,14 +616,14 @@ function GraphQLBodyEditor({
         : 0;
       return {
         valid: true,
-        label: count > 0 ? `${count} 个变量` : "JSON 有效",
-        detail: count > 0 ? "这些字段会与 query 一起封装为 GraphQL 负载。" : "当前变量对象为空。",
+        label: count > 0 ? t('http.graphql.variablesCount', { count }) : t('http.graphql.variablesValid'),
+        detail: count > 0 ? t('http.graphql.variablesValidDetail') : t('http.graphql.variablesValidEmpty'),
       };
     } catch {
       return {
         valid: false,
-        label: "JSON 无效",
-        detail: "变量区域需要是合法的 JSON 对象，发送时才会被正确解析。",
+        label: t('http.graphql.variablesInvalid'),
+        detail: t('http.graphql.variablesInvalidDetail'),
       };
     }
   }, [trimmedVariables, variables]);
@@ -667,20 +670,20 @@ function GraphQLBodyEditor({
             <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-violet-500/10 text-violet-600">
               <Braces className="h-4 w-4" />
             </div>
-            GraphQL 请求体
+            {t('http.graphql.title')}
           </div>
           <div className="mt-1 text-[11px] leading-5 text-text-tertiary">
-            Query 会作为主体发送，Variables 会自动与 Query 组合成标准 GraphQL JSON 负载。
+            {t('http.graphql.desc')}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="wb-tool-chip">POST JSON Payload</span>
           <button onClick={handleInsertTemplate} className="wb-ghost-btn">
-            示例模板
+            {t('http.graphql.insertTemplate')}
           </button>
           <button onClick={handleFormatVariables} className="wb-ghost-btn">
-            格式化变量
+            {t('http.graphql.formatVariables')}
           </button>
         </div>
       </div>
@@ -690,7 +693,7 @@ function GraphQLBodyEditor({
           <div className="wb-panel-header shrink-0">
             <div>
               <div className="text-[12px] font-semibold text-text-primary">Query</div>
-              <div className="mt-1 text-[11px] text-text-tertiary">填写查询或 mutation 主体，建议在这里组织字段结构。</div>
+              <div className="mt-1 text-[11px] text-text-tertiary">{t('http.graphql.queryDesc')}</div>
             </div>
             <span className="wb-tool-chip">GraphQL</span>
           </div>
@@ -792,14 +795,14 @@ const ALL_HEADER_KEYS = Object.keys(HEADER_DICT);
 /* ── Header Presets (quick-add) ── */
 const HEADER_PRESETS: { key: string; value: string; desc: string }[] = [
   { key: "Content-Type", value: "application/json", desc: "JSON" },
-  { key: "Content-Type", value: "application/x-www-form-urlencoded", desc: "表单" },
-  { key: "Accept", value: "application/json", desc: "JSON 响应" },
+  { key: "Content-Type", value: "application/x-www-form-urlencoded", desc: "Form" },
+  { key: "Accept", value: "application/json", desc: "JSON Response" },
   { key: "Authorization", value: "Bearer ", desc: "Token" },
-  { key: "Cache-Control", value: "no-cache", desc: "禁缓存" },
+  { key: "Cache-Control", value: "no-cache", desc: "No Cache" },
   { key: "User-Agent", value: "ProtoForge/1.0", desc: "UA" },
-  { key: "Accept-Language", value: "zh-CN,zh;q=0.9,en;q=0.8", desc: "中文" },
-  { key: "Accept-Encoding", value: "gzip, deflate, br", desc: "压缩" },
-  { key: "Connection", value: "keep-alive", desc: "长连接" },
+  { key: "Accept-Language", value: "zh-CN,zh;q=0.9,en;q=0.8", desc: "Chinese" },
+  { key: "Accept-Encoding", value: "gzip, deflate, br", desc: "Compression" },
+  { key: "Connection", value: "keep-alive", desc: "Keep-Alive" },
   { key: "X-Requested-With", value: "XMLHttpRequest", desc: "AJAX" },
 ];
 
@@ -811,6 +814,7 @@ function KVEditor({ items, onChange, kp, vp, showPresets }: {
   vp: string;
   showPresets?: boolean;
 }) {
+  const { t } = useTranslation();
   const [presetOpen, setPresetOpen] = useState(false);
   const [activeKeySuggest, setActiveKeySuggest] = useState<number | null>(null);
   const [activeValueSuggest, setActiveValueSuggest] = useState<number | null>(null);
@@ -870,7 +874,7 @@ function KVEditor({ items, onChange, kp, vp, showPresets }: {
                   onChange(safe.map(item => ({ ...item, enabled: !allEnabled })));
                 }}
                 className="w-3 h-3 rounded accent-accent cursor-pointer"
-                title={safe.every(item => item.enabled) ? "取消全选" : "全选"}
+                title={safe.every(item => item.enabled) ? t('import.deselectAll') : t('import.selectAll')}
               />
             </th>
             <th className="text-left font-semibold px-2">{kp}</th>
@@ -918,7 +922,7 @@ function KVEditor({ items, onChange, kp, vp, showPresets }: {
       </table>
       <div className="flex items-center gap-2 mt-1.5">
         <button onClick={add} className="flex items-center gap-1 rounded-[10px] border border-dashed border-border-default px-2 py-1 text-[11px] font-medium text-text-tertiary transition-colors hover:border-accent hover:text-accent">
-          <span>+</span> 添加
+          {t('http.addTo')}
         </button>
         {showPresets && <PresetDropdown presets={HEADER_PRESETS} isOpen={presetOpen} onToggle={() => setPresetOpen(!presetOpen)} onClose={() => setPresetOpen(false)} onSelect={addPreset} />}
       </div>
@@ -932,6 +936,7 @@ function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placehold
   onKeyDown: (e: React.KeyboardEvent) => void; placeholder: string; disabled: boolean;
   suggestions?: string[]; highlightIdx?: number; onSelectSuggestion?: (v: string) => void; className?: string;
 }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLInputElement>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const hasSugs = suggestions && suggestions.length > 0;
@@ -949,7 +954,7 @@ function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placehold
               className={cn("w-full px-3 py-1.5 text-left text-[12px] font-mono transition-colors",
                 si === (highlightIdx ?? -1) ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover",
                 value === s && si !== (highlightIdx ?? -1) && "text-accent font-semibold")}>
-              {s || <span className="text-text-disabled italic">(空值)</span>}
+              {s || <span className="text-text-disabled italic">{t('http.emptyValue')}</span>}
             </button>
           ))}
         </div>, document.body
@@ -963,6 +968,7 @@ function PresetDropdown({ presets, isOpen, onToggle, onClose, onSelect }: {
   presets: typeof HEADER_PRESETS; isOpen: boolean; onToggle: () => void; onClose: () => void;
   onSelect: (p: typeof HEADER_PRESETS[0]) => void;
 }) {
+  const { t } = useTranslation();
   const btnRef = useRef<HTMLButtonElement>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   useEffect(() => { if (isOpen && btnRef.current) setRect(btnRef.current.getBoundingClientRect()); }, [isOpen]);
@@ -971,7 +977,7 @@ function PresetDropdown({ presets, isOpen, onToggle, onClose, onSelect }: {
     <div className="relative">
       <button ref={btnRef} onClick={onToggle}
         className="flex items-center gap-1 rounded-[10px] border border-dashed border-border-default px-2 py-1 text-[11px] font-medium text-text-tertiary transition-colors hover:border-accent hover:text-accent">
-        <ChevronDown className="w-3 h-3" /> 预设
+        <ChevronDown className="w-3 h-3" /> {t('http.presets')}
       </button>
       {isOpen && rect && createPortal(
         <>
@@ -982,7 +988,7 @@ function PresetDropdown({ presets, isOpen, onToggle, onClose, onSelect }: {
               <button key={i} onClick={() => onSelect(p)}
                 className="w-full px-3 py-1.5 flex items-center gap-3 text-left hover:bg-bg-hover transition-colors">
                 <span className="text-[11px] font-mono font-semibold text-accent w-28 shrink-0 truncate">{p.key}</span>
-                <span className="text-[11px] font-mono text-text-secondary flex-1 truncate">{p.value || "(空)"}</span>
+                <span className="text-[11px] font-mono text-text-secondary flex-1 truncate">{p.value || t("http.emptyValue")}</span>
                 <span className="text-[10px] text-text-disabled shrink-0">{p.desc}</span>
               </button>
             ))}
@@ -995,6 +1001,7 @@ function PresetDropdown({ presets, isOpen, onToggle, onClose, onSelect }: {
 
 /* ── FormData Editor (table-based, text + file fields) ── */
 function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChange: (v: FormDataField[]) => void }) {
+  const { t } = useTranslation();
   const safe = fields || [];
   const update = (i: number, u: Partial<FormDataField>) => { const n = [...safe]; n[i] = { ...n[i], ...u }; onChange(n); };
   const toggle = (i: number) => { const n = [...safe]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(n); };
@@ -1020,10 +1027,10 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
                   onChange(safe.map(f => ({ ...f, enabled: !allEnabled })));
                 }}
                 className="w-3 h-3 rounded accent-accent cursor-pointer"
-                title={safe.every(f => f.enabled) ? "取消全选" : "全选"}
+                title={safe.every(f => f.enabled) ? t('import.deselectAll') : t('import.selectAll')}
               />
             </th>
-            <th className="w-16 text-left font-semibold px-2">类型</th>
+            <th className="w-16 text-left font-semibold px-2">{t('http.type')}</th>
             <th className="text-left font-semibold px-2 border-l border-border-default">Key</th>
             <th className="text-left font-semibold px-2 border-l border-border-default">Value</th>
             <th className="w-6 border-l border-border-default" />
@@ -1055,7 +1062,7 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
                   <button onClick={() => handleFilePick(i)}
                     className={cn("w-full h-[30px] px-2 flex items-center gap-1.5 bg-transparent text-[11px] text-left cursor-pointer hover:bg-bg-hover transition-colors", !field.enabled && "opacity-40")}>
                     <Upload className="w-3 h-3 text-text-disabled shrink-0" />
-                    <span className="truncate text-text-secondary">{field.fileName || field.value || "选择文件..."}</span>
+                    <span className="truncate text-text-secondary">{field.fileName || field.value || "{t('http.selectFile')}"}</span>
                   </button>
                 )}
               </td>
@@ -1067,7 +1074,7 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
         </tbody>
       </table>
       <button onClick={add} className="mt-1.5 text-[11px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors border border-dashed border-border-default hover:border-accent rounded px-2.5 py-1">
-        <span>+</span> 添加字段
+        {t('http.addField')}
       </button>
     </div>
   );
@@ -1077,6 +1084,7 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
 
 /* ── OAuth 2.0 Panel ── */
 function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (updates: Partial<OAuth2Config>) => void }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tokenMeta, setTokenMeta] = useState<{ tokenType?: string; expiresIn?: number; scope?: string } | null>(null);
@@ -1127,7 +1135,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <label className="text-[12px] font-medium text-text-secondary">授权类型</label>
+        <label className="text-[12px] font-medium text-text-secondary">{t('http.authType')}</label>
         <div className="wb-segmented w-fit">
           {(["client_credentials", "authorization_code", "password"] as const).map((gt) => (
             <button
@@ -1198,12 +1206,12 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
                   : "bg-bg-tertiary text-text-disabled cursor-not-allowed"
             )}
           >
-            {loading ? "获取中..." : "获取 Token"}
+            {loading ? t('http.fetchingToken') : t('http.getToken')}
           </button>
           {tokenMeta && (
             <div className="flex items-center gap-2 text-[11px] text-text-tertiary">
               {tokenMeta.tokenType && <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded text-[10px] font-medium">{tokenMeta.tokenType}</span>}
-              {tokenMeta.expiresIn && <span>有效期 {tokenMeta.expiresIn}s</span>}
+              {tokenMeta.expiresIn && <span>{t('http.tokenExpiry', { time: tokenMeta.expiresIn })}</span>}
               {tokenMeta.scope && <span>scope: {tokenMeta.scope}</span>}
             </div>
           )}
@@ -1224,6 +1232,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
 
 /* ── Binary File Picker ── */
 function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; fileName: string; onChange: (path: string, name: string) => void }) {
+  const { t } = useTranslation();
   const handlePick = async () => {
     const { pickFile } = await import("@/services/httpService");
     const result = await pickFile();
@@ -1241,7 +1250,7 @@ function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; file
             <p className="text-[13px] font-medium text-text-primary truncate max-w-xs">{fileName}</p>
             <p className="text-[11px] text-text-disabled font-mono truncate max-w-xs">{filePath}</p>
           </div>
-          <button onClick={() => onChange('', '')} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-red-500 transition-colors" title="移除文件">
+          <button onClick={() => onChange('', '')} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-red-500 transition-colors" title={t('http.removeFile')}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -1251,8 +1260,8 @@ function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; file
           className="flex flex-col items-center gap-2 p-6 rounded-lg border-2 border-dashed border-border-default hover:border-accent text-text-disabled hover:text-accent transition-colors cursor-pointer"
         >
           <Upload className="w-8 h-8" />
-          <span className="text-[13px] font-medium">选择文件</span>
-          <span className="text-[11px]">文件将以 binary 形式发送</span>
+          <span className="text-[13px] font-medium">{t('http.selectFile')}</span>
+          <span className="text-[11px]">{t('http.binaryDesc')}</span>
         </button>
       )}
     </div>

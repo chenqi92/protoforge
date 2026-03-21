@@ -415,6 +415,96 @@
     white-space: nowrap;
   }
 
+  .wb-workbench-grid,
+  .wb-workbench-stack {
+    overflow: hidden;
+    border: 1px solid var(--color-border-default);
+    border-radius: 12px;
+    background: var(--color-bg-primary);
+    box-shadow: none;
+  }
+
+  .wb-workbench-grid {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+
+  .wb-workbench-stack {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .wb-workbench-sidebar {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid var(--color-border-default);
+    background: color-mix(in srgb, var(--color-bg-secondary) 24%, transparent);
+  }
+
+  .wb-workbench-main {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .wb-workbench-divider {
+    position: relative;
+    height: 8px;
+    flex-shrink: 0;
+    cursor: row-resize;
+    background: var(--color-bg-primary);
+    transition: background-color var(--transition-fast);
+  }
+
+  .wb-workbench-divider::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: 50%;
+    height: 1px;
+    transform: translateY(-50%);
+    background: var(--color-border-default);
+    transition: background-color var(--transition-fast);
+  }
+
+  .wb-workbench-divider:hover::after,
+  .wb-workbench-divider:active::after {
+    background: var(--color-accent);
+  }
+
+  .wb-pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 38px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--color-border-default);
+    background: color-mix(in srgb, var(--color-bg-secondary) 42%, transparent);
+    flex-wrap: wrap;
+  }
+
+  .dark .wb-pane-header {
+    background: color-mix(in srgb, var(--color-bg-secondary) 54%, transparent);
+  }
+
+  .wb-pane-divider {
+    height: 1px;
+    flex-shrink: 0;
+    background: var(--color-border-default);
+  }
+
   .wb-target-bar {
     display: flex;
     min-width: 0;
@@ -760,7 +850,9 @@
   .dark .wb-bar,
   .dark .wb-panel,
   .dark .wb-subpanel,
-  .dark .http-workbench-shell {
+  .dark .http-workbench-shell,
+  .dark .wb-workbench-grid,
+  .dark .wb-workbench-stack {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 

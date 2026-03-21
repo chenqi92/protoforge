@@ -7,6 +7,7 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
 import { useAppStore } from "@/stores/appStore";
 import { useCollectionStore } from "@/stores/collectionStore";
@@ -22,13 +23,14 @@ interface SidebarProps {
   onTogglePanel: () => void;
 }
 
-const navItems: { id: SidebarView; icon: typeof FolderOpen; label: string }[] = [
-  { id: "collections", icon: FolderOpen, label: "集合" },
-  { id: "environments", icon: Globe, label: "环境" },
-  { id: "history", icon: Clock, label: "历史" },
+const navItems: { id: SidebarView; icon: typeof FolderOpen; labelKey: string }[] = [
+  { id: "collections", icon: FolderOpen, labelKey: 'sidebar.collections' },
+  { id: "environments", icon: Globe, labelKey: 'sidebar.environments' },
+  { id: "history", icon: Clock, labelKey: 'sidebar.history' },
 ];
 
 export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
+  const { t } = useTranslation();
   const [activeView, setActiveView] = useState<SidebarView>("collections");
   const [search, setSearch] = useState("");
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -58,7 +60,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
   };
 
   const handleNewCollection = async () => {
-    await createCollection("新建集合");
+    await createCollection(t('contextMenu.newFolder'));
   };
 
   const handleImport = () => {
@@ -66,14 +68,15 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
   };
 
   const handleNewEnvironment = async () => {
-    await createEnvironment("新环境");
+    await createEnvironment(t('sidebar.environments'));
   };
 
   return (
     <div className="h-full flex">
       {/* ── Icon Rail ── */}
       <div className="w-12 h-full flex flex-col items-center pt-2 pb-3 bg-transparent border-r border-border-default/60 shrink-0">
-        {navItems.map(({ id, icon: Icon, label }) => {
+        {navItems.map(({ id, icon: Icon, labelKey }) => {
+          const label = t(labelKey);
           const isActive = activeView === id && !panelCollapsed;
           return (
             <button
@@ -110,7 +113,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-[13px] font-semibold text-text-primary truncate">
-                  {navItems.find(n => n.id === activeView)?.label}
+                  {t(navItems.find(n => n.id === activeView)?.labelKey || '')}
                 </span>
               </div>
               <div className="flex items-center gap-0.5 shrink-0">
@@ -119,18 +122,18 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                     <button
                       onClick={handleNewCollection}
                       className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[11px] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
-                      title="新建集合"
+                      title={t('contextMenu.newFolder')}
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      新建
+                      {t('contextMenu.newFolder')}
                     </button>
                     <button
                       onClick={handleImport}
                       className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[11px] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
-                      title="导入"
+                      title={t('sidebar.import')}
                     >
                       <Download className="w-3 h-3" />
-                      导入
+                      {t('sidebar.import')}
                     </button>
                   </>
                 )}
@@ -138,10 +141,10 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                   <button
                     onClick={handleNewEnvironment}
                     className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[11px] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
-                    title="新增环境"
+                    title={t('sidebar.addEnv')}
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    新增
+                    {t('sidebar.add')}
                   </button>
                 )}
               </div>
@@ -153,7 +156,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={`搜索${navItems.find(n => n.id === activeView)?.label}...`}
+                placeholder={`${t('common.search')}${t(navItems.find(n => n.id === activeView)?.labelKey || '')}...`}
                 className="h-[30px] w-full rounded-[10px] border border-border-default/80 bg-bg-secondary/42 pl-8 pr-3 text-[12px] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]"
               />
             </div>
@@ -186,6 +189,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
 
 /* ── Collections View (Real Data) ── */
 function CollectionsView({ search }: { search: string }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -305,7 +309,7 @@ function CollectionsView({ search }: { search: string }) {
       const filePath = await save({
         filters: [{ name: 'JSON', extensions: ['json'] }],
         defaultPath: `${colName}.postman_collection.json`,
-        title: '导出为 Postman 格式',
+        title: t('sidebar.exportPostman'),
       });
       if (!filePath) return;
       const { writeTextFile } = await import('@tauri-apps/plugin-fs');
@@ -325,17 +329,17 @@ function CollectionsView({ search }: { search: string }) {
 
   const handleFolderContextMenu = (e: React.MouseEvent, col: { id: string; name: string }) => {
     const menuItems: ContextMenuEntry[] = [
-      { id: "new-req", label: "新建请求", icon: <Plus className="w-3.5 h-3.5" />, onClick: () => createItem(col.id, null, 'request', '新建请求') },
-      { id: "new-folder", label: "新建文件夹", icon: <FolderPlus className="w-3.5 h-3.5" />, onClick: () => createItem(col.id, null, 'folder', '新建文件夹') },
+      { id: "new-req", label: t('contextMenu.newRequest'), icon: <Plus className="w-3.5 h-3.5" />, onClick: () => createItem(col.id, null, 'request', t('contextMenu.newRequest')) },
+      { id: "new-folder", label: t('contextMenu.newFolder'), icon: <FolderPlus className="w-3.5 h-3.5" />, onClick: () => createItem(col.id, null, 'folder', t('contextMenu.newFolder')) },
       { type: "divider" },
-      { id: "expand-all", label: "全部展开", icon: <ChevronsUpDown className="w-3.5 h-3.5" />, onClick: () => expandAllFolders(col.id, true) },
-      { id: "collapse-all", label: "全部收起", icon: <ChevronsUpDown className="w-3.5 h-3.5" />, onClick: () => expandAllFolders(col.id, false) },
+      { id: "expand-all", label: t('sidebar.expandAll'), icon: <ChevronsUpDown className="w-3.5 h-3.5" />, onClick: () => expandAllFolders(col.id, true) },
+      { id: "collapse-all", label: t('sidebar.collapseAll'), icon: <ChevronsUpDown className="w-3.5 h-3.5" />, onClick: () => expandAllFolders(col.id, false) },
       { type: "divider" },
-      { id: "settings", label: "合集设置", icon: <Settings className="w-3.5 h-3.5" />, onClick: () => openCollectionPanel(col.id) },
-      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(col.id, col.name) },
-      { id: "export-postman", label: "导出为 Postman", icon: <Download className="w-3.5 h-3.5" />, onClick: () => handleExportPostman(col.id, col.name) },
+      { id: "settings", label: t('collection.settings'), icon: <Settings className="w-3.5 h-3.5" />, onClick: () => openCollectionPanel(col.id) },
+      { id: "rename", label: t('contextMenu.rename'), icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(col.id, col.name) },
+      { id: "export-postman", label: t('sidebar.exportPostman'), icon: <Download className="w-3.5 h-3.5" />, onClick: () => handleExportPostman(col.id, col.name) },
       { type: "divider" },
-      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteCollection(col.id) },
+      { id: "delete", label: t('contextMenu.delete'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteCollection(col.id) },
     ];
     showMenu(e, menuItems);
   };
@@ -343,23 +347,23 @@ function CollectionsView({ search }: { search: string }) {
   // 子文件夹的右键菜单
   const handleSubFolderContextMenu = (e: React.MouseEvent, item: CollectionItem) => {
     const menuItems: ContextMenuEntry[] = [
-      { id: "new-req", label: "新建请求", icon: <Plus className="w-3.5 h-3.5" />, onClick: () => createItem(item.collectionId, item.id, 'request', '新建请求') },
-      { id: "new-folder", label: "新建文件夹", icon: <FolderPlus className="w-3.5 h-3.5" />, onClick: () => createItem(item.collectionId, item.id, 'folder', '新建文件夹') },
+      { id: "new-req", label: t('contextMenu.newRequest'), icon: <Plus className="w-3.5 h-3.5" />, onClick: () => createItem(item.collectionId, item.id, 'request', t('contextMenu.newRequest')) },
+      { id: "new-folder", label: t('contextMenu.newFolder'), icon: <FolderPlus className="w-3.5 h-3.5" />, onClick: () => createItem(item.collectionId, item.id, 'folder', t('contextMenu.newFolder')) },
       { type: "divider" },
-      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(item.id, item.name) },
+      { id: "rename", label: t('contextMenu.rename'), icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(item.id, item.name) },
       { type: "divider" },
-      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteItem(item.id, item.collectionId) },
+      { id: "delete", label: t('contextMenu.delete'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteItem(item.id, item.collectionId) },
     ];
     showMenu(e, menuItems);
   };
 
   const handleItemContextMenu = (e: React.MouseEvent, item: { id: string; name: string; url: string | null; collectionId: string }) => {
     const menuItems: ContextMenuEntry[] = [
-      { id: "open", label: "在新标签打开", icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
-      { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(item.id, item.name) },
-      { id: "copy-url", label: "复制 URL", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { if (item.url) navigator.clipboard.writeText(item.url); } },
+      { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
+      { id: "rename", label: t('contextMenu.rename'), icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(item.id, item.name) },
+      { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { if (item.url) navigator.clipboard.writeText(item.url); } },
       { type: "divider" },
-      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteItem(item.id, item.collectionId) },
+      { id: "delete", label: t('contextMenu.delete'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteItem(item.id, item.collectionId) },
     ];
     showMenu(e, menuItems);
   };
@@ -475,11 +479,11 @@ function CollectionsView({ search }: { search: string }) {
     <div className="py-0.5">
       {filteredCollections.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-          <div className="w-12 h-12 rounded-full bg-bg-hover flex items-center justify-center mb-3 shadow-sm border border-border-subtle">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] border border-border-subtle bg-bg-hover shadow-sm">
             <FolderOpen className="w-6 h-6 text-text-tertiary" />
           </div>
-          <p className="text-[13px] font-medium text-text-secondary">{search ? "无匹配集合" : "暂无集合"}</p>
-          <p className="text-[11px] mt-1 text-text-disabled">点击上方"新建"开始构建您的 API 库。</p>
+          <p className="text-[13px] font-medium text-text-secondary">{search ? t('sidebar.noMatch') : t('sidebar.noCollections')}</p>
+          <p className="text-[11px] mt-1 text-text-disabled">{t('sidebar.noCollectionsHint')}</p>
         </div>
       )}
       {filteredCollections.map((col) => {
@@ -539,7 +543,7 @@ function CollectionsView({ search }: { search: string }) {
                   className="overflow-hidden"
                 >
                   {colItems.length === 0 && (
-                    <p className="pl-[30px] pr-2 py-2 text-[11px] text-text-disabled">空集合</p>
+                    <p className="pl-[30px] pr-2 py-2 text-[11px] text-text-disabled">{t('sidebar.emptyCollection')}</p>
                   )}
                   {renderItems(colItems, null, 1)}
                 </motion.div>
@@ -555,6 +559,7 @@ function CollectionsView({ search }: { search: string }) {
 
 /* ── History View (Real Data) ── */
 function HistoryView({ search }: { search: string }) {
+  const { t } = useTranslation();
   const addTab = useAppStore((s) => s.addTab);
   const { showMenu, MenuComponent } = useContextMenu();
 
@@ -585,9 +590,9 @@ function HistoryView({ search }: { search: string }) {
       else olderItems.push(e);
     }
 
-    if (todayItems.length) groups.push({ label: "今天", items: todayItems });
-    if (yesterdayItems.length) groups.push({ label: "昨天", items: yesterdayItems });
-    if (olderItems.length) groups.push({ label: "更早", items: olderItems });
+    if (todayItems.length) groups.push({ label: t('sidebar.today'), items: todayItems });
+    if (yesterdayItems.length) groups.push({ label: t('sidebar.yesterday'), items: yesterdayItems });
+    if (olderItems.length) groups.push({ label: t('sidebar.earlier'), items: olderItems });
     return groups;
   };
 
@@ -596,10 +601,10 @@ function HistoryView({ search }: { search: string }) {
 
   const handleHistoryContextMenu = (e: React.MouseEvent, entry: { id: string; url: string }) => {
     const menuItems: ContextMenuEntry[] = [
-      { id: "open", label: "在新标签打开", icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
-      { id: "copy-url", label: "复制 URL", icon: <Copy className="w-3.5 h-3.5" />, onClick: () => navigator.clipboard.writeText(entry.url) },
+      { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
+      { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => navigator.clipboard.writeText(entry.url) },
       { type: "divider" },
-      { id: "delete", label: "删除记录", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteEntry(entry.id) },
+      { id: "delete", label: t('sidebar.deleteRecord'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteEntry(entry.id) },
     ];
     showMenu(e, menuItems);
   };
@@ -608,9 +613,9 @@ function HistoryView({ search }: { search: string }) {
     const d = new Date(iso);
     const now = new Date();
     const diff = now.getTime() - d.getTime();
-    if (diff < 60000) return "刚刚";
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+    if (diff < 60000) return t('sidebar.justNow');
+    if (diff < 3600000) return t('sidebar.minutesAgo', { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t('sidebar.hoursAgo', { count: Math.floor(diff / 3600000) });
     return d.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
@@ -655,11 +660,11 @@ function HistoryView({ search }: { search: string }) {
       ))}
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-          <div className="w-12 h-12 rounded-full bg-bg-hover flex items-center justify-center mb-3 shadow-sm border border-border-subtle">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] border border-border-subtle bg-bg-hover shadow-sm">
             <Clock className="w-6 h-6 text-text-tertiary" />
           </div>
-          <p className="text-[13px] font-medium text-text-secondary">{search ? "无匹配记录" : "暂无历史记录"}</p>
-          <p className="text-[11px] mt-1 text-text-disabled leading-relaxed">发送的网络请求将在此留下足迹。</p>
+          <p className="text-[13px] font-medium text-text-secondary">{search ? t('sidebar.noHistoryMatch') : t('sidebar.noHistory')}</p>
+          <p className="text-[11px] mt-1 text-text-disabled leading-relaxed">{t('sidebar.noHistoryHint')}</p>
         </div>
       )}
       {MenuComponent}
@@ -669,6 +674,7 @@ function HistoryView({ search }: { search: string }) {
 
 /* ── Environments View (Real Data) ── */
 function EnvironmentsView() {
+  const { t } = useTranslation();
   const environments = useEnvStore((s) => s.environments);
   const activeEnvId = useEnvStore((s) => s.activeEnvId);
   const setActive = useEnvStore((s) => s.setActive);
@@ -678,9 +684,9 @@ function EnvironmentsView() {
   const handleEnvContextMenu = (e: React.MouseEvent, env: { id: string; name: string }) => {
     const isActive = env.id === activeEnvId;
     const menuItems: ContextMenuEntry[] = [
-      { id: "activate", label: isActive ? "取消激活" : "设为活跃", icon: <Zap className="w-3.5 h-3.5" />, onClick: () => setActive(isActive ? null : env.id) },
+      { id: "activate", label: isActive ? t('sidebar.deactivate') : t('sidebar.activate'), icon: <Zap className="w-3.5 h-3.5" />, onClick: () => setActive(isActive ? null : env.id) },
       { type: "divider" },
-      { id: "delete", label: "删除", icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteEnvironment(env.id) },
+      { id: "delete", label: t('contextMenu.delete'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteEnvironment(env.id) },
     ];
     showMenu(e, menuItems);
   };
@@ -702,13 +708,13 @@ function EnvironmentsView() {
             )}
           >
             <div className={cn(
-              "w-[6px] h-[6px] rounded-full shrink-0",
+              "w-[6px] h-[6px] rounded-[3px] shrink-0",
               isActive ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" : "bg-border-strong"
             )} />
             <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-emerald-600" : "text-text-disabled")} />
             <span className={cn("truncate", isActive && "font-medium")}>{env.name}</span>
             {isActive && (
-              <span className="text-[10px] text-emerald-600 ml-auto font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded">活跃</span>
+              <span className="ml-auto rounded-[8px] bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600">{t('sidebar.active')}</span>
             )}
           </div>
         );
@@ -721,8 +727,8 @@ function EnvironmentsView() {
               <Zap className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-[12px] font-medium">环境变量</p>
-              <p className="text-[10px] text-text-disabled">点击"新增"创建第一个环境</p>
+              <p className="text-[12px] font-medium">{t('sidebar.envVariables')}</p>
+              <p className="text-[10px] text-text-disabled">{t('sidebar.envVariablesHint')}</p>
             </div>
           </div>
         </div>

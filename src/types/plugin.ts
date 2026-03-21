@@ -6,6 +6,12 @@ export type PluginType =
   | 'export-format'
   | 'sidebar-panel';
 
+/** 插件可翻译字段 */
+export interface PluginI18nEntry {
+  name?: string;
+  description?: string;
+}
+
 export interface PluginManifest {
   id: string;
   name: string;
@@ -21,6 +27,8 @@ export interface PluginManifest {
   downloadUrl?: string;
   source: 'native' | 'remote';
   contributes: PluginContributes;
+  /** 多语言翻译 — 键为语言代码 (如 "en")，值为可翻译字段 */
+  i18n?: Record<string, PluginI18nEntry>;
 }
 
 /** 插件扩展点贡献声明 (类似 VS Code contributes) */

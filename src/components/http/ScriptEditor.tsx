@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Code, Copy, Check, Eraser, BookOpen, ChevronDown } from 'lucide-react';
 import { CodeEditor } from '@/components/common/CodeEditor';
 
@@ -10,7 +11,7 @@ interface ScriptEditorProps {
   type: 'pre' | 'post';
 }
 
-// 常用代码片段模板
+// 常用{t('http.script.snippets')}模板
 const SNIPPETS: Record<string, { label: string; code: string }[]> = {
   pre: [
     { label: '设置环境变量', code: '// pm.environment.set("key", "value");\n' },
@@ -31,6 +32,7 @@ const SNIPPETS: Record<string, { label: string; code: string }[]> = {
 };
 
 export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
+  const { t } = useTranslation();
   const editorRef = useRef<any>(null);
   const [copied, setCopied] = useState(false);
   const [showSnippets, setShowSnippets] = useState(false);
@@ -71,7 +73,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
         <div className="flex items-center gap-1.5 text-text-tertiary">
           <Code className="w-3.5 h-3.5" />
           <span className="text-[12px] font-medium">
-            {type === 'pre' ? '前置脚本' : '后置测试脚本'}
+            {type === 'pre' ? t('http.script.preScriptTitle') : t('http.script.postScriptTitle')}
           </span>
         </div>
 
@@ -84,7 +86,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
             className="h-7 px-2.5 rounded-md flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
           >
             <BookOpen className="w-3 h-3" />
-            代码片段
+            {t('http.script.snippets')}
             <ChevronDown className="w-3 h-3" />
           </button>
           {showSnippets && (
@@ -111,7 +113,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
           onClick={handleCopy}
           disabled={!value}
           className="h-7 px-2 rounded-md flex items-center gap-1 text-[11px] text-text-tertiary hover:bg-bg-hover disabled:opacity-40 transition-colors"
-          title="复制脚本"
+          title={t('http.script.copyScript')}
         >
           {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
         </button>
@@ -120,7 +122,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
           onClick={handleClear}
           disabled={!value}
           className="h-7 px-2 rounded-md flex items-center gap-1 text-[11px] text-text-tertiary hover:bg-bg-hover disabled:opacity-40 transition-colors"
-          title="清空"
+          title={t('http.script.clear')}
         >
           <Eraser className="w-3 h-3" />
         </button>
@@ -140,8 +142,8 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
 
       {/* Helper text */}
       <p className="mt-2 text-[11px] text-text-disabled shrink-0">
-        支持 Tab 缩进 · 使用「代码片段」快速插入常用模板 ·
-        {type === 'pre' ? ' 在请求发送之前执行' : ' 在收到响应之后执行'}
+        {t('http.script.helperText')} ·
+        {type === 'pre' ? ` ${t('http.script.preScriptHelper')}` : ` ${t('http.script.postScriptHelper')}`}
       </p>
     </div>
   );
