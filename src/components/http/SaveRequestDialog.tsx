@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useCollectionStore } from '@/stores/collectionStore';
 import type { HttpRequestConfig } from '@/types/http';
 import type { CollectionItem } from '@/types/collections';
+import { buildCollectionItemFromHttpConfig } from '@/lib/collectionRequest';
 
 interface SaveRequestDialogProps {
   isOpen: boolean;
@@ -65,50 +66,18 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
     setSaving(true);
     try {
       const now = new Date().toISOString();
-      const item: CollectionItem = {
-        id: crypto.randomUUID(),
+      const item = buildCollectionItemFromHttpConfig({
+        config,
+        itemId: crypto.randomUUID(),
         collectionId: selectedCollectionId,
         parentId: selectedParentId || null,
-        itemType: 'request',
-        name: name.trim(),
         sortOrder: 0,
-        method: config.method,
-        url: config.url,
-        headers: JSON.stringify(config.headers),
-        queryParams: JSON.stringify(config.queryParams),
-        bodyType: config.requestMode === 'graphql' ? 'graphql' : config.requestMode === 'sse' ? 'sse' : config.bodyType,
-        bodyContent: (() => {
-          if (config.requestMode === 'graphql') {
-            return JSON.stringify({ query: config.graphqlQuery || '', variables: config.graphqlVariables || '' });
-          }
-          if (config.requestMode === 'sse') {
-            return '';
-          }
-          switch (config.bodyType) {
-            case 'json': return config.jsonBody || '';
-            case 'raw': return config.rawBody || '';
-            case 'formUrlencoded': return JSON.stringify(config.formFields || []);
-            case 'formData': return JSON.stringify(config.formDataFields || []);
-            case 'binary': return config.binaryFilePath || '';
-            default: return '';
-          }
-        })(),
-        authType: config.authType,
-        authConfig: JSON.stringify({
-          bearerToken: config.bearerToken,
-          basicUsername: config.basicUsername,
-          basicPassword: config.basicPassword,
-          apiKeyName: config.apiKeyName,
-          apiKeyValue: config.apiKeyValue,
-          apiKeyAddTo: config.apiKeyAddTo,
-        }),
-        preScript: config.preScript,
-        postScript: config.postScript,
         createdAt: now,
         updatedAt: now,
-      };
-      await saveRequest(item);
-      onSaved?.(item);
+        name: name.trim(),
+      });
+      const saved = await saveRequest(item);
+      onSaved?.(saved);
       onClose();
     } catch (err) {
       console.error('保存失败:', err);

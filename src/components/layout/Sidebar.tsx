@@ -15,6 +15,8 @@ import { useHistoryStore } from "@/stores/historyStore";
 import { useEnvStore } from "@/stores/envStore";
 import { ImportModal } from "@/components/collections/ImportModal";
 import type { HistoryEntry, CollectionItem } from '@/types/collections';
+import { getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
+import { copyTextToClipboard } from "@/lib/clipboard";
 
 type SidebarView = "collections" | "history" | "environments";
 
@@ -363,8 +365,16 @@ function CollectionsView({ search }: { search: string }) {
       postScript: item.postScript || '',
     });
 
-    // 同时更新 tab 标签名
-    useAppStore.getState().renameTab(tabId, item.name || `${item.method} ${item.url}`);
+    useAppStore.getState().updateTab(tabId, {
+      label: item.name || `${item.method} ${item.url}`,
+      customLabel: item.name || `${item.method} ${item.url}`,
+      linkedCollectionItemId: item.id,
+      linkedCollectionId: item.collectionId,
+      linkedCollectionParentId: item.parentId,
+      linkedCollectionSortOrder: item.sortOrder,
+      linkedCollectionCreatedAt: item.createdAt,
+      savedRequestSignature: getCollectionRequestSignatureFromItem(item),
+    });
   };
 
   const methodColors: Record<string, { text: string; bg: string }> = {
@@ -436,7 +446,7 @@ function CollectionsView({ search }: { search: string }) {
     const menuItems: ContextMenuEntry[] = [
       { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
       { id: "rename", label: t('contextMenu.rename'), icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(item.id, item.name) },
-      { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { if (item.url) navigator.clipboard.writeText(item.url); } },
+      { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { if (item.url) void copyTextToClipboard(item.url); } },
       { type: "divider" },
       { id: "delete", label: t('contextMenu.delete'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteItem(item.id, item.collectionId) },
     ];
@@ -689,7 +699,7 @@ function HistoryView({ search }: { search: string }) {
   const handleHistoryContextMenu = (e: React.MouseEvent, entry: HistoryEntry) => {
     const menuItems: ContextMenuEntry[] = [
       { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => handleOpenHistoryEntry(entry) },
-      { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => navigator.clipboard.writeText(entry.url) },
+      { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => void copyTextToClipboard(entry.url) },
       { type: "divider" },
       { id: "delete", label: t('sidebar.deleteRecord'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteEntry(entry.id) },
     ];

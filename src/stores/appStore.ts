@@ -18,6 +18,12 @@ export interface AppTab {
   protocol: RequestProtocol;
   label: string;
   customLabel?: string | null;
+  linkedCollectionItemId?: string | null;
+  linkedCollectionId?: string | null;
+  linkedCollectionParentId?: string | null;
+  linkedCollectionSortOrder?: number | null;
+  linkedCollectionCreatedAt?: string | null;
+  savedRequestSignature?: string | null;
   httpConfig?: HttpRequestConfig;
   httpResponse?: HttpResponse | null;
   loading: boolean;
@@ -99,6 +105,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
       protocol,
       label: requestLabels[protocol],
       customLabel: null,
+      linkedCollectionItemId: null,
+      linkedCollectionId: null,
+      linkedCollectionParentId: null,
+      linkedCollectionSortOrder: null,
+      linkedCollectionCreatedAt: null,
+      savedRequestSignature: null,
       httpConfig: protocol === "http" ? createDefaultRequest() : undefined,
       httpResponse: null,
       loading: false,
@@ -357,6 +369,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
       ...structuredClone(source),
       id: newId,
       label: `${source.label} (副本)`,
+      linkedCollectionItemId: null,
+      linkedCollectionId: null,
+      linkedCollectionParentId: null,
+      linkedCollectionSortOrder: null,
+      linkedCollectionCreatedAt: null,
+      savedRequestSignature: null,
     };
 
     set((current) => {

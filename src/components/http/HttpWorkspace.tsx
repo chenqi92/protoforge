@@ -6,9 +6,11 @@ import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from "@/stores/appStore";
+import { useCollectionStore } from "@/stores/collectionStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import type { HttpMethod, KeyValue, FormDataField, ScriptResult, HttpRequestMode } from "@/types/http";
 import type { OAuth2Config } from "@/types/http";
+import type { CollectionItem } from "@/types/collections";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { SaveRequestDialog } from "./SaveRequestDialog";
 import { ScriptEditor } from "./ScriptEditor";
@@ -16,6 +18,7 @@ import { CodeEditor } from "@/components/common/CodeEditor";
 import { ResponseViewer } from "@/components/ui/ResponseViewer";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
+import { buildCollectionItemFromHttpConfig, getCollectionRequestSignatureFromConfig, getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -40,16 +43,19 @@ export function HttpWorkspace() {
   const { t } = useTranslation();
   const activeTab = useAppStore((s) => s.getActiveTab());
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
+  const updateTab = useAppStore((s) => s.updateTab);
   const setHttpResponse = useAppStore((s) => s.setHttpResponse);
   const setLoading = useAppStore((s) => s.setLoading);
   const setError = useAppStore((s) => s.setError);
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
+  const saveRequestToCollection = useCollectionStore((s) => s.saveRequest);
 
   const [reqTab, setReqTab] = useState<"params" | "headers" | "body" | "auth" | "pre-script" | "post-script">("params");
   const [resTab, setResTab] = useState<"body" | "headers" | "cookies" | "timing">("body");
   const [copied, setCopied] = useState(false);
   const [showMethods, setShowMethods] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [savingRequest, setSavingRequest] = useState(false);
   const [scriptResults, setScriptResults] = useState<{ pre: ScriptResult | null; post: ScriptResult | null }>({ pre: null, post: null });
   const [urlFocused, setUrlFocused] = useState(false);
   const [urlHighlight, setUrlHighlight] = useState(-1);
@@ -89,6 +95,12 @@ export function HttpWorkspace() {
   const isSseMode = config.requestMode === "sse";
   const isGraphqlMode = config.requestMode === "graphql";
   const isSseConnected = sseStatus === "connected" || sseStatus === "connecting";
+  const currentRequestSignature = useMemo(
+    () => getCollectionRequestSignatureFromConfig(config),
+    [config]
+  );
+  const isLinkedCollectionRequest = Boolean(activeTab.linkedCollectionItemId && activeTab.linkedCollectionId);
+  const isSavedRequestPristine = isLinkedCollectionRequest && activeTab.savedRequestSignature === currentRequestSignature;
   const responseHeaderEntries = useMemo(
     () => response ? Object.entries(response.headers ?? {}) : [],
     [response]
@@ -348,6 +360,65 @@ export function HttpWorkspace() {
   const formFields = Array.isArray(config.formFields) ? config.formFields : [];
   const formDataFields = Array.isArray(config.formDataFields) ? config.formDataFields : [];
 
+  const syncSavedCollectionBinding = useCallback((item: CollectionItem) => {
+    updateHttpConfig(tabId, { name: item.name });
+    updateTab(tabId, {
+      label: item.name || activeTab.label,
+      customLabel: item.name || activeTab.customLabel || activeTab.label,
+      linkedCollectionItemId: item.id,
+      linkedCollectionId: item.collectionId,
+      linkedCollectionParentId: item.parentId,
+      linkedCollectionSortOrder: item.sortOrder,
+      linkedCollectionCreatedAt: item.createdAt,
+      savedRequestSignature: getCollectionRequestSignatureFromItem(item),
+    });
+  }, [activeTab.customLabel, activeTab.label, tabId, updateHttpConfig, updateTab]);
+
+  const handleSaveRequest = useCallback(async () => {
+    if (!isLinkedCollectionRequest) {
+      setShowSaveDialog(true);
+      return;
+    }
+
+    if (isSavedRequestPristine || savingRequest) {
+      return;
+    }
+
+    setSavingRequest(true);
+    try {
+      const now = new Date().toISOString();
+      const item = buildCollectionItemFromHttpConfig({
+        config,
+        itemId: activeTab.linkedCollectionItemId!,
+        collectionId: activeTab.linkedCollectionId!,
+        parentId: activeTab.linkedCollectionParentId ?? null,
+        sortOrder: activeTab.linkedCollectionSortOrder ?? 0,
+        createdAt: activeTab.linkedCollectionCreatedAt ?? now,
+        updatedAt: now,
+      });
+      const saved = await saveRequestToCollection(item);
+      syncSavedCollectionBinding(saved);
+    } catch (err: any) {
+      setError(tabId, err?.message || String(err));
+    } finally {
+      setSavingRequest(false);
+    }
+  }, [
+    activeTab.linkedCollectionCreatedAt,
+    activeTab.linkedCollectionId,
+    activeTab.linkedCollectionItemId,
+    activeTab.linkedCollectionParentId,
+    activeTab.linkedCollectionSortOrder,
+    config,
+    isLinkedCollectionRequest,
+    isSavedRequestPristine,
+    saveRequestToCollection,
+    savingRequest,
+    setError,
+    syncSavedCollectionBinding,
+    tabId,
+  ]);
+
   const reqTabs = [
     { key: "params" as const, label: `${t('http.params')}${params.filter(p => p.key).length ? ` (${params.filter(p => p.key).length})` : ""}` },
     { key: "headers" as const, label: `${t('http.headers')}${headers.filter(h => h.key).length ? ` (${headers.filter(h => h.key).length})` : ""}` },
@@ -448,12 +519,13 @@ export function HttpWorkspace() {
           <>
             <div className="wb-request-toolgroup">
               <button
-                onClick={() => setShowSaveDialog(true)}
+                onClick={() => void handleSaveRequest()}
                 data-save-button
                 className="wb-icon-btn"
                 title={t('http.saveRequest')}
+                disabled={savingRequest || isSavedRequestPristine}
               >
-                <Save className="w-3.5 h-3.5" />
+                {savingRequest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               </button>
               <button
                 onClick={async () => {
@@ -967,6 +1039,7 @@ export function HttpWorkspace() {
         isOpen={showSaveDialog}
         onClose={() => setShowSaveDialog(false)}
         config={config}
+        onSaved={syncSavedCollectionBinding}
       />
     </div>
   );
