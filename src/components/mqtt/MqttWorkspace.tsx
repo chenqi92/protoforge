@@ -6,6 +6,7 @@ import { listen } from '@tauri-apps/api/event';
 import { Play, Square, Trash2, Send, Plus, X, Radio, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
+import { RequestWorkbenchHeader } from '@/components/request/RequestWorkbenchHeader';
 
 interface MqttMessage {
   topic: string;
@@ -125,64 +126,86 @@ export function MqttWorkspace() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Connection Bar */}
-      <div className="shrink-0 space-y-2 border-b border-border-default/70 bg-transparent p-3">
-        <div className="flex items-center gap-2">
-          <Radio className="w-4 h-4 text-violet-500 shrink-0" />
-          <input value={brokerUrl} onChange={(e) => setBrokerUrl(e.target.value)} placeholder="mqtt://broker:1883"
-            disabled={isConnected} className="flex-1 h-8 px-2 text-[13px] font-mono bg-bg-input border border-border-default rounded-md text-text-primary outline-none focus:border-accent disabled:opacity-50" />
-          <input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Client ID"
-            disabled={isConnected} className="w-40 h-8 px-2 text-[12px] font-mono bg-bg-input border border-border-default rounded-md text-text-secondary outline-none focus:border-accent disabled:opacity-50" />
-          {isConnected || status === 'connecting' ? (
-            <button onClick={handleDisconnect} className="h-8 px-4 rounded-md text-[12px] font-semibold text-white bg-red-500 hover:bg-red-600 shrink-0 flex items-center gap-1">
+      <RequestWorkbenchHeader
+        prefix={(
+          <div className="wb-request-prefix bg-gradient-to-r from-violet-500 to-fuchsia-500">
+            <Radio className="w-3.5 h-3.5" /> MQTT
+          </div>
+        )}
+        main={(
+          <>
+            <span className="wb-request-label">Broker</span>
+            <input
+              value={brokerUrl}
+              onChange={(e) => setBrokerUrl(e.target.value)}
+              placeholder="mqtt://broker:1883"
+              disabled={isConnected}
+              className="wb-request-input disabled:opacity-50"
+            />
+          </>
+        )}
+        actions={
+          isConnected || status === 'connecting' ? (
+            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[96px] bg-red-500 hover:bg-red-600">
               <Square className="w-3 h-3 fill-white" /> 断开
             </button>
           ) : (
-            <button onClick={handleConnect} className="h-8 px-4 rounded-md text-[12px] font-semibold text-white bg-violet-500 hover:bg-violet-600 shrink-0 flex items-center gap-1">
+            <button onClick={handleConnect} className="wb-primary-btn min-w-[96px] bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600">
               <Play className="w-3 h-3 fill-white" /> 连接
             </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2 text-[11px]">
-          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="用户名(可选)" disabled={isConnected}
-            className="h-7 px-2 text-[12px] bg-bg-input border border-border-default rounded text-text-secondary outline-none w-32 disabled:opacity-50" />
-          <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="密码(可选)" type="password" disabled={isConnected}
-            className="h-7 px-2 text-[12px] bg-bg-input border border-border-default rounded text-text-secondary outline-none w-32 disabled:opacity-50" />
-          <span className={cn("flex items-center gap-1 ml-auto font-medium",
-            status === 'connected' ? "text-emerald-600" :
-            status === 'connecting' ? "text-amber-600" :
-            status === 'error' ? "text-red-500" : "text-text-tertiary"
-          )}>
-            <span className={cn("w-2 h-2 rounded-full",
-              status === 'connected' ? "bg-emerald-500" : status === 'connecting' ? "bg-amber-500 animate-pulse" : status === 'error' ? "bg-red-500" : "bg-gray-400"
-            )} />
-            {status === 'idle' ? '未连接' : status === 'connecting' ? '连接中' : status === 'connected' ? '已连接' : status === 'disconnected' ? '已断开' : '错误'}
-          </span>
-          {errorMsg && <span className="text-red-500 truncate max-w-xs">{errorMsg}</span>}
-        </div>
-      </div>
+          )
+        }
+        secondary={(
+          <>
+            <div className="wb-inline-field w-[220px] max-w-full">
+              <span>Client ID</span>
+              <input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Client ID" disabled={isConnected} />
+            </div>
+            <div className="wb-inline-field w-[170px] max-w-full">
+              <span>用户名</span>
+              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="可选" disabled={isConnected} />
+            </div>
+            <div className="wb-inline-field w-[170px] max-w-full">
+              <span>密码</span>
+              <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="可选" type="password" disabled={isConnected} />
+            </div>
+            <span className={cn("wb-request-meta ml-auto",
+              status === 'connected' ? "text-emerald-600" :
+              status === 'connecting' ? "text-amber-600" :
+              status === 'error' ? "text-red-500" : "text-text-tertiary"
+            )}>
+              <span className={cn("wb-request-meta-dot",
+                status === 'connected' ? "bg-emerald-500" : status === 'connecting' ? "bg-amber-500 animate-pulse" : status === 'error' ? "bg-red-500" : "bg-gray-400"
+              )} />
+              {status === 'idle' ? '未连接' : status === 'connecting' ? '连接中' : status === 'connected' ? '已连接' : status === 'disconnected' ? '已断开' : '错误'}
+            </span>
+            {errorMsg ? <span className="text-[11px] text-red-500">{errorMsg}</span> : null}
+          </>
+        )}
+      />
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Subscriptions + Publish */}
-        <div className="flex w-72 shrink-0 flex-col overflow-hidden border-r border-border-default/70 bg-bg-secondary/18">
+        <div className="flex w-[320px] min-w-[300px] shrink-0 flex-col gap-3 overflow-hidden px-3 pb-3 pt-2">
           {/* Subscriptions */}
-          <div className="border-b border-border-default/70 p-3">
+          <div className="wb-subpanel p-3">
             <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider mb-2">订阅</h3>
-            <div className="flex items-center gap-1 mb-2">
+            <div className="mb-2 flex items-center gap-2">
               <input value={newSubTopic} onChange={(e) => setNewSubTopic(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSubscribe()}
-                placeholder="topic/path/#" disabled={!isConnected} className="flex-1 h-7 px-2 text-[12px] font-mono bg-bg-input border border-border-default rounded text-text-primary outline-none focus:border-accent disabled:opacity-50" />
+                placeholder="topic/path/#" disabled={!isConnected} className="wb-field-sm min-w-0 flex-1 font-mono disabled:opacity-50" />
               <select value={newSubQos} onChange={(e) => setNewSubQos(Number(e.target.value))} disabled={!isConnected}
-                className="h-7 w-14 px-1 text-[11px] bg-bg-input border border-border-default rounded text-text-secondary outline-none disabled:opacity-50">
+                className="wb-field-sm wb-native-select w-[84px] shrink-0 disabled:opacity-50">
                 <option value={0}>QoS 0</option>
                 <option value={1}>QoS 1</option>
                 <option value={2}>QoS 2</option>
               </select>
-              <button onClick={handleSubscribe} disabled={!isConnected || !newSubTopic.trim()} className="h-7 w-7 flex items-center justify-center rounded bg-accent text-white disabled:opacity-40">
+              <button onClick={handleSubscribe} disabled={!isConnected || !newSubTopic.trim()} className="wb-icon-btn h-8 w-8 border-0 bg-accent text-white hover:bg-accent-hover disabled:opacity-40">
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="space-y-1 max-h-24 overflow-auto">
               {subscriptions.map((sub, i) => (
-                <div key={i} className="flex items-center justify-between rounded-[12px] bg-bg-primary/78 px-2 py-1 text-[11px] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
+                <div key={i} className="flex items-center justify-between rounded-[12px] bg-bg-primary px-2 py-1 text-[11px] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                   <span className="font-mono text-text-secondary truncate">{sub.topic}</span>
                   <div className="flex items-center gap-1 shrink-0">
                     <span className="text-text-disabled">Q{sub.qos}</span>
@@ -194,23 +217,23 @@ export function MqttWorkspace() {
           </div>
 
           {/* Publish */}
-          <div className="flex flex-1 flex-col p-3">
+          <div className="wb-subpanel flex flex-1 flex-col p-3">
             <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider mb-2">发布</h3>
             <input value={pubTopic} onChange={(e) => setPubTopic(e.target.value)} placeholder="topic/path" disabled={!isConnected}
-              className="h-7 px-2 text-[12px] font-mono bg-bg-input border border-border-default rounded text-text-primary outline-none focus:border-accent mb-2 disabled:opacity-50" />
+              className="wb-field-sm mb-2 font-mono disabled:opacity-50" />
             <textarea value={pubPayload} onChange={(e) => setPubPayload(e.target.value)} placeholder="消息内容..." disabled={!isConnected}
-              className="flex-1 min-h-[60px] p-2 text-[12px] font-mono bg-bg-input border border-border-default rounded resize-none text-text-secondary outline-none focus:border-accent mb-2 disabled:opacity-50" />
-            <div className="flex items-center gap-2">
+              className="wb-textarea mb-2 flex-1 min-h-[140px] text-[12px] text-text-secondary disabled:opacity-50" />
+            <div className="flex flex-wrap items-center gap-2">
               <select value={pubQos} onChange={(e) => setPubQos(Number(e.target.value))} disabled={!isConnected}
-                className="h-7 w-20 px-1 text-[11px] bg-bg-input border border-border-default rounded text-text-secondary outline-none disabled:opacity-50">
+                className="wb-field-sm wb-native-select w-[86px] shrink-0 disabled:opacity-50">
                 <option value={0}>QoS 0</option>
                 <option value={1}>QoS 1</option>
                 <option value={2}>QoS 2</option>
               </select>
-              <label className={cn("flex items-center gap-1 text-[11px] cursor-pointer", !isConnected && "opacity-50")}>
+              <label className={cn("flex shrink-0 items-center gap-1 text-[11px] cursor-pointer", !isConnected && "opacity-50")}>
                 <input type="checkbox" checked={pubRetain} onChange={(e) => setPubRetain(e.target.checked)} disabled={!isConnected} className="accent-accent" /> Retain
               </label>
-              <button onClick={handlePublish} disabled={!isConnected || !pubTopic.trim()} className="ml-auto h-7 px-3 rounded text-[12px] font-medium text-white bg-violet-500 hover:bg-violet-600 disabled:opacity-40 flex items-center gap-1">
+              <button onClick={handlePublish} disabled={!isConnected || !pubTopic.trim()} className="wb-primary-btn ml-auto min-w-[92px] bg-violet-500 hover:bg-violet-600 disabled:opacity-40">
                 <Send className="w-3 h-3" /> 发送
               </button>
             </div>
@@ -218,37 +241,43 @@ export function MqttWorkspace() {
         </div>
 
         {/* Right: Message List */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex h-8 shrink-0 items-center gap-3 border-b border-border-default/70 bg-bg-secondary/20 px-3 text-[11px]">
-            <span className="text-text-disabled">{messages.length} 条消息</span>
-            <button onClick={() => setAutoScroll(!autoScroll)} className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ml-auto", autoScroll ? "text-accent bg-accent/10" : "text-text-disabled hover:text-text-secondary")}>
-              <ArrowDown className="w-3 h-3" /> 自动滚动
-            </button>
-            <button onClick={() => setMessages([])} className="text-text-disabled hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
-          </div>
-          <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/12 p-3 space-y-1">
-            {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-text-disabled">
-                <Radio className="w-10 h-10 mb-3 opacity-20" />
-                <p className="text-[13px] font-medium">等待消息...</p>
-                <p className="text-[11px] mt-1">连接 MQTT Broker 并订阅 Topic 后将显示消息</p>
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden px-0 pb-3 pt-2 pr-3">
+          <div className="wb-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="wb-panel-header shrink-0 text-[11px]">
+              <div className="min-w-0 flex flex-1 items-center">
+                <span className="text-text-disabled">{messages.length} 条消息</span>
               </div>
-            ) : (
-              messages.map((msg, i) => (
-                <div key={i} className={cn("rounded-[14px] border p-2.5 transition-colors", msg.direction === 'out' ? "bg-violet-500/5 border-violet-500/20" : "bg-bg-primary/78 border-border-default/75")}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", msg.direction === 'out' ? "bg-violet-500/20 text-violet-600" : "bg-emerald-500/20 text-emerald-600")}>
-                      {msg.direction === 'out' ? '发送' : '接收'}
-                    </span>
-                    <span className="text-[10px] font-mono text-accent">{msg.topic}</span>
-                    <span className="text-[10px] text-text-disabled ml-auto">Q{msg.qos}</span>
-                    {msg.retain && <span className="text-[9px] text-amber-600 bg-amber-500/10 px-1 rounded">R</span>}
-                    <span className="text-[10px] font-mono text-text-disabled">{new Date(msg.timestamp).toLocaleTimeString()}</span>
-                  </div>
-                  <pre className="text-[12px] font-mono text-text-secondary whitespace-pre-wrap break-all">{msg.payload}</pre>
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+                <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn h-8 px-2.5 text-[11px]", autoScroll && "text-accent")}>
+                  <ArrowDown className="w-3 h-3" /> 自动滚动
+                </button>
+                <button onClick={() => setMessages([])} className="wb-icon-btn h-8 w-8 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
+              </div>
+            </div>
+            <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/12 p-4 space-y-2">
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-text-disabled">
+                  <Radio className="w-10 h-10 mb-3 opacity-20 text-violet-500" />
+                  <p className="text-[13px] font-medium">等待消息...</p>
+                  <p className="text-[11px] mt-1">连接 MQTT Broker 并订阅 Topic 后将显示消息</p>
                 </div>
-              ))
-            )}
+              ) : (
+                messages.map((msg, i) => (
+                  <div key={i} className={cn("rounded-[16px] border p-3 transition-colors", msg.direction === 'out' ? "bg-violet-500/5 border-violet-500/20" : "bg-bg-primary/82 border-border-default/75")}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", msg.direction === 'out' ? "bg-violet-500/20 text-violet-600" : "bg-emerald-500/20 text-emerald-600")}>
+                        {msg.direction === 'out' ? '发送' : '接收'}
+                      </span>
+                      <span className="text-[10px] font-mono text-accent">{msg.topic}</span>
+                      <span className="text-[10px] text-text-disabled ml-auto">Q{msg.qos}</span>
+                      {msg.retain && <span className="text-[9px] text-amber-600 bg-amber-500/10 px-1 rounded">R</span>}
+                      <span className="text-[10px] font-mono text-text-disabled">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <pre className="text-[12px] font-mono text-text-secondary whitespace-pre-wrap break-all">{msg.payload}</pre>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -487,3 +487,153 @@ fn mime_from_path(path: &str) -> String {
         _ => "application/octet-stream",
     }.to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ═══════════════════════════════════════════
+    //  Cookie 解析测试
+    // ═══════════════════════════════════════════
+
+    #[test]
+    fn test_parse_simple_cookie() {
+        let headers = vec![
+            ("set-cookie".into(), "session=abc123".into()),
+        ];
+        let cookies = parse_cookies_from_headers(&headers);
+        assert_eq!(cookies.len(), 1);
+        assert_eq!(cookies[0].name, "session");
+        assert_eq!(cookies[0].value, "abc123");
+    }
+
+    #[test]
+    fn test_parse_cookie_with_attributes() {
+        let headers = vec![
+            ("set-cookie".into(), "token=xyz; Path=/; Domain=example.com; HttpOnly; Secure; SameSite=Strict".into()),
+        ];
+        let cookies = parse_cookies_from_headers(&headers);
+        assert_eq!(cookies.len(), 1);
+        let c = &cookies[0];
+        assert_eq!(c.name, "token");
+        assert_eq!(c.value, "xyz");
+        assert_eq!(c.path, Some("/".into()));
+        assert_eq!(c.domain, Some("example.com".into()));
+        assert!(c.http_only);
+        assert!(c.secure);
+        assert_eq!(c.same_site, Some("Strict".into()));
+    }
+
+    #[test]
+    fn test_parse_multiple_cookies() {
+        let headers = vec![
+            ("set-cookie".into(), "a=1; Path=/".into()),
+            ("set-cookie".into(), "b=2; HttpOnly".into()),
+            ("set-cookie".into(), "c=3".into()),
+            ("content-type".into(), "text/html".into()), // 非 cookie header
+        ];
+        let cookies = parse_cookies_from_headers(&headers);
+        assert_eq!(cookies.len(), 3);
+        assert_eq!(cookies[0].name, "a");
+        assert_eq!(cookies[1].name, "b");
+        assert!(cookies[1].http_only);
+        assert_eq!(cookies[2].name, "c");
+    }
+
+    #[test]
+    fn test_parse_cookie_with_expires() {
+        let headers = vec![
+            ("set-cookie".into(), "lang=zh; Expires=Thu, 01 Jan 2030 00:00:00 GMT; Path=/".into()),
+        ];
+        let cookies = parse_cookies_from_headers(&headers);
+        assert_eq!(cookies.len(), 1);
+        assert!(cookies[0].expires.is_some());
+        assert!(cookies[0].expires.as_ref().unwrap().contains("2030"));
+    }
+
+    #[test]
+    fn test_parse_empty_headers() {
+        let headers: Vec<(String, String)> = vec![];
+        let cookies = parse_cookies_from_headers(&headers);
+        assert!(cookies.is_empty());
+    }
+
+    #[test]
+    fn test_parse_no_set_cookie() {
+        let headers = vec![
+            ("content-type".into(), "application/json".into()),
+            ("x-request-id".into(), "12345".into()),
+        ];
+        let cookies = parse_cookies_from_headers(&headers);
+        assert!(cookies.is_empty());
+    }
+
+    // ═══════════════════════════════════════════
+    //  MIME 类型测试
+    // ═══════════════════════════════════════════
+
+    #[test]
+    fn test_mime_json() {
+        assert_eq!(mime_from_path("data.json"), "application/json");
+    }
+
+    #[test]
+    fn test_mime_images() {
+        assert_eq!(mime_from_path("photo.png"), "image/png");
+        assert_eq!(mime_from_path("photo.jpg"), "image/jpeg");
+        assert_eq!(mime_from_path("photo.jpeg"), "image/jpeg");
+        assert_eq!(mime_from_path("icon.svg"), "image/svg+xml");
+        assert_eq!(mime_from_path("anim.gif"), "image/gif");
+        assert_eq!(mime_from_path("pic.webp"), "image/webp");
+    }
+
+    #[test]
+    fn test_mime_text() {
+        assert_eq!(mime_from_path("readme.txt"), "text/plain");
+        assert_eq!(mime_from_path("index.html"), "text/html");
+        assert_eq!(mime_from_path("page.htm"), "text/html");
+        assert_eq!(mime_from_path("data.csv"), "text/csv");
+        assert_eq!(mime_from_path("config.xml"), "application/xml");
+    }
+
+    #[test]
+    fn test_mime_archives() {
+        assert_eq!(mime_from_path("archive.zip"), "application/zip");
+        assert_eq!(mime_from_path("file.tar"), "application/x-tar");
+        assert_eq!(mime_from_path("file.gz"), "application/gzip");
+    }
+
+    #[test]
+    fn test_mime_media() {
+        assert_eq!(mime_from_path("video.mp4"), "video/mp4");
+        assert_eq!(mime_from_path("song.mp3"), "audio/mpeg");
+        assert_eq!(mime_from_path("sound.wav"), "audio/wav");
+    }
+
+    #[test]
+    fn test_mime_documents() {
+        assert_eq!(mime_from_path("doc.pdf"), "application/pdf");
+        assert_eq!(mime_from_path("file.doc"), "application/msword");
+        assert_eq!(mime_from_path("file.docx"), "application/msword");
+        assert_eq!(mime_from_path("sheet.xls"), "application/vnd.ms-excel");
+    }
+
+    #[test]
+    fn test_mime_unknown() {
+        assert_eq!(mime_from_path("file.xyz"), "application/octet-stream");
+        assert_eq!(mime_from_path("noext"), "application/octet-stream");
+    }
+
+    #[test]
+    fn test_mime_case_insensitive() {
+        assert_eq!(mime_from_path("FILE.JSON"), "application/json");
+        assert_eq!(mime_from_path("photo.PNG"), "image/png");
+    }
+
+    #[test]
+    fn test_mime_nested_path() {
+        assert_eq!(mime_from_path("/path/to/file.json"), "application/json");
+        assert_eq!(mime_from_path("C:\\Users\\data.csv"), "text/csv");
+    }
+}
+

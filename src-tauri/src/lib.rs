@@ -143,6 +143,8 @@ pub fn run() {
             // HTTP
             commands::send_request,
             commands::send_request_with_scripts,
+            // OAuth 2.0
+            commands::fetch_oauth2_token,
             // Collections
             commands::list_collections,
             commands::create_collection,

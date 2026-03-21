@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Play, Square, Trash2, Radio, ArrowDown } from 'lucide-react';
+import { Play, Square, Trash2, ArrowDown, Waves } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
 import type { KeyValue } from '@/types/http';
+import { RequestWorkbenchHeader } from '@/components/request/RequestWorkbenchHeader';
 
 interface SseEvent {
   id: string | null;
@@ -77,73 +78,90 @@ export function SseWorkspace() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* URL Bar */}
-      <div className="shrink-0 flex h-10 items-center gap-2 border-b border-border-default/70 bg-transparent px-3">
-        <Radio className="w-4 h-4 text-accent shrink-0" />
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !isConnected && handleConnect()}
-          placeholder="输入 SSE 端点 URL，如 https://api.example.com/events"
-          disabled={isConnected}
-          className="flex-1 h-full px-2 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary disabled:opacity-50"
-        />
-        {isConnected ? (
-          <button onClick={handleDisconnect} className="h-7 px-4 rounded-md flex items-center gap-1.5 text-[12px] font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors shrink-0">
-            <Square className="w-3 h-3 fill-white" /> 断开
-          </button>
-        ) : (
-          <button onClick={handleConnect} disabled={!url.trim()} className="h-7 px-4 rounded-md flex items-center gap-1.5 text-[12px] font-semibold text-white bg-accent hover:bg-accent-hover disabled:opacity-40 transition-colors shrink-0">
-            <Play className="w-3 h-3 fill-white" /> 连接
-          </button>
+      <RequestWorkbenchHeader
+        prefix={(
+          <div className="wb-request-prefix bg-gradient-to-r from-orange-500 to-amber-500">
+            <Waves className="w-3.5 h-3.5" /> SSE
+          </div>
         )}
-      </div>
-
-      {/* Status Bar */}
-      <div className="shrink-0 flex h-8 items-center gap-3 border-b border-border-default/70 bg-bg-secondary/20 px-3 text-[11px]">
-        <span className={cn("flex items-center gap-1.5 font-medium",
-          status === 'connected' ? "text-emerald-600" :
-          status === 'connecting' ? "text-amber-600" :
-          status === 'error' ? "text-red-500" :
-          "text-text-tertiary"
-        )}>
-          <span className={cn("w-2 h-2 rounded-full",
-            status === 'connected' ? "bg-emerald-500 animate-pulse" :
-            status === 'connecting' ? "bg-amber-500 animate-pulse" :
-            status === 'error' ? "bg-red-500" :
-            "bg-gray-400"
-          )} />
-          {status === 'idle' ? '未连接' : status === 'connecting' ? '连接中...' : status === 'connected' ? '已连接' : status === 'disconnected' ? '已断开' : '错误'}
-        </span>
-        {errorMsg && <span className="text-red-500 truncate flex-1">{errorMsg}</span>}
-        <span className="text-text-disabled ml-auto">{events.length} 条事件</span>
-        <button onClick={() => setAutoScroll(!autoScroll)} className={cn("flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px]", autoScroll ? "text-accent bg-accent/10" : "text-text-disabled hover:text-text-secondary")}>
-          <ArrowDown className="w-3 h-3" /> 自动滚动
-        </button>
-        <button onClick={() => setEvents([])} className="text-text-disabled hover:text-red-500 transition-colors">
-          <Trash2 className="w-3 h-3" />
-        </button>
-      </div>
+        main={(
+          <>
+            <span className="wb-request-label">Stream</span>
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !isConnected && handleConnect()}
+              placeholder="输入 SSE 端点 URL，如 https://api.example.com/events"
+              disabled={isConnected}
+              className="wb-request-input disabled:opacity-50"
+            />
+          </>
+        )}
+        actions={
+          isConnected ? (
+            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[96px] bg-red-500 hover:bg-red-600">
+              <Square className="w-3 h-3 fill-white" /> 断开
+            </button>
+          ) : (
+            <button onClick={handleConnect} disabled={!url.trim()} className="wb-primary-btn min-w-[96px] bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-40">
+              <Play className="w-3 h-3 fill-white" /> 连接
+            </button>
+          )
+        }
+      />
 
       {/* Events List */}
-      <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/12 p-3 space-y-1">
-        {events.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-text-disabled">
-            <Radio className="w-10 h-10 mb-3 opacity-20" />
-            <p className="text-[13px] font-medium">等待事件...</p>
-            <p className="text-[11px] mt-1">连接 SSE 端点后将实时显示事件流</p>
-          </div>
-        ) : (
-          events.map((evt, i) => (
-            <div key={i} className="rounded-[14px] border border-border-default/75 bg-bg-primary/80 p-2.5 transition-colors hover:border-border-strong">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-mono text-text-disabled">{new Date(evt.timestamp).toLocaleTimeString()}</span>
-                <span className="text-[10px] font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded">{evt.eventType}</span>
-                {evt.id && <span className="text-[10px] text-text-disabled">id: {evt.id}</span>}
-              </div>
-              <pre className="text-[12px] font-mono text-text-secondary whitespace-pre-wrap break-all">{evt.data}</pre>
+      <div className="flex-1 px-3 pb-3 pt-2">
+        <div className="wb-panel flex h-full flex-col overflow-hidden">
+          <div className="wb-panel-header shrink-0">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span className={cn("wb-status-chip",
+                status === 'connected' ? "text-emerald-600" :
+                status === 'connecting' ? "text-amber-600" :
+                status === 'error' ? "text-red-500" :
+                "text-text-tertiary"
+              )}>
+                <span className={cn("w-2 h-2 rounded-full",
+                  status === 'connected' ? "bg-emerald-500 animate-pulse" :
+                  status === 'connecting' ? "bg-amber-500 animate-pulse" :
+                  status === 'error' ? "bg-red-500" :
+                  "bg-gray-400"
+                )} />
+                {status === 'idle' ? '未连接' : status === 'connecting' ? '连接中...' : status === 'connected' ? '已连接' : status === 'disconnected' ? '已断开' : '错误'}
+              </span>
+              {errorMsg ? <span className="truncate text-[12px] text-red-500">{errorMsg}</span> : null}
             </div>
-          ))
-        )}
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+              <span className="text-[11px] text-text-disabled">{events.length} 条事件</span>
+              <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn h-8 px-2.5 text-[11px]", autoScroll && "text-accent")}>
+                <ArrowDown className="w-3 h-3" /> 自动滚动
+              </button>
+              <button onClick={() => setEvents([])} className="wb-icon-btn h-8 w-8 hover:text-red-500 transition-colors">
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+          <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/12 p-4 space-y-2">
+            {events.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-text-disabled">
+                <Waves className="w-10 h-10 mb-3 opacity-20 text-orange-500" />
+                <p className="text-[13px] font-medium">等待事件...</p>
+                <p className="text-[11px] mt-1">连接 SSE 端点后将实时显示事件流</p>
+              </div>
+            ) : (
+              events.map((evt, i) => (
+                <div key={i} className="rounded-[16px] border border-border-default/75 bg-bg-primary/82 p-3 transition-colors hover:border-border-strong">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[10px] font-mono text-text-disabled">{new Date(evt.timestamp).toLocaleTimeString()}</span>
+                    <span className="rounded-[10px] bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-bold text-orange-600">{evt.eventType}</span>
+                    {evt.id && <span className="text-[10px] text-text-disabled">id: {evt.id}</span>}
+                  </div>
+                  <pre className="text-[12px] font-mono text-text-secondary whitespace-pre-wrap break-all">{evt.data}</pre>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

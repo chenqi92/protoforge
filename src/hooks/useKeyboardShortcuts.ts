@@ -8,9 +8,11 @@ import { useAppStore } from "@/stores/appStore";
 export function useKeyboardShortcuts() {
   const addTab = useAppStore((s) => s.addTab);
   const closeTab = useAppStore((s) => s.closeTab);
+  const closeCollectionPanel = useAppStore((s) => s.closeCollectionPanel);
   const nextTab = useAppStore((s) => s.nextTab);
   const prevTab = useAppStore((s) => s.prevTab);
   const getActiveTab = useAppStore((s) => s.getActiveTab);
+  const activeCollectionId = useAppStore((s) => s.activeCollectionId);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -30,7 +32,11 @@ export function useKeyboardShortcuts() {
       if (ctrl && !shift && e.key === "w") {
         e.preventDefault();
         const active = getActiveTab();
-        if (active) closeTab(active.id);
+        if (active) {
+          closeTab(active.id);
+        } else if (activeCollectionId) {
+          closeCollectionPanel();
+        }
         return;
       }
 
@@ -78,9 +84,15 @@ export function useKeyboardShortcuts() {
         window.dispatchEvent(new CustomEvent('toggle-command-palette'));
         return;
       }
+
+      // Ctrl+, — Settings
+      if (ctrl && !shift && e.key === ",") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("open-settings-modal"));
+      }
     };
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [addTab, closeTab, nextTab, prevTab, getActiveTab]);
+  }, [activeCollectionId, addTab, closeCollectionPanel, closeTab, nextTab, prevTab, getActiveTab]);
 }

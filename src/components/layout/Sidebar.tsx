@@ -191,7 +191,7 @@ function CollectionsView({ search }: { search: string }) {
   const [renameValue, setRenameValue] = useState('');
   const addTab = useAppStore((s) => s.addTab);
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
-  const openCollectionTab = useAppStore((s) => s.addCollectionTab);
+  const openCollectionPanel = useAppStore((s) => s.openCollectionPanel);
   const { showMenu, MenuComponent } = useContextMenu();
 
   const collections = useCollectionStore((s) => s.collections);
@@ -331,7 +331,7 @@ function CollectionsView({ search }: { search: string }) {
       { id: "expand-all", label: "全部展开", icon: <ChevronsUpDown className="w-3.5 h-3.5" />, onClick: () => expandAllFolders(col.id, true) },
       { id: "collapse-all", label: "全部收起", icon: <ChevronsUpDown className="w-3.5 h-3.5" />, onClick: () => expandAllFolders(col.id, false) },
       { type: "divider" },
-      { id: "settings", label: "合集设置", icon: <Settings className="w-3.5 h-3.5" />, onClick: () => openCollectionTab(col.id, col.name) },
+      { id: "settings", label: "合集设置", icon: <Settings className="w-3.5 h-3.5" />, onClick: () => openCollectionPanel(col.id) },
       { id: "rename", label: "重命名", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(col.id, col.name) },
       { id: "export-postman", label: "导出为 Postman", icon: <Download className="w-3.5 h-3.5" />, onClick: () => handleExportPostman(col.id, col.name) },
       { type: "divider" },

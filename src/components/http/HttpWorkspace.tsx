@@ -11,6 +11,7 @@ import { SaveRequestDialog } from "./SaveRequestDialog";
 import { ScriptEditor } from "./ScriptEditor";
 import { CodeEditor } from "@/components/common/CodeEditor";
 import { ResponseViewer } from "@/components/ui/ResponseViewer";
+import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -114,130 +115,137 @@ export function HttpWorkspace() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Top Request Bar Area */}
-      <div className="shrink-0 flex items-center h-10 px-3 border-b border-border-default/65 bg-transparent gap-2">
-        {/* Method Selector */}
-        <div className="relative h-full shrink-0 flex items-center">
-          <button
-            onClick={() => setShowMethods(!showMethods)}
-            className={cn(
-              "flex items-center gap-1 h-8 px-2.5 rounded-md text-[12px] font-bold transition-colors hover:bg-bg-hover",
-              methodTextColor[config.method] || "text-text-primary"
+      <RequestWorkbenchHeader
+        prefix={(
+          <div className="relative h-full shrink-0 flex items-center">
+            <button
+              onClick={() => setShowMethods(!showMethods)}
+              className={cn(
+                "wb-request-prefix gap-2 border-0 bg-gradient-to-r shadow-sm",
+                config.method === "GET" && "from-emerald-500 to-teal-500",
+                config.method === "POST" && "from-amber-500 to-orange-500",
+                config.method === "PUT" && "from-blue-500 to-cyan-500",
+                config.method === "DELETE" && "from-red-500 to-rose-500",
+                config.method === "PATCH" && "from-violet-500 to-fuchsia-500",
+                config.method === "HEAD" && "from-cyan-500 to-sky-500",
+                config.method === "OPTIONS" && "from-slate-500 to-slate-600"
+              )}
+            >
+              <span className="h-2 w-2 rounded-full bg-white/90" />
+              {config.method}
+              <ChevronDown className="w-3 h-3 opacity-70" />
+            </button>
+            {showMethods && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMethods(false)} />
+                <div className="absolute top-full left-0 z-50 mt-2 min-w-[140px] overflow-hidden rounded-[16px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+                  {METHODS.map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => { updateHttpConfig(tabId, { method: m }); setShowMethods(false); }}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 rounded-[12px] px-3 py-2 text-[12px] font-semibold transition-colors hover:bg-bg-hover",
+                        config.method === m ? "bg-bg-hover" : ""
+                      )}
+                    >
+                      <span className={cn("w-[6px] h-[6px] rounded-full shrink-0", methodDotColor[m])} />
+                      <span className={methodTextColor[m] || "text-text-primary"}>{m}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
-          >
-            {config.method}
-            <ChevronDown className="w-3 h-3 opacity-50" />
-          </button>
-          {showMethods && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowMethods(false)} />
-              <div className="absolute top-full left-0 mt-1 z-50 bg-bg-elevated border border-border-default rounded-lg shadow-lg overflow-hidden min-w-[130px] py-1">
-                {METHODS.map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => { updateHttpConfig(tabId, { method: m }); setShowMethods(false); }}
-                    className={cn(
-                      "w-full px-3 py-1.5 flex items-center gap-2.5 text-[12px] font-bold hover:bg-bg-hover transition-colors",
-                      config.method === m ? "bg-bg-hover" : ""
-                    )}
-                  >
-                    <span className={cn("w-[6px] h-[6px] rounded-full shrink-0", methodDotColor[m])} />
-                    <span className={methodTextColor[m] || "text-text-primary"}>{m}</span>
+          </div>
+        )}
+        main={(
+          <div className="relative flex min-w-0 flex-1 items-center gap-3">
+            <span className="wb-request-label">URL</span>
+            <input
+              ref={urlInputRef}
+              value={config.url}
+              onChange={(e) => { updateHttpConfig(tabId, { url: e.target.value }); setUrlHighlight(-1); }}
+              onKeyDown={(e) => {
+                if (urlSuggestions.length > 0) {
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setUrlHighlight(h => (h + 1) % urlSuggestions.length); return; }
+                  if (e.key === 'ArrowUp') { e.preventDefault(); setUrlHighlight(h => (h <= 0 ? urlSuggestions.length - 1 : h - 1)); return; }
+                  if (e.key === 'Enter' && urlHighlight >= 0) { e.preventDefault(); updateHttpConfig(tabId, { url: urlSuggestions[urlHighlight] }); setUrlFocused(false); return; }
+                  if (e.key === 'Escape') { setUrlFocused(false); return; }
+                }
+                if (e.key === 'Enter') handleSend();
+              }}
+              onFocus={() => { setUrlFocused(true); if (urlInputRef.current) urlRectRef.current = urlInputRef.current.getBoundingClientRect(); }}
+              onBlur={() => setTimeout(() => setUrlFocused(false), 150)}
+              placeholder="输入请求 URL，如 https://api.example.com/v1/users"
+              data-url-input
+              className="wb-request-input"
+            />
+            {urlSuggestions.length > 0 && urlFocused && urlRectRef.current && createPortal(
+              <div className="fixed z-[9999] max-h-[220px] overflow-y-auto rounded-[16px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_20px_48px_rgba(15,23,42,0.14)]"
+                style={{ top: (urlRectRef.current.bottom + 2), left: urlRectRef.current.left, width: urlRectRef.current.width }}>
+                {urlSuggestions.map((u, i) => (
+                  <button key={u} onMouseDown={(e) => { e.preventDefault(); updateHttpConfig(tabId, { url: u }); setUrlFocused(false); }}
+                    className={cn("w-full rounded-[12px] px-3 py-2 text-left text-[12px] font-mono truncate transition-colors",
+                      i === urlHighlight ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover")}>
+                    {u}
                   </button>
                 ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="w-[1px] h-4 bg-border-default shrink-0" />
-        
-        {/* URL Input with autocomplete */}
-        <div className="flex-1 relative h-full">
-          <input
-            ref={urlInputRef}
-            value={config.url}
-            onChange={(e) => { updateHttpConfig(tabId, { url: e.target.value }); setUrlHighlight(-1); }}
-            onKeyDown={(e) => {
-              if (urlSuggestions.length > 0) {
-                if (e.key === 'ArrowDown') { e.preventDefault(); setUrlHighlight(h => (h + 1) % urlSuggestions.length); return; }
-                if (e.key === 'ArrowUp') { e.preventDefault(); setUrlHighlight(h => (h <= 0 ? urlSuggestions.length - 1 : h - 1)); return; }
-                if (e.key === 'Enter' && urlHighlight >= 0) { e.preventDefault(); updateHttpConfig(tabId, { url: urlSuggestions[urlHighlight] }); setUrlFocused(false); return; }
-                if (e.key === 'Escape') { setUrlFocused(false); return; }
-              }
-              if (e.key === 'Enter') handleSend();
-            }}
-            onFocus={() => { setUrlFocused(true); if (urlInputRef.current) urlRectRef.current = urlInputRef.current.getBoundingClientRect(); }}
-            onBlur={() => setTimeout(() => setUrlFocused(false), 150)}
-            placeholder="输入请求 URL，如 https://api.example.com/v1/users"
-            data-url-input
-            className="w-full h-full px-2 bg-transparent text-[14px] font-mono text-text-primary outline-none placeholder:text-text-tertiary"
-          />
-          {urlSuggestions.length > 0 && urlFocused && urlRectRef.current && createPortal(
-            <div className="fixed bg-bg-elevated border border-border-default rounded-lg shadow-xl max-h-[220px] overflow-y-auto py-0.5 z-[9999]"
-              style={{ top: (urlRectRef.current.bottom + 2), left: urlRectRef.current.left, width: urlRectRef.current.width }}>
-              {urlSuggestions.map((u, i) => (
-                <button key={u} onMouseDown={(e) => { e.preventDefault(); updateHttpConfig(tabId, { url: u }); setUrlFocused(false); }}
-                  className={cn("w-full px-3 py-1.5 text-left text-[12px] font-mono truncate transition-colors",
-                    i === urlHighlight ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover")}>
-                  {u}
-                </button>
-              ))}
-            </div>, document.body
-          )}
-        </div>
-
-        {/* Save Button */}
-        <button
-          onClick={() => setShowSaveDialog(true)}
-          data-save-button
-          className="h-8 px-2.5 rounded-md flex items-center justify-center gap-1 text-[12px] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors shrink-0"
-          title="保存请求 (Ctrl+S)"
-        >
-          <Save className="w-3.5 h-3.5" />
-        </button>
-        
-        {/* Send Button */}
-        <button
-          onClick={handleSend}
-          disabled={loading || !config.url.trim()}
-          data-send-button
-          className={cn(
-            "h-8 px-4 rounded-md flex items-center justify-center gap-1.5 text-[12px] font-semibold text-white bg-accent transition-all shrink-0",
-            loading ? "opacity-90 cursor-wait shadow-[0_0_12px_rgba(59,130,246,0.6)] animate-pulse" : "hover:bg-accent-hover active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
-          )}
-        >
-          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-white" />}
-          {loading ? "发送中" : "发送"}
-        </button>
-
-          {/* Load Test Button */}
-          <button
-            onClick={async () => {
-              const { pushLoadTestConfig } = await import("@/lib/loadTestBridge");
-              pushLoadTestConfig(config);
-            }}
-            disabled={!config.url.trim()}
-            className="h-8 px-2.5 rounded-md flex items-center justify-center gap-1 text-[12px] font-medium text-text-tertiary hover:bg-rose-500/10 hover:text-rose-600 transition-colors shrink-0 disabled:opacity-40"
-            title="发送到压测"
-          >
-            <Flame className="w-3.5 h-3.5" />
-          </button>
-        </div>
+              </div>, document.body
+            )}
+          </div>
+        )}
+        actions={(
+          <>
+            <div className="wb-request-toolgroup">
+              <button
+                onClick={() => setShowSaveDialog(true)}
+                data-save-button
+                className="wb-icon-btn"
+                title="保存请求 (Ctrl+S)"
+              >
+                <Save className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={async () => {
+                  const { pushLoadTestConfig } = await import("@/lib/loadTestBridge");
+                  pushLoadTestConfig(config);
+                }}
+                disabled={!config.url.trim()}
+                className="wb-icon-btn hover:text-rose-600"
+                title="发送到压测"
+              >
+                <Flame className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <button
+              onClick={handleSend}
+              disabled={loading || !config.url.trim()}
+              data-send-button
+              className={cn(
+                "wb-primary-btn min-w-[96px] bg-accent",
+                loading ? "animate-pulse opacity-90 shadow-[0_0_12px_rgba(59,130,246,0.45)] cursor-wait" : "hover:bg-accent-hover"
+              )}
+            >
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-white" />}
+              {loading ? "发送中" : "发送"}
+            </button>
+          </>
+        )}
+      />
 
       {/* Main Split Area */}
       <div className="flex-1 overflow-hidden">
         <PanelGroup orientation="vertical">
         
         {/* Request Panel */}
-        <Panel minSize="15" defaultSize="50" className="flex flex-col h-full overflow-hidden">
-          <div className="flex items-center px-2 bg-bg-secondary/18 border-b border-border-default/65 shrink-0 overflow-x-auto scrollbar-hide">
+        <Panel minSize="15" defaultSize="50" className="wb-panel flex h-full flex-col overflow-hidden">
+          <div className="wb-tabs shrink-0 scrollbar-hide">
             {reqTabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setReqTab(t.key)}
                 className={cn(
-                  "px-4 py-2.5 text-[13px] font-medium border-b-[2px] transition-colors whitespace-nowrap",
-                  reqTab === t.key ? "text-accent border-accent" : "text-text-tertiary border-transparent hover:text-text-secondary"
+                  "wb-tab",
+                  reqTab === t.key && "wb-tab-active text-accent"
                 )}
               >
                 {t.label}
@@ -251,14 +259,14 @@ export function HttpWorkspace() {
             
             {reqTab === "body" && (
               <div className="p-4 flex flex-col h-full">
-                <div className="flex items-center gap-2 mb-4 shrink-0 bg-bg-secondary/42 p-1 rounded-[14px] w-fit">
+                <div className="wb-segmented mb-4 w-fit shrink-0">
                   {(["none", "json", "raw", "graphql", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
                     <button
                       key={bt}
                       onClick={() => updateHttpConfig(tabId, { bodyType: bt })}
                       className={cn(
-                        "px-3 py-1.5 text-[12px] font-medium rounded-md transition-all",
-                        config.bodyType === bt ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary"
+                        "wb-segment",
+                        config.bodyType === bt && "wb-segment-active"
                       )}
                     >
                       {bt === "none" ? "None" : bt === "formUrlencoded" ? "URL-Encoded" : bt === "formData" ? "Form-Data" : bt === "binary" ? "Binary" : bt === "graphql" ? "GraphQL" : bt.toUpperCase()}
@@ -306,7 +314,7 @@ export function HttpWorkspace() {
                       <select
                         value={config.rawContentType}
                         onChange={(e) => updateHttpConfig(tabId, { rawContentType: e.target.value })}
-                        className="h-7 px-2 text-[12px] bg-bg-input/88 border border-border-default/75 rounded-[12px] text-text-secondary outline-none w-fit"
+                        className="wb-field-sm wb-native-select w-fit min-w-[120px] text-text-secondary"
                       >
                         <option value="text/plain">Text</option>
                         <option value="text/html">HTML</option>
@@ -332,14 +340,14 @@ export function HttpWorkspace() {
             
             {reqTab === "auth" && (
               <div className="p-4">
-                <div className="flex items-center gap-2 mb-4 bg-bg-secondary/42 p-1 rounded-[14px] w-fit flex-wrap">
+                <div className="wb-segmented mb-4 w-fit flex-wrap">
                   {(["none", "bearer", "basic", "apiKey", "oauth2"] as const).map((at) => (
                     <button
                       key={at}
                       onClick={() => updateHttpConfig(tabId, { authType: at })}
                       className={cn(
-                        "px-3 py-1.5 text-[12px] font-medium rounded-md transition-all",
-                        config.authType === at ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary"
+                        "wb-segment",
+                        config.authType === at && "wb-segment-active"
                       )}
                     >
                       {at === "none" ? "No Auth" : at === "bearer" ? "Bearer Token" : at === "basic" ? "Basic Auth" : at === "apiKey" ? "API Key" : "OAuth 2.0"}
@@ -356,7 +364,7 @@ export function HttpWorkspace() {
                         value={config.bearerToken}
                         onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
                         placeholder="ey..."
-                        className="input-field w-full font-mono text-[13px]"
+                        className="wb-field w-full font-mono text-[13px]"
                       />
                     </div>
                   )}
@@ -364,11 +372,11 @@ export function HttpWorkspace() {
                     <div className="space-y-3">
                       <div className="space-y-1.5">
                         <label className="text-[12px] font-medium text-text-secondary">Username</label>
-                        <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="input-field w-full text-[13px]" />
+                        <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full text-[13px]" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[12px] font-medium text-text-secondary">Password</label>
-                        <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type="password" className="input-field w-full text-[13px]" />
+                        <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type="password" className="wb-field w-full text-[13px]" />
                       </div>
                     </div>
                   )}
@@ -376,9 +384,9 @@ export function HttpWorkspace() {
                     <div className="space-y-3">
                       <div className="space-y-1.5">
                         <label className="text-[12px] font-medium text-text-secondary">添加到</label>
-                        <div className="flex items-center gap-2 bg-bg-secondary p-1 rounded-lg w-fit">
+                        <div className="wb-segmented w-fit">
                           {(["header", "query"] as const).map((a) => (
-                            <button key={a} onClick={() => updateHttpConfig(tabId, { apiKeyAddTo: a })} className={cn("px-3 py-1 text-[12px] font-medium rounded-md transition-all", config.apiKeyAddTo === a ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary")}>
+                            <button key={a} onClick={() => updateHttpConfig(tabId, { apiKeyAddTo: a })} className={cn("wb-segment", config.apiKeyAddTo === a && "wb-segment-active")}>
                               {a === "header" ? "Header" : "Query Param"}
                             </button>
                           ))}
@@ -386,11 +394,11 @@ export function HttpWorkspace() {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[12px] font-medium text-text-secondary">Key</label>
-                        <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="input-field w-full font-mono text-[13px]" />
+                        <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono text-[13px]" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[12px] font-medium text-text-secondary">Value</label>
-                        <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} className="input-field w-full font-mono text-[13px]" />
+                        <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} className="wb-field w-full font-mono text-[13px]" />
                       </div>
                     </div>
                   )}
@@ -422,7 +430,7 @@ export function HttpWorkspace() {
         <PanelResizeHandle className="h-[1px] bg-border-default relative shrink-0 cursor-row-resize hover:bg-accent active:bg-accent transition-colors" />
 
         {/* Response Panel */}
-        <Panel minSize="15" defaultSize="50" className="flex flex-col h-full overflow-hidden">
+        <Panel minSize="15" defaultSize="50" className="wb-panel flex h-full flex-col overflow-hidden">
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-[13px] shrink-0 font-medium">
               请求失败: {error}
@@ -456,15 +464,15 @@ export function HttpWorkspace() {
                   ) : null}
                 </div>
               )}
-              <div className="flex items-center justify-between px-2 bg-bg-secondary/40 border-b border-border-default shrink-0">
-                <div className="flex items-center overflow-x-auto scrollbar-hide">
+              <div className="wb-panel-header shrink-0">
+                <div className="min-w-0 flex flex-1 items-center overflow-x-auto scrollbar-hide">
                   {(["pretty", "raw", "headers", "cookies", "timing"] as const).map((t) => (
                     <button
                       key={t}
                       onClick={() => setResTab(t)}
                       className={cn(
-                        "px-4 py-2.5 text-[13px] font-medium border-b-[2px] transition-colors whitespace-nowrap",
-                        resTab === t ? "text-accent border-accent" : "text-text-tertiary border-transparent hover:text-text-secondary"
+                        "wb-tab",
+                        resTab === t && "wb-tab-active text-accent"
                       )}
                     >
                       {t === "pretty" ? "JSON Format" : t === "raw" ? "Raw" : t === "headers" ? "响应头" : t === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}` : "时序"}
@@ -472,8 +480,8 @@ export function HttpWorkspace() {
                   ))}
                 </div>
                 
-                <div className="flex items-center gap-4 text-[12px] px-3">
-                  <span className={cn("font-bold px-2 py-0.5 rounded-md", response.status < 400 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400")}>
+                <div className="flex shrink-0 flex-wrap items-center gap-2 text-[12px]">
+                  <span className={cn("wb-status-chip font-semibold", response.status < 400 ? "text-emerald-600" : "text-red-500")}>
                     {response.status} {response.statusText}
                   </span>
                   <span className="text-text-secondary font-mono">{response.durationMs}ms</span>
@@ -483,7 +491,7 @@ export function HttpWorkspace() {
                   
                   <button
                     onClick={handleCopy}
-                    className="flex items-center justify-center w-7 h-7 rounded-md text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                    className="wb-icon-btn h-8 w-8"
                     title="复制响应内容"
                   >
                     {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
@@ -705,18 +713,29 @@ function KVEditor({ items, onChange, kp, vp, showPresets }: {
     else if (e.key === "Escape") { e.preventDefault(); onCls(); setHighlightIdx(-1); }
   };
 
-  const cellInput = "w-full h-[30px] px-2 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled";
+  const cellInput = "w-full h-8 px-2 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled";
 
   return (
     <div className="w-full">
       <table className="w-full border-collapse">
         <thead>
-          <tr className="text-[10px] font-semibold text-text-disabled uppercase tracking-wider">
-            <th className="w-7 p-0" />
-            <th className="text-left font-semibold px-2 pb-0.5">{kp}</th>
-            <th className="text-left font-semibold px-2 pb-0.5">{vp}</th>
-            <th className="text-left font-semibold px-2 pb-0.5">Description</th>
-            <th className="w-6 p-0" />
+          <tr className="h-[28px] bg-bg-tertiary text-[10px] font-semibold text-text-tertiary uppercase tracking-wider border border-border-default">
+            <th className="w-7 border-r border-border-default">
+              <input
+                type="checkbox"
+                checked={safe.length > 0 && safe.every(item => item.enabled)}
+                onChange={() => {
+                  const allEnabled = safe.every(item => item.enabled);
+                  onChange(safe.map(item => ({ ...item, enabled: !allEnabled })));
+                }}
+                className="w-3 h-3 rounded accent-accent cursor-pointer"
+                title={safe.every(item => item.enabled) ? "取消全选" : "全选"}
+              />
+            </th>
+            <th className="text-left font-semibold px-2">{kp}</th>
+            <th className="text-left font-semibold px-2 border-l border-border-default">{vp}</th>
+            <th className="text-left font-semibold px-2 border-l border-border-default">Description</th>
+            <th className="w-6 border-l border-border-default" />
           </tr>
         </thead>
         <tbody>
@@ -850,12 +869,23 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
     <div className="w-full">
       <table className="w-full border-collapse">
         <thead>
-          <tr className="text-[10px] font-semibold text-text-disabled uppercase tracking-wider">
-            <th className="w-7 p-0" />
-            <th className="w-16 text-left font-semibold px-2 pb-0.5">类型</th>
-            <th className="text-left font-semibold px-2 pb-0.5">Key</th>
-            <th className="text-left font-semibold px-2 pb-0.5">Value</th>
-            <th className="w-6 p-0" />
+          <tr className="h-[28px] bg-bg-tertiary text-[10px] font-semibold text-text-tertiary uppercase tracking-wider border border-border-default">
+            <th className="w-7 border-r border-border-default">
+              <input
+                type="checkbox"
+                checked={safe.length > 0 && safe.every(f => f.enabled)}
+                onChange={() => {
+                  const allEnabled = safe.every(f => f.enabled);
+                  onChange(safe.map(f => ({ ...f, enabled: !allEnabled })));
+                }}
+                className="w-3 h-3 rounded accent-accent cursor-pointer"
+                title={safe.every(f => f.enabled) ? "取消全选" : "全选"}
+              />
+            </th>
+            <th className="w-16 text-left font-semibold px-2">类型</th>
+            <th className="text-left font-semibold px-2 border-l border-border-default">Key</th>
+            <th className="text-left font-semibold px-2 border-l border-border-default">Value</th>
+            <th className="w-6 border-l border-border-default" />
           </tr>
         </thead>
         <tbody>
@@ -906,13 +936,64 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
 
 /* ── OAuth 2.0 Panel ── */
 function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (updates: Partial<OAuth2Config>) => void }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tokenMeta, setTokenMeta] = useState<{ tokenType?: string; expiresIn?: number; scope?: string } | null>(null);
+
+  const canFetchToken = config.accessTokenUrl && config.clientId && (
+    config.grantType === "client_credentials" ||
+    (config.grantType === "password" && config.username) ||
+    config.grantType === "authorization_code"
+  );
+
+  const handleFetchToken = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const result = await invoke<{
+        accessToken: string;
+        tokenType?: string;
+        expiresIn?: number;
+        refreshToken?: string;
+        scope?: string;
+      }>("fetch_oauth2_token", {
+        req: {
+          grantType: config.grantType,
+          accessTokenUrl: config.accessTokenUrl,
+          clientId: config.clientId,
+          clientSecret: config.clientSecret,
+          scope: config.scope || null,
+          username: config.username || null,
+          password: config.password || null,
+          code: null,
+          redirectUri: config.redirectUri || null,
+        },
+      });
+      onChange({ accessToken: result.accessToken });
+      setTokenMeta({
+        tokenType: result.tokenType,
+        expiresIn: result.expiresIn,
+        scope: result.scope,
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
         <label className="text-[12px] font-medium text-text-secondary">授权类型</label>
-        <div className="flex items-center gap-2 bg-bg-secondary p-1 rounded-lg w-fit">
+        <div className="wb-segmented w-fit">
           {(["client_credentials", "authorization_code", "password"] as const).map((gt) => (
-            <button key={gt} onClick={() => onChange({ grantType: gt })} className={cn("px-3 py-1 text-[12px] font-medium rounded-md transition-all", config.grantType === gt ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary")}>
+            <button
+              key={gt}
+              onClick={() => { onChange({ grantType: gt }); setError(null); setTokenMeta(null); }}
+              className={cn("wb-segment", config.grantType === gt && "wb-segment-active")}
+            >
               {gt === "client_credentials" ? "Client Credentials" : gt === "authorization_code" ? "Authorization Code" : "Password"}
             </button>
           ))}
@@ -920,27 +1001,27 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
       </div>
       <div className="space-y-1.5">
         <label className="text-[12px] font-medium text-text-secondary">Access Token URL</label>
-        <input value={config.accessTokenUrl} onChange={(e) => onChange({ accessTokenUrl: e.target.value })} placeholder="https://auth.example.com/oauth/token" className="input-field w-full font-mono text-[13px]" />
+        <input value={config.accessTokenUrl} onChange={(e) => onChange({ accessTokenUrl: e.target.value })} placeholder="https://auth.example.com/oauth/token" className="wb-field w-full font-mono text-[13px]" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <label className="text-[12px] font-medium text-text-secondary">Client ID</label>
-          <input value={config.clientId} onChange={(e) => onChange({ clientId: e.target.value })} className="input-field w-full font-mono text-[13px]" />
+          <input value={config.clientId} onChange={(e) => onChange({ clientId: e.target.value })} className="wb-field w-full font-mono text-[13px]" />
         </div>
         <div className="space-y-1.5">
           <label className="text-[12px] font-medium text-text-secondary">Client Secret</label>
-          <input value={config.clientSecret} onChange={(e) => onChange({ clientSecret: e.target.value })} type="password" className="input-field w-full font-mono text-[13px]" />
+          <input value={config.clientSecret} onChange={(e) => onChange({ clientSecret: e.target.value })} type="password" className="wb-field w-full font-mono text-[13px]" />
         </div>
       </div>
       {config.grantType === "authorization_code" && (
         <>
           <div className="space-y-1.5">
             <label className="text-[12px] font-medium text-text-secondary">Auth URL</label>
-            <input value={config.authUrl} onChange={(e) => onChange({ authUrl: e.target.value })} placeholder="https://auth.example.com/authorize" className="input-field w-full font-mono text-[13px]" />
+            <input value={config.authUrl} onChange={(e) => onChange({ authUrl: e.target.value })} placeholder="https://auth.example.com/authorize" className="wb-field w-full font-mono text-[13px]" />
           </div>
           <div className="space-y-1.5">
             <label className="text-[12px] font-medium text-text-secondary">Redirect URI</label>
-            <input value={config.redirectUri} onChange={(e) => onChange({ redirectUri: e.target.value })} className="input-field w-full font-mono text-[13px]" />
+            <input value={config.redirectUri} onChange={(e) => onChange({ redirectUri: e.target.value })} className="wb-field w-full font-mono text-[13px]" />
           </div>
         </>
       )}
@@ -948,22 +1029,52 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label className="text-[12px] font-medium text-text-secondary">Username</label>
-            <input value={config.username} onChange={(e) => onChange({ username: e.target.value })} className="input-field w-full text-[13px]" />
+            <input value={config.username} onChange={(e) => onChange({ username: e.target.value })} className="wb-field w-full text-[13px]" />
           </div>
           <div className="space-y-1.5">
             <label className="text-[12px] font-medium text-text-secondary">Password</label>
-            <input value={config.password} onChange={(e) => onChange({ password: e.target.value })} type="password" className="input-field w-full text-[13px]" />
+            <input value={config.password} onChange={(e) => onChange({ password: e.target.value })} type="password" className="wb-field w-full text-[13px]" />
           </div>
         </div>
       )}
       <div className="space-y-1.5">
         <label className="text-[12px] font-medium text-text-secondary">Scope</label>
-        <input value={config.scope} onChange={(e) => onChange({ scope: e.target.value })} placeholder="read write" className="input-field w-full font-mono text-[13px]" />
+        <input value={config.scope} onChange={(e) => onChange({ scope: e.target.value })} placeholder="read write" className="wb-field w-full font-mono text-[13px]" />
       </div>
+
+      {/* Get Token + Access Token */}
       <div className="pt-2 border-t border-border-default">
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            onClick={handleFetchToken}
+            disabled={loading || !canFetchToken}
+            className={cn(
+              "px-4 py-2 text-[12px] font-semibold rounded-lg transition-all",
+              loading
+                ? "bg-amber-400 text-white cursor-wait"
+                : canFetchToken
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm"
+                  : "bg-bg-tertiary text-text-disabled cursor-not-allowed"
+            )}
+          >
+            {loading ? "获取中..." : "获取 Token"}
+          </button>
+          {tokenMeta && (
+            <div className="flex items-center gap-2 text-[11px] text-text-tertiary">
+              {tokenMeta.tokenType && <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded text-[10px] font-medium">{tokenMeta.tokenType}</span>}
+              {tokenMeta.expiresIn && <span>有效期 {tokenMeta.expiresIn}s</span>}
+              {tokenMeta.scope && <span>scope: {tokenMeta.scope}</span>}
+            </div>
+          )}
+        </div>
+        {error && (
+          <div className="mb-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-[12px] text-red-600 dark:text-red-400 break-all">
+            {error}
+          </div>
+        )}
         <div className="space-y-1.5">
-          <label className="text-[12px] font-medium text-text-secondary">Access Token (手动填写或粘贴已获取的 token)</label>
-          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder="粘贴 token 后将以 Bearer 方式发送" className="input-field w-full font-mono text-[12px]" />
+          <label className="text-[12px] font-medium text-text-secondary">Access Token</label>
+          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder="点击「获取 Token」自动填入，或手动粘贴" className="wb-field w-full font-mono text-[12px]" />
         </div>
       </div>
     </div>

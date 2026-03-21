@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
 import { InlineJsonViewer } from "@/components/ui/ResponseViewer";
 import type { WsMessage, WsEvent } from "@/types/ws";
+import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 
 interface KVItem { key: string; value: string; enabled: boolean }
 
@@ -24,6 +25,7 @@ export function WsWorkspace() {
   const [heartbeatEnabled, setHeartbeatEnabled] = useState(false);
   const [heartbeatInterval, setHeartbeatInterval] = useState(30);
   const [heartbeatMsg, setHeartbeatMsg] = useState("ping");
+  const [reconnectCount, setReconnectCount] = useState(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -70,6 +72,7 @@ export function WsWorkspace() {
           case "connected":
             setConnected(true);
             setConnecting(false);
+            setReconnectCount(0); // 连接成功后重置重连计数
             if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
             break;
           case "message":
@@ -85,8 +88,9 @@ export function WsWorkspace() {
           case "disconnected":
             setConnected(false);
             setConnecting(false);
-            // 自动重连
-            if (autoReconnect && !reconnectTimerRef.current) {
+            // 仅在非正常断开时自动重连（error 或 server_close）
+            if (autoReconnect && event.reason !== "normal" && !reconnectTimerRef.current) {
+              setReconnectCount((prev) => prev + 1);
               reconnectTimerRef.current = setTimeout(() => {
                 reconnectTimerRef.current = null;
                 doConnect();
@@ -196,56 +200,66 @@ export function WsWorkspace() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Top Connection Bar */}
-      <div className="shrink-0 px-3 pb-2 pt-3">
-        <div className="flex h-11 items-center rounded-[16px] border border-border-default/75 bg-bg-primary/82 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
-          <div className="relative h-full shrink-0">
-            <div className="flex items-center justify-center gap-1.5 h-full px-4 rounded-[var(--radius-md)] text-[13px] font-bold text-white bg-amber-500 min-w-[90px] shadow-sm">
-              <Zap className="w-3.5 h-3.5" /> WS
-            </div>
+      <RequestWorkbenchHeader
+        prefix={(
+          <div className="wb-request-prefix bg-gradient-to-r from-amber-500 to-orange-500">
+            <Zap className="w-3.5 h-3.5" /> WebSocket
           </div>
-          <input
-            value={url}
-            onChange={(e) => updateTab(activeTab.id, { wsUrl: e.target.value })}
-            onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-            placeholder="输入 WebSocket 地址，如 ws://localhost:8080/ws"
-            disabled={connected}
-            className="flex-1 h-full px-4 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary disabled:opacity-60"
-          />
-          {/* Settings toggle */}
-          <button onClick={() => setShowHeaders(!showHeaders)} className={cn("mr-1 flex h-8 w-8 items-center justify-center rounded-[12px] transition-colors", showHeaders ? "bg-amber-500/10 text-amber-600" : "text-text-tertiary hover:bg-bg-hover")} title="连接设置">
-            <Settings2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={handleConnect}
-            disabled={connecting}
-            className={cn(
-              "h-full px-6 rounded-[var(--radius-md)] flex items-center gap-2 text-[13px] font-semibold text-white ml-1 shrink-0 transition-all",
-              connected ? "bg-red-500 hover:bg-red-600" : connecting ? "bg-amber-400 cursor-wait" : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-            )}
-          >
-            {connected ? <X className="w-4 h-4" /> : <Plug className="w-4 h-4" />}
-            {connected ? "断开" : connecting ? "连接中..." : "连接"}
-          </button>
-        </div>
+        )}
+        main={(
+          <>
+            <span className="wb-request-label">WS</span>
+            <input
+              value={url}
+              onChange={(e) => updateTab(activeTab.id, { wsUrl: e.target.value })}
+              onKeyDown={(e) => e.key === "Enter" && handleConnect()}
+              placeholder="输入 WebSocket 地址，如 ws://localhost:8080/ws"
+              disabled={connected}
+              className="wb-request-input disabled:opacity-60"
+            />
+          </>
+        )}
+        actions={(
+          <>
+            <div className="wb-request-toolgroup">
+              <button onClick={() => setShowHeaders(!showHeaders)} className={cn("wb-icon-btn", showHeaders && "bg-amber-500/10 text-amber-600 border-amber-200")} title="连接设置">
+                <Settings2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <button
+              onClick={handleConnect}
+              disabled={connecting}
+              className={cn(
+                "wb-primary-btn min-w-[96px]",
+                connected ? "bg-red-500 hover:bg-red-600" : connecting ? "bg-amber-400 cursor-wait" : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              )}
+            >
+              {connected ? <X className="w-4 h-4" /> : <Plug className="w-4 h-4" />}
+              {connected ? "断开" : connecting ? "连接中..." : "连接"}
+            </button>
+          </>
+        )}
+      />
 
-        {/* Headers / Settings Panel */}
-        {showHeaders && (
-          <div className="mt-2 space-y-3 rounded-[16px] border border-border-default/75 bg-bg-primary/82 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
+      {/* Headers / Settings Panel */}
+      {showHeaders && (
+        <div className="shrink-0 px-3 pb-2">
+          <div className="wb-subpanel space-y-3 p-3">
             <div>
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="mb-1.5 flex items-center justify-between gap-3">
                 <h4 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider">自定义 Headers</h4>
                 <button onClick={addHeader} className="text-[10px] text-accent hover:underline">+ 添加</button>
               </div>
               {headers.map((h, i) => (
-                <div key={i} className="flex items-center gap-1.5 mb-1">
+                <div key={i} className="mb-1 flex items-center gap-2">
                   <input type="checkbox" checked={h.enabled} onChange={() => { const c = [...headers]; c[i].enabled = !c[i].enabled; setHeaders(c); }} className="accent-accent" />
-                  <input value={h.key} onChange={(e) => { const c = [...headers]; c[i].key = e.target.value; setHeaders(c); }} placeholder="Key" className="flex-1 h-7 px-2 text-[11px] bg-bg-input border border-border-default rounded text-text-primary outline-none" />
-                  <input value={h.value} onChange={(e) => { const c = [...headers]; c[i].value = e.target.value; setHeaders(c); }} placeholder="Value" className="flex-1 h-7 px-2 text-[11px] bg-bg-input border border-border-default rounded text-text-primary outline-none" />
-                  <button onClick={() => removeHeader(i)} className="text-text-disabled hover:text-red-500 p-0.5"><X className="w-3 h-3" /></button>
+                  <input value={h.key} onChange={(e) => { const c = [...headers]; c[i].key = e.target.value; setHeaders(c); }} placeholder="Key" className="wb-field-sm min-w-0 flex-1" />
+                  <input value={h.value} onChange={(e) => { const c = [...headers]; c[i].value = e.target.value; setHeaders(c); }} placeholder="Value" className="wb-field-sm min-w-0 flex-1" />
+                  <button onClick={() => removeHeader(i)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"><X className="w-3 h-3" /></button>
                 </div>
               ))}
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <label className="flex items-center gap-1.5 text-[11px] text-text-secondary cursor-pointer">
                 <input type="checkbox" checked={autoReconnect} onChange={() => setAutoReconnect(!autoReconnect)} className="accent-accent" />
                 <RefreshCw className="w-3 h-3" /> 自动重连
@@ -256,42 +270,42 @@ export function WsWorkspace() {
               </label>
               {heartbeatEnabled && (
                 <>
-                  <input value={heartbeatInterval} onChange={(e) => setHeartbeatInterval(Math.max(1, parseInt(e.target.value) || 30))} className="w-12 h-6 px-1 text-[10px] text-center bg-bg-input border border-border-default rounded text-text-primary" />
+                  <input value={heartbeatInterval} onChange={(e) => setHeartbeatInterval(Math.max(1, parseInt(e.target.value) || 30))} className="wb-field-sm w-14 text-center" />
                   <span className="text-[10px] text-text-disabled">秒</span>
-                  <input value={heartbeatMsg} onChange={(e) => setHeartbeatMsg(e.target.value)} className="w-20 h-6 px-1 text-[10px] bg-bg-input border border-border-default rounded text-text-primary" placeholder="ping" />
+                  <input value={heartbeatMsg} onChange={(e) => setHeartbeatMsg(e.target.value)} className="wb-field-sm w-24" placeholder="ping" />
                 </>
               )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col overflow-hidden px-3 pb-3 pt-2">
-        <div className="panel flex flex-1 flex-col overflow-hidden rounded-[18px] border border-border-default/75 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
+        <div className="wb-panel flex flex-1 flex-col overflow-hidden">
           {/* Status Header with search */}
-          <div className="flex shrink-0 items-center justify-between border-b border-border-default/70 bg-bg-secondary/24 px-4 py-2.5">
-            <div className="flex items-center gap-2">
+          <div className="wb-panel-header shrink-0">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               <div className={cn("w-2 h-2 rounded-full transition-colors", connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-text-disabled")} />
               <span className="text-[13px] font-medium text-text-secondary">
-                {connected ? "已连接" : connecting ? "连接中..." : autoReconnect ? "等待重连..." : "未连接"}
+                {connected ? "已连接" : connecting ? "连接中..." : autoReconnect && reconnectCount > 0 ? `等待重连... (第 ${reconnectCount} 次)` : autoReconnect ? "等待重连..." : "未连接"}
               </span>
               {messages.length > 0 && <span className="text-[11px] text-text-tertiary ml-2">{filteredMessages.length}/{messages.length} 条</span>}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
               {/* 搜索框 */}
-              <div className="flex items-center gap-1 px-2 h-7 bg-bg-input border border-border-default rounded-md">
+              <div className="wb-search w-[220px] max-w-full">
                 <Search className="w-3 h-3 text-text-disabled" />
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索消息..." className="w-28 text-[11px] bg-transparent outline-none text-text-primary placeholder:text-text-disabled" />
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜索消息..." className="min-w-0 flex-1" />
                 {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3 h-3" /></button>}
               </div>
               {!autoScroll && messages.length > 0 && (
-                <button onClick={() => { setAutoScroll(true); messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }} className="flex items-center gap-1 px-2 py-1 text-[11px] text-accent hover:bg-accent-soft rounded-md">
+                <button onClick={() => { setAutoScroll(true); messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }} className="wb-ghost-btn h-8 px-2.5 text-[11px] text-accent">
                   <ArrowDown className="w-3 h-3" /> 底部
                 </button>
               )}
               {messages.length > 0 && (
-                <button onClick={() => setMessages([])} className="flex items-center gap-1 px-2 py-1 text-[11px] text-text-tertiary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md" title="清空"><Trash2 className="w-3 h-3" /></button>
+                <button onClick={() => setMessages([])} className="wb-icon-btn h-8 w-8 hover:text-red-500" title="清空"><Trash2 className="w-3 h-3" /></button>
               )}
             </div>
           </div>
@@ -342,11 +356,11 @@ export function WsWorkspace() {
           </div>
 
           {/* Input Bar */}
-          <div className="shrink-0 border-t border-border-default/70 bg-bg-secondary/18 p-3">
-            <div className="flex items-end gap-2">
+          <div className="shrink-0 border-t border-border-default/70 bg-bg-secondary/18 p-2.5">
+            <div className="flex items-stretch gap-2">
               {/* Send mode toggle */}
-              <div className="flex flex-col gap-1 shrink-0">
-                <button onClick={() => setSendMode(sendMode === "text" ? "binary" : "text")} className={cn("h-7 px-2 text-[10px] font-semibold rounded border transition-colors", sendMode === "binary" ? "bg-violet-500/10 text-violet-600 border-violet-300" : "bg-bg-hover text-text-tertiary border-border-default")}>
+              <div className="flex shrink-0 flex-col gap-1">
+                <button onClick={() => setSendMode(sendMode === "text" ? "binary" : "text")} className={cn("wb-field-sm h-[44px] min-w-[68px] px-3 font-semibold", sendMode === "binary" ? "border-violet-300 bg-violet-500/10 text-violet-600" : "text-text-tertiary")}>
                   {sendMode === "text" ? "TEXT" : "HEX"}
                 </button>
               </div>
@@ -356,12 +370,12 @@ export function WsWorkspace() {
                 onKeyDown={handleKeyDown}
                 placeholder={sendMode === "binary" ? "输入十六进制字节，如 48 65 6C 6C 6F" : "输入消息内容... (Enter 发送, Shift+Enter 换行)"}
                 disabled={!connected}
-                className="flex-1 max-h-[120px] min-h-[44px] h-[44px] p-3 text-[13px] font-mono bg-bg-input border border-border-default rounded-xl focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all outline-none resize-y disabled:opacity-50 disabled:cursor-not-allowed"
+                className="wb-textarea flex-1 max-h-[120px] min-h-[44px] h-[44px] focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 onClick={handleSend}
                 disabled={!connected || !message.trim()}
-                className="h-[44px] px-5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center gap-1.5 text-[13px] font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95 shrink-0"
+                className="wb-primary-btn h-[44px] min-w-[90px] bg-amber-500 hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <SendIcon className="w-4 h-4" /> 发送
               </button>

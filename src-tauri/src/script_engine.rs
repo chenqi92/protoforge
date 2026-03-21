@@ -281,3 +281,306 @@ fn run_script_internal(
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ═══════════════════════════════════════════
+    //  console.log 测试
+    // ═══════════════════════════════════════════
+
+    #[test]
+    fn test_console_log_capture() {
+        let result = run_pre_script(
+            r#"console.log("hello"); console.log("world", 42);"#,
+            &HashMap::new(),
+        );
+        assert!(result.success);
+        assert_eq!(result.logs.len(), 2);
+        assert_eq!(result.logs[0], "hello");
+        assert!(result.logs[1].contains("world"));
+        assert!(result.logs[1].contains("42"));
+    }
+
+    // ═══════════════════════════════════════════
+    //  pm.environment 测试
+    // ═══════════════════════════════════════════
+
+    #[test]
+    fn test_pm_env_set() {
+        let result = run_pre_script(
+            r#"pm.environment.set("token", "abc123");"#,
+            &HashMap::new(),
+        );
+        assert!(result.success);
+        assert_eq!(result.env_updates.get("token"), Some(&"abc123".to_string()));
+    }
+
+    #[test]
+    fn test_pm_env_get_existing() {
+        let mut env = HashMap::new();
+        env.insert("baseUrl".to_string(), "https://api.example.com".to_string());
+
+        let result = run_pre_script(
+            r#"console.log(pm.environment.get("baseUrl"));"#,
+            &env,
+        );
+        assert!(result.success);
+        assert_eq!(result.logs[0], "https://api.example.com");
+    }
+
+    #[test]
+    fn test_pm_env_get_undefined() {
+        let result = run_pre_script(
+            r#"console.log(pm.environment.get("nonexistent"));"#,
+            &HashMap::new(),
+        );
+        assert!(result.success);
+        assert_eq!(result.logs[0], "undefined");
+    }
+
+    #[test]
+    fn test_pm_env_set_then_get() {
+        let result = run_pre_script(
+            r#"
+            pm.environment.set("myKey", "myValue");
+            console.log(pm.environment.get("myKey"));
+            "#,
+            &HashMap::new(),
+        );
+        assert!(result.success);
+        assert_eq!(result.logs[0], "myValue");
+    }
+
+    // ═══════════════════════════════════════════
+    //  pm.test 测试
+    // ═══════════════════════════════════════════
+
+    #[test]
+    fn test_pm_test_passing() {
+        let resp = ScriptResponse {
+            status: 200,
+            status_text: "OK".into(),
+            body: "{}".into(),
+            headers: vec![],
+            duration_ms: 100,
+        };
+        let result = run_post_script(
+            r#"
+            pm.test("Status is 200", function() {
+                if (pm.response.status !== 200) throw new Error("bad status");
+            });
+            "#,
+            &HashMap::new(),
+            &resp,
+        );
+        assert!(result.success);
+        assert_eq!(result.test_results.len(), 1);
+        assert!(result.test_results[0].passed);
+        assert_eq!(result.test_results[0].name, "Status is 200");
+    }
+
+    #[test]
+    fn test_pm_test_failing() {
+        let resp = ScriptResponse {
+            status: 404,
+            status_text: "Not Found".into(),
+            body: "{}".into(),
+            headers: vec![],
+            duration_ms: 50,
+        };
+        let result = run_post_script(
+            r#"
+            pm.test("Status is 200", function() {
+                if (pm.response.status !== 200) throw new Error("expected 200");
+            });
+            "#,
+            &HashMap::new(),
+            &resp,
+        );
+        assert!(result.success); // 脚本本身没有错误
+        assert_eq!(result.test_results.len(), 1);
+        assert!(!result.test_results[0].passed);
+        assert!(result.test_results[0].error.is_some());
+    }
+
+    #[test]
+    fn test_pm_test_multiple() {
+        let resp = ScriptResponse {
+            status: 200,
+            status_text: "OK".into(),
+            body: r#"{"name":"test"}"#.into(),
+            headers: vec![("content-type".into(), "application/json".into())],
+            duration_ms: 100,
+        };
+        let result = run_post_script(
+            r#"
+            pm.test("Status check", function() {
+                if (pm.response.status !== 200) throw new Error("bad");
+            });
+            pm.test("Body check", function() {
+                if (pm.response.body.length === 0) throw new Error("empty");
+            });
+            pm.test("Duration check", function() {
+                if (pm.response.durationMs > 5000) throw new Error("too slow");
+            });
+            "#,
+            &HashMap::new(),
+            &resp,
+        );
+        assert!(result.success);
+        assert_eq!(result.test_results.len(), 3);
+        assert!(result.test_results.iter().all(|t| t.passed));
+    }
+
+    // ═══════════════════════════════════════════
+    //  pm.response 测试
+    // ═══════════════════════════════════════════
+
+    #[test]
+    fn test_pm_response_json() {
+        let resp = ScriptResponse {
+            status: 200,
+            status_text: "OK".into(),
+            body: r#"{"key":"value","number":42}"#.into(),
+            headers: vec![],
+            duration_ms: 100,
+        };
+        let result = run_post_script(
+            r#"
+            var data = pm.response.json();
+            console.log(data.key);
+            console.log(data.number);
+            "#,
+            &HashMap::new(),
+            &resp,
+        );
+        assert!(result.success);
+        assert_eq!(result.logs[0], "value");
+        assert_eq!(result.logs[1], "42");
+    }
+
+    #[test]
+    fn test_pm_response_status_text() {
+        let resp = ScriptResponse {
+            status: 201,
+            status_text: "Created".into(),
+            body: "{}".into(),
+            headers: vec![],
+            duration_ms: 50,
+        };
+        let result = run_post_script(
+            r#"
+            console.log(pm.response.status);
+            console.log(pm.response.statusText);
+            "#,
+            &HashMap::new(),
+            &resp,
+        );
+        assert!(result.success);
+        assert_eq!(result.logs[0], "201");
+        assert_eq!(result.logs[1], "Created");
+    }
+
+    #[test]
+    fn test_pm_response_headers() {
+        let resp = ScriptResponse {
+            status: 200,
+            status_text: "OK".into(),
+            body: "{}".into(),
+            headers: vec![
+                ("content-type".into(), "application/json".into()),
+                ("x-custom".into(), "myvalue".into()),
+            ],
+            duration_ms: 100,
+        };
+        let result = run_post_script(
+            r#"
+            console.log(pm.response.headers.length);
+            console.log(pm.response.headers[0].key);
+            console.log(pm.response.headers[0].value);
+            "#,
+            &HashMap::new(),
+            &resp,
+        );
+        assert!(result.success);
+        assert_eq!(result.logs[0], "2");
+        assert_eq!(result.logs[1], "content-type");
+        assert_eq!(result.logs[2], "application/json");
+    }
+
+    // ═══════════════════════════════════════════
+    //  错误处理测试
+    // ═══════════════════════════════════════════
+
+    #[test]
+    fn test_syntax_error() {
+        let result = run_pre_script(
+            "this is not valid javascript %%%",
+            &HashMap::new(),
+        );
+        assert!(!result.success);
+        assert!(result.error.is_some());
+    }
+
+    #[test]
+    fn test_empty_script() {
+        let result = run_pre_script("", &HashMap::new());
+        assert!(result.success);
+        assert!(result.logs.is_empty());
+        assert!(result.test_results.is_empty());
+    }
+
+    #[test]
+    fn test_whitespace_only_script() {
+        let result = run_pre_script("   \n\t  ", &HashMap::new());
+        assert!(result.success);
+    }
+
+    // ═══════════════════════════════════════════
+    //  前后置脚本环境变量传递测试
+    // ═══════════════════════════════════════════
+
+    #[test]
+    fn test_env_propagation_pre_to_post() {
+        let env = HashMap::new();
+
+        // 前置脚本设置变量
+        let pre_result = run_pre_script(
+            r#"pm.environment.set("token", "generated-token-123");"#,
+            &env,
+        );
+        assert!(pre_result.success);
+
+        // 模拟合并环境变量（这是 execute_request_with_scripts 的逻辑）
+        let mut merged_env = env.clone();
+        for (k, v) in &pre_result.env_updates {
+            merged_env.insert(k.clone(), v.clone());
+        }
+
+        // 后置脚本应能读到前置脚本设置的变量
+        let resp = ScriptResponse {
+            status: 200,
+            status_text: "OK".into(),
+            body: "{}".into(),
+            headers: vec![],
+            duration_ms: 100,
+        };
+        let post_result = run_post_script(
+            r#"
+            var token = pm.environment.get("token");
+            console.log(token);
+            pm.test("Token exists", function() {
+                if (token !== "generated-token-123") throw new Error("token mismatch");
+            });
+            "#,
+            &merged_env,
+            &resp,
+        );
+        assert!(post_result.success);
+        assert_eq!(post_result.logs[0], "generated-token-123");
+        assert!(post_result.test_results[0].passed);
+    }
+}
+

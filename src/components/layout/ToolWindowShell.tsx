@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { ArrowLeftToLine } from "lucide-react";
-import logoSvg from "@/assets/logo.svg";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { WindowScaffold } from "@/components/layout/WindowScaffold";
 import { useSettingsEffect } from "@/hooks/useSettingsEffect";
+import { useWindowFrameGestures } from "@/hooks/useWindowFrameGestures";
 import { cn } from "@/lib/utils";
 import { requestDockTool } from "@/lib/toolDocking";
 import { focusMainWindow, type ToolWindowType } from "@/lib/windowManager";
@@ -27,32 +27,26 @@ export function ToolWindowShell({
   badgeLabel,
 }: ToolWindowShellProps) {
   useSettingsEffect();
+  const frameGestures = useWindowFrameGestures();
 
   return (
     <WindowScaffold
       header={(
-        <div className="relative flex h-[var(--titlebar-height)] shrink-0 items-center justify-between gap-3 border-b border-border-default/70 bg-bg-primary/80 px-3 backdrop-blur-md drag-region select-none">
+        <div
+          {...frameGestures}
+          className="relative flex h-[var(--titlebar-height)] shrink-0 items-center justify-between gap-3 border-b border-border-default/70 bg-bg-primary/80 px-3 backdrop-blur-md select-none"
+        >
           {/* macOS 交通灯按钮占位区域 */}
           <div className="w-[70px] shrink-0" />
 
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_10px_25px_rgba(37,99,235,0.25)]">
-              <img src={logoSvg} alt="ProtoForge" className="h-5 w-5 rounded-[6px]" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">
-                  ProtoForge
-                </span>
-                <span
-                  className={cn(
-                    "h-2 w-2 rounded-full shadow-[0_0_0_4px_rgba(255,255,255,0.8)] dark:shadow-[0_0_0_4px_rgba(18,18,20,0.9)]",
-                    accentClassName
-                  )}
-                />
-              </div>
-              <div className="truncate text-[13px] font-semibold text-text-primary">{title}</div>
-            </div>
+            <span
+              className={cn(
+                "h-2.5 w-2.5 rounded-full shadow-[0_0_0_4px_rgba(255,255,255,0.8)] dark:shadow-[0_0_0_4px_rgba(18,18,20,0.9)]",
+                accentClassName
+              )}
+            />
+            <div className="truncate text-[13px] font-semibold text-text-primary">{title}</div>
           </div>
 
           <div className="flex-1" />

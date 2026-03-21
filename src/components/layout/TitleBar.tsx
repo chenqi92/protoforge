@@ -1,67 +1,189 @@
-import { Sun, Moon, Monitor, Gauge, Radio, Puzzle, Settings, Network } from "lucide-react";
+import { useEffect, useRef } from "react";
+import {
+  Sun,
+  Moon,
+  Monitor,
+  Gauge,
+  Radio,
+  Puzzle,
+  Settings,
+  Network,
+  FileText,
+  ArrowUpRight,
+} from "lucide-react";
 import { useThemeStore } from "@/stores/themeStore";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { useAppStore } from "@/stores/appStore";
+import type { ToolWorkbench, WorkbenchView } from "@/stores/appStore";
 import { Tooltip } from "@/components/common/Tooltip";
+import { useWindowFrameGestures } from "@/hooks/useWindowFrameGestures";
 import { cn } from "@/lib/utils";
-import logoSvg from "@/assets/logo.svg";
 
 interface TitleBarProps {
-  onOpenTool?: (tool: string) => void;
+  activeWorkbench: WorkbenchView;
+  onSelectWorkbench: (workbench: WorkbenchView) => void;
+  onPopoutWorkbench: (workbench: ToolWorkbench) => void;
+  onOpenPlugins: () => void;
+  onOpenSettings: () => void;
 }
 
-const tools = [
-  { id: "tcpudp", icon: Network, label: "TCP/UDP", color: "hover:text-blue-400" },
-  { id: "loadtest", icon: Gauge, label: "压测", color: "hover:text-rose-400" },
-  { id: "capture", icon: Radio, label: "抓包", color: "hover:text-cyan-400" },
-  { id: "plugins", icon: Puzzle, label: "插件", color: "hover:text-violet-400" },
-  { id: "settings", icon: Settings, label: "设置", color: "hover:text-text-primary" },
+const workbenches: Array<{
+  id: WorkbenchView;
+  label: string;
+  icon: typeof FileText;
+  accentClassName: string;
+}> = [
+  { id: "requests", label: "请求", icon: FileText, accentClassName: "text-emerald-600" },
+  { id: "tcpudp", label: "TCP/UDP", icon: Network, accentClassName: "text-blue-600" },
+  { id: "capture", label: "抓包", icon: Radio, accentClassName: "text-cyan-600" },
+  { id: "loadtest", label: "压测", icon: Gauge, accentClassName: "text-rose-600" },
 ];
 
-export function TitleBar({ onOpenTool }: TitleBarProps) {
+export function TitleBar({
+  activeWorkbench,
+  onSelectWorkbench,
+  onPopoutWorkbench,
+  onOpenPlugins,
+  onOpenSettings,
+}: TitleBarProps) {
   const { mode, resolved, toggle } = useThemeStore();
-  const activeProtocol = useAppStore((s) => s.getActiveTab()?.protocol ?? null);
+  const frameGestures = useWindowFrameGestures();
+  const workbenchRailRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef<{
+    tool: ToolWorkbench | null;
+    startX: number;
+    startY: number;
+    popped: boolean;
+  }>({
+    tool: null,
+    startX: 0,
+    startY: 0,
+    popped: false,
+  });
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const dragState = dragStateRef.current;
+      if (!dragState.tool || dragState.popped || !workbenchRailRef.current) {
+        return;
+      }
+
+      const movedX = Math.abs(event.clientX - dragState.startX);
+      const movedY = Math.abs(event.clientY - dragState.startY);
+      if (movedX < 18 && movedY < 18) {
+        return;
+      }
+
+      const rect = workbenchRailRef.current.getBoundingClientRect();
+      const detached =
+        event.clientX < rect.left - 24
+        || event.clientX > rect.right + 24
+        || event.clientY < rect.top - 18
+        || event.clientY > rect.bottom + 24;
+
+      if (!detached) {
+        return;
+      }
+
+      dragState.popped = true;
+      onPopoutWorkbench(dragState.tool);
+    };
+
+    const clearDragState = () => {
+      dragStateRef.current.tool = null;
+      dragStateRef.current.popped = false;
+    };
+
+    window.addEventListener("mousemove", handleMouseMove, true);
+    window.addEventListener("mouseup", clearDragState, true);
+    window.addEventListener("blur", clearDragState);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove, true);
+      window.removeEventListener("mouseup", clearDragState, true);
+      window.removeEventListener("blur", clearDragState);
+    };
+  }, [onPopoutWorkbench]);
+
+  const handleToolMouseDown = (tool: ToolWorkbench, event: React.MouseEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    dragStateRef.current = {
+      tool,
+      startX: event.clientX,
+      startY: event.clientY,
+      popped: false,
+    };
+  };
 
   return (
-    <div className="relative flex h-[var(--titlebar-height)] shrink-0 items-center justify-between border-b border-border-default/70 bg-bg-primary/80 px-3 backdrop-blur-md drag-region select-none">
-      {/* macOS 交通灯按钮占位区域 */}
+    <div
+      {...frameGestures}
+      className="relative flex h-[var(--titlebar-height)] shrink-0 items-center gap-3 border-b border-border-default/70 bg-bg-primary/80 px-3 backdrop-blur-md select-none"
+    >
       <div className="w-[70px] shrink-0" />
 
-      <button
-        onClick={() => useAppStore.getState().setActiveTab(null)}
-        className="flex items-center gap-3 rounded-[16px] px-2 py-1.5 no-drag transition-colors hover:bg-bg-hover/70"
-        title="返回主页"
-      >
-        <div className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_10px_25px_rgba(37,99,235,0.25)]">
-          <img src={logoSvg} alt="ProtoForge" className="h-5 w-5 rounded-[6px]" />
-        </div>
-        <div className="flex flex-col items-start leading-none">
-          <span className="text-[13px] font-semibold text-text-primary">ProtoForge</span>
-          <span className="text-[11px] text-text-tertiary">API Studio</span>
-        </div>
-      </button>
+      <div className="flex min-w-0 flex-1 justify-center px-2">
+        <div
+          ref={workbenchRailRef}
+          className="flex items-center gap-1 rounded-[16px] border border-border-default/70 bg-bg-secondary/82 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] no-drag"
+        >
+          {workbenches.map((workbench) => {
+            const Icon = workbench.icon;
+            const isActive = activeWorkbench === workbench.id;
+            const isToolWorkbench = workbench.id !== "requests";
 
-      <div className="flex-1" />
+            return (
+              <button
+                key={workbench.id}
+                onClick={() => {
+                  if (dragStateRef.current.popped && dragStateRef.current.tool === workbench.id) {
+                    dragStateRef.current.tool = null;
+                    dragStateRef.current.popped = false;
+                    return;
+                  }
+
+                  onSelectWorkbench(workbench.id);
+                }}
+                onMouseDown={isToolWorkbench ? (event) => handleToolMouseDown(workbench.id as ToolWorkbench, event) : undefined}
+                className={cn(
+                  "flex h-8 items-center gap-2 rounded-[12px] px-3 text-[12px] font-medium transition-all",
+                  isActive
+                    ? "bg-bg-primary text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+                    : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
+                )}
+                title={isToolWorkbench ? `${workbench.label}，拖动可弹出为独立窗口` : workbench.label}
+              >
+                <Icon className={cn("h-3.5 w-3.5", isActive ? workbench.accentClassName : "text-current")} />
+                <span>{workbench.label}</span>
+                {isToolWorkbench ? (
+                  <ArrowUpRight className={cn("h-3 w-3 text-text-disabled transition-colors", isActive && "text-text-tertiary")} />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="flex items-center gap-2 no-drag">
         <div className="flex items-center gap-1 rounded-[16px] border border-border-default/70 bg-bg-secondary/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          {tools.map((t) => {
-            const Icon = t.icon;
-            return (
-              <Tooltip key={t.id} content={t.label}>
-                <button
-                  onClick={() => onOpenTool?.(t.id)}
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary",
-                    activeProtocol === t.id && "bg-bg-hover text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]",
-                    t.color
-                  )}
-                >
-                  <Icon className="w-[15px] h-[15px]" />
-                </button>
-              </Tooltip>
-            );
-          })}
+          <Tooltip content="插件">
+            <button
+              onClick={onOpenPlugins}
+              className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-violet-500"
+            >
+              <Puzzle className="h-[15px] w-[15px]" />
+            </button>
+          </Tooltip>
+          <Tooltip content="设置">
+            <button
+              onClick={onOpenSettings}
+              className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+            >
+              <Settings className="h-[15px] w-[15px]" />
+            </button>
+          </Tooltip>
         </div>
 
         <div className="flex items-center gap-1 rounded-[16px] border border-border-default/70 bg-bg-secondary/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -69,18 +191,18 @@ export function TitleBar({ onOpenTool }: TitleBarProps) {
             onClick={() => {
               toggle();
               const nextModes = ["light", "dark", "system"] as const;
-              const nextIdx = (nextModes.indexOf(mode) + 1) % nextModes.length;
-              useSettingsStore.getState().update("theme", nextModes[nextIdx]);
+              const nextIndex = (nextModes.indexOf(mode) + 1) % nextModes.length;
+              useSettingsStore.getState().update("theme", nextModes[nextIndex]);
             }}
             className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
             title={mode === "system" ? "跟随系统" : mode === "dark" ? "深色模式" : "浅色模式"}
           >
             {mode === "system" ? (
-              <Monitor className="w-4 h-4" />
+              <Monitor className="h-4 w-4" />
             ) : resolved === "dark" ? (
-              <Sun className="w-4 h-4" />
+              <Sun className="h-4 w-4" />
             ) : (
-              <Moon className="w-4 h-4" />
+              <Moon className="h-4 w-4" />
             )}
           </button>
         </div>

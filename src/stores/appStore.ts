@@ -1,41 +1,40 @@
-import { create } from 'zustand';
-import type { HttpRequestConfig, HttpResponse } from '@/types/http';
-import { createDefaultRequest } from '@/types/http';
+import { create } from "zustand";
+import type { HttpRequestConfig, HttpResponse } from "@/types/http";
+import { createDefaultRequest } from "@/types/http";
 
-export type ProtocolType = 'http' | 'ws' | 'sse' | 'mqtt' | 'collection';
-export type DockableToolProtocol = 'tcpudp' | 'loadtest' | 'capture';
-export type WorkspaceProtocol = ProtocolType | DockableToolProtocol;
+export type RequestProtocol = "http" | "ws" | "sse" | "mqtt";
+export type ToolWorkbench = "tcpudp" | "loadtest" | "capture";
+export type WorkbenchView = "requests" | ToolWorkbench;
+export type WorkspaceProtocol = RequestProtocol | ToolWorkbench | "collection";
 
 export interface AppTab {
   id: string;
-  protocol: WorkspaceProtocol;
+  protocol: RequestProtocol;
   label: string;
   customLabel?: string | null;
-  // HTTP-specific
   httpConfig?: HttpRequestConfig;
   httpResponse?: HttpResponse | null;
-  // General
   loading: boolean;
   error: string | null;
-  // WS (placeholder fields)
   wsUrl?: string;
-  // Collection settings
-  collectionId?: string;
 }
 
 interface AppStore {
   tabs: AppTab[];
   activeTabId: string | null;
+  activeWorkbench: WorkbenchView;
+  activeCollectionId: string | null;
 
-  addTab: (protocol?: WorkspaceProtocol) => string;
-  openToolTab: (tool: DockableToolProtocol) => string;
-  addCollectionTab: (collectionId: string, name: string) => string;
+  addTab: (protocol?: RequestProtocol) => string;
+  openToolTab: (tool: ToolWorkbench) => void;
+  openCollectionPanel: (collectionId: string) => void;
+  closeCollectionPanel: () => void;
   closeTab: (id: string) => void;
   setActiveTab: (id: string | null) => void;
+  setActiveWorkbench: (workbench: WorkbenchView) => void;
   updateTab: (id: string, updates: Partial<AppTab>) => void;
-  setTabProtocol: (id: string, protocol: WorkspaceProtocol) => void;
+  setTabProtocol: (id: string, protocol: RequestProtocol) => void;
 
-  // Tab operations
   renameTab: (id: string, label: string) => void;
   closeOtherTabs: (id: string) => void;
   closeTabsToRight: (id: string) => void;
@@ -44,7 +43,6 @@ interface AppStore {
   nextTab: () => void;
   prevTab: () => void;
 
-  // HTTP helpers
   updateHttpConfig: (id: string, updates: Partial<HttpRequestConfig>) => void;
   setHttpResponse: (id: string, response: HttpResponse | null) => void;
   setLoading: (id: string, loading: boolean) => void;
@@ -53,199 +51,231 @@ interface AppStore {
   getActiveTab: () => AppTab | null;
 }
 
+const requestLabels: Record<RequestProtocol, string> = {
+  http: "Untitled Request",
+  ws: "WebSocket",
+  sse: "SSE Stream",
+  mqtt: "MQTT Client",
+};
+
 export const useAppStore = create<AppStore>((set, get) => ({
   tabs: [],
   activeTabId: null,
+  activeWorkbench: "requests",
+  activeCollectionId: null,
 
-  addTab: (protocol: WorkspaceProtocol = 'http') => {
+  addTab: (protocol: RequestProtocol = "http") => {
     const id = crypto.randomUUID();
-    const httpConfig = protocol === 'http' ? createDefaultRequest() : undefined;
-    const labels: Record<WorkspaceProtocol, string> = {
-      http: 'Untitled Request',
-      ws: 'WebSocket',
-      sse: 'SSE Stream',
-      mqtt: 'MQTT Client',
-      collection: 'Collection',
-      tcpudp: 'TCP/UDP',
-      loadtest: '压力测试',
-      capture: '网络抓包',
-    };
     const tab: AppTab = {
       id,
       protocol,
-      label: labels[protocol],
+      label: requestLabels[protocol],
       customLabel: null,
-      httpConfig,
+      httpConfig: protocol === "http" ? createDefaultRequest() : undefined,
       httpResponse: null,
       loading: false,
       error: null,
-      wsUrl: protocol === 'ws' ? 'ws://localhost:8080' : undefined,
+      wsUrl: protocol === "ws" ? "ws://localhost:8080" : undefined,
     };
-    set((s) => ({ tabs: [...s.tabs, tab], activeTabId: id }));
+
+    set((state) => ({
+      tabs: [...state.tabs, tab],
+      activeTabId: id,
+      activeWorkbench: "requests",
+      activeCollectionId: null,
+    }));
+
     return id;
   },
 
   openToolTab: (tool) => {
-    const existing = get().tabs.find((t) => t.protocol === tool);
-    if (existing) {
-      set({ activeTabId: existing.id });
-      return existing.id;
-    }
-    return get().addTab(tool);
-  },
-
-  addCollectionTab: (collectionId: string, name: string) => {
-    // Check if already open
-    const existing = get().tabs.find((t) => t.protocol === 'collection' && t.collectionId === collectionId);
-    if (existing) {
-      set({ activeTabId: existing.id });
-      return existing.id;
-    }
-    const id = crypto.randomUUID();
-    const tab: AppTab = {
-      id,
-      protocol: 'collection',
-      label: name,
-      customLabel: null,
-      collectionId,
-      loading: false,
-      error: null,
-    };
-    set((s) => ({ tabs: [...s.tabs, tab], activeTabId: id }));
-    return id;
-  },
-
-  closeTab: (id) => {
-    set((s) => {
-      const next = s.tabs.filter((t) => t.id !== id);
-      let newActive = s.activeTabId;
-      if (s.activeTabId === id) {
-        newActive = next.length > 0 ? next[next.length - 1].id : null;
-      }
-      return { tabs: next, activeTabId: newActive };
+    set({
+      activeWorkbench: tool,
+      activeCollectionId: null,
     });
   },
 
-  setActiveTab: (id) => set({ activeTabId: id }),
+  openCollectionPanel: (collectionId) => {
+    set({
+      activeWorkbench: "requests",
+      activeCollectionId: collectionId,
+      activeTabId: null,
+    });
+  },
+
+  closeCollectionPanel: () => {
+    set({ activeCollectionId: null });
+  },
+
+  closeTab: (id) => {
+    set((state) => {
+      const nextTabs = state.tabs.filter((tab) => tab.id !== id);
+      let nextActiveId = state.activeTabId;
+
+      if (state.activeTabId === id) {
+        nextActiveId = nextTabs.length > 0 ? nextTabs[nextTabs.length - 1].id : null;
+      }
+
+      return {
+        tabs: nextTabs,
+        activeTabId: nextActiveId,
+      };
+    });
+  },
+
+  setActiveTab: (id) => {
+    set({
+      activeTabId: id,
+      activeWorkbench: "requests",
+      activeCollectionId: null,
+    });
+  },
+
+  setActiveWorkbench: (workbench) => {
+    set({ activeWorkbench: workbench });
+  },
 
   updateTab: (id, updates) => {
-    set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+    set((state) => ({
+      tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, ...updates } : tab)),
     }));
   },
 
   setTabProtocol: (id, protocol) => {
-    set((s) => ({
-      tabs: s.tabs.map((t) => {
-        if (t.id !== id) return t;
-        const labels: Record<WorkspaceProtocol, string> = {
-          http: 'Untitled Request', ws: 'WebSocket', sse: 'SSE Stream',
-          mqtt: 'MQTT Client', collection: 'Collection',
-          tcpudp: 'TCP/UDP', loadtest: '压力测试', capture: '网络抓包',
-        };
+    set((state) => ({
+      tabs: state.tabs.map((tab) => {
+        if (tab.id !== id) return tab;
+
         return {
-          ...t,
+          ...tab,
           protocol,
-          label: t.label === labels[t.protocol] ? labels[protocol] : t.label,
-          httpConfig: protocol === 'http' && !t.httpConfig ? createDefaultRequest() : t.httpConfig,
-          wsUrl: protocol === 'ws' && !t.wsUrl ? 'ws://localhost:8080' : t.wsUrl,
+          label: tab.label === requestLabels[tab.protocol] ? requestLabels[protocol] : tab.label,
+          httpConfig: protocol === "http" && !tab.httpConfig ? createDefaultRequest() : tab.httpConfig,
+          wsUrl: protocol === "ws" && !tab.wsUrl ? "ws://localhost:8080" : tab.wsUrl,
         };
       }),
     }));
   },
 
   renameTab: (id, label) => {
-    set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === id ? { ...t, label, customLabel: label } : t)),
+    set((state) => ({
+      tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, label, customLabel: label } : tab)),
     }));
   },
 
-  reorderTabs: (fromIndex, toIndex) => {
-    set((state) => {
-      const tabs = [...state.tabs];
-      const [moved] = tabs.splice(fromIndex, 1);
-      tabs.splice(toIndex, 0, moved);
-      return { tabs };
-    });
-  },
   closeOtherTabs: (id) => {
-    set((s) => ({
-      tabs: s.tabs.filter((t) => t.id === id),
+    set((state) => ({
+      tabs: state.tabs.filter((tab) => tab.id === id),
       activeTabId: id,
+      activeWorkbench: "requests",
+      activeCollectionId: null,
     }));
   },
 
   closeTabsToRight: (id) => {
-    set((s) => {
-      const idx = s.tabs.findIndex((t) => t.id === id);
-      const next = s.tabs.slice(0, idx + 1);
-      const newActive = next.find((t) => t.id === s.activeTabId) ? s.activeTabId : id;
-      return { tabs: next, activeTabId: newActive };
+    set((state) => {
+      const currentIndex = state.tabs.findIndex((tab) => tab.id === id);
+      const nextTabs = state.tabs.slice(0, currentIndex + 1);
+      const nextActiveId = nextTabs.some((tab) => tab.id === state.activeTabId) ? state.activeTabId : id;
+
+      return {
+        tabs: nextTabs,
+        activeTabId: nextActiveId,
+        activeWorkbench: "requests",
+        activeCollectionId: null,
+      };
     });
   },
 
   duplicateTab: (id) => {
-    const s = get();
-    const src = s.tabs.find((t) => t.id === id);
-    if (!src) return;
+    const state = get();
+    const source = state.tabs.find((tab) => tab.id === id);
+    if (!source) return;
+
     const newId = crypto.randomUUID();
-    const dup: AppTab = {
-      ...structuredClone(src),
+    const duplicate: AppTab = {
+      ...structuredClone(source),
       id: newId,
-      label: `${src.label} (副本)`,
+      label: `${source.label} (副本)`,
     };
-    set((s) => {
-      const idx = s.tabs.findIndex((t) => t.id === id);
-      const next = [...s.tabs];
-      next.splice(idx + 1, 0, dup);
-      return { tabs: next, activeTabId: newId };
+
+    set((current) => {
+      const sourceIndex = current.tabs.findIndex((tab) => tab.id === id);
+      const nextTabs = [...current.tabs];
+      nextTabs.splice(sourceIndex + 1, 0, duplicate);
+
+      return {
+        tabs: nextTabs,
+        activeTabId: newId,
+        activeWorkbench: "requests",
+        activeCollectionId: null,
+      };
+    });
+  },
+
+  reorderTabs: (fromIndex, toIndex) => {
+    set((state) => {
+      const nextTabs = [...state.tabs];
+      const [moved] = nextTabs.splice(fromIndex, 1);
+      nextTabs.splice(toIndex, 0, moved);
+      return { tabs: nextTabs };
     });
   },
 
   nextTab: () => {
-    const s = get();
-    if (s.tabs.length <= 1) return;
-    const idx = s.tabs.findIndex((t) => t.id === s.activeTabId);
-    const next = (idx + 1) % s.tabs.length;
-    set({ activeTabId: s.tabs[next].id });
+    const state = get();
+    if (state.tabs.length <= 1) return;
+
+    const currentIndex = state.tabs.findIndex((tab) => tab.id === state.activeTabId);
+    const nextIndex = (currentIndex + 1) % state.tabs.length;
+    set({
+      activeTabId: state.tabs[nextIndex].id,
+      activeWorkbench: "requests",
+      activeCollectionId: null,
+    });
   },
 
   prevTab: () => {
-    const s = get();
-    if (s.tabs.length <= 1) return;
-    const idx = s.tabs.findIndex((t) => t.id === s.activeTabId);
-    const prev = (idx - 1 + s.tabs.length) % s.tabs.length;
-    set({ activeTabId: s.tabs[prev].id });
+    const state = get();
+    if (state.tabs.length <= 1) return;
+
+    const currentIndex = state.tabs.findIndex((tab) => tab.id === state.activeTabId);
+    const prevIndex = (currentIndex - 1 + state.tabs.length) % state.tabs.length;
+    set({
+      activeTabId: state.tabs[prevIndex].id,
+      activeWorkbench: "requests",
+      activeCollectionId: null,
+    });
   },
 
   updateHttpConfig: (id, updates) => {
-    set((s) => ({
-      tabs: s.tabs.map((t) =>
-        t.id === id && t.httpConfig ? { ...t, httpConfig: { ...t.httpConfig, ...updates } } : t
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === id && tab.httpConfig ? { ...tab, httpConfig: { ...tab.httpConfig, ...updates } } : tab
       ),
     }));
   },
 
   setHttpResponse: (id, response) => {
-    set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === id ? { ...t, httpResponse: response } : t)),
+    set((state) => ({
+      tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, httpResponse: response } : tab)),
     }));
   },
 
   setLoading: (id, loading) => {
-    set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === id ? { ...t, loading } : t)),
+    set((state) => ({
+      tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, loading } : tab)),
     }));
   },
 
   setError: (id, error) => {
-    set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === id ? { ...t, error } : t)),
+    set((state) => ({
+      tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, error } : tab)),
     }));
   },
 
   getActiveTab: () => {
-    const s = get();
-    return s.tabs.find((t) => t.id === s.activeTabId) ?? null;
+    const state = get();
+    return state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
   },
 }));

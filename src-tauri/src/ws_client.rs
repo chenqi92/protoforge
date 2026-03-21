@@ -20,6 +20,7 @@ pub struct WsEvent {
     pub data_type: Option<String>, // "text" | "binary"
     pub size: Option<usize>,
     pub timestamp: String,
+    pub reason: Option<String>, // "normal" | "error" | "server_close" (仅 disconnected 事件携带)
 }
 
 /// 发送命令
@@ -90,6 +91,7 @@ pub async fn connect(
             data_type: None,
             size: None,
             timestamp: now_iso(),
+            reason: None,
         },
     );
 
@@ -129,7 +131,21 @@ pub async fn connect(
                             (Some(hex), Some("binary".to_string()), Some(len))
                         }
                         Message::Close(_) => {
-                            break;
+                            // 服务器主动关闭
+                            let _ = app_clone.emit(
+                                "ws-event",
+                                WsEvent {
+                                    connection_id: cid.clone(),
+                                    event_type: "disconnected".into(),
+                                    data: Some("服务器关闭连接".into()),
+                                    data_type: None,
+                                    size: None,
+                                    timestamp: now_iso(),
+                                    reason: Some("server_close".into()),
+                                },
+                            );
+                            conns.lock().await.remove(&cid);
+                            return; // 直接返回，不再发送下方的 disconnected 事件
                         }
                         Message::Ping(_) | Message::Pong(_) | Message::Frame(_) => continue,
                     };
@@ -143,6 +159,7 @@ pub async fn connect(
                             data_type,
                             size,
                             timestamp: now_iso(),
+                            reason: None,
                         },
                     );
                 }
@@ -156,14 +173,29 @@ pub async fn connect(
                             data_type: None,
                             size: None,
                             timestamp: now_iso(),
+                            reason: None,
                         },
                     );
-                    break;
+                    // 异常断开，发送 reason = "error"
+                    let _ = app_clone.emit(
+                        "ws-event",
+                        WsEvent {
+                            connection_id: cid.clone(),
+                            event_type: "disconnected".into(),
+                            data: Some(e.to_string()),
+                            data_type: None,
+                            size: None,
+                            timestamp: now_iso(),
+                            reason: Some("error".into()),
+                        },
+                    );
+                    conns.lock().await.remove(&cid);
+                    return;
                 }
             }
         }
 
-        // 连接结束
+        // 正常断开（读取循环自然结束）
         write_task.abort();
         let _ = app_clone.emit(
             "ws-event",
@@ -174,6 +206,7 @@ pub async fn connect(
                 data_type: None,
                 size: None,
                 timestamp: now_iso(),
+                reason: Some("normal".into()),
             },
         );
 

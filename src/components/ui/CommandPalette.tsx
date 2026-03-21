@@ -2,7 +2,7 @@
 // 全局搜索：集合/请求/环境/历史
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, FileText, Globe, X } from 'lucide-react';
+import { Search, FileText, Globe, X, Network, Gauge, Radio, Puzzle, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
 
@@ -19,6 +19,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const addTab = useAppStore((s) => s.addTab);
+  const openToolTab = useAppStore((s) => s.openToolTab);
 
   // 重置状态
   useEffect(() => {
@@ -39,6 +40,11 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
       { type: 'action', label: '新建 WebSocket 连接', icon: Globe, action: () => { addTab('ws'); onClose(); } },
       { type: 'action', label: '新建 SSE 连接', icon: Globe, action: () => { addTab('sse'); onClose(); } },
       { type: 'action', label: '新建 MQTT 连接', icon: Globe, action: () => { addTab('mqtt'); onClose(); } },
+      { type: 'action', label: '打开 TCP/UDP 工作台', icon: Network, action: () => { openToolTab('tcpudp'); onClose(); } },
+      { type: 'action', label: '打开抓包工作台', icon: Radio, action: () => { openToolTab('capture'); onClose(); } },
+      { type: 'action', label: '打开压测工作台', icon: Gauge, action: () => { openToolTab('loadtest'); onClose(); } },
+      { type: 'action', label: '打开插件中心', icon: Puzzle, action: () => { window.dispatchEvent(new CustomEvent('open-plugin-modal')); onClose(); } },
+      { type: 'action', label: '打开偏好设置', icon: Settings, action: () => { window.dispatchEvent(new CustomEvent('open-settings-modal')); onClose(); } },
     );
 
     // Filter by query
@@ -48,7 +54,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
       item.label.toLowerCase().includes(q) ||
       (item.description?.toLowerCase().includes(q))
     );
-  }, [query, addTab, onClose]);
+  }, [query, addTab, onClose, openToolTab]);
 
   // 键盘导航
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {

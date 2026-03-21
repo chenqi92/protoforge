@@ -30,6 +30,131 @@ pub async fn send_request_with_scripts(request: HttpRequestWithScripts) -> Resul
 }
 
 // ═══════════════════════════════════════════
+//  OAuth 2.0 Token
+// ═══════════════════════════════════════════
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OAuth2TokenRequest {
+    pub grant_type: String,       // "client_credentials" | "password" | "authorization_code"
+    pub access_token_url: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub scope: Option<String>,
+    // authorization_code specific
+    pub code: Option<String>,
+    pub redirect_uri: Option<String>,
+    // password specific
+    pub username: Option<String>,
+    pub password: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OAuth2TokenResponse {
+    pub access_token: String,
+    pub token_type: Option<String>,
+    pub expires_in: Option<u64>,
+    pub refresh_token: Option<String>,
+    pub scope: Option<String>,
+}
+
+#[tauri::command]
+pub async fn fetch_oauth2_token(req: OAuth2TokenRequest) -> Result<OAuth2TokenResponse, String> {
+    if req.access_token_url.is_empty() {
+        return Err("Access Token URL 不能为空".into());
+    }
+
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+    let mut params = vec![
+        ("grant_type".to_string(), req.grant_type.clone()),
+        ("client_id".to_string(), req.client_id.clone()),
+        ("client_secret".to_string(), req.client_secret.clone()),
+    ];
+
+    if let Some(scope) = &req.scope {
+        if !scope.is_empty() {
+            params.push(("scope".to_string(), scope.clone()));
+        }
+    }
+
+    match req.grant_type.as_str() {
+        "client_credentials" => {
+            // client_id + client_secret + scope 已足够
+        }
+        "password" => {
+            let username = req.username.as_deref().unwrap_or("");
+            let password = req.password.as_deref().unwrap_or("");
+            if username.is_empty() {
+                return Err("Password 授权类型需要提供 username".into());
+            }
+            params.push(("username".to_string(), username.to_string()));
+            params.push(("password".to_string(), password.to_string()));
+        }
+        "authorization_code" => {
+            let code = req.code.as_deref().unwrap_or("");
+            let redirect_uri = req.redirect_uri.as_deref().unwrap_or("");
+            if code.is_empty() {
+                return Err("Authorization Code 授权类型需要提供 code".into());
+            }
+            params.push(("code".to_string(), code.to_string()));
+            if !redirect_uri.is_empty() {
+                params.push(("redirect_uri".to_string(), redirect_uri.to_string()));
+            }
+        }
+        _ => {
+            return Err(format!("不支持的授权类型: {}", req.grant_type));
+        }
+    }
+
+    // 手动构建 application/x-www-form-urlencoded body
+    let form_body: String = {
+        let mut serializer = url::form_urlencoded::Serializer::new(String::new());
+        for (k, v) in &params {
+            serializer.append_pair(k, v);
+        }
+        serializer.finish()
+    };
+
+    let resp = client
+        .post(&req.access_token_url)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .header("Accept", "application/json")
+        .body(form_body)
+        .send()
+        .await
+        .map_err(|e| format!("Token 请求失败: {}", e))?;
+
+    let status = resp.status();
+    let body = resp.text().await.map_err(|e| format!("读取响应失败: {}", e))?;
+
+    if !status.is_success() {
+        return Err(format!("Token 端点返回 {} — {}", status.as_u16(), body));
+    }
+
+    // 解析 JSON 响应
+    let json: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| format!("解析 Token 响应 JSON 失败: {} — 原始响应: {}", e, body))?;
+
+    let access_token = json["access_token"].as_str()
+        .ok_or_else(|| format!("响应中缺少 access_token 字段 — 原始响应: {}", body))?
+        .to_string();
+
+    Ok(OAuth2TokenResponse {
+        access_token,
+        token_type: json["token_type"].as_str().map(|s| s.to_string()),
+        expires_in: json["expires_in"].as_u64(),
+        refresh_token: json["refresh_token"].as_str().map(|s| s.to_string()),
+        scope: json["scope"].as_str().map(|s| s.to_string()),
+    })
+}
+
+// ═══════════════════════════════════════════
 //  Collections
 // ═══════════════════════════════════════════
 

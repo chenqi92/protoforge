@@ -404,3 +404,223 @@ fn determine_unit(poll_code: &str) -> Option<String> {
     else if poll_code.starts_with('w') { Some("mg/L".into()) }
     else { None }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ═══════════════════════════════════════════
+    //  HJ212 解析器测试
+    // ═══════════════════════════════════════════
+
+    #[test]
+    fn test_hj212_standard_realtime_data() {
+        let raw = "##0139ST=22;CN=2011;PW=123456;MN=88888880000001;Flag=4;CP=&&DataTime=20230601120000;w01018-Rtd=25.6;w01019-Rtd=1.2;w01001-Rtd=7.5&&1234";
+        let result = parse_hj212(raw);
+
+        assert!(result.success, "HJ212 解析应成功");
+        assert_eq!(result.protocol_name, "HJ212");
+        assert!(result.summary.contains("实时数据"));
+        assert!(result.summary.contains("88888880000001"));
+
+        // 检查字段
+        let st = result.fields.iter().find(|f| f.key == "ST").unwrap();
+        assert!(st.value.contains("22"));
+        assert!(st.value.contains("地表水"));
+
+        let cn = result.fields.iter().find(|f| f.key == "CN").unwrap();
+        assert!(cn.value.contains("2011"));
+        assert!(cn.value.contains("实时数据上报"));
+
+        let mn = result.fields.iter().find(|f| f.key == "MN").unwrap();
+        assert_eq!(mn.value, "88888880000001");
+
+        // 检查监测数据
+        let data_time = result.fields.iter().find(|f| f.key == "DataTime").unwrap();
+        assert_eq!(data_time.value, "20230601120000");
+
+        let cod = result.fields.iter().find(|f| f.key == "w01018-Rtd").unwrap();
+        assert_eq!(cod.value, "25.6");
+        assert!(cod.label.contains("COD"));
+        assert!(cod.label.contains("实时值"));
+    }
+
+    #[test]
+    fn test_hj212_heartbeat() {
+        let raw = "##0080ST=91;CN=9011;PW=123456;MN=88888880000001;Flag=4;CP=&&&&ABCD";
+        let result = parse_hj212(raw);
+
+        assert!(result.success);
+        assert!(result.summary.contains("心跳"));
+    }
+
+    #[test]
+    fn test_hj212_system_codes() {
+        // 测试不同的 ST 编码
+        let cases = [
+            ("22", "地表水"), ("31", "大气环境"), ("32", "废气"),
+            ("21", "废水"), ("51", "噪声"), ("91", "系统交互"),
+        ];
+        for (code, name) in cases {
+            let raw = format!("##0080ST={};CN=2011;PW=123456;MN=TEST01;Flag=4;CP=&&&&ABCD", code);
+            let result = parse_hj212(&raw);
+            assert!(result.success);
+            let st = result.fields.iter().find(|f| f.key == "ST").unwrap();
+            assert!(st.value.contains(name), "ST={} 应包含 '{}'", code, name);
+        }
+    }
+
+    #[test]
+    fn test_hj212_command_codes() {
+        let cases = [
+            ("2011", "实时数据上报"), ("2051", "分钟数据上报"),
+            ("2061", "小时数据上报"), ("2031", "日数据上报"),
+            ("9011", "心跳"), ("9014", "请求应答"),
+        ];
+        for (code, name) in cases {
+            let raw = format!("##0080ST=22;CN={};PW=123456;MN=TEST01;Flag=4;CP=&&&&ABCD", code);
+            let result = parse_hj212(&raw);
+            assert!(result.success);
+            let cn = result.fields.iter().find(|f| f.key == "CN").unwrap();
+            assert!(cn.value.contains(name), "CN={} 应包含 '{}'", code, name);
+        }
+    }
+
+    #[test]
+    fn test_hj212_invalid_no_header() {
+        let raw = "ST=22;CN=2011;PW=123456;MN=TEST01";
+        let result = parse_hj212(raw);
+        assert!(!result.success, "缺少 ## 头应失败");
+        assert!(result.error.is_some());
+        assert!(result.error.unwrap().contains("##"));
+    }
+
+    #[test]
+    fn test_hj212_pollutant_units() {
+        assert_eq!(determine_unit("w01001"), Some("无量纲".into()));
+        assert_eq!(determine_unit("w01010"), Some("°C".into()));
+        assert_eq!(determine_unit("a01001"), Some("°C".into()));
+        assert_eq!(determine_unit("a01002"), Some("%".into()));
+        assert_eq!(determine_unit("a34004"), Some("μg/m³".into()));
+        assert_eq!(determine_unit("a21026"), Some("μg/m³".into()));
+        assert_eq!(determine_unit("w01018"), Some("mg/L".into()));
+        assert_eq!(determine_unit("unknown"), None);
+    }
+
+    #[test]
+    fn test_hj212_air_quality_data() {
+        let raw = "##0200ST=31;CN=2061;PW=123456;MN=AIR001;Flag=4;CP=&&DataTime=20230601130000;a34004-Avg=35.2;a34002-Avg=68.5;a21026-Avg=12.3;a01001-Avg=28.5;a01002-Avg=65.0&&FFFF";
+        let result = parse_hj212(raw);
+
+        assert!(result.success);
+        let pm25 = result.fields.iter().find(|f| f.key == "a34004-Avg").unwrap();
+        assert!(pm25.label.contains("PM2.5"));
+        assert!(pm25.label.contains("平均值"));
+        assert_eq!(pm25.value, "35.2");
+        assert_eq!(pm25.unit.as_deref(), Some("μg/m³"));
+    }
+
+    // ═══════════════════════════════════════════
+    //  SFJK200 解析器测试
+    // ═══════════════════════════════════════════
+
+    #[test]
+    fn test_sfjk200_text_format() {
+        let raw = "TT=12345678;FC=01;ST=02;DT=20230601120000;WL=15.32;WF=125.6;WT=22.5;BV=12.6";
+        let result = parse_sfjk200(raw);
+
+        assert!(result.success);
+        assert_eq!(result.protocol_name, "SFJK200");
+        assert!(result.summary.contains("实时数据上报"));
+        assert!(result.summary.contains("12345678"));
+
+        let wl = result.fields.iter().find(|f| f.key == "WL").unwrap();
+        assert_eq!(wl.value, "15.32");
+        assert_eq!(wl.unit.as_deref(), Some("m"));
+        assert!(wl.label.contains("水位"));
+    }
+
+    #[test]
+    fn test_sfjk200_station_types() {
+        let cases = [
+            ("01", "雨量站"), ("02", "水位站"), ("03", "流量站"),
+            ("04", "水质站"), ("05", "气象站"), ("06", "综合站"),
+        ];
+        for (code, name) in cases {
+            let raw = format!("TT=TEST;FC=01;ST={}", code);
+            let result = parse_sfjk200(&raw);
+            assert!(result.success);
+            let st = result.fields.iter().find(|f| f.key == "ST").unwrap();
+            assert!(st.value.contains(name), "ST={} 应包含 '{}'", code, name);
+        }
+    }
+
+    #[test]
+    fn test_sfjk200_hex_format() {
+        let raw = "7E7E 01 02 AABBCCDD FFEE";
+        let result = parse_sfjk200(raw);
+
+        assert!(result.success);
+        assert!(result.summary.contains("二进制帧"));
+        assert!(result.raw_hex.is_some());
+
+        let header = result.fields.iter().find(|f| f.key == "frame_header").unwrap();
+        assert_eq!(header.value, "7E7E");
+    }
+
+    #[test]
+    fn test_sfjk200_generic_format() {
+        let raw = "field1=value1,field2=value2,field3=value3";
+        let result = parse_sfjk200(raw);
+
+        assert!(result.success);
+        assert!(result.summary.contains("3 字段"));
+    }
+
+    #[test]
+    fn test_sfjk200_unrecognized() {
+        let raw = "This is not a valid SFJK200 message";
+        let result = parse_sfjk200(raw);
+
+        assert!(!result.success);
+        assert!(result.error.is_some());
+    }
+
+    #[test]
+    fn test_sfjk200_function_codes() {
+        let cases = [
+            ("01", "实时数据上报"), ("02", "定时数据上报"),
+            ("03", "加报数据"), ("F0", "心跳包"),
+        ];
+        for (code, name) in cases {
+            let raw = format!("TT=TEST;FC={}", code);
+            let result = parse_sfjk200(&raw);
+            assert!(result.success);
+            assert!(result.summary.contains(name), "FC={} summary 应包含 '{}'", code, name);
+        }
+    }
+
+    #[test]
+    fn test_sfjk200_monitoring_units() {
+        let raw = "TT=TEST;FC=01;WL=10.5;WF=50.3;RF=2.5;WT=20.1;AT=25.0;AH=60;AP=1013;WS=3.2;WD=180";
+        let result = parse_sfjk200(raw);
+        assert!(result.success);
+
+        let check = |key: &str, expected_unit: &str| {
+            let f = result.fields.iter().find(|f| f.key == key)
+                .unwrap_or_else(|| panic!("应有字段 {}", key));
+            assert_eq!(f.unit.as_deref(), Some(expected_unit),
+                "字段 {} 单位应为 {}", key, expected_unit);
+        };
+
+        check("WL", "m");
+        check("WF", "m³/s");
+        check("RF", "mm");
+        check("WT", "°C");
+        check("AT", "°C");
+        check("AH", "%");
+        check("AP", "hPa");
+        check("WS", "m/s");
+        check("WD", "°");
+    }
+}

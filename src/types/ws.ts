@@ -16,4 +16,5 @@ export interface WsEvent {
   dataType?: string;
   size?: number;
   timestamp: string;
+  reason?: 'normal' | 'error' | 'server_close'; // 仅 disconnected 事件携带
 }

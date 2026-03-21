@@ -1,6 +1,16 @@
 // ProtoForge MQTT 客户端
 // 基于 rumqttc 实现 MQTT v3.1.1 连接、订阅、发布
 
+/// 将 u8 QoS 值转换为 rumqttc::QoS，仅接受 0/1/2
+fn parse_qos(qos: u8) -> Result<rumqttc::QoS, String> {
+    match qos {
+        0 => Ok(rumqttc::QoS::AtMostOnce),
+        1 => Ok(rumqttc::QoS::AtLeastOnce),
+        2 => Ok(rumqttc::QoS::ExactlyOnce),
+        _ => Err(format!("无效的 QoS 等级: {}，仅支持 0 (AtMostOnce) / 1 (AtLeastOnce) / 2 (ExactlyOnce)", qos)),
+    }
+}
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -148,13 +158,9 @@ pub async fn subscribe(
     qos: u8,
     connections: MqttConnections,
 ) -> Result<(), String> {
+    let mqttqos = parse_qos(qos)?;
     let conns = connections.lock().await;
     let conn = conns.get(conn_id).ok_or("连接不存在")?;
-    let mqttqos = match qos {
-        0 => rumqttc::QoS::AtMostOnce,
-        1 => rumqttc::QoS::AtLeastOnce,
-        _ => rumqttc::QoS::ExactlyOnce,
-    };
     conn.client.subscribe(topic, mqttqos).await
         .map_err(|e| format!("订阅失败: {}", e))
 }
@@ -180,13 +186,9 @@ pub async fn publish(
     retain: bool,
     connections: MqttConnections,
 ) -> Result<(), String> {
+    let mqttqos = parse_qos(qos)?;
     let conns = connections.lock().await;
     let conn = conns.get(conn_id).ok_or("连接不存在")?;
-    let mqttqos = match qos {
-        0 => rumqttc::QoS::AtMostOnce,
-        1 => rumqttc::QoS::AtLeastOnce,
-        _ => rumqttc::QoS::ExactlyOnce,
-    };
     conn.client.publish(topic, mqttqos, retain, payload.as_bytes()).await
         .map_err(|e| format!("发布失败: {}", e))
 }

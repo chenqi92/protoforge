@@ -102,3 +102,85 @@ fn split_sql_statements(sql: &str) -> Vec<&str> {
 
     statements
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_split_simple() {
+        let sql = "SELECT 1; SELECT 2; SELECT 3";
+        let stmts = split_sql_statements(sql);
+        assert_eq!(stmts.len(), 3);
+        assert_eq!(stmts[0].trim(), "SELECT 1");
+        assert_eq!(stmts[1].trim(), "SELECT 2");
+        assert_eq!(stmts[2].trim(), "SELECT 3");
+    }
+
+    #[test]
+    fn test_split_with_string_semicolons() {
+        let sql = "INSERT INTO t VALUES ('hello; world'); SELECT 1";
+        let stmts = split_sql_statements(sql);
+        assert_eq!(stmts.len(), 2);
+        assert!(stmts[0].contains("hello; world"), "字符串内分号不应拆分");
+    }
+
+    #[test]
+    fn test_split_escaped_quotes() {
+        let sql = "INSERT INTO t VALUES ('it''s a test; really'); SELECT 2";
+        let stmts = split_sql_statements(sql);
+        assert_eq!(stmts.len(), 2);
+        assert!(stmts[0].contains("it''s a test; really"));
+    }
+
+    #[test]
+    fn test_split_empty() {
+        let stmts = split_sql_statements("");
+        assert!(stmts.is_empty());
+    }
+
+    #[test]
+    fn test_split_single_statement() {
+        let sql = "CREATE TABLE test (id INTEGER PRIMARY KEY)";
+        let stmts = split_sql_statements(sql);
+        assert_eq!(stmts.len(), 1);
+        assert_eq!(stmts[0], sql);
+    }
+
+    #[test]
+    fn test_split_trailing_semicolon() {
+        let sql = "SELECT 1;";
+        let stmts = split_sql_statements(sql);
+        // 应有 "SELECT 1" 和一个空字符串
+        assert_eq!(stmts[0].trim(), "SELECT 1");
+    }
+
+    #[test]
+    fn test_split_multiline() {
+        let sql = "CREATE TABLE IF NOT EXISTS test (\n    id TEXT PRIMARY KEY,\n    name TEXT NOT NULL\n);\nINSERT INTO test VALUES ('1', 'name with; semi')";
+        let stmts = split_sql_statements(sql);
+        assert_eq!(stmts.len(), 2);
+        assert!(stmts[0].contains("CREATE TABLE"));
+        assert!(stmts[1].contains("name with; semi"));
+    }
+
+    #[test]
+    fn test_split_complex_migration() {
+        // 模拟真实的迁移 SQL
+        let sql = r"CREATE TABLE IF NOT EXISTS collections (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS items (
+    id TEXT PRIMARY KEY,
+    data TEXT DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_items ON items(id)";
+        let stmts = split_sql_statements(sql);
+        assert_eq!(stmts.len(), 3);
+        assert!(stmts[0].contains("collections"));
+        assert!(stmts[1].contains("items"));
+        assert!(stmts[2].contains("CREATE INDEX"));
+    }
+}
+

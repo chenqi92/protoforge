@@ -73,11 +73,11 @@ const sections: SectionMeta[] = [
 ];
 
 const inputClassName =
-  "h-9 rounded-[12px] border border-border-default/80 bg-bg-secondary/60 px-3 text-[12px] text-text-primary outline-none transition-all focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]";
+  "wb-field";
 const selectTriggerClassName =
-  "h-9 rounded-[12px] border-border-default/80 bg-bg-secondary/60 text-[12px] shadow-none";
+  "";
 const selectContentClassName =
-  "rounded-[16px] border-border-default/80 bg-bg-primary/96 shadow-[0_20px_60px_rgba(15,23,42,0.14)]";
+  "p-1";
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [section, setSection] = useState<SectionId>("general");
@@ -351,7 +351,7 @@ function GeneralSection({
           value={String(settings.fontSize)}
           onValueChange={(value) => update("fontSize", Number(value) as AppSettings["fontSize"])}
         >
-          <SelectTrigger size="sm" className={cn(selectTriggerClassName, "w-32")}>
+          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-32")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
@@ -369,7 +369,7 @@ function GeneralSection({
           value={settings.fontFamily}
           onValueChange={(value) => update("fontFamily", value as AppSettings["fontFamily"])}
         >
-          <SelectTrigger size="sm" className={cn(selectTriggerClassName, "w-36")}>
+          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-36")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
@@ -384,7 +384,7 @@ function GeneralSection({
           value={settings.language}
           onValueChange={(value) => update("language", value as AppSettings["language"])}
         >
-          <SelectTrigger size="sm" className={cn(selectTriggerClassName, "w-32")}>
+          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-32")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
@@ -549,7 +549,7 @@ function DataSection({ settings, update }: SectionProps) {
             if (value) update("maxHistoryCount", parseInt(value, 10));
           }}
         >
-          <SelectTrigger size="sm" className={cn(selectTriggerClassName, "w-36")}>
+          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-36")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
@@ -572,7 +572,7 @@ function DataSection({ settings, update }: SectionProps) {
             if (value) update("autoSaveInterval", parseInt(value, 10));
           }}
         >
-          <SelectTrigger size="sm" className={cn(selectTriggerClassName, "w-36")}>
+          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-36")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
