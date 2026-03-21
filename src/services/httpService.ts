@@ -2,81 +2,16 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import type { HttpRequestConfig, HttpResponse, HttpResponseWithScripts, FormDataField } from '@/types/http';
-import { useEnvStore } from '@/stores/envStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-
-// ── Variable substitution engine ──
-
-/** Built-in dynamic variables */
-function getDynamicVariables(): Record<string, () => string> {
-  return {
-    '$timestamp': () => String(Math.floor(Date.now() / 1000)),
-    '$isoTimestamp': () => new Date().toISOString(),
-    '$randomInt': () => String(Math.floor(Math.random() * 1000)),
-    '$randomInt1000': () => String(Math.floor(Math.random() * 1000)),
-    '$guid': () => crypto.randomUUID(),
-    '$randomUUID': () => crypto.randomUUID(),
-    '$randomEmail': () => `user${Math.floor(Math.random() * 10000)}@example.com`,
-    '$randomColor': () => ['red', 'green', 'blue', 'orange', 'purple', 'yellow'][Math.floor(Math.random() * 6)],
-  };
-}
-
-/**
- * Replace {{variableName}} placeholders in a string
- * with values from the active environment, global variables, and dynamic variables.
- */
-function resolveVariables(input: string, vars: Record<string, string>): string {
-  const dynamicVars = getDynamicVariables();
-  return input.replace(/\{\{\s*([\w.$]+)\s*\}\}/g, (match, key) => {
-    // Check env vars first
-    if (vars[key] !== undefined) return vars[key];
-    // Check dynamic variables
-    if (dynamicVars[key]) return dynamicVars[key]();
-    return match;
-  });
-}
+import {
+  buildScopedVariableSnapshot,
+  getLinkedCollectionIdForRequestConfig,
+  resolveRequestConfigVariables,
+} from '@/lib/requestVariables';
 
 function resolveConfigVariables(config: HttpRequestConfig): HttpRequestConfig {
-  const vars = useEnvStore.getState().getResolvedVariables();
-  // Always resolve (even if no env vars, dynamic vars still work)
-
-  return {
-    ...config,
-    url: resolveVariables(config.url, vars),
-    rawBody: resolveVariables(config.rawBody, vars),
-    jsonBody: resolveVariables(config.jsonBody, vars),
-    graphqlQuery: resolveVariables(config.graphqlQuery, vars),
-    graphqlVariables: resolveVariables(config.graphqlVariables, vars),
-    bearerToken: resolveVariables(config.bearerToken, vars),
-    basicUsername: resolveVariables(config.basicUsername, vars),
-    basicPassword: resolveVariables(config.basicPassword, vars),
-    apiKeyName: resolveVariables(config.apiKeyName, vars),
-    apiKeyValue: resolveVariables(config.apiKeyValue, vars),
-    oauth2Config: {
-      ...config.oauth2Config,
-      accessToken: resolveVariables(config.oauth2Config.accessToken, vars),
-    },
-    headers: config.headers.map(h => ({
-      ...h,
-      key: resolveVariables(h.key, vars),
-      value: resolveVariables(h.value, vars),
-    })),
-    queryParams: config.queryParams.map(p => ({
-      ...p,
-      key: resolveVariables(p.key, vars),
-      value: resolveVariables(p.value, vars),
-    })),
-    formFields: config.formFields.map(f => ({
-      ...f,
-      key: resolveVariables(f.key, vars),
-      value: resolveVariables(f.value, vars),
-    })),
-    formDataFields: config.formDataFields.map(f => ({
-      ...f,
-      key: resolveVariables(f.key, vars),
-      value: f.fieldType === 'text' ? resolveVariables(f.value, vars) : f.value,
-    })),
-  };
+  const collectionId = getLinkedCollectionIdForRequestConfig(config);
+  return resolveRequestConfigVariables(config, collectionId);
 }
 
 export function resolveHttpConfig(config: HttpRequestConfig): HttpRequestConfig {
@@ -213,7 +148,8 @@ export async function sendRequestWithScripts(config: HttpRequestConfig): Promise
   const resolved = resolveConfigVariables(config);
   const payload = buildRequestPayload(resolved);
   const finalPayload = buildFinalPayload(payload);
-  const envVars = useEnvStore.getState().getResolvedVariables();
+  const collectionId = getLinkedCollectionIdForRequestConfig(config);
+  const envVars = buildScopedVariableSnapshot(collectionId, true);
 
   return await invoke<HttpResponseWithScripts>('send_request_with_scripts', {
     request: {

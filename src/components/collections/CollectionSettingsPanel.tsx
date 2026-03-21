@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useCollectionStore } from '@/stores/collectionStore';
 import type { Collection } from '@/types/collections';
+import type { CollectionVariableEntry } from '@/lib/requestVariables';
+import { parseCollectionVariableEntries, saveCollectionVariables } from '@/lib/requestVariables';
 
 type SettingsTab = 'overview' | 'variables' | 'auth' | 'scripts';
 
@@ -25,12 +27,7 @@ const tabs: { id: SettingsTab; label: string; icon: typeof Info }[] = [
   { id: 'scripts', label: 'collectionSettings.scripts', icon: Code },
 ];
 
-interface VarEntry {
-  key: string;
-  value: string;
-  enabled: boolean;
-  isSecret: boolean;
-}
+type VarEntry = CollectionVariableEntry;
 
 export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPanelProps) {
   const { t } = useTranslation();
@@ -172,19 +169,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    try {
-      const parsed = JSON.parse(collection.variables || '{}');
-      if (Array.isArray(parsed)) {
-        setVars(parsed);
-      } else if (typeof parsed === 'object') {
-        // Convert object format to array format
-        setVars(Object.entries(parsed).map(([key, value]) => ({
-          key, value: String(value), enabled: true, isSecret: false,
-        })));
-      }
-    } catch {
-      setVars([]);
-    }
+    setVars(parseCollectionVariableEntries(collection.variables));
     setDirty(false);
   }, [collection.id, collection.variables]);
 
@@ -204,12 +189,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
   };
 
   const handleSave = async () => {
-    const { updateCollection } = await import('@/services/collectionService');
-    const col = useCollectionStore.getState().collections.find(c => c.id === collection.id);
-    if (!col) return;
-    const updated = { ...col, variables: JSON.stringify(vars), updatedAt: new Date().toISOString() };
-    await updateCollection(updated);
-    useCollectionStore.getState().fetchCollections();
+    await saveCollectionVariables(collection.id, vars);
     setDirty(false);
   };
 

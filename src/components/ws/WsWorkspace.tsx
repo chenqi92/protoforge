@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown, AlertTriangle, Search, Settings2, RefreshCw } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown, AlertTriangle, Search, Settings2, RefreshCw, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
-import { InlineJsonViewer } from "@/components/ui/ResponseViewer";
 import type { WsMessage, WsEvent } from "@/types/ws";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
@@ -22,6 +21,8 @@ export function WsWorkspace() {
   const [message, setMessage] = useState("");
   const [sendMode, setSendMode] = useState<"text" | "binary">("text");
   const [messages, setMessages] = useState<WsMessage[]>([]);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [detailView, setDetailView] = useState<"preview" | "text" | "json" | "hex">("preview");
   const [autoScroll, setAutoScroll] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showHeaders, setShowHeaders] = useState(false);
@@ -35,8 +36,30 @@ export function WsWorkspace() {
   const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const autoReconnectRef = useRef(autoReconnect);
+  const connectedRef = useRef(false);
+  const lastEventFingerprintRef = useRef<{ key: string; at: number } | null>(null);
 
   const tabId = activeTab?.id;
+
+  useEffect(() => {
+    autoReconnectRef.current = autoReconnect;
+  }, [autoReconnect]);
+
+  useEffect(() => {
+    connectedRef.current = connected;
+  }, [connected]);
+
+  const appendMessage = useCallback((message: WsMessage) => {
+    setMessages((prev) => [...prev, message]);
+  }, []);
+
+  const pushWsEventMessage = useCallback((message: WsMessage) => {
+    appendMessage(message);
+  }, [appendMessage]);
+
+  if (!activeTab) return null;
+  const url = activeTab.wsUrl || "ws://localhost:8080";
 
   // 自动滚动
   useEffect(() => {
@@ -67,60 +90,107 @@ export function WsWorkspace() {
   // 监听 WS 事件
   useEffect(() => {
     if (!tabId) return;
+    let disposed = false;
     let unlisten: (() => void) | null = null;
 
     const setup = async () => {
       const { onWsEvent } = await import("@/services/wsService");
-      unlisten = await onWsEvent((event: WsEvent) => {
-        if (event.connectionId !== tabId) return;
+      const cleanup = await onWsEvent((event: WsEvent) => {
+        if (disposed || event.connectionId !== tabId) return;
+
+        const fingerprint = `${event.eventType}|${event.timestamp}|${event.dataType || ""}|${event.data || ""}|${event.reason || ""}`;
+        const now = Date.now();
+        if (lastEventFingerprintRef.current?.key === fingerprint && now - lastEventFingerprintRef.current.at < 250) {
+          return;
+        }
+        lastEventFingerprintRef.current = { key: fingerprint, at: now };
+
         switch (event.eventType) {
           case "connected":
             setConnected(true);
             setConnecting(false);
-            reconnectCountRef.current = 0; // 连接成功后重置重连计数
-            if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
+            reconnectCountRef.current = 0;
+            if (reconnectTimerRef.current) {
+              clearTimeout(reconnectTimerRef.current);
+              reconnectTimerRef.current = null;
+            }
+            pushWsEventMessage({
+              id: crypto.randomUUID(),
+              kind: "status",
+              title: t('ws.connectionSuccess'),
+              status: "connected",
+              data: event.data || url,
+              dataType: "text",
+              timestamp: event.timestamp,
+              size: 0,
+            });
             break;
           case "message":
-            setMessages((prev) => [...prev, {
+            pushWsEventMessage({
               id: crypto.randomUUID(),
+              kind: "message",
               direction: "received",
+              title: t('ws.received'),
               data: event.data || "",
               dataType: (event.dataType as "text" | "binary") || "text",
               timestamp: event.timestamp,
               size: event.size || 0,
-            }]);
+            });
             break;
           case "disconnected":
             setConnected(false);
             setConnecting(false);
-            // 仅在非正常断开时自动重连（error 或 server_close）
-            if (autoReconnect && event.reason !== "normal" && !reconnectTimerRef.current) {
+            if (event.reason !== "error" || connectedRef.current) {
+              pushWsEventMessage({
+                id: crypto.randomUUID(),
+                kind: "status",
+                title: t('ws.disconnected'),
+                status: "disconnected",
+                data: event.data || url,
+                dataType: "text",
+                timestamp: event.timestamp,
+                size: 0,
+              });
+            }
+            if (autoReconnectRef.current && event.reason !== "normal" && !reconnectTimerRef.current) {
               reconnectCountRef.current += 1;
               reconnectTimerRef.current = setTimeout(() => {
                 reconnectTimerRef.current = null;
-                doConnect();
+                void doConnect();
               }, 3000);
             }
             break;
           case "error":
             setConnected(false);
             setConnecting(false);
-            setMessages((prev) => [...prev, {
-              id: crypto.randomUUID(), direction: "received",
-              data: `[ERROR] ${t('ws.error')}: ${event.data}`, dataType: "text",
-              timestamp: event.timestamp, size: 0,
-            }]);
+            pushWsEventMessage({
+              id: crypto.randomUUID(),
+              kind: "error",
+              title: t('ws.error'),
+              data: event.data || "",
+              dataType: "text",
+              timestamp: event.timestamp,
+              size: 0,
+            });
             break;
         }
       });
-    };
-    setup();
-    return () => { unlisten?.(); if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabId, autoReconnect]);
 
-  if (!activeTab) return null;
-  const url = activeTab.wsUrl || "ws://localhost:8080";
+      if (disposed) {
+        cleanup();
+        return;
+      }
+      unlisten = cleanup;
+    };
+
+    void setup();
+    return () => {
+      disposed = true;
+      unlisten?.();
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabId, t, pushWsEventMessage, url]);
 
   const doConnect = async () => {
     setConnecting(true);
@@ -132,11 +202,15 @@ export function WsWorkspace() {
     } catch (err: unknown) {
       setConnecting(false);
       const errMsg = err instanceof Error ? err.message : String(err);
-      setMessages((prev) => [...prev, {
-        id: crypto.randomUUID(), direction: "received",
-        data: `[ERROR] ${t('ws.connectionFailed')}: ${errMsg}`, dataType: "text",
-        timestamp: new Date().toISOString(), size: 0,
-      }]);
+      appendMessage({
+        id: crypto.randomUUID(),
+        kind: "error",
+        title: t('ws.connectionFailed'),
+        data: errMsg,
+        dataType: "text",
+        timestamp: new Date().toISOString(),
+        size: 0,
+      });
     }
   };
 
@@ -159,27 +233,39 @@ export function WsWorkspace() {
         const { wsSendBinary } = await import("@/services/wsService");
         const bytes = message.trim().split(/\s+/).map(h => parseInt(h, 16)).filter(n => !isNaN(n));
         await wsSendBinary(activeTab.id, bytes);
-        setMessages((prev) => [...prev, {
+        appendMessage({
           id: crypto.randomUUID(), direction: "sent",
+          kind: "message",
+          title: t('ws.sent'),
           data: bytes.map(b => b.toString(16).padStart(2, '0')).join(' '),
           dataType: "binary", timestamp: new Date().toISOString(), size: bytes.length,
-        }]);
+        });
       } else {
         const { wsSend } = await import("@/services/wsService");
         await wsSend(activeTab.id, message);
-        setMessages((prev) => [...prev, {
-          id: crypto.randomUUID(), direction: "sent", data: message,
-          dataType: "text", timestamp: new Date().toISOString(), size: new Blob([message]).size,
-        }]);
+        appendMessage({
+          id: crypto.randomUUID(),
+          kind: "message",
+          direction: "sent",
+          title: t('ws.sent'),
+          data: message,
+          dataType: "text",
+          timestamp: new Date().toISOString(),
+          size: new Blob([message]).size,
+        });
       }
       setMessage("");
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      setMessages((prev) => [...prev, {
-        id: crypto.randomUUID(), direction: "received",
-        data: `[ERROR] ${t('ws.sendFailed')}: ${errMsg}`, dataType: "text",
-        timestamp: new Date().toISOString(), size: 0,
-      }]);
+      appendMessage({
+        id: crypto.randomUUID(),
+        kind: "error",
+        title: t('ws.sendFailed'),
+        data: errMsg,
+        dataType: "text",
+        timestamp: new Date().toISOString(),
+        size: 0,
+      });
     }
   };
 
@@ -194,10 +280,30 @@ export function WsWorkspace() {
 
   const formatSize = (bytes: number) => bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 
-  // 消息过滤
-  const filteredMessages = searchQuery
-    ? messages.filter(m => m.data.toLowerCase().includes(searchQuery.toLowerCase()))
-    : messages;
+  const filteredMessages = useMemo(() => {
+    if (!searchQuery) return messages;
+    const normalized = searchQuery.toLowerCase();
+    return messages.filter((messageItem) => {
+      const haystack = `${messageItem.title} ${messageItem.data}`.toLowerCase();
+      return haystack.includes(normalized);
+    });
+  }, [messages, searchQuery]);
+
+  const selectedMessage = useMemo(
+    () => filteredMessages.find((messageItem) => messageItem.id === selectedMessageId) ?? null,
+    [filteredMessages, selectedMessageId]
+  );
+
+  useEffect(() => {
+    if (selectedMessage) return;
+    if (selectedMessageId && filteredMessages.every((messageItem) => messageItem.id !== selectedMessageId)) {
+      setSelectedMessageId(null);
+    }
+  }, [filteredMessages, selectedMessage, selectedMessageId]);
+
+  useEffect(() => {
+    setDetailView("preview");
+  }, [selectedMessageId]);
 
   const addHeader = () => setHeaders([...headers, { key: "", value: "", enabled: true }]);
   const removeHeader = (i: number) => setHeaders(headers.filter((_, idx) => idx !== i));
@@ -338,48 +444,76 @@ export function WsWorkspace() {
           </div>
 
           {/* Messages */}
-          <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-auto bg-bg-secondary/12 p-4">
-            {filteredMessages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-text-disabled">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default bg-bg-secondary shadow-sm">
-                  <Zap className="w-8 h-8 opacity-20 text-amber-500" />
-                </div>
-                <p className="text-[14px] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
-                <p className="text-[12px] mt-1">{searchQuery ? '' : t('ws.emptyDesc')}</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredMessages.map((m) => (
-                  <div key={m.id} className={cn("flex", m.direction === "sent" ? "justify-end" : "justify-start")}>
-                    <div className={cn(
-                      "max-w-[75%] rounded-[12px] px-4 py-2.5 text-[13px] font-mono break-words shadow-sm",
-                      m.direction === "sent"
-                        ? "rounded-tr-[8px] border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-orange-500/10 text-amber-900 dark:text-amber-100"
-                        : m.data.startsWith("[ERROR]")
-                          ? "rounded-tl-[8px] border border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300"
-                          : "rounded-tl-[8px] border border-border-default bg-bg-elevated text-text-secondary"
-                    )}>
-                      <div className="whitespace-pre-wrap break-all" style={{ userSelect: "text" }}>
-                        {m.data.startsWith("[ERROR]") ? (
-                          <span className="flex items-start gap-1.5">
-                            <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
-                            <span><InlineJsonViewer data={m.data.replace(/^\[ERROR\]\s*/, '')} /></span>
-                          </span>
-                        ) : (
-                          <InlineJsonViewer data={m.data} />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] opacity-50">{formatTime(m.timestamp)}</span>
-                        {m.size > 0 && <span className="text-[10px] opacity-40">{formatSize(m.size)}</span>}
-                        {m.dataType === "binary" && <span className="rounded-[7px] bg-bg-tertiary px-1.5 py-0.5 text-[9px] font-sans text-text-tertiary">BIN</span>}
-                      </div>
-                    </div>
+          <div className="flex flex-1 min-h-0 flex-col bg-bg-secondary/12">
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleScroll}
+              className={cn(
+                "min-h-0 overflow-auto",
+                selectedMessage ? "basis-[44%] border-b border-border-default/70" : "flex-1"
+              )}
+            >
+              {filteredMessages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center px-6 text-text-disabled">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default bg-bg-secondary shadow-sm">
+                    <Zap className="w-8 h-8 opacity-20 text-amber-500" />
                   </div>
-                ))}
-                <div ref={messagesEndRef} />
+                  <p className="text-[14px] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
+                  <p className="mt-1 text-[12px]">{searchQuery ? '' : t('ws.emptyDesc')}</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border-default/60">
+                  {filteredMessages.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSelectedMessageId((current) => current === item.id ? null : item.id)}
+                      className={cn(
+                        "w-full px-4 py-3 text-left transition-colors hover:bg-bg-hover/70",
+                        selectedMessageId === item.id && "bg-accent/5"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <WsEventIcon message={item} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="truncate text-[13px] font-semibold text-text-primary">{item.title}</span>
+                            <WsEventTypePill message={item} />
+                            {getWsMessageFormat(item) && (
+                              <span className="rounded-full bg-bg-secondary px-2 py-0.5 text-[10px] font-medium text-text-tertiary">
+                                {getWsMessageFormat(item)}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 truncate text-[12px] text-text-tertiary">
+                            {getWsMessageSummary(item, t)}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2 text-[11px] text-text-disabled">
+                          {item.size > 0 && <span>{formatSize(item.size)}</span>}
+                          <span>{formatTime(item.timestamp)}</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+            </div>
+
+            {selectedMessage ? (
+              <WsDetailPanel
+                message={selectedMessage}
+                detailView={detailView}
+                onChangeView={setDetailView}
+                formatTime={formatTime}
+                formatSize={formatSize}
+              />
+            ) : filteredMessages.length > 0 ? (
+              <div className="shrink-0 border-t border-border-default/70 bg-bg-secondary/18 px-4 py-2 text-[11px] text-text-disabled">
+                {t('ws.detailEmptyDesc')}
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Input Bar */}
@@ -409,6 +543,207 @@ export function WsWorkspace() {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function getWsMessageSummary(message: WsMessage, t: (key: string) => string) {
+  if (message.kind === "status") {
+    return message.status === "connected"
+      ? `${t('ws.connectedTo')}: ${message.data}`
+      : `${t('ws.disconnectedFrom')}: ${message.data}`;
+  }
+
+  if (message.kind === "error") {
+    return message.data;
+  }
+
+  const compact = message.data.replace(/\s+/g, " ").trim();
+  return compact || t('http.emptyValue');
+}
+
+function getWsMessageFormat(message: WsMessage) {
+  if (message.kind !== "message") return null;
+  if (message.dataType === "binary") return "HEX";
+
+  try {
+    JSON.parse(message.data);
+    return "JSON";
+  } catch {
+    return "TEXT";
+  }
+}
+
+function WsEventIcon({ message }: { message: WsMessage }) {
+  if (message.kind === "status") {
+    return message.status === "connected" ? (
+      <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-600">
+        <CheckCircle2 className="h-4 w-4" />
+      </span>
+    ) : (
+      <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-slate-500/10 text-slate-500">
+        <Plug className="h-4 w-4" />
+      </span>
+    );
+  }
+
+  if (message.kind === "error") {
+    return (
+      <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/10 text-red-500">
+        <AlertTriangle className="h-4 w-4" />
+      </span>
+    );
+  }
+
+  return message.direction === "sent" ? (
+    <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/12 text-amber-600">
+      <SendIcon className="h-3.5 w-3.5" />
+    </span>
+  ) : (
+    <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-sky-500/10 text-sky-600">
+      <ArrowDown className="h-4 w-4" />
+    </span>
+  );
+}
+
+function WsEventTypePill({ message }: { message: WsMessage }) {
+  if (message.kind === "status") {
+    return (
+      <span className={cn(
+        "rounded-full px-2 py-0.5 text-[10px] font-medium",
+        message.status === "connected"
+          ? "bg-emerald-500/10 text-emerald-600"
+          : "bg-slate-500/10 text-slate-500"
+      )}>
+        {message.status === "connected" ? "CONNECTED" : "DISCONNECTED"}
+      </span>
+    );
+  }
+
+  if (message.kind === "error") {
+    return <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-500">ERROR</span>;
+  }
+
+  return (
+    <span className={cn(
+      "rounded-full px-2 py-0.5 text-[10px] font-medium",
+      message.direction === "sent"
+        ? "bg-amber-500/10 text-amber-600"
+        : "bg-sky-500/10 text-sky-600"
+    )}>
+      {message.direction === "sent" ? "OUT" : "IN"}
+    </span>
+  );
+}
+
+function WsDetailPanel({
+  message,
+  detailView,
+  onChangeView,
+  formatTime,
+  formatSize,
+}: {
+  message: WsMessage;
+  detailView: "preview" | "text" | "json" | "hex";
+  onChangeView: (view: "preview" | "text" | "json" | "hex") => void;
+  formatTime: (value: string) => string;
+  formatSize: (value: number) => string;
+}) {
+  const { t } = useTranslation();
+  const isJson = useMemo(() => {
+    try {
+      JSON.parse(message.data);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [message.data]);
+
+  const prettyJson = useMemo(() => {
+    if (!isJson) return message.data;
+    return JSON.stringify(JSON.parse(message.data), null, 2);
+  }, [isJson, message.data]);
+
+  const hexText = useMemo(() => {
+    if (message.dataType === "binary") {
+      return message.data;
+    }
+    return Array.from(new TextEncoder().encode(message.data))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join(" ");
+  }, [message.data, message.dataType]);
+
+  const tabs: Array<{ key: "preview" | "text" | "json" | "hex"; label: string; hidden?: boolean }> = [
+    { key: "preview", label: t('ws.preview') },
+    { key: "text", label: t('ws.textView') },
+    { key: "json", label: "JSON", hidden: !isJson },
+    { key: "hex", label: "HEX" },
+  ];
+
+  return (
+    <div className="flex min-h-[220px] flex-1 flex-col">
+      <div className="flex items-center justify-between gap-3 border-b border-border-default/70 px-4 py-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-[13px] font-semibold text-text-primary">{message.title}</span>
+            <WsEventTypePill message={message} />
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-text-disabled">
+            <span>{formatTime(message.timestamp)}</span>
+            {message.size > 0 && <span>{formatSize(message.size)}</span>}
+            {message.dataType === "binary" && <span>BINARY</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 rounded-full bg-bg-secondary/80 p-1">
+          {tabs.filter((tab) => !tab.hidden).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => onChangeView(tab.key)}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
+                detailView === tab.key
+                  ? "bg-bg-primary text-text-primary shadow-sm"
+                  : "text-text-tertiary hover:text-text-secondary"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto bg-bg-primary px-4 py-4">
+        {detailView === "preview" && (
+          <div className="select-text px-1 text-[12px] leading-6 text-text-secondary">
+            <pre className="whitespace-pre-wrap break-all font-mono">
+              {message.kind === "message"
+                ? isJson
+                  ? prettyJson
+                  : message.data
+                : message.data}
+            </pre>
+          </div>
+        )}
+
+        {detailView === "text" && (
+          <div className="select-text px-1">
+            <pre className="whitespace-pre-wrap break-all font-mono text-[12px] leading-6 text-text-secondary">{message.data}</pre>
+          </div>
+        )}
+
+        {detailView === "json" && isJson && (
+          <div className="select-text px-1">
+            <pre className="whitespace-pre-wrap break-all font-mono text-[12px] leading-6 text-text-secondary">{prettyJson}</pre>
+          </div>
+        )}
+
+        {detailView === "hex" && (
+          <div className="select-text px-1">
+            <pre className="whitespace-pre-wrap break-all font-mono text-[12px] leading-6 text-text-secondary">{hexText}</pre>
+          </div>
+        )}
       </div>
     </div>
   );

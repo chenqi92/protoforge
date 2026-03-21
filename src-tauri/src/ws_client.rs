@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::Emitter;
 use tokio::sync::{mpsc, Mutex};
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::http;
 
@@ -52,6 +53,19 @@ fn now_iso() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
 
+fn is_reserved_ws_header(header_name: &str) -> bool {
+    matches!(
+        header_name.to_ascii_lowercase().as_str(),
+        "host"
+            | "connection"
+            | "upgrade"
+            | "sec-websocket-key"
+            | "sec-websocket-version"
+            | "sec-websocket-extensions"
+            | "sec-websocket-accept"
+    )
+}
+
 /// 建立 WebSocket 连接（支持自定义 Headers）
 pub async fn connect(
     app: tauri::AppHandle,
@@ -63,18 +77,37 @@ pub async fn connect(
     // 先断开已有同 id 连接
     disconnect(connections, &connection_id).await.ok();
 
-    // 构造带 headers 的请求
-    let mut req_builder = http::Request::builder().uri(&url);
+    // 使用标准 WebSocket 客户端请求，保留库自动生成的握手头
+    let mut request = url
+        .as_str()
+        .into_client_request()
+        .map_err(|e| format!("构建请求失败: {}", e))?;
+
+    let mut reserved_header_conflict = false;
     if let Some(hdrs) = &headers {
         for (k, v) in hdrs {
-            req_builder = req_builder.header(k.as_str(), v.as_str());
+            if is_reserved_ws_header(k) {
+                reserved_header_conflict = true;
+                continue;
+            }
+            let header_name = http::header::HeaderName::from_bytes(k.as_bytes())
+                .map_err(|e| format!("无效的请求头名称 {}: {}", k, e))?;
+            let header_value = http::HeaderValue::from_str(v)
+                .map_err(|e| format!("无效的请求头值 {}: {}", k, e))?;
+            request.headers_mut().insert(header_name, header_value);
         }
     }
-    let request = req_builder.body(()).map_err(|e| format!("构建请求失败: {}", e))?;
 
     let (ws_stream, _response) = tokio_tungstenite::connect_async(request)
         .await
-        .map_err(|e| format!("WebSocket 连接失败: {}", e))?;
+        .map_err(|e| {
+            let message = e.to_string();
+            if reserved_header_conflict && message.to_ascii_lowercase().contains("sec-websocket-key") {
+                "WebSocket 连接失败: 握手头冲突。请移除自定义请求头中的保留握手字段，例如 Sec-WebSocket-Key / Connection / Upgrade。".to_string()
+            } else {
+                format!("WebSocket 连接失败: {}", e)
+            }
+        })?;
 
     let (mut write, mut read) = ws_stream.split();
 

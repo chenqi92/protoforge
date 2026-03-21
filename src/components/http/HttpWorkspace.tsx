@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from "@/stores/appStore";
 import { useCollectionStore } from "@/stores/collectionStore";
+import { useEnvStore } from "@/stores/envStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import type { HttpMethod, KeyValue, FormDataField, ScriptResult, HttpRequestMode } from "@/types/http";
 import type { OAuth2Config } from "@/types/http";
@@ -19,6 +20,7 @@ import { ResponseViewer } from "@/components/ui/ResponseViewer";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
 import { buildCollectionItemFromHttpConfig, getCollectionRequestSignatureFromConfig, getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
+import { extractVariableKeys, getVariablePreview, upsertCollectionVariable } from "@/lib/requestVariables";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -482,25 +484,32 @@ export function HttpWorkspace() {
                 </>
               )}
             </div>
-            <input
-              ref={urlInputRef}
-              value={config.url}
-              onChange={(e) => { updateHttpConfig(tabId, { url: e.target.value }); setUrlHighlight(-1); }}
-              onKeyDown={(e) => {
-                if (urlSuggestions.length > 0) {
-                  if (e.key === 'ArrowDown') { e.preventDefault(); setUrlHighlight(h => (h + 1) % urlSuggestions.length); return; }
-                  if (e.key === 'ArrowUp') { e.preventDefault(); setUrlHighlight(h => (h <= 0 ? urlSuggestions.length - 1 : h - 1)); return; }
-                  if (e.key === 'Enter' && urlHighlight >= 0) { e.preventDefault(); updateHttpConfig(tabId, { url: urlSuggestions[urlHighlight] }); setUrlFocused(false); return; }
-                  if (e.key === 'Escape') { setUrlFocused(false); return; }
-                }
-                if (e.key === 'Enter') handleSend();
-              }}
-              onFocus={() => { setUrlFocused(true); if (urlInputRef.current) urlRectRef.current = urlInputRef.current.getBoundingClientRect(); }}
-              onBlur={() => setTimeout(() => setUrlFocused(false), 150)}
-              placeholder={t('http.urlPlaceholder')}
-              data-url-input
-              className="wb-request-input"
-            />
+            <div className="relative min-w-0 flex-1">
+              <input
+                ref={urlInputRef}
+                value={config.url}
+                onChange={(e) => { updateHttpConfig(tabId, { url: e.target.value }); setUrlHighlight(-1); }}
+                onKeyDown={(e) => {
+                  if (urlSuggestions.length > 0) {
+                    if (e.key === 'ArrowDown') { e.preventDefault(); setUrlHighlight(h => (h + 1) % urlSuggestions.length); return; }
+                    if (e.key === 'ArrowUp') { e.preventDefault(); setUrlHighlight(h => (h <= 0 ? urlSuggestions.length - 1 : h - 1)); return; }
+                    if (e.key === 'Enter' && urlHighlight >= 0) { e.preventDefault(); updateHttpConfig(tabId, { url: urlSuggestions[urlHighlight] }); setUrlFocused(false); return; }
+                    if (e.key === 'Escape') { setUrlFocused(false); return; }
+                  }
+                  if (e.key === 'Enter') handleSend();
+                }}
+                onFocus={() => { setUrlFocused(true); if (urlInputRef.current) urlRectRef.current = urlInputRef.current.getBoundingClientRect(); }}
+                onBlur={() => setTimeout(() => setUrlFocused(false), 150)}
+                placeholder={t('http.urlPlaceholder')}
+                data-url-input
+                className={cn("wb-request-input", extractVariableKeys(config.url).length > 0 && "pr-24")}
+              />
+              <FieldVariableBadge
+                value={config.url}
+                collectionId={activeTab.linkedCollectionId}
+                className="right-2 top-1/2 -translate-y-1/2"
+              />
+            </div>
             {urlSuggestions.length > 0 && urlFocused && urlRectRef.current && createPortal(
               <div className="fixed z-[9999] max-h-[220px] overflow-y-auto rounded-[16px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_20px_48px_rgba(15,23,42,0.14)]"
                 style={{ top: (urlRectRef.current.bottom + 2), left: urlRectRef.current.left, width: urlRectRef.current.width }}>
@@ -592,8 +601,8 @@ export function HttpWorkspace() {
             </div>
           
             <div className="http-workbench-body">
-              {reqTab === "params" && <div className="px-1.5 py-1"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" /></div>}
-              {reqTab === "headers" && <div className="px-1.5 py-1"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle /></div>}
+              {reqTab === "params" && <div className="px-1.5 py-1"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
+              {reqTab === "headers" && <div className="px-1.5 py-1"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} /></div>}
             
               {reqTab === "body" && (
                 <div className="p-4 flex flex-col h-full">
@@ -670,7 +679,7 @@ export function HttpWorkspace() {
                         </div>
                       </div>
                     )}
-                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-1 px-1"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" /></div>}
+                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-1 px-1"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
                     {!isGraphqlMode && config.bodyType === "formData" && <div className="overflow-auto h-full -mx-2 px-2"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
                     {!isGraphqlMode && config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
                   </div>
@@ -786,12 +795,6 @@ export function HttpWorkspace() {
 
           {/* Response Panel */}
           <Panel minSize="15" defaultSize="50" className="http-workbench-section">
-            {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-[13px] shrink-0 font-medium">
-                {t('http.requestFailed')}: {error}
-              </div>
-            )}
-          
             {isSseMode ? (
               <HttpSseResponsePanel
                 status={sseStatus}
@@ -801,6 +804,11 @@ export function HttpWorkspace() {
                 onToggleAutoScroll={() => setSseAutoScroll((prev) => !prev)}
                 onClear={() => setSseEvents([])}
                 listRef={sseListRef}
+              />
+            ) : error ? (
+              <HttpRequestErrorPanel
+                error={error}
+                onDismiss={() => setError(tabId, null)}
               />
             ) : response ? (
               <>
@@ -1051,6 +1059,57 @@ function ResponseMetaPill({ label, value }: { label: string; value: string }) {
       <span className="http-response-meta-label">{label}</span>
       <span className="http-response-meta-value font-mono">{value}</span>
     </span>
+  );
+}
+
+function HttpRequestErrorPanel({
+  error,
+  onDismiss,
+}: {
+  error: string;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="http-response-head shrink-0">
+        <div className="http-response-tabs scrollbar-hide">
+          <span className="http-response-tab is-active">{t('http.errorResult')}</span>
+        </div>
+
+        <div className="http-response-meta">
+          <span className="http-response-status border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300">
+            <span className="http-response-status-dot bg-red-500" />
+            {t('http.requestFailed')}
+          </span>
+          <button type="button" onClick={onDismiss} className="wb-icon-btn" title={t('common.delete')}>
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto bg-bg-primary px-6 py-6">
+        <div className="mx-auto flex h-full max-w-3xl flex-col items-center justify-center text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-red-200/80 bg-red-50 text-red-500 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300">
+            <XCircle className="h-8 w-8" />
+          </div>
+          <p className="text-[18px] font-semibold text-text-primary">{t('http.requestFailed')}</p>
+          <p className="mt-2 max-w-[520px] text-[12px] leading-6 text-text-secondary">
+            {t('http.requestFailedDesc')}
+          </p>
+
+          <div className="mt-5 w-full overflow-hidden rounded-[16px] border border-border-default/80 bg-bg-secondary/30 text-left">
+            <div className="border-b border-border-default/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-disabled">
+              {t('http.errorDetails')}
+            </div>
+            <pre className="selectable overflow-auto px-4 py-4 text-[12px] leading-6 text-text-secondary whitespace-pre-wrap break-all">
+              {error}
+            </pre>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1395,13 +1454,14 @@ const HEADER_PRESETS: { key: string; value: string; desc: string }[] = [
 ];
 
 /* ── KV Editor (table-based, for params, headers, form-urlencoded) ── */
-function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle }: {
+function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, collectionId }: {
   items: KeyValue[];
   onChange: (v: KeyValue[]) => void;
   kp: string;
   vp: string;
   showPresets?: boolean;
   showAutoToggle?: boolean;
+  collectionId?: string | null;
 }) {
   const { t } = useTranslation();
   const [presetOpen, setPresetOpen] = useState(false);
@@ -1475,7 +1535,7 @@ function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle }: {
             onBlur={() => setTimeout(() => { setActiveKeySuggest(null); setHighlightIdx(-1); }, 150)}
             onKeyDown={e => handleKeyDown(e, keySugs, k => selectKeySuggestion(i, k), () => setActiveKeySuggest(null))}
             placeholder={kp} disabled={!item.enabled} suggestions={keySugs} highlightIdx={highlightIdx}
-            onSelectSuggestion={k => selectKeySuggestion(i, k)} className={cellInput} />
+            onSelectSuggestion={k => selectKeySuggestion(i, k)} className={cellInput} collectionId={collectionId} />
         </td>
         <td className="border-r border-border-default p-0">
           <TableCellInput value={item.value} onChange={v => update(i, "value", v)}
@@ -1483,7 +1543,7 @@ function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle }: {
             onBlur={() => setTimeout(() => { setActiveValueSuggest(null); setHighlightIdx(-1); }, 150)}
             onKeyDown={e => handleKeyDown(e, valSugs, v => selectValueSuggestion(i, v), () => setActiveValueSuggest(null))}
             placeholder={vp} disabled={!item.enabled} suggestions={valSugs} highlightIdx={highlightIdx}
-            onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cellInput} />
+            onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cellInput} collectionId={collectionId} />
         </td>
         <td className="border-r border-border-default p-0">
           <input value={item.description || ""} onChange={e => update(i, "description", e.target.value)} placeholder="Description"
@@ -1565,10 +1625,11 @@ function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle }: {
 }
 
 /* ── TableCellInput: borderless input with portal suggestion dropdown ── */
-function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placeholder, disabled, suggestions, highlightIdx, onSelectSuggestion, className: cls }: {
+function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placeholder, disabled, suggestions, highlightIdx, onSelectSuggestion, className: cls, collectionId }: {
   value: string; onChange: (v: string) => void; onFocus: () => void; onBlur: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void; placeholder: string; disabled: boolean;
   suggestions?: string[]; highlightIdx?: number; onSelectSuggestion?: (v: string) => void; className?: string;
+  collectionId?: string | null;
 }) {
   const { t } = useTranslation();
   const ref = useRef<HTMLInputElement>(null);
@@ -1578,8 +1639,11 @@ function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placehold
 
   return (
     <>
-      <input ref={ref} value={value} onChange={e => onChange(e.target.value)} onFocus={onFocus} onBlur={onBlur} onKeyDown={onKeyDown}
-        placeholder={placeholder} className={cn(cls, disabled && "opacity-40")} />
+      <div className="relative">
+        <input ref={ref} value={value} onChange={e => onChange(e.target.value)} onFocus={onFocus} onBlur={onBlur} onKeyDown={onKeyDown}
+          placeholder={placeholder} className={cn(cls, disabled && "opacity-40", extractVariableKeys(value).length > 0 && "pr-16")} />
+        <FieldVariableBadge value={value} collectionId={collectionId} className="right-1 top-1/2 -translate-y-1/2" compact />
+      </div>
       {hasSugs && rect && onSelectSuggestion && createPortal(
         <div className="fixed bg-bg-elevated border border-border-default rounded-lg shadow-xl max-h-[220px] overflow-y-auto py-0.5"
           style={{ top: rect.bottom + 2, left: rect.left, width: rect.width, zIndex: 9999 }}>
@@ -1594,6 +1658,221 @@ function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placehold
         </div>, document.body
       )}
     </>
+  );
+}
+
+function FieldVariableBadge({
+  value,
+  collectionId,
+  className,
+  compact,
+}: {
+  value: string;
+  collectionId?: string | null;
+  className?: string;
+  compact?: boolean;
+}) {
+  const { t } = useTranslation();
+  const variableKeys = useMemo(() => extractVariableKeys(value), [value]);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  const label = variableKeys.length === 1
+    ? `{{${variableKeys[0]}}}`
+    : t('http.variableCount', { count: variableKeys.length });
+
+  const cancelClose = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimerRef.current = window.setTimeout(() => setOpen(false), 120);
+  };
+
+  useEffect(() => {
+    if (open && buttonRef.current) {
+      setRect(buttonRef.current.getBoundingClientRect());
+    }
+  }, [open, value]);
+
+  useEffect(() => () => cancelClose(), []);
+
+  if (variableKeys.length === 0) return null;
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onMouseEnter={() => { cancelClose(); setOpen(true); }}
+        onMouseLeave={scheduleClose}
+        className={cn(
+          "absolute z-10 inline-flex max-w-[132px] items-center gap-1 rounded-full bg-bg-secondary/96 px-2 py-0.5 text-[10px] font-medium text-accent shadow-sm",
+          compact ? "max-w-[92px]" : "max-w-[160px]",
+          className
+        )}
+        title={variableKeys.join(", ")}
+      >
+        <Braces className="h-3 w-3 shrink-0" />
+        <span className="truncate">{label}</span>
+      </button>
+      {open && rect && createPortal(
+        <VariableHoverPopover
+          rect={rect}
+          value={value}
+          collectionId={collectionId}
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+        />,
+        document.body
+      )}
+    </>
+  );
+}
+
+function VariableHoverPopover({
+  rect,
+  value,
+  collectionId,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  rect: DOMRect;
+  value: string;
+  collectionId?: string | null;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
+  const { t } = useTranslation();
+  const collections = useCollectionStore((state) => state.collections);
+  const activeEnvId = useEnvStore((state) => state.activeEnvId);
+  const envVars = useEnvStore((state) => state.variables);
+  const globalVars = useEnvStore((state) => state.globalVariables);
+  const variableKeys = useMemo(() => extractVariableKeys(value), [value]);
+  const previews = useMemo(
+    () => variableKeys.map((key) => getVariablePreview(key, collectionId)),
+    [collectionId, collections, envVars, globalVars, activeEnvId, variableKeys]
+  );
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+  const [revealedKeys, setRevealedKeys] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setDrafts(
+      Object.fromEntries(previews.map((preview) => [preview.key, preview.source === "missing" ? "" : preview.rawValue]))
+    );
+  }, [value, previews]);
+
+  if (previews.length === 0) return null;
+
+  const sourceLabelMap: Record<string, string> = {
+    collection: t('http.variableSourceCollection'),
+    environment: t('http.variableSourceEnvironment'),
+    global: t('http.variableSourceGlobal'),
+    dynamic: t('http.variableSourceDynamic'),
+    missing: t('http.variableSourceMissing'),
+  };
+
+  return (
+    <div
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      className="fixed z-[10000] w-[320px] rounded-[16px] border border-border-default bg-bg-primary/98 p-3 shadow-[0_18px_44px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+      style={{ top: rect.bottom + 6, left: Math.min(window.innerWidth - 332, Math.max(12, rect.right - 320)) }}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">
+          {t('http.variablePreview')}
+        </div>
+        <div className="text-[11px] text-text-disabled">{variableKeys.length}</div>
+      </div>
+
+      <div className="space-y-2">
+        {previews.map((preview) => {
+          const isSecretHidden = preview.isSecret && !revealedKeys[preview.key];
+          const displayValue = preview.source === "missing"
+            ? t('http.variableMissing')
+            : isSecretHidden
+              ? "••••••••"
+              : preview.value;
+          const canSaveToCollection = Boolean(collectionId) && preview.source !== "dynamic";
+
+          return (
+            <div key={preview.key} className="rounded-[12px] border border-border-subtle bg-bg-secondary/55 p-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-mono text-[12px] font-semibold text-text-primary">
+                    {`{{${preview.key}}}`}
+                  </div>
+                  <div className="mt-1 inline-flex rounded-full bg-bg-hover px-2 py-0.5 text-[10px] font-medium text-text-tertiary">
+                    {sourceLabelMap[preview.source]}
+                  </div>
+                </div>
+                {preview.isSecret && preview.source !== "missing" && (
+                  <button
+                    type="button"
+                    onClick={() => setRevealedKeys((current) => ({ ...current, [preview.key]: !current[preview.key] }))}
+                    className="text-text-disabled transition-colors hover:text-text-secondary"
+                  >
+                    {revealedKeys[preview.key] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-2 rounded-[10px] bg-bg-primary px-2.5 py-2 font-mono text-[11px] leading-5 text-text-secondary">
+                {displayValue}
+              </div>
+
+              {canSaveToCollection ? (
+                <div className="mt-2 space-y-2">
+                  <input
+                    value={drafts[preview.key] ?? ""}
+                    onChange={(event) => setDrafts((current) => ({ ...current, [preview.key]: event.target.value }))}
+                    placeholder={t('http.variableEditPlaceholder')}
+                    className="wb-field h-8 w-full px-2.5 text-[12px] font-mono"
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-text-disabled">
+                      {collectionId ? t('http.variableSaveToCollection') : t('http.variableNoCollection')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!collectionId) return;
+                        setSavingKey(preview.key);
+                        try {
+                          await upsertCollectionVariable(collectionId, preview.key, drafts[preview.key] ?? "");
+                          setSavedKey(preview.key);
+                          window.setTimeout(() => setSavedKey((current) => current === preview.key ? null : current), 1200);
+                        } finally {
+                          setSavingKey((current) => current === preview.key ? null : current);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-wait disabled:opacity-70"
+                      disabled={savingKey === preview.key}
+                    >
+                      {savingKey === preview.key ? <Loader2 className="h-3 w-3 animate-spin" /> : savedKey === preview.key ? <Check className="h-3 w-3" /> : <Save className="h-3 w-3" />}
+                      {savedKey === preview.key ? t('http.variableSaved') : t('http.variableSave')}
+                    </button>
+                  </div>
+                </div>
+              ) : !collectionId ? (
+                <div className="mt-2 text-[10px] text-text-disabled">{t('http.variableNoCollection')}</div>
+              ) : preview.source === "dynamic" ? (
+                <div className="mt-2 text-[10px] text-text-disabled">{t('http.variableDynamicReadonly')}</div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

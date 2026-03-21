@@ -2,11 +2,14 @@
 
 export interface WsMessage {
   id: string;
-  direction: 'sent' | 'received';
+  kind: 'status' | 'message' | 'error';
+  direction?: 'sent' | 'received';
+  title: string;
   data: string;
   dataType: 'text' | 'binary';
   timestamp: string;
   size: number;
+  status?: 'connected' | 'disconnected';
 }
 
 export interface WsEvent {
