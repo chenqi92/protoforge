@@ -5,8 +5,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Play, Square, Trash2, Send, Plus, X, Radio, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAppStore } from '@/stores/appStore';
+import { useAppStore, type RequestProtocol } from '@/stores/appStore';
 import { RequestWorkbenchHeader } from '@/components/request/RequestWorkbenchHeader';
+import { RequestProtocolSwitcher } from '@/components/request/RequestProtocolSwitcher';
 
 interface MqttMessage {
   topic: string;
@@ -19,6 +20,7 @@ interface MqttMessage {
 
 export function MqttWorkspace() {
   const activeTab = useAppStore((s) => s.getActiveTab());
+  const setTabProtocol = useAppStore((s) => s.setTabProtocol);
   const tabId = activeTab?.id || '';
 
   // Connection config
@@ -123,18 +125,25 @@ export function MqttWorkspace() {
 
   const isConnected = status === 'connected';
 
+  const handleProtocolChange = useCallback(async (protocol: RequestProtocol) => {
+    if (!activeTab || protocol === activeTab.protocol) return;
+    try {
+      if (status === 'connected' || status === 'connecting') {
+        await invoke('mqtt_disconnect', { connId });
+      }
+    } catch {}
+    setTabProtocol(activeTab.id, protocol);
+  }, [activeTab, connId, setTabProtocol, status]);
+
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Connection Bar */}
       <RequestWorkbenchHeader
         prefix={(
-          <div className="wb-request-prefix bg-gradient-to-r from-violet-500 to-fuchsia-500">
-            <Radio className="w-3.5 h-3.5" /> MQTT
-          </div>
+          <RequestProtocolSwitcher activeProtocol={activeTab?.protocol || "mqtt"} onChange={handleProtocolChange} />
         )}
         main={(
-          <>
-            <span className="wb-request-label">Broker</span>
+          <div className="flex min-w-0 flex-1 items-center">
             <input
               value={brokerUrl}
               onChange={(e) => setBrokerUrl(e.target.value)}
@@ -142,30 +151,30 @@ export function MqttWorkspace() {
               disabled={isConnected}
               className="wb-request-input disabled:opacity-50"
             />
-          </>
+          </div>
         )}
         actions={
           isConnected || status === 'connecting' ? (
-            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[96px] bg-red-500 hover:bg-red-600">
+            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[88px] bg-red-500 hover:bg-red-600">
               <Square className="w-3 h-3 fill-white" /> 断开
             </button>
           ) : (
-            <button onClick={handleConnect} className="wb-primary-btn min-w-[96px] bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600">
+            <button onClick={handleConnect} className="wb-primary-btn min-w-[88px] bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600">
               <Play className="w-3 h-3 fill-white" /> 连接
             </button>
           )
         }
         secondary={(
           <>
-            <div className="wb-inline-field w-[220px] max-w-full">
+            <div className="wb-inline-field min-w-[180px] flex-[1.15_1_0%]">
               <span>Client ID</span>
               <input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="Client ID" disabled={isConnected} />
             </div>
-            <div className="wb-inline-field w-[170px] max-w-full">
+            <div className="wb-inline-field min-w-[150px] flex-1">
               <span>用户名</span>
               <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="可选" disabled={isConnected} />
             </div>
-            <div className="wb-inline-field w-[170px] max-w-full">
+            <div className="wb-inline-field min-w-[150px] flex-1">
               <span>密码</span>
               <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="可选" type="password" disabled={isConnected} />
             </div>
@@ -186,10 +195,10 @@ export function MqttWorkspace() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Subscriptions + Publish */}
-        <div className="flex w-[320px] min-w-[300px] shrink-0 flex-col gap-3 overflow-hidden px-3 pb-3 pt-2">
+        <div className="flex w-[304px] min-w-[288px] shrink-0 flex-col gap-2.5 overflow-hidden px-3 pb-3 pt-1.5">
           {/* Subscriptions */}
-          <div className="wb-subpanel p-3">
-            <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider mb-2">订阅</h3>
+          <div className="wb-subpanel p-2.5">
+            <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-text-disabled">订阅</h3>
             <div className="mb-2 flex items-center gap-2">
               <input value={newSubTopic} onChange={(e) => setNewSubTopic(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSubscribe()}
                 placeholder="topic/path/#" disabled={!isConnected} className="wb-field-sm min-w-0 flex-1 font-mono disabled:opacity-50" />
@@ -199,7 +208,7 @@ export function MqttWorkspace() {
                 <option value={1}>QoS 1</option>
                 <option value={2}>QoS 2</option>
               </select>
-              <button onClick={handleSubscribe} disabled={!isConnected || !newSubTopic.trim()} className="wb-icon-btn h-8 w-8 border-0 bg-accent text-white hover:bg-accent-hover disabled:opacity-40">
+              <button onClick={handleSubscribe} disabled={!isConnected || !newSubTopic.trim()} className="wb-icon-btn border-0 bg-accent text-white hover:bg-accent-hover disabled:opacity-40">
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -217,12 +226,12 @@ export function MqttWorkspace() {
           </div>
 
           {/* Publish */}
-          <div className="wb-subpanel flex flex-1 flex-col p-3">
-            <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider mb-2">发布</h3>
+          <div className="wb-subpanel flex flex-1 flex-col p-2.5">
+            <h3 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-text-disabled">发布</h3>
             <input value={pubTopic} onChange={(e) => setPubTopic(e.target.value)} placeholder="topic/path" disabled={!isConnected}
               className="wb-field-sm mb-2 font-mono disabled:opacity-50" />
             <textarea value={pubPayload} onChange={(e) => setPubPayload(e.target.value)} placeholder="消息内容..." disabled={!isConnected}
-              className="wb-textarea mb-2 flex-1 min-h-[140px] text-[12px] text-text-secondary disabled:opacity-50" />
+              className="wb-textarea mb-2 flex-1 min-h-[128px] text-[12px] text-text-secondary disabled:opacity-50" />
             <div className="flex flex-wrap items-center gap-2">
               <select value={pubQos} onChange={(e) => setPubQos(Number(e.target.value))} disabled={!isConnected}
                 className="wb-field-sm wb-native-select w-[86px] shrink-0 disabled:opacity-50">
@@ -233,7 +242,7 @@ export function MqttWorkspace() {
               <label className={cn("flex shrink-0 items-center gap-1 text-[11px] cursor-pointer", !isConnected && "opacity-50")}>
                 <input type="checkbox" checked={pubRetain} onChange={(e) => setPubRetain(e.target.checked)} disabled={!isConnected} className="accent-accent" /> Retain
               </label>
-              <button onClick={handlePublish} disabled={!isConnected || !pubTopic.trim()} className="wb-primary-btn ml-auto min-w-[92px] bg-violet-500 hover:bg-violet-600 disabled:opacity-40">
+              <button onClick={handlePublish} disabled={!isConnected || !pubTopic.trim()} className="wb-primary-btn ml-auto min-w-[84px] bg-violet-500 hover:bg-violet-600 disabled:opacity-40">
                 <Send className="w-3 h-3" /> 发送
               </button>
             </div>
@@ -241,17 +250,17 @@ export function MqttWorkspace() {
         </div>
 
         {/* Right: Message List */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden px-0 pb-3 pt-2 pr-3">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden px-0 pb-3 pt-1.5 pr-3">
           <div className="wb-panel flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="wb-panel-header shrink-0 text-[11px]">
               <div className="min-w-0 flex flex-1 items-center">
                 <span className="text-text-disabled">{messages.length} 条消息</span>
               </div>
               <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-                <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn h-8 px-2.5 text-[11px]", autoScroll && "text-accent")}>
+                <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn px-2.5 text-[11px]", autoScroll && "text-accent")}>
                   <ArrowDown className="w-3 h-3" /> 自动滚动
                 </button>
-                <button onClick={() => setMessages([])} className="wb-icon-btn h-8 w-8 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
+                <button onClick={() => setMessages([])} className="wb-icon-btn hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
               </div>
             </div>
             <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/12 p-4 space-y-2">

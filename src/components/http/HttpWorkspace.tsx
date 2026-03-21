@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Play, Loader2, Copy, Check, ChevronDown, Braces, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAppStore } from "@/stores/appStore";
+import { useAppStore, type RequestProtocol } from "@/stores/appStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import type { HttpMethod, KeyValue, FormDataField, ScriptResult } from "@/types/http";
 import type { OAuth2Config } from "@/types/http";
@@ -12,6 +12,7 @@ import { ScriptEditor } from "./ScriptEditor";
 import { CodeEditor } from "@/components/common/CodeEditor";
 import { ResponseViewer } from "@/components/ui/ResponseViewer";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
+import { RequestProtocolSwitcher } from "@/components/request/RequestProtocolSwitcher";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -31,6 +32,7 @@ export function HttpWorkspace() {
   const setHttpResponse = useAppStore((s) => s.setHttpResponse);
   const setLoading = useAppStore((s) => s.setLoading);
   const setError = useAppStore((s) => s.setError);
+  const setTabProtocol = useAppStore((s) => s.setTabProtocol);
 
   const [reqTab, setReqTab] = useState<"params" | "headers" | "body" | "auth" | "pre-script" | "post-script">("params");
   const [resTab, setResTab] = useState<"pretty" | "raw" | "headers" | "cookies" | "timing">("pretty");
@@ -98,6 +100,12 @@ export function HttpWorkspace() {
     }
   }, [response]);
 
+  const handleProtocolChange = useCallback((protocol: RequestProtocol) => {
+    if (protocol === activeTab.protocol) return;
+    setShowMethods(false);
+    setTabProtocol(tabId, protocol);
+  }, [activeTab.protocol, setTabProtocol, tabId]);
+
   const params = Array.isArray(config.queryParams) ? config.queryParams : [];
   const headers = Array.isArray(config.headers) ? config.headers : [];
   const formFields = Array.isArray(config.formFields) ? config.formFields : [];
@@ -117,49 +125,49 @@ export function HttpWorkspace() {
       {/* Top Request Bar Area */}
       <RequestWorkbenchHeader
         prefix={(
-          <div className="relative h-full shrink-0 flex items-center">
-            <button
-              onClick={() => setShowMethods(!showMethods)}
-              className={cn(
-                "wb-request-prefix gap-2 border-0 bg-gradient-to-r shadow-sm",
-                config.method === "GET" && "from-emerald-500 to-teal-500",
-                config.method === "POST" && "from-amber-500 to-orange-500",
-                config.method === "PUT" && "from-blue-500 to-cyan-500",
-                config.method === "DELETE" && "from-red-500 to-rose-500",
-                config.method === "PATCH" && "from-violet-500 to-fuchsia-500",
-                config.method === "HEAD" && "from-cyan-500 to-sky-500",
-                config.method === "OPTIONS" && "from-slate-500 to-slate-600"
-              )}
-            >
-              <span className="h-2 w-2 rounded-full bg-white/90" />
-              {config.method}
-              <ChevronDown className="w-3 h-3 opacity-70" />
-            </button>
-            {showMethods && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowMethods(false)} />
-                <div className="absolute top-full left-0 z-50 mt-2 min-w-[140px] overflow-hidden rounded-[16px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl">
-                  {METHODS.map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => { updateHttpConfig(tabId, { method: m }); setShowMethods(false); }}
-                      className={cn(
-                        "flex w-full items-center gap-2.5 rounded-[12px] px-3 py-2 text-[12px] font-semibold transition-colors hover:bg-bg-hover",
-                        config.method === m ? "bg-bg-hover" : ""
-                      )}
-                    >
-                      <span className={cn("w-[6px] h-[6px] rounded-full shrink-0", methodDotColor[m])} />
-                      <span className={methodTextColor[m] || "text-text-primary"}>{m}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          <RequestProtocolSwitcher activeProtocol={activeTab.protocol} onChange={handleProtocolChange} />
         )}
         main={(
-          <div className="relative flex min-w-0 flex-1 items-center gap-3">
-            <span className="wb-request-label">URL</span>
+          <div className="relative flex min-w-0 flex-1 items-center gap-2">
+            <div className="relative shrink-0">
+              <button
+                onClick={() => setShowMethods(!showMethods)}
+                className={cn(
+                  "wb-request-method border-0 bg-gradient-to-r shadow-sm",
+                  config.method === "GET" && "from-emerald-500 to-teal-500",
+                  config.method === "POST" && "from-amber-500 to-orange-500",
+                  config.method === "PUT" && "from-blue-500 to-cyan-500",
+                  config.method === "DELETE" && "from-red-500 to-rose-500",
+                  config.method === "PATCH" && "from-violet-500 to-fuchsia-500",
+                  config.method === "HEAD" && "from-cyan-500 to-sky-500",
+                  config.method === "OPTIONS" && "from-slate-500 to-slate-600"
+                )}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+                {config.method}
+                <ChevronDown className="w-3 h-3 opacity-70" />
+              </button>
+              {showMethods && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMethods(false)} />
+                  <div className="absolute left-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden rounded-[14px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+                    {METHODS.map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => { updateHttpConfig(tabId, { method: m }); setShowMethods(false); }}
+                        className={cn(
+                          "flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-[12px] font-semibold transition-colors hover:bg-bg-hover",
+                          config.method === m && "bg-bg-hover"
+                        )}
+                      >
+                        <span className={cn("h-[6px] w-[6px] shrink-0 rounded-full", methodDotColor[m])} />
+                        <span className={methodTextColor[m] || "text-text-primary"}>{m}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             <input
               ref={urlInputRef}
               value={config.url}
@@ -221,7 +229,7 @@ export function HttpWorkspace() {
               disabled={loading || !config.url.trim()}
               data-send-button
               className={cn(
-                "wb-primary-btn min-w-[96px] bg-accent",
+                "wb-primary-btn min-w-[88px] bg-accent",
                 loading ? "animate-pulse opacity-90 shadow-[0_0_12px_rgba(59,130,246,0.45)] cursor-wait" : "hover:bg-accent-hover"
               )}
             >
@@ -233,355 +241,341 @@ export function HttpWorkspace() {
       />
 
       {/* Main Split Area */}
-      <div className="flex-1 overflow-hidden">
-        <PanelGroup orientation="vertical">
+      <div className="flex-1 overflow-hidden px-3 pb-3 pt-1.5">
+        <div className="http-workbench-shell">
+          <PanelGroup orientation="vertical">
         
-        {/* Request Panel */}
-        <Panel minSize="15" defaultSize="50" className="wb-panel flex h-full flex-col overflow-hidden">
-          <div className="wb-tabs shrink-0 scrollbar-hide">
-            {reqTabs.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setReqTab(t.key)}
-                className={cn(
-                  "wb-tab",
-                  reqTab === t.key && "wb-tab-active text-accent"
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          {/* Request Panel */}
+          <Panel minSize="15" defaultSize="50" className="http-workbench-section">
+            <div className="wb-tabs shrink-0 scrollbar-hide">
+              {reqTabs.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setReqTab(t.key)}
+                  className={cn(
+                    "wb-tab",
+                    reqTab === t.key && "wb-tab-active text-text-primary"
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           
-          <div className="flex-1 overflow-auto bg-transparent">
-            {reqTab === "params" && <div className="px-2 py-1"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" /></div>}
-            {reqTab === "headers" && <div className="px-2 py-1"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets /></div>}
+            <div className="http-workbench-body">
+              {reqTab === "params" && <div className="px-1.5 py-1"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" /></div>}
+              {reqTab === "headers" && <div className="px-1.5 py-1"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets /></div>}
             
-            {reqTab === "body" && (
-              <div className="p-4 flex flex-col h-full">
-                <div className="wb-segmented mb-4 w-fit shrink-0">
-                  {(["none", "json", "raw", "graphql", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
-                    <button
-                      key={bt}
-                      onClick={() => updateHttpConfig(tabId, { bodyType: bt })}
-                      className={cn(
-                        "wb-segment",
-                        config.bodyType === bt && "wb-segment-active"
-                      )}
-                    >
-                      {bt === "none" ? "None" : bt === "formUrlencoded" ? "URL-Encoded" : bt === "formData" ? "Form-Data" : bt === "binary" ? "Binary" : bt === "graphql" ? "GraphQL" : bt.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-                
-                <div className="flex-1 min-h-0 relative">
-                  {config.bodyType === "none" && <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[13px]">无需请求体</div>}
-                  {config.bodyType === "json" && (
-                    <div className="w-full h-full border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
-                      <CodeEditor
-                        value={config.jsonBody || ''}
-                        onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
-                        language="json"
-                      />
-                    </div>
-                  )}
-                  {config.bodyType === "graphql" && (
-                    <div className="flex flex-col h-full gap-3">
-                      <div className="flex-1 min-h-0">
-                        <label className="text-[11px] font-medium text-text-secondary mb-1 block">Query</label>
-                        <div className="w-full h-[calc(100%-20px)] border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
-                          <CodeEditor
-                            value={config.graphqlQuery || ''}
-                            onChange={(v) => updateHttpConfig(tabId, { graphqlQuery: v })}
-                            language="graphql"
-                          />
-                        </div>
-                      </div>
-                      <div className="h-28 shrink-0">
-                        <label className="text-[11px] font-medium text-text-secondary mb-1 block">Variables (JSON)</label>
-                        <div className="w-full h-[calc(100%-20px)] border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
-                          <CodeEditor
-                            value={config.graphqlVariables || ''}
-                            onChange={(v) => updateHttpConfig(tabId, { graphqlVariables: v })}
-                            language="json"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {config.bodyType === "raw" && (
-                    <div className="flex flex-col h-full gap-2">
-                      <select
-                        value={config.rawContentType}
-                        onChange={(e) => updateHttpConfig(tabId, { rawContentType: e.target.value })}
-                        className="wb-field-sm wb-native-select w-fit min-w-[120px] text-text-secondary"
+              {reqTab === "body" && (
+                <div className="p-4 flex flex-col h-full">
+                  <div className="wb-segmented mb-4 w-fit shrink-0">
+                    {(["none", "json", "raw", "graphql", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
+                      <button
+                        key={bt}
+                        onClick={() => updateHttpConfig(tabId, { bodyType: bt })}
+                        className={cn(
+                          "wb-segment",
+                          config.bodyType === bt && "wb-segment-active"
+                        )}
                       >
-                        <option value="text/plain">Text</option>
-                        <option value="text/html">HTML</option>
-                        <option value="application/xml">XML</option>
-                        <option value="application/javascript">JavaScript</option>
-                        <option value="text/css">CSS</option>
-                      </select>
-                      <div className="w-full flex-1 border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
+                        {bt === "none" ? "None" : bt === "formUrlencoded" ? "URL-Encoded" : bt === "formData" ? "Form-Data" : bt === "binary" ? "Binary" : bt === "graphql" ? "GraphQL" : bt.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                
+                  <div className="flex-1 min-h-0 relative">
+                    {config.bodyType === "none" && <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[13px]">无需请求体</div>}
+                    {config.bodyType === "json" && (
+                      <div className="w-full h-full border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                         <CodeEditor
-                          value={config.rawBody || ''}
-                          onChange={(v) => updateHttpConfig(tabId, { rawBody: v })}
-                          language={config.rawContentType === 'application/javascript' ? 'javascript' : config.rawContentType === 'text/css' ? 'css' : config.rawContentType === 'text/html' ? 'html' : config.rawContentType === 'application/xml' ? 'xml' : 'plaintext'}
+                          value={config.jsonBody || ''}
+                          onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
+                          language="json"
                         />
                       </div>
-                    </div>
-                  )}
-                  {config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-1 px-1"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" /></div>}
-                  {config.bodyType === "formData" && <div className="overflow-auto h-full -mx-2 px-2"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
-                  {config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
-                </div>
-              </div>
-            )}
-            
-            {reqTab === "auth" && (
-              <div className="p-4">
-                <div className="wb-segmented mb-4 w-fit flex-wrap">
-                  {(["none", "bearer", "basic", "apiKey", "oauth2"] as const).map((at) => (
-                    <button
-                      key={at}
-                      onClick={() => updateHttpConfig(tabId, { authType: at })}
-                      className={cn(
-                        "wb-segment",
-                        config.authType === at && "wb-segment-active"
-                      )}
-                    >
-                      {at === "none" ? "No Auth" : at === "bearer" ? "Bearer Token" : at === "basic" ? "Basic Auth" : at === "apiKey" ? "API Key" : "OAuth 2.0"}
-                    </button>
-                  ))}
-                </div>
-                
-                <div className="max-w-md">
-                  {config.authType === "none" && <p className="text-[13px] text-text-disabled mt-6">该请求不携带任何认证信息。</p>}
-                  {config.authType === "bearer" && (
-                    <div className="space-y-2">
-                      <label className="text-[12px] font-medium text-text-secondary">Token (无需携带 &apos;Bearer &apos; 前缀)</label>
-                      <input
-                        value={config.bearerToken}
-                        onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
-                        placeholder="ey..."
-                        className="wb-field w-full font-mono text-[13px]"
+                    )}
+                    {config.bodyType === "graphql" && (
+                      <GraphQLBodyEditor
+                        query={config.graphqlQuery || ""}
+                        variables={config.graphqlVariables || ""}
+                        onQueryChange={(v) => updateHttpConfig(tabId, { graphqlQuery: v })}
+                        onVariablesChange={(v) => updateHttpConfig(tabId, { graphqlVariables: v })}
                       />
-                    </div>
-                  )}
-                  {config.authType === "basic" && (
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <label className="text-[12px] font-medium text-text-secondary">Username</label>
-                        <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full text-[13px]" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[12px] font-medium text-text-secondary">Password</label>
-                        <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type="password" className="wb-field w-full text-[13px]" />
-                      </div>
-                    </div>
-                  )}
-                  {config.authType === "apiKey" && (
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <label className="text-[12px] font-medium text-text-secondary">添加到</label>
-                        <div className="wb-segmented w-fit">
-                          {(["header", "query"] as const).map((a) => (
-                            <button key={a} onClick={() => updateHttpConfig(tabId, { apiKeyAddTo: a })} className={cn("wb-segment", config.apiKeyAddTo === a && "wb-segment-active")}>
-                              {a === "header" ? "Header" : "Query Param"}
-                            </button>
-                          ))}
+                    )}
+                    {config.bodyType === "raw" && (
+                      <div className="flex flex-col h-full gap-2">
+                        <select
+                          value={config.rawContentType}
+                          onChange={(e) => updateHttpConfig(tabId, { rawContentType: e.target.value })}
+                          className="wb-field-sm wb-native-select w-fit min-w-[120px] text-text-secondary"
+                        >
+                          <option value="text/plain">Text</option>
+                          <option value="text/html">HTML</option>
+                          <option value="application/xml">XML</option>
+                          <option value="application/javascript">JavaScript</option>
+                          <option value="text/css">CSS</option>
+                        </select>
+                        <div className="w-full flex-1 border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
+                          <CodeEditor
+                            value={config.rawBody || ''}
+                            onChange={(v) => updateHttpConfig(tabId, { rawBody: v })}
+                            language={config.rawContentType === 'application/javascript' ? 'javascript' : config.rawContentType === 'text/css' ? 'css' : config.rawContentType === 'text/html' ? 'html' : config.rawContentType === 'application/xml' ? 'xml' : 'plaintext'}
+                          />
                         </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[12px] font-medium text-text-secondary">Key</label>
-                        <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono text-[13px]" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[12px] font-medium text-text-secondary">Value</label>
-                        <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} className="wb-field w-full font-mono text-[13px]" />
-                      </div>
-                    </div>
-                  )}
-                  {config.authType === "oauth2" && (
-                    <OAuth2Panel config={config.oauth2Config} onChange={(updates) => updateHttpConfig(tabId, { oauth2Config: { ...config.oauth2Config, ...updates } })} />
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {reqTab === "pre-script" && (
-              <ScriptEditor
-                type="pre"
-                value={config.preScript}
-                onChange={(v) => updateHttpConfig(tabId, { preScript: v })}
-              />
-            )}
-            
-            {reqTab === "post-script" && (
-              <ScriptEditor
-                type="post"
-                value={config.postScript}
-                onChange={(v) => updateHttpConfig(tabId, { postScript: v })}
-              />
-            )}
-          </div>
-        </Panel>
-
-        <PanelResizeHandle className="h-[1px] bg-border-default relative shrink-0 cursor-row-resize hover:bg-accent active:bg-accent transition-colors" />
-
-        {/* Response Panel */}
-        <Panel minSize="15" defaultSize="50" className="wb-panel flex h-full flex-col overflow-hidden">
-          {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-[13px] shrink-0 font-medium">
-              请求失败: {error}
-            </div>
-          )}
-          
-          {response ? (
-            <>
-              {/* Script results notification */}
-              {(scriptResults.pre || scriptResults.post) && (
-                <div className="px-3 py-1.5 bg-bg-secondary/60 border-b border-border-default flex items-center gap-3 text-[11px] flex-wrap shrink-0">
-                  {scriptResults.pre && (
-                    <span className={cn("flex items-center gap-1 font-medium", scriptResults.pre.success ? "text-emerald-600" : "text-red-500")}>
-                      {scriptResults.pre.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                      前置脚本{scriptResults.pre.success ? "通过" : "失败"}
-                    </span>
-                  )}
-                  {scriptResults.post && (
-                    <span className={cn("flex items-center gap-1 font-medium", scriptResults.post.success ? "text-emerald-600" : "text-red-500")}>
-                      {scriptResults.post.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                      后置脚本{scriptResults.post.success ? "通过" : "失败"}
-                    </span>
-                  )}
-                  {scriptResults.post?.testResults && scriptResults.post.testResults.length > 0 && (
-                    <span className="text-text-tertiary">
-                      测试: {scriptResults.post.testResults.filter(t => t.passed).length}/{scriptResults.post.testResults.length} 通过
-                    </span>
-                  )}
-                  {(scriptResults.pre?.logs?.length || scriptResults.post?.logs?.length) ? (
-                    <span className="text-text-disabled flex items-center gap-1"><Terminal className="w-3 h-3" />{(scriptResults.pre?.logs?.length || 0) + (scriptResults.post?.logs?.length || 0)} 条日志</span>
-                  ) : null}
+                    )}
+                    {config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-1 px-1"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" /></div>}
+                    {config.bodyType === "formData" && <div className="overflow-auto h-full -mx-2 px-2"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
+                    {config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
+                  </div>
                 </div>
               )}
-              <div className="wb-panel-header shrink-0">
-                <div className="min-w-0 flex flex-1 items-center overflow-x-auto scrollbar-hide">
-                  {(["pretty", "raw", "headers", "cookies", "timing"] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setResTab(t)}
-                      className={cn(
-                        "wb-tab",
-                        resTab === t && "wb-tab-active text-accent"
-                      )}
-                    >
-                      {t === "pretty" ? "JSON Format" : t === "raw" ? "Raw" : t === "headers" ? "响应头" : t === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}` : "时序"}
-                    </button>
-                  ))}
-                </div>
-                
-                <div className="flex shrink-0 flex-wrap items-center gap-2 text-[12px]">
-                  <span className={cn("wb-status-chip font-semibold", response.status < 400 ? "text-emerald-600" : "text-red-500")}>
-                    {response.status} {response.statusText}
-                  </span>
-                  <span className="text-text-secondary font-mono">{response.durationMs}ms</span>
-                  <span className="text-text-secondary font-mono">{response.bodySize < 1024 ? `${response.bodySize} B` : `${(response.bodySize / 1024).toFixed(1)} KB`}</span>
-                  
-                  <div className="w-[1px] h-4 bg-border-strong mx-1" />
-                  
-                  <button
-                    onClick={handleCopy}
-                    className="wb-icon-btn h-8 w-8"
-                    title="复制响应内容"
-                  >
-                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              
-              <div className="flex-1 overflow-hidden">
-                {resTab === "headers" ? (
-                  <div className="p-4 overflow-auto h-full">
-                    <div className="max-w-3xl border border-border-default rounded-lg overflow-hidden bg-bg-primary">
-                      {(Array.isArray(response.headers) ? response.headers : Object.entries(response.headers)).map(([k, v]: [string, string], i: number) => (
-                        <div key={`${k}-${i}`} className={cn("flex gap-4 p-2 text-[13px] font-mono", i > 0 && "border-t border-border-default")}>
-                          <span className="text-text-secondary font-medium w-1/3 break-words">{k}</span>
-                          <span className="text-text-primary break-all w-2/3">{v}</span>
-                        </div>
-                      ))}
-                    </div>
+            
+              {reqTab === "auth" && (
+                <div className="p-4">
+                  <div className="wb-segmented mb-4 w-fit flex-wrap">
+                    {(["none", "bearer", "basic", "apiKey", "oauth2"] as const).map((at) => (
+                      <button
+                        key={at}
+                        onClick={() => updateHttpConfig(tabId, { authType: at })}
+                        className={cn(
+                          "wb-segment",
+                          config.authType === at && "wb-segment-active"
+                        )}
+                      >
+                        {at === "none" ? "No Auth" : at === "bearer" ? "Bearer Token" : at === "basic" ? "Basic Auth" : at === "apiKey" ? "API Key" : "OAuth 2.0"}
+                      </button>
+                    ))}
                   </div>
-                ) : resTab === "cookies" ? (
-                  <div className="p-4 overflow-auto h-full">
-                    {response.cookies?.length ? (
-                      <div className="max-w-4xl border border-border-default rounded-lg overflow-hidden bg-bg-primary">
-                        <table className="w-full text-[12px] font-mono">
-                          <thead><tr className="bg-bg-secondary text-text-disabled text-[10px] font-semibold uppercase">
-                            <th className="text-left px-3 py-2">Name</th>
-                            <th className="text-left px-3 py-2">Value</th>
-                            <th className="text-left px-3 py-2">Domain</th>
-                            <th className="text-left px-3 py-2">Path</th>
-                            <th className="text-left px-3 py-2">Flags</th>
-                          </tr></thead>
-                          <tbody>
-                            {response.cookies.map((c, i) => (
-                              <tr key={i} className={cn(i > 0 && "border-t border-border-default")}>
-                                <td className="px-3 py-2 text-text-primary font-semibold">{c.name}</td>
-                                <td className="px-3 py-2 text-text-secondary break-all max-w-[200px] truncate">{c.value}</td>
-                                <td className="px-3 py-2 text-text-tertiary">{c.domain || "-"}</td>
-                                <td className="px-3 py-2 text-text-tertiary">{c.path || "-"}</td>
-                                <td className="px-3 py-2 text-text-tertiary">
-                                  {[c.httpOnly && "HttpOnly", c.secure && "Secure", c.sameSite].filter(Boolean).join(", ") || "-"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                  
+                  <div className="max-w-md">
+                    {config.authType === "none" && <p className="text-[13px] text-text-disabled mt-6">该请求不携带任何认证信息。</p>}
+                    {config.authType === "bearer" && (
+                      <div className="space-y-2">
+                        <label className="text-[12px] font-medium text-text-secondary">Token (无需携带 &apos;Bearer &apos; 前缀)</label>
+                        <input
+                          value={config.bearerToken}
+                          onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
+                          placeholder="ey..."
+                          className="wb-field w-full font-mono text-[13px]"
+                        />
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-text-disabled text-[13px]"><Cookie className="w-4 h-4 mr-2 opacity-40" />无 Cookie 数据</div>
+                    )}
+                    {config.authType === "basic" && (
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[12px] font-medium text-text-secondary">Username</label>
+                          <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full text-[13px]" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[12px] font-medium text-text-secondary">Password</label>
+                          <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type="password" className="wb-field w-full text-[13px]" />
+                        </div>
+                      </div>
+                    )}
+                    {config.authType === "apiKey" && (
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[12px] font-medium text-text-secondary">添加到</label>
+                          <div className="wb-segmented w-fit">
+                            {(["header", "query"] as const).map((a) => (
+                              <button key={a} onClick={() => updateHttpConfig(tabId, { apiKeyAddTo: a })} className={cn("wb-segment", config.apiKeyAddTo === a && "wb-segment-active")}>
+                                {a === "header" ? "Header" : "Query Param"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[12px] font-medium text-text-secondary">Key</label>
+                          <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono text-[13px]" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[12px] font-medium text-text-secondary">Value</label>
+                          <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} className="wb-field w-full font-mono text-[13px]" />
+                        </div>
+                      </div>
+                    )}
+                    {config.authType === "oauth2" && (
+                      <OAuth2Panel config={config.oauth2Config} onChange={(updates) => updateHttpConfig(tabId, { oauth2Config: { ...config.oauth2Config, ...updates } })} />
                     )}
                   </div>
-                ) : resTab === "timing" ? (
-                  <div className="p-6 overflow-auto h-full">
-                    <div className="max-w-lg space-y-4">
-                      {[
-                        { label: "连接建立", value: response.timing.connectMs, color: "bg-blue-500" },
-                        { label: "首字节到达 (TTFB)", value: response.timing.ttfbMs, color: "bg-emerald-500" },
-                        { label: "内容下载", value: response.timing.downloadMs, color: "bg-amber-500" },
-                        { label: "总耗时", value: response.timing.totalMs, color: "bg-violet-500" },
-                      ].map(({ label, value, color }) => (
-                        <div key={label}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[12px] text-text-secondary">{label}</span>
-                            <span className="text-[12px] font-mono font-bold text-text-primary">{value ?? "—"} ms</span>
-                          </div>
-                          <div className="h-2 bg-bg-secondary rounded-full overflow-hidden">
-                            <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${value && response.timing.totalMs ? Math.max(5, (value / response.timing.totalMs) * 100) : 0}%` }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : resTab === "pretty" ? (
-                  <ResponseViewer body={response.body} contentType={response.contentType} />
-                ) : (
-                  <ResponseViewer body={response.body} contentType={response.contentType} modes={['raw']} compact />
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-text-disabled">
-              <div className="w-16 h-16 rounded-full bg-bg-secondary flex items-center justify-center mb-4 border border-border-default shadow-sm">
-                <Braces className="w-8 h-8 opacity-20" />
-              </div>
-              <p className="text-[14px] font-medium text-text-secondary">准备就绪</p>
-              <p className="text-[12px] mt-1">输入 URL 并点击发送以调试 API</p>
+                </div>
+              )}
+            
+              {reqTab === "pre-script" && (
+                <ScriptEditor
+                  type="pre"
+                  value={config.preScript}
+                  onChange={(v) => updateHttpConfig(tabId, { preScript: v })}
+                />
+              )}
+            
+              {reqTab === "post-script" && (
+                <ScriptEditor
+                  type="post"
+                  value={config.postScript}
+                  onChange={(v) => updateHttpConfig(tabId, { postScript: v })}
+                />
+              )}
             </div>
-          )}
-        </Panel>
-        
-        </PanelGroup>
+          </Panel>
+
+          <PanelResizeHandle className="http-workbench-divider" />
+
+          {/* Response Panel */}
+          <Panel minSize="15" defaultSize="50" className="http-workbench-section">
+            {error && (
+              <div className="p-3 bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-[13px] shrink-0 font-medium">
+                请求失败: {error}
+              </div>
+            )}
+          
+            {response ? (
+              <>
+                {/* Script results notification */}
+                {(scriptResults.pre || scriptResults.post) && (
+                  <div className="px-3 py-1.5 bg-bg-secondary/60 border-b border-border-default flex items-center gap-3 text-[11px] flex-wrap shrink-0">
+                    {scriptResults.pre && (
+                      <span className={cn("flex items-center gap-1 font-medium", scriptResults.pre.success ? "text-emerald-600" : "text-red-500")}>
+                        {scriptResults.pre.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        前置脚本{scriptResults.pre.success ? "通过" : "失败"}
+                      </span>
+                    )}
+                    {scriptResults.post && (
+                      <span className={cn("flex items-center gap-1 font-medium", scriptResults.post.success ? "text-emerald-600" : "text-red-500")}>
+                        {scriptResults.post.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        后置脚本{scriptResults.post.success ? "通过" : "失败"}
+                      </span>
+                    )}
+                    {scriptResults.post?.testResults && scriptResults.post.testResults.length > 0 && (
+                      <span className="text-text-tertiary">
+                        测试: {scriptResults.post.testResults.filter(t => t.passed).length}/{scriptResults.post.testResults.length} 通过
+                      </span>
+                    )}
+                    {(scriptResults.pre?.logs?.length || scriptResults.post?.logs?.length) ? (
+                      <span className="text-text-disabled flex items-center gap-1"><Terminal className="w-3 h-3" />{(scriptResults.pre?.logs?.length || 0) + (scriptResults.post?.logs?.length || 0)} 条日志</span>
+                    ) : null}
+                  </div>
+                )}
+                <div className="http-response-head shrink-0">
+                  <div className="http-response-tabs scrollbar-hide">
+                    {(["pretty", "raw", "headers", "cookies", "timing"] as const).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setResTab(t)}
+                        className={cn(
+                          "wb-tab",
+                          resTab === t && "wb-tab-active text-text-primary"
+                        )}
+                      >
+                        {t === "pretty" ? "JSON Format" : t === "raw" ? "Raw" : t === "headers" ? "响应头" : t === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}` : "时序"}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div className="flex shrink-0 flex-wrap items-center gap-1.5 text-[11px]">
+                    <span className={cn("wb-status-chip font-semibold", response.status < 400 ? "text-emerald-600" : "text-red-500")}>
+                      {response.status} {response.statusText}
+                    </span>
+                    <span className="text-text-secondary font-mono">{response.durationMs}ms</span>
+                    <span className="text-text-secondary font-mono">{response.bodySize < 1024 ? `${response.bodySize} B` : `${(response.bodySize / 1024).toFixed(1)} KB`}</span>
+                    
+                    <div className="w-[1px] h-4 bg-border-strong mx-1" />
+                    
+                    <button
+                      onClick={handleCopy}
+                      className="wb-icon-btn"
+                      title="复制响应内容"
+                    >
+                      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex-1 overflow-hidden">
+                  {resTab === "headers" ? (
+                    <div className="p-4 overflow-auto h-full">
+                      <div className="max-w-3xl border border-border-default rounded-lg overflow-hidden bg-bg-primary">
+                        {(Array.isArray(response.headers) ? response.headers : Object.entries(response.headers)).map(([k, v]: [string, string], i: number) => (
+                          <div key={`${k}-${i}`} className={cn("flex gap-4 p-2 text-[13px] font-mono", i > 0 && "border-t border-border-default")}>
+                            <span className="text-text-secondary font-medium w-1/3 break-words">{k}</span>
+                            <span className="text-text-primary break-all w-2/3">{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : resTab === "cookies" ? (
+                    <div className="p-4 overflow-auto h-full">
+                      {response.cookies?.length ? (
+                        <div className="max-w-4xl border border-border-default rounded-lg overflow-hidden bg-bg-primary">
+                          <table className="w-full text-[12px] font-mono">
+                            <thead><tr className="bg-bg-secondary text-text-disabled text-[10px] font-semibold uppercase">
+                              <th className="text-left px-3 py-2">Name</th>
+                              <th className="text-left px-3 py-2">Value</th>
+                              <th className="text-left px-3 py-2">Domain</th>
+                              <th className="text-left px-3 py-2">Path</th>
+                              <th className="text-left px-3 py-2">Flags</th>
+                            </tr></thead>
+                            <tbody>
+                              {response.cookies.map((c, i) => (
+                                <tr key={i} className={cn(i > 0 && "border-t border-border-default")}>
+                                  <td className="px-3 py-2 text-text-primary font-semibold">{c.name}</td>
+                                  <td className="px-3 py-2 text-text-secondary break-all max-w-[200px] truncate">{c.value}</td>
+                                  <td className="px-3 py-2 text-text-tertiary">{c.domain || "-"}</td>
+                                  <td className="px-3 py-2 text-text-tertiary">{c.path || "-"}</td>
+                                  <td className="px-3 py-2 text-text-tertiary">
+                                    {[c.httpOnly && "HttpOnly", c.secure && "Secure", c.sameSite].filter(Boolean).join(", ") || "-"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-text-disabled text-[13px]"><Cookie className="w-4 h-4 mr-2 opacity-40" />无 Cookie 数据</div>
+                      )}
+                    </div>
+                  ) : resTab === "timing" ? (
+                    <div className="p-6 overflow-auto h-full">
+                      <div className="max-w-lg space-y-4">
+                        {[
+                          { label: "连接建立", value: response.timing.connectMs, color: "bg-blue-500" },
+                          { label: "首字节到达 (TTFB)", value: response.timing.ttfbMs, color: "bg-emerald-500" },
+                          { label: "内容下载", value: response.timing.downloadMs, color: "bg-amber-500" },
+                          { label: "总耗时", value: response.timing.totalMs, color: "bg-violet-500" },
+                        ].map(({ label, value, color }) => (
+                          <div key={label}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[12px] text-text-secondary">{label}</span>
+                              <span className="text-[12px] font-mono font-bold text-text-primary">{value ?? "—"} ms</span>
+                            </div>
+                            <div className="h-2 bg-bg-secondary rounded-full overflow-hidden">
+                              <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${value && response.timing.totalMs ? Math.max(5, (value / response.timing.totalMs) * 100) : 0}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : resTab === "pretty" ? (
+                    <ResponseViewer body={response.body} contentType={response.contentType} />
+                  ) : (
+                    <ResponseViewer body={response.body} contentType={response.contentType} modes={['raw']} compact />
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-text-disabled">
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary shadow-sm">
+                  <Braces className="h-7 w-7 opacity-20" />
+                </div>
+                <p className="text-[13px] font-medium text-text-secondary">准备就绪</p>
+                <p className="mt-1 text-[11px]">输入 URL 并点击发送以调试 API</p>
+              </div>
+            )}
+          </Panel>
+          
+          </PanelGroup>
+        </div>
       </div>
 
       {/* Save Request Dialog */}
@@ -590,6 +584,153 @@ export function HttpWorkspace() {
         onClose={() => setShowSaveDialog(false)}
         config={config}
       />
+    </div>
+  );
+}
+
+function GraphQLBodyEditor({
+  query,
+  variables,
+  onQueryChange,
+  onVariablesChange,
+}: {
+  query: string;
+  variables: string;
+  onQueryChange: (value: string) => void;
+  onVariablesChange: (value: string) => void;
+}) {
+  const trimmedVariables = variables.trim();
+  const hasVariables = trimmedVariables.length > 0 && trimmedVariables !== "{}";
+  const variableState = useMemo(() => {
+    if (!trimmedVariables) {
+      return { valid: true, label: "变量可选", detail: "不传变量时会自动只发送 query。" };
+    }
+
+    try {
+      const parsed = JSON.parse(variables);
+      const count = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? Object.keys(parsed as Record<string, unknown>).length
+        : 0;
+      return {
+        valid: true,
+        label: count > 0 ? `${count} 个变量` : "JSON 有效",
+        detail: count > 0 ? "这些字段会与 query 一起封装为 GraphQL 负载。" : "当前变量对象为空。",
+      };
+    } catch {
+      return {
+        valid: false,
+        label: "JSON 无效",
+        detail: "变量区域需要是合法的 JSON 对象，发送时才会被正确解析。",
+      };
+    }
+  }, [trimmedVariables, variables]);
+
+  const handleInsertTemplate = useCallback(() => {
+    if (!query.trim()) {
+      onQueryChange(
+        [
+          "query ExampleQuery($id: ID!) {",
+          "  user(id: $id) {",
+          "    id",
+          "    name",
+          "    email",
+          "  }",
+          "}",
+        ].join("\n")
+      );
+    }
+
+    if (!trimmedVariables) {
+      onVariablesChange('{\n  "id": "123"\n}');
+    }
+  }, [onQueryChange, onVariablesChange, query, trimmedVariables]);
+
+  const handleFormatVariables = useCallback(() => {
+    if (!trimmedVariables) {
+      onVariablesChange("{\n  \n}");
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(variables);
+      onVariablesChange(JSON.stringify(parsed, null, 2));
+    } catch {
+      // Keep current text when invalid; header already highlights the issue.
+    }
+  }, [onVariablesChange, trimmedVariables, variables]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="wb-subpanel flex flex-wrap items-start justify-between gap-3 p-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[12px] font-semibold text-text-primary">
+            <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-violet-500/10 text-violet-600">
+              <Braces className="h-4 w-4" />
+            </div>
+            GraphQL 请求体
+          </div>
+          <div className="mt-1 text-[11px] leading-5 text-text-tertiary">
+            Query 会作为主体发送，Variables 会自动与 Query 组合成标准 GraphQL JSON 负载。
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="wb-tool-chip">POST JSON Payload</span>
+          <button onClick={handleInsertTemplate} className="wb-ghost-btn">
+            示例模板
+          </button>
+          <button onClick={handleFormatVariables} className="wb-ghost-btn">
+            格式化变量
+          </button>
+        </div>
+      </div>
+
+      <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.95fr)]">
+        <div className="wb-panel flex min-h-[320px] min-w-0 flex-col overflow-hidden">
+          <div className="wb-panel-header shrink-0">
+            <div>
+              <div className="text-[12px] font-semibold text-text-primary">Query</div>
+              <div className="mt-1 text-[11px] text-text-tertiary">填写查询或 mutation 主体，建议在这里组织字段结构。</div>
+            </div>
+            <span className="wb-tool-chip">GraphQL</span>
+          </div>
+          <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/70 bg-bg-input/88">
+            <CodeEditor
+              value={query}
+              onChange={onQueryChange}
+              language="graphql"
+            />
+          </div>
+        </div>
+
+        <div className="wb-panel flex min-h-[320px] min-w-0 flex-col overflow-hidden">
+          <div className="wb-panel-header shrink-0">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] font-semibold text-text-primary">Variables</span>
+                <span className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                  variableState.valid
+                    ? "bg-emerald-500/10 text-emerald-600"
+                    : "bg-red-500/10 text-red-500"
+                )}>
+                  {variableState.valid ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                  {variableState.label}
+                </span>
+              </div>
+              <div className="mt-1 text-[11px] text-text-tertiary">{variableState.detail}</div>
+            </div>
+            {hasVariables ? <span className="wb-tool-chip">JSON</span> : null}
+          </div>
+          <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/70 bg-bg-input/88">
+            <CodeEditor
+              value={variables}
+              onChange={onVariablesChange}
+              language="json"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -713,13 +854,13 @@ function KVEditor({ items, onChange, kp, vp, showPresets }: {
     else if (e.key === "Escape") { e.preventDefault(); onCls(); setHighlightIdx(-1); }
   };
 
-  const cellInput = "w-full h-8 px-2 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled";
+  const cellInput = "h-7 w-full bg-transparent px-2 text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled";
 
   return (
     <div className="w-full">
       <table className="w-full border-collapse">
         <thead>
-          <tr className="h-[28px] bg-bg-tertiary text-[10px] font-semibold text-text-tertiary uppercase tracking-wider border border-border-default">
+          <tr className="h-7 border border-border-default bg-bg-tertiary text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
             <th className="w-7 border-r border-border-default">
               <input
                 type="checkbox"
@@ -765,10 +906,10 @@ function KVEditor({ items, onChange, kp, vp, showPresets }: {
                 </td>
                 <td className="border-r border-border-default p-0">
                   <input value={item.description || ""} onChange={e => update(i, "description", e.target.value)} placeholder="Description"
-                    className={cn("w-full h-[30px] px-2 bg-transparent text-[11px] text-text-tertiary outline-none placeholder:text-text-disabled", !item.enabled && "opacity-40")} />
+                    className={cn("h-7 w-full bg-transparent px-2 text-[11px] text-text-tertiary outline-none placeholder:text-text-disabled", !item.enabled && "opacity-40")} />
                 </td>
                 <td className="w-6 text-center p-0 align-middle">
-                  <button onClick={() => remove(i)} className="w-6 h-[30px] inline-flex items-center justify-center text-text-disabled hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-sm">×</button>
+                  <button onClick={() => remove(i)} className="inline-flex h-7 w-6 items-center justify-center text-sm text-text-disabled opacity-0 transition-all hover:text-red-500 group-hover:opacity-100">×</button>
                 </td>
               </tr>
             );
@@ -776,7 +917,7 @@ function KVEditor({ items, onChange, kp, vp, showPresets }: {
         </tbody>
       </table>
       <div className="flex items-center gap-2 mt-1.5">
-        <button onClick={add} className="text-[11px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors border border-dashed border-border-default hover:border-accent rounded px-2.5 py-1">
+        <button onClick={add} className="flex items-center gap-1 rounded-[10px] border border-dashed border-border-default px-2 py-1 text-[11px] font-medium text-text-tertiary transition-colors hover:border-accent hover:text-accent">
           <span>+</span> 添加
         </button>
         {showPresets && <PresetDropdown presets={HEADER_PRESETS} isOpen={presetOpen} onToggle={() => setPresetOpen(!presetOpen)} onClose={() => setPresetOpen(false)} onSelect={addPreset} />}
@@ -829,7 +970,7 @@ function PresetDropdown({ presets, isOpen, onToggle, onClose, onSelect }: {
   return (
     <div className="relative">
       <button ref={btnRef} onClick={onToggle}
-        className="text-[11px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors border border-dashed border-border-default hover:border-accent rounded px-2.5 py-1">
+        className="flex items-center gap-1 rounded-[10px] border border-dashed border-border-default px-2 py-1 text-[11px] font-medium text-text-tertiary transition-colors hover:border-accent hover:text-accent">
         <ChevronDown className="w-3 h-3" /> 预设
       </button>
       {isOpen && rect && createPortal(

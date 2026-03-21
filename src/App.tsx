@@ -30,17 +30,17 @@ import { subscribeDockToolRequests } from "@/lib/toolDocking";
 const toolWorkbenchMeta: Record<ToolWorkbench, { title: string; description: string; icon: typeof Network }> = {
   tcpudp: {
     title: "TCP/UDP 工作台",
-    description: "Socket 调试、报文收发和连接状态都在这里完成。",
+    description: "Socket 调试与报文收发",
     icon: Network,
   },
   capture: {
     title: "网络抓包工作台",
-    description: "代理监听、流量筛选和请求详情保持在同一套上下文里。",
+    description: "代理监听与流量分析",
     icon: Radio,
   },
   loadtest: {
     title: "压测工作台",
-    description: "并发配置、运行监控和结果分析不再挤进请求 tab。",
+    description: "并发配置与结果分析",
     icon: Gauge,
   },
 };
@@ -59,21 +59,16 @@ function ToolWorkbenchPanel({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border-default/65 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-border-default/75 bg-bg-primary/80 text-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.68)]">
-            <Icon className="h-4.5 w-4.5" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-[14px] font-semibold text-text-primary">{meta.title}</div>
-            <div className="text-[12px] text-text-tertiary">{meta.description}</div>
-            <div className="mt-1 text-[11px] text-text-disabled">可点击右侧按钮，或直接拖动顶部工作台切换项弹出窗口。</div>
-          </div>
+      <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border-default/65 bg-bg-primary/38 px-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Icon className="h-3.5 w-3.5 shrink-0 text-accent" />
+          <div className="truncate text-[12px] font-semibold text-text-primary">{meta.title}</div>
+          <div className="truncate text-[11px] text-text-disabled">{meta.description}</div>
         </div>
 
         <button
           onClick={() => onPopout(tool)}
-          className="flex h-9 items-center gap-2 rounded-[12px] border border-border-default/75 bg-bg-primary/78 px-3 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          className="wb-ghost-btn px-2.5"
           title="弹出为独立窗口"
         >
           <ArrowUpRight className="h-3.5 w-3.5" />

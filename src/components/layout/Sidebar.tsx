@@ -80,7 +80,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
               key={id}
               onClick={() => handleNavClick(id)}
               className={cn(
-                "w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150 relative mb-0.5",
+                "relative mb-0.5 flex h-[30px] w-[30px] items-center justify-center rounded-[8px] transition-all duration-150",
                 isActive
                   ? "text-accent bg-accent-soft"
                   : "text-text-tertiary hover:bg-bg-hover hover:text-text-secondary"
@@ -106,8 +106,8 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
       {!panelCollapsed && (
         <div className="flex-1 h-full flex flex-col bg-transparent overflow-hidden min-w-0">
           {/* Panel Header */}
-          <div className="shrink-0 px-3 py-3 border-b border-border-subtle/70 bg-bg-primary/24">
-            <div className="flex items-center justify-between mb-2.5">
+          <div className="shrink-0 border-b border-border-subtle/70 bg-transparent px-3 py-2.5">
+            <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-[13px] font-semibold text-text-primary truncate">
                   {navItems.find(n => n.id === activeView)?.label}
@@ -118,7 +118,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                   <>
                     <button
                       onClick={handleNewCollection}
-                      className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
+                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[11px] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
                       title="新建集合"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -126,7 +126,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                     </button>
                     <button
                       onClick={handleImport}
-                      className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary rounded-md transition-colors"
+                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[11px] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
                       title="导入"
                     >
                       <Download className="w-3 h-3" />
@@ -137,7 +137,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 {activeView === "environments" && (
                   <button
                     onClick={handleNewEnvironment}
-                    className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
+                    className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[11px] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
                     title="新增环境"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -154,13 +154,13 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`搜索${navItems.find(n => n.id === activeView)?.label}...`}
-                className="w-full h-8 pl-8 pr-3 text-[12px] bg-bg-secondary/46 border border-border-default/80 rounded-[12px] outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary transition-all"
+                className="h-[30px] w-full rounded-[10px] border border-border-default/80 bg-bg-secondary/42 pl-8 pr-3 text-[12px] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]"
               />
             </div>
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 overflow-auto px-1.5 py-1.5">
+          <div className="flex-1 overflow-auto px-2 py-1.5">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeView}

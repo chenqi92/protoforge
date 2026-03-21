@@ -53,11 +53,11 @@ export function SendPanel({
   };
 
   return (
-    <div className="rounded-[18px] border border-border-default/80 bg-bg-primary/78 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <div className="flex items-center justify-between pb-3">
+    <div className="wb-panel flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="wb-panel-header shrink-0">
         <div>
           <div className="text-[12px] font-semibold text-text-primary">发送面板</div>
-          <div className="mt-1 text-[11px] text-text-tertiary">
+          <div className="mt-0.5 text-[11px] text-text-tertiary">
             {connected ? "准备发送数据" : "连接后可发送数据"}
           </div>
         </div>
@@ -69,22 +69,18 @@ export function SendPanel({
         </span>
       </div>
 
-      <div className="space-y-3">
+      <div className="flex-1 overflow-auto p-3">
+        <div className="space-y-3">
         <div>
           <div className="mb-1.5 flex items-center gap-1 px-1">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">发送格式</span>
           </div>
-          <div className="flex items-center gap-1 rounded-[14px] border border-border-default/70 bg-bg-secondary/70 p-1">
+          <div className="wb-tool-segment">
             {FORMAT_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setSendFormat(opt.value)}
-                className={cn(
-                  "flex-1 rounded-[10px] px-2.5 py-1.5 text-[11px] font-medium transition-all",
-                  sendFormat === opt.value
-                    ? "bg-bg-primary text-text-primary shadow-sm"
-                    : "text-text-tertiary hover:bg-bg-hover/80 hover:text-text-secondary"
-                )}
+                className={cn("flex-1", sendFormat === opt.value && "is-active")}
               >
                 {opt.label}
               </button>
@@ -92,7 +88,7 @@ export function SendPanel({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[14px] bg-bg-secondary/42 px-3 py-2">
+        <div className="wb-subpanel flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5">
           <label className="flex items-center gap-1.5 cursor-pointer group">
             <input
               type="checkbox"
@@ -166,7 +162,7 @@ export function SendPanel({
           onClick={onSend}
           disabled={!connected || !message.trim()}
           className={cn(
-            "flex h-9 w-full items-center justify-center gap-1.5 rounded-[14px] text-[12px] font-semibold text-white transition-all",
+            "wb-primary-btn flex h-8 w-full items-center justify-center gap-1.5 rounded-[11px] text-[12px] font-semibold text-white transition-all",
             "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700",
             "shadow-sm hover:shadow-md active:scale-[0.98]",
             "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:from-blue-500 disabled:hover:to-indigo-600"
@@ -247,6 +243,7 @@ export function SendPanel({
             ) : null}
           </div>
         ) : null}
+        </div>
       </div>
     </div>
   );

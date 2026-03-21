@@ -13,18 +13,21 @@ export function ClientList({ clients, selectedClientId, onSelectClient }: Client
   if (clients.length === 0) return null;
 
   return (
-    <div className="rounded-[18px] border border-border-default/80 bg-bg-primary/78 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <div className="flex items-center gap-2 pb-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-accent/8 text-accent">
-          <Users className="h-4 w-4" />
+    <div className="wb-panel overflow-hidden">
+      <div className="wb-panel-header">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-accent/8 text-accent">
+            <Users className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="text-[12px] font-semibold text-text-primary">客户端</div>
+            <div className="text-[11px] text-text-tertiary">{clients.length} 个连接</div>
+          </div>
         </div>
-        <div>
-          <div className="text-[12px] font-semibold text-text-primary">客户端</div>
-          <div className="text-[11px] text-text-tertiary">{clients.length} 个连接</div>
-        </div>
+        <span className="wb-tool-chip">{selectedClientId ? "单播模式" : "广播模式"}</span>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5 p-3">
         <button
           onClick={() => onSelectClient(null)}
           className={cn(

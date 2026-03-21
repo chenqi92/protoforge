@@ -115,87 +115,70 @@ export function CaptureWorkspace() {
   const selectedEntry = entries.find((e) => e.id === selectedEntryId) || null;
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* ── 工具栏 ── */}
-      <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border-default bg-bg-secondary/30">
-        {/* 开始/停止 */}
-        <button
-          onClick={handleToggleCapture}
-          className={cn(
-            "h-7 px-3 flex items-center gap-1.5 rounded-md text-[12px] font-semibold transition-all active:scale-[0.97]",
-            running
-              ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
-              : "bg-accent text-white hover:bg-accent-hover"
-          )}
-        >
-          {running ? (
-            <>
-              <Square className="w-3 h-3" fill="currentColor" />
-              停止
-            </>
-          ) : (
-            <>
-              <Play className="w-3.5 h-3.5" fill="currentColor" />
-              开始抓包
-            </>
-          )}
-        </button>
-
-        {/* 清空 */}
-        <button
-          onClick={clearEntries}
-          className="h-7 px-2 flex items-center gap-1 rounded-md text-[11px] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
-          title="清空列表"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-
-        <div className="w-[1px] h-4 bg-border-default shrink-0" />
-
-        {/* 端口 */}
-        <div className="flex items-center gap-1 text-[11px] text-text-tertiary">
-          <span>端口</span>
-          <input
-            value={portInput}
-            onChange={(e) => setPortInput(e.target.value)}
-            disabled={running}
+    <div className="flex h-full flex-col overflow-hidden p-3">
+      <div className="wb-tool-strip shrink-0">
+        <div className="wb-tool-strip-main">
+          <span
             className={cn(
-              "w-[60px] h-6 px-2 text-[11px] font-mono bg-bg-primary border border-border-default rounded-md outline-none text-text-primary text-center",
-              "focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]",
-              "disabled:opacity-50 disabled:cursor-not-allowed"
+              "wb-tool-chip",
+              running
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
+                : "text-text-tertiary"
             )}
-          />
+          >
+            <span className={cn("h-2 w-2 rounded-full", running ? "bg-emerald-500" : "bg-text-disabled")} />
+            {running ? "代理监听中" : "抓包未启动"}
+          </span>
+
+          <div className="wb-tool-field w-[110px]">
+            <span>端口</span>
+            <input
+              value={portInput}
+              onChange={(e) => setPortInput(e.target.value)}
+              disabled={running}
+              className="text-center"
+            />
+          </div>
+
+          <div className="wb-search w-[220px]">
+            <Search className="h-3.5 w-3.5 text-text-disabled" />
+            <input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="过滤 URL / Host / 状态"
+            />
+          </div>
         </div>
 
-        <div className="flex-1" />
-
-        {/* 过滤 */}
-        <div className="relative group">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-text-disabled group-focus-within:text-accent transition-colors" />
-          <input
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="过滤请求..."
-            className="w-[200px] h-6 pl-7 pr-2 text-[11px] bg-bg-primary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary transition-all"
-          />
+        <div className="wb-tool-strip-actions">
+          <span className="wb-tool-chip">{filteredEntries.length} 条请求</span>
+          <button
+            onClick={clearEntries}
+            className="wb-ghost-btn"
+            title="清空列表"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            清空
+          </button>
+          <button
+            onClick={handleExportCA}
+            className="wb-ghost-btn"
+            title="导出 CA 证书（用于 HTTPS 解密）"
+          >
+            <Shield className="h-3.5 w-3.5" />
+            CA 证书
+          </button>
+          <button
+            onClick={handleToggleCapture}
+            className={cn(
+              "wb-primary-btn",
+              running ? "bg-red-500 hover:bg-red-600" : "bg-accent hover:bg-accent-hover"
+            )}
+          >
+            {running ? <Square className="h-3.5 w-3.5" fill="currentColor" /> : <Play className="h-3.5 w-3.5" fill="currentColor" />}
+            {running ? "停止" : "开始抓包"}
+          </button>
         </div>
-
-        <div className="w-[1px] h-4 bg-border-default shrink-0" />
-
-        {/* CA 证书导出 */}
-        <button
-          onClick={handleExportCA}
-          className="h-7 px-2 flex items-center gap-1 rounded-md text-[11px] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
-          title="导出 CA 证书（用于 HTTPS 解密）"
-        >
-          <Shield className="w-3.5 h-3.5" />
-          <span className="hidden lg:inline">CA 证书</span>
-        </button>
-
-        {/* 计数 */}
-        <span className="text-[10px] text-text-disabled tabular-nums">
-          {filteredEntries.length} 条
-        </span>
       </div>
 
       {/* CA 证书提示 */}
@@ -207,7 +190,7 @@ export function CaptureWorkspace() {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/20 flex items-center justify-between text-[11px]">
+            <div className="mt-3 flex items-center justify-between rounded-[14px] border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-[11px]">
               <div className="flex items-center gap-2">
                 <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                 <span className="text-amber-700">
@@ -227,7 +210,7 @@ export function CaptureWorkspace() {
 
       {/* 运行状态指示 */}
       {running && (
-        <div className="h-[2px] bg-accent/20 relative overflow-hidden shrink-0">
+        <div className="relative mt-3 h-[2px] shrink-0 overflow-hidden rounded-full bg-accent/20">
           <motion.div
             className="h-full bg-accent w-1/3 absolute rounded-full"
             animate={{ x: ["-100%", "400%"] }}
@@ -237,14 +220,21 @@ export function CaptureWorkspace() {
       )}
 
       {/* ── 主内容区 ── */}
+      <div className="min-h-0 flex-1 pt-3">
       {entries.length === 0 ? (
         <EmptyState running={running} port={parseInt(portInput, 10)} />
       ) : (
         <PanelGroup orientation="vertical">
           <Panel defaultSize="60" minSize="30">
-            <div className="h-full flex flex-col overflow-hidden">
-              {/* 表头 */}
-              <div className="flex items-center h-7 bg-bg-tertiary/30 border-b border-border-subtle text-[10px] font-semibold text-text-disabled uppercase tracking-wider select-none shrink-0 px-3">
+            <div className="wb-panel flex h-full flex-col overflow-hidden">
+              <div className="wb-panel-header shrink-0">
+                <div>
+                  <div className="text-[12px] font-semibold text-text-primary">捕获请求</div>
+                  <div className="text-[11px] text-text-tertiary">代理流量会在这里按时间顺序刷新</div>
+                </div>
+                <span className="wb-tool-chip">{running ? `监听 127.0.0.1:${portInput}` : "等待启动代理"}</span>
+              </div>
+              <div className="flex items-center h-8 bg-bg-secondary/36 border-b border-border-subtle text-[11px] font-semibold text-text-disabled uppercase tracking-wider select-none shrink-0 px-3">
                 <span className="w-[60px] shrink-0">方法</span>
                 <span className="flex-1 min-w-0">URL</span>
                 <span className="w-[60px] shrink-0 text-center">状态</span>
@@ -282,6 +272,7 @@ export function CaptureWorkspace() {
           )}
         </PanelGroup>
       )}
+      </div>
     </div>
   );
 }
@@ -289,9 +280,9 @@ export function CaptureWorkspace() {
 // ── 空状态 ──
 function EmptyState({ running, port }: { running: boolean; port: number }) {
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center max-w-md">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent/5 flex items-center justify-center">
+    <div className="wb-panel flex h-full items-center justify-center">
+      <div className="w-full max-w-3xl px-6 py-10 text-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent/5 flex items-center justify-center border border-border-default/70">
           <ArrowUpDown className="w-7 h-7 text-accent/40" />
         </div>
         {running ? (
@@ -302,18 +293,22 @@ function EmptyState({ running, port }: { running: boolean; port: number }) {
             <p className="text-[12px] text-text-tertiary mb-4">
               代理已在 <code className="font-mono text-accent bg-accent/5 px-1.5 py-0.5 rounded text-[11px]">127.0.0.1:{port}</code> 上运行
             </p>
-            <div className="bg-bg-secondary rounded-lg p-4 text-left text-[11px] text-text-tertiary space-y-2">
-              <p className="font-medium text-text-secondary">配置你的浏览器或系统代理：</p>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-bg-tertiary rounded text-[10px] font-mono">HTTP 代理</span>
-                <span className="font-mono text-text-primary">127.0.0.1:{port}</span>
-              </div>
-              <p className="text-[10px] text-text-disabled">
-                <div className="flex items-start gap-1.5">
-                  <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-[1px]" />
-                  <span>如需抓取 HTTPS，请先安装并信任 CA 证书（点击工具栏 &quot;CA 证书&quot;）</span>
+            <div className="grid gap-3 text-left sm:grid-cols-2">
+              <div className="wb-subpanel p-4 text-[11px] text-text-tertiary">
+                <p className="font-medium text-text-secondary">代理地址</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="rounded bg-bg-tertiary px-2 py-0.5 text-[10px] font-mono">HTTP 代理</span>
+                  <span className="font-mono text-text-primary">127.0.0.1:{port}</span>
                 </div>
-              </p>
+                <p className="mt-2 text-[10px] text-text-disabled">把浏览器或系统 HTTP 代理指向这个地址后，请求就会实时出现在上方列表中。</p>
+              </div>
+              <div className="wb-subpanel p-4 text-[11px] text-text-tertiary">
+                <p className="font-medium text-text-secondary">HTTPS 解密</p>
+                <div className="mt-2 flex items-start gap-1.5 text-[10px] text-text-disabled">
+                  <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-[1px]" />
+                  <span>如需抓取 HTTPS，请先导出并信任 CA 证书，然后刷新浏览器或目标应用。</span>
+                </div>
+              </div>
             </div>
           </>
         ) : (
@@ -324,6 +319,20 @@ function EmptyState({ running, port }: { running: boolean; port: number }) {
             <p className="text-[12px] text-text-tertiary">
               点击 <span className="text-accent font-medium">&quot;开始抓包&quot;</span> 启动本地 HTTP 代理，然后配置浏览器代理以捕获流量
             </p>
+            <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
+              <div className="wb-subpanel p-4">
+                <div className="text-[11px] font-semibold text-text-secondary">1. 启动代理</div>
+                <div className="mt-1 text-[10px] text-text-tertiary">确认监听端口，然后点击右上角开始抓包。</div>
+              </div>
+              <div className="wb-subpanel p-4">
+                <div className="text-[11px] font-semibold text-text-secondary">2. 配置目标</div>
+                <div className="mt-1 text-[10px] text-text-tertiary">把浏览器或系统代理切到本机端口，开始访问目标站点。</div>
+              </div>
+              <div className="wb-subpanel p-4">
+                <div className="text-[11px] font-semibold text-text-secondary">3. 分析流量</div>
+                <div className="mt-1 text-[10px] text-text-tertiary">列表支持过滤、查看头信息、请求体和响应元数据。</div>
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -352,7 +361,7 @@ function RequestRow({
     <div
       onClick={onClick}
       className={cn(
-        "flex items-center h-[30px] px-3 text-[11px] cursor-pointer transition-colors border-b border-border-subtle/50",
+        "flex items-center h-[34px] px-3 text-[11px] cursor-pointer transition-colors border-b border-border-subtle/50",
         isSelected
           ? "bg-accent/5 text-text-primary"
           : entry.completed
@@ -361,7 +370,7 @@ function RequestRow({
       )}
     >
       <span className="w-[60px] shrink-0">
-        <span className={cn("text-[10px] font-bold px-1 py-[1px] rounded", mc.text, mc.bg)}>
+        <span className={cn("text-[10px] font-bold px-1.5 py-[2px] rounded-[8px]", mc.text, mc.bg)}>
           {entry.method}
         </span>
       </span>
@@ -403,9 +412,9 @@ function DetailPanel({
   ];
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-bg-primary">
+    <div className="wb-panel h-full flex flex-col overflow-hidden bg-bg-primary">
       {/* 详情头部 */}
-      <div className="flex items-center shrink-0 border-b border-border-default">
+      <div className="wb-panel-header shrink-0">
         <div className="flex items-center gap-0.5 px-3">
           {tabs.map((tab) => (
             <button

@@ -39,14 +39,14 @@ export function ToolWindowShell({
           {/* macOS 交通灯按钮占位区域 */}
           <div className="w-[70px] shrink-0" />
 
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
             <span
               className={cn(
                 "h-2.5 w-2.5 rounded-full shadow-[0_0_0_4px_rgba(255,255,255,0.8)] dark:shadow-[0_0_0_4px_rgba(18,18,20,0.9)]",
                 accentClassName
               )}
             />
-            <div className="truncate text-[13px] font-semibold text-text-primary">{title}</div>
+            <div className="truncate text-[12px] font-semibold text-text-primary">{title}</div>
           </div>
 
           <div className="flex-1" />
@@ -60,7 +60,7 @@ export function ToolWindowShell({
                   void getCurrentWebviewWindow().close();
                 }, 80);
               }}
-              className="flex h-8 items-center gap-1 rounded-[12px] border border-border-default/70 bg-bg-secondary/80 px-2.5 text-[11px] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+              className="wb-ghost-btn px-2.5"
               title="合并回主窗口"
             >
               <ArrowLeftToLine className="h-3.5 w-3.5" />

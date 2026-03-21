@@ -1,6 +1,6 @@
 // 消息日志组件 — 多编码显示、过滤
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Trash2, ArrowDown, Search, Copy, Check, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Trash2, ArrowDown, Search, Copy, Check, ArrowUpRight, ArrowDownLeft, PlugZap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { convertFormat } from "@/services/tcpService";
 import type { ConnectionStats, TcpMessage, DataFormat } from "@/types/tcp";
@@ -71,10 +71,19 @@ export function MessageLog({
   const filteredMessages = filter
     ? messages.filter((m) => m.data.toLowerCase().includes(filter.toLowerCase()))
     : messages;
+  const hasTraffic = Boolean(
+    stats && (
+      stats.sentBytes > 0 ||
+      stats.receivedBytes > 0 ||
+      stats.sentCount > 0 ||
+      stats.receivedCount > 0
+    )
+  );
+  const isFiltering = Boolean(filter.trim());
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[18px] border border-border-default/80 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-default/70 bg-bg-secondary/36 px-4 py-3">
+    <div className="wb-panel flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="wb-panel-header shrink-0">
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
             {typeof connected === "boolean" ? (
@@ -91,7 +100,7 @@ export function MessageLog({
             </span>
           </div>
 
-          {stats ? (
+          {stats && hasTraffic ? (
             <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-text-tertiary">
               <span className="inline-flex items-center gap-1">
                 <ArrowUpRight className="h-3 w-3 text-blue-500" />
@@ -106,30 +115,24 @@ export function MessageLog({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <div className="flex items-center gap-1 rounded-[12px] border border-border-default/70 bg-bg-primary/70 p-1">
+          <div className="wb-tool-segment">
             {FORMAT_TABS.map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => setDisplayFormat(tab.value)}
-                className={cn(
-                  "rounded-[10px] px-2.5 py-1 text-[10px] font-semibold transition-all",
-                  displayFormat === tab.value
-                    ? "bg-bg-primary text-text-primary shadow-sm"
-                    : "text-text-tertiary hover:bg-bg-hover/80 hover:text-text-secondary"
-                )}
+                className={cn(displayFormat === tab.value && "is-active")}
               >
                 {tab.label}
               </button>
             ))}
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-text-disabled" />
+          <div className="wb-search w-[132px] transition-[width] focus-within:w-[188px]">
+            <Search className="h-3.5 w-3.5 text-text-disabled" />
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="搜索消息"
-              className="h-8 w-[120px] rounded-[12px] border border-border-default/75 bg-bg-primary/70 pl-7 pr-2 text-[11px] text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:w-[176px]"
             />
           </div>
 
@@ -145,7 +148,7 @@ export function MessageLog({
           {messages.length > 0 ? (
             <button
               onClick={onClear}
-              className="rounded-[12px] p-2 text-text-disabled transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+              className="wb-icon-btn hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -155,17 +158,69 @@ export function MessageLog({
 
       <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-auto bg-bg-primary/34">
         {filteredMessages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default/70 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-              <Search className="h-6 w-6 opacity-35" />
+          isFiltering ? (
+            <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default/70 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <Search className="h-6 w-6 opacity-35" />
+              </div>
+              <p className="text-[14px] font-semibold text-text-secondary">没有匹配的消息</p>
+              <p className="mt-1 text-[12px] text-text-tertiary">试试缩短关键词，或切换到其他显示格式后再过滤。</p>
             </div>
-            <p className="text-[14px] font-semibold text-text-secondary">
-              {filter ? "没有匹配的消息" : "消息将在这里实时滚动"}
-            </p>
-            <p className="mt-1 text-[12px] text-text-tertiary">
-              {filter ? "试试缩短关键词或切换显示格式" : "连接成功后，发送与接收的数据会按时间顺序显示"}
-            </p>
-          </div>
+          ) : (
+            <div className="flex h-full items-center justify-center px-6 py-8">
+              <div className="w-full max-w-3xl text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-border-default/70 bg-bg-primary/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                  <PlugZap className="h-7 w-7 text-text-disabled" />
+                </div>
+                <p className="text-[15px] font-semibold text-text-secondary">
+                  {connected ? "已建立连接，等待首条消息" : statusText || "等待建立连接"}
+                </p>
+                <p className="mx-auto mt-2 max-w-xl text-[12px] leading-6 text-text-tertiary">
+                  {connected
+                    ? "连接已经准备就绪。发送数据后，这里会按时间顺序显示收发报文、字节统计和来源信息。"
+                    : "先确认地址与端口配置，然后点击右上角连接。连接建立后，这里会成为当前会话的实时消息日志。"}
+                </p>
+
+                <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
+                  <div className="wb-subpanel p-4">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
+                      <PlugZap className="h-3.5 w-3.5 text-blue-500" />
+                      {connected ? "连接已就绪" : "确认连接参数"}
+                    </div>
+                    <div className="mt-1 text-[11px] leading-5 text-text-tertiary">
+                      {connected
+                        ? "当前链路已经可用，可以直接测试发送 ASCII、HEX 或 Base64 数据。"
+                        : "检查主机、端口和模式是否正确，避免连到错误的目标服务或监听端口。"}
+                    </div>
+                  </div>
+
+                  <div className="wb-subpanel p-4">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
+                      <ArrowUpRight className="h-3.5 w-3.5 text-blue-500" />
+                      {connected ? "发送测试报文" : "建立连接或绑定"}
+                    </div>
+                    <div className="mt-1 text-[11px] leading-5 text-text-tertiary">
+                      {connected
+                        ? "左侧发送面板支持定时发送、历史记录和快捷指令，适合先发一条握手或心跳消息。"
+                        : "点击连接后，客户端会发起会话；服务端或 UDP 模式则会先开始监听并等待数据进入。"}
+                    </div>
+                  </div>
+
+                  <div className="wb-subpanel p-4">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
+                      <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-500" />
+                      {connected ? "观察实时日志" : "开始查看收发"}
+                    </div>
+                    <div className="mt-1 text-[11px] leading-5 text-text-tertiary">
+                      {connected
+                        ? "收到的数据会按时间顺序排列；右上角可以搜索消息、切换显示格式并清空日志。"
+                        : "连接建立后，这里会实时显示发送与接收的数据、大小统计以及来源地址。"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
         ) : (
           <div className="divide-y divide-border-default/55">
             {filteredMessages.map((m) => {

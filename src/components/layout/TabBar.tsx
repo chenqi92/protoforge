@@ -126,9 +126,9 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
     <div
       {...frameGestures}
       ref={tabBarRef}
-      className="flex h-[var(--tabbar-height)] shrink-0 items-center border-b border-border-default/65 bg-transparent px-2"
+      className="flex h-[var(--tabbar-height)] shrink-0 items-center border-b border-border-default/65 bg-transparent px-1.5"
     >
-      <div ref={scrollRef} className="flex flex-1 items-center gap-1 overflow-x-auto py-1 scrollbar-hide">
+      <div ref={scrollRef} className="flex flex-1 items-center gap-1 overflow-x-auto py-0.5 scrollbar-hide">
         <AnimatePresence mode="popLayout">
           {tabs.map((tab, index) => (
             <TabItem
@@ -151,12 +151,12 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
         </AnimatePresence>
       </div>
 
-      <div className="mx-2 h-4 w-px bg-border-strong/70" />
+      <div className="mx-1.5 h-4 w-px bg-border-strong/70" />
       <div ref={createMenuAnchorRef} className="shrink-0 no-drag">
-        <div className="flex items-center rounded-[14px] border border-border-default/75 bg-bg-primary/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
+        <div className="flex items-center rounded-[11px] border border-border-default/70 bg-bg-secondary/55">
           <button
             onClick={() => handleCreateWithProtocol(defaultProtocol)}
-            className="flex h-[34px] items-center gap-1.5 rounded-l-[14px] px-3 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover/75 hover:text-text-primary"
+            className="flex h-8 items-center gap-1.5 rounded-l-[11px] px-3 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover/75 hover:text-text-primary"
             title={`新建 ${protocolLabels[defaultProtocol]} (Ctrl+N)`}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -168,7 +168,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
           <button
             onClick={toggleCreateMenu}
             className={cn(
-              "flex h-[34px] w-8 items-center justify-center rounded-r-[14px] text-text-tertiary transition-colors hover:bg-bg-hover/75 hover:text-text-primary",
+              "flex h-8 w-7 items-center justify-center rounded-r-[11px] text-text-tertiary transition-colors hover:bg-bg-hover/75 hover:text-text-primary",
               showCreateMenu && "bg-bg-hover/75 text-text-primary"
             )}
             title="选择请求协议"
@@ -182,7 +182,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
         <>
           <div className="fixed inset-0 z-[220]" onClick={() => setShowCreateMenu(false)} />
           <div
-            className="fixed z-[221] w-[180px] overflow-hidden rounded-[14px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+            className="fixed z-[221] w-[180px] overflow-hidden rounded-[12px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
             style={{ top: createMenuPos.top, left: createMenuPos.left }}
           >
             <div className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled">
@@ -338,23 +338,23 @@ function TabItem({
         onDrop={onDrop}
         onDragEnd={onDragEnd}
         className={cn(
-          "group relative flex h-[34px] min-w-[120px] max-w-[240px] shrink-0 items-center gap-2 rounded-[12px] border px-3.5 no-drag",
+          "group relative flex h-8 min-w-[112px] max-w-[228px] shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2 no-drag",
           "cursor-pointer transition-all duration-[var(--transition-fast)]",
           isActive
-            ? "z-10 border-border-default/80 bg-bg-primary/85 font-medium text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]"
-            : "border-transparent bg-transparent text-text-tertiary hover:bg-bg-hover/60 hover:text-text-secondary",
+            ? "z-10 bg-transparent font-medium text-text-primary"
+            : "bg-transparent text-text-tertiary hover:text-text-secondary",
           isDragOver && "ring-2 ring-accent/50"
         )}
       >
         {isActive ? (
           <motion.div
             layoutId="tab-active-indicator"
-            className="absolute bottom-0 left-2.5 right-2.5 h-[2px] rounded-full bg-accent"
+            className="absolute bottom-0 left-1.5 right-1.5 h-[2px] rounded-full bg-accent"
             transition={{ type: "spring", stiffness: 500, damping: 35 }}
           />
         ) : null}
 
-        <span className={cn("shrink-0 rounded-[6px] px-1.5 py-0.5 text-[10px] font-bold leading-none", badgeColor)}>
+        <span className={cn("shrink-0 rounded-[4px] px-1 py-0.5 text-[10px] font-bold leading-none", badgeColor)}>
           {tab.protocol === "http" && tab.method ? tab.method : protocolLabels[tab.protocol]}
         </span>
 
@@ -392,10 +392,10 @@ function TabItem({
             onClose();
           }}
           className={cn(
-            "flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] transition-colors",
+            "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] transition-colors",
             isActive
               ? "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
-              : "text-text-disabled opacity-0 hover:bg-bg-hover hover:text-text-primary group-hover:opacity-100"
+              : "text-text-disabled opacity-0 hover:text-text-primary group-hover:opacity-100"
           )}
         >
           <X className="h-3 w-3" />

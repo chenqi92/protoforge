@@ -5,9 +5,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Play, Square, Trash2, ArrowDown, Waves } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAppStore } from '@/stores/appStore';
+import { useAppStore, type RequestProtocol } from '@/stores/appStore';
 import type { KeyValue } from '@/types/http';
 import { RequestWorkbenchHeader } from '@/components/request/RequestWorkbenchHeader';
+import { RequestProtocolSwitcher } from '@/components/request/RequestProtocolSwitcher';
 
 interface SseEvent {
   id: string | null;
@@ -18,6 +19,7 @@ interface SseEvent {
 
 export function SseWorkspace() {
   const activeTab = useAppStore((s) => s.getActiveTab());
+  const setTabProtocol = useAppStore((s) => s.setTabProtocol);
   const tabId = activeTab?.id || '';
 
   const [url, setUrl] = useState('');
@@ -75,18 +77,25 @@ export function SseWorkspace() {
 
   const isConnected = status === 'connected' || status === 'connecting';
 
+  const handleProtocolChange = useCallback(async (protocol: RequestProtocol) => {
+    if (!activeTab || protocol === activeTab.protocol) return;
+    try {
+      if (isConnected) {
+        await invoke('sse_disconnect', { connId });
+      }
+    } catch {}
+    setTabProtocol(activeTab.id, protocol);
+  }, [activeTab, connId, isConnected, setTabProtocol]);
+
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* URL Bar */}
       <RequestWorkbenchHeader
         prefix={(
-          <div className="wb-request-prefix bg-gradient-to-r from-orange-500 to-amber-500">
-            <Waves className="w-3.5 h-3.5" /> SSE
-          </div>
+          <RequestProtocolSwitcher activeProtocol={activeTab?.protocol || "sse"} onChange={handleProtocolChange} />
         )}
         main={(
-          <>
-            <span className="wb-request-label">Stream</span>
+          <div className="flex min-w-0 flex-1 items-center">
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -95,15 +104,15 @@ export function SseWorkspace() {
               disabled={isConnected}
               className="wb-request-input disabled:opacity-50"
             />
-          </>
+          </div>
         )}
         actions={
           isConnected ? (
-            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[96px] bg-red-500 hover:bg-red-600">
+            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[88px] bg-red-500 hover:bg-red-600">
               <Square className="w-3 h-3 fill-white" /> 断开
             </button>
           ) : (
-            <button onClick={handleConnect} disabled={!url.trim()} className="wb-primary-btn min-w-[96px] bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-40">
+            <button onClick={handleConnect} disabled={!url.trim()} className="wb-primary-btn min-w-[88px] bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-40">
               <Play className="w-3 h-3 fill-white" /> 连接
             </button>
           )
@@ -111,7 +120,7 @@ export function SseWorkspace() {
       />
 
       {/* Events List */}
-      <div className="flex-1 px-3 pb-3 pt-2">
+      <div className="flex-1 px-3 pb-3 pt-1.5">
         <div className="wb-panel flex h-full flex-col overflow-hidden">
           <div className="wb-panel-header shrink-0">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -132,25 +141,25 @@ export function SseWorkspace() {
               {errorMsg ? <span className="truncate text-[12px] text-red-500">{errorMsg}</span> : null}
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-              <span className="text-[11px] text-text-disabled">{events.length} 条事件</span>
-              <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn h-8 px-2.5 text-[11px]", autoScroll && "text-accent")}>
+              <span className="text-[10px] text-text-disabled">{events.length} 条事件</span>
+              <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn px-2.5 text-[11px]", autoScroll && "text-accent")}>
                 <ArrowDown className="w-3 h-3" /> 自动滚动
               </button>
-              <button onClick={() => setEvents([])} className="wb-icon-btn h-8 w-8 hover:text-red-500 transition-colors">
+              <button onClick={() => setEvents([])} className="wb-icon-btn hover:text-red-500 transition-colors">
                 <Trash2 className="w-3 h-3" />
               </button>
             </div>
           </div>
-          <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/12 p-4 space-y-2">
+          <div ref={listRef} className="flex-1 space-y-2 overflow-auto bg-bg-secondary/12 p-3.5">
             {events.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-text-disabled">
-                <Waves className="w-10 h-10 mb-3 opacity-20 text-orange-500" />
+                <Waves className="mb-3 h-9 w-9 opacity-20 text-orange-500" />
                 <p className="text-[13px] font-medium">等待事件...</p>
-                <p className="text-[11px] mt-1">连接 SSE 端点后将实时显示事件流</p>
+                <p className="mt-1 text-[11px]">连接 SSE 端点后将实时显示事件流</p>
               </div>
             ) : (
               events.map((evt, i) => (
-                <div key={i} className="rounded-[16px] border border-border-default/75 bg-bg-primary/82 p-3 transition-colors hover:border-border-strong">
+                <div key={i} className="rounded-[14px] border border-border-default/75 bg-bg-primary/82 p-2.5 transition-colors hover:border-border-strong">
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-[10px] font-mono text-text-disabled">{new Date(evt.timestamp).toLocaleTimeString()}</span>
                     <span className="rounded-[10px] bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-bold text-orange-600">{evt.eventType}</span>

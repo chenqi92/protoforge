@@ -426,11 +426,14 @@ impl PluginManager {
 
     /// Install a plugin by its ID.
     pub async fn install(&self, plugin_id: &str) -> Result<PluginManifest, String> {
-        // 检查是否已在注册表中
+        // 检查是否已安装（仅拒绝非 native 的重复安装，native 插件允许被远程版本覆盖）
         {
             let reg = self.registry.read().await;
-            if reg.contains_key(plugin_id) {
-                return Err(format!("插件 '{}' 已安装", plugin_id));
+            if let Some(rp) = reg.get(plugin_id) {
+                if !matches!(rp.runtime, PluginRuntime::Native(_)) {
+                    return Err(format!("插件 '{}' 已安装", plugin_id));
+                }
+                // native 插件 → 允许继续安装远程版本（覆盖）
             }
         }
 

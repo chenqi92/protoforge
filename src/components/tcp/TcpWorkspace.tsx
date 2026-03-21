@@ -14,51 +14,55 @@ import type {
 } from "@/types/tcp";
 
 // ── Mode Tab 配置 ──
-const MODES: { value: SocketMode; label: string; icon: React.ReactNode }[] = [
-  { value: "tcp-client", label: "TCP 客户端", icon: <Monitor className="w-3.5 h-3.5" /> },
-  { value: "tcp-server", label: "TCP 服务端", icon: <Server className="w-3.5 h-3.5" /> },
-  { value: "udp-client", label: "UDP 客户端", icon: <Radio className="w-3.5 h-3.5" /> },
-  { value: "udp-server", label: "UDP 服务端", icon: <Square className="w-3.5 h-3.5" /> },
+const MODES: { value: SocketMode; label: string; hint: string; icon: React.ReactNode }[] = [
+  { value: "tcp-client", label: "TCP 客户端", hint: "面向连接的单点调试", icon: <Monitor className="w-3.5 h-3.5" /> },
+  { value: "tcp-server", label: "TCP 服务端", hint: "监听连接并向客户端广播", icon: <Server className="w-3.5 h-3.5" /> },
+  { value: "udp-client", label: "UDP 客户端", hint: "无连接报文发送与接收", icon: <Radio className="w-3.5 h-3.5" /> },
+  { value: "udp-server", label: "UDP 服务端", hint: "端口监听与多端报文收集", icon: <Square className="w-3.5 h-3.5" /> },
 ];
 
 export function TcpWorkspace() {
   const [mode, setMode] = useState<SocketMode>("tcp-client");
+  const activeMode = MODES.find((item) => item.value === mode) || MODES[0];
+  const modeTone = mode.startsWith("tcp") ? "面向连接" : "无连接报文";
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-transparent">
-      {/* ── Mode Tabs ── */}
-      <div className="shrink-0 px-3 pt-3 pb-2">
-        <div className="inline-flex items-center gap-1 rounded-[14px] border border-border-default/75 bg-bg-primary/72 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          {MODES.map((m) => (
-            <button
-              key={m.value}
-              onClick={() => setMode(m.value)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-[10px] px-3.5 py-1.5 text-[11px] font-semibold transition-all",
-                mode === m.value
-                  ? "bg-bg-primary text-text-primary shadow-sm"
-                  : "text-text-tertiary hover:bg-bg-hover/75 hover:text-text-secondary"
-              )}
-            >
-              {m.icon}
-              {m.label}
-            </button>
-          ))}
+    <div className="flex h-full flex-col overflow-hidden bg-transparent p-3">
+      <div className="wb-tool-strip shrink-0">
+        <div className="wb-tool-strip-main">
+          <div className="wb-tool-segment">
+            {MODES.map((m) => (
+              <button
+                key={m.value}
+                onClick={() => setMode(m.value)}
+                className={cn(mode === m.value && "is-active")}
+              >
+                {m.icon}
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <span className="wb-tool-inline-note">{activeMode.hint}</span>
+        </div>
+
+        <div className="wb-tool-strip-actions">
+          <span className="wb-tool-chip">{modeTone}</span>
         </div>
       </div>
 
-      {/* ── Active Panel ── */}
-      {mode === "tcp-client" && <TcpClientPanel />}
-      {mode === "tcp-server" && <TcpServerPanel />}
-      {mode === "udp-client" && <UdpClientPanel />}
-      {mode === "udp-server" && <UdpServerPanel />}
+      <div className="min-h-0 flex-1 pt-3">
+        {mode === "tcp-client" && <TcpClientPanel />}
+        {mode === "tcp-server" && <TcpServerPanel />}
+        {mode === "udp-client" && <UdpClientPanel />}
+        {mode === "udp-server" && <UdpServerPanel />}
+      </div>
     </div>
   );
 }
 
 function WorkspaceSplit({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[304px_minmax(0,1fr)] gap-3">
+    <div className="grid min-h-0 flex-1 grid-cols-[320px_minmax(0,1fr)] gap-3">
       <div className="min-h-0 overflow-auto">{sidebar}</div>
       <div className="min-h-0">{children}</div>
     </div>
@@ -77,13 +81,13 @@ function AddressField({
   placeholder: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-[14px] border border-border-default/75 bg-bg-primary/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <span className="shrink-0 text-[11px] font-medium text-text-tertiary">{label}</span>
+    <div className="flex items-center gap-2 rounded-[15px] border border-border-default/75 bg-bg-primary/78 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-7 flex-1 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-tertiary"
+        className="h-7 flex-1 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled"
       />
     </div>
   );
@@ -239,7 +243,7 @@ function TcpClientPanel() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 pb-3">
         <ConnectionBar
           mode="tcp-client" host={host} port={port}
@@ -402,7 +406,7 @@ function TcpServerPanel() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 pb-3">
         <ConnectionBar
           mode="tcp-server" host={host} port={port}
@@ -546,7 +550,7 @@ function UdpClientPanel() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 space-y-3 pb-3">
         <ConnectionBar
           mode="udp-client" host={host} port={port}
@@ -699,7 +703,7 @@ function UdpServerPanel() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 space-y-3 pb-3">
         <ConnectionBar
           mode="udp-server" host={host} port={port}

@@ -218,167 +218,210 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
     : "—";
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-transparent">
-      {/* ── Top Config Bar ── */}
-      <div className="shrink-0 p-4 pb-2">
-        <div className="flex items-center h-12 rounded-[var(--radius-lg)] bg-bg-primary border border-border-default shadow-sm focus-within:ring-2 focus-within:ring-rose-500/30 focus-within:border-rose-500 transition-all p-1">
-          <select
-            value={method}
-            onChange={(e) => setMethod(e.target.value as HttpMethod)}
-            disabled={running}
-            className="h-full px-3 rounded-[var(--radius-md)] text-[13px] font-bold text-white bg-rose-500 border-none outline-none cursor-pointer disabled:opacity-60 appearance-none text-center min-w-[80px]"
-          >
-            {(["GET", "POST", "PUT", "DELETE", "PATCH"] as const).map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="输入目标 URL"
-            disabled={running}
-            className="flex-1 h-full px-4 bg-transparent text-[13px] font-mono text-text-primary outline-none placeholder:text-text-tertiary disabled:opacity-60"
-          />
-          <button
-            onClick={running ? handleStop : handleStart}
-            disabled={!url.trim()}
-            className={cn(
-              "h-full px-6 rounded-[var(--radius-md)] flex items-center gap-2 text-[13px] font-semibold text-white ml-1 shrink-0 transition-all active:scale-[0.98]",
-              running
-                ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
-                : "bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 hover:shadow-md disabled:opacity-50"
-            )}
-          >
-            {running ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-            {running ? "停止" : "开始压测"}
-          </button>
+    <div className="flex h-full min-h-0 flex-col overflow-auto bg-transparent p-3">
+      <div className="shrink-0">
+        <div className="wb-tool-strip">
+          <div className="wb-tool-strip-main flex-1 flex-nowrap">
+            <div className="wb-target-bar">
+              <div className="wb-target-chip bg-gradient-to-r from-rose-500 to-pink-500">
+                <span className="wb-target-chip-icon">
+                  <Flame className="h-3.5 w-3.5" />
+                </span>
+                HTTP 压测
+              </div>
+              <div className="wb-target-field">
+                <span className="wb-target-field-label">目标 URL</span>
+                <input
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="输入压测目标 URL"
+                  disabled={running}
+                  className="wb-target-field-input"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="wb-tool-strip-actions flex-nowrap">
+            <span className="wb-tool-chip">{running ? "运行中" : "待启动"}</span>
+            <button
+              onClick={running ? handleStop : handleStart}
+              disabled={!url.trim()}
+              className={cn(
+                "wb-primary-btn",
+                running
+                  ? "bg-red-500 hover:bg-red-600"
+                  : "bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
+              )}
+            >
+              {running ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              {running ? "停止" : "开始压测"}
+            </button>
+          </div>
         </div>
 
-        {/* Config Row */}
-        <div className="flex items-center gap-4 mt-2 px-1 flex-wrap">
-          <ConfigItem icon={<Settings2 />} label="并发数">
-            <input type="number" value={concurrency} onChange={(e) => setConcurrency(Math.max(1, parseInt(e.target.value) || 1))} disabled={running} min={1} max={500} className="cfg-input w-16" />
-          </ConfigItem>
-
-          <div className="w-px h-4 bg-border-default" />
-
-          <div className="flex items-center gap-2">
-            <div className="flex bg-bg-secondary p-0.5 rounded-md">
-              <button onClick={() => setDurationMode("duration")} disabled={running} className={cn("px-2.5 py-1 text-[11px] font-medium rounded transition-all", durationMode === "duration" ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary")}>持续时间</button>
-              <button onClick={() => setDurationMode("requests")} disabled={running} className={cn("px-2.5 py-1 text-[11px] font-medium rounded transition-all", durationMode === "requests" ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary")}>请求数</button>
+        <div className="wb-panel mt-3 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border-default/70 pb-3">
+            <div>
+              <div className="flex items-center gap-2 text-[12px] font-semibold text-text-primary">
+                <Settings2 className="h-3.5 w-3.5 text-rose-500" />
+                运行配置
+              </div>
+              <div className="mt-1 text-[11px] text-text-tertiary">控制方法、并发、结束条件、超时与限速策略。</div>
             </div>
-            {durationMode === "duration" ? (
-              <ConfigItem label="" bare><input type="number" value={durationSecs} onChange={(e) => setDurationSecs(Math.max(1, parseInt(e.target.value) || 1))} disabled={running} min={1} className="cfg-input w-16" /><span className="text-[11px] text-text-tertiary">秒</span></ConfigItem>
-            ) : (
-              <ConfigItem label="" bare><input type="number" value={totalRequests} onChange={(e) => setTotalRequests(Math.max(1, parseInt(e.target.value) || 1))} disabled={running} min={1} className="cfg-input w-20" /><span className="text-[11px] text-text-tertiary">次</span></ConfigItem>
-            )}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="wb-ghost-btn"
+              >
+                {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                高级配置
+              </button>
+              {(summary || snapshots.length > 0) && (
+                <>
+                  <button onClick={handleExportJson} className="wb-ghost-btn hover:text-rose-600 hover:bg-rose-500/5" title="导出 JSON">
+                    <Download className="w-3 h-3" />JSON
+                  </button>
+                  <button onClick={handleExportCsv} className="wb-ghost-btn hover:text-rose-600 hover:bg-rose-500/5" title="导出 CSV">
+                    <Download className="w-3 h-3" />CSV
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="w-px h-4 bg-border-default" />
+          <div className="grid gap-3 pt-3 sm:grid-cols-2 xl:grid-cols-5">
+            <ControlBlock label="请求方法" icon={<Flame className="h-3 w-3" />}>
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value as HttpMethod)}
+                disabled={running}
+                className="cfg-select w-full font-semibold"
+              >
+                {(["GET", "POST", "PUT", "DELETE", "PATCH"] as const).map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </ControlBlock>
 
-          <ConfigItem icon={<Clock />} label="超时">
-            <input type="number" value={timeoutMs} onChange={(e) => setTimeoutMs(Math.max(1000, parseInt(e.target.value) || 1000))} disabled={running} min={1000} className="cfg-input w-20" />
-            <span className="text-[11px] text-text-tertiary">ms</span>
-          </ConfigItem>
+            <ControlBlock label="并发数" icon={<Settings2 className="h-3 w-3" />}>
+              <input type="number" value={concurrency} onChange={(e) => setConcurrency(Math.max(1, parseInt(e.target.value) || 1))} disabled={running} min={1} max={500} className="cfg-input w-full text-left" />
+            </ControlBlock>
 
-          <div className="w-px h-4 bg-border-default" />
+            <ControlBlock label="结束条件" className="sm:col-span-2" icon={<Clock className="h-3 w-3" />}>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="wb-tool-segment">
+                  <button onClick={() => setDurationMode("duration")} disabled={running} className={cn(durationMode === "duration" && "is-active")}>持续时间</button>
+                  <button onClick={() => setDurationMode("requests")} disabled={running} className={cn(durationMode === "requests" && "is-active")}>请求数</button>
+                </div>
+                {durationMode === "duration" ? (
+                  <>
+                    <input type="number" value={durationSecs} onChange={(e) => setDurationSecs(Math.max(1, parseInt(e.target.value) || 1))} disabled={running} min={1} className="cfg-input w-20 text-left" />
+                    <span className="text-[11px] text-text-tertiary">秒</span>
+                  </>
+                ) : (
+                  <>
+                    <input type="number" value={totalRequests} onChange={(e) => setTotalRequests(Math.max(1, parseInt(e.target.value) || 1))} disabled={running} min={1} className="cfg-input w-24 text-left" />
+                    <span className="text-[11px] text-text-tertiary">次请求</span>
+                  </>
+                )}
+              </div>
+            </ControlBlock>
 
-          <div className="flex items-center gap-1.5">
-            <Gauge className="w-3 h-3 text-text-tertiary" />
-            <label className="text-[11px] text-text-tertiary flex items-center gap-1">
-              <input type="checkbox" checked={rpsEnabled} onChange={(e) => setRpsEnabled(e.target.checked)} disabled={running} className="w-3 h-3 accent-rose-500" />
-              限速
-            </label>
-            {rpsEnabled && (
-              <>
-                <input type="number" value={rpsLimit ?? 100} onChange={(e) => setRpsLimit(Math.max(1, parseInt(e.target.value) || 1))} disabled={running} min={1} className="cfg-input w-20" />
-                <span className="text-[11px] text-text-tertiary">req/s</span>
-              </>
-            )}
-          </div>
+            <ControlBlock label="超时" icon={<Clock className="h-3 w-3" />}>
+              <div className="flex items-center gap-2">
+                <input type="number" value={timeoutMs} onChange={(e) => setTimeoutMs(Math.max(1000, parseInt(e.target.value) || 1000))} disabled={running} min={1000} className="cfg-input w-full text-left" />
+                <span className="text-[11px] text-text-tertiary">ms</span>
+              </div>
+            </ControlBlock>
 
-          <div className="ml-auto flex items-center gap-1">
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:text-text-secondary hover:bg-bg-hover rounded-md transition-colors"
-            >
-              {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              高级配置
-            </button>
-            {(summary || snapshots.length > 0) && (
-              <>
-                <button onClick={handleExportJson} className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:text-rose-600 hover:bg-rose-500/5 rounded-md transition-colors" title="导出 JSON">
-                  <Download className="w-3 h-3" />JSON
-                </button>
-                <button onClick={handleExportCsv} className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:text-rose-600 hover:bg-rose-500/5 rounded-md transition-colors" title="导出 CSV">
-                  <Download className="w-3 h-3" />CSV
-                </button>
-              </>
-            )}
+            <ControlBlock label="限速策略" icon={<Gauge className="h-3 w-3" />}>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[11px] text-text-secondary">
+                  <input type="checkbox" checked={rpsEnabled} onChange={(e) => setRpsEnabled(e.target.checked)} disabled={running} className="h-3.5 w-3.5 accent-rose-500" />
+                  启用 RPS 限制
+                </label>
+                {rpsEnabled ? (
+                  <div className="flex items-center gap-2">
+                    <input type="number" value={rpsLimit ?? 100} onChange={(e) => setRpsLimit(Math.max(1, parseInt(e.target.value) || 1))} disabled={running} min={1} className="cfg-input w-full text-left" />
+                    <span className="text-[11px] text-text-tertiary">req/s</span>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-text-disabled">未启用速率限制，请求将以最大吞吐发送。</div>
+                )}
+              </div>
+            </ControlBlock>
           </div>
         </div>
 
         {/* ── Advanced Config Panel ── */}
         {showAdvanced && (
-          <div className="mt-2 bg-bg-primary rounded-xl border border-border-default p-3 space-y-3 animate-in slide-in-from-top-1 duration-150">
-            {/* Headers */}
-            <AdvancedSection title="请求头 (Headers)">
-              {headers.map((h, i) => (
-                <div key={i} className="flex items-center gap-2 mb-1">
-                  <input value={h.key} onChange={(e) => { const n = [...headers]; n[i].key = e.target.value; setHeaders(n); }} disabled={running} placeholder="Key" className="cfg-input flex-1" />
-                  <input value={h.value} onChange={(e) => { const n = [...headers]; n[i].value = e.target.value; setHeaders(n); }} disabled={running} placeholder="Value" className="cfg-input flex-1" />
-                  <button onClick={() => setHeaders(headers.filter((_, j) => j !== i))} disabled={running || headers.length <= 1} className="w-6 h-6 flex items-center justify-center text-text-disabled hover:text-red-500 disabled:opacity-30"><Trash2 className="w-3 h-3" /></button>
-                </div>
-              ))}
-              <button onClick={() => setHeaders([...headers, { key: "", value: "" }])} disabled={running} className="text-[11px] text-accent hover:underline flex items-center gap-0.5"><Plus className="w-3 h-3" />添加</button>
-            </AdvancedSection>
-
-            {/* Body */}
-            <AdvancedSection title="请求体 (Body)">
-              <div className="flex items-center gap-1 mb-2">
-                {(["none", "json", "raw"] as const).map((m) => (
-                  <button key={m} onClick={() => setBodyMode(m)} disabled={running} className={cn("px-2.5 py-1 text-[11px] font-medium rounded-md transition-all", bodyMode === m ? "bg-rose-500/10 text-rose-600" : "text-text-tertiary hover:bg-bg-hover")}>
-                    {m === "none" ? "无" : m.toUpperCase()}
-                  </button>
+          <div className="wb-panel mt-3 p-3 animate-in slide-in-from-top-1 duration-150">
+            <div className="grid gap-3 xl:grid-cols-[1.35fr_0.95fr_0.95fr]">
+              <AdvancedSection title="请求头 (Headers)">
+                {headers.map((h, i) => (
+                  <div key={i} className="mb-2 flex items-center gap-2">
+                    <input value={h.key} onChange={(e) => { const n = [...headers]; n[i].key = e.target.value; setHeaders(n); }} disabled={running} placeholder="Header Key" className="cfg-input flex-1 text-left" />
+                    <input value={h.value} onChange={(e) => { const n = [...headers]; n[i].value = e.target.value; setHeaders(n); }} disabled={running} placeholder="Header Value" className="cfg-input flex-1 text-left" />
+                    <button onClick={() => setHeaders(headers.filter((_, j) => j !== i))} disabled={running || headers.length <= 1} className="wb-icon-btn shrink-0 hover:text-red-500 disabled:opacity-30"><Trash2 className="w-3 h-3" /></button>
+                  </div>
                 ))}
-              </div>
-              {bodyMode !== "none" && (
-                <textarea
-                  value={bodyContent}
-                  onChange={(e) => setBodyContent(e.target.value)}
-                  disabled={running}
-                  placeholder={bodyMode === "json" ? '{"key": "value"}' : "raw body content"}
-                  rows={4}
-                  className="w-full px-3 py-2 text-[12px] font-mono bg-bg-input border border-border-default rounded-lg outline-none focus:border-rose-500 resize-y disabled:opacity-60"
-                />
-              )}
-            </AdvancedSection>
+                <button onClick={() => setHeaders([...headers, { key: "", value: "" }])} disabled={running} className="wb-ghost-btn"><Plus className="w-3 h-3" />添加请求头</button>
+              </AdvancedSection>
 
-            {/* Auth */}
-            <AdvancedSection title="认证 (Auth)">
-              <div className="flex items-center gap-1 mb-2">
-                {(["none", "bearer", "basic"] as const).map((m) => (
-                  <button key={m} onClick={() => setAuthMode(m)} disabled={running} className={cn("px-2.5 py-1 text-[11px] font-medium rounded-md transition-all", authMode === m ? "bg-rose-500/10 text-rose-600" : "text-text-tertiary hover:bg-bg-hover")}>
-                    {m === "none" ? "无" : m === "bearer" ? "Bearer Token" : "Basic Auth"}
-                  </button>
-                ))}
-              </div>
-              {authMode === "bearer" && (
-                <input value={bearerToken} onChange={(e) => setBearerToken(e.target.value)} disabled={running} placeholder="输入 Bearer Token" className="cfg-input w-full" />
-              )}
-              {authMode === "basic" && (
-                <div className="flex items-center gap-2">
-                  <input value={basicUser} onChange={(e) => setBasicUser(e.target.value)} disabled={running} placeholder="用户名" className="cfg-input flex-1" />
-                  <input type="password" value={basicPass} onChange={(e) => setBasicPass(e.target.value)} disabled={running} placeholder="密码" className="cfg-input flex-1" />
+              <AdvancedSection title="请求体 (Body)">
+                <div className="wb-tool-segment mb-2">
+                  {(["none", "json", "raw"] as const).map((m) => (
+                    <button key={m} onClick={() => setBodyMode(m)} disabled={running} className={cn(bodyMode === m && "is-active")}>
+                      {m === "none" ? "无" : m.toUpperCase()}
+                    </button>
+                  ))}
                 </div>
-              )}
-            </AdvancedSection>
+                {bodyMode !== "none" ? (
+                  <textarea
+                    value={bodyContent}
+                    onChange={(e) => setBodyContent(e.target.value)}
+                    disabled={running}
+                    placeholder={bodyMode === "json" ? '{"key": "value"}' : "raw body content"}
+                    rows={8}
+                    className="w-full resize-y rounded-[12px] border border-border-default bg-bg-input px-3 py-2 text-[12px] font-mono outline-none focus:border-rose-500 disabled:opacity-60"
+                  />
+                ) : (
+                  <div className="flex min-h-[178px] items-center justify-center rounded-[12px] border border-dashed border-border-default/80 bg-bg-secondary/35 px-4 text-center text-[11px] text-text-disabled">
+                    无需请求体时可保持为空；切换到 JSON 或 RAW 后可在这里填写压测负载。
+                  </div>
+                )}
+              </AdvancedSection>
+
+              <AdvancedSection title="认证 (Auth)">
+                <div className="wb-tool-segment mb-2">
+                  {(["none", "bearer", "basic"] as const).map((m) => (
+                    <button key={m} onClick={() => setAuthMode(m)} disabled={running} className={cn(authMode === m && "is-active")}>
+                      {m === "none" ? "无" : m === "bearer" ? "Bearer Token" : "Basic Auth"}
+                    </button>
+                  ))}
+                </div>
+                {authMode === "bearer" ? (
+                  <input value={bearerToken} onChange={(e) => setBearerToken(e.target.value)} disabled={running} placeholder="输入 Bearer Token" className="cfg-input w-full text-left" />
+                ) : authMode === "basic" ? (
+                  <div className="flex flex-col gap-2">
+                    <input value={basicUser} onChange={(e) => setBasicUser(e.target.value)} disabled={running} placeholder="用户名" className="cfg-input w-full text-left" />
+                    <input type="password" value={basicPass} onChange={(e) => setBasicPass(e.target.value)} disabled={running} placeholder="密码" className="cfg-input w-full text-left" />
+                  </div>
+                ) : (
+                  <div className="flex min-h-[178px] items-center justify-center rounded-[12px] border border-dashed border-border-default/80 bg-bg-secondary/35 px-4 text-center text-[11px] text-text-disabled">
+                    当前请求不附带认证信息；如需压测鉴权接口，可切换到 Bearer 或 Basic。
+                  </div>
+                )}
+              </AdvancedSection>
+            </div>
           </div>
         )}
 
         {/* ── Progress Bar ── */}
         {progress && (
-          <div className="mt-2 px-1">
+          <div className="mt-3 px-1">
             <div className="flex items-center gap-2 mb-1">
               <div className="flex-1 h-2 bg-bg-secondary rounded-full overflow-hidden">
                 <div
@@ -393,9 +436,9 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
       </div>
 
       {/* ── Main Content ── */}
-      <div className="flex-1 overflow-auto p-4 pt-2">
+      <div className="min-h-[360px] flex-1 pt-3">
         {error && (
-          <div className="mb-3 px-4 py-2.5 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl text-[13px] text-red-600 dark:text-red-400 flex items-center gap-2">
+          <div className="mb-3 flex items-center gap-2 rounded-[14px] border border-red-200 bg-red-50 px-4 py-2.5 text-[13px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
             <AlertTriangle className="w-4 h-4 shrink-0" />{error}
           </div>
         )}
@@ -412,7 +455,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
 
         {/* Charts */}
         {snapshots.length >= 2 && (
-          <div className="bg-bg-primary rounded-2xl border border-border-default shadow-sm overflow-hidden mb-3 panel">
+          <div className="wb-panel mb-3 overflow-hidden panel">
             <div className="flex items-center gap-1 px-4 py-2.5 bg-bg-secondary/40 border-b border-border-default">
               <BarChart3 className="w-4 h-4 text-text-tertiary mr-1" />
               <button onClick={() => setChartTab("rps")} className={cn("px-3 py-1 text-[12px] font-medium rounded-md transition-all", chartTab === "rps" ? "bg-rose-500/10 text-rose-600" : "text-text-tertiary hover:text-text-secondary")}>RPS</button>
@@ -429,16 +472,34 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
 
         {/* Empty State */}
         {!running && !summary && snapshots.length === 0 && !error && (
-          <div className="flex flex-col items-center justify-center py-20 text-text-disabled">
+          <div className="wb-panel flex flex-col items-center justify-center px-6 py-16 text-text-disabled">
             <div className="w-20 h-20 rounded-full bg-bg-secondary flex items-center justify-center mb-5 border border-border-default shadow-sm">
               <Flame className="w-10 h-10 opacity-20 text-rose-500" />
             </div>
             <p className="text-[16px] font-semibold text-text-secondary">HTTP 压力测试</p>
             <p className="text-[13px] mt-1.5 text-text-tertiary">配置目标 URL、并发数和持续时间，然后点击「开始压测」</p>
-            <div className="flex items-center gap-6 mt-6 text-[12px] text-text-disabled">
-              <span className="flex items-center gap-1"><Zap className="w-3.5 h-3.5" /> 实时 RPS</span>
-              <span className="flex items-center gap-1"><Activity className="w-3.5 h-3.5" /> 延迟分布</span>
-              <span className="flex items-center gap-1"><BarChart3 className="w-3.5 h-3.5" /> 状态码统计</span>
+            <div className="mt-6 grid w-full max-w-3xl gap-3 text-left sm:grid-cols-3">
+              <div className="wb-subpanel p-4">
+                <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
+                  <Flame className="h-3.5 w-3.5 text-rose-500" />
+                  目标与方法
+                </div>
+                <div className="mt-1 text-[10px] text-text-tertiary">先填写 URL，并选择要压测的 HTTP 方法。</div>
+              </div>
+              <div className="wb-subpanel p-4">
+                <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
+                  <Zap className="h-3.5 w-3.5 text-rose-500" />
+                  并发与时长
+                </div>
+                <div className="mt-1 text-[10px] text-text-tertiary">设置并发数、持续时间或请求数，决定压测强度。</div>
+              </div>
+              <div className="wb-subpanel p-4">
+                <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
+                  <BarChart3 className="h-3.5 w-3.5 text-rose-500" />
+                  结果分析
+                </div>
+                <div className="mt-1 text-[10px] text-text-tertiary">运行后会展示 RPS、延迟分布、错误率和状态码统计。</div>
+              </div>
             </div>
           </div>
         )}
@@ -449,11 +510,23 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
 
 // ── Helpers ──
 
-function ConfigItem({ icon, label, children }: { icon?: React.ReactNode; label: string; children: React.ReactNode; bare?: boolean }) {
+function ControlBlock({
+  icon,
+  label,
+  className,
+  children,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center gap-1.5">
-      {icon && <span className="w-3.5 h-3.5 text-text-tertiary [&>svg]:w-3 [&>svg]:h-3">{icon}</span>}
-      {label && <label className="text-[11px] text-text-tertiary font-medium">{label}</label>}
+    <div className={cn("wb-subpanel p-3", className)}>
+      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-text-secondary">
+        {icon ? <span className="text-text-tertiary">{icon}</span> : null}
+        <span>{label}</span>
+      </div>
       {children}
     </div>
   );
@@ -461,8 +534,8 @@ function ConfigItem({ icon, label, children }: { icon?: React.ReactNode; label: 
 
 function AdvancedSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div>
-      <div className="text-[11px] font-semibold text-text-tertiary mb-1.5 uppercase tracking-wider">{title}</div>
+    <div className="wb-subpanel p-3">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary">{title}</div>
       {children}
     </div>
   );
@@ -478,7 +551,7 @@ function MetricCard({ label, value, icon, color, sub }: { label: string; value: 
   };
   const c = cm[color] || cm.rose;
   return (
-    <div className={cn("bg-gradient-to-br border border-border-default rounded-xl p-4 panel shadow-sm", c.bg)}>
+    <div className={cn("wb-panel bg-gradient-to-br p-4 panel", c.bg)}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-medium text-text-tertiary uppercase tracking-wide">{label}</span>
         <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", c.iconBg, c.text)}>{icon}</div>
@@ -505,7 +578,7 @@ function StatusCodeBar({ codes }: { codes: Record<number, number> }) {
   };
 
   return (
-    <div className="bg-bg-primary rounded-2xl border border-border-default shadow-sm overflow-hidden panel">
+    <div className="wb-panel overflow-hidden panel">
       <div className="px-4 py-2.5 bg-bg-secondary/40 border-b border-border-default flex items-center gap-2">
         <BarChart3 className="w-4 h-4 text-text-tertiary" />
         <span className="text-[13px] font-medium text-text-secondary">状态码分布</span>
