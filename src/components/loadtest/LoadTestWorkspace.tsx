@@ -14,9 +14,8 @@ type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 type BodyMode = "none" | "json" | "raw";
 type AuthMode = "none" | "bearer" | "basic";
 
-export function LoadTestWorkspace() {
-  // 自管理 ID，不依赖 AppTab（独立窗口可用）
-  const testId = useRef(crypto.randomUUID()).current;
+export function LoadTestWorkspace({ sessionId }: { sessionId?: string }) {
+  const testId = useRef(sessionId ?? crypto.randomUUID()).current;
   return <LoadTestPanel tabId={testId} />;
 }
 
@@ -436,7 +435,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
       </div>
 
       {/* ── Main Content ── */}
-      <div className="min-h-[360px] flex-1 pt-3">
+      <div className="flex min-h-0 flex-1 flex-col pt-3">
         {error && (
           <div className="mb-3 flex items-center gap-2 rounded-[10px] border border-red-200 bg-red-50 px-4 py-2.5 text-[13px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
             <AlertTriangle className="w-4 h-4 shrink-0" />{error}
@@ -490,7 +489,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
 
         {/* Empty State */}
         {!running && !summary && snapshots.length === 0 && !error && (
-          <div className="wb-panel flex flex-col items-center justify-center px-6 py-16 text-text-disabled">
+          <div className="wb-panel flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-16 text-text-disabled">
             <div className="w-20 h-20 rounded-full bg-bg-secondary flex items-center justify-center mb-5 border border-border-default shadow-sm">
               <Flame className="w-10 h-10 opacity-20 text-rose-500" />
             </div>

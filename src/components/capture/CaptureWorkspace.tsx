@@ -47,24 +47,25 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(2)} s`;
 }
 
-export function CaptureWorkspace() {
+export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
-  const running = useCaptureStore((s) => s.running);
-  const entries = useCaptureStore((s) => s.entries);
-  const selectedEntryId = useCaptureStore((s) => s.selectedEntryId);
-  const filter = useCaptureStore((s) => s.filter);
-  const detailTab = useCaptureStore((s) => s.detailTab);
-  const port = useCaptureStore((s) => s.port);
+  const running = useCaptureStore(sessionId, (s) => s.running);
+  const entries = useCaptureStore(sessionId, (s) => s.entries);
+  const selectedEntryId = useCaptureStore(sessionId, (s) => s.selectedEntryId);
+  const filter = useCaptureStore(sessionId, (s) => s.filter);
+  const detailTab = useCaptureStore(sessionId, (s) => s.detailTab);
+  const port = useCaptureStore(sessionId, (s) => s.port);
 
-  const startCapture = useCaptureStore((s) => s.startCapture);
-  const stopCapture = useCaptureStore((s) => s.stopCapture);
-  const clearEntries = useCaptureStore((s) => s.clearEntries);
-  const setFilter = useCaptureStore((s) => s.setFilter);
-  const setSelectedEntry = useCaptureStore((s) => s.setSelectedEntry);
-  const setDetailTab = useCaptureStore((s) => s.setDetailTab);
-  const refreshStatus = useCaptureStore((s) => s.refreshStatus);
-  const exportCaCert = useCaptureStore((s) => s.exportCaCert);
-  const initListener = useCaptureStore((s) => s.initListener);
+  const startCapture = useCaptureStore(sessionId, (s) => s.startCapture);
+  const stopCapture = useCaptureStore(sessionId, (s) => s.stopCapture);
+  const clearEntries = useCaptureStore(sessionId, (s) => s.clearEntries);
+  const setFilter = useCaptureStore(sessionId, (s) => s.setFilter);
+  const setSelectedEntry = useCaptureStore(sessionId, (s) => s.setSelectedEntry);
+  const setDetailTab = useCaptureStore(sessionId, (s) => s.setDetailTab);
+  const refreshStatus = useCaptureStore(sessionId, (s) => s.refreshStatus);
+  const loadEntries = useCaptureStore(sessionId, (s) => s.loadEntries);
+  const exportCaCert = useCaptureStore(sessionId, (s) => s.exportCaCert);
+  const initListener = useCaptureStore(sessionId, (s) => s.initListener);
 
   const [portInput, setPortInput] = useState(String(port));
   const [caPath, setCaPath] = useState<string | null>(null);
@@ -73,11 +74,16 @@ export function CaptureWorkspace() {
   // 初始化事件监听
   useEffect(() => {
     refreshStatus();
+    loadEntries();
     const unlistenPromise = initListener();
     return () => {
       unlistenPromise.then((fn) => fn());
     };
-  }, [initListener, refreshStatus]);
+  }, [initListener, loadEntries, refreshStatus]);
+
+  useEffect(() => {
+    setPortInput(String(port));
+  }, [port]);
 
   // 自动滚动到底部
   useEffect(() => {

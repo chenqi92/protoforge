@@ -93,7 +93,13 @@ fn run_script_internal(
     let console_log = unsafe {
         NativeFunction::from_closure(move |_this, args, _ctx| {
             let msg = args.iter()
-                .map(|a| a.display().to_string())
+                .map(|a| {
+                    if let Some(s) = a.as_string() {
+                        s.to_std_string_escaped()
+                    } else {
+                        a.display().to_string()
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join(" ");
             logs_clone.borrow_mut().push(msg);
@@ -254,15 +260,9 @@ fn run_script_internal(
     // --- 执行脚本 ---
     let result = context.eval(Source::from_bytes(script));
 
-    let env = Rc::try_unwrap(env_updates)
-        .map(|r| r.into_inner())
-        .unwrap_or_default();
-    let tests = Rc::try_unwrap(test_results)
-        .map(|r| r.into_inner())
-        .unwrap_or_default();
-    let l = Rc::try_unwrap(logs)
-        .map(|r| r.into_inner())
-        .unwrap_or_default();
+    let env = env_updates.borrow().clone();
+    let tests = test_results.borrow().clone();
+    let l = logs.borrow().clone();
 
     match result {
         Ok(_) => ScriptResult {

@@ -7,6 +7,12 @@ export type ToolWorkbench = "tcpudp" | "loadtest" | "capture";
 export type WorkbenchView = "requests" | ToolWorkbench;
 export type WorkspaceProtocol = RequestProtocol | ToolWorkbench | "collection";
 
+export interface ToolSession {
+  id: string;
+  tool: ToolWorkbench;
+  customLabel?: string | null;
+}
+
 export interface AppTab {
   id: string;
   protocol: RequestProtocol;
@@ -24,9 +30,14 @@ interface AppStore {
   activeTabId: string | null;
   activeWorkbench: WorkbenchView;
   activeCollectionId: string | null;
+  toolSessions: Record<ToolWorkbench, ToolSession[]>;
+  activeToolSessionIds: Record<ToolWorkbench, string | null>;
 
   addTab: (protocol?: RequestProtocol) => string;
-  openToolTab: (tool: ToolWorkbench) => void;
+  openToolTab: (tool: ToolWorkbench, sessionId?: string) => string;
+  addToolSession: (tool: ToolWorkbench) => string;
+  setActiveToolSession: (tool: ToolWorkbench, sessionId: string) => void;
+  closeToolSession: (tool: ToolWorkbench, sessionId: string) => void;
   openCollectionPanel: (collectionId: string) => void;
   closeCollectionPanel: () => void;
   closeTab: (id: string) => void;
@@ -58,11 +69,29 @@ const requestLabels: Record<RequestProtocol, string> = {
   mqtt: "MQTT Client",
 };
 
+function createToolSession(tool: ToolWorkbench, id?: string): ToolSession {
+  return {
+    id: id ?? crypto.randomUUID(),
+    tool,
+    customLabel: null,
+  };
+}
+
 export const useAppStore = create<AppStore>((set, get) => ({
   tabs: [],
   activeTabId: null,
   activeWorkbench: "requests",
   activeCollectionId: null,
+  toolSessions: {
+    tcpudp: [],
+    loadtest: [],
+    capture: [],
+  },
+  activeToolSessionIds: {
+    tcpudp: null,
+    loadtest: null,
+    capture: null,
+  },
 
   addTab: (protocol: RequestProtocol = "http") => {
     const id = crypto.randomUUID();
@@ -88,10 +117,142 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return id;
   },
 
-  openToolTab: (tool) => {
-    set({
+  openToolTab: (tool, sessionId) => {
+    const state = get();
+    const existingSessions = state.toolSessions[tool];
+    const requestedSession = sessionId
+      ? existingSessions.find((item) => item.id === sessionId) ?? createToolSession(tool, sessionId)
+      : null;
+
+    if (requestedSession && existingSessions.some((item) => item.id === requestedSession.id)) {
+      set((current) => ({
+        activeWorkbench: tool,
+        activeCollectionId: null,
+        activeToolSessionIds: {
+          ...current.activeToolSessionIds,
+          [tool]: requestedSession.id,
+        },
+      }));
+      return requestedSession.id;
+    }
+
+    if (requestedSession) {
+      set((current) => ({
+        activeWorkbench: tool,
+        activeCollectionId: null,
+        toolSessions: {
+          ...current.toolSessions,
+          [tool]: [...current.toolSessions[tool], requestedSession],
+        },
+        activeToolSessionIds: {
+          ...current.activeToolSessionIds,
+          [tool]: requestedSession.id,
+        },
+      }));
+      return requestedSession.id;
+    }
+
+    if (existingSessions.length > 0) {
+      const nextActiveId = state.activeToolSessionIds[tool] && existingSessions.some((item) => item.id === state.activeToolSessionIds[tool])
+        ? state.activeToolSessionIds[tool]
+        : existingSessions[existingSessions.length - 1].id;
+
+      set((current) => ({
+        activeWorkbench: tool,
+        activeCollectionId: null,
+        activeToolSessionIds: {
+          ...current.activeToolSessionIds,
+          [tool]: nextActiveId,
+        },
+      }));
+      return nextActiveId;
+    }
+
+    const session = createToolSession(tool);
+    set((current) => ({
       activeWorkbench: tool,
       activeCollectionId: null,
+      toolSessions: {
+        ...current.toolSessions,
+        [tool]: [...current.toolSessions[tool], session],
+      },
+      activeToolSessionIds: {
+        ...current.activeToolSessionIds,
+        [tool]: session.id,
+      },
+    }));
+    return session.id;
+  },
+
+  addToolSession: (tool) => {
+    const session = createToolSession(tool);
+    set((state) => ({
+      activeWorkbench: tool,
+      activeCollectionId: null,
+      toolSessions: {
+        ...state.toolSessions,
+        [tool]: [...state.toolSessions[tool], session],
+      },
+      activeToolSessionIds: {
+        ...state.activeToolSessionIds,
+        [tool]: session.id,
+      },
+    }));
+    return session.id;
+  },
+
+  setActiveToolSession: (tool, sessionId) => {
+    set((state) => ({
+      activeWorkbench: tool,
+      activeCollectionId: null,
+      activeToolSessionIds: {
+        ...state.activeToolSessionIds,
+        [tool]: sessionId,
+      },
+    }));
+  },
+
+  closeToolSession: (tool, sessionId) => {
+    set((state) => {
+      const sessions = state.toolSessions[tool];
+      const index = sessions.findIndex((item) => item.id === sessionId);
+      if (index === -1) {
+        return {};
+      }
+
+      const nextSessions = sessions.filter((item) => item.id !== sessionId);
+
+      if (nextSessions.length === 0) {
+        const replacement = createToolSession(tool);
+        return {
+          toolSessions: {
+            ...state.toolSessions,
+            [tool]: [replacement],
+          },
+          activeToolSessionIds: {
+            ...state.activeToolSessionIds,
+            [tool]: replacement.id,
+          },
+          activeWorkbench: tool,
+          activeCollectionId: null,
+        };
+      }
+
+      const fallbackSession = nextSessions[Math.min(index, nextSessions.length - 1)];
+      const nextActiveId = state.activeToolSessionIds[tool] === sessionId
+        ? fallbackSession.id
+        : state.activeToolSessionIds[tool];
+
+      return {
+        toolSessions: {
+          ...state.toolSessions,
+          [tool]: nextSessions,
+        },
+        activeToolSessionIds: {
+          ...state.activeToolSessionIds,
+          [tool]: nextActiveId,
+        },
+      };
     });
   },
 

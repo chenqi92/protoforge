@@ -84,6 +84,10 @@ export function MessageLog({
     )
   );
   const isFiltering = Boolean(filter.trim());
+  const emptyTitle = connected ? t('tcp.messageLog.emptyConnectedTitle') : statusText || t('tcp.messageLog.emptyDisconnectedTitle');
+  const emptyDesc = connected
+    ? t('tcp.messageLog.emptyConnectedDesc')
+    : t('tcp.messageLog.emptyDisconnectedDesc');
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col overflow-hidden", !embedded && "wb-panel")}>
@@ -171,54 +175,97 @@ export function MessageLog({
               <p className="mt-1 text-[12px] text-text-tertiary">{t('tcp.messageLog.noMatchHint')}</p>
             </div>
           ) : (
-            <div className="flex h-full items-center justify-center px-6 py-8">
-              <div className="w-full max-w-3xl text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-border-default/70 bg-bg-primary/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                  <PlugZap className="h-7 w-7 text-text-disabled" />
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="border-b border-border-default/60 px-5 py-4">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-semibold text-text-secondary">{emptyTitle}</p>
+                    <p className="mt-1 max-w-2xl text-[12px] leading-6 text-text-tertiary">{emptyDesc}</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 lg:justify-end">
+                    <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                      {displayFormat.toUpperCase()}
+                    </span>
+                    {typeof connected === "boolean" ? (
+                      <span
+                        className={cn(
+                          "rounded-[9px] border px-2.5 py-1 text-[10px] font-semibold",
+                          connected
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                            : "border-border-default/70 bg-bg-secondary/78 text-text-tertiary"
+                        )}
+                      >
+                        {connected ? t('tcp.system.connected') : t('tcp.system.waitingConnection')}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-                <p className="text-[15px] font-semibold text-text-secondary">
-                  {connected ? t('tcp.messageLog.emptyConnectedTitle') : statusText || t('tcp.messageLog.emptyDisconnectedTitle')}
-                </p>
-                <p className="mx-auto mt-2 max-w-xl text-[12px] leading-6 text-text-tertiary">
-                  {connected
-                    ? t('tcp.messageLog.emptyConnectedDesc')
-                    : t('tcp.messageLog.emptyDisconnectedDesc')}
-                </p>
+              </div>
 
-                <div className="mt-6 grid gap-4 text-left sm:grid-cols-3">
-                  <div className="border-t border-border-default/70 pt-3">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
-                      <PlugZap className="h-3.5 w-3.5 text-blue-500" />
-                      {connected ? t('tcp.messageLog.step1Connected') : t('tcp.messageLog.step1Disconnected')}
+              <div className="flex min-h-0 flex-1 items-center px-6 py-6">
+                <div className="mx-auto grid w-full max-w-6xl gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.85fr)] xl:items-center">
+                  <div className="text-center xl:text-left">
+                    <div className="mx-auto mb-5 flex h-[72px] w-[72px] items-center justify-center rounded-full border border-border-default/70 bg-bg-primary/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] xl:mx-0">
+                      <PlugZap className="h-8 w-8 text-text-disabled" />
                     </div>
-                    <div className="mt-1 text-[11px] leading-5 text-text-tertiary">
-                      {connected
-                        ? t('tcp.messageLog.step1ConnectedDesc')
-                        : t('tcp.messageLog.step1DisconnectedDesc')}
+                    <p className="text-[18px] font-semibold text-text-secondary">{emptyTitle}</p>
+                    <p className="mx-auto mt-2 max-w-2xl text-[12px] leading-6 text-text-tertiary xl:mx-0">
+                      {emptyDesc}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap justify-center gap-2 xl:justify-start">
+                      <span className="rounded-[10px] border border-border-default/70 bg-bg-primary/78 px-3 py-1.5 text-[11px] text-text-secondary">
+                        {displayFormat.toUpperCase()}
+                      </span>
+                      {stats && hasTraffic ? (
+                        <>
+                          <span className="rounded-[10px] border border-border-default/70 bg-bg-primary/78 px-3 py-1.5 text-[11px] text-text-secondary">
+                            {formatSize(stats.sentBytes)} / {stats.sentCount} TX
+                          </span>
+                          <span className="rounded-[10px] border border-border-default/70 bg-bg-primary/78 px-3 py-1.5 text-[11px] text-text-secondary">
+                            {formatSize(stats.receivedBytes)} / {stats.receivedCount} RX
+                          </span>
+                        </>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div className="border-t border-border-default/70 pt-3">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
-                      <ArrowUpRight className="h-3.5 w-3.5 text-blue-500" />
-                      {connected ? t('tcp.messageLog.step2Connected') : t('tcp.messageLog.step2Disconnected')}
+                  <div className="grid gap-3 text-left">
+                    <div className="rounded-[12px] border border-border-default/70 bg-bg-primary/72 px-4 py-3">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
+                        <PlugZap className="h-3.5 w-3.5 text-blue-500" />
+                        {connected ? t('tcp.messageLog.step1Connected') : t('tcp.messageLog.step1Disconnected')}
+                      </div>
+                      <div className="mt-1.5 text-[11px] leading-5 text-text-tertiary">
+                        {connected
+                          ? t('tcp.messageLog.step1ConnectedDesc')
+                          : t('tcp.messageLog.step1DisconnectedDesc')}
+                      </div>
                     </div>
-                    <div className="mt-1 text-[11px] leading-5 text-text-tertiary">
-                      {connected
-                        ? t('tcp.messageLog.step2ConnectedDesc')
-                        : t('tcp.messageLog.step2DisconnectedDesc')}
-                    </div>
-                  </div>
 
-                  <div className="border-t border-border-default/70 pt-3">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
-                      <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-500" />
-                      {connected ? t('tcp.messageLog.step3Connected') : t('tcp.messageLog.step3Disconnected')}
+                    <div className="rounded-[12px] border border-border-default/70 bg-bg-primary/72 px-4 py-3">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
+                        <ArrowUpRight className="h-3.5 w-3.5 text-blue-500" />
+                        {connected ? t('tcp.messageLog.step2Connected') : t('tcp.messageLog.step2Disconnected')}
+                      </div>
+                      <div className="mt-1.5 text-[11px] leading-5 text-text-tertiary">
+                        {connected
+                          ? t('tcp.messageLog.step2ConnectedDesc')
+                          : t('tcp.messageLog.step2DisconnectedDesc')}
+                      </div>
                     </div>
-                    <div className="mt-1 text-[11px] leading-5 text-text-tertiary">
-                      {connected
-                        ? t('tcp.messageLog.step3ConnectedDesc')
-                        : t('tcp.messageLog.step3DisconnectedDesc')}
+
+                    <div className="rounded-[12px] border border-border-default/70 bg-bg-primary/72 px-4 py-3">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold text-text-secondary">
+                        <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-500" />
+                        {connected ? t('tcp.messageLog.step3Connected') : t('tcp.messageLog.step3Disconnected')}
+                      </div>
+                      <div className="mt-1.5 text-[11px] leading-5 text-text-tertiary">
+                        {connected
+                          ? t('tcp.messageLog.step3ConnectedDesc')
+                          : t('tcp.messageLog.step3DisconnectedDesc')}
+                      </div>
                     </div>
                   </div>
                 </div>

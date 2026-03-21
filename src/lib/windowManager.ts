@@ -37,24 +37,46 @@ const toolConfigs: Record<ToolWindowType, ToolWindowConfig> = {
   },
 };
 
-/**
- * 打开工具窗口（单例模式：如果已存在则聚焦）
- */
-export async function openToolWindow(tool: ToolWindowType): Promise<void> {
-  const label = `tool-${tool}`;
+export function getToolWindowLabel(tool: ToolWindowType, sessionId: string): string {
+  return `tool-${tool}-${sessionId}`;
+}
 
-  // 检查窗口是否已存在
+function parseToolWindowLabel(label: string): { tool: ToolWindowType; sessionId: string } | null {
+  const match = label.match(/^tool-(capture|loadtest|tcpudp)-(.+)$/);
+  if (!match) return null;
+
+  return {
+    tool: match[1] as ToolWindowType,
+    sessionId: match[2],
+  };
+}
+
+async function getToolWindows(tool?: ToolWindowType) {
+  const windows = await WebviewWindow.getAll();
+
+  return windows.filter((window) => {
+    const parsed = parseToolWindowLabel(window.label);
+    if (!parsed) return false;
+    return tool ? parsed.tool === tool : true;
+  });
+}
+
+/**
+ * 打开工具窗口（按会话实例管理）
+ */
+export async function openToolWindow(tool: ToolWindowType, sessionId: string = crypto.randomUUID()): Promise<string> {
+  const label = getToolWindowLabel(tool, sessionId);
+
   const existing = await WebviewWindow.getByLabel(label);
   if (existing) {
     await existing.setFocus();
-    return;
+    return sessionId;
   }
 
   const config = toolConfigs[tool];
 
-  // 创建新窗口，加载同一 SPA 但带 ?window=xxx 参数
   new WebviewWindow(label, {
-    url: `/?window=${tool}`,
+    url: `/?window=${tool}&session=${encodeURIComponent(sessionId)}`,
     title: config.title,
     width: config.width,
     height: config.height,
@@ -65,12 +87,26 @@ export async function openToolWindow(tool: ToolWindowType): Promise<void> {
     hiddenTitle: true,
     center: true,
   });
+
+  return sessionId;
 }
 
-export async function isToolWindowOpen(tool: ToolWindowType): Promise<boolean> {
-  const label = `tool-${tool}`;
-  const existing = await WebviewWindow.getByLabel(label);
-  return Boolean(existing);
+export async function isToolWindowOpen(tool: ToolWindowType, sessionId?: string): Promise<boolean> {
+  if (sessionId) {
+    const existing = await WebviewWindow.getByLabel(getToolWindowLabel(tool, sessionId));
+    return Boolean(existing);
+  }
+
+  const windows = await getToolWindows(tool);
+  return windows.length > 0;
+}
+
+export async function listOpenToolWindowSessions(tool: ToolWindowType): Promise<string[]> {
+  const windows = await getToolWindows(tool);
+  return windows
+    .map((window) => parseToolWindowLabel(window.label))
+    .filter((item): item is { tool: ToolWindowType; sessionId: string } => Boolean(item))
+    .map((item) => item.sessionId);
 }
 
 export async function focusMainWindow(): Promise<void> {
@@ -78,4 +114,19 @@ export async function focusMainWindow(): Promise<void> {
   if (!mainWindow) return;
   await mainWindow.show();
   await mainWindow.setFocus();
+}
+
+export async function closeWindowByLabel(label: string): Promise<void> {
+  const target = await WebviewWindow.getByLabel(label);
+  if (!target) return;
+
+  try {
+    await target.close();
+  } catch {
+    try {
+      await target.destroy();
+    } catch {
+      // ignore close failures
+    }
+  }
 }

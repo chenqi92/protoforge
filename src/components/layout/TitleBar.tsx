@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 interface TitleBarProps {
   activeWorkbench: WorkbenchView;
+  detachedTools: Partial<Record<ToolWorkbench, boolean>>;
   onSelectWorkbench: (workbench: WorkbenchView) => void;
   onPopoutWorkbench: (workbench: ToolWorkbench) => void;
   onOpenPlugins: () => void;
@@ -41,6 +42,7 @@ const workbenches: Array<{
 
 export function TitleBar({
   activeWorkbench,
+  detachedTools,
   onSelectWorkbench,
   onPopoutWorkbench,
   onOpenPlugins,
@@ -135,6 +137,7 @@ export function TitleBar({
             const Icon = workbench.icon;
             const isActive = activeWorkbench === workbench.id;
             const isToolWorkbench = workbench.id !== "requests";
+            const isDetached = isToolWorkbench ? Boolean(detachedTools[workbench.id as ToolWorkbench]) : false;
             const label = t(workbench.labelKey);
 
             return (
@@ -154,14 +157,23 @@ export function TitleBar({
                   "flex h-8 items-center gap-2 rounded-[12px] px-3 text-[12px] font-medium transition-all",
                   isActive
                     ? "bg-bg-primary text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
-                    : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
+                    : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",
+                  isDetached && !isActive && "text-text-secondary"
                 )}
-                title={isToolWorkbench ? t('titleBar.dragToDetach', { label }) : label}
+                title={
+                  isToolWorkbench
+                    ? (isDetached ? t('titleBar.focusDetached', { label }) : t('titleBar.dragToDetach', { label }))
+                    : label
+                }
               >
                 <Icon className={cn("h-3.5 w-3.5", isActive ? workbench.accentClassName : "text-current")} />
                 <span>{label}</span>
                 {isToolWorkbench ? (
-                  <ArrowUpRight className={cn("h-3 w-3 text-text-disabled transition-colors", isActive && "text-text-tertiary")} />
+                  <ArrowUpRight className={cn(
+                    "h-3 w-3 text-text-disabled transition-colors",
+                    isActive && "text-text-tertiary",
+                    isDetached && !isActive && "text-accent"
+                  )} />
                 ) : null}
               </button>
             );

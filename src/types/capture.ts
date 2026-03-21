@@ -1,6 +1,7 @@
 // 抓包模块类型定义 — 与 Rust CapturedEntry / ProxyStatusInfo 对齐
 
 export interface CapturedEntry {
+  sessionId: string;
   id: string;
   method: string;
   url: string;
@@ -21,6 +22,7 @@ export interface CapturedEntry {
 }
 
 export interface ProxyStatusInfo {
+  sessionId: string;
   running: boolean;
   port: number;
   entryCount: number;

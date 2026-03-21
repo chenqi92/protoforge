@@ -12,6 +12,7 @@ use crate::plugin_runtime::{ParseResult, ParsedField};
 //  HJ212-2017 环保数据传输协议解析器
 // ═══════════════════════════════════════════
 
+#[allow(dead_code)]
 pub fn parse_hj212(raw_data: &str) -> ParseResult {
     let data = raw_data.trim();
 
@@ -37,8 +38,21 @@ pub fn parse_hj212(raw_data: &str) -> ParseResult {
     });
 
     let body = &data[6..];
-    let pairs: Vec<&str> = body.split(';').collect();
-    let mut cp_content = String::new();
+    
+    // 找出 CP 段的内容
+    let (head_str, cp_content) = if let Some(cp_start) = body.find("CP=&&") {
+        let head = &body[..cp_start];
+        let after_cp = &body[cp_start + 5..];
+        if let Some(cp_end) = after_cp.find("&&") {
+            (head, &after_cp[..cp_end])
+        } else {
+            (body, "")
+        }
+    } else {
+        (body, "")
+    };
+
+    let pairs: Vec<&str> = head_str.split(';').collect();
     let mut cn = String::new();
     let mut mn = String::new();
 
@@ -82,7 +96,6 @@ pub fn parse_hj212(raw_data: &str) -> ParseResult {
                     fields.push(field("MN", "设备编号", val, "报文头"));
                 }
                 "Flag" => fields.push(field("Flag", "标志位", val, "报文头")),
-                "CP" => cp_content = val.to_string(),
                 _ => {}
             }
         }
@@ -90,19 +103,7 @@ pub fn parse_hj212(raw_data: &str) -> ParseResult {
 
     // 解析 CP 数据区
     if !cp_content.is_empty() {
-        let cp = cp_content.replace("&&", "");
-        let cp = cp.trim();
-        // 去掉尾部 CRC
-        let cp = if cp.len() > 4 {
-            let last_four = &cp[cp.len() - 4..];
-            if last_four.chars().all(|c| c.is_ascii_hexdigit()) {
-                &cp[..cp.len() - 4]
-            } else {
-                cp
-            }
-        } else {
-            cp
-        };
+        let cp = cp_content.trim();
 
         let pollutant_names: HashMap<&str, &str> = [
             ("w01018", "COD"), ("w01019", "氨氮"), ("w01001", "pH"),
@@ -183,6 +184,7 @@ pub fn parse_hj212(raw_data: &str) -> ParseResult {
 //  SFJK200 水文监测数据通信协议解析器
 // ═══════════════════════════════════════════
 
+#[allow(dead_code)]
 pub fn parse_sfjk200(raw_data: &str) -> ParseResult {
     let data = raw_data.trim();
 
@@ -213,6 +215,7 @@ pub fn parse_sfjk200(raw_data: &str) -> ParseResult {
     }
 }
 
+#[allow(dead_code)]
 fn parse_sfjk200_text(data: &str) -> ParseResult {
     let mut fields = Vec::new();
     let mut station_id = String::new();
@@ -299,6 +302,7 @@ fn parse_sfjk200_text(data: &str) -> ParseResult {
     }
 }
 
+#[allow(dead_code)]
 fn parse_sfjk200_hex(data: &str) -> ParseResult {
     let hex: String = data.chars().filter(|c| !c.is_ascii_whitespace()).collect();
     let mut fields = Vec::new();
@@ -347,6 +351,7 @@ fn parse_sfjk200_hex(data: &str) -> ParseResult {
     }
 }
 
+#[allow(dead_code)]
 fn parse_sfjk200_generic(data: &str) -> ParseResult {
     let sep = if data.contains(';') { ';' } else { ',' };
     let mut fields = Vec::new();
@@ -383,6 +388,7 @@ fn parse_sfjk200_generic(data: &str) -> ParseResult {
 
 // ── Helpers ──
 
+#[allow(dead_code)]
 fn field(key: &str, label: &str, value: &str, group: &str) -> ParsedField {
     ParsedField {
         key: key.to_string(),
@@ -393,6 +399,7 @@ fn field(key: &str, label: &str, value: &str, group: &str) -> ParsedField {
     }
 }
 
+#[allow(dead_code)]
 fn determine_unit(poll_code: &str) -> Option<String> {
     if poll_code.starts_with("w01001") { Some("无量纲".into()) }
     else if poll_code.starts_with("w01010") || poll_code.starts_with("a01001") { Some("°C".into()) }

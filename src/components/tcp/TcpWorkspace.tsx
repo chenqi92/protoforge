@@ -22,7 +22,7 @@ const MODES: { value: SocketMode; labelKey: string; hintKey: string; icon: React
   { value: "udp-server", labelKey: "tcp.modes.udpServer", hintKey: "tcp.modes.udpServerHint", icon: <Square className="w-3.5 h-3.5" /> },
 ];
 
-export function TcpWorkspace() {
+export function TcpWorkspace({ sessionId: _sessionId }: { sessionId?: string }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<SocketMode>("tcp-client");
   const activeMode = MODES.find((item) => item.value === mode) || MODES[0];
@@ -51,7 +51,7 @@ export function TcpWorkspace() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 pt-3">
+      <div className="flex min-h-0 flex-1 flex-col pt-3">
         {mode === "tcp-client" && <TcpClientPanel />}
         {mode === "tcp-server" && <TcpServerPanel />}
         {mode === "udp-client" && <UdpClientPanel />}
@@ -257,34 +257,36 @@ function TcpClientPanel() {
 
       <WorkspaceSplit
         sidebar={(
-          <SendPanel
-            message={state.message} setMessage={state.setMessage}
-            sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
-            connected={connected} onSend={handleSend}
-            sendHistory={state.sendHistory}
-            onClearHistory={() => state.setSendHistory([])}
-            onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
-            quickCommands={state.quickCommands}
-            onAddQuickCommand={() => {
-              if (state.message.trim()) {
-                const name = `${t('tcp.system.command')}${state.quickCommands.length + 1}`;
-                state.setQuickCommands((prev) => [...prev, {
-                  id: crypto.randomUUID(), name, data: state.message, format: state.sendFormat,
-                }]);
-              }
-            }}
-            onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
-            onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
-            timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
-            onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
-            onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-            appendNewline={state.appendNewline}
-            onAppendNewlineChange={state.setAppendNewline}
-            embedded
-          />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SendPanel
+              message={state.message} setMessage={state.setMessage}
+              sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
+              connected={connected} onSend={handleSend}
+              sendHistory={state.sendHistory}
+              onClearHistory={() => state.setSendHistory([])}
+              onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
+              quickCommands={state.quickCommands}
+              onAddQuickCommand={() => {
+                if (state.message.trim()) {
+                  const name = `${t('tcp.system.command')}${state.quickCommands.length + 1}`;
+                  state.setQuickCommands((prev) => [...prev, {
+                    id: crypto.randomUUID(), name, data: state.message, format: state.sendFormat,
+                  }]);
+                }
+              }}
+              onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
+              onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+              timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
+              onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
+              onTimerIntervalChange={(v) => state.setTimerInterval(v)}
+              appendNewline={state.appendNewline}
+              onAppendNewlineChange={state.setAppendNewline}
+              embedded
+            />
+          </div>
         )}
       >
-        <div className="flex min-h-0 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           <MessageLog
             messages={state.messages}
             onClear={() => { state.setMessages([]); state.resetStats(); }}
@@ -423,7 +425,7 @@ function TcpServerPanel() {
 
       <WorkspaceSplit
         sidebar={(
-          <div className="flex h-full min-h-0 flex-col">
+          <div className="flex h-full min-h-0 flex-1 flex-col">
             <ClientList clients={clients} selectedClientId={selectedClientId} onSelectClient={setSelectedClientId} embedded />
             {clients.length > 0 ? <div className="wb-pane-divider" /> : null}
             <div className="min-h-0 flex-1">
@@ -456,7 +458,7 @@ function TcpServerPanel() {
           </div>
         )}
       >
-        <div className="flex min-h-0 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           <MessageLog
             messages={state.messages}
             onClear={() => { state.setMessages([]); state.resetStats(); }}
@@ -582,33 +584,35 @@ function UdpClientPanel() {
 
       <WorkspaceSplit
         sidebar={(
-          <SendPanel
-            message={state.message} setMessage={state.setMessage}
-            sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
-            connected={bound} onSend={handleSend}
-            sendHistory={state.sendHistory}
-            onClearHistory={() => state.setSendHistory([])}
-            onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
-            quickCommands={state.quickCommands}
-            onAddQuickCommand={() => {
-              if (state.message.trim()) {
-                state.setQuickCommands((prev) => [...prev, {
-                  id: crypto.randomUUID(), name: `${t('tcp.system.command')}${prev.length + 1}`, data: state.message, format: state.sendFormat,
-                }]);
-              }
-            }}
-            onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
-            onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
-            timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
-            onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
-            onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-            appendNewline={state.appendNewline}
-            onAppendNewlineChange={state.setAppendNewline}
-            embedded
-          />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SendPanel
+              message={state.message} setMessage={state.setMessage}
+              sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
+              connected={bound} onSend={handleSend}
+              sendHistory={state.sendHistory}
+              onClearHistory={() => state.setSendHistory([])}
+              onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
+              quickCommands={state.quickCommands}
+              onAddQuickCommand={() => {
+                if (state.message.trim()) {
+                  state.setQuickCommands((prev) => [...prev, {
+                    id: crypto.randomUUID(), name: `${t('tcp.system.command')}${prev.length + 1}`, data: state.message, format: state.sendFormat,
+                  }]);
+                }
+              }}
+              onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
+              onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+              timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
+              onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
+              onTimerIntervalChange={(v) => state.setTimerInterval(v)}
+              appendNewline={state.appendNewline}
+              onAppendNewlineChange={state.setAppendNewline}
+              embedded
+            />
+          </div>
         )}
       >
-        <div className="flex min-h-0 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           <MessageLog
             messages={state.messages}
             onClear={() => { state.setMessages([]); state.resetStats(); }}
@@ -737,34 +741,36 @@ function UdpServerPanel() {
 
       <WorkspaceSplit
         sidebar={(
-          <SendPanel
-            message={state.message} setMessage={state.setMessage}
-            sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
-            connected={bound && !!replyAddr} onSend={handleSend}
-            sendLabel={t('tcp.reply')}
-            sendHistory={state.sendHistory}
-            onClearHistory={() => state.setSendHistory([])}
-            onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
-            quickCommands={state.quickCommands}
-            onAddQuickCommand={() => {
-              if (state.message.trim()) {
-                state.setQuickCommands((prev) => [...prev, {
-                  id: crypto.randomUUID(), name: `${t('tcp.system.command')}${prev.length + 1}`, data: state.message, format: state.sendFormat,
-                }]);
-              }
-            }}
-            onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
-            onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
-            timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
-            onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
-            onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-            appendNewline={state.appendNewline}
-            onAppendNewlineChange={state.setAppendNewline}
-            embedded
-          />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <SendPanel
+              message={state.message} setMessage={state.setMessage}
+              sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
+              connected={bound && !!replyAddr} onSend={handleSend}
+              sendLabel={t('tcp.reply')}
+              sendHistory={state.sendHistory}
+              onClearHistory={() => state.setSendHistory([])}
+              onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
+              quickCommands={state.quickCommands}
+              onAddQuickCommand={() => {
+                if (state.message.trim()) {
+                  state.setQuickCommands((prev) => [...prev, {
+                    id: crypto.randomUUID(), name: `${t('tcp.system.command')}${prev.length + 1}`, data: state.message, format: state.sendFormat,
+                  }]);
+                }
+              }}
+              onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
+              onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+              timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
+              onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
+              onTimerIntervalChange={(v) => state.setTimerInterval(v)}
+              appendNewline={state.appendNewline}
+              onAppendNewlineChange={state.setAppendNewline}
+              embedded
+            />
+          </div>
         )}
       >
-        <div className="flex min-h-0 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           <MessageLog
             messages={state.messages}
             onClear={() => { state.setMessages([]); state.resetStats(); }}

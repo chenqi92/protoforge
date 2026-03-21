@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
-import { ArrowUpRight, Gauge, Network, Radio } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Gauge, List, Network, Plus, Radio, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -20,63 +20,280 @@ import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
 import { PluginModal } from "@/components/plugins/PluginModal";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { CollectionSettingsPanel } from "@/components/collections/CollectionSettingsPanel";
-import { useAppStore, type RequestProtocol, type ToolWorkbench, type WorkbenchView } from "@/stores/appStore";
+import { useAppStore, type RequestProtocol, type ToolSession, type ToolWorkbench, type WorkbenchView } from "@/stores/appStore";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { isToolWindowOpen, openToolWindow } from "@/lib/windowManager";
+import { closeWindowByLabel, listOpenToolWindowSessions, openToolWindow } from "@/lib/windowManager";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { UpdateChecker } from "@/components/settings/UpdateChecker";
 import { WindowScaffold } from "@/components/layout/WindowScaffold";
 import { subscribeDockToolRequests } from "@/lib/toolDocking";
+import { cn } from "@/lib/utils";
 
-const toolWorkbenchMeta: Record<ToolWorkbench, { titleKey: string; descKey: string; icon: typeof Network }> = {
+const toolWorkbenchMeta: Record<ToolWorkbench, {
+  titleKey: string;
+  shortTitleKey: string;
+  descKey: string;
+  icon: typeof Network;
+  accentClassName: string;
+  accentBorderClassName: string;
+  accentDotClassName: string;
+}> = {
   tcpudp: {
     titleKey: "toolWorkbench.tcpudp.title",
+    shortTitleKey: "toolWorkbench.tcpudp.shortTitle",
     descKey: "toolWorkbench.tcpudp.description",
     icon: Network,
+    accentClassName: "text-blue-600",
+    accentBorderClassName: "border-blue-500",
+    accentDotClassName: "bg-blue-500",
   },
   capture: {
     titleKey: "toolWorkbench.capture.title",
+    shortTitleKey: "toolWorkbench.capture.shortTitle",
     descKey: "toolWorkbench.capture.description",
     icon: Radio,
+    accentClassName: "text-cyan-600",
+    accentBorderClassName: "border-cyan-500",
+    accentDotClassName: "bg-cyan-500",
   },
   loadtest: {
     titleKey: "toolWorkbench.loadtest.title",
+    shortTitleKey: "toolWorkbench.loadtest.shortTitle",
     descKey: "toolWorkbench.loadtest.description",
     icon: Gauge,
+    accentClassName: "text-rose-600",
+    accentBorderClassName: "border-rose-500",
+    accentDotClassName: "bg-rose-500",
   },
 };
 
 function ToolWorkbenchPanel({
   tool,
+  sessions,
+  activeSessionId,
+  detachedSessionIds,
+  onAddSession,
+  onSelectSession,
+  onCloseSession,
   onPopout,
   children,
 }: {
   tool: ToolWorkbench;
-  onPopout: (tool: ToolWorkbench) => void;
+  sessions: ToolSession[];
+  activeSessionId: string | null;
+  detachedSessionIds: string[];
+  onAddSession: (tool: ToolWorkbench) => void;
+  onSelectSession: (tool: ToolWorkbench, sessionId: string) => void;
+  onCloseSession: (tool: ToolWorkbench, sessionId: string) => void;
+  onPopout: (tool: ToolWorkbench, sessionId: string) => void;
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const meta = toolWorkbenchMeta[tool];
   const Icon = meta.icon;
+  const activeDetached = activeSessionId ? detachedSessionIds.includes(activeSessionId) : false;
+  const sessionScrollRef = useRef<HTMLDivElement>(null);
+  const sessionMenuAnchorRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [showSessionMenu, setShowSessionMenu] = useState(false);
+  const [sessionMenuPos, setSessionMenuPos] = useState({ top: 0, left: 0 });
+
+  const updateSessionScrollState = useCallback(() => {
+    const el = sessionScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    const el = sessionScrollRef.current;
+    if (!el) return;
+
+    const handleScroll = () => updateSessionScrollState();
+    const handleWheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+        return;
+      }
+      if (el.scrollWidth <= el.clientWidth) {
+        return;
+      }
+
+      event.preventDefault();
+      el.scrollBy({ left: event.deltaY, behavior: "auto" });
+    };
+
+    updateSessionScrollState();
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    const observer = new ResizeObserver(() => updateSessionScrollState());
+    observer.observe(el);
+
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      el.removeEventListener("wheel", handleWheel);
+      observer.disconnect();
+    };
+  }, [sessions.length, updateSessionScrollState]);
+
+  const hasOverflow = canScrollLeft || canScrollRight;
+  const scrollSessionsBy = (direction: "left" | "right") => {
+    const el = sessionScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction === "left" ? -220 : 220, behavior: "smooth" });
+  };
+
+  const toggleSessionMenu = () => {
+    if (sessionMenuAnchorRef.current) {
+      const rect = sessionMenuAnchorRef.current.getBoundingClientRect();
+      setSessionMenuPos({ top: rect.bottom + 6, left: Math.max(12, rect.right - 220) });
+    }
+    setShowSessionMenu((prev) => !prev);
+  };
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border-default/65 bg-bg-primary/38 px-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Icon className="h-3.5 w-3.5 shrink-0 text-accent" />
-          <div className="truncate text-[12px] font-semibold text-text-primary">{t(meta.titleKey)}</div>
-          <div className="truncate text-[11px] text-text-disabled">{t(meta.descKey)}</div>
+      <div className="flex h-11 shrink-0 items-center gap-3 border-b border-border-default/65 bg-bg-primary/38 px-3">
+        <div className="flex shrink-0 items-center gap-2 pr-1">
+          <div className="flex h-7 items-center gap-2 rounded-[10px] border border-border-default/70 bg-bg-primary/85 px-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
+            <Icon className={cn("h-3.5 w-3.5 shrink-0", meta.accentClassName)} />
+            <div className="text-[12px] font-semibold text-text-primary">{t(meta.shortTitleKey)}</div>
+          </div>
         </div>
 
-        <button
-          onClick={() => onPopout(tool)}
-          className="wb-ghost-btn px-2.5"
-          title={t('toolWorkbench.popoutWindow')}
-        >
-          <ArrowUpRight className="h-3.5 w-3.5" />
-          {t('toolWorkbench.popoutWindow')}
-        </button>
+        <div ref={sessionScrollRef} className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto scrollbar-hide">
+          {sessions.map((session, index) => {
+            const isActive = session.id === activeSessionId;
+            const isDetached = detachedSessionIds.includes(session.id);
+            const label = session.customLabel?.trim() || `${t(meta.shortTitleKey)} ${index + 1}`;
+
+            return (
+              <div
+                key={session.id}
+                className={cn(
+                  "group flex h-8 shrink-0 items-center gap-1 border-b-2 px-2 text-[12px] transition-colors",
+                  isActive
+                    ? cn(meta.accentBorderClassName, "bg-bg-primary/72 text-text-primary")
+                    : "border-transparent bg-transparent text-text-secondary hover:border-border-default/75 hover:text-text-primary"
+                )}
+              >
+                <button
+                  onClick={() => onSelectSession(tool, session.id)}
+                  className="flex min-w-0 items-center gap-1.5 rounded-[8px] px-1 py-1"
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      isActive ? meta.accentDotClassName : isDetached ? "bg-accent" : "bg-border-strong"
+                    )}
+                  />
+                  <span className="truncate">{label}</span>
+                  {isDetached ? <ArrowUpRight className="h-3 w-3 text-text-disabled" /> : null}
+                </button>
+                {sessions.length > 1 ? (
+                  <button
+                    onClick={() => onCloseSession(tool, session.id)}
+                    className="flex h-4.5 w-4.5 items-center justify-center rounded-[6px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary"
+                    title={t('tabBar.closeTab')}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          {hasOverflow ? (
+            <>
+              <button
+                onClick={() => scrollSessionsBy("left")}
+                disabled={!canScrollLeft}
+                className="wb-icon-btn"
+                title={t('tabBar.scrollLeft')}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => scrollSessionsBy("right")}
+                disabled={!canScrollRight}
+                className="wb-icon-btn"
+                title={t('tabBar.scrollRight')}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+              <div ref={sessionMenuAnchorRef}>
+                <button
+                  onClick={toggleSessionMenu}
+                  className={cn("wb-icon-btn", showSessionMenu && "bg-bg-hover text-text-primary")}
+                  title={t('toolWorkbench.allInstances')}
+                >
+                  <List className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          <button
+            onClick={() => onAddSession(tool)}
+            className="wb-ghost-btn px-2.5"
+            title={t('toolWorkbench.newInstance')}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t('toolWorkbench.newInstance')}
+          </button>
+
+          <button
+            onClick={() => activeSessionId && onPopout(tool, activeSessionId)}
+            disabled={!activeSessionId}
+            className="wb-ghost-btn px-2.5"
+            title={activeDetached ? t('toolWorkbench.focusWindow') : t('toolWorkbench.popoutWindow')}
+          >
+            <ArrowUpRight className="h-3.5 w-3.5" />
+            {activeDetached ? t('toolWorkbench.focusWindow') : t('toolWorkbench.popoutWindow')}
+          </button>
+        </div>
       </div>
+
+      {showSessionMenu ? (
+        <>
+          <div className="fixed inset-0 z-[220]" onClick={() => setShowSessionMenu(false)} />
+          <div
+            className="fixed z-[221] w-[220px] overflow-hidden rounded-[12px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+            style={{ top: sessionMenuPos.top, left: sessionMenuPos.left }}
+          >
+            <div className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled">
+              {t('toolWorkbench.allInstances')}
+            </div>
+            <div className="max-h-[320px] overflow-y-auto">
+              {sessions.map((session, index) => {
+                const label = session.customLabel?.trim() || `${t(meta.shortTitleKey)} ${index + 1}`;
+                const isActive = session.id === activeSessionId;
+                const isDetached = detachedSessionIds.includes(session.id);
+
+                return (
+                  <button
+                    key={session.id}
+                    onClick={() => {
+                      onSelectSession(tool, session.id);
+                      setShowSessionMenu(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-[10px] px-2.5 py-[7px] text-left transition-colors hover:bg-bg-hover/70",
+                      isActive && "bg-bg-hover/45"
+                    )}
+                  >
+                    <span className={cn("h-[6px] w-[6px] shrink-0 rounded-full", isActive ? meta.accentDotClassName : isDetached ? "bg-accent" : "bg-border-strong")} />
+                    <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-text-primary">{label}</span>
+                    {isDetached ? <ArrowUpRight className="h-3 w-3 text-text-disabled" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>
@@ -89,6 +306,11 @@ function App() {
   const [pluginModalOpen, setPluginModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  const [detachedToolSessions, setDetachedToolSessions] = useState<Record<ToolWorkbench, string[]>>({
+    tcpudp: [],
+    capture: [],
+    loadtest: [],
+  });
 
   useKeyboardShortcuts();
   useSettingsEffect();
@@ -118,17 +340,64 @@ function App() {
   const activeTab = useAppStore((s) => s.getActiveTab());
   const activeWorkbench = useAppStore((s) => s.activeWorkbench);
   const activeCollectionId = useAppStore((s) => s.activeCollectionId);
+  const toolSessions = useAppStore((s) => s.toolSessions);
+  const activeToolSessionIds = useAppStore((s) => s.activeToolSessionIds);
   const addTab = useAppStore((s) => s.addTab);
   const openToolTab = useAppStore((s) => s.openToolTab);
+  const addToolSession = useAppStore((s) => s.addToolSession);
+  const setActiveToolSession = useAppStore((s) => s.setActiveToolSession);
+  const closeToolSession = useAppStore((s) => s.closeToolSession);
   const closeTab = useAppStore((s) => s.closeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const setActiveWorkbench = useAppStore((s) => s.setActiveWorkbench);
   const reorderTabs = useAppStore((s) => s.reorderTabs);
   const closeCollectionPanel = useAppStore((s) => s.closeCollectionPanel);
 
+  const refreshDetachedTools = useCallback(async () => {
+    const toolKeys: ToolWorkbench[] = ["tcpudp", "capture", "loadtest"];
+    const states = await Promise.all(
+      toolKeys.map(async (tool) => [tool, await listOpenToolWindowSessions(tool)] as const)
+    );
+
+    setDetachedToolSessions({
+      tcpudp: states.find(([tool]) => tool === "tcpudp")?.[1] ?? [],
+      capture: states.find(([tool]) => tool === "capture")?.[1] ?? [],
+      loadtest: states.find(([tool]) => tool === "loadtest")?.[1] ?? [],
+    });
+  }, []);
+
   useEffect(() => {
-    return subscribeDockToolRequests((tool) => {
-      openToolTab(tool);
+    void refreshDetachedTools();
+
+    const handleFocus = () => {
+      void refreshDetachedTools();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void refreshDetachedTools();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [refreshDetachedTools]);
+
+  useEffect(() => {
+    return subscribeDockToolRequests(({ tool, sessionId, sourceLabel }) => {
+      openToolTab(tool, sessionId);
+      setDetachedToolSessions((prev) => ({
+        ...prev,
+        [tool]: prev[tool].filter((item) => item !== sessionId),
+      }));
+      if (sourceLabel) {
+        void closeWindowByLabel(sourceLabel);
+      }
     });
   }, [openToolTab]);
 
@@ -156,18 +425,16 @@ function App() {
       return;
     }
 
-    if (await isToolWindowOpen(workbench)) {
-      await openToolWindow(workbench);
-      return;
-    }
-
     openToolTab(workbench);
   }, [activeCollectionId, activeTabId, closeCollectionPanel, openToolTab, setActiveWorkbench]);
 
-  const handlePopoutWorkbench = useCallback(async (tool: ToolWorkbench) => {
-    await openToolWindow(tool);
-    setActiveWorkbench("requests");
-  }, [setActiveWorkbench]);
+  const handlePopoutWorkbench = useCallback(async (tool: ToolWorkbench, sessionId: string) => {
+    const detachedSessionId = await openToolWindow(tool, sessionId);
+    setDetachedToolSessions((prev) => ({
+      ...prev,
+      [tool]: prev[tool].includes(detachedSessionId) ? prev[tool] : [...prev[tool], detachedSessionId],
+    }));
+  }, []);
 
   const handleOpenPlugins = useCallback(() => {
     setPluginModalOpen(true);
@@ -275,23 +542,71 @@ function App() {
 
     if (activeWorkbench === "tcpudp") {
       return (
-        <ToolWorkbenchPanel tool="tcpudp" onPopout={handlePopoutWorkbench}>
-          <TcpWorkspace />
+        <ToolWorkbenchPanel
+          tool="tcpudp"
+          sessions={toolSessions.tcpudp}
+          activeSessionId={activeToolSessionIds.tcpudp}
+          detachedSessionIds={detachedToolSessions.tcpudp}
+          onAddSession={addToolSession}
+          onSelectSession={setActiveToolSession}
+          onCloseSession={closeToolSession}
+          onPopout={handlePopoutWorkbench}
+        >
+          {toolSessions.tcpudp.map((session) => (
+            <div
+              key={session.id}
+              className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.tcpudp ? "block" : "hidden")}
+            >
+              <TcpWorkspace sessionId={session.id} />
+            </div>
+          ))}
         </ToolWorkbenchPanel>
       );
     }
 
     if (activeWorkbench === "capture") {
       return (
-        <ToolWorkbenchPanel tool="capture" onPopout={handlePopoutWorkbench}>
-          <CaptureWorkspace />
+        <ToolWorkbenchPanel
+          tool="capture"
+          sessions={toolSessions.capture}
+          activeSessionId={activeToolSessionIds.capture}
+          detachedSessionIds={detachedToolSessions.capture}
+          onAddSession={addToolSession}
+          onSelectSession={setActiveToolSession}
+          onCloseSession={closeToolSession}
+          onPopout={handlePopoutWorkbench}
+        >
+          {toolSessions.capture.map((session) => (
+            <div
+              key={session.id}
+              className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.capture ? "block" : "hidden")}
+            >
+              <CaptureWorkspace sessionId={session.id} />
+            </div>
+          ))}
         </ToolWorkbenchPanel>
       );
     }
 
     return (
-      <ToolWorkbenchPanel tool="loadtest" onPopout={handlePopoutWorkbench}>
-        <LoadTestWorkspace />
+      <ToolWorkbenchPanel
+        tool="loadtest"
+        sessions={toolSessions.loadtest}
+        activeSessionId={activeToolSessionIds.loadtest}
+        detachedSessionIds={detachedToolSessions.loadtest}
+        onAddSession={addToolSession}
+        onSelectSession={setActiveToolSession}
+        onCloseSession={closeToolSession}
+        onPopout={handlePopoutWorkbench}
+      >
+        {toolSessions.loadtest.map((session) => (
+          <div
+            key={session.id}
+            className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.loadtest ? "block" : "hidden")}
+          >
+            <LoadTestWorkspace sessionId={session.id} />
+          </div>
+        ))}
       </ToolWorkbenchPanel>
     );
   };
@@ -303,17 +618,25 @@ function App() {
         : activeTab?.protocol || "requests"
       : activeWorkbench;
 
+  const detachedToolFlags: Record<ToolWorkbench, boolean> = {
+    tcpudp: detachedToolSessions.tcpudp.length > 0,
+    capture: detachedToolSessions.capture.length > 0,
+    loadtest: detachedToolSessions.loadtest.length > 0,
+  };
+
   return (
     <>
       <WindowScaffold
         header={(
           <TitleBar
             activeWorkbench={activeWorkbench}
+            detachedTools={detachedToolFlags}
             onSelectWorkbench={(workbench) => {
               void handleSelectWorkbench(workbench);
             }}
             onPopoutWorkbench={(workbench) => {
-              void handlePopoutWorkbench(workbench);
+              const sessionId = activeToolSessionIds[workbench] ?? openToolTab(workbench);
+              void handlePopoutWorkbench(workbench, sessionId);
             }}
             onOpenPlugins={handleOpenPlugins}
             onOpenSettings={handleOpenSettings}

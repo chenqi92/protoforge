@@ -10,6 +10,7 @@
     "plugins": "Plugins",
     "settings": "Settings",
     "dragToDetach": "{{label}}, drag to detach as a separate window",
+    "focusDetached": "{{label}} is already detached, click to focus it",
     "themeSystem": "System Theme",
     "themeDark": "Dark Mode",
     "themeLight": "Light Mode"
@@ -73,17 +74,24 @@
   "toolWorkbench": {
     "tcpudp": {
       "title": "TCP / UDP Debug Workbench",
+      "shortTitle": "TCP/UDP",
       "description": "Supports TCP Client/Server and UDP Client/Server modes for real-time packet transmission with HEX/ASCII data visualization, ideal for IoT and network protocol debugging."
     },
     "capture": {
       "title": "Traffic Capture Proxy",
+      "shortTitle": "Capture",
       "description": "Local HTTP proxy-based traffic capture tool for real-time interception and analysis of network requests, with HTTPS decryption, filtering, and detail inspection for API debugging and security auditing."
     },
     "loadtest": {
       "title": "HTTP Load Test Engine",
+      "shortTitle": "Load Test",
       "description": "High-concurrency HTTP load testing engine with configurable concurrency, duration, and RPS limiting. Real-time visualization of throughput, latency distribution, and error rates for API performance evaluation."
     },
-    "popoutWindow": "Detach as Separate Window"
+    "allInstances": "All Instances",
+    "newInstance": "New Instance",
+    "singleInstance": "Single-instance tool",
+    "popoutWindow": "Detach as Separate Window",
+    "focusWindow": "Focus Detached Window"
   },
   "welcome": {
     "badge": "Request workbench and tool workbenches are now separated",
@@ -875,6 +883,9 @@
   "tabBar": {
     "selectProtocol": "Select Protocol",
     "requestProtocol": "Request Protocol",
+    "allTabs": "All Tabs",
+    "scrollLeft": "Scroll Tabs Left",
+    "scrollRight": "Scroll Tabs Right",
     "default": "Default",
     "duplicate": "Duplicate Tab",
     "close": "Close",
@@ -883,7 +894,8 @@
     "new": "New"
   },
   "toolWindow": {
-    "mergeBack": "Merge Back to Main Window"
+    "mergeBack": "Merge Back to Main Window",
+    "singleInstance": "Single Instance"
   },
   "response": {
     "preview": "Preview",

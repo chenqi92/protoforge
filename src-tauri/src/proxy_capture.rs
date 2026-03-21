@@ -11,6 +11,7 @@ use hudsucker::{
 };
 use http::uri::Uri;
 use serde::Serialize;
+use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,6 +27,7 @@ use tokio::sync::Mutex;
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CapturedEntry {
+    pub session_id: String,
     pub id: String,
     pub method: String,
     pub url: String,
@@ -49,6 +51,7 @@ pub struct CapturedEntry {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProxyStatusInfo {
+    pub session_id: String,
     pub running: bool,
     pub port: u16,
     pub entry_count: usize,
@@ -58,25 +61,50 @@ pub struct ProxyStatusInfo {
 //  代理状态管理
 // ═══════════════════════════════════════════
 
-pub struct ProxyState {
+#[derive(Clone)]
+pub struct ProxySessionState {
     pub running: Arc<AtomicBool>,
     pub abort_handle: Arc<Mutex<Option<tokio::task::AbortHandle>>>,
     pub port: Arc<Mutex<u16>>,
     /// 使用 VecDeque 以便 O(1) 移除最旧条目（而非 Vec::remove(0) 的 O(n)）
-    pub entries: Arc<Mutex<std::collections::VecDeque<CapturedEntry>>>,
+    pub entries: Arc<Mutex<VecDeque<CapturedEntry>>>,
+}
+
+impl ProxySessionState {
+    pub fn new() -> Self {
+        Self {
+            running: Arc::new(AtomicBool::new(false)),
+            abort_handle: Arc::new(Mutex::new(None)),
+            port: Arc::new(Mutex::new(9090)),
+            entries: Arc::new(Mutex::new(VecDeque::new())),
+        }
+    }
+}
+
+pub struct ProxyState {
+    pub sessions: Arc<Mutex<HashMap<String, ProxySessionState>>>,
     pub ca_cert_path: Arc<Mutex<Option<PathBuf>>>,
 }
 
 impl ProxyState {
     pub fn new() -> Self {
         Self {
-            running: Arc::new(AtomicBool::new(false)),
-            abort_handle: Arc::new(Mutex::new(None)),
-            port: Arc::new(Mutex::new(9090)),
-            entries: Arc::new(Mutex::new(std::collections::VecDeque::new())),
+            sessions: Arc::new(Mutex::new(HashMap::new())),
             ca_cert_path: Arc::new(Mutex::new(None)),
         }
     }
+}
+
+async fn get_or_create_session(state: &ProxyState, session_id: &str) -> ProxySessionState {
+    let mut sessions = state.sessions.lock().await;
+    sessions
+        .entry(session_id.to_string())
+        .or_insert_with(ProxySessionState::new)
+        .clone()
+}
+
+async fn get_session(state: &ProxyState, session_id: &str) -> Option<ProxySessionState> {
+    state.sessions.lock().await.get(session_id).cloned()
 }
 
 // ═══════════════════════════════════════════
@@ -100,7 +128,8 @@ struct RequestMeta {
 #[derive(Clone)]
 struct CaptureHandler {
     app: tauri::AppHandle,
-    entries: Arc<Mutex<std::collections::VecDeque<CapturedEntry>>>,
+    session_id: String,
+    entries: Arc<Mutex<VecDeque<CapturedEntry>>>,
     current_request: Arc<Mutex<Option<RequestMeta>>>,
 }
 
@@ -175,6 +204,7 @@ impl HttpHandler for CaptureHandler {
 
         // 先推送"请求进行中"状态给前端
         let pending_entry = CapturedEntry {
+            session_id: self.session_id.clone(),
             id: entry_id.clone(),
             method: method.clone(),
             url: url.clone(),
@@ -250,6 +280,7 @@ impl HttpHandler for CaptureHandler {
             let duration_ms = meta.start_time.elapsed().as_millis() as u64;
 
             let entry = CapturedEntry {
+                session_id: self.session_id.clone(),
                 id: meta.id,
                 method: meta.method,
                 url: meta.url,
@@ -347,11 +378,14 @@ fn get_or_create_ca(app_data_dir: &PathBuf) -> Result<(String, String, PathBuf),
 pub async fn start_proxy(
     app: tauri::AppHandle,
     state: &ProxyState,
+    session_id: &str,
     port: u16,
     app_data_dir: PathBuf,
 ) -> Result<(), String> {
+    let session = get_or_create_session(state, session_id).await;
+
     // 防止重复启动
-    if state.running.load(Ordering::SeqCst) {
+    if session.running.load(Ordering::SeqCst) {
         return Err("代理已在运行".to_string());
     }
 
@@ -370,7 +404,8 @@ pub async fn start_proxy(
 
     let handler = CaptureHandler {
         app: app.clone(),
-        entries: state.entries.clone(),
+        session_id: session_id.to_string(),
+        entries: session.entries.clone(),
         current_request: Arc::new(Mutex::new(None)),
     };
 
@@ -384,11 +419,11 @@ pub async fn start_proxy(
         .build()
         .map_err(|e| format!("创建代理失败: {}", e))?;
 
-    *state.port.lock().await = port;
-    state.running.store(true, Ordering::SeqCst);
+    *session.port.lock().await = port;
+    session.running.store(true, Ordering::SeqCst);
 
-    let running = state.running.clone();
-    let abort_handle_store = state.abort_handle.clone();
+    let running = session.running.clone();
+    let abort_handle_store = session.abort_handle.clone();
 
     let task = tokio::spawn(async move {
         log::info!("代理服务器启动在 127.0.0.1:{}", port);
@@ -405,50 +440,53 @@ pub async fn start_proxy(
 }
 
 /// 停止代理
-pub async fn stop_proxy(state: &ProxyState) -> Result<(), String> {
-    if !state.running.load(Ordering::SeqCst) {
+pub async fn stop_proxy(state: &ProxyState, session_id: &str) -> Result<(), String> {
+    let Some(session) = get_session(state, session_id).await else {
+        return Ok(());
+    };
+
+    if !session.running.load(Ordering::SeqCst) {
         return Ok(());
     }
 
-    let mut handle = state.abort_handle.lock().await;
+    let mut handle = session.abort_handle.lock().await;
     if let Some(h) = handle.take() {
         h.abort();
     }
-    state.running.store(false, Ordering::SeqCst);
+    session.running.store(false, Ordering::SeqCst);
 
     log::info!("代理服务器已停止");
     Ok(())
 }
 
 /// 获取代理状态
-pub fn get_status(state: &ProxyState) -> ProxyStatusInfo {
-    // 使用 try_lock 避免异步上下文问题
-    let entry_count = state
-        .entries
-        .try_lock()
-        .map(|e| e.len())
-        .unwrap_or(0);
-    let port = state
-        .port
-        .try_lock()
-        .map(|p| *p)
-        .unwrap_or(9090);
+pub async fn get_status(state: &ProxyState, session_id: &str) -> ProxyStatusInfo {
+    let session = get_or_create_session(state, session_id).await;
+    let entry_count = session.entries.lock().await.len();
+    let port = *session.port.lock().await;
 
     ProxyStatusInfo {
-        running: state.running.load(Ordering::SeqCst),
+        session_id: session_id.to_string(),
+        running: session.running.load(Ordering::SeqCst),
         port,
         entry_count,
     }
 }
 
 /// 获取所有已捕获条目
-pub async fn get_entries(state: &ProxyState) -> Vec<CapturedEntry> {
-    state.entries.lock().await.iter().cloned().collect()
+pub async fn get_entries(state: &ProxyState, session_id: &str) -> Vec<CapturedEntry> {
+    let Some(session) = get_session(state, session_id).await else {
+        return Vec::new();
+    };
+
+    session.entries.lock().await.iter().cloned().collect()
 }
 
 /// 清空已捕获条目
-pub async fn clear_entries(state: &ProxyState) {
-    state.entries.lock().await.clear();
+pub async fn clear_entries(state: &ProxyState, session_id: &str) {
+    if let Some(session) = get_session(state, session_id).await {
+        session.entries.lock().await.clear();
+    }
 }
 
 /// 导出 CA 证书路径

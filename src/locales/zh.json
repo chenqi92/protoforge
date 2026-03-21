@@ -10,6 +10,7 @@
     "plugins": "插件",
     "settings": "设置",
     "dragToDetach": "{{label}}，拖动可弹出为独立窗口",
+    "focusDetached": "{{label}} 已在独立窗口中，点击聚焦",
     "themeSystem": "跟随系统",
     "themeDark": "深色模式",
     "themeLight": "浅色模式"
@@ -73,17 +74,24 @@
   "toolWorkbench": {
     "tcpudp": {
       "title": "TCP / UDP 调试工作台",
+      "shortTitle": "TCP/UDP",
       "description": "支持 TCP 客户端/服务端、UDP 客户端/服务端四种模式，实时收发报文、查看 HEX/ASCII 数据，适用于物联网和网络协议调试。"
     },
     "capture": {
       "title": "流量捕获代理",
+      "shortTitle": "抓包",
       "description": "基于本地 HTTP 代理的流量捕获工具，实时拦截和分析网络请求，支持 HTTPS 解密、过滤和详情查看，适用于接口调试和安全审计。"
     },
     "loadtest": {
       "title": "HTTP 性能测试引擎",
+      "shortTitle": "压测",
       "description": "高并发 HTTP 性能测试引擎，支持自定义并发数、持续时间、RPS 限速，实时展示吞吐量、延迟分布和错误率，适用于接口性能评估。"
     },
-    "popoutWindow": "弹出为独立窗口"
+    "allInstances": "所有实例",
+    "newInstance": "新建实例",
+    "singleInstance": "单实例工具",
+    "popoutWindow": "弹出为独立窗口",
+    "focusWindow": "聚焦独立窗口"
   },
   "welcome": {
     "badge": "请求工作台与工具工作台已经分层",
@@ -875,6 +883,9 @@
   "tabBar": {
     "selectProtocol": "选择请求协议",
     "requestProtocol": "请求协议",
+    "allTabs": "全部标签",
+    "scrollLeft": "向左滚动标签",
+    "scrollRight": "向右滚动标签",
     "default": "默认",
     "duplicate": "复制标签页",
     "close": "关闭",
@@ -883,7 +894,8 @@
     "new": "新建"
   },
   "toolWindow": {
-    "mergeBack": "合并回主窗口"
+    "mergeBack": "合并回主窗口",
+    "singleInstance": "单实例"
   },
   "response": {
     "preview": "预览",

@@ -35,7 +35,7 @@ export function useSettingsEffect() {
         url: "https://fonts.googleapis.com/css2?family=LXGW+WenKai:wght@300;400;700&display=swap",
       },
       'source-han-sans': {
-        family: "'Noto Sans SC', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        family: "'Source Han Sans SC', 'Noto Sans SC', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
         url: "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap",
       },
     };

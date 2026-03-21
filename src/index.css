@@ -428,7 +428,7 @@
     display: grid;
     height: 100%;
     min-height: 0;
-    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-columns: clamp(320px, 28vw, 420px) minmax(0, 1fr);
   }
 
   .wb-workbench-stack {

@@ -4,7 +4,7 @@
 import type { HttpRequestConfig } from "@/types/http";
 import type { LoadTestConfig } from "@/types/loadtest";
 import { useAppStore } from "@/stores/appStore";
-import { isToolWindowOpen, openToolWindow } from "./windowManager";
+import { listOpenToolWindowSessions, openToolWindow } from "./windowManager";
 
 const STORAGE_KEY = "protoforge:loadtest-prefill";
 const CHANNEL_NAME = "protoforge:loadtest-prefill";
@@ -39,8 +39,9 @@ export async function pushLoadTestConfig(httpConfig: HttpRequestConfig): Promise
     channel.close();
   }
 
-  if (await isToolWindowOpen("loadtest")) {
-    await openToolWindow("loadtest");
+  const detachedSessions = await listOpenToolWindowSessions("loadtest");
+  if (detachedSessions.length > 0) {
+    await openToolWindow("loadtest", detachedSessions[0]);
     return;
   }
 

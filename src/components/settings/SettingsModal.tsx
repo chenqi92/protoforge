@@ -113,13 +113,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       }}
     >
       <DialogContent
-        className="w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary/96 p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] backdrop-blur-xl sm:max-w-[920px]"
+        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary/96 p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] backdrop-blur-xl sm:max-w-[920px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
 
-        <div className="flex h-full min-h-[560px] flex-col">
-          <div className="flex shrink-0 items-start justify-between border-b border-border-default/75 px-6 py-5">
+        <div className="flex h-full min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center justify-between border-b border-border-default/75 px-6 py-4">
             <div className="flex items-center gap-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
                 <Settings className="h-5 w-5 text-white" />
@@ -127,16 +127,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
               <div className="min-w-0">
                 <p className="text-[16px] font-semibold tracking-tight text-text-primary">{t('settings.title')}</p>
-                <p className="mt-1 text-[12px] leading-6 text-text-secondary">
+                <p className="mt-1 text-[12px] leading-5 text-text-secondary">
                   {t('settings.subtitle')}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-3 py-1 text-[11px] font-medium text-text-secondary">
-                {t('settings.currentSection', { section: t(currentSection.labelKey) })}
-              </span>
               <button
                 onClick={onClose}
                 className="flex h-9 w-9 items-center justify-center rounded-[14px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
@@ -147,9 +144,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </div>
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-[248px_minmax(0,1fr)]">
-            <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-5 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
-              <div className="px-1 pb-3">
+          <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)]">
+            <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
+              <div className="shrink-0 px-4 pb-3 pt-4">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('settings.categoryNav')}
                 </p>
@@ -158,7 +155,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </p>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+                <div className="space-y-1.5">
                 {sections.map((item) => {
                   const Icon = item.icon;
                   const isActive = item.id === section;
@@ -197,9 +195,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     </button>
                   );
                 })}
+                </div>
               </div>
 
-              <div className="mt-auto pt-5">
+              <div className="shrink-0 border-t border-border-default/70 px-3 py-3">
                 <button
                   onClick={handleReset}
                   className="flex w-full items-center gap-2 rounded-[16px] border border-border-default/75 bg-bg-primary/72 px-3.5 py-3 text-[12px] font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
@@ -210,28 +209,22 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
             </aside>
 
-            <section className="flex min-w-0 flex-col bg-bg-primary/36">
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="overflow-hidden rounded-[24px] border border-border-default/75 bg-bg-primary/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                  <div className="border-b border-border-default/70 px-6 py-5">
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={cn(
-                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px]",
-                          currentSection.accentClassName
-                        )}
-                      >
-                        <CurrentSectionIcon className="h-4.5 w-4.5" />
-                      </div>
-
-                      <div className="min-w-0">
-                        <p className="text-[17px] font-semibold tracking-tight text-text-primary">
-                          {t(currentSection.labelKey)}
-                        </p>
-                        <p className="mt-1 text-[12px] leading-6 text-text-secondary">
-                          {t(currentSection.descKey)}
-                        </p>
-                      </div>
+            <section className="flex min-w-0 min-h-0 flex-col bg-bg-primary/36">
+              <div className="flex-1 overflow-y-auto p-5">
+                <div className="overflow-hidden rounded-[22px] border border-border-default/75 bg-bg-primary/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                  <div className="flex items-center gap-3 border-b border-border-default/70 px-6 py-4">
+                    <div
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px]",
+                        currentSection.accentClassName
+                      )}
+                    >
+                      <CurrentSectionIcon className="h-4 w-4" />
+                    </div>
+                  <div className="min-w-0">
+                      <p className="text-[14px] font-semibold tracking-tight text-text-primary">
+                        {t(currentSection.labelKey)}
+                      </p>
                     </div>
                   </div>
 
@@ -335,6 +328,18 @@ function GeneralSection({
   onThemeChange,
 }: SectionProps & { onThemeChange: (theme: AppSettings["theme"]) => void }) {
   const { t } = useTranslation();
+  const fontSizeLabel = `${settings.fontSize}px`;
+  const fontFamilyLabelMap: Record<AppSettings["fontFamily"], string> = {
+    inter: "Inter",
+    system: t('settings.general.fontSystem'),
+    "noto-sans-sc": "Noto Sans SC",
+    "lxgw-wenkai": t('settings.general.fontLxgw'),
+    "source-han-sans": t('settings.general.fontSourceHan'),
+  };
+  const languageLabelMap: Record<AppSettings["language"], string> = {
+    "zh-CN": t('settings.general.langZh'),
+    en: t('settings.general.langEn'),
+  };
 
   return (
     <>
@@ -356,7 +361,7 @@ function GeneralSection({
           onValueChange={(value) => update("fontSize", Number(value) as AppSettings["fontSize"])}
         >
           <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-32")}>
-            <SelectValue />
+            <SelectValue>{fontSizeLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
             <SelectItem value="12">12px</SelectItem>
@@ -374,7 +379,7 @@ function GeneralSection({
           onValueChange={(value) => update("fontFamily", value as AppSettings["fontFamily"])}
         >
           <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-44")}>
-            <SelectValue />
+            <SelectValue>{fontFamilyLabelMap[settings.fontFamily]}</SelectValue>
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
             <SelectItem value="inter">Inter</SelectItem>
@@ -392,7 +397,7 @@ function GeneralSection({
           onValueChange={(value) => update("language", value as AppSettings["language"])}
         >
           <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-32")}>
-            <SelectValue />
+            <SelectValue>{languageLabelMap[settings.language]}</SelectValue>
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
             <SelectItem value="zh-CN">{t('settings.general.langZh')}</SelectItem>

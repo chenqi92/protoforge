@@ -5,18 +5,21 @@ const STORAGE_KEY = "protoforge:tool-docking-request";
 
 interface DockRequest {
   tool: ToolWindowType;
+  sessionId: string;
   ts: number;
+  sourceLabel?: string;
 }
 
 function isDockRequest(value: unknown): value is DockRequest {
   return typeof value === "object"
     && value !== null
     && "tool" in value
+    && "sessionId" in value
     && "ts" in value;
 }
 
-export function requestDockTool(tool: ToolWindowType) {
-  const payload: DockRequest = { tool, ts: Date.now() };
+export function requestDockTool(tool: ToolWindowType, sessionId: string, sourceLabel?: string) {
+  const payload: DockRequest = { tool, sessionId, ts: Date.now(), sourceLabel };
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -31,12 +34,12 @@ export function requestDockTool(tool: ToolWindowType) {
   }
 }
 
-export function subscribeDockToolRequests(callback: (tool: ToolWindowType) => void) {
+export function subscribeDockToolRequests(callback: (request: DockRequest) => void) {
   let channel: BroadcastChannel | null = null;
 
   const handlePayload = (payload: unknown) => {
     if (isDockRequest(payload)) {
-      callback(payload.tool);
+      callback(payload);
     }
   };
 

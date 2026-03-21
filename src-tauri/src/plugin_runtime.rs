@@ -243,6 +243,7 @@ const DEFAULT_REGISTRY_URL: &str =
 // 支持三种运行时：Native (Rust fn) / JavaScript (boa_engine) / WASM (wasmtime)
 
 /// 插件运行时类型
+#[allow(dead_code)]
 pub enum PluginRuntime {
     /// Rust 原生函数指针 — 零开销，最快
     Native(fn(&str) -> ParseResult),
@@ -283,6 +284,7 @@ impl PluginManager {
 
     /// 注册一个 Rust 原生解析器到统一注册表。
     /// 在 lib.rs 启动时调用，完全可拓展 — 新增解析器无需修改 PluginManager 代码。
+    #[allow(dead_code)]
     pub async fn register_native(
         &self,
         manifest: PluginManifest,

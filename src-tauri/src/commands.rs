@@ -612,39 +612,44 @@ use crate::proxy_capture::{self, CapturedEntry, ProxyState, ProxyStatusInfo};
 pub async fn proxy_start(
     app: tauri::AppHandle,
     state: State<'_, ProxyState>,
+    session_id: String,
     port: u16,
 ) -> Result<(), String> {
     let app_data_dir = app.path().app_data_dir()
         .map_err(|e| format!("获取数据目录失败: {}", e))?;
-    proxy_capture::start_proxy(app, &state, port, app_data_dir).await
+    proxy_capture::start_proxy(app, &state, &session_id, port, app_data_dir).await
 }
 
 #[tauri::command]
 pub async fn proxy_stop(
     state: State<'_, ProxyState>,
+    session_id: String,
 ) -> Result<(), String> {
-    proxy_capture::stop_proxy(&state).await
+    proxy_capture::stop_proxy(&state, &session_id).await
 }
 
 #[tauri::command]
-pub fn proxy_status(
+pub async fn proxy_status(
     state: State<'_, ProxyState>,
+    session_id: String,
 ) -> Result<ProxyStatusInfo, String> {
-    Ok(proxy_capture::get_status(&state))
+    Ok(proxy_capture::get_status(&state, &session_id).await)
 }
 
 #[tauri::command]
 pub async fn proxy_get_entries(
     state: State<'_, ProxyState>,
+    session_id: String,
 ) -> Result<Vec<CapturedEntry>, String> {
-    Ok(proxy_capture::get_entries(&state).await)
+    Ok(proxy_capture::get_entries(&state, &session_id).await)
 }
 
 #[tauri::command]
 pub async fn proxy_clear(
     state: State<'_, ProxyState>,
+    session_id: String,
 ) -> Result<(), String> {
-    proxy_capture::clear_entries(&state).await;
+    proxy_capture::clear_entries(&state, &session_id).await;
     Ok(())
 }
 

@@ -12,6 +12,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 interface ToolWindowShellProps {
   tool: ToolWindowType;
+  sessionId: string;
   title: string;
   module: string;
   accentClassName: string;
@@ -21,6 +22,7 @@ interface ToolWindowShellProps {
 
 export function ToolWindowShell({
   tool,
+  sessionId,
   title,
   module,
   accentClassName,
@@ -56,17 +58,9 @@ export function ToolWindowShell({
           <div className="flex items-center gap-2 no-drag">
             <button
               onClick={async () => {
-                requestDockTool(tool);
+                const currentWindow = getCurrentWindow();
+                requestDockTool(tool, sessionId, currentWindow.label);
                 await focusMainWindow();
-                // 给主窗口足够时间处理 dock 请求
-                await new Promise(r => setTimeout(r, 300));
-                try {
-                  const win = getCurrentWindow();
-                  await win.destroy();
-                } catch {
-                  // destroy 失败则尝试 close
-                  try { await getCurrentWindow().close(); } catch { /* ignore */ }
-                }
               }}
               className="wb-ghost-btn px-2.5"
               title={t('toolWindow.mergeBack')}
