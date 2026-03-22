@@ -23,6 +23,10 @@ export async function wsDisconnect(connectionId: string): Promise<void> {
   return invoke('ws_disconnect', { connectionId });
 }
 
+export async function wsIsConnected(connectionId: string): Promise<boolean> {
+  return invoke('ws_is_connected', { connectionId });
+}
+
 export function onWsEvent(callback: (event: WsEvent) => void): Promise<UnlistenFn> {
   return listen<WsEvent>('ws-event', (e) => callback(e.payload));
 }

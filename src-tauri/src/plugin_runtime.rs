@@ -105,6 +105,33 @@ pub struct ParseResult {
     pub error: Option<String>,
 }
 
+/// 插件渲染器输出结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenderResult {
+    /// 渲染类型: "html" | "table"
+    #[serde(rename = "type")]
+    pub result_type: String,
+    /// type="html" 时的 HTML 内容
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub html: Option<String>,
+    /// type="table" 时的多 Sheet 数据
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sheets: Vec<RenderSheet>,
+    /// 错误信息
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// 渲染表格的单个 Sheet
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenderSheet {
+    pub name: String,
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+}
+
 // ── Plugin Contributes (Extension Points) ──
 
 /// 插件声明的扩展点贡献
@@ -207,6 +234,9 @@ struct RemotePluginEntry {
     #[serde(default)]
     tags: Vec<String>,
     download_url: String,
+    /// 插件声明的扩展点贡献
+    #[serde(default)]
+    contributes: PluginContributes,
     /// 多语言翻译
     #[serde(default)]
     i18n: HashMap<String, PluginI18nEntry>,
@@ -228,7 +258,7 @@ impl RemotePluginEntry {
             installed: false,
             download_url: Some(self.download_url),
             source: "remote".to_string(),
-            contributes: PluginContributes::default(),
+            contributes: self.contributes,
             i18n: self.i18n,
         }
     }
@@ -655,8 +685,46 @@ impl PluginManager {
             // WASM — wasmtime JIT（委托给 WasmPluginRuntime）
             PluginRuntime::Wasm => {
                 drop(reg);
-                // WASM 执行通过独立的 WasmPluginRuntime 处理
+                    // WASM 执行通过独立的 WasmPluginRuntime 处理
                 Err(format!("WASM 插件 '{}' 请通过 wasm_parse_data 命令调用", plugin_id))
+            }
+        }
+    }
+
+    /// Execute a plugin's render function on base64-encoded binary data.
+    /// 插件的 render(data) 函数接收 base64 字符串，返回 RenderResult JSON。
+    pub async fn render_data(
+        &self,
+        plugin_id: &str,
+        base64_data: &str,
+    ) -> Result<RenderResult, String> {
+        let reg = self.registry.read().await;
+        let rp = reg
+            .get(plugin_id)
+            .ok_or_else(|| format!("插件 '{}' 未注册", plugin_id))?;
+
+        match &rp.runtime {
+            PluginRuntime::Native(_) => {
+                drop(reg);
+                Err(format!("原生插件 '{}' 不支持 render 操作", plugin_id))
+            }
+            PluginRuntime::JavaScript => {
+                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                drop(reg);
+                let script = tokio::fs::read_to_string(&script_path)
+                    .await
+                    .map_err(|e| format!("读取插件脚本失败: {}", e))?;
+                let data = base64_data.to_string();
+                let result = tokio::task::spawn_blocking(move || {
+                    execute_render_script(&script, &data)
+                })
+                .await
+                .map_err(|e| format!("执行插件失败: {}", e))??;
+                Ok(result)
+            }
+            PluginRuntime::Wasm => {
+                drop(reg);
+                Err(format!("WASM 插件 '{}' 的 render 功能请通过 wasm_render_data 命令调用", plugin_id))
             }
         }
     }
@@ -772,6 +840,36 @@ fn execute_parse_script(script: &str, raw_data: &str) -> Result<ParseResult, Str
         serde_json::from_str(&json_str).map_err(|e| format!("解析返回 JSON 失败: {}", e))?;
 
     Ok(parsed)
+}
+
+/// Execute a JS plugin's render() function in a sandboxed boa_engine context.
+fn execute_render_script(script: &str, base64_data: &str) -> Result<RenderResult, String> {
+    let mut context = Context::default();
+
+    // Execute the plugin script (defines the render function)
+    context
+        .eval(Source::from_bytes(script))
+        .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
+
+    // 将 base64 数据安全传递给 JS render() 函数
+    let json_escaped = serde_json::to_string(base64_data)
+        .map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let call_script = format!("JSON.stringify(render({}))", json_escaped);
+
+    let result = context
+        .eval(Source::from_bytes(call_script.as_bytes()))
+        .map_err(|e| format!("调用 render() 失败: {}", format_js_error(&e)))?;
+
+    let json_str = result
+        .as_string()
+        .ok_or_else(|| "render() 返回值不是字符串（需要 JSON.stringify 包装）".to_string())?
+        .to_std_string()
+        .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
+
+    let rendered: RenderResult =
+        serde_json::from_str(&json_str).map_err(|e| format!("解析 render 返回 JSON 失败: {}", e))?;
+
+    Ok(rendered)
 }
 
 fn format_js_error(err: &JsError) -> String {

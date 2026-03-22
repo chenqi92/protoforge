@@ -94,6 +94,7 @@ pub fn run() {
             // HTTP
             commands::send_request,
             commands::send_request_with_scripts,
+            commands::save_response_body,
             // OAuth 2.0
             commands::fetch_oauth2_token,
             // Collections
@@ -140,6 +141,7 @@ pub fn run() {
             commands::ws_send,
             commands::ws_send_binary,
             commands::ws_disconnect,
+            commands::ws_is_connected,
             // TCP Client
             commands::tcp_connect,
             commands::tcp_send,
@@ -170,6 +172,7 @@ pub fn run() {
             commands::plugin_install,
             commands::plugin_uninstall,
             commands::plugin_parse_data,
+            commands::plugin_render_data,
             commands::plugin_get_protocol_parsers,
             commands::plugin_refresh_registry,
             // SSE

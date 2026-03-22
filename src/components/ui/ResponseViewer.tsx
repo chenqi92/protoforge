@@ -2,18 +2,34 @@
  * ResponseViewer — 通用响应体展示组件
  * 支持多种视图模式：JSON（语法高亮 + 折叠）、Raw、预览（HTML）
  * 可复用于 HTTP 响应、WebSocket 消息、TCP 数据等
+ * 支持插件渲染器（如 Excel）— 通过 contributes.responseRenderers 动态注入 Tab
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Copy, Check, WrapText, Search, Minimize2, Maximize2 } from 'lucide-react';
+import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
+import { CodeEditor } from '@/components/common/CodeEditor';
+import { usePluginStore } from '@/stores/pluginStore';
+import { invoke } from '@tauri-apps/api/core';
+import type { RendererContribution } from '@/types/plugin';
+import { PluginRendererView } from '@/components/ui/PluginRendererView';
 
 export type ViewMode = 'json' | 'raw' | 'preview' | 'hex';
+
+/** 插件渲染器 tab 描述 */
+interface PluginRendererTab {
+  pluginId: string;
+  renderer: RendererContribution;
+}
 
 interface ResponseViewerProps {
   body: string;
   contentType?: string | null;
+  /** 额外的响应头信息，用于 Content-Disposition 匹配 */
+  responseHeaders?: Record<string, string> | Array<[string, string]>;
+  /** 是否为 base64 编码的二进制数据 */
+  isBinary?: boolean;
   /** Restrict to specific modes — by default auto-detects available modes */
   modes?: ViewMode[];
   /** If true, hide the mode bar (used inline) */
@@ -21,166 +37,29 @@ interface ResponseViewerProps {
   className?: string;
 }
 
-/* ── JSON Syntax Highlighter — recursive with collapsing ── */
-
-interface JsonNodeProps {
-  data: unknown;
-  nodeKey?: string;
-  depth: number;
-  isLast: boolean;
-  defaultExpanded?: boolean;
+/* ── 判断是否为 Excel 内容 ── */
+function getHeaderValue(
+  headers: Record<string, string> | Array<[string, string]> | undefined,
+  name: string,
+) {
+  if (!headers) return '';
+  if (Array.isArray(headers)) {
+    return headers.find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] || '';
+  }
+  return headers[name] || headers[name.toLowerCase()] || '';
 }
 
-function JsonNode({ data, nodeKey, depth, isLast, defaultExpanded = true }: JsonNodeProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded && depth < 3);
-
-  const indent = depth === 0 ? 0 : depth * 14;
-
-  if (data === null) {
-    return (
-      <div style={{ paddingLeft: indent }} className="leading-[22px]">
-        {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
-        <span className="text-[#6b7280] italic">null</span>
-        {!isLast && <span className="text-text-disabled">,</span>}
-      </div>
-    );
+function isExcelContent(contentType?: string | null, responseHeaders?: Record<string, string> | Array<[string, string]>): boolean {
+  if (!contentType) return false;
+  const ct = contentType.toLowerCase();
+  // 明确的 Excel MIME
+  if (ct.includes('spreadsheetml') || ct.includes('ms-excel')) return true;
+  // application/octet-stream 需要通过 Content-Disposition 或 URL 二次确认
+  if (ct.includes('octet-stream')) {
+    const disposition = getHeaderValue(responseHeaders, 'content-disposition');
+    if (/\.xlsx?\b/i.test(disposition)) return true;
   }
-
-  if (typeof data === 'boolean') {
-    return (
-      <div style={{ paddingLeft: indent }} className="leading-[22px]">
-        {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
-        <span className="text-[#d97706]">{String(data)}</span>
-        {!isLast && <span className="text-text-disabled">,</span>}
-      </div>
-    );
-  }
-
-  if (typeof data === 'number') {
-    return (
-      <div style={{ paddingLeft: indent }} className="leading-[22px]">
-        {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
-        <span className="text-[#0284c7]">{String(data)}</span>
-        {!isLast && <span className="text-text-disabled">,</span>}
-      </div>
-    );
-  }
-
-  if (typeof data === 'string') {
-    const display = JSON.stringify(data);
-    return (
-      <div style={{ paddingLeft: indent }} className="leading-[22px]">
-        {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
-        <span className="whitespace-pre-wrap break-all text-[#16a34a]">{display}</span>
-        {!isLast && <span className="text-text-disabled">,</span>}
-      </div>
-    );
-  }
-
-  if (Array.isArray(data)) {
-    if (data.length === 0) {
-      return (
-        <div style={{ paddingLeft: indent }} className="leading-[22px]">
-          {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
-          <span className="text-text-primary">[]</span>
-          {!isLast && <span className="text-text-disabled">,</span>}
-        </div>
-      );
-    }
-
-    return (
-      <div>
-        <div
-          style={{ paddingLeft: indent }}
-          className="leading-[22px] rounded-sm transition-colors"
-        >
-          <button
-            type="button"
-            className="inline-flex h-4 w-4 select-none items-center justify-center align-middle text-text-disabled hover:text-text-secondary"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-          </button>
-          {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
-          <span className="text-text-primary">[</span>
-          {!expanded && (
-            <span className="text-text-disabled text-[11px] ml-1">
-              {data.length} items
-            </span>
-          )}
-          {!expanded && <><span className="text-text-primary">]</span>{!isLast && <span className="text-text-disabled">,</span>}</>}
-        </div>
-        {expanded && (
-          <>
-            {data.map((item, i) => (
-              <JsonNode key={i} data={item} depth={depth + 1} isLast={i === data.length - 1} defaultExpanded={depth < 2} />
-            ))}
-            <div style={{ paddingLeft: indent }} className="leading-[22px]">
-              <span className="text-text-primary">]</span>
-              {!isLast && <span className="text-text-disabled">,</span>}
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  if (typeof data === 'object') {
-    const entries = Object.entries(data as Record<string, unknown>);
-    if (entries.length === 0) {
-      return (
-        <div style={{ paddingLeft: indent }} className="leading-[22px]">
-          {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
-          <span className="text-text-primary">{'{}'}</span>
-          {!isLast && <span className="text-text-disabled">,</span>}
-        </div>
-      );
-    }
-
-    return (
-      <div>
-        <div
-          style={{ paddingLeft: indent }}
-          className="leading-[22px] rounded-sm transition-colors"
-        >
-          <button
-            type="button"
-            className="inline-flex h-4 w-4 select-none items-center justify-center align-middle text-text-disabled hover:text-text-secondary"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-          </button>
-          {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
-          <span className="text-text-primary">{'{'}</span>
-          {!expanded && (
-            <span className="text-text-disabled text-[11px] ml-1">
-              {entries.length} keys
-            </span>
-          )}
-          {!expanded && <><span className="text-text-primary">{'}'}</span>{!isLast && <span className="text-text-disabled">,</span>}</>}
-        </div>
-        {expanded && (
-          <>
-            {entries.map(([k, v], i) => (
-              <JsonNode key={k} data={v} nodeKey={k} depth={depth + 1} isLast={i === entries.length - 1} defaultExpanded={depth < 2} />
-            ))}
-            <div style={{ paddingLeft: indent }} className="leading-[22px]">
-              <span className="text-text-primary">{'}'}</span>
-              {!isLast && <span className="text-text-disabled">,</span>}
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ paddingLeft: indent }} className="leading-[22px]">
-      {nodeKey !== undefined && <><span className="text-[#7c3aed]">&quot;{nodeKey}&quot;</span><span className="text-text-disabled">: </span></>}
-      <span className="text-text-primary">{String(data)}</span>
-      {!isLast && <span className="text-text-disabled">,</span>}
-    </div>
-  );
+  return false;
 }
 
 /* ── Hex view ── */
@@ -224,13 +103,56 @@ function HexView({ data }: { data: string }) {
   );
 }
 
+export function ReadonlyCodeBlock({
+  value,
+  language = 'json',
+  minHeightClassName = 'min-h-[320px]',
+}: {
+  value: string;
+  language?: string;
+  minHeightClassName?: string;
+}) {
+  return (
+    <div className={cn("overflow-hidden rounded-[12px] border border-border-default/70 bg-bg-primary", minHeightClassName)}>
+      <CodeEditor value={value} language={language} readOnly height="360px" />
+    </div>
+  );
+}
+
 /* ── Main Component ── */
-export function ResponseViewer({ body, contentType, modes, compact, className }: ResponseViewerProps) {
+export function ResponseViewer({ body, contentType, responseHeaders, isBinary, modes, compact, className }: ResponseViewerProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [wordWrap, setWordWrap] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+
+  // 插件渲染器匹配
+  const installedPlugins = usePluginStore((s) => s.installedPlugins);
+
+  const matchedRenderers = useMemo<PluginRendererTab[]>(() => {
+    if (!contentType) return [];
+    const ct = contentType.toLowerCase();
+    const tabs: PluginRendererTab[] = [];
+
+    for (const plugin of installedPlugins) {
+      if (!plugin.contributes?.responseRenderers) continue;
+      for (const renderer of plugin.contributes.responseRenderers) {
+        const matched = renderer.contentTypes.some(pattern => {
+          const p = pattern.toLowerCase();
+          if (p === 'application/octet-stream') {
+            // octet-stream 需要二次确认
+            return ct.includes('octet-stream') && isExcelContent(contentType, responseHeaders);
+          }
+          return ct.includes(p);
+        });
+        if (matched) {
+          tabs.push({ pluginId: plugin.id, renderer });
+        }
+      }
+    }
+    return tabs;
+  }, [contentType, responseHeaders, installedPlugins]);
 
   // Detect content type
   const isJson = useMemo(() => {
@@ -257,10 +179,12 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
     return m;
   }, [modes, isJson, isHtml]);
 
-  const [activeMode, setActiveMode] = useState<ViewMode>(() => availableModes[0] || 'raw');
+  // 联合 tab：内置 + 插件
+  type ActiveTab = ViewMode | `plugin:${string}`;
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => availableModes[0] || 'raw');
 
   useEffect(() => {
-    setActiveMode(availableModes[0] || 'raw');
+    setActiveTab(availableModes[0] || 'raw');
   }, [availableModes, body, contentType, compact, modes]);
 
   const handleCopy = useCallback(() => {
@@ -290,19 +214,25 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
   const searchCount = useMemo(() => {
     if (!searchText) return 0;
     const target =
-      activeMode === 'json' ? prettyBody :
-      activeMode === 'raw' ? body :
+      activeTab === 'json' ? prettyBody :
+      activeTab === 'raw' ? body :
       body;
     const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
     return (target.match(regex) || []).length;
-  }, [searchText, prettyBody, body, activeMode]);
+  }, [searchText, prettyBody, body, activeTab]);
 
   const modeLabels: Record<ViewMode, string> = {
-    json: 'Pretty',
+    json: 'JSON',
     raw: 'Raw',
     preview: t('response.preview'),
     hex: 'Hex',
   };
+
+  // 当前是否在插件 tab
+  const activePluginTab = activeTab.startsWith('plugin:')
+    ? matchedRenderers.find((_, i) => activeTab === `plugin:${i}`)
+    : null;
+  const activeBuiltinMode: ViewMode | null = activeTab.startsWith('plugin:') ? null : activeTab as ViewMode;
 
   if (!body) return null;
 
@@ -312,16 +242,31 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
       {!compact && (
         <div className="flex items-center shrink-0 border-b border-border-default bg-bg-secondary/42 px-3 py-2">
           <div className="response-viewer-tabs">
+            {/* 内置 tab */}
             {availableModes.map((mode) => (
               <button
                 key={mode}
-                onClick={() => setActiveMode(mode)}
+                onClick={() => setActiveTab(mode)}
                 className={cn(
                   'response-viewer-tab',
-                  activeMode === mode && 'is-active'
+                  activeBuiltinMode === mode && 'is-active'
                 )}
               >
                 {modeLabels[mode]}
+              </button>
+            ))}
+            {/* 插件渲染器 tab */}
+            {matchedRenderers.map((pt, idx) => (
+              <button
+                key={`plugin-${idx}`}
+                onClick={() => setActiveTab(`plugin:${idx}`)}
+                className={cn(
+                  'response-viewer-tab flex items-center gap-1',
+                  activeTab === `plugin:${idx}` && 'is-active'
+                )}
+              >
+                <span>{pt.renderer.icon}</span>
+                <span>{pt.renderer.name}</span>
               </button>
             ))}
           </div>
@@ -338,6 +283,31 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
             >
               <Search className="w-3 h-3" />
             </button>
+
+            {/* Save binary response to file */}
+            {isBinary && (
+              <button
+                onClick={async () => {
+                  const disposition = getHeaderValue(responseHeaders, 'content-disposition');
+                  const filenameMatch = disposition.match(/filename[*]?=["']?([^"';\s]+)/i);
+                  const suggested = filenameMatch?.[1] || 'response.bin';
+                  try {
+                    await invoke('save_response_body', {
+                      bodyBase64: body,
+                      suggestedName: suggested,
+                    });
+                  } catch (e) {
+                    // 用户取消保存或其他错误
+                    console.warn('保存失败:', e);
+                  }
+                }}
+                className="h-6 px-2 flex items-center gap-1 rounded-md text-text-tertiary hover:bg-bg-hover transition-colors text-[11px]"
+                title="另存为"
+              >
+                <Download className="w-3 h-3" />
+                <span>另存为</span>
+              </button>
+            )}
 
             {/* Word wrap */}
             <button
@@ -383,15 +353,23 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto bg-[linear-gradient(180deg,rgba(148,163,184,0.05),transparent_22%)] p-2" style={{ userSelect: 'text' }}>
-        <div className="min-h-full py-1">
-          {activeMode === 'json' && jsonData !== null && (
-            <div className="font-mono text-[12px]">
-              <JsonNode data={jsonData} depth={0} isLast={true} defaultExpanded={true} />
+      <div className="flex-1 overflow-auto bg-[linear-gradient(180deg,rgba(148,163,184,0.05),transparent_22%)] px-3 py-2" style={{ userSelect: 'text' }}>
+        <div className="min-h-full py-0">
+          {activeBuiltinMode === 'json' && (
+            <div className="space-y-2">
+              {jsonData === null ? (
+                <div className="rounded-[10px] border border-amber-300/60 bg-amber-500/8 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">
+                  {t('response.invalidJsonPrettyFallback')}
+                </div>
+              ) : null}
+              <ReadonlyCodeBlock
+                value={prettyBody}
+                language={jsonData !== null ? 'json' : isXml ? 'xml' : 'plaintext'}
+              />
             </div>
           )}
 
-          {activeMode === 'raw' && (
+          {activeBuiltinMode === 'raw' && (
             <div className={cn("max-w-full", !wordWrap && "overflow-x-auto")}>
               <pre
                 className={cn(
@@ -408,7 +386,7 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
             </div>
           )}
 
-          {activeMode === 'preview' && isHtml && (
+          {activeBuiltinMode === 'preview' && isHtml && (
             <iframe
               srcDoc={body}
               sandbox="allow-same-origin"
@@ -417,8 +395,17 @@ export function ResponseViewer({ body, contentType, modes, compact, className }:
             />
           )}
 
-          {activeMode === 'hex' && (
+          {activeBuiltinMode === 'hex' && (
             <HexView data={body} />
+          )}
+
+          {/* 插件渲染器内容 — 通用管线 */}
+          {activePluginTab && (
+            <PluginRendererView
+              pluginId={activePluginTab.pluginId}
+              body={body}
+              isBinary={isBinary}
+            />
           )}
         </div>
       </div>
@@ -460,10 +447,6 @@ export function InlineJsonViewer({ data }: { data: string }) {
     try { return JSON.stringify(JSON.parse(data), null, 2); } catch { return data; }
   }, [data]);
 
-  const parsed = useMemo(() => {
-    try { return JSON.parse(data); } catch { return null; }
-  }, [data]);
-
   return (
     <div>
       <div className="flex items-center gap-1 mb-1">
@@ -476,9 +459,7 @@ export function InlineJsonViewer({ data }: { data: string }) {
         </button>
       </div>
       {expanded ? (
-        <div className="font-mono text-[11px]">
-          <JsonNode data={parsed} depth={0} isLast={true} defaultExpanded={true} />
-        </div>
+        <ReadonlyCodeBlock value={formatted} language="json" minHeightClassName="min-h-[180px]" />
       ) : (
         <span className="whitespace-pre-wrap break-all">{formatted}</span>
       )}

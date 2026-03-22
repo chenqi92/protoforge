@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Braces, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDown, Trash2 } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Braces, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDown, ArrowDownToLine, Trash2, Info, ChevronUp } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
@@ -104,7 +104,7 @@ export function HttpWorkspace() {
   const isLinkedCollectionRequest = Boolean(activeTab.linkedCollectionItemId && activeTab.linkedCollectionId);
   const isSavedRequestPristine = isLinkedCollectionRequest && activeTab.savedRequestSignature === currentRequestSignature;
   const responseHeaderEntries = useMemo(
-    () => response ? Object.entries(response.headers ?? {}) : [],
+    () => response?.headers ?? [],
     [response]
   );
   const responseHeaderMap = useMemo(
@@ -299,6 +299,14 @@ export function HttpWorkspace() {
         finalResponse = res;
         setHttpResponse(tabId, res);
       }
+
+      // 自动检测 SSE 事件流：当响应 Content-Type 为 text/event-stream 时自动切换
+      if (finalResponse?.isEventStream) {
+        updateHttpConfig(tabId, { requestMode: 'sse' });
+        setHttpResponse(tabId, null);
+        // 延迟一帧让模式切换生效后启动 SSE 连接
+        setTimeout(() => void handleSseConnect(), 0);
+      }
     } catch (err: any) {
       setError(tabId, err.message || String(err));
     } finally {
@@ -316,7 +324,7 @@ export function HttpWorkspace() {
         createdAt: new Date().toISOString(),
       });
     }
-  }, [tabId, config, setLoading, setHttpResponse, setError, handleSseConnect, handleSseDisconnect, isSseConnected, isSseMode]);
+  }, [tabId, config, setLoading, setHttpResponse, setError, handleSseConnect, handleSseDisconnect, isSseConnected, isSseMode, updateHttpConfig]);
 
   const handleCopy = useCallback(() => {
     if (response?.body) {
@@ -327,8 +335,8 @@ export function HttpWorkspace() {
   }, [response]);
 
   const handleRequestKindChange = useCallback((kind: RequestKind) => {
-    const activeKind: RequestKind = activeTab.protocol === "http" && config.requestMode !== "rest"
-      ? config.requestMode
+    const activeKind: RequestKind = activeTab.protocol === "http" && config.requestMode === "graphql"
+      ? "graphql"
       : activeTab.protocol;
 
     if (kind === activeKind) return;
@@ -431,6 +439,15 @@ export function HttpWorkspace() {
       { key: "post-script" as const, label: t('http.postScript') },
     ] : []),
   ];
+
+  const requestLayoutMode = reqTab === "params" || reqTab === "headers"
+    ? "compact"
+    : reqTab === "body" && !isGraphqlMode && (config.bodyType === "formUrlencoded" || config.bodyType === "formData")
+      ? "table-body"
+      : "default";
+
+  const requestDefaultSize = requestLayoutMode === "compact" ? 18 : requestLayoutMode === "table-body" ? 44 : 32;
+  const responseDefaultSize = requestLayoutMode === "compact" ? 82 : requestLayoutMode === "table-body" ? 56 : 68;
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
@@ -581,10 +598,10 @@ export function HttpWorkspace() {
       {/* Main Split Area */}
       <div className="flex-1 overflow-hidden pb-3 pt-1.5">
         <div className="http-workbench-shell">
-          <PanelGroup orientation="vertical">
+          <PanelGroup orientation="vertical" key={`request-layout-${requestLayoutMode}`}>
         
           {/* Request Panel */}
-          <Panel minSize="15" defaultSize="50" className="http-workbench-section">
+          <Panel minSize="12" defaultSize={requestDefaultSize} className="http-workbench-section">
             <div className="wb-tabs shrink-0 scrollbar-hide">
               {reqTabs.map((t) => (
                 <button
@@ -601,8 +618,8 @@ export function HttpWorkspace() {
             </div>
           
             <div className="http-workbench-body">
-              {reqTab === "params" && <div className="px-1.5 py-1"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
-              {reqTab === "headers" && <div className="px-1.5 py-1"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} /></div>}
+              {reqTab === "params" && <div className="px-3 py-0"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
+              {reqTab === "headers" && <div className="px-3 py-0"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} /></div>}
             
               {reqTab === "body" && (
                 <div className="p-4 flex flex-col h-full">
@@ -679,8 +696,8 @@ export function HttpWorkspace() {
                         </div>
                       </div>
                     )}
-                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full -mx-1 px-1"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
-                    {!isGraphqlMode && config.bodyType === "formData" && <div className="overflow-auto h-full -mx-2 px-2"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
+                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
+                    {!isGraphqlMode && config.bodyType === "formData" && <div className="overflow-auto h-full"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
                     {!isGraphqlMode && config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
                   </div>
                 </div>
@@ -794,7 +811,7 @@ export function HttpWorkspace() {
           <PanelResizeHandle className="http-workbench-divider" />
 
           {/* Response Panel */}
-          <Panel minSize="15" defaultSize="50" className="http-workbench-section">
+          <Panel minSize="18" defaultSize={responseDefaultSize} className="http-workbench-section">
             {isSseMode ? (
               <HttpSseResponsePanel
                 status={sseStatus}
@@ -874,9 +891,9 @@ export function HttpWorkspace() {
                 
                 <div className="flex-1 overflow-hidden">
                   {resTab === "headers" ? (
-                    <div className="selectable p-4 overflow-auto h-full">
-                      <div className="flex min-h-full flex-col gap-3">
-                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="selectable h-full overflow-auto p-3">
+                      <div className="flex min-h-full flex-col gap-2.5">
+                        <div className="response-summary-row">
                           <ResponseHeaderMetric
                             label={t('http.responseHeaders')}
                             value={`${responseHeaderEntries.length}`}
@@ -896,63 +913,60 @@ export function HttpWorkspace() {
                           />
                         </div>
 
-                        <div className="rounded-[16px] border border-border-default bg-bg-primary/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                          <div className="grid grid-cols-[minmax(180px,0.34fr)_minmax(0,0.66fr)] border-b border-border-default/75 bg-bg-secondary/42 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
-                            <span>Header</span>
-                            <span>Value</span>
-                          </div>
-
-                          <div className="grid gap-0">
-                            {responseHeaderEntries.map(([key, value], index) => (
-                              <div
-                                key={`${key}-${index}`}
-                                className={cn(
-                                  "grid grid-cols-[minmax(180px,0.34fr)_minmax(0,0.66fr)] gap-4 px-4 py-3",
-                                  index > 0 && "border-t border-border-default/70"
-                                )}
-                              >
-                                <div className="min-w-0 text-[12px] font-semibold text-text-secondary break-words">
-                                  {key}
-                                </div>
-                                <div className="min-w-0 break-all text-[12px] font-mono text-text-primary">
-                                  {value}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                        <div className="response-table-frame">
+                          <table className="response-table">
+                            <colgroup>
+                              <col style={{ width: '31%' }} />
+                              <col style={{ width: '69%' }} />
+                            </colgroup>
+                            <thead>
+                              <tr>
+                                <th>Header</th>
+                                <th>Value</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {responseHeaderEntries.map(([key, value], index) => (
+                                <tr key={`${key}-${index}`}>
+                                  <td className="response-table-key">{key}</td>
+                                  <td className="response-table-value">{value}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     </div>
                   ) : resTab === "cookies" ? (
-                    <div className="selectable p-4 overflow-auto h-full">
+                    <div className="selectable h-full overflow-auto p-3">
                       {responseCookies.length ? (
-                        <div className="flex min-h-full flex-col gap-3">
-                          <div className="grid gap-3 md:grid-cols-3">
+                        <div className="flex min-h-full flex-col gap-2.5">
+                          <div className="response-summary-row response-summary-row-cookies">
                             <ResponseHeaderMetric label="Cookies" value={`${responseCookies.length}`} hint="Items" />
                             <ResponseHeaderMetric label="Secure" value={`${secureCookieCount}`} hint="Flagged" />
                             <ResponseHeaderMetric label="HttpOnly" value={`${httpOnlyCookieCount}`} hint="Flagged" />
                           </div>
 
-                          <div className="w-full overflow-hidden rounded-[16px] border border-border-default bg-bg-primary/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                          <div className="response-table-frame w-full">
                             <div className="overflow-x-auto">
-                              <table className="min-w-full text-[12px] font-mono">
+                              <table className="response-table response-cookie-table min-w-full">
                                 <thead>
-                                  <tr className="bg-bg-secondary/42 text-text-disabled text-[10px] font-semibold uppercase tracking-[0.08em]">
-                                    <th className="w-[16%] min-w-[120px] px-4 py-3 text-left">Name</th>
-                                    <th className="w-[30%] min-w-[220px] px-4 py-3 text-left">Value</th>
-                                    <th className="w-[18%] min-w-[160px] px-4 py-3 text-left">Domain</th>
-                                    <th className="w-[14%] min-w-[120px] px-4 py-3 text-left">Path</th>
-                                    <th className="w-[22%] min-w-[180px] px-4 py-3 text-left">Flags</th>
+                                  <tr>
+                                    <th className="w-[16%] min-w-[120px]">Name</th>
+                                    <th className="w-[30%] min-w-[220px]">Value</th>
+                                    <th className="w-[18%] min-w-[160px]">Domain</th>
+                                    <th className="w-[14%] min-w-[120px]">Path</th>
+                                    <th className="w-[22%] min-w-[180px]">Flags</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {responseCookies.map((cookie, index) => (
-                                    <tr key={index} className={cn(index > 0 && "border-t border-border-default/70")}>
-                                      <td className="px-4 py-3 break-words font-semibold text-text-primary">{cookie.name}</td>
-                                      <td className="px-4 py-3 break-all text-text-secondary">{cookie.value}</td>
-                                      <td className="px-4 py-3 break-all text-text-tertiary">{cookie.domain || "-"}</td>
-                                      <td className="px-4 py-3 break-all text-text-tertiary">{cookie.path || "-"}</td>
-                                      <td className="px-4 py-3 break-words text-text-tertiary">
+                                    <tr key={index}>
+                                      <td className="response-table-key">{cookie.name}</td>
+                                      <td className="response-table-value">{cookie.value}</td>
+                                      <td className="response-table-cell">{cookie.domain || "-"}</td>
+                                      <td className="response-table-cell">{cookie.path || "-"}</td>
+                                      <td className="response-table-flags">
                                         {[cookie.httpOnly && "HttpOnly", cookie.secure && "Secure", cookie.sameSite].filter(Boolean).join(", ") || "-"}
                                       </td>
                                     </tr>
@@ -1023,7 +1037,7 @@ export function HttpWorkspace() {
                       </div>
                     </div>
                   ) : (
-                    <ResponseViewer body={response.body} contentType={response.contentType} />
+                    <ResponseViewer body={response.body} contentType={response.contentType} responseHeaders={response.headers} isBinary={response.isBinary} />
                   )}
                 </div>
               </>
@@ -1113,6 +1127,109 @@ function HttpRequestErrorPanel({
   );
 }
 
+// ── SSE 事件类型颜色映射 ─────────────────────────────────────
+const SSE_EVENT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  message: { bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", border: "border-blue-500/20" },
+  data:    { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", border: "border-emerald-500/20" },
+  status:  { bg: "bg-slate-500/10", text: "text-slate-600 dark:text-slate-400", border: "border-slate-500/20" },
+  heartbeat: { bg: "bg-purple-500/10", text: "text-purple-600 dark:text-purple-400", border: "border-purple-500/20" },
+  metric:  { bg: "bg-orange-500/10", text: "text-orange-600 dark:text-orange-400", border: "border-orange-500/20" },
+  error:   { bg: "bg-red-500/10", text: "text-red-600 dark:text-red-400", border: "border-red-500/20" },
+};
+const SSE_DEFAULT_COLOR = { bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", border: "border-blue-500/20" };
+
+function getSseEventColor(eventType: string) {
+  return SSE_EVENT_COLORS[eventType.toLowerCase()] || SSE_DEFAULT_COLOR;
+}
+
+function tryFormatJson(data: string): { isJson: boolean; formatted: string } {
+  try {
+    const parsed = JSON.parse(data);
+    return { isJson: true, formatted: JSON.stringify(parsed, null, 2) };
+  } catch {
+    return { isJson: false, formatted: data };
+  }
+}
+
+function SseEventRow({ event }: { event: SseEvent }) {
+  const [expanded, setExpanded] = useState(false);
+  const color = getSseEventColor(event.eventType);
+  const { isJson, formatted } = useMemo(() => tryFormatJson(event.data), [event.data]);
+
+  // 单行截断的内容预览
+  const preview = event.data.replace(/\n/g, ' ').slice(0, 200);
+
+  return (
+    <div className="group">
+      {/* 主行 */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className={cn(
+          "flex w-full items-center gap-2.5 px-4 py-2 text-left transition-colors hover:bg-bg-hover/50",
+          expanded && "bg-bg-hover/30"
+        )}
+      >
+        {/* 方向箭头 */}
+        <ArrowDownToLine className="h-3.5 w-3.5 shrink-0 text-text-disabled" />
+
+        {/* 事件类型标签 */}
+        <span className={cn(
+          "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[10px] font-bold leading-none",
+          color.bg, color.text, color.border
+        )}>
+          {event.eventType}
+        </span>
+
+        {/* 内容摘要 */}
+        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text-secondary">
+          {preview}
+        </span>
+
+        {/* 时间戳 */}
+        <span className="shrink-0 font-mono text-[10px] text-text-disabled">
+          {new Date(event.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' } as Intl.DateTimeFormatOptions)}
+        </span>
+
+        {/* 展开/收起 */}
+        {expanded
+          ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-text-disabled" />
+          : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-text-disabled" />
+        }
+      </button>
+
+      {/* 展开详情 */}
+      {expanded && (
+        <div className="mx-4 mb-2 mt-0.5 rounded-lg border border-border-default/60 bg-bg-secondary/20 overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-border-default/40 px-3 py-1.5 text-[10px] text-text-tertiary">
+            <span className="font-semibold">{isJson ? 'JSON' : 'TEXT'}</span>
+            {event.id && <span className="ml-auto">Event ID: {event.id}</span>}
+          </div>
+          <pre className={cn(
+            "selectable overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11.5px] leading-[1.6] text-text-primary max-h-[320px]",
+          )}>
+            {formatted}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SseSystemMessage({ message, timestamp }: { message: string; timestamp?: string }) {
+  return (
+    <div className="flex items-center gap-2.5 px-4 py-2 text-[11px] text-text-tertiary">
+      <Info className="h-3.5 w-3.5 shrink-0 opacity-60" />
+      <span className="flex-1">{message}</span>
+      {timestamp && (
+        <span className="shrink-0 font-mono text-[10px] text-text-disabled">
+          {new Date(timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' } as Intl.DateTimeFormatOptions)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function HttpSseResponsePanel({
   status,
   error,
@@ -1131,6 +1248,9 @@ function HttpSseResponsePanel({
   listRef: { current: HTMLDivElement | null };
 }) {
   const { t } = useTranslation();
+
+  // 倒序显示：最新事件在最上方
+  const reversedEvents = useMemo(() => [...events].reverse(), [events]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -1185,17 +1305,24 @@ function HttpSseResponsePanel({
             <div className="mt-2 max-w-xl text-[12px] leading-6 text-text-tertiary">{t('sse.emptyDesc')}</div>
           </div>
         ) : (
-          <div className="divide-y divide-border-default/55">
-            {events.map((event, index) => (
-              <div key={`${event.timestamp}-${index}`} className="px-4 py-3">
-                <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-mono text-text-disabled">{new Date(event.timestamp).toLocaleTimeString()}</span>
-                  <span className="rounded-[7px] bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-orange-600">{event.eventType}</span>
-                  {event.id ? <span className="text-[10px] text-text-disabled">ID {event.id}</span> : null}
-                </div>
-                <pre className="selectable whitespace-pre-wrap break-words text-[12px] font-mono text-text-primary">{event.data}</pre>
-              </div>
+          <div className="divide-y divide-border-default/30">
+            {/* 顶部：连接状态系统消息 */}
+            {status === 'disconnected' && (
+              <SseSystemMessage message="Connection closed" timestamp={reversedEvents[0]?.timestamp} />
+            )}
+
+            {/* 事件列表（倒序：最新在上） */}
+            {reversedEvents.map((event, index) => (
+              <SseEventRow key={`${event.timestamp}-${events.length - 1 - index}`} event={event} />
             ))}
+
+            {/* 底部：Connected 提示 */}
+            {events.length > 0 && (
+              <SseSystemMessage
+                message={`Connected to ${events[0]?.data ? 'server' : 'event stream'}`}
+                timestamp={events[0]?.timestamp}
+              />
+            )}
           </div>
         )}
       </div>
@@ -1229,10 +1356,10 @@ function ResponseHeaderMetric({
   hint?: string;
 }) {
   return (
-    <div className="rounded-[14px] border border-border-default/75 bg-bg-primary/88 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{label}</div>
-      <div className="mt-2 truncate text-[13px] font-semibold text-text-primary">{value}</div>
-      {hint ? <div className="mt-1 text-[10px] text-text-disabled">{hint}</div> : null}
+    <div className="response-summary-card">
+      <div className="response-summary-label">{label}</div>
+      <div className="response-summary-value">{value}</div>
+      {hint ? <div className="response-summary-hint">{hint}</div> : null}
     </div>
   );
 }
@@ -1439,19 +1566,49 @@ const HEADER_DICT: Record<string, string[]> = {
 
 const ALL_HEADER_KEYS = Object.keys(HEADER_DICT);
 
-/* ── Header Presets (quick-add) ── */
-const HEADER_PRESETS: { key: string; value: string; desc: string }[] = [
-  { key: "Content-Type", value: "application/json", desc: "JSON" },
-  { key: "Content-Type", value: "application/x-www-form-urlencoded", desc: "Form" },
-  { key: "Accept", value: "application/json", desc: "JSON Response" },
-  { key: "Authorization", value: "Bearer ", desc: "Token" },
-  { key: "Cache-Control", value: "no-cache", desc: "No Cache" },
-  { key: "User-Agent", value: "ProtoForge/1.0", desc: "UA" },
-  { key: "Accept-Language", value: "zh-CN,zh;q=0.9,en;q=0.8", desc: "Chinese" },
-  { key: "Accept-Encoding", value: "gzip, deflate, br", desc: "Compression" },
-  { key: "Connection", value: "keep-alive", desc: "Keep-Alive" },
-  { key: "X-Requested-With", value: "XMLHttpRequest", desc: "AJAX" },
-];
+const createEmptyKeyValue = (): KeyValue => ({ key: "", value: "", description: "", enabled: true });
+const isEmptyKeyValueRow = (item: KeyValue) => !item.key.trim() && !item.value.trim() && !(item.description || "").trim();
+
+function normalizeKeyValueRows(items: KeyValue[]) {
+  const autoRows = items.filter((item) => item.isAuto);
+  const customRows = items.filter((item) => !item.isAuto);
+  const normalizedCustomRows = [...customRows];
+
+  while (
+    normalizedCustomRows.length > 1 &&
+    isEmptyKeyValueRow(normalizedCustomRows[normalizedCustomRows.length - 1]) &&
+    isEmptyKeyValueRow(normalizedCustomRows[normalizedCustomRows.length - 2])
+  ) {
+    normalizedCustomRows.pop();
+  }
+
+  if (normalizedCustomRows.length === 0 || !isEmptyKeyValueRow(normalizedCustomRows[normalizedCustomRows.length - 1])) {
+    normalizedCustomRows.push(createEmptyKeyValue());
+  }
+
+  return [...autoRows, ...normalizedCustomRows];
+}
+
+const createEmptyFormDataField = (): FormDataField => ({ key: "", value: "", fieldType: "text", enabled: true });
+const isEmptyFormDataRow = (field: FormDataField) => !field.key.trim() && !field.value.trim() && !field.fileName && !(field.description || "").trim();
+
+function normalizeFormDataRows(fields: FormDataField[]) {
+  const normalizedFields = [...fields];
+
+  while (
+    normalizedFields.length > 1 &&
+    isEmptyFormDataRow(normalizedFields[normalizedFields.length - 1]) &&
+    isEmptyFormDataRow(normalizedFields[normalizedFields.length - 2])
+  ) {
+    normalizedFields.pop();
+  }
+
+  if (normalizedFields.length === 0 || !isEmptyFormDataRow(normalizedFields[normalizedFields.length - 1])) {
+    normalizedFields.push(createEmptyFormDataField());
+  }
+
+  return normalizedFields;
+}
 
 /* ── KV Editor (table-based, for params, headers, form-urlencoded) ── */
 function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, collectionId }: {
@@ -1464,34 +1621,31 @@ function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, collec
   collectionId?: string | null;
 }) {
   const { t } = useTranslation();
-  const [presetOpen, setPresetOpen] = useState(false);
   const [showAuto, setShowAuto] = useState(false);
   const [activeKeySuggest, setActiveKeySuggest] = useState<number | null>(null);
   const [activeValueSuggest, setActiveValueSuggest] = useState<number | null>(null);
   const [highlightIdx, setHighlightIdx] = useState(-1);
-  const safe = items || [];
+  const frameRef = useRef<HTMLDivElement>(null);
+  const safe = useMemo(() => normalizeKeyValueRows(items || []), [items]);
+  const customRowCount = safe.filter((item) => !item.isAuto).length;
+  const previousCustomRowCountRef = useRef(customRowCount);
 
   const autoCount = safe.filter(h => h.isAuto).length;
   const hasAuto = showAutoToggle && autoCount > 0;
 
   const update = (i: number, f: "key" | "value" | "description", v: string) => {
-    const n = [...safe]; n[i] = { ...n[i], [f]: v }; onChange(n);
+    const n = [...safe]; n[i] = { ...n[i], [f]: v }; onChange(normalizeKeyValueRows(n));
   };
   const toggle = (i: number) => {
-    const n = [...safe]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(n);
+    const n = [...safe]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(normalizeKeyValueRows(n));
   };
-  const remove = (i: number) => onChange(safe.filter((_, j) => j !== i));
-  const add = () => onChange([...safe, { key: "", value: "", description: "", enabled: true }]);
-  const addPreset = (preset: typeof HEADER_PRESETS[0]) => {
-    onChange([...safe, { key: preset.key, value: preset.value, description: preset.desc, enabled: true }]);
-    setPresetOpen(false);
-  };
+  const remove = (i: number) => onChange(normalizeKeyValueRows(safe.filter((_, j) => j !== i)));
 
   const selectKeySuggestion = (i: number, key: string) => {
     const n = [...safe]; n[i] = { ...n[i], key };
     const vals = HEADER_DICT[key];
     if (vals && vals.length > 0 && !n[i].value) n[i].value = vals[0];
-    onChange(n); setActiveKeySuggest(null); setHighlightIdx(-1);
+    onChange(normalizeKeyValueRows(n)); setActiveKeySuggest(null); setHighlightIdx(-1);
     if (vals && vals.length > 1) setActiveValueSuggest(i);
   };
   const selectValueSuggestion = (i: number, value: string) => {
@@ -1511,25 +1665,36 @@ function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, collec
     else if (e.key === "Escape") { e.preventDefault(); onCls(); setHighlightIdx(-1); }
   };
 
-  const cellInput = "h-7 w-full bg-transparent px-2 text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled";
+  const cellInput = "editor-table-input";
 
   // 可见行的全选/取消逻辑仅对可见行生效
   const visibleItems = safe.filter(item => !item.isAuto || showAuto);
-  const allVisibleEnabled = visibleItems.length > 0 && visibleItems.every(item => item.enabled);
+  const selectableVisibleItems = visibleItems.filter(item => item.key.trim().length > 0);
+  const allVisibleEnabled = selectableVisibleItems.length > 0 && selectableVisibleItems.every(item => item.enabled);
 
-  const renderRow = (item: KeyValue, i: number, rowIdx: number) => {
+  useEffect(() => {
+    if (customRowCount > previousCustomRowCountRef.current) {
+      requestAnimationFrame(() => {
+        frameRef.current?.scrollTo({ top: frameRef.current.scrollHeight, behavior: "smooth" });
+      });
+    }
+    previousCustomRowCountRef.current = customRowCount;
+  }, [customRowCount]);
+
+  const renderRow = (item: KeyValue, i: number) => {
+    const isSelectable = item.key.trim().length > 0;
     const keySugs = activeKeySuggest === i ? getKeySuggestions(item.key) : [];
     const valSugs = activeValueSuggest === i ? getValueSuggestions(item.key) : [];
     return (
-      <tr key={i} className={cn(
-        "group border border-border-default",
-        rowIdx > 0 && "border-t-0",
-        item.isAuto && "bg-bg-tertiary/30"
-      )}>
-        <td className="w-7 text-center border-r border-border-default align-middle">
-          <input type="checkbox" checked={item.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer" />
+      <tr key={i} className={cn("group", item.isAuto && "bg-bg-secondary/18")}>
+        <td className="editor-table-check">
+          {isSelectable ? (
+            <input type="checkbox" checked={item.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer" />
+          ) : (
+            <span className="editor-table-empty-check" aria-hidden="true" />
+          )}
         </td>
-        <td className="border-r border-border-default p-0">
+        <td>
           <TableCellInput value={item.key} onChange={v => update(i, "key", v)}
             onFocus={() => { if (showPresets) { setActiveKeySuggest(i); setActiveValueSuggest(null); setHighlightIdx(-1); } }}
             onBlur={() => setTimeout(() => { setActiveKeySuggest(null); setHighlightIdx(-1); }, 150)}
@@ -1537,7 +1702,7 @@ function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, collec
             placeholder={kp} disabled={!item.enabled} suggestions={keySugs} highlightIdx={highlightIdx}
             onSelectSuggestion={k => selectKeySuggestion(i, k)} className={cellInput} collectionId={collectionId} />
         </td>
-        <td className="border-r border-border-default p-0">
+        <td>
           <TableCellInput value={item.value} onChange={v => update(i, "value", v)}
             onFocus={() => { if (showPresets && HEADER_DICT[item.key]) { setActiveValueSuggest(i); setActiveKeySuggest(null); setHighlightIdx(-1); } }}
             onBlur={() => setTimeout(() => { setActiveValueSuggest(null); setHighlightIdx(-1); }, 150)}
@@ -1545,80 +1710,80 @@ function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, collec
             placeholder={vp} disabled={!item.enabled} suggestions={valSugs} highlightIdx={highlightIdx}
             onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cellInput} collectionId={collectionId} />
         </td>
-        <td className="border-r border-border-default p-0">
+        <td>
           <input value={item.description || ""} onChange={e => update(i, "description", e.target.value)} placeholder="Description"
-            className={cn("h-7 w-full bg-transparent px-2 text-[11px] text-text-tertiary outline-none placeholder:text-text-disabled", !item.enabled && "opacity-40")} />
+            className={cn("editor-table-input editor-table-description", !item.enabled && "editor-table-muted")} />
         </td>
-        <td className="w-6 text-center p-0 align-middle">
-          <button onClick={() => remove(i)} className="inline-flex h-7 w-6 items-center justify-center text-sm text-text-disabled opacity-0 transition-all hover:text-red-500 group-hover:opacity-100">×</button>
+        <td className="editor-table-actions">
+          {isSelectable ? (
+            <button onClick={() => remove(i)} className="editor-table-delete">
+              <Trash2 className="h-3 w-3" />
+              <span>{t('contextMenu.delete')}</span>
+            </button>
+          ) : (
+            <span className="editor-table-empty-action" aria-hidden="true" />
+          )}
         </td>
       </tr>
     );
   };
 
-  let rowIdx = 0;
-
   return (
-    <div className="w-full">
-      <table className="w-full border-collapse">
+    <div className="editor-table-shell">
+      <div ref={frameRef} className="editor-table-frame">
+        {hasAuto && (
+          <div className="editor-table-banner">
+            <button type="button" className="editor-table-banner-toggle" onClick={() => setShowAuto(!showAuto)}>
+              {showAuto ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              <span className="font-medium">{autoCount} auto headers</span>
+              <span className="text-text-disabled">{showAuto ? '点击隐藏' : '点击展示默认请求头'}</span>
+            </button>
+          </div>
+        )}
+
+        <table className="editor-table">
+          <colgroup>
+            <col style={{ width: '32px' }} />
+            <col style={{ width: '33%' }} />
+            <col style={{ width: '39%' }} />
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '72px' }} />
+          </colgroup>
         <thead>
-          <tr className="h-7 border border-border-default bg-bg-tertiary text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
-            <th className="w-7 border-r border-border-default">
+          <tr>
+            <th className="editor-table-check">
               <input
                 type="checkbox"
                 checked={allVisibleEnabled}
                 onChange={() => {
                   onChange(safe.map(item => {
-                    if (item.isAuto && !showAuto) return item; // 隐藏的 auto 行不受影响
+                    if (item.isAuto && !showAuto) return item;
+                    if (!item.key.trim()) return item;
                     return { ...item, enabled: !allVisibleEnabled };
                   }));
                 }}
                 className="w-3 h-3 rounded accent-accent cursor-pointer"
                 title={allVisibleEnabled ? t('import.deselectAll') : t('import.selectAll')}
+                disabled={selectableVisibleItems.length === 0}
               />
             </th>
-            <th className="text-left font-semibold px-2">{kp}</th>
-            <th className="text-left font-semibold px-2 border-l border-border-default">{vp}</th>
-            <th className="text-left font-semibold px-2 border-l border-border-default">Description</th>
-            <th className="w-6 border-l border-border-default" />
+            <th>{kp}</th>
+            <th>{vp}</th>
+            <th>Description</th>
+            <th className="editor-table-actions" />
           </tr>
         </thead>
         <tbody>
-          {/* Auto headers 折叠切换行 */}
-          {hasAuto && (
-            <tr className="border border-border-default border-t-0 cursor-pointer select-none" onClick={() => setShowAuto(!showAuto)}>
-              <td colSpan={5} className="px-2 py-1">
-                <div className="flex items-center gap-1 text-[10px] text-text-tertiary hover:text-text-secondary transition-colors">
-                  {showAuto ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                  <span className="font-medium">{autoCount} auto headers</span>
-                  <span className="text-text-disabled">— {showAuto ? '点击隐藏' : '点击展示默认请求头'}</span>
-                </div>
-              </td>
-            </tr>
-          )}
-          {/* Auto header 行 */}
           {hasAuto && showAuto && safe.map((item, i) => {
             if (!item.isAuto) return null;
-            return renderRow(item, i, rowIdx++);
+            return renderRow(item, i);
           })}
-          {/* 分割线 */}
-          {hasAuto && showAuto && (
-            <tr className="border-x border-border-default">
-              <td colSpan={5} className="h-0 border-t border-dashed border-border-default" />
-            </tr>
-          )}
-          {/* 用户自定义 header 行 */}
           {safe.map((item, i) => {
             if (item.isAuto) return null;
-            return renderRow(item, i, rowIdx++);
+            return renderRow(item, i);
           })}
         </tbody>
-      </table>
-      <div className="flex items-center gap-2 mt-1.5">
-        <button onClick={add} className="flex items-center gap-1 rounded-[10px] border border-dashed border-border-default px-2 py-1 text-[11px] font-medium text-text-tertiary transition-colors hover:border-accent hover:text-accent">
-          {t('http.addTo')}
-        </button>
-        {showPresets && <PresetDropdown presets={HEADER_PRESETS} isOpen={presetOpen} onToggle={() => setPresetOpen(!presetOpen)} onClose={() => setPresetOpen(false)} onSelect={addPreset} />}
+        </table>
       </div>
     </div>
   );
@@ -1641,7 +1806,7 @@ function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placehold
     <>
       <div className="relative">
         <input ref={ref} value={value} onChange={e => onChange(e.target.value)} onFocus={onFocus} onBlur={onBlur} onKeyDown={onKeyDown}
-          placeholder={placeholder} className={cn(cls, disabled && "opacity-40", extractVariableKeys(value).length > 0 && "pr-16")} />
+          placeholder={placeholder} className={cn(cls, disabled && "editor-table-muted", extractVariableKeys(value).length > 0 && "pr-16")} />
         <FieldVariableBadge value={value} collectionId={collectionId} className="right-1 top-1/2 -translate-y-1/2" compact />
       </div>
       {hasSugs && rect && onSelectSuggestion && createPortal(
@@ -1876,106 +2041,95 @@ function VariableHoverPopover({
   );
 }
 
-/* ── PresetDropdown: portal-based preset menu ── */
-function PresetDropdown({ presets, isOpen, onToggle, onClose, onSelect }: {
-  presets: typeof HEADER_PRESETS; isOpen: boolean; onToggle: () => void; onClose: () => void;
-  onSelect: (p: typeof HEADER_PRESETS[0]) => void;
-}) {
-  const { t } = useTranslation();
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  useEffect(() => { if (isOpen && btnRef.current) setRect(btnRef.current.getBoundingClientRect()); }, [isOpen]);
-
-  return (
-    <div className="relative">
-      <button ref={btnRef} onClick={onToggle}
-        className="flex items-center gap-1 rounded-[10px] border border-dashed border-border-default px-2 py-1 text-[11px] font-medium text-text-tertiary transition-colors hover:border-accent hover:text-accent">
-        <ChevronDown className="w-3 h-3" /> {t('http.presets')}
-      </button>
-      {isOpen && rect && createPortal(
-        <>
-          <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={onClose} />
-          <div className="fixed bg-bg-elevated border border-border-default rounded-lg shadow-xl overflow-hidden min-w-[340px] max-h-[300px] overflow-y-auto py-1"
-            style={{ top: rect.bottom + 4, left: rect.left, zIndex: 9999 }}>
-            {presets.map((p, i) => (
-              <button key={i} onClick={() => onSelect(p)}
-                className="w-full px-3 py-1.5 flex items-center gap-3 text-left hover:bg-bg-hover transition-colors">
-                <span className="text-[11px] font-mono font-semibold text-accent w-28 shrink-0 truncate">{p.key}</span>
-                <span className="text-[11px] font-mono text-text-secondary flex-1 truncate">{p.value || t("http.emptyValue")}</span>
-                <span className="text-[10px] text-text-disabled shrink-0">{p.desc}</span>
-              </button>
-            ))}
-          </div>
-        </>, document.body
-      )}
-    </div>
-  );
-}
-
 /* ── FormData Editor (table-based, text + file fields) ── */
 function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChange: (v: FormDataField[]) => void }) {
   const { t } = useTranslation();
-  const safe = fields || [];
-  const update = (i: number, u: Partial<FormDataField>) => { const n = [...safe]; n[i] = { ...n[i], ...u }; onChange(n); };
-  const toggle = (i: number) => { const n = [...safe]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(n); };
-  const remove = (i: number) => onChange(safe.filter((_, j) => j !== i));
-  const add = () => onChange([...safe, { key: "", value: "", fieldType: "text", enabled: true }]);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const safe = useMemo(() => normalizeFormDataRows(fields || []), [fields]);
+  const selectableFields = safe.filter((field) => field.key.trim().length > 0);
+  const previousFieldCountRef = useRef(safe.length);
+  const update = (i: number, u: Partial<FormDataField>) => { const n = [...safe]; n[i] = { ...n[i], ...u }; onChange(normalizeFormDataRows(n)); };
+  const toggle = (i: number) => { const n = [...safe]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(normalizeFormDataRows(n)); };
+  const remove = (i: number) => onChange(normalizeFormDataRows(safe.filter((_, j) => j !== i)));
   const handleFilePick = async (i: number) => {
     const { pickFiles } = await import("@/services/httpService");
     const r = await pickFiles();
     if (r) update(i, { value: r.paths, fileName: r.names });
   };
 
+  useEffect(() => {
+    if (safe.length > previousFieldCountRef.current) {
+      requestAnimationFrame(() => {
+        frameRef.current?.scrollTo({ top: frameRef.current.scrollHeight, behavior: "smooth" });
+      });
+    }
+    previousFieldCountRef.current = safe.length;
+  }, [safe.length]);
+
   return (
-    <div className="w-full">
-      <table className="w-full border-collapse table-fixed">
+    <div className="editor-table-shell">
+      <div ref={frameRef} className="editor-table-frame">
+      <table className="editor-table table-fixed">
+        <colgroup>
+          <col style={{ width: '32px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '26%' }} />
+          <col style={{ width: '34%' }} />
+          <col style={{ width: '24%' }} />
+          <col style={{ width: '72px' }} />
+        </colgroup>
         <thead>
-          <tr className="h-[28px] bg-bg-tertiary text-[10px] font-semibold text-text-tertiary uppercase tracking-wider border border-border-default">
-            <th className="w-7 border-r border-border-default">
+          <tr>
+            <th className="editor-table-check">
               <input
                 type="checkbox"
-                checked={safe.length > 0 && safe.every(f => f.enabled)}
+                checked={selectableFields.length > 0 && selectableFields.every(f => f.enabled)}
                 onChange={() => {
-                  const allEnabled = safe.every(f => f.enabled);
-                  onChange(safe.map(f => ({ ...f, enabled: !allEnabled })));
+                  const allEnabled = selectableFields.length > 0 && selectableFields.every(f => f.enabled);
+                  onChange(safe.map(f => f.key.trim() ? { ...f, enabled: !allEnabled } : f));
                 }}
                 className="w-3 h-3 rounded accent-accent cursor-pointer"
-                title={safe.every(f => f.enabled) ? t('import.deselectAll') : t('import.selectAll')}
+                title={(selectableFields.length > 0 && selectableFields.every(f => f.enabled)) ? t('import.deselectAll') : t('import.selectAll')}
+                disabled={selectableFields.length === 0}
               />
             </th>
-            <th className="w-16 text-left font-semibold px-2">{t('http.type')}</th>
-            <th className="text-left font-semibold px-2 border-l border-border-default" style={{ width: '25%' }}>Key</th>
-            <th className="text-left font-semibold px-2 border-l border-border-default" style={{ width: '30%' }}>Value</th>
-            <th className="text-left font-semibold px-2 border-l border-border-default" style={{ width: '20%' }}>Description</th>
-            <th className="w-6 border-l border-border-default" />
+            <th>{t('http.type')}</th>
+            <th>Key</th>
+            <th>Value</th>
+            <th>Description</th>
+            <th className="editor-table-actions" />
           </tr>
         </thead>
         <tbody>
           {safe.map((field, i) => (
-            <tr key={i} className={cn("group border border-border-default", i > 0 && "border-t-0")}>
-              <td className="w-7 text-center border-r border-border-default align-middle">
-                <input type="checkbox" checked={field.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer" />
+            <tr key={i} className="group">
+              <td className="editor-table-check">
+                {field.key.trim() ? (
+                  <input type="checkbox" checked={field.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer" />
+                ) : (
+                  <span className="editor-table-empty-check" aria-hidden="true" />
+                )}
               </td>
-              <td className="w-16 border-r border-border-default p-0 align-middle">
+              <td>
                 <select value={field.fieldType}
                   onChange={e => update(i, { fieldType: e.target.value as 'text' | 'file', value: '', fileName: undefined })}
-                  className={cn("w-full h-[30px] px-1.5 bg-transparent text-[11px] text-text-secondary outline-none cursor-pointer", !field.enabled && "opacity-40")}>
+                  className={cn("editor-table-select text-[11px] text-text-secondary", !field.enabled && "editor-table-muted")}>
                   <option value="text">Text</option>
                   <option value="file">File</option>
                 </select>
               </td>
-              <td className="border-r border-border-default p-0">
+              <td>
                 <input value={field.key} onChange={e => update(i, { key: e.target.value })} placeholder="Key"
-                  className={cn("w-full h-[30px] px-2 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled", !field.enabled && "opacity-40")} />
+                  className={cn("editor-table-input", !field.enabled && "editor-table-muted")} />
               </td>
-              <td className="border-r border-border-default p-0">
+              <td>
                 {field.fieldType === "text" ? (
                   <input value={field.value} onChange={e => update(i, { value: e.target.value })} placeholder="Value"
-                    className={cn("w-full h-[30px] px-2 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled", !field.enabled && "opacity-40")} />
+                    className={cn("editor-table-input", !field.enabled && "editor-table-muted")} />
                 ) : (
-                  <div className={cn("flex items-center w-full h-[30px]", !field.enabled && "opacity-40")}>
+                  <div className={cn("flex items-center w-full h-[34px]", !field.enabled && "editor-table-muted")}>
                     <button onClick={() => handleFilePick(i)}
-                      className="shrink-0 h-[30px] px-2 flex items-center gap-1 bg-transparent text-[11px] cursor-pointer hover:bg-bg-hover transition-colors border-r border-border-default">
+                      className="shrink-0 h-[34px] px-3 flex items-center gap-1 bg-transparent text-[11px] cursor-pointer hover:bg-bg-hover transition-colors">
                       <Upload className="w-3 h-3 text-text-disabled shrink-0" />
                       <span className="text-text-tertiary whitespace-nowrap">{t('http.selectFile')}</span>
                     </button>
@@ -1983,20 +2137,25 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
                   </div>
                 )}
               </td>
-              <td className="border-r border-border-default p-0">
+              <td>
                 <input value={field.description || ''} onChange={e => update(i, { description: e.target.value })} placeholder="Description"
-                  className={cn("w-full h-[30px] px-2 bg-transparent text-[12px] text-text-secondary outline-none placeholder:text-text-disabled", !field.enabled && "opacity-40")} />
+                  className={cn("editor-table-input editor-table-description", !field.enabled && "editor-table-muted")} />
               </td>
-              <td className="w-6 text-center p-0 align-middle">
-                <button onClick={() => remove(i)} className="w-6 h-[30px] inline-flex items-center justify-center text-text-disabled hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-sm">×</button>
+              <td className="editor-table-actions">
+                {field.key.trim() ? (
+                  <button onClick={() => remove(i)} className="editor-table-delete">
+                    <Trash2 className="h-3 w-3" />
+                    <span>{t('contextMenu.delete')}</span>
+                  </button>
+                ) : (
+                  <span className="editor-table-empty-action" aria-hidden="true" />
+                )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <button onClick={add} className="mt-1.5 text-[11px] font-medium text-text-tertiary hover:text-accent flex items-center gap-1 transition-colors border border-dashed border-border-default hover:border-accent rounded px-2.5 py-1">
-        {t('http.addField')}
-      </button>
+      </div>
     </div>
   );
 }

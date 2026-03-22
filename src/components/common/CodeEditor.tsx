@@ -9,6 +9,7 @@ interface CodeEditorProps {
   language?: string;
   readOnly?: boolean;
   onMount?: (editor: any, monaco: any) => void;
+  height?: string;
 }
 
 export function CodeEditor({ 
@@ -16,7 +17,8 @@ export function CodeEditor({
   onChange, 
   language = 'json', 
   readOnly = false,
-  onMount
+  onMount,
+  height = '100%',
 }: CodeEditorProps) {
   const monaco = useMonaco();
   const theme = useThemeStore((s) => s.resolved);
@@ -48,7 +50,7 @@ export function CodeEditor({
 
   return (
     <Editor
-      height="100%"
+      height={height}
       language={language}
       theme={editorTheme}
       value={value}

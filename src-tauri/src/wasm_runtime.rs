@@ -126,6 +126,28 @@ impl WasmPluginRuntime {
         .map_err(|e| format!("WASM 执行任务失败: {}", e))?
     }
 
+    /// Execute the `render(ptr, len) -> ptr` export for renderer plugins.
+    pub async fn render_data(
+        &self,
+        plugin_id: &str,
+        base64_data: &str,
+    ) -> Result<crate::plugin_runtime::RenderResult, String> {
+        let cached = {
+            let map = self.modules.read().await;
+            map.get(plugin_id)
+                .ok_or_else(|| format!("WASM 插件 '{}' 未加载，请先调用 load_plugin", plugin_id))?
+                .clone()
+        };
+
+        let data_owned = base64_data.to_string();
+
+        tokio::task::spawn_blocking(move || {
+            execute_render(&cached.engine, &cached.module, &data_owned)
+        })
+        .await
+        .map_err(|e| format!("WASM 执行任务失败: {}", e))?
+    }
+
     /// List all loaded WASM plugins.
     pub async fn list_loaded(&self) -> Vec<WasmPluginInfo> {
         let map = self.modules.read().await;
@@ -316,6 +338,55 @@ fn execute_parse(engine: &Engine, module: &Module, raw_data: &str) -> Result<Par
         .map_err(|e| format!("解析 parse 结果 JSON 失败: {}", e))?;
 
     Ok(parsed)
+}
+
+/// Execute the render(ptr, len) -> ptr export for renderer plugins.
+fn execute_render(engine: &Engine, module: &Module, base64_data: &str) -> Result<crate::plugin_runtime::RenderResult, String> {
+    let mut store = Store::new(engine, ());
+    // 渲染操作可能需要更多资源（Excel 解析等），给予更多 fuel
+    store.set_fuel(50_000_000).map_err(|e| format!("fuel 设置失败: {}", e))?;
+    let linker = Linker::new(engine);
+    let instance = linker
+        .instantiate(&mut store, module)
+        .map_err(|e| format!("WASM 实例化失败: {}", e))?;
+
+    let memory = instance
+        .get_memory(&mut store, "memory")
+        .ok_or("找不到 memory 导出")?;
+
+    let input_bytes = base64_data.as_bytes();
+    let input_len = input_bytes.len() as i32;
+
+    let alloc = instance
+        .get_typed_func::<i32, i32>(&mut store, "alloc")
+        .map_err(|e| format!("找不到 alloc 导出: {}", e))?;
+
+    let input_ptr = alloc
+        .call(&mut store, input_len)
+        .map_err(|e| format!("alloc 调用失败: {}", e))?;
+
+    memory
+        .write(&mut store, input_ptr as usize, input_bytes)
+        .map_err(|e| format!("写入 guest 内存失败: {}", e))?;
+
+    let render = instance
+        .get_typed_func::<(i32, i32), i32>(&mut store, "render")
+        .map_err(|e| format!("找不到 render 导出: {}", e))?;
+
+    let result_ptr = render
+        .call(&mut store, (input_ptr, input_len))
+        .map_err(|e| format!("render 调用失败: {}", e))?;
+
+    let result_json = read_guest_string(&store, &memory, result_ptr as u32)?;
+
+    if let Ok(dealloc) = instance.get_typed_func::<(i32, i32), ()>(&mut store, "dealloc") {
+        let _ = dealloc.call(&mut store, (input_ptr, input_len));
+    }
+
+    let rendered: crate::plugin_runtime::RenderResult = serde_json::from_str(&result_json)
+        .map_err(|e| format!("解析 render 结果 JSON 失败: {}", e))?;
+
+    Ok(rendered)
 }
 
 /// Read a length-prefixed string from guest memory.

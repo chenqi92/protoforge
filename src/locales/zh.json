@@ -3,8 +3,8 @@
     "name": "ProtoForge"
   },
   "titleBar": {
-    "requests": "请求",
-    "tcpudp": "TCP/UDP",
+    "requests": "接口调试",
+    "tcpudp": "连接测试",
     "capture": "流量捕获",
     "loadtest": "性能测试",
     "plugins": "插件",
@@ -16,14 +16,14 @@
     "themeLight": "浅色模式"
   },
   "statusBar": {
-    "requests": "请求工作台",
+    "requests": "接口调试工作台",
     "collection": "集合配置",
     "http": "HTTP",
     "graphql": "GraphQL",
     "ws": "WebSocket",
     "sse": "SSE",
     "mqtt": "MQTT",
-    "tcpudp": "TCP/UDP",
+    "tcpudp": "连接测试",
     "capture": "流量捕获",
     "loadtest": "性能测试",
     "ready": "就绪"
@@ -133,6 +133,7 @@
     "headers": "请求头",
     "headersCount": "请求头 ({{count}})",
     "body": "请求体",
+    "responseBody": "响应体",
     "auth": "认证",
     "preScript": "前置脚本",
     "postScript": "后置脚本",
@@ -290,6 +291,7 @@
     "autoScroll": "自动滚动",
     "searchMessages": "搜索消息...",
     "scrollToBottom": "底部",
+    "scrollToLatest": "最新",
     "clearMessages": "清空",
     "emptyTitle": "WebSocket 调试",
     "emptyDesc": "连接到服务器开始收发消息",
@@ -954,7 +956,8 @@
     "copy": "复制",
     "searchPlaceholder": "搜索内容...",
     "truncated": "仅显示前 4096 字节 (总 {{total}} 字节)",
-    "matchCount": "{{count}} 个匹配"
+    "matchCount": "{{count}} 个匹配",
+    "invalidJsonPrettyFallback": "响应声明为 JSON，但内容无法正确解析，下面展示原始内容。"
   },
   "history": {
     "lastWeek": "7 天内",

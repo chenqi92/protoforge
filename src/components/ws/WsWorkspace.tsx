@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown, AlertTriangle, Search, Settings2, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown, Search, Settings2, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
 import type { WsMessage, WsEvent } from "@/types/ws";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
+import { ReadonlyCodeBlock } from "@/components/ui/ResponseViewer";
 
 interface KVItem { key: string; value: string; enabled: boolean }
 
@@ -34,7 +35,6 @@ export function WsWorkspace() {
   const reconnectCountRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const autoReconnectRef = useRef(autoReconnect);
   const connectedRef = useRef(false);
@@ -50,6 +50,30 @@ export function WsWorkspace() {
     connectedRef.current = connected;
   }, [connected]);
 
+  useEffect(() => {
+    if (!tabId) return;
+    let cancelled = false;
+
+    const syncState = async () => {
+      try {
+        const { wsIsConnected } = await import("@/services/wsService");
+        const isConnected = await wsIsConnected(tabId);
+        if (cancelled) return;
+        setConnected(isConnected);
+        setConnecting(false);
+      } catch {
+        if (!cancelled) {
+          setConnecting(false);
+        }
+      }
+    };
+
+    void syncState();
+    return () => {
+      cancelled = true;
+    };
+  }, [tabId]);
+
   const appendMessage = useCallback((message: WsMessage) => {
     setMessages((prev) => [...prev, message]);
   }, []);
@@ -63,15 +87,15 @@ export function WsWorkspace() {
 
   // 自动滚动
   useEffect(() => {
-    if (autoScroll && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (autoScroll && messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [messages, autoScroll]);
 
   const handleScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
-    setAutoScroll(el.scrollHeight - el.scrollTop - el.clientHeight < 50);
+    setAutoScroll(el.scrollTop < 50);
   }, []);
 
   // 心跳定时器
@@ -289,6 +313,8 @@ export function WsWorkspace() {
     });
   }, [messages, searchQuery]);
 
+  const displayMessages = useMemo(() => [...filteredMessages].reverse(), [filteredMessages]);
+
   const selectedMessage = useMemo(
     () => filteredMessages.find((messageItem) => messageItem.id === selectedMessageId) ?? null,
     [filteredMessages, selectedMessageId]
@@ -328,7 +354,7 @@ export function WsWorkspace() {
     setTabProtocol(activeTab.id, "http");
     updateHttpConfig(activeTab.id, {
       requestMode: kind === "http" ? "rest" : kind,
-      name: kind === "graphql" ? "GraphQL Request" : kind === "sse" ? "SSE Stream" : "Untitled Request",
+      name: kind === "graphql" ? "GraphQL Request" : "Untitled Request",
       method: kind === "graphql" ? "POST" : "GET",
     });
   }, [activeTab, connected, connecting, setTabProtocol, updateHttpConfig]);
@@ -433,8 +459,8 @@ export function WsWorkspace() {
                 {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3 h-3" /></button>}
               </div>
               {!autoScroll && messages.length > 0 && (
-                <button onClick={() => { setAutoScroll(true); messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }} className="wb-ghost-btn px-2.5 text-[11px] text-accent">
-                  <ArrowDown className="w-3 h-3" /> {t('ws.scrollToBottom')}
+                <button onClick={() => { setAutoScroll(true); messagesContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }} className="wb-ghost-btn px-2.5 text-[11px] text-accent">
+                  <ArrowDown className="w-3 h-3 rotate-180" /> {t('ws.scrollToLatest')}
                 </button>
               )}
               {messages.length > 0 && (
@@ -463,31 +489,25 @@ export function WsWorkspace() {
                 </div>
               ) : (
                 <div className="divide-y divide-border-default/60">
-                  {filteredMessages.map((item) => (
+                  {displayMessages.map((item) => (
                     <button
                       key={item.id}
                       type="button"
                       onClick={() => setSelectedMessageId((current) => current === item.id ? null : item.id)}
                       className={cn(
-                        "w-full px-4 py-3 text-left transition-colors hover:bg-bg-hover/70",
+                        "w-full px-3.5 py-2.5 text-left transition-colors hover:bg-bg-hover/70",
                         selectedMessageId === item.id && "bg-accent/5"
                       )}
                     >
-                      <div className="flex items-start gap-3">
-                        <WsEventIcon message={item} />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="truncate text-[13px] font-semibold text-text-primary">{item.title}</span>
-                            <WsEventTypePill message={item} />
-                            {getWsMessageFormat(item) && (
-                              <span className="rounded-full bg-bg-secondary px-2 py-0.5 text-[10px] font-medium text-text-tertiary">
-                                {getWsMessageFormat(item)}
-                              </span>
-                            )}
-                          </div>
-                          <p className="mt-1 truncate text-[12px] text-text-tertiary">
-                            {getWsMessageSummary(item, t)}
-                          </p>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <WsEventTypePill message={item} />
+                        {getWsMessageFormat(item) && (
+                          <span className="rounded-full bg-bg-secondary px-2 py-0.5 text-[10px] font-medium text-text-tertiary">
+                            {getWsMessageFormat(item)}
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1 truncate text-[12px] text-text-primary">
+                          <span className="truncate">{getWsMessageSummary(item, t)}</span>
                         </div>
                         <div className="flex shrink-0 items-center gap-2 text-[11px] text-text-disabled">
                           {item.size > 0 && <span>{formatSize(item.size)}</span>}
@@ -496,7 +516,6 @@ export function WsWorkspace() {
                       </div>
                     </button>
                   ))}
-                  <div ref={messagesEndRef} />
                 </div>
               )}
             </div>
@@ -573,38 +592,6 @@ function getWsMessageFormat(message: WsMessage) {
   } catch {
     return "TEXT";
   }
-}
-
-function WsEventIcon({ message }: { message: WsMessage }) {
-  if (message.kind === "status") {
-    return message.status === "connected" ? (
-      <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-600">
-        <CheckCircle2 className="h-4 w-4" />
-      </span>
-    ) : (
-      <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-slate-500/10 text-slate-500">
-        <Plug className="h-4 w-4" />
-      </span>
-    );
-  }
-
-  if (message.kind === "error") {
-    return (
-      <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/10 text-red-500">
-        <AlertTriangle className="h-4 w-4" />
-      </span>
-    );
-  }
-
-  return message.direction === "sent" ? (
-    <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/12 text-amber-600">
-      <SendIcon className="h-3.5 w-3.5" />
-    </span>
-  ) : (
-    <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-sky-500/10 text-sky-600">
-      <ArrowDown className="h-4 w-4" />
-    </span>
-  );
 }
 
 function WsEventTypePill({ message }: { message: WsMessage }) {
@@ -716,15 +703,15 @@ function WsDetailPanel({
 
       <div className="flex-1 overflow-auto bg-bg-primary px-4 py-4">
         {detailView === "preview" && (
-          <div className="select-text px-1 text-[12px] leading-6 text-text-secondary">
-            <pre className="whitespace-pre-wrap break-all font-mono">
-              {message.kind === "message"
-                ? isJson
-                  ? prettyJson
-                  : message.data
-                : message.data}
-            </pre>
-          </div>
+          isJson ? (
+            <ReadonlyCodeBlock value={prettyJson} language="json" minHeightClassName="min-h-[220px]" />
+          ) : (
+            <div className="select-text px-1 text-[12px] leading-6 text-text-secondary">
+              <pre className="whitespace-pre-wrap break-all font-mono">
+                {message.data}
+              </pre>
+            </div>
+          )
         )}
 
         {detailView === "text" && (
@@ -734,9 +721,7 @@ function WsDetailPanel({
         )}
 
         {detailView === "json" && isJson && (
-          <div className="select-text px-1">
-            <pre className="whitespace-pre-wrap break-all font-mono text-[12px] leading-6 text-text-secondary">{prettyJson}</pre>
-          </div>
+          <ReadonlyCodeBlock value={prettyJson} language="json" minHeightClassName="min-h-[220px]" />
         )}
 
         {detailView === "hex" && (

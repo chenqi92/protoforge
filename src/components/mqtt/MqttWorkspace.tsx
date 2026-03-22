@@ -146,7 +146,7 @@ export function MqttWorkspace() {
     setTabProtocol(activeTab.id, "http");
     updateHttpConfig(activeTab.id, {
       requestMode: kind === "http" ? "rest" : kind,
-      name: kind === "graphql" ? "GraphQL Request" : kind === "sse" ? "SSE Stream" : "Untitled Request",
+      name: kind === "graphql" ? "GraphQL Request" : "Untitled Request",
       method: kind === "graphql" ? "POST" : "GET",
     });
   }, [activeTab, connId, setTabProtocol, status, updateHttpConfig]);

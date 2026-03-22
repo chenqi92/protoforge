@@ -88,8 +88,6 @@ export function SseWorkspace() {
       }
     } catch {}
 
-    if (kind === "sse") return;
-
     if (kind === "ws" || kind === "mqtt") {
       setTabProtocol(activeTab.id, kind);
       return;

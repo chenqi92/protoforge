@@ -22,10 +22,20 @@ const MODES: { value: SocketMode; labelKey: string; hintKey: string; icon: React
   { value: "udp-server", labelKey: "tcp.modes.udpServer", hintKey: "tcp.modes.udpServerHint", icon: <Square className="w-3.5 h-3.5" /> },
 ];
 
-export function TcpWorkspace({ sessionId: _sessionId }: { sessionId?: string }) {
+export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<SocketMode>("tcp-client");
+  const sessionKey = useRef(sessionId ?? crypto.randomUUID()).current;
   const activeMode = MODES.find((item) => item.value === mode) || MODES[0];
+
+  useEffect(() => {
+    return () => {
+      void svc.tcpDisconnect(`tcp-client:${sessionKey}`).catch(() => {});
+      void svc.tcpServerStop(`tcp-server:${sessionKey}`).catch(() => {});
+      void svc.udpClose(`udp-client:${sessionKey}`).catch(() => {});
+      void svc.udpClose(`udp-server:${sessionKey}`).catch(() => {});
+    };
+  }, [sessionKey]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-transparent p-3">
@@ -52,10 +62,10 @@ export function TcpWorkspace({ sessionId: _sessionId }: { sessionId?: string }) 
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col pt-3">
-        {mode === "tcp-client" && <TcpClientPanel />}
-        {mode === "tcp-server" && <TcpServerPanel />}
-        {mode === "udp-client" && <UdpClientPanel />}
-        {mode === "udp-server" && <UdpServerPanel />}
+        {mode === "tcp-client" && <TcpClientPanel sessionKey={sessionKey} />}
+        {mode === "tcp-server" && <TcpServerPanel sessionKey={sessionKey} />}
+        {mode === "udp-client" && <UdpClientPanel sessionKey={sessionKey} />}
+        {mode === "udp-server" && <UdpServerPanel sessionKey={sessionKey} />}
       </div>
     </div>
   );
@@ -168,9 +178,9 @@ function useSocketState() {
 //  TCP Client Panel
 // ═══════════════════════════════════════════
 
-function TcpClientPanel() {
+function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
   const { t } = useTranslation();
-  const connectionId = useRef(crypto.randomUUID()).current;
+  const connectionId = useRef(`tcp-client:${sessionKey}`).current;
   const state = useSocketState();
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -180,9 +190,10 @@ function TcpClientPanel() {
 
   // Event listener
   useEffect(() => {
+    let disposed = false;
     let unlisten: (() => void) | null = null;
     const setup = async () => {
-      unlisten = await svc.onTcpEvent((event: TcpEvent) => {
+      const listener = await svc.onTcpEvent((event: TcpEvent) => {
         if (event.connectionId !== connectionId) return;
         switch (event.eventType) {
           case "connected":
@@ -209,10 +220,18 @@ function TcpClientPanel() {
             break;
         }
       });
+      if (disposed) {
+        listener();
+        return;
+      }
+      unlisten = listener;
     };
     setup();
-    return () => { unlisten?.(); };
-  }, [connectionId]);
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [connectionId, state.addMessage, state.systemMessage, t]);
 
   // Timer
   useEffect(() => {
@@ -316,9 +335,9 @@ function TcpClientPanel() {
 //  TCP Server Panel
 // ═══════════════════════════════════════════
 
-function TcpServerPanel() {
+function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
   const { t } = useTranslation();
-  const serverId = useRef(crypto.randomUUID()).current;
+  const serverId = useRef(`tcp-server:${sessionKey}`).current;
   const state = useSocketState();
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -330,9 +349,10 @@ function TcpServerPanel() {
   const selectedClient = selectedClientId ? clients.find((client) => client.id === selectedClientId) ?? null : null;
 
   useEffect(() => {
+    let disposed = false;
     let unlisten: (() => void) | null = null;
     const setup = async () => {
-      unlisten = await svc.onTcpServerEvent((event: TcpEvent) => {
+      const listener = await svc.onTcpServerEvent((event: TcpEvent) => {
         if (event.connectionId !== serverId) return;
         switch (event.eventType) {
           case "started":
@@ -365,10 +385,18 @@ function TcpServerPanel() {
             break;
         }
       });
+      if (disposed) {
+        listener();
+        return;
+      }
+      unlisten = listener;
     };
     setup();
-    return () => { unlisten?.(); };
-  }, [serverId]);
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [serverId, state.addMessage, state.systemMessage, t]);
 
   useEffect(() => {
     if (state.timerEnabled && running && state.message.trim()) {
@@ -485,9 +513,9 @@ function TcpServerPanel() {
 //  UDP Client Panel
 // ═══════════════════════════════════════════
 
-function UdpClientPanel() {
+function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
   const { t } = useTranslation();
-  const socketId = useRef(crypto.randomUUID()).current;
+  const socketId = useRef(`udp-client:${sessionKey}`).current;
   const state = useSocketState();
   const [bound, setBound] = useState(false);
   const [binding, setBinding] = useState(false);
@@ -497,9 +525,10 @@ function UdpClientPanel() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    let disposed = false;
     let unlisten: (() => void) | null = null;
     const setup = async () => {
-      unlisten = await svc.onUdpEvent((event: TcpEvent) => {
+      const listener = await svc.onUdpEvent((event: TcpEvent) => {
         if (event.connectionId !== socketId) return;
         switch (event.eventType) {
           case "bound":
@@ -522,10 +551,18 @@ function UdpClientPanel() {
             break;
         }
       });
+      if (disposed) {
+        listener();
+        return;
+      }
+      unlisten = listener;
     };
     setup();
-    return () => { unlisten?.(); };
-  }, [socketId]);
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [socketId, state.addMessage, state.systemMessage, t]);
 
   useEffect(() => {
     if (state.timerEnabled && bound && state.message.trim()) {
@@ -635,9 +672,9 @@ function UdpClientPanel() {
 //  UDP Server Panel
 // ═══════════════════════════════════════════
 
-function UdpServerPanel() {
+function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
   const { t } = useTranslation();
-  const socketId = useRef(crypto.randomUUID()).current;
+  const socketId = useRef(`udp-server:${sessionKey}`).current;
   const state = useSocketState();
   const [bound, setBound] = useState(false);
   const [binding, setBinding] = useState(false);
@@ -647,9 +684,10 @@ function UdpServerPanel() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    let disposed = false;
     let unlisten: (() => void) | null = null;
     const setup = async () => {
-      unlisten = await svc.onUdpEvent((event: TcpEvent) => {
+      const listener = await svc.onUdpEvent((event: TcpEvent) => {
         if (event.connectionId !== socketId) return;
         switch (event.eventType) {
           case "bound":
@@ -665,8 +703,8 @@ function UdpServerPanel() {
               size: event.size || 0, remoteAddr: event.remoteAddr,
             });
             // 自动设置回复地址
-            if (event.remoteAddr && !replyAddr) {
-              setReplyAddr(event.remoteAddr);
+            if (event.remoteAddr) {
+              setReplyAddr((current) => current || event.remoteAddr || "");
             }
             break;
           case "error":
@@ -676,10 +714,18 @@ function UdpServerPanel() {
             break;
         }
       });
+      if (disposed) {
+        listener();
+        return;
+      }
+      unlisten = listener;
     };
     setup();
-    return () => { unlisten?.(); };
-  }, [socketId]);
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [socketId, state.addMessage, state.systemMessage, t]);
 
   useEffect(() => {
     if (state.timerEnabled && bound && state.message.trim()) {

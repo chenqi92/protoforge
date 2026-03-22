@@ -3,6 +3,7 @@
 
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
+use base64::Engine as _;
 use std::collections::HashMap;
 use std::time::Instant;
 use crate::script_engine::{self, ScriptResult, ScriptResponse};
@@ -119,6 +120,12 @@ pub struct HttpResponse {
     pub duration_ms: u64,
     pub timing: ResponseTiming,
     pub cookies: Vec<CookieInfo>,
+    /// 是否为 SSE 事件流响应 (Content-Type: text/event-stream)
+    #[serde(default)]
+    pub is_event_stream: bool,
+    /// 如果为 true，则 body 是 base64 编码的二进制数据（Excel/ZIP/图片等）
+    #[serde(default)]
+    pub is_binary: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -319,6 +326,35 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
     // 解析 Cookies
     let cookies = parse_cookies_from_headers(&resp_headers);
 
+    // 检测是否为 SSE 事件流
+    let is_event_stream = content_type
+        .as_ref()
+        .map(|ct| ct.to_lowercase().contains("text/event-stream"))
+        .unwrap_or(false);
+
+    // 如果是事件流，不读取 body（由前端通过 SSE 客户端接收）
+    if is_event_stream {
+        let total_duration = start.elapsed().as_millis() as u64;
+        return Ok(HttpResponse {
+            status,
+            status_text,
+            headers: resp_headers,
+            body: String::new(),
+            body_size: 0,
+            content_type,
+            duration_ms: total_duration,
+            timing: ResponseTiming {
+                total_ms: total_duration,
+                connect_ms: None,
+                ttfb_ms: Some(ttfb_ms),
+                download_ms: None,
+            },
+            cookies,
+            is_event_stream: true,
+            is_binary: false,
+        });
+    }
+
     // 响应 body
     let download_start = Instant::now();
     let body_bytes = response.bytes().await
@@ -326,7 +362,15 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
     let download_ms = download_start.elapsed().as_millis() as u64;
     let body_size = body_bytes.len() as u64;
 
-    let body_text = String::from_utf8_lossy(&body_bytes).to_string();
+    // 判断是否为二进制内容
+    let is_binary = is_binary_content_type(content_type.as_deref());
+
+    let body_text = if is_binary {
+        // 二进制数据用 base64 编码，避免 UTF-8 lossy 转换导致数据损坏
+        base64::engine::general_purpose::STANDARD.encode(&body_bytes)
+    } else {
+        String::from_utf8_lossy(&body_bytes).to_string()
+    };
 
     let total_duration = start.elapsed().as_millis() as u64;
 
@@ -345,6 +389,8 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
             download_ms: Some(download_ms),
         },
         cookies,
+        is_event_stream: false,
+        is_binary,
     })
 }
 
@@ -490,6 +536,20 @@ fn mime_from_path(path: &str) -> String {
         "xls" | "xlsx" => "application/vnd.ms-excel",
         _ => "application/octet-stream",
     }.to_string()
+}
+
+/// 判断 Content-Type 是否为二进制内容
+fn is_binary_content_type(ct: Option<&str>) -> bool {
+    let ct = match ct {
+        Some(ct) => ct.to_lowercase(),
+        None => return false,
+    };
+    // 明确的文本类型 → 非二进制
+    if ct.starts_with("text/") || ct.contains("json") || ct.contains("xml") || ct.contains("javascript") || ct.contains("html") || ct.contains("css") || ct.contains("csv") || ct.contains("yaml") || ct.contains("form-urlencoded") {
+        return false;
+    }
+    // 其余 application/ 和其他类型都视为二进制
+    true
 }
 
 #[cfg(test)]

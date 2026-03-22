@@ -3,8 +3,8 @@
     "name": "ProtoForge"
   },
   "titleBar": {
-    "requests": "Requests",
-    "tcpudp": "TCP/UDP",
+    "requests": "API Debug",
+    "tcpudp": "Connectivity",
     "capture": "Capture",
     "loadtest": "Load Test",
     "plugins": "Plugins",
@@ -16,14 +16,14 @@
     "themeLight": "Light Mode"
   },
   "statusBar": {
-    "requests": "Request Workbench",
+    "requests": "API Debug Workbench",
     "collection": "Collection Settings",
     "http": "HTTP",
     "graphql": "GraphQL",
     "ws": "WebSocket",
     "sse": "SSE",
     "mqtt": "MQTT",
-    "tcpudp": "TCP/UDP",
+    "tcpudp": "Connectivity",
     "capture": "Traffic Capture",
     "loadtest": "Load Test",
     "ready": "READY"
@@ -133,6 +133,7 @@
     "headers": "Headers",
     "headersCount": "Headers ({{count}})",
     "body": "Body",
+    "responseBody": "Response Body",
     "auth": "Auth",
     "preScript": "Pre-request",
     "postScript": "Post-response",
@@ -290,6 +291,7 @@
     "autoScroll": "Auto Scroll",
     "searchMessages": "Search messages...",
     "scrollToBottom": "Bottom",
+    "scrollToLatest": "Latest",
     "clearMessages": "Clear",
     "emptyTitle": "WebSocket Debug",
     "emptyDesc": "Connect to a server to start sending and receiving messages",
@@ -954,7 +956,8 @@
     "copy": "Copy",
     "searchPlaceholder": "Search content...",
     "truncated": "Showing first 4096 bytes ({{total}} bytes total)",
-    "matchCount": "{{count}} matches"
+    "matchCount": "{{count}} matches",
+    "invalidJsonPrettyFallback": "The response is marked as JSON, but it could not be parsed. Showing the raw content below."
   },
   "history": {
     "lastWeek": "Last 7 Days",

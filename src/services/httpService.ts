@@ -14,6 +14,15 @@ function resolveConfigVariables(config: HttpRequestConfig): HttpRequestConfig {
   return resolveRequestConfigVariables(config, collectionId);
 }
 
+/** 如果 URL 没有协议前缀，自动补全 http:// */
+function normalizeUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  // 已经带协议前缀的直接返回
+  if (/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\//.test(trimmed)) return trimmed;
+  return `http://${trimmed}`;
+}
+
 export function resolveHttpConfig(config: HttpRequestConfig): HttpRequestConfig {
   return resolveConfigVariables(config);
 }
@@ -107,7 +116,7 @@ export function buildRequestPayload(config: HttpRequestConfig) {
 
   return {
     method: config.method,
-    url: config.url,
+    url: normalizeUrl(config.url),
     headers,
     queryParams,
     body,

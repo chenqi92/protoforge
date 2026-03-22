@@ -305,3 +305,8 @@ pub async fn disconnect(connections: &WsConnections, connection_id: &str) -> Res
     }
     Ok(())
 }
+
+pub async fn is_connected(connections: &WsConnections, connection_id: &str) -> Result<bool, String> {
+    let conns = connections.connections.lock().await;
+    Ok(conns.contains_key(connection_id))
+}

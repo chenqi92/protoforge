@@ -518,113 +518,111 @@ function App() {
   };
 
   const renderContent = () => {
-    if (activeWorkbench === "requests") {
-      return (
-        <PanelGroup orientation="horizontal">
-          <Panel
-            id="sidebar"
-            defaultSize={String(useSettingsStore.getState().settings.sidebarWidth || 22)}
-            minSize="14"
-            maxSize="50"
-            collapsible
-            collapsedSize="44px"
-            panelRef={sidebarPanelRef}
-            onResize={handleSidebarResize}
-            className="relative flex h-full shrink-0 flex-col"
-          >
-            <Sidebar
-              panelCollapsed={sidebarCollapsed}
-              onTogglePanel={handleSidebarToggle}
-            />
-          </Panel>
-          <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/70 transition-colors hover:bg-accent active:bg-accent" />
-
-          <Panel className="flex flex-col overflow-hidden bg-transparent">
-            <TabBar
-              tabs={displayTabs}
-              activeTabId={activeTabId}
-              onTabChange={setActiveTab}
-              onTabClose={closeTab}
-              onNewTab={handleNewTab}
-              onReorder={reorderTabs}
-            />
-
-            <div className="min-h-0 flex-1 overflow-hidden">
-              {renderRequestWorkspace()}
-            </div>
-          </Panel>
-        </PanelGroup>
-      );
-    }
-
-    if (activeWorkbench === "tcpudp") {
-      return (
-        <ToolWorkbenchPanel
-          tool="tcpudp"
-          sessions={toolSessions.tcpudp}
-          activeSessionId={activeToolSessionIds.tcpudp}
-          detachedSessionIds={detachedToolSessions.tcpudp}
-          onAddSession={addToolSession}
-          onSelectSession={setActiveToolSession}
-          onCloseSession={closeToolSession}
-          onPopout={handlePopoutWorkbench}
-        >
-          {toolSessions.tcpudp.map((session) => (
-            <div
-              key={session.id}
-              className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.tcpudp ? "block" : "hidden")}
-            >
-              <TcpWorkspace sessionId={session.id} />
-            </div>
-          ))}
-        </ToolWorkbenchPanel>
-      );
-    }
-
-    if (activeWorkbench === "capture") {
-      return (
-        <ToolWorkbenchPanel
-          tool="capture"
-          sessions={toolSessions.capture}
-          activeSessionId={activeToolSessionIds.capture}
-          detachedSessionIds={detachedToolSessions.capture}
-          onAddSession={addToolSession}
-          onSelectSession={setActiveToolSession}
-          onCloseSession={closeToolSession}
-          onPopout={handlePopoutWorkbench}
-        >
-          {toolSessions.capture.map((session) => (
-            <div
-              key={session.id}
-              className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.capture ? "block" : "hidden")}
-            >
-              <CaptureWorkspace sessionId={session.id} />
-            </div>
-          ))}
-        </ToolWorkbenchPanel>
-      );
-    }
-
     return (
-      <ToolWorkbenchPanel
-        tool="loadtest"
-        sessions={toolSessions.loadtest}
-        activeSessionId={activeToolSessionIds.loadtest}
-        detachedSessionIds={detachedToolSessions.loadtest}
-        onAddSession={addToolSession}
-        onSelectSession={setActiveToolSession}
-        onCloseSession={closeToolSession}
-        onPopout={handlePopoutWorkbench}
-      >
-        {toolSessions.loadtest.map((session) => (
-          <div
-            key={session.id}
-            className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.loadtest ? "block" : "hidden")}
+      <div className="h-full">
+        <div className={cn("h-full", activeWorkbench === "requests" ? "block" : "hidden")}>
+          <PanelGroup orientation="horizontal">
+            <Panel
+              id="sidebar"
+              defaultSize={String(useSettingsStore.getState().settings.sidebarWidth || 22)}
+              minSize="14"
+              maxSize="50"
+              collapsible
+              collapsedSize="44px"
+              panelRef={sidebarPanelRef}
+              onResize={handleSidebarResize}
+              className="relative flex h-full shrink-0 flex-col"
+            >
+              <Sidebar
+                panelCollapsed={sidebarCollapsed}
+                onTogglePanel={handleSidebarToggle}
+              />
+            </Panel>
+            <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/70 transition-colors hover:bg-accent active:bg-accent" />
+
+            <Panel className="flex flex-col overflow-hidden bg-transparent">
+              <TabBar
+                tabs={displayTabs}
+                activeTabId={activeTabId}
+                onTabChange={setActiveTab}
+                onTabClose={closeTab}
+                onNewTab={handleNewTab}
+                onReorder={reorderTabs}
+              />
+
+              <div className="min-h-0 flex-1 overflow-hidden">
+                {renderRequestWorkspace()}
+              </div>
+            </Panel>
+          </PanelGroup>
+        </div>
+
+        <div className={cn("h-full", activeWorkbench === "tcpudp" ? "block" : "hidden")}>
+          <ToolWorkbenchPanel
+            tool="tcpudp"
+            sessions={toolSessions.tcpudp}
+            activeSessionId={activeToolSessionIds.tcpudp}
+            detachedSessionIds={detachedToolSessions.tcpudp}
+            onAddSession={addToolSession}
+            onSelectSession={setActiveToolSession}
+            onCloseSession={closeToolSession}
+            onPopout={handlePopoutWorkbench}
           >
-            <LoadTestWorkspace sessionId={session.id} />
-          </div>
-        ))}
-      </ToolWorkbenchPanel>
+            {toolSessions.tcpudp.map((session) => (
+              <div
+                key={session.id}
+                className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.tcpudp ? "block" : "hidden")}
+              >
+                <TcpWorkspace sessionId={session.id} />
+              </div>
+            ))}
+          </ToolWorkbenchPanel>
+        </div>
+
+        <div className={cn("h-full", activeWorkbench === "capture" ? "block" : "hidden")}>
+          <ToolWorkbenchPanel
+            tool="capture"
+            sessions={toolSessions.capture}
+            activeSessionId={activeToolSessionIds.capture}
+            detachedSessionIds={detachedToolSessions.capture}
+            onAddSession={addToolSession}
+            onSelectSession={setActiveToolSession}
+            onCloseSession={closeToolSession}
+            onPopout={handlePopoutWorkbench}
+          >
+            {toolSessions.capture.map((session) => (
+              <div
+                key={session.id}
+                className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.capture ? "block" : "hidden")}
+              >
+                <CaptureWorkspace sessionId={session.id} />
+              </div>
+            ))}
+          </ToolWorkbenchPanel>
+        </div>
+
+        <div className={cn("h-full", activeWorkbench === "loadtest" ? "block" : "hidden")}>
+          <ToolWorkbenchPanel
+            tool="loadtest"
+            sessions={toolSessions.loadtest}
+            activeSessionId={activeToolSessionIds.loadtest}
+            detachedSessionIds={detachedToolSessions.loadtest}
+            onAddSession={addToolSession}
+            onSelectSession={setActiveToolSession}
+            onCloseSession={closeToolSession}
+            onPopout={handlePopoutWorkbench}
+          >
+            {toolSessions.loadtest.map((session) => (
+              <div
+                key={session.id}
+                className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.loadtest ? "block" : "hidden")}
+              >
+                <LoadTestWorkspace sessionId={session.id} />
+              </div>
+            ))}
+          </ToolWorkbenchPanel>
+        </div>
+      </div>
     );
   };
 

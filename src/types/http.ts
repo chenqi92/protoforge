@@ -99,13 +99,15 @@ export interface ResponseTiming {
 export interface HttpResponse {
   status: number;
   statusText: string;
-  headers: Record<string, string>;
+  headers: Array<[string, string]>;
   body: string;
   bodySize: number;
   contentType: string | null;
   durationMs: number;
   timing: ResponseTiming;
   cookies: CookieInfo[];
+  isEventStream?: boolean;
+  isBinary?: boolean;
 }
 
 /** Script execution result (from Boa engine) */

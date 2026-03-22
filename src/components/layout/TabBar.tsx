@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, ChevronDown, ChevronLeft, ChevronRight, X, Copy, Trash2, Edit3, ArrowRightFromLine, List } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, X, Copy, Trash2, Edit3, ArrowRightFromLine, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import type { RequestProtocol } from "@/stores/appStore";
 import { useAppStore } from "@/stores/appStore";
-import { useSettingsStore } from "@/stores/settingsStore";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
 import type { HttpRequestMode } from "@/types/http";
 
@@ -39,12 +38,6 @@ const protocolColors: Record<RequestProtocol, string> = {
   mqtt: "bg-purple-500/15 text-purple-600",
 };
 
-const protocolDotColors: Record<RequestProtocol, string> = {
-  http: "bg-emerald-500",
-  ws: "bg-amber-500",
-  mqtt: "bg-purple-500",
-};
-
 const modeBadgeColors: Record<HttpRequestMode, string> = {
   rest: "bg-emerald-500/15 text-emerald-600",
   graphql: "bg-fuchsia-500/15 text-fuchsia-600",
@@ -67,16 +60,6 @@ const methodBadgeColors: Record<string, string> = {
   OPTIONS: "bg-gray-500/15 text-gray-600",
 };
 
-const createOptions: Array<{ protocol: RequestProtocol; label: string }> = [
-  { protocol: "http", label: "HTTP" },
-  { protocol: "ws", label: "WebSocket" },
-  { protocol: "mqtt", label: "MQTT" },
-];
-
-function isRequestProtocol(value: string): value is RequestProtocol {
-  return createOptions.some((option) => option.protocol === value);
-}
-
 export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, onReorder }: TabBarProps) {
   const { t } = useTranslation();
   const tabBarRef = useRef<HTMLDivElement>(null);
@@ -84,17 +67,13 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   const prevTabCount = useRef(tabs.length);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragIndexRef = useRef<number | null>(null);
-  const createMenuAnchorRef = useRef<HTMLDivElement>(null);
-  const [showCreateMenu, setShowCreateMenu] = useState(false);
-  const [createMenuPos, setCreateMenuPos] = useState({ top: 0, left: 0 });
   const tabMenuAnchorRef = useRef<HTMLDivElement>(null);
   const [showTabMenu, setShowTabMenu] = useState(false);
   const [tabMenuPos, setTabMenuPos] = useState({ top: 0, left: 0 });
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const storedDefaultProtocol = useSettingsStore((s) => s.settings.defaultNewProtocol);
-  const defaultProtocol = isRequestProtocol(storedDefaultProtocol) ? storedDefaultProtocol : "http";
+  const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
+  const createProtocol: RequestProtocol = activeTab && activeTab.protocol !== "http" ? activeTab.protocol : "http";
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
@@ -163,20 +142,6 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
 
     dragIndexRef.current = null;
     setDragOverIndex(null);
-  };
-
-  const handleCreateWithProtocol = (protocol: RequestProtocol) => {
-    onNewTab(protocol);
-    useSettingsStore.getState().update("defaultNewProtocol", protocol);
-    setShowCreateMenu(false);
-  };
-
-  const toggleCreateMenu = () => {
-    if (createMenuAnchorRef.current) {
-      const rect = createMenuAnchorRef.current.getBoundingClientRect();
-      setCreateMenuPos({ top: rect.bottom + 6, left: Math.max(12, rect.right - 180) });
-    }
-    setShowCreateMenu((prev) => !prev);
   };
 
   const scrollTabsBy = (direction: "left" | "right") => {
@@ -254,75 +219,18 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
       ) : null}
 
       <div className="mx-1.5 h-4 w-px bg-border-strong/70" />
-      <div ref={createMenuAnchorRef} className="shrink-0 no-drag">
-        <div className="flex items-center rounded-[11px] border border-border-default/70 bg-bg-secondary/55">
-          <button
-            onClick={() => handleCreateWithProtocol(defaultProtocol)}
-            className="flex h-8 items-center gap-1.5 rounded-l-[11px] px-3 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover/75 hover:text-text-primary"
-            title={`${t('tabBar.new')} ${protocolLabels[defaultProtocol]} (Ctrl+N)`}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className={cn("rounded-[5px] px-1.5 py-[1px] text-[10px] font-bold leading-none", protocolColors[defaultProtocol])}>
-              {protocolLabels[defaultProtocol]}
-            </span>
-          </button>
-          <div className="h-4 w-px bg-border-default/70" />
-          <button
-            onClick={toggleCreateMenu}
-            className={cn(
-              "flex h-8 w-7 items-center justify-center rounded-r-[11px] text-text-tertiary transition-colors hover:bg-bg-hover/75 hover:text-text-primary",
-              showCreateMenu && "bg-bg-hover/75 text-text-primary"
-            )}
-            title={t('tabBar.selectProtocol')}
-          >
-            <ChevronDown className={cn("h-3 w-3 transition-transform", showCreateMenu && "rotate-180")} />
-          </button>
-        </div>
-      </div>
-
-      {showCreateMenu && (
-        <>
-          <div className="fixed inset-0 z-[220]" onClick={() => { setShowCreateMenu(false); setShowTabMenu(false); }} />
-          <div
-            className="fixed z-[221] w-[180px] overflow-hidden rounded-[12px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
-            style={{ top: createMenuPos.top, left: createMenuPos.left }}
-          >
-            <div className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled">
-              {t('tabBar.requestProtocol')}
-            </div>
-            {createOptions.map((option) => {
-              const isDefault = option.protocol === defaultProtocol;
-              return (
-                <button
-                  key={option.protocol}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleCreateWithProtocol(option.protocol);
-                  }}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-[10px] px-2.5 py-[7px] text-left transition-colors hover:bg-bg-hover/70",
-                    isDefault && "bg-bg-hover/40"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "h-[6px] w-[6px] shrink-0 rounded-full transition-opacity",
-                      protocolDotColors[option.protocol],
-                      isDefault ? "opacity-100" : "opacity-30"
-                    )}
-                  />
-                  <span className="text-[12px] font-medium text-text-primary">{option.label}</span>
-                  {isDefault ? <span className="ml-auto text-[10px] text-text-disabled">{t('tabBar.default')}</span> : null}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
+      <button
+        onClick={() => onNewTab(createProtocol)}
+        className="wb-ghost-btn shrink-0 px-3 no-drag"
+        title={`${t('tabBar.new')} ${protocolLabels[createProtocol]} (Ctrl+N)`}
+      >
+        <Plus className="h-3.5 w-3.5" />
+        {t('tabBar.new')}
+      </button>
 
       {showTabMenu ? (
         <>
-          {!showCreateMenu ? <div className="fixed inset-0 z-[220]" onClick={() => setShowTabMenu(false)} /> : null}
+          <div className="fixed inset-0 z-[220]" onClick={() => setShowTabMenu(false)} />
           <div
             className="fixed z-[221] w-[240px] overflow-hidden rounded-[12px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
             style={{ top: tabMenuPos.top, left: tabMenuPos.left }}

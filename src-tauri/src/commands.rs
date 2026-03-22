@@ -29,6 +29,42 @@ pub async fn send_request_with_scripts(request: HttpRequestWithScripts) -> Resul
     http_client::execute_request_with_scripts(request).await
 }
 
+/// 将二进制响应 body (base64) 另存为本地文件
+#[tauri::command]
+pub async fn save_response_body(
+    app: tauri::AppHandle,
+    body_base64: String,
+    suggested_name: String,
+) -> Result<String, String> {
+    use tauri_plugin_dialog::DialogExt;
+    use base64::Engine as _;
+
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&body_base64)
+        .map_err(|e| format!("base64 解码失败: {}", e))?;
+
+    let sname = suggested_name.clone();
+    let app_clone = app.clone();
+    let file_path = tokio::task::spawn_blocking(move || {
+        app_clone.dialog()
+            .file()
+            .set_file_name(&sname)
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| format!("对话框任务失败: {}", e))?;
+
+    let path = match file_path {
+        Some(p) => p.to_string(),
+        None => return Err("用户取消保存".to_string()),
+    };
+
+    tokio::fs::write(&path, &bytes).await
+        .map_err(|e| format!("写入文件失败: {}", e))?;
+
+    Ok(path)
+}
+
 // ═══════════════════════════════════════════
 //  OAuth 2.0 Token
 // ═══════════════════════════════════════════
@@ -400,6 +436,14 @@ pub async fn ws_disconnect(
 }
 
 #[tauri::command]
+pub async fn ws_is_connected(
+    connections: State<'_, WsConnections>,
+    connection_id: String,
+) -> Result<bool, String> {
+    crate::ws_client::is_connected(&connections, &connection_id).await
+}
+
+#[tauri::command]
 pub async fn ws_send_binary(
     connections: State<'_, WsConnections>,
     connection_id: String,
@@ -664,7 +708,7 @@ pub async fn proxy_export_ca(
 //  Plugins
 // ═══════════════════════════════════════════
 
-use crate::plugin_runtime::{PluginManager, PluginManifest, ProtocolParser, ParseResult};
+use crate::plugin_runtime::{PluginManager, PluginManifest, ProtocolParser, ParseResult, RenderResult};
 
 #[tauri::command]
 pub async fn plugin_list(
@@ -703,6 +747,15 @@ pub async fn plugin_parse_data(
     raw_data: String,
 ) -> Result<ParseResult, String> {
     mgr.parse_data(&plugin_id, &raw_data).await
+}
+
+#[tauri::command]
+pub async fn plugin_render_data(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+    base64_data: String,
+) -> Result<RenderResult, String> {
+    mgr.render_data(&plugin_id, &base64_data).await
 }
 
 #[tauri::command]

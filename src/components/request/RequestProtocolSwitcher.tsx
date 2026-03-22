@@ -1,4 +1,4 @@
-import { Braces, ChevronDown, FileText, Radio, Waves, Zap } from "lucide-react";
+import { Braces, ChevronDown, FileText, Radio, Zap } from "lucide-react";
 import { useState } from "react";
 import type { RequestProtocol } from "@/stores/appStore";
 import type { HttpRequestMode } from "@/types/http";
@@ -14,12 +14,11 @@ const options: Array<{
 }> = [
   { kind: "http", label: "HTTP", icon: FileText, activeClass: "text-emerald-600", iconBgClass: "bg-emerald-500/12", description: "REST Request" },
   { kind: "graphql", label: "GraphQL", icon: Braces, activeClass: "text-fuchsia-600", iconBgClass: "bg-fuchsia-500/12", description: "Schema Query" },
-  { kind: "sse", label: "SSE", icon: Waves, activeClass: "text-orange-600", iconBgClass: "bg-orange-500/12", description: "Event Stream" },
   { kind: "ws", label: "WebSocket", icon: Zap, activeClass: "text-amber-600", iconBgClass: "bg-amber-500/12", description: "Live Connection" },
   { kind: "mqtt", label: "MQTT", icon: Radio, activeClass: "text-violet-600", iconBgClass: "bg-violet-500/12", description: "Message Broker" },
 ];
 
-export type RequestKind = RequestProtocol | Extract<HttpRequestMode, "graphql" | "sse">;
+export type RequestKind = RequestProtocol | Extract<HttpRequestMode, "graphql">;
 
 interface RequestProtocolSwitcherProps {
   activeProtocol: RequestProtocol;
@@ -33,8 +32,8 @@ export function RequestProtocolSwitcher({
   onChange,
 }: RequestProtocolSwitcherProps) {
   const [open, setOpen] = useState(false);
-  const activeKind: RequestKind = activeProtocol === "http" && activeHttpMode && activeHttpMode !== "rest"
-    ? activeHttpMode
+  const activeKind: RequestKind = activeProtocol === "http" && activeHttpMode === "graphql"
+    ? "graphql"
     : activeProtocol;
   const activeOption = options.find((option) => option.kind === activeKind) ?? options[0];
   const ActiveIcon = activeOption.icon;
