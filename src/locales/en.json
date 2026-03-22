@@ -775,7 +775,8 @@
     "remoteRegistry": "Remote Registry",
     "local": "Local",
     "storeEmpty": "Store Empty",
-    "noPlugins": "No plugins available"
+    "noPlugins": "No plugins available",
+    "statsPanel": "Stats"
   },
   "commandPalette": {
     "placeholder": "Search actions, requests, collections...",

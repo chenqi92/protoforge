@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { PluginManifest, ProtocolParser } from '@/types/plugin';
+import type { PluginManifest, PluginType, ProtocolParser } from '@/types/plugin';
 import * as pluginService from '@/services/pluginService';
 
 interface PluginStore {
@@ -14,9 +14,10 @@ interface PluginStore {
   refreshRegistry: () => Promise<void>;
   installPlugin: (pluginId: string) => Promise<void>;
   uninstallPlugin: (pluginId: string) => Promise<void>;
+  getInstalledByType: (type: PluginType) => PluginManifest[];
 }
 
-export const usePluginStore = create<PluginStore>((set) => ({
+export const usePluginStore = create<PluginStore>((set, get) => ({
   installedPlugins: [],
   availablePlugins: [],
   protocolParsers: [],
@@ -98,5 +99,11 @@ export const usePluginStore = create<PluginStore>((set) => ({
       console.error('Failed to uninstall plugin:', e);
       throw e;
     }
+  },
+
+  getInstalledByType: (type: PluginType): PluginManifest[] => {
+    return get().installedPlugins.filter(
+      (p: PluginManifest) => p.pluginType === type
+    );
   },
 }));

@@ -776,7 +776,8 @@
     "remoteRegistry": "远程仓库",
     "local": "本地",
     "storeEmpty": "仓库为空",
-    "noPlugins": "暂无可用插件"
+    "noPlugins": "暂无可用插件",
+    "statsPanel": "请求统计"
   },
   "commandPalette": {
     "placeholder": "搜索操作、请求、集合...",

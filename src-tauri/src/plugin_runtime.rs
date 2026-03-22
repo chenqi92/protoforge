@@ -132,6 +132,47 @@ pub struct RenderSheet {
     pub rows: Vec<Vec<String>>,
 }
 
+/// 请求钩子执行结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HookResult {
+    /// 需要注入/覆盖的 Headers（key → value）
+    #[serde(default)]
+    pub headers: std::collections::HashMap<String, String>,
+    /// 需要注入/覆盖的 Query Params
+    #[serde(default)]
+    pub query_params: std::collections::HashMap<String, String>,
+    /// 错误信息
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// 数据生成结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateDataResult {
+    /// 生成的数据内容
+    pub data: String,
+    /// 错误信息
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// 导出格式结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResult {
+    /// 导出内容
+    pub content: String,
+    /// 建议的文件名
+    pub filename: String,
+    /// MIME 类型
+    pub mime_type: String,
+    /// 错误信息
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
 // ── Plugin Contributes (Extension Points) ──
 
 /// 插件声明的扩展点贡献
@@ -791,6 +832,119 @@ impl PluginManager {
             }
         }
     }
+
+    /// 执行请求钩子插件的 hook(request) 函数
+    pub async fn run_hook(
+        &self,
+        plugin_id: &str,
+        request_json: &str,
+    ) -> Result<HookResult, String> {
+        let reg = self.registry.read().await;
+        let rp = reg
+            .get(plugin_id)
+            .ok_or_else(|| format!("插件 '{}' 未注册", plugin_id))?;
+
+        match &rp.runtime {
+            PluginRuntime::Native(_) => {
+                drop(reg);
+                Err(format!("原生插件 '{}' 不支持 hook 操作", plugin_id))
+            }
+            PluginRuntime::JavaScript => {
+                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                drop(reg);
+                let script = tokio::fs::read_to_string(&script_path)
+                    .await
+                    .map_err(|e| format!("读取插件脚本失败: {}", e))?;
+                let req = request_json.to_string();
+                let result = tokio::task::spawn_blocking(move || {
+                    execute_hook_script(&script, &req)
+                })
+                .await
+                .map_err(|e| format!("执行插件失败: {}", e))??;
+                Ok(result)
+            }
+            PluginRuntime::Wasm => {
+                drop(reg);
+                Err(format!("WASM 插件 '{}' 不支持 hook 操作", plugin_id))
+            }
+        }
+    }
+
+    /// 执行数据生成插件的 generate(generatorId, options) 函数
+    pub async fn run_generator(
+        &self,
+        plugin_id: &str,
+        generator_id: &str,
+        options_json: &str,
+    ) -> Result<GenerateDataResult, String> {
+        let reg = self.registry.read().await;
+        let rp = reg
+            .get(plugin_id)
+            .ok_or_else(|| format!("插件 '{}' 未注册", plugin_id))?;
+
+        match &rp.runtime {
+            PluginRuntime::Native(_) => {
+                drop(reg);
+                Err(format!("原生插件 '{}' 不支持 generate 操作", plugin_id))
+            }
+            PluginRuntime::JavaScript => {
+                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                drop(reg);
+                let script = tokio::fs::read_to_string(&script_path)
+                    .await
+                    .map_err(|e| format!("读取插件脚本失败: {}", e))?;
+                let gen_id = generator_id.to_string();
+                let opts = options_json.to_string();
+                let result = tokio::task::spawn_blocking(move || {
+                    execute_generate_script(&script, &gen_id, &opts)
+                })
+                .await
+                .map_err(|e| format!("执行插件失败: {}", e))??;
+                Ok(result)
+            }
+            PluginRuntime::Wasm => {
+                drop(reg);
+                Err(format!("WASM 插件 '{}' 不支持 generate 操作", plugin_id))
+            }
+        }
+    }
+
+    /// 执行导出格式插件的 exportRequest(request) 函数
+    pub async fn run_export(
+        &self,
+        plugin_id: &str,
+        request_json: &str,
+    ) -> Result<ExportResult, String> {
+        let reg = self.registry.read().await;
+        let rp = reg
+            .get(plugin_id)
+            .ok_or_else(|| format!("插件 '{}' 未注册", plugin_id))?;
+
+        match &rp.runtime {
+            PluginRuntime::Native(_) => {
+                drop(reg);
+                Err(format!("原生插件 '{}' 不支持 export 操作", plugin_id))
+            }
+            PluginRuntime::JavaScript => {
+                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                drop(reg);
+                let script = tokio::fs::read_to_string(&script_path)
+                    .await
+                    .map_err(|e| format!("读取插件脚本失败: {}", e))?;
+                let req = request_json.to_string();
+                let result = tokio::task::spawn_blocking(move || {
+                    execute_export_script(&script, &req)
+                })
+                .await
+                .map_err(|e| format!("执行插件失败: {}", e))??;
+                Ok(result)
+            }
+            PluginRuntime::Wasm => {
+                drop(reg);
+                Err(format!("WASM 插件 '{}' 不支持 export 操作", plugin_id))
+            }
+        }
+    }
 }
 
 // ── tar.gz extraction ──
@@ -1016,6 +1170,92 @@ fn extract_zip_to_map(bytes: &[u8]) -> Result<std::collections::HashMap<String, 
     }
 
     Ok(files)
+}
+
+/// Execute a JS plugin's hook(request) function in a sandboxed boa_engine context.
+fn execute_hook_script(script: &str, request_json: &str) -> Result<HookResult, String> {
+    let mut context = Context::default();
+
+    context
+        .eval(Source::from_bytes(script))
+        .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
+
+    let json_escaped = serde_json::to_string(request_json)
+        .map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let call_script = format!("JSON.stringify(hook(JSON.parse({})))", json_escaped);
+
+    let result = context
+        .eval(Source::from_bytes(call_script.as_bytes()))
+        .map_err(|e| format!("调用 hook() 失败: {}", format_js_error(&e)))?;
+
+    let json_str = result
+        .as_string()
+        .ok_or_else(|| "hook() 返回值不是字符串（需要 JSON.stringify 包装）".to_string())?
+        .to_std_string()
+        .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
+
+    let parsed: HookResult =
+        serde_json::from_str(&json_str).map_err(|e| format!("解析 hook 返回 JSON 失败: {}", e))?;
+
+    Ok(parsed)
+}
+
+/// Execute a JS plugin's generate(generatorId, options) function in a sandboxed boa_engine context.
+fn execute_generate_script(script: &str, generator_id: &str, options_json: &str) -> Result<GenerateDataResult, String> {
+    let mut context = Context::default();
+
+    context
+        .eval(Source::from_bytes(script))
+        .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
+
+    let gen_id_escaped = serde_json::to_string(generator_id)
+        .map_err(|e| format!("序列化 generatorId 失败: {}", e))?;
+    let opts_escaped = serde_json::to_string(options_json)
+        .map_err(|e| format!("序列化 options 失败: {}", e))?;
+    let call_script = format!("JSON.stringify(generate({}, JSON.parse({})))", gen_id_escaped, opts_escaped);
+
+    let result = context
+        .eval(Source::from_bytes(call_script.as_bytes()))
+        .map_err(|e| format!("调用 generate() 失败: {}", format_js_error(&e)))?;
+
+    let json_str = result
+        .as_string()
+        .ok_or_else(|| "generate() 返回值不是字符串（需要 JSON.stringify 包装）".to_string())?
+        .to_std_string()
+        .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
+
+    let parsed: GenerateDataResult =
+        serde_json::from_str(&json_str).map_err(|e| format!("解析 generate 返回 JSON 失败: {}", e))?;
+
+    Ok(parsed)
+}
+
+/// Execute a JS plugin's exportRequest(request) function in a sandboxed boa_engine context.
+fn execute_export_script(script: &str, request_json: &str) -> Result<ExportResult, String> {
+    let mut context = Context::default();
+
+    context
+        .eval(Source::from_bytes(script))
+        .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
+
+    let json_escaped = serde_json::to_string(request_json)
+        .map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let call_script = format!("JSON.stringify(exportRequest(JSON.parse({})))", json_escaped);
+
+    let result = context
+        .eval(Source::from_bytes(call_script.as_bytes()))
+        .map_err(|e| format!("调用 exportRequest() 失败: {}", format_js_error(&e)))?;
+
+    let json_str = result
+        .as_string()
+        .ok_or_else(|| "exportRequest() 返回值不是字符串（需要 JSON.stringify 包装）".to_string())?
+        .to_std_string()
+        .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
+
+    let parsed: ExportResult =
+        serde_json::from_str(&json_str).map_err(|e| format!("解析 export 返回 JSON 失败: {}", e))?;
+
+    Ok(parsed)
 }
 
 fn format_js_error(err: &JsError) -> String {

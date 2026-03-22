@@ -183,6 +183,9 @@ pub fn run() {
             commands::plugin_get_protocol_parsers,
             commands::plugin_refresh_registry,
             commands::plugin_get_icon,
+            commands::plugin_run_hook,
+            commands::plugin_run_generator,
+            commands::plugin_run_export,
             // SSE
             commands::sse_connect,
             commands::sse_disconnect,

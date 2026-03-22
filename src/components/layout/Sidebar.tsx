@@ -5,7 +5,7 @@ import {
   FolderOpen, Clock, Search, Plus,
   ChevronRight, Download, Settings, Globe,
   MoreHorizontal, Folder, Zap, Edit3, Trash2, ExternalLink, Copy, FolderPlus,
-  ChevronsUpDown,
+  ChevronsUpDown, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -19,8 +19,10 @@ import type { HistoryEntry, CollectionItem } from '@/types/collections';
 import { getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { generateCurlFromItem } from "@/lib/curlGenerator";
+import { usePluginStore } from "@/stores/pluginStore";
+import { RequestStatsPanel } from "@/components/plugins/RequestStatsPanel";
 
-type SidebarView = "collections" | "history" | "environments";
+type SidebarView = "collections" | "history" | "environments" | "stats";
 
 interface SidebarProps {
   panelCollapsed: boolean;
@@ -33,6 +35,9 @@ const navItems: { id: SidebarView; icon: typeof FolderOpen; labelKey: string }[]
   { id: "environments", icon: Globe, labelKey: 'sidebar.environments' },
   { id: "history", icon: Clock, labelKey: 'sidebar.history' },
 ];
+
+// Dynamic nav item for installed sidebar-panel plugins
+const statsNavItem = { id: "stats" as SidebarView, icon: BarChart3, labelKey: 'plugin.statsPanel' };
 
 export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: SidebarProps) {
   const { t } = useTranslation();
@@ -56,6 +61,15 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
     fetchHistory();
     fetchEnvironments();
   }, [fetchCollections, fetchHistory, fetchEnvironments]);
+
+  // Check if sidebar-panel plugin is installed
+  const installedPlugins = usePluginStore((s) => s.installedPlugins);
+  const hasSidebarPanelPlugin = installedPlugins.some((p) => p.pluginType === 'sidebar-panel');
+
+  const allNavItems = useMemo(() =>
+    hasSidebarPanelPlugin ? [...navItems, statsNavItem] : navItems,
+    [hasSidebarPanelPlugin]
+  );
 
   const handleNavClick = (view: SidebarView) => {
     if (panelCollapsed) {
@@ -84,7 +98,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
     <div className="h-full flex">
       {/* ── Icon Rail ── */}
       <div className="w-12 h-full flex flex-col items-center pt-2 pb-3 bg-transparent border-r border-border-default/60 shrink-0">
-        {navItems.map(({ id, icon: Icon, labelKey }) => {
+        {allNavItems.map(({ id, icon: Icon, labelKey }) => {
           const label = t(labelKey);
           const isActive = activeView === id && !panelCollapsed;
           return (
@@ -196,6 +210,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                 {activeView === "collections" && <CollectionsView search={search} expanded={collectionExpanded} setExpanded={setCollectionExpanded} />}
                 {activeView === "history" && <HistoryView search={search} />}
                 {activeView === "environments" && <EnvironmentsView onOpenEnvModal={onOpenEnvModal} />}
+                {activeView === "stats" && <RequestStatsPanel />}
               </motion.div>
             </AnimatePresence>
           </div>

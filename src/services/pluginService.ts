@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { PluginManifest, ProtocolParser, ParseResult } from "@/types/plugin";
+import type { PluginManifest, ProtocolParser, ParseResult, HookResult, GenerateDataResult, ExportResult } from "@/types/plugin";
 
 /** 列出所有已安装插件 */
 export async function listPlugins(): Promise<PluginManifest[]> {
@@ -40,3 +40,19 @@ export async function refreshRegistry(): Promise<number> {
 export async function getPluginIcon(pluginId: string): Promise<string | null> {
   return invoke<string | null>("plugin_get_icon", { pluginId });
 }
+
+/** 执行请求钩子插件 */
+export async function runHook(pluginId: string, requestJson: string): Promise<HookResult> {
+  return invoke<HookResult>("plugin_run_hook", { pluginId, requestJson });
+}
+
+/** 执行数据生成插件 */
+export async function runGenerator(pluginId: string, generatorId: string, optionsJson: string): Promise<GenerateDataResult> {
+  return invoke<GenerateDataResult>("plugin_run_generator", { pluginId, generatorId, optionsJson });
+}
+
+/** 执行导出格式插件 */
+export async function runExport(pluginId: string, requestJson: string): Promise<ExportResult> {
+  return invoke<ExportResult>("plugin_run_export", { pluginId, requestJson });
+}
+

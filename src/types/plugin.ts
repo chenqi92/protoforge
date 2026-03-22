@@ -116,3 +116,24 @@ export interface FontFile {
   style?: string;         // "normal" | "italic"
   format?: string;        // "woff2" | "truetype"
 }
+
+/** 请求钩子执行结果 */
+export interface HookResult {
+  headers: Record<string, string>;
+  queryParams: Record<string, string>;
+  error?: string;
+}
+
+/** 数据生成结果 */
+export interface GenerateDataResult {
+  data: string;
+  error?: string;
+}
+
+/** 导出格式结果 */
+export interface ExportResult {
+  content: string;
+  filename: string;
+  mimeType: string;
+  error?: string;
+}

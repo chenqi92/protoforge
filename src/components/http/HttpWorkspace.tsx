@@ -21,6 +21,7 @@ import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHea
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
 import { buildCollectionItemFromHttpConfig, getCollectionRequestSignatureFromConfig, getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
 import { extractVariableKeys, getVariablePreview, upsertCollectionVariable } from "@/lib/requestVariables";
+import { recordRequestStat } from "@/components/plugins/RequestStatsPanel";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -316,6 +317,17 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
         responseSummary: null,
         createdAt: new Date().toISOString(),
       });
+      // 记录到插件统计面板
+      if (finalResponse) {
+        recordRequestStat({
+          method: config.method,
+          url: config.url,
+          status: finalResponse.status,
+          duration: finalResponse.durationMs,
+          timestamp: Date.now(),
+          size: finalResponse.bodySize,
+        });
+      }
     }
   }, [tabId, config, setLoading, setHttpResponse, setError, handleSseConnect, handleSseDisconnect, isSseConnected, isSseMode, updateHttpConfig]);
 

@@ -1114,7 +1114,21 @@ pub async fn proxy_check_ca_trusted(
 //  Plugins
 // ═══════════════════════════════════════════
 
-use crate::plugin_runtime::{PluginManager, PluginManifest, ProtocolParser, ParseResult, RenderResult};
+use crate::plugin_runtime::{PluginManager, PluginManifest, ProtocolParser, ParseResult, RenderResult, GenerateResult, Hj212Params, HookResult, GenerateDataResult, ExportResult};
+
+// ═══════════════════════════════════════════
+//  HJ212 协议
+// ═══════════════════════════════════════════
+
+#[tauri::command]
+pub fn hj212_parse(raw_data: String) -> ParseResult {
+    crate::builtin_parsers::parse_hj212(&raw_data)
+}
+
+#[tauri::command]
+pub fn hj212_generate(params: Hj212Params) -> Result<GenerateResult, String> {
+    Ok(crate::builtin_parsers::generate_hj212(&params))
+}
 
 #[tauri::command]
 pub async fn plugin_list(
@@ -1184,6 +1198,34 @@ pub async fn plugin_get_icon(
     plugin_id: String,
 ) -> Result<Option<String>, String> {
     Ok(mgr.get_plugin_icon(&plugin_id).await)
+}
+
+#[tauri::command]
+pub async fn plugin_run_hook(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+    request_json: String,
+) -> Result<HookResult, String> {
+    mgr.run_hook(&plugin_id, &request_json).await
+}
+
+#[tauri::command]
+pub async fn plugin_run_generator(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+    generator_id: String,
+    options_json: String,
+) -> Result<GenerateDataResult, String> {
+    mgr.run_generator(&plugin_id, &generator_id, &options_json).await
+}
+
+#[tauri::command]
+pub async fn plugin_run_export(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+    request_json: String,
+) -> Result<ExportResult, String> {
+    mgr.run_export(&plugin_id, &request_json).await
 }
 
 // ═══════════════════════════════════════════
