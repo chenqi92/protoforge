@@ -2183,7 +2183,7 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
         </colgroup>
         <thead>
           <tr>
-            <th className="editor-table-check">
+            <th className="editor-table-check relative">
               <input
                 type="checkbox"
                 checked={selectableFields.length > 0 && selectableFields.every(f => f.enabled)}
@@ -2191,7 +2191,7 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
                   const allEnabled = selectableFields.length > 0 && selectableFields.every(f => f.enabled);
                   onChange(safe.map(f => f.key.trim() ? { ...f, enabled: !allEnabled } : f));
                 }}
-                className="w-3 h-3 rounded accent-accent cursor-pointer"
+                className="w-3 h-3 rounded accent-accent cursor-pointer m-0 align-middle block mx-auto"
                 title={(selectableFields.length > 0 && selectableFields.every(f => f.enabled)) ? t('import.deselectAll') : t('import.selectAll')}
                 disabled={selectableFields.length === 0}
               />
@@ -2206,11 +2206,11 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
         <tbody>
           {safe.map((field, i) => (
             <tr key={i} className="group">
-              <td className="editor-table-check">
+              <td className="editor-table-check relative">
                 {field.key.trim() ? (
-                  <input type="checkbox" checked={field.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer" />
+                  <input type="checkbox" checked={field.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer m-0 align-middle block mx-auto" />
                 ) : (
-                  <span className="editor-table-empty-check" aria-hidden="true" />
+                  <span className="editor-table-empty-check block mx-auto" aria-hidden="true" />
                 )}
               </td>
               <td>
