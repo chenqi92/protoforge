@@ -13,12 +13,20 @@ export interface CapturedEntry {
   responseHeaders: [string, string][];
   requestBody?: string;
   responseBody?: string;
+  /** base64 编码的原始 request body 字节（用于 Hex 视图） */
+  requestBodyRaw?: string;
+  /** base64 编码的原始 response body 字节（用于 Hex 视图） */
+  responseBodyRaw?: string;
   contentType?: string;
+  /** 请求的 Content-Type */
+  requestContentType?: string;
   requestSize: number;
   responseSize: number;
   durationMs: number;
   timestamp: string;
   completed: boolean;
+  /** HTTP 版本 (如 "HTTP/1.1") */
+  httpVersion?: string;
 }
 
 export interface ProxyStatusInfo {

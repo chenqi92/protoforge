@@ -324,42 +324,65 @@ pub async fn open_oauth_window(
 //  抓包内置浏览器
 // ═══════════════════════════════════════════
 
-/// 获取 macOS 当前网络服务名称（Wi-Fi / Ethernet 等）
+/// 查找 Chrome 浏览器路径
 #[cfg(target_os = "macos")]
-fn get_active_network_service() -> Option<String> {
-    // 获取默认网络接口
-    let route_output = std::process::Command::new("route")
-        .args(["get", "default"])
-        .output()
-        .ok()?;
-    let route_str = String::from_utf8_lossy(&route_output.stdout);
-    let interface = route_str.lines()
-        .find(|l| l.contains("interface:"))?
-        .split("interface:")
-        .nth(1)?
-        .trim()
-        .to_string();
-
-    // 从 networksetup 中找到对应的网络服务名
-    let services_output = std::process::Command::new("networksetup")
-        .args(["-listallhardwareports"])
-        .output()
-        .ok()?;
-    let services_str = String::from_utf8_lossy(&services_output.stdout);
-
-    let mut current_service: Option<String> = None;
-    for line in services_str.lines() {
-        if line.starts_with("Hardware Port:") {
-            current_service = line.split(": ").nth(1).map(|s| s.to_string());
+fn find_chrome_path() -> Option<String> {
+    let candidates = [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+        "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    ];
+    for path in &candidates {
+        if std::path::Path::new(path).exists() {
+            return Some(path.to_string());
         }
-        if line.starts_with("Device:") {
-            let device = line.split(": ").nth(1).unwrap_or("").trim();
-            if device == interface {
-                return current_service;
+    }
+    None
+}
+
+#[cfg(target_os = "windows")]
+fn find_chrome_path() -> Option<String> {
+    let candidates = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    ];
+    for path in &candidates {
+        if std::path::Path::new(path).exists() {
+            return Some(path.to_string());
+        }
+    }
+    // 也试试从 PATH 中找 chrome
+    if let Ok(output) = std::process::Command::new("where").arg("chrome").output() {
+        let out = String::from_utf8_lossy(&output.stdout);
+        let first_line = out.lines().next().unwrap_or("").trim();
+        if !first_line.is_empty() && std::path::Path::new(first_line).exists() {
+            return Some(first_line.to_string());
+        }
+    }
+    None
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn find_chrome_path() -> Option<String> {
+    // Linux: try common names
+    for name in &["google-chrome", "chromium-browser", "chromium", "microsoft-edge"] {
+        if let Ok(output) = std::process::Command::new("which").arg(name).output() {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path.is_empty() {
+                return Some(path);
             }
         }
     }
     None
+}
+
+/// 获取代理浏览器临时 profile 目录
+fn proxy_browser_profile_dir() -> String {
+    let dir = std::env::temp_dir().join("protoforge-proxy-browser");
+    dir.to_string_lossy().to_string()
 }
 
 #[tauri::command]
@@ -379,106 +402,79 @@ pub async fn open_proxy_browser(
 
     log::info!("打开代理浏览器: url={}, proxy_port={}", target_url, proxy_port);
 
+    let proxy_arg = format!("--proxy-server=127.0.0.1:{}", proxy_port);
+    let profile_dir = proxy_browser_profile_dir();
+
+    if let Some(chrome_path) = find_chrome_path() {
+        log::info!("使用 Chromium 内核浏览器: {}", chrome_path);
+
+        // 使用 --proxy-server 直接在浏览器层面强制代理
+        // 使用 --user-data-dir 隔离 profile，避免影响正常浏览器
+        // 使用 --ignore-certificate-errors 信任 MITM CA 证书
+        let result = std::process::Command::new(&chrome_path)
+            .arg(&proxy_arg)
+            .arg(format!("--user-data-dir={}", profile_dir))
+            .arg("--ignore-certificate-errors")
+            .arg("--no-first-run")
+            .arg("--no-default-browser-check")
+            .arg(&target_url)
+            .spawn();
+
+        match result {
+            Ok(_child) => {
+                log::info!("Chrome 代理浏览器已启动");
+                Ok("chrome-proxy".to_string())
+            }
+            Err(e) => {
+                log::error!("启动 Chrome 失败: {}, 尝试 fallback", e);
+                fallback_open_browser(&target_url, proxy_port)
+            }
+        }
+    } else {
+        log::warn!("未找到 Chromium 内核浏览器，使用 fallback 方式");
+        fallback_open_browser(&target_url, proxy_port)
+    }
+}
+
+/// Fallback: 使用系统默认浏览器 + 系统代理设置（Safari 等会走系统代理）
+fn fallback_open_browser(target_url: &str, _proxy_port: u16) -> Result<String, String> {
     #[cfg(target_os = "macos")]
     {
-        // macOS: 设置系统代理 → 打开默认浏览器
-        let service = get_active_network_service()
-            .unwrap_or_else(|| "Wi-Fi".to_string());
-
-        log::info!("设置系统代理: service={}, proxy=127.0.0.1:{}", service, proxy_port);
-
-        let port_str = proxy_port.to_string();
-
-        // 设置 HTTP 代理参数
-        let _ = std::process::Command::new("networksetup")
-            .args(["-setwebproxy", &service, "127.0.0.1", &port_str])
-            .output();
-        // 启用 HTTP 代理
-        let _ = std::process::Command::new("networksetup")
-            .args(["-setwebproxystate", &service, "on"])
-            .output();
-        // 设置 HTTPS 代理参数
-        let _ = std::process::Command::new("networksetup")
-            .args(["-setsecurewebproxy", &service, "127.0.0.1", &port_str])
-            .output();
-        // 启用 HTTPS 代理
-        let _ = std::process::Command::new("networksetup")
-            .args(["-setsecurewebproxystate", &service, "on"])
-            .output();
-
-        // 打开默认浏览器
         let _ = std::process::Command::new("open")
-            .arg(&target_url)
+            .arg(target_url)
             .output();
-
-        Ok(service)
+        Ok("fallback".to_string())
     }
 
     #[cfg(target_os = "windows")]
     {
-        let proxy_value = format!("127.0.0.1:{}", proxy_port);
-        let _ = std::process::Command::new("reg")
-            .args([
-                "add",
-                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
-                "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f",
-            ])
-            .output();
-        let _ = std::process::Command::new("reg")
-            .args([
-                "add",
-                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
-                "/v", "ProxyServer", "/t", "REG_SZ", "/d", &proxy_value, "/f",
-            ])
-            .output();
         let _ = std::process::Command::new("cmd")
-            .args(["/c", "start", &target_url])
+            .args(["/c", "start", target_url])
             .output();
-
-        Ok("windows".to_string())
+        Ok("fallback".to_string())
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        Err("当前平台不支持系统代理设置".to_string())
+        let _ = std::process::Command::new("xdg-open")
+            .arg(target_url)
+            .output();
+        Ok("fallback".to_string())
     }
 }
 
-/// 关闭系统代理（在抓包停止时调用）
+/// 清理代理浏览器（在抓包停止时调用）
 #[tauri::command]
 pub async fn close_proxy_browser(
     service_name: String,
 ) -> Result<(), String> {
-    log::info!("恢复系统代理设置: service={}", service_name);
+    log::info!("清理代理浏览器: mode={}", service_name);
 
-    #[cfg(target_os = "macos")]
-    {
-        let _ = std::process::Command::new("networksetup")
-            .args(["-setwebproxystate", &service_name, "off"])
-            .output();
-        let _ = std::process::Command::new("networksetup")
-            .args(["-setsecurewebproxystate", &service_name, "off"])
-            .output();
-        Ok(())
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let _ = std::process::Command::new("reg")
-            .args([
-                "add",
-                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
-                "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f",
-            ])
-            .output();
-        Ok(())
-    }
-
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        let _ = service_name;
-        Ok(())
-    }
+    // 对于 chrome-proxy 模式，无需额外清理（关闭浏览器窗口即可）
+    // 对于 fallback 模式（旧的系统代理方式），也无需恢复系统代理
+    // 因为新实现不再修改系统代理设置
+    let _ = service_name;
+    Ok(())
 }
 
 // ═══════════════════════════════════════════

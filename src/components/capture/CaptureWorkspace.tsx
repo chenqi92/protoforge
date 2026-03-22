@@ -5,7 +5,7 @@ import { useEffect, useCallback, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play, Square, Trash2, Shield, Search,
-  ChevronDown, ChevronRight, ArrowUpDown, X, Lightbulb, Clock, Globe, Zap,
+  ArrowUpDown, X, Lightbulb, Clock, Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -67,15 +67,12 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
   const loadEntries = useCaptureStore(sessionId, (s) => s.loadEntries);
   const exportCaCert = useCaptureStore(sessionId, (s) => s.exportCaCert);
   const initListener = useCaptureStore(sessionId, (s) => s.initListener);
-  const testConnection = useCaptureStore(sessionId, (s) => s.testConnection);
   const storeError = useCaptureStore(sessionId, (s) => s.error);
 
   const [portInput, setPortInput] = useState(String(port));
   const [caPath, setCaPath] = useState<string | null>(null);
   const [caInstallStatus, setCaInstallStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [caTrusted, setCaTrusted] = useState<boolean | null>(null); // null = 未检查
-  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [testing, setTesting] = useState(false);
   const listEndRef = useRef<HTMLDivElement>(null);
 
   // 检查 CA 是否已信任
@@ -132,39 +129,26 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
 
   const handleToggleCapture = useCallback(async () => {
     if (running) {
-      // 停止抓包时恢复系统代理
+      // 停止抓包时清理浏览器
       if (proxyServiceRef.current) {
         try {
           await invoke("close_proxy_browser", { serviceName: proxyServiceRef.current });
         } catch (e) {
-          console.warn("恢复系统代理失败:", e);
+          console.warn("清理代理浏览器失败:", e);
         }
         proxyServiceRef.current = null;
       }
       await stopCapture();
-      setTestResult(null);
     } else {
       const p = parseInt(portInput, 10);
       if (isNaN(p) || p < 1 || p > 65535) return;
       try {
         await startCapture(p);
-        // 启动后自动测试代理连通性
-        setTimeout(async () => {
-          try {
-            setTesting(true);
-            const msg = await testConnection();
-            setTestResult({ ok: true, msg });
-          } catch (e) {
-            setTestResult({ ok: false, msg: String(e) });
-          } finally {
-            setTesting(false);
-          }
-        }, 500);
       } catch (e) {
         console.error("启动代理失败:", e);
       }
     }
-  }, [running, portInput, startCapture, stopCapture, testConnection]);
+  }, [running, portInput, startCapture, stopCapture]);
 
   const handleExportCA = useCallback(async () => {
     try {
@@ -300,44 +284,19 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
         </div>
       </div>
 
-      {/* 错误/测试结果面板 */}
+      {/* 错误面板 */}
       <AnimatePresence>
-        {(storeError || testResult || testing) && (
+        {storeError && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            {storeError && (
-              <div className="mt-2 rounded-[10px] border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-[var(--fs-xs)] text-red-600 flex items-center gap-2">
-                <X className="w-3.5 h-3.5 shrink-0" />
-                <span className="min-w-0 break-all">{storeError}</span>
-              </div>
-            )}
-            {testing && !storeError && (
-              <div className="mt-2 rounded-[10px] border border-accent/20 bg-accent/5 px-4 py-2.5 text-[var(--fs-xs)] text-accent flex items-center gap-2">
-                <Zap className="w-3.5 h-3.5 shrink-0 animate-pulse" />
-                <span>{t('capture.testingProxy')}</span>
-              </div>
-            )}
-            {testResult && !storeError && !testing && (
-              <div className={cn(
-                "mt-2 rounded-[10px] border px-4 py-2.5 text-[var(--fs-xs)] flex items-center gap-2",
-                testResult.ok
-                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
-                  : "border-orange-500/20 bg-orange-500/10 text-orange-600"
-              )}>
-                <Zap className="w-3.5 h-3.5 shrink-0" />
-                <span className="min-w-0 break-all">{testResult.msg}</span>
-                <button
-                  onClick={() => setTestResult(null)}
-                  className="ml-auto shrink-0 text-text-tertiary hover:text-text-primary transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            )}
+            <div className="mt-2 rounded-[10px] border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-[var(--fs-xs)] text-red-600 flex items-center gap-2">
+              <X className="w-3.5 h-3.5 shrink-0" />
+              <span className="min-w-0 break-all">{storeError}</span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -464,9 +423,9 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
                 <span className="w-[70px] shrink-0 text-right">{t('capture.size')}</span>
                 <span className="w-[70px] shrink-0 text-right">{t('capture.duration')}</span>
               </div>
-              {/* 请求列表 */}
+              {/* 请求列表 — 倒序排列，最新在最上方 */}
               <div className="flex-1 overflow-auto">
-                {filteredEntries.map((entry) => (
+                {[...filteredEntries].reverse().map((entry) => (
                   <RequestRow
                     key={entry.id}
                     entry={entry}
@@ -618,11 +577,11 @@ function RequestRow({
   );
 }
 
-// ── 详情面板 ──
+// ── Burp Suite 风格详情面板 ──
+type BurpTab = "raw" | "headers" | "hex";
+
 function DetailPanel({
   entry,
-  activeTab,
-  onTabChange,
   onClose,
   embedded = false,
 }: {
@@ -632,46 +591,30 @@ function DetailPanel({
   onClose: () => void;
   embedded?: boolean;
 }) {
-  const tabs = [
-    { id: "headers" as const, label: "Headers" },
-    { id: "body" as const, label: "Body" },
-    { id: "preview" as const, label: "Preview" },
-  ];
+  const [reqTab, setReqTab] = useState<BurpTab>("raw");
+  const [resTab, setResTab] = useState<BurpTab>("raw");
 
   return (
     <div className={cn("h-full flex flex-col overflow-hidden bg-bg-primary", !embedded && "wb-panel")}>
-      {/* 详情头部 */}
-      <div className={cn("shrink-0", embedded ? "wb-pane-header" : "wb-panel-header")}>
-      <div className="flex items-center gap-0.5 px-3">
-        {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={cn(
-                "h-8 px-3 text-[var(--fs-xs)] font-medium transition-colors relative",
-                activeTab === tab.id
-                  ? "text-accent"
-                  : "text-text-tertiary hover:text-text-secondary"
-              )}
-            >
-              {tab.label}
-              {activeTab === tab.id && (
-                <motion.div
-                  layoutId="detail-tab-indicator"
-                  className="absolute bottom-0 left-2 right-2 h-[2px] bg-accent"
-                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                />
-              )}
-            </button>
-          ))}
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-2 px-3 text-[var(--fs-xxs)] text-text-disabled">
-          <span className={cn("font-mono font-medium", statusColor(entry.status))}>
+      {/* 顶部状态栏 */}
+      <div className={cn("shrink-0 flex items-center justify-between", embedded ? "wb-pane-header" : "wb-panel-header")}>
+        <div className="flex items-center gap-2 text-[var(--fs-xs)]">
+          <span className={cn("font-mono font-bold px-1.5 py-[1px] rounded-[6px]",
+            methodColors[entry.method]?.text || "text-text-tertiary",
+            methodColors[entry.method]?.bg || "bg-gray-500/10"
+          )}>
+            {entry.method}
+          </span>
+          <span className="font-mono text-[var(--fs-xxs)] text-text-secondary truncate max-w-[400px]" title={entry.url}>
+            {entry.url}
+          </span>
+          <span className={cn("font-mono text-[var(--fs-xxs)] font-medium", statusColor(entry.status))}>
             {entry.status} {entry.statusText}
           </span>
-          <span>·</span>
-          <span className="font-mono">{formatDuration(entry.durationMs)}</span>
+          <span className="text-text-disabled text-[var(--fs-xxs)]">·</span>
+          <span className="font-mono text-[var(--fs-xxs)] text-text-disabled">{formatDuration(entry.durationMs)}</span>
+          <span className="text-text-disabled text-[var(--fs-xxs)]">·</span>
+          <span className="font-mono text-[var(--fs-xxs)] text-text-disabled">{formatSize(entry.responseSize)}</span>
         </div>
         <button
           onClick={onClose}
@@ -681,213 +624,226 @@ function DetailPanel({
         </button>
       </div>
 
-      {/* 详情内容 */}
-      <div className="flex-1 overflow-auto p-3">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.1 }}
-          >
-            {activeTab === "headers" && <HeadersView entry={entry} />}
-            {activeTab === "body" && <BodyView entry={entry} />}
-            {activeTab === "preview" && <PreviewView entry={entry} />}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
-// ── Headers 视图 ──
-function HeadersView({ entry }: { entry: CapturedEntry }) {
-  const [showReqHeaders, setShowReqHeaders] = useState(true);
-  const [showResHeaders, setShowResHeaders] = useState(true);
-
-  return (
-    <div className="space-y-3">
-      {/* 概要 */}
-      <div className="text-[var(--fs-xs)] space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="text-text-disabled w-16 shrink-0">URL</span>
-          <span className="font-mono text-text-primary break-all text-[var(--fs-xxs)]">{entry.url}</span>
+      {/* 左右分栏：Request | Response */}
+      <div className="flex-1 flex min-h-0">
+        {/* Request 面板 */}
+        <div className="flex-1 flex flex-col min-w-0 border-r border-border-subtle">
+          <BurpTabStrip label="Request" activeTab={reqTab} onChange={setReqTab} color="text-orange-500" />
+          <div className="flex-1 overflow-auto">
+            {reqTab === "raw" && <RawView type="request" entry={entry} />}
+            {reqTab === "headers" && <HeadersTableView headers={entry.requestHeaders} />}
+            {reqTab === "hex" && <HexView data={entry.requestBodyRaw} />}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-text-disabled w-16 shrink-0">Method</span>
-          <span className="font-mono text-text-primary">{entry.method}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-text-disabled w-16 shrink-0">Status</span>
-          <span className={cn("font-mono font-medium", statusColor(entry.status))}>
-            {entry.status ? `${entry.status} ${entry.statusText || ""}` : "Pending"}
-          </span>
+        {/* Response 面板 */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <BurpTabStrip label="Response" activeTab={resTab} onChange={setResTab} color="text-emerald-500" />
+          <div className="flex-1 overflow-auto">
+            {resTab === "raw" && <RawView type="response" entry={entry} />}
+            {resTab === "headers" && <HeadersTableView headers={entry.responseHeaders} />}
+            {resTab === "hex" && <HexView data={entry.responseBodyRaw} />}
+          </div>
         </div>
       </div>
-
-      <div className="h-[1px] bg-border-subtle" />
-
-      {/* 请求头 */}
-      <HeaderSection
-        title="Request Headers"
-        headers={entry.requestHeaders}
-        expanded={showReqHeaders}
-        onToggle={() => setShowReqHeaders(!showReqHeaders)}
-      />
-
-      {/* 响应头 */}
-      {entry.responseHeaders.length > 0 && (
-        <HeaderSection
-          title="Response Headers"
-          headers={entry.responseHeaders}
-          expanded={showResHeaders}
-          onToggle={() => setShowResHeaders(!showResHeaders)}
-        />
-      )}
     </div>
   );
 }
 
-function HeaderSection({
-  title,
-  headers,
-  expanded,
-  onToggle,
-}: {
-  title: string;
-  headers: [string, string][];
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <div className="border-t border-border-default/70 pt-3">
-      <button
-        onClick={onToggle}
-        className="mb-1 flex items-center gap-1.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:text-text-primary"
-      >
-        {expanded ? (
-          <ChevronDown className="w-3 h-3" />
-        ) : (
-          <ChevronRight className="w-3 h-3" />
-        )}
-        {title}
-        <span className="text-text-disabled font-normal normal-case tracking-normal">
-          ({headers.length})
-        </span>
-      </button>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="overflow-hidden"
-          >
-            <div className="overflow-hidden rounded-[8px] border border-border-default/65 bg-bg-secondary/28">
-              {headers.map(([key, value], i) => (
-                <div
-                  key={`${key}-${i}`}
-                  className={cn(
-                    "flex text-[var(--fs-xxs)] font-mono px-2.5 py-1",
-                    i > 0 && "border-t border-border-subtle/50"
-                  )}
-                >
-                  <span className="text-accent/80 w-[180px] shrink-0 font-medium">{key}</span>
-                  <span className="text-text-secondary break-all min-w-0">{value}</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ── Body 视图 ──
-function BodyView({ entry }: { entry: CapturedEntry }) {
-  const { t } = useTranslation();
-  return (
-    <div className="space-y-4">
-      {entry.requestBody ? (
-        <div className="border-t border-border-default/70 pt-3">
-          <h4 className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-disabled">Request Body</h4>
-          <pre className="max-h-[200px] overflow-auto rounded-[8px] border border-border-default/65 bg-bg-secondary/28 p-3 text-[var(--fs-xxs)] font-mono text-text-secondary whitespace-pre-wrap break-all">
-            {entry.requestBody}
-          </pre>
-        </div>
-      ) : (
-        <div className="border-t border-border-default/70 pt-3 text-[var(--fs-xs)] text-text-disabled">
-          <h4 className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider">Request Body</h4>
-          <p>{t('capture.noRequestBody')}</p>
-        </div>
-      )}
-      {entry.responseBody ? (
-        <div className="border-t border-border-default/70 pt-3">
-          <h4 className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-disabled">Response Body</h4>
-          <pre className="max-h-[300px] overflow-auto rounded-[8px] border border-border-default/65 bg-bg-secondary/28 p-3 text-[var(--fs-xxs)] font-mono text-text-secondary whitespace-pre-wrap break-all">
-            {entry.responseBody}
-          </pre>
-        </div>
-      ) : (
-        <div className="border-t border-border-default/70 pt-3 text-[var(--fs-xs)] text-text-disabled">
-          <h4 className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider">Response Body</h4>
-          <p>{t('capture.bodyNotSupported')}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Preview 视图 ──
-function PreviewView({ entry }: { entry: CapturedEntry }) {
-  return (
-    <div className="space-y-2 text-[var(--fs-xs)]">
-      <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-        <InfoRow label="URL" value={entry.url} mono />
-        <InfoRow label="Host" value={entry.host} mono />
-        <InfoRow label="Path" value={entry.path} mono />
-        <InfoRow label="Method" value={entry.method} />
-        <InfoRow
-          label="Status"
-          value={entry.status ? `${entry.status} ${entry.statusText || ""}` : "Pending"}
-          className={statusColor(entry.status)}
-        />
-        <InfoRow label="Content-Type" value={entry.contentType || "—"} />
-        <InfoRow label="Request Size" value={formatSize(entry.requestSize)} />
-        <InfoRow label="Response Size" value={formatSize(entry.responseSize)} />
-        <InfoRow label="Duration" value={formatDuration(entry.durationMs)} />
-        <InfoRow label="Timestamp" value={entry.timestamp} mono />
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({
+// ── Tab 条 ──
+function BurpTabStrip({
   label,
-  value,
-  mono,
-  className,
+  activeTab,
+  onChange,
+  color,
 }: {
   label: string;
-  value: string;
-  mono?: boolean;
-  className?: string;
+  activeTab: BurpTab;
+  onChange: (tab: BurpTab) => void;
+  color: string;
 }) {
+  const tabs: { id: BurpTab; label: string }[] = [
+    { id: "raw", label: "Raw" },
+    { id: "headers", label: "Headers" },
+    { id: "hex", label: "Hex" },
+  ];
+
   return (
-    <div className="flex items-start gap-2">
-      <span className="text-text-disabled w-24 shrink-0 text-[var(--fs-xxs)]">{label}</span>
-      <span
-        className={cn(
-          "text-text-secondary break-all text-[var(--fs-xxs)]",
-          mono && "font-mono",
-          className
-        )}
-      >
-        {value}
-      </span>
+    <div className="shrink-0 flex items-center gap-0.5 border-b border-border-subtle px-2 h-8 bg-bg-secondary/30">
+      <span className={cn("text-[var(--fs-xs)] font-bold mr-2", color)}>{label}</span>
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => onChange(tab.id)}
+          className={cn(
+            "h-full px-2.5 text-[var(--fs-xxs)] font-medium transition-colors relative",
+            activeTab === tab.id
+              ? "text-text-primary"
+              : "text-text-disabled hover:text-text-secondary"
+          )}
+        >
+          {tab.label}
+          {activeTab === tab.id && (
+            <div className="absolute bottom-0 left-1 right-1 h-[2px] bg-accent rounded-full" />
+          )}
+        </button>
+      ))}
     </div>
+  );
+}
+
+// ── Raw 视图 — 完整 HTTP 报文 ──
+function RawView({ type, entry }: { type: "request" | "response"; entry: CapturedEntry }) {
+  const isRequest = type === "request";
+
+  // 构建 HTTP 报文
+  const buildRaw = () => {
+    const lines: string[] = [];
+
+    if (isRequest) {
+      // 请求行
+      const pathAndQuery = (() => {
+        try {
+          const u = new URL(entry.url);
+          return u.pathname + u.search;
+        } catch {
+          return entry.path || "/";
+        }
+      })();
+      const httpVer = entry.httpVersion?.replace("HTTP_", "HTTP/").replace("_", ".") || "HTTP/1.1";
+      lines.push(`${entry.method} ${pathAndQuery} ${httpVer}`);
+      // 请求头
+      for (const [key, value] of entry.requestHeaders) {
+        lines.push(`${key}: ${value}`);
+      }
+      // 空行 + body
+      lines.push("");
+      if (entry.requestBody) {
+        lines.push(entry.requestBody);
+      }
+    } else {
+      // 状态行
+      const httpVer = entry.httpVersion?.replace("HTTP_", "HTTP/").replace("_", ".") || "HTTP/1.1";
+      lines.push(`${httpVer} ${entry.status || "?"} ${entry.statusText || ""}`);
+      // 响应头
+      for (const [key, value] of entry.responseHeaders) {
+        lines.push(`${key}: ${value}`);
+      }
+      // 空行 + body
+      lines.push("");
+      if (entry.responseBody) {
+        lines.push(entry.responseBody);
+      }
+    }
+
+    return lines.join("\n");
+  };
+
+  const raw = buildRaw();
+
+  return (
+    <pre
+      className="p-3 text-[var(--fs-xxs)] font-mono text-text-secondary whitespace-pre-wrap break-all select-text leading-[1.6] cursor-text"
+      style={{ userSelect: "text", WebkitUserSelect: "text" }}
+    >
+      {raw || <span className="text-text-disabled italic">Empty</span>}
+    </pre>
+  );
+}
+
+// ── Headers 表格视图 ──
+function HeadersTableView({ headers }: { headers: [string, string][] }) {
+  if (headers.length === 0) {
+    return (
+      <div className="p-4 text-center text-text-disabled text-[var(--fs-xs)]">
+        No headers
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden">
+      {headers.map(([key, value], i) => (
+        <div
+          key={`${key}-${i}`}
+          className={cn(
+            "flex text-[var(--fs-xxs)] font-mono px-3 py-1.5 select-text cursor-text",
+            i > 0 && "border-t border-border-subtle/50",
+            i % 2 === 0 ? "bg-transparent" : "bg-bg-secondary/20"
+          )}
+          style={{ userSelect: "text", WebkitUserSelect: "text" }}
+        >
+          <span className="text-accent/80 w-[180px] shrink-0 font-semibold">{key}</span>
+          <span className="text-text-secondary break-all min-w-0">{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Hex 视图 — 经典十六进制 dump ──
+function HexView({ data }: { data?: string }) {
+  if (!data) {
+    return (
+      <div className="p-4 text-center text-text-disabled text-[var(--fs-xs)]">
+        No body data
+      </div>
+    );
+  }
+
+  // base64 → bytes
+  const bytes = (() => {
+    try {
+      const binary = atob(data);
+      const arr = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        arr[i] = binary.charCodeAt(i);
+      }
+      return arr;
+    } catch {
+      return new Uint8Array(0);
+    }
+  })();
+
+  // 生成 hex dump 行
+  const lines: string[] = [];
+  const bytesPerLine = 16;
+  const maxBytes = Math.min(bytes.length, 64 * 1024); // 限制最大 64KB 展示
+
+  for (let offset = 0; offset < maxBytes; offset += bytesPerLine) {
+    const chunk = bytes.slice(offset, offset + bytesPerLine);
+
+    // 偏移量
+    const offsetStr = offset.toString(16).padStart(8, "0");
+
+    // Hex 部分
+    const hexParts: string[] = [];
+    for (let i = 0; i < bytesPerLine; i++) {
+      if (i < chunk.length) {
+        hexParts.push(chunk[i].toString(16).padStart(2, "0"));
+      } else {
+        hexParts.push("  ");
+      }
+    }
+    const hexStr = hexParts.slice(0, 8).join(" ") + "  " + hexParts.slice(8).join(" ");
+
+    // ASCII 部分
+    const asciiStr = Array.from(chunk)
+      .map((b) => (b >= 0x20 && b <= 0x7e ? String.fromCharCode(b) : "."))
+      .join("");
+
+    lines.push(`${offsetStr}  ${hexStr}  |${asciiStr.padEnd(bytesPerLine, " ")}|`);
+  }
+
+  if (bytes.length > maxBytes) {
+    lines.push(`... (${bytes.length - maxBytes} more bytes truncated)`);
+  }
+
+  return (
+    <pre
+      className="p-3 text-[var(--fs-xxs)] font-mono text-text-secondary leading-[1.6] select-text cursor-text whitespace-pre"
+      style={{ userSelect: "text", WebkitUserSelect: "text" }}
+    >
+      {lines.join("\n")}
+    </pre>
   );
 }

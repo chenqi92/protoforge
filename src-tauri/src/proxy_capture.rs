@@ -9,6 +9,8 @@ use hudsucker::{
     rustls::crypto::aws_lc_rs,
     *,
 };
+use http_body_util::{BodyExt, Full, Empty};
+use base64::Engine as _;
 use http::uri::Uri;
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
@@ -39,12 +41,20 @@ pub struct CapturedEntry {
     pub response_headers: Vec<(String, String)>,
     pub request_body: Option<String>,
     pub response_body: Option<String>,
+    /// base64 编码的原始 request body 字节（用于 Hex 视图）
+    pub request_body_raw: Option<String>,
+    /// base64 编码的原始 response body 字节（用于 Hex 视图）
+    pub response_body_raw: Option<String>,
     pub content_type: Option<String>,
+    /// 请求的 Content-Type
+    pub request_content_type: Option<String>,
     pub request_size: usize,
     pub response_size: usize,
     pub duration_ms: u64,
     pub timestamp: String,
     pub completed: bool,
+    /// HTTP 版本 (如 "HTTP/1.1")
+    pub http_version: Option<String>,
 }
 
 /// 代理状态信息（返回给前端查询）
@@ -119,8 +129,12 @@ struct RequestMeta {
     host: String,
     path: String,
     request_headers: Vec<(String, String)>,
+    request_body_text: Option<String>,
+    request_body_raw: Option<String>,
+    request_content_type: Option<String>,
     request_body_size: usize,
     start_time: std::time::Instant,
+    http_version: String,
 }
 
 /// hudsucker 为每个请求/响应对克隆 handler 实例
@@ -190,6 +204,7 @@ impl HttpHandler for CaptureHandler {
 
         let host = extract_host(&url);
         let path = extract_path(&url);
+        let http_version = format!("{:?}", req.version());
 
         // 提取请求头
         let request_headers: Vec<(String, String)> = req
@@ -198,14 +213,40 @@ impl HttpHandler for CaptureHandler {
             .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("<binary>").to_string()))
             .collect();
 
-        let request_body_size = req
+        let request_content_type = req
             .headers()
-            .get("content-length")
+            .get("content-type")
             .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.parse::<usize>().ok())
-            .unwrap_or(0);
+            .map(|s| s.to_string());
 
         let entry_id = uuid::Uuid::new_v4().to_string();
+
+        // 读取请求 body（限制最大 2MB 避免内存爆炸）
+        let (req_body_text, req_body_raw, req_body_size, new_req) = {
+            let (parts, body) = req.into_parts();
+            match body.collect().await {
+                Ok(collected) => {
+                    let bytes = collected.to_bytes();
+                    let size = bytes.len();
+                    let raw_b64 = if size > 0 && size <= 2 * 1024 * 1024 {
+                        Some(base64::engine::general_purpose::STANDARD.encode(&bytes))
+                    } else {
+                        None
+                    };
+                    let text = if size > 0 && size <= 2 * 1024 * 1024 {
+                        String::from_utf8(bytes.to_vec()).ok()
+                    } else {
+                        None
+                    };
+                    let new_body = Body::from(Full::new(bytes));
+                    (text, raw_b64, size, Request::from_parts(parts, new_body))
+                }
+                Err(_) => {
+                    let new_body = Body::from(Empty::new());
+                    (None, None, 0, Request::from_parts(parts, new_body))
+                }
+            }
+        };
 
         // 先推送"请求进行中"状态给前端
         let pending_entry = CapturedEntry {
@@ -221,12 +262,16 @@ impl HttpHandler for CaptureHandler {
             response_headers: vec![],
             request_body: None,
             response_body: None,
+            request_body_raw: None,
+            response_body_raw: None,
             content_type: None,
-            request_size: request_body_size,
+            request_content_type: request_content_type.clone(),
+            request_size: req_body_size,
             response_size: 0,
             duration_ms: 0,
             timestamp: now_iso(),
             completed: false,
+            http_version: Some(http_version.clone()),
         };
 
         log::info!("[CAPTURE] 推送 pending entry: id={}, session={}, url={}", entry_id, self.session_id, url);
@@ -243,12 +288,16 @@ impl HttpHandler for CaptureHandler {
             host,
             path,
             request_headers,
-            request_body_size,
+            request_body_text: req_body_text,
+            request_body_raw: req_body_raw,
+            request_content_type,
+            request_body_size: req_body_size,
             start_time: std::time::Instant::now(),
+            http_version,
         };
         *self.current_request.lock().await = Some(meta);
 
-        req.into()
+        new_req.into()
     }
 
     async fn handle_response(
@@ -275,12 +324,32 @@ impl HttpHandler for CaptureHandler {
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_string());
 
-        let response_size = res
-            .headers()
-            .get("content-length")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.parse::<usize>().ok())
-            .unwrap_or(0);
+        // 读取响应 body（限制最大 2MB）
+        let (res_body_text, res_body_raw, response_size, new_res) = {
+            let (parts, body) = res.into_parts();
+            match body.collect().await {
+                Ok(collected) => {
+                    let bytes = collected.to_bytes();
+                    let size = bytes.len();
+                    let raw_b64 = if size > 0 && size <= 2 * 1024 * 1024 {
+                        Some(base64::engine::general_purpose::STANDARD.encode(&bytes))
+                    } else {
+                        None
+                    };
+                    let text = if size > 0 && size <= 2 * 1024 * 1024 {
+                        String::from_utf8(bytes.to_vec()).ok()
+                    } else {
+                        None
+                    };
+                    let new_body = Body::from(Full::new(bytes));
+                    (text, raw_b64, size, Response::from_parts(parts, new_body))
+                }
+                Err(_) => {
+                    let new_body = Body::from(Empty::new());
+                    (None, None, 0, Response::from_parts(parts, new_body))
+                }
+            }
+        };
 
         // 取出当前实例的请求元数据
         let meta_opt = self.current_request.lock().await.take();
@@ -299,14 +368,18 @@ impl HttpHandler for CaptureHandler {
                 status_text: Some(status_text),
                 request_headers: meta.request_headers,
                 response_headers,
-                request_body: None,
-                response_body: None,
+                request_body: meta.request_body_text,
+                response_body: res_body_text,
+                request_body_raw: meta.request_body_raw,
+                response_body_raw: res_body_raw,
                 content_type,
+                request_content_type: meta.request_content_type,
                 request_size: meta.request_body_size,
                 response_size,
                 duration_ms,
                 timestamp: now_iso(),
                 completed: true,
+                http_version: Some(meta.http_version),
             };
 
             log::info!("[CAPTURE] 推送 completed entry: id={}, session={}, status={}, url={}", entry.id, self.session_id, status, entry.url);
@@ -324,7 +397,7 @@ impl HttpHandler for CaptureHandler {
             entries.push_back(entry);
         }
 
-        res
+        new_res
     }
 }
 

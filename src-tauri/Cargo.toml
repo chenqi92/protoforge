@@ -39,6 +39,7 @@ futures-util = "0.3"
 hudsucker = { version = "0.24", features = ["rcgen-ca"] }
 rcgen = "0.14"
 http = "1"
+http-body-util = "0.1"
 bytes = "1"
 boa_engine = "0.20"
 boa_runtime = "0.20"

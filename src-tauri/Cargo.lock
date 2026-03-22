@@ -4349,7 +4349,7 @@ dependencies = [
 
 [[package]]
 name = "protoforge"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "boa_engine",
@@ -4360,6 +4360,7 @@ dependencies = [
  "flate2",
  "futures-util",
  "http",
+ "http-body-util",
  "hudsucker",
  "log",
  "rcgen",
