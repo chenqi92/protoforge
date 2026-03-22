@@ -96,6 +96,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
+          # 明确使用 npx 而非自动检测的 pnpm，避免 Windows 上 pnpm 未安装导致失败
+          tauriScript: npx tauri
           args: --target ${{ matrix.target }}
           # 不让 tauri-action 自动创建 release，由后续 job 统一处理
           tagName: ""
