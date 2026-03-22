@@ -46,6 +46,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
   // 初始化数据
   const fetchCollections = useCollectionStore((s) => s.fetchCollections);
   const fetchHistory = useHistoryStore((s) => s.fetchHistory);
+  const hasHistoryItems = useHistoryStore((s) => s.entries.length > 0);
   const fetchEnvironments = useEnvStore((s) => s.fetchEnvironments);
   const createCollection = useCollectionStore((s) => s.createCollection);
   const createEnvironment = useEnvStore((s) => s.createEnvironment);
@@ -155,6 +156,16 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                   >
                     <Plus className="w-3.5 h-3.5" />
                     {t('sidebar.add')}
+                  </button>
+                )}
+                {activeView === "history" && hasHistoryItems && (
+                  <button
+                    onClick={() => useHistoryStore.getState().clearAll()}
+                    className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
+                    title={t('sidebar.clearAll', '清空历史')}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {t('sidebar.clearAll', '清空')}
                   </button>
                 )}
               </div>
@@ -960,6 +971,19 @@ function HistoryView({ search }: { search: string }) {
     return d.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
+  const parseUrl = (urlString: string) => {
+    try {
+      const u = new URL(urlString.includes('://') ? urlString : `http://${urlString}`);
+      let pathAndQuery = u.pathname + u.search;
+      if (pathAndQuery === '/' || !pathAndQuery) {
+        pathAndQuery = '/';
+      }
+      return { path: pathAndQuery, origin: u.origin.replace(/^https?:\/\//, '') };
+    } catch {
+      return { path: urlString, origin: "" };
+    }
+  };
+
   return (
     <div className="py-0.5">
       {groups.map((group) => (
@@ -969,38 +993,61 @@ function HistoryView({ search }: { search: string }) {
           </div>
           {group.items.map((h) => {
             const color = methodColors[h.method] || { text: "text-text-tertiary", bg: "" };
+            const { path, origin } = parseUrl(h.url);
+            
             return (
               <button
                 key={h.id}
                 onClick={() => handleOpenHistoryEntry(h)}
                 onContextMenu={(e) => handleHistoryContextMenu(e, h)}
-                className="w-full flex items-center gap-1.5 px-2 py-[4px] rounded-md text-[var(--fs-3xs)] hover:bg-bg-hover transition-colors group text-left"
+                className="w-full flex items-center justify-between px-2 py-[5px] rounded-md hover:bg-bg-hover transition-colors group text-left gap-2"
               >
-                <span className={cn(
-                  "text-[var(--fs-3xs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[28px] text-center",
-                  color.text, color.bg
-                )}>
-                  {h.method}
-                </span>
-                <span className="truncate font-mono text-[var(--fs-3xs)] text-text-tertiary flex-1 text-left">{h.url}</span>
-                {h.status && (
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <span className={cn(
-                    "text-[var(--fs-3xs)] shrink-0 tabular-nums font-medium",
-                    h.status < 400 ? "text-emerald-600" : "text-red-500"
+                    "text-[var(--fs-3xs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[28px] text-center",
+                    color.text, color.bg
                   )}>
-                    {h.status}
+                    {h.method}
                   </span>
+                  <div className="flex items-center min-w-0 font-mono text-[var(--fs-sidebar-sm)] flex-1">
+                    {origin ? (
+                      <>
+                        <span className="text-accent hidden group-hover:block truncate shrink-0 max-w-full pr-0.5">
+                          {origin}
+                        </span>
+                        <span className="text-text-primary font-medium truncate shrink">
+                          {path}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-text-primary font-medium truncate shrink">
+                        {path}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {(h.status || h.createdAt) && (
+                  <div className="flex items-center shrink-0 gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                    {h.status ? (
+                      <span className={cn(
+                        "text-[var(--fs-3xs)] tabular-nums font-bold",
+                        h.status < 400 ? "text-emerald-500" : "text-red-500"
+                      )}>
+                        {h.status}
+                      </span>
+                    ) : null}
+                    <span className="text-[var(--fs-[10px])] text-text-disabled hidden group-hover:inline pr-0.5">
+                      {formatTime(h.createdAt)}
+                    </span>
+                  </div>
                 )}
-                <span className="text-[var(--fs-3xs)] text-text-disabled shrink-0 hidden group-hover:inline">
-                  {formatTime(h.createdAt)}
-                </span>
               </button>
             );
           })}
         </div>
       ))}
       {filtered.length === 0 && (
-        <div className="flex flex-col items-start py-16 px-4">
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
           <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] border border-border-subtle bg-bg-hover shadow-sm">
             <Clock className="w-6 h-6 text-text-tertiary" />
           </div>
