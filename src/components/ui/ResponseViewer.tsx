@@ -79,9 +79,9 @@ function HexView({ data }: { data: string }) {
   }, [data]);
 
   return (
-    <div className="selectable overflow-x-auto font-mono text-[11px] leading-[18px]">
+    <div className="selectable overflow-x-auto font-mono leading-[18px]" style={{ fontSize: 'var(--fs-xs)' }}>
       <div className="min-w-[620px]">
-        <div className="mb-2 grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[10px] border border-border-default/70 bg-bg-secondary/30 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+        <div className="mb-2 grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[10px] border border-border-default/70 bg-bg-secondary/30 px-2 py-2 font-semibold uppercase tracking-[0.08em] text-text-tertiary" style={{ fontSize: 'var(--fs-xxs)' }}>
           <span>Offset</span>
           <span>Hex</span>
           <span>ASCII</span>
@@ -94,7 +94,7 @@ function HexView({ data }: { data: string }) {
           </div>
         ))}
         {data.length > 4096 && (
-          <div className="mt-2 text-[10px] italic text-text-disabled">
+          <div className="mt-2 italic text-text-disabled" style={{ fontSize: 'var(--fs-xxs)' }}>
             {t('response.truncated', { total: data.length })}
           </div>
         )}
@@ -113,8 +113,10 @@ export function ReadonlyCodeBlock({
   minHeightClassName?: string;
 }) {
   return (
-    <div className={cn("overflow-hidden rounded-[12px] border border-border-default/70 bg-bg-primary", minHeightClassName)}>
-      <CodeEditor value={value} language={language} readOnly height="360px" />
+    <div className={cn("flex flex-col overflow-hidden rounded-[12px] border border-border-default/70 bg-bg-primary h-full", minHeightClassName)}>
+      <div className="flex-1 min-h-0">
+        <CodeEditor value={value} language={language} readOnly height="100%" />
+      </div>
     </div>
   );
 }
@@ -301,7 +303,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                     console.warn('保存失败:', e);
                   }
                 }}
-                className="h-6 px-2 flex items-center gap-1 rounded-md text-text-tertiary hover:bg-bg-hover transition-colors text-[11px]"
+                className="h-6 px-2 flex items-center gap-1 rounded-md text-text-tertiary hover:bg-bg-hover transition-colors" style={{ fontSize: 'var(--fs-xs)' }}
                 title="另存为"
               >
                 <Download className="w-3 h-3" />
@@ -341,11 +343,11 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder={t('response.searchPlaceholder')}
-            className="flex-1 h-6 text-[12px] bg-transparent outline-none text-text-primary placeholder:text-text-tertiary"
+            className="flex-1 h-6 bg-transparent outline-none text-text-primary placeholder:text-text-tertiary" style={{ fontSize: 'var(--fs-sm)' }}
             autoFocus
           />
           {searchText && (
-            <span className="text-[10px] text-text-disabled tabular-nums shrink-0">
+            <span className="text-text-disabled tabular-nums shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
               {t('response.matchCount', { count: searchCount })}
             </span>
           )}
@@ -353,19 +355,21 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto bg-[linear-gradient(180deg,rgba(148,163,184,0.05),transparent_22%)] px-3 py-2" style={{ userSelect: 'text' }}>
-        <div className="min-h-full py-0">
+      <div className="flex-1 min-h-0 overflow-auto bg-[linear-gradient(180deg,rgba(148,163,184,0.05),transparent_22%)] px-3 py-2" style={{ userSelect: 'text' }}>
+        <div className="h-full py-0">
           {activeBuiltinMode === 'json' && (
-            <div className="space-y-2">
+            <div className="flex flex-col h-full gap-2">
               {jsonData === null ? (
-                <div className="rounded-[10px] border border-amber-300/60 bg-amber-500/8 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">
+                <div className="rounded-[10px] border border-amber-300/60 bg-amber-500/8 px-3 py-2 text-amber-700 dark:text-amber-300 shrink-0" style={{ fontSize: 'var(--fs-xs)' }}>
                   {t('response.invalidJsonPrettyFallback')}
                 </div>
               ) : null}
-              <ReadonlyCodeBlock
-                value={prettyBody}
-                language={jsonData !== null ? 'json' : isXml ? 'xml' : 'plaintext'}
-              />
+              <div className="flex-1 min-h-0">
+                <ReadonlyCodeBlock
+                  value={prettyBody}
+                  language={jsonData !== null ? 'json' : isXml ? 'xml' : 'plaintext'}
+                />
+              </div>
             </div>
           )}
 
@@ -373,9 +377,10 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
             <div className={cn("max-w-full", !wordWrap && "overflow-x-auto")}>
               <pre
                 className={cn(
-                  'text-[12px] font-mono text-text-primary leading-[20px]',
+                  'font-mono text-text-primary leading-[20px]',
                   wordWrap ? 'whitespace-pre-wrap break-all' : 'min-w-max whitespace-pre'
                 )}
+                style={{ fontSize: 'var(--fs-sm)' }}
               >
                 {searchText ? (
                   <HighlightedText text={body} search={searchText} />
@@ -452,7 +457,7 @@ export function InlineJsonViewer({ data }: { data: string }) {
       <div className="flex items-center gap-1 mb-1">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded hover:bg-accent/20 transition-colors flex items-center gap-0.5"
+          className="text-[var(--fs-xxs)] px-1.5 py-0.5 bg-accent/10 text-accent rounded hover:bg-accent/20 transition-colors flex items-center gap-0.5"
         >
           {expanded ? <Minimize2 className="w-2.5 h-2.5" /> : <Maximize2 className="w-2.5 h-2.5" />}
           JSON

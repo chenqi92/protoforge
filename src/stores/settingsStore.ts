@@ -8,7 +8,7 @@ export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   language: 'zh-CN' | 'en';
   fontSize: 12 | 13 | 14 | 15 | 16;
-  fontFamily: 'inter' | 'system' | 'noto-sans-sc' | 'lxgw-wenkai' | 'source-han-sans';
+  fontFamily: 'inter' | 'system' | 'noto-sans-sc' | 'lxgw-wenkai' | 'source-han-sans' | 'jetbrains-mono' | 'fira-code' | 'roboto' | 'outfit' | 'maple-mono';
 
   // ── 请求默认值 ──
   defaultTimeoutMs: number;
@@ -92,7 +92,7 @@ export const useSettingsStore = create<SettingsStore>()(
         if (state?.settings) {
           // 迁移旧的 fontFamily 值
           const ff = state.settings.fontFamily;
-          if (ff === 'mono' || !['inter', 'system', 'noto-sans-sc', 'lxgw-wenkai', 'source-han-sans'].includes(ff as string)) {
+          if (ff === 'mono' || !['inter', 'system', 'noto-sans-sc', 'lxgw-wenkai', 'source-han-sans', 'jetbrains-mono', 'fira-code', 'roboto', 'outfit', 'maple-mono'].includes(ff as string)) {
             state.settings.fontFamily = 'inter';
           }
         }

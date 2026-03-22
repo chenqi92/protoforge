@@ -843,7 +843,13 @@ fn execute_parse_script(script: &str, raw_data: &str) -> Result<ParseResult, Str
 }
 
 /// Execute a JS plugin's render() function in a sandboxed boa_engine context.
+///
+/// **性能优化**：如果 base64_data 解码后是 ZIP 文件，Rust 端会先提取所有文件条目，
+/// 并注入为 `__ZIP_FILES` 全局变量（JSON 对象），JS 插件只需做轻量的文本解析。
+/// 这避免了在 boa_engine 解释器中执行 CPU 密集型的 Deflate 解码。
 fn execute_render_script(script: &str, base64_data: &str) -> Result<RenderResult, String> {
+    use base64::Engine as _;
+
     let mut context = Context::default();
 
     // Execute the plugin script (defines the render function)
@@ -851,7 +857,45 @@ fn execute_render_script(script: &str, base64_data: &str) -> Result<RenderResult
         .eval(Source::from_bytes(script))
         .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
 
-    // 将 base64 数据安全传递给 JS render() 函数
+    // 尝试 base64 解码 + ZIP 预处理
+    let zip_files_json = match base64::engine::general_purpose::STANDARD.decode(base64_data) {
+        Ok(bytes) => {
+            // 检查是否为 ZIP 文件（PK 签名 0x50 0x4b）
+            if bytes.len() >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4b {
+                match extract_zip_to_map(&bytes) {
+                    Ok(files) => {
+                        // 构建 JSON 对象
+                        match serde_json::to_string(&files) {
+                            Ok(json) => Some(json),
+                            Err(_) => None,
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("ZIP 预提取失败: {}", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
+    };
+
+    // 注入 __ZIP_FILES 全局变量（如果是 ZIP 文件）
+    if let Some(files_json) = &zip_files_json {
+        let inject_script = format!("var __ZIP_FILES = {};", files_json);
+        context
+            .eval(Source::from_bytes(inject_script.as_bytes()))
+            .map_err(|e| format!("注入 __ZIP_FILES 失败: {}", format_js_error(&e)))?;
+    } else {
+        // 非 ZIP 文件，注入 null
+        context
+            .eval(Source::from_bytes(b"var __ZIP_FILES = null;"))
+            .map_err(|e| format!("注入 __ZIP_FILES 失败: {}", format_js_error(&e)))?;
+    }
+
+    // 将 base64 数据也传给 render()（插件可用于非 ZIP 场景）
     let json_escaped = serde_json::to_string(base64_data)
         .map_err(|e| format!("序列化输入数据失败: {}", e))?;
     let call_script = format!("JSON.stringify(render({}))", json_escaped);
@@ -870,6 +914,45 @@ fn execute_render_script(script: &str, base64_data: &str) -> Result<RenderResult
         serde_json::from_str(&json_str).map_err(|e| format!("解析 render 返回 JSON 失败: {}", e))?;
 
     Ok(rendered)
+}
+
+/// 将 ZIP 字节提取为 { 文件路径: 文件内容(字符串) } 映射。
+/// 仅提取文本/XML 类型的文件，跳过二进制文件。
+fn extract_zip_to_map(bytes: &[u8]) -> Result<std::collections::HashMap<String, String>, String> {
+    use std::io::Read;
+    let cursor = std::io::Cursor::new(bytes);
+    let mut archive = zip::ZipArchive::new(cursor)
+        .map_err(|e| format!("ZIP 解析失败: {}", e))?;
+
+    let mut files = std::collections::HashMap::new();
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)
+            .map_err(|e| format!("读取 ZIP 条目 {} 失败: {}", i, e))?;
+
+        if file.is_dir() {
+            continue;
+        }
+
+        let name = file.name().to_string();
+
+        // 读取内容（限制最大 10MB 防止恶意文件）
+        let mut content = Vec::new();
+        let max_size: u64 = 10 * 1024 * 1024;
+        if file.size() > max_size {
+            continue;
+        }
+
+        file.read_to_end(&mut content)
+            .map_err(|e| format!("读取文件 {} 失败: {}", name, e))?;
+
+        // 尝试作为 UTF-8 文本（XLSX 的 XML 文件都是 UTF-8）
+        if let Ok(text) = String::from_utf8(content) {
+            files.insert(name, text);
+        }
+    }
+
+    Ok(files)
 }
 
 fn format_js_error(err: &JsError) -> String {

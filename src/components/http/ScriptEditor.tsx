@@ -72,7 +72,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
       <div className="flex items-center gap-2 mb-3 shrink-0">
         <div className="flex items-center gap-1.5 text-text-tertiary">
           <Code className="w-3.5 h-3.5" />
-          <span className="text-[12px] font-medium">
+          <span className="text-[var(--fs-sm)] font-medium">
             {type === 'pre' ? t('http.script.preScriptTitle') : t('http.script.postScriptTitle')}
           </span>
         </div>
@@ -83,7 +83,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
         <div className="relative">
           <button
             onClick={() => setShowSnippets(!showSnippets)}
-            className="h-7 px-2.5 rounded-md flex items-center gap-1 text-[11px] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
+            className="h-7 px-2.5 rounded-md flex items-center gap-1 text-[var(--fs-xs)] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
           >
             <BookOpen className="w-3 h-3" />
             {t('http.script.snippets')}
@@ -97,7 +97,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
                   <button
                     key={i}
                     onClick={() => insertSnippet(s.code)}
-                    className="w-full px-3 py-2 text-left text-[12px] text-text-secondary hover:bg-bg-hover transition-colors"
+                    className="w-full px-3 py-2 text-left text-[var(--fs-sm)] text-text-secondary hover:bg-bg-hover transition-colors"
                   >
                     {s.label}
                   </button>
@@ -112,7 +112,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
         <button
           onClick={handleCopy}
           disabled={!value}
-          className="h-7 px-2 rounded-md flex items-center gap-1 text-[11px] text-text-tertiary hover:bg-bg-hover disabled:opacity-40 transition-colors"
+          className="h-7 px-2 rounded-md flex items-center gap-1 text-[var(--fs-xs)] text-text-tertiary hover:bg-bg-hover disabled:opacity-40 transition-colors"
           title={t('http.script.copyScript')}
         >
           {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
@@ -121,7 +121,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
         <button
           onClick={handleClear}
           disabled={!value}
-          className="h-7 px-2 rounded-md flex items-center gap-1 text-[11px] text-text-tertiary hover:bg-bg-hover disabled:opacity-40 transition-colors"
+          className="h-7 px-2 rounded-md flex items-center gap-1 text-[var(--fs-xs)] text-text-tertiary hover:bg-bg-hover disabled:opacity-40 transition-colors"
           title={t('http.script.clear')}
         >
           <Eraser className="w-3 h-3" />
@@ -141,7 +141,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
       </div>
 
       {/* Helper text */}
-      <p className="mt-2 text-[11px] text-text-disabled shrink-0">
+      <p className="mt-2 text-[var(--fs-xs)] text-text-disabled shrink-0">
         {t('http.script.helperText')} ·
         {type === 'pre' ? ` ${t('http.script.preScriptHelper')}` : ` ${t('http.script.postScriptHelper')}`}
       </p>

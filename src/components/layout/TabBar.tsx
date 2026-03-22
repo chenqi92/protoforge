@@ -235,7 +235,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
             className="fixed z-[221] w-[240px] overflow-hidden rounded-[12px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
             style={{ top: tabMenuPos.top, left: tabMenuPos.left }}
           >
-            <div className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled">
+            <div className="px-2.5 pb-0.5 pt-1.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.14em] text-text-disabled">
               {t('tabBar.allTabs')}
             </div>
             <div className="max-h-[320px] overflow-y-auto">
@@ -261,7 +261,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
                   >
                     <span
                       className={cn(
-                        "rounded-[5px] px-1.5 py-[1px] text-[10px] font-bold leading-none",
+                        "rounded-[5px] px-1.5 py-[1px] text-[var(--fs-xxs)] font-bold leading-none",
                         tab.protocol === "http"
                           ? tab.requestMode && tab.requestMode !== "rest"
                             ? modeBadgeColors[tab.requestMode]
@@ -273,7 +273,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
                     >
                       {badgeLabel}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-text-primary">{tab.label}</span>
+                    <span className="min-w-0 flex-1 truncate text-[var(--fs-sm)] font-medium text-text-primary">{tab.label}</span>
                   </button>
                 );
               })}
@@ -415,7 +415,7 @@ function TabItem({
           isDragOver && "ring-2 ring-accent/50"
         )}
       >
-        <span className={cn("shrink-0 rounded-[4px] px-1 py-0.5 text-[10px] font-bold leading-none", badgeColor)}>
+        <span className={cn("shrink-0 rounded-[4px] px-1 py-0.5 text-[var(--fs-xxs)] font-bold leading-none", badgeColor)}>
           {tab.protocol === "http"
             ? tab.requestMode && tab.requestMode !== "rest"
               ? modeLabels[tab.requestMode]
@@ -444,11 +444,11 @@ function TabItem({
             }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
-            className="min-w-0 flex-1 border-b border-accent bg-transparent px-0.5 py-0 text-[12px] text-text-primary outline-none"
+            className="min-w-0 flex-1 border-b border-accent bg-transparent px-0.5 py-0 text-[var(--fs-sm)] text-text-primary outline-none"
             autoFocus
           />
         ) : (
-          <span className="min-w-0 flex-1 truncate text-[12px] leading-none">{tab.label}</span>
+          <span className="min-w-0 flex-1 truncate text-[var(--fs-sm)] leading-none">{tab.label}</span>
         )}
 
         <button

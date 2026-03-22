@@ -166,6 +166,7 @@
     "variableMissing": "当前未解析到值",
     "variableEditPlaceholder": "输入合集变量值",
     "variableSaveToCollection": "保存到当前合集变量",
+    "variableResolvedValue": "解析值",
     "variableNoCollection": "请先将请求保存到合集后再编辑合集变量",
     "variableDynamicReadonly": "动态变量会在发送时即时计算，不能直接编辑。",
     "variableSave": "保存",

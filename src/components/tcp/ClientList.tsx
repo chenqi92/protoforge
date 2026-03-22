@@ -23,8 +23,8 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
             <Users className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-[12px] font-semibold text-text-primary">{t('tcp.clientList.title')}</div>
-            <div className="text-[11px] text-text-tertiary">{t('tcp.clientList.connections', { count: clients.length })}</div>
+            <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('tcp.clientList.title')}</div>
+            <div className="text-[var(--fs-xs)] text-text-tertiary">{t('tcp.clientList.connections', { count: clients.length })}</div>
           </div>
         </div>
         <span className="wb-tool-chip">{selectedClientId ? t('tcp.clientList.unicast') : t('tcp.clientList.broadcast')}</span>
@@ -34,7 +34,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
         <button
           onClick={() => onSelectClient(null)}
           className={cn(
-            "inline-flex items-center gap-1 rounded-[10px] border px-2.5 py-1.5 text-[10px] font-medium transition-all",
+            "inline-flex items-center gap-1 rounded-[10px] border px-2.5 py-1.5 text-[var(--fs-xxs)] font-medium transition-all",
             selectedClientId === null
               ? "border-accent/30 bg-accent/10 text-accent"
               : "border-border-default bg-bg-secondary/70 text-text-tertiary hover:bg-bg-hover hover:text-text-secondary"
@@ -47,7 +47,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
             key={c.id}
             onClick={() => onSelectClient(c.id)}
             className={cn(
-              "inline-flex items-center gap-1 rounded-[10px] border px-2.5 py-1.5 text-[10px] font-mono transition-all",
+              "inline-flex items-center gap-1 rounded-[10px] border px-2.5 py-1.5 text-[var(--fs-xxs)] font-mono transition-all",
               selectedClientId === c.id
                 ? "border-accent/30 bg-accent/10 text-accent"
                 : "border-border-default bg-bg-secondary/70 text-text-secondary hover:bg-bg-hover"

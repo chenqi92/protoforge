@@ -87,7 +87,7 @@ export function Tooltip({ content, children, delay = 300, position = "bottom", c
                 pointerEvents: "none",
               }}
               className={cn(
-                "px-2 py-1 text-[11px] font-medium text-white bg-gray-800 dark:bg-gray-700/90 rounded shadow-md whitespace-nowrap",
+                "px-2 py-1 text-[var(--fs-xs)] font-medium text-white bg-gray-800 dark:bg-gray-700/90 rounded shadow-md whitespace-nowrap",
                 className
               )}
             >

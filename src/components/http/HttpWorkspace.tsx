@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Braces, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDown, ArrowDownToLine, Trash2, Info, ChevronUp } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDown, ArrowDownToLine, Trash2, Info, ChevronUp, Braces } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
@@ -489,7 +489,7 @@ export function HttpWorkspace() {
                         key={m}
                         onClick={() => { updateHttpConfig(tabId, { method: m }); setShowMethods(false); }}
                         className={cn(
-                          "flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-[12px] font-semibold transition-colors hover:bg-bg-hover",
+                          "flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-[var(--fs-sm)] font-semibold transition-colors hover:bg-bg-hover",
                           config.method === m && "bg-bg-hover"
                         )}
                       >
@@ -502,8 +502,8 @@ export function HttpWorkspace() {
               )}
             </div>
             <div className="relative min-w-0 flex-1">
-              <input
-                ref={urlInputRef}
+              <VariableInlineInput
+                inputRef={urlInputRef}
                 value={config.url}
                 onChange={(e) => { updateHttpConfig(tabId, { url: e.target.value }); setUrlHighlight(-1); }}
                 onKeyDown={(e) => {
@@ -519,12 +519,9 @@ export function HttpWorkspace() {
                 onBlur={() => setTimeout(() => setUrlFocused(false), 150)}
                 placeholder={t('http.urlPlaceholder')}
                 data-url-input
-                className={cn("wb-request-input", extractVariableKeys(config.url).length > 0 && "pr-24")}
-              />
-              <FieldVariableBadge
-                value={config.url}
                 collectionId={activeTab.linkedCollectionId}
-                className="right-2 top-1/2 -translate-y-1/2"
+                className="wb-request-input"
+                overlayClassName="wb-request-input"
               />
             </div>
             {urlSuggestions.length > 0 && urlFocused && urlRectRef.current && createPortal(
@@ -532,7 +529,7 @@ export function HttpWorkspace() {
                 style={{ top: (urlRectRef.current.bottom + 2), left: urlRectRef.current.left, width: urlRectRef.current.width }}>
                 {urlSuggestions.map((u, i) => (
                   <button key={u} onMouseDown={(e) => { e.preventDefault(); updateHttpConfig(tabId, { url: u }); setUrlFocused(false); }}
-                    className={cn("w-full rounded-[12px] px-3 py-2 text-left text-[12px] font-mono truncate transition-colors",
+                    className={cn("w-full rounded-[12px] px-3 py-2 text-left text-[var(--fs-sm)] font-mono truncate transition-colors",
                       i === urlHighlight ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover")}>
                     {u}
                   </button>
@@ -641,8 +638,8 @@ export function HttpWorkspace() {
                   ) : (
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-[13px] font-semibold text-text-primary">{t('http.graphql.modeTitle')}</div>
-                        <div className="mt-1 text-[11px] text-text-tertiary">{t('http.graphql.modeDesc')}</div>
+                        <div className="text-[var(--fs-base)] font-semibold text-text-primary">{t('http.graphql.modeTitle')}</div>
+                        <div className="mt-1 text-[var(--fs-xs)] text-text-tertiary">{t('http.graphql.modeDesc')}</div>
                       </div>
                       <span className="wb-tool-chip">GraphQL</span>
                     </div>
@@ -656,7 +653,7 @@ export function HttpWorkspace() {
                         onQueryChange={(v) => updateHttpConfig(tabId, { graphqlQuery: v })}
                         onVariablesChange={(v) => updateHttpConfig(tabId, { graphqlVariables: v })}
                       />
-                    ) : config.bodyType === "none" ? <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[13px]">{t('http.noBody')}</div> : null}
+                    ) : config.bodyType === "none" ? <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[var(--fs-base)]">{t('http.noBody')}</div> : null}
                     {!isGraphqlMode && config.bodyType === "json" && (
                       <div className="w-full h-full border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                         <CodeEditor
@@ -721,17 +718,17 @@ export function HttpWorkspace() {
                   </div>
                   
                   <div className="max-w-md">
-                    {config.authType === "none" && <p className="text-[13px] text-text-disabled mt-6">{t('http.noAuth')}</p>}
+                    {config.authType === "none" && <p className="text-[var(--fs-base)] text-text-disabled mt-6">{t('http.noAuth')}</p>}
                     {config.authType === "bearer" && (
                       <div className="space-y-2">
-                        <label className="text-[12px] font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
+                        <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
                         <div className="relative">
                           <input
                             value={config.bearerToken}
                             onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
                             type={showSecrets['bearer'] ? 'text' : 'password'}
                             placeholder="ey..."
-                            className="wb-field w-full font-mono text-[13px] pr-9"
+                            className="wb-field w-full font-mono text-[var(--fs-base)] pr-9"
                           />
                           <button type="button" onClick={() => toggleSecret('bearer')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                             {showSecrets['bearer'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -742,13 +739,13 @@ export function HttpWorkspace() {
                     {config.authType === "basic" && (
                       <div className="space-y-3">
                         <div className="space-y-1.5">
-                          <label className="text-[12px] font-medium text-text-secondary">Username</label>
-                          <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full text-[13px]" />
+                          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Username</label>
+                          <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full text-[var(--fs-base)]" />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[12px] font-medium text-text-secondary">Password</label>
+                          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Password</label>
                           <div className="relative">
-                            <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full text-[13px] pr-9" />
+                            <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full text-[var(--fs-base)] pr-9" />
                             <button type="button" onClick={() => toggleSecret('basicPwd')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                               {showSecrets['basicPwd'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
@@ -759,7 +756,7 @@ export function HttpWorkspace() {
                     {config.authType === "apiKey" && (
                       <div className="space-y-3">
                         <div className="space-y-1.5">
-                          <label className="text-[12px] font-medium text-text-secondary">{t('http.addTo')}</label>
+                          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('http.addTo')}</label>
                           <div className="wb-segmented w-fit">
                             {(["header", "query"] as const).map((a) => (
                               <button key={a} onClick={() => updateHttpConfig(tabId, { apiKeyAddTo: a })} className={cn("wb-segment", config.apiKeyAddTo === a && "wb-segment-active")}>
@@ -769,13 +766,13 @@ export function HttpWorkspace() {
                           </div>
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[12px] font-medium text-text-secondary">Key</label>
-                          <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono text-[13px]" />
+                          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Key</label>
+                          <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono text-[var(--fs-base)]" />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[12px] font-medium text-text-secondary">Value</label>
+                          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Value</label>
                           <div className="relative">
-                            <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono text-[13px] pr-9" />
+                            <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono text-[var(--fs-base)] pr-9" />
                             <button type="button" onClick={() => toggleSecret('apiKey')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                               {showSecrets['apiKey'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
@@ -831,7 +828,7 @@ export function HttpWorkspace() {
               <>
                 {/* Script results notification */}
                 {(scriptResults.pre || scriptResults.post) && (
-                  <div className="px-3 py-1.5 bg-bg-secondary/60 border-b border-border-default flex items-center gap-3 text-[11px] flex-wrap shrink-0">
+                  <div className="px-3 py-1.5 bg-bg-secondary/60 border-b border-border-default flex items-center gap-3 text-[var(--fs-xs)] flex-wrap shrink-0">
                     {scriptResults.pre && (
                       <span className={cn("flex items-center gap-1 font-medium", scriptResults.pre.success ? "text-emerald-600" : "text-red-500")}>
                         {scriptResults.pre.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
@@ -977,7 +974,7 @@ export function HttpWorkspace() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center h-full text-text-disabled text-[13px]"><Cookie className="w-4 h-4 mr-2 opacity-40" />{t('http.noCookies')}</div>
+                        <div className="flex items-center justify-center h-full text-text-disabled text-[var(--fs-base)]"><Cookie className="w-4 h-4 mr-2 opacity-40" />{t('http.noCookies')}</div>
                       )}
                     </div>
                   ) : resTab === "timing" ? (
@@ -985,17 +982,17 @@ export function HttpWorkspace() {
                       <div className="flex min-h-full flex-col gap-3">
                         <div className="grid gap-3 xl:grid-cols-[minmax(260px,0.88fr)_minmax(0,1.12fr)]">
                           <div className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.totalTime')}</div>
-                            <div className="mt-3 text-[26px] font-semibold tracking-tight text-text-primary">{response.durationMs} ms</div>
-                            <div className="mt-2 text-[12px] leading-5 text-text-tertiary">
+                            <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.totalTime')}</div>
+                            <div className="mt-3 text-[var(--fs-6xl)] font-semibold tracking-tight text-text-primary">{response.durationMs} ms</div>
+                            <div className="mt-2 text-[var(--fs-sm)] leading-5 text-text-tertiary">
                               请求往返耗时，包含连接建立、首字节等待与下载阶段。
                             </div>
                           </div>
 
                           <div className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                             <div className="flex items-center justify-between gap-3">
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.timing')}</div>
-                              <div className="text-[11px] font-mono text-text-tertiary">{response.durationMs} ms</div>
+                              <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.timing')}</div>
+                              <div className="text-[var(--fs-xs)] font-mono text-text-tertiary">{response.durationMs} ms</div>
                             </div>
                             <div className="mt-4 h-3 overflow-hidden rounded-full bg-bg-secondary">
                               {timingCards.slice(0, 3).map(({ label, value, color }) => {
@@ -1009,9 +1006,9 @@ export function HttpWorkspace() {
                                 <div key={label} className="rounded-[12px] border border-border-default/75 bg-bg-secondary/24 px-3 py-2.5">
                                   <div className="flex items-center gap-2">
                                     <span className={cn("h-2.5 w-2.5 rounded-full", color)} />
-                                    <span className="text-[11px] font-medium text-text-secondary">{label}</span>
+                                    <span className="text-[var(--fs-xs)] font-medium text-text-secondary">{label}</span>
                                   </div>
-                                  <div className="mt-1 font-mono text-[13px] font-semibold text-text-primary">{value ?? "—"} ms</div>
+                                  <div className="mt-1 font-mono text-[var(--fs-base)] font-semibold text-text-primary">{value ?? "—"} ms</div>
                                 </div>
                               ))}
                             </div>
@@ -1022,8 +1019,8 @@ export function HttpWorkspace() {
                           {timingCards.map(({ label, value, color }) => (
                             <div key={label} className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-[12px] font-medium text-text-secondary">{label}</span>
-                                <span className="font-mono text-[13px] font-semibold text-text-primary">{value ?? "—"} ms</span>
+                                <span className="text-[var(--fs-sm)] font-medium text-text-secondary">{label}</span>
+                                <span className="font-mono text-[var(--fs-base)] font-semibold text-text-primary">{value ?? "—"} ms</span>
                               </div>
                               <div className="mt-3 h-2 overflow-hidden rounded-full bg-bg-secondary">
                                 <div
@@ -1046,8 +1043,8 @@ export function HttpWorkspace() {
                 <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary shadow-sm">
                   <Braces className="h-7 w-7 opacity-20" />
                 </div>
-                <p className="text-[13px] font-medium text-text-secondary">{t('http.ready')}</p>
-                <p className="mt-1 text-[11px]">{t('http.readyDesc')}</p>
+                <p className="text-[var(--fs-base)] font-medium text-text-secondary">{t('http.ready')}</p>
+                <p className="mt-1 text-[var(--fs-xs)]">{t('http.readyDesc')}</p>
               </div>
             )}
           </Panel>
@@ -1108,16 +1105,16 @@ function HttpRequestErrorPanel({
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-red-200/80 bg-red-50 text-red-500 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300">
             <XCircle className="h-8 w-8" />
           </div>
-          <p className="text-[18px] font-semibold text-text-primary">{t('http.requestFailed')}</p>
-          <p className="mt-2 max-w-[520px] text-[12px] leading-6 text-text-secondary">
+          <p className="text-[var(--fs-3xl)] font-semibold text-text-primary">{t('http.requestFailed')}</p>
+          <p className="mt-2 max-w-[520px] text-[var(--fs-sm)] leading-6 text-text-secondary">
             {t('http.requestFailedDesc')}
           </p>
 
           <div className="mt-5 w-full overflow-hidden rounded-[16px] border border-border-default/80 bg-bg-secondary/30 text-left">
-            <div className="border-b border-border-default/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-disabled">
+            <div className="border-b border-border-default/80 px-4 py-2 text-[var(--fs-xs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">
               {t('http.errorDetails')}
             </div>
-            <pre className="selectable overflow-auto px-4 py-4 text-[12px] leading-6 text-text-secondary whitespace-pre-wrap break-all">
+            <pre className="selectable overflow-auto px-4 py-4 text-[var(--fs-sm)] leading-6 text-text-secondary whitespace-pre-wrap break-all">
               {error}
             </pre>
           </div>
@@ -1175,7 +1172,7 @@ function SseEventRow({ event }: { event: SseEvent }) {
 
         {/* 事件类型标签 */}
         <span className={cn(
-          "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[10px] font-bold leading-none",
+          "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[var(--fs-xxs)] font-bold leading-none",
           color.bg, color.text, color.border
         )}>
           {event.eventType}
@@ -1187,7 +1184,7 @@ function SseEventRow({ event }: { event: SseEvent }) {
         </span>
 
         {/* 时间戳 */}
-        <span className="shrink-0 font-mono text-[10px] text-text-disabled">
+        <span className="shrink-0 font-mono text-[var(--fs-xxs)] text-text-disabled">
           {new Date(event.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' } as Intl.DateTimeFormatOptions)}
         </span>
 
@@ -1201,7 +1198,7 @@ function SseEventRow({ event }: { event: SseEvent }) {
       {/* 展开详情 */}
       {expanded && (
         <div className="mx-4 mb-2 mt-0.5 rounded-lg border border-border-default/60 bg-bg-secondary/20 overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-border-default/40 px-3 py-1.5 text-[10px] text-text-tertiary">
+          <div className="flex items-center gap-2 border-b border-border-default/40 px-3 py-1.5 text-[var(--fs-xxs)] text-text-tertiary">
             <span className="font-semibold">{isJson ? 'JSON' : 'TEXT'}</span>
             {event.id && <span className="ml-auto">Event ID: {event.id}</span>}
           </div>
@@ -1218,11 +1215,11 @@ function SseEventRow({ event }: { event: SseEvent }) {
 
 function SseSystemMessage({ message, timestamp }: { message: string; timestamp?: string }) {
   return (
-    <div className="flex items-center gap-2.5 px-4 py-2 text-[11px] text-text-tertiary">
+    <div className="flex items-center gap-2.5 px-4 py-2 text-[var(--fs-xs)] text-text-tertiary">
       <Info className="h-3.5 w-3.5 shrink-0 opacity-60" />
       <span className="flex-1">{message}</span>
       {timestamp && (
-        <span className="shrink-0 font-mono text-[10px] text-text-disabled">
+        <span className="shrink-0 font-mono text-[var(--fs-xxs)] text-text-disabled">
           {new Date(timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' } as Intl.DateTimeFormatOptions)}
         </span>
       )}
@@ -1290,7 +1287,7 @@ function HttpSseResponsePanel({
       </div>
 
       {error ? (
-        <div className="border-b border-red-200 bg-red-50/80 px-4 py-2 text-[12px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+        <div className="border-b border-red-200 bg-red-50/80 px-4 py-2 text-[var(--fs-sm)] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
           {error}
         </div>
       ) : null}
@@ -1301,8 +1298,8 @@ function HttpSseResponsePanel({
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary/35">
               <Waves className="h-7 w-7 text-orange-500/40" />
             </div>
-            <div className="text-[14px] font-semibold text-text-secondary">{t('sse.emptyTitle')}</div>
-            <div className="mt-2 max-w-xl text-[12px] leading-6 text-text-tertiary">{t('sse.emptyDesc')}</div>
+            <div className="text-[var(--fs-md)] font-semibold text-text-secondary">{t('sse.emptyTitle')}</div>
+            <div className="mt-2 max-w-xl text-[var(--fs-sm)] leading-6 text-text-tertiary">{t('sse.emptyDesc')}</div>
           </div>
         ) : (
           <div className="divide-y divide-border-default/30">
@@ -1440,13 +1437,13 @@ function GraphQLBodyEditor({
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="wb-subpanel flex flex-wrap items-start justify-between gap-3 p-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[12px] font-semibold text-text-primary">
+          <div className="flex items-center gap-2 text-[var(--fs-sm)] font-semibold text-text-primary">
             <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-violet-500/10 text-violet-600">
               <Braces className="h-4 w-4" />
             </div>
             {t('http.graphql.title')}
           </div>
-          <div className="mt-1 text-[11px] leading-5 text-text-tertiary">
+          <div className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
             {t('http.graphql.desc')}
           </div>
         </div>
@@ -1466,8 +1463,8 @@ function GraphQLBodyEditor({
         <div className="wb-panel flex min-h-[320px] min-w-0 flex-col overflow-hidden">
           <div className="wb-panel-header shrink-0">
             <div>
-              <div className="text-[12px] font-semibold text-text-primary">Query</div>
-              <div className="mt-1 text-[11px] text-text-tertiary">{t('http.graphql.queryDesc')}</div>
+              <div className="text-[var(--fs-sm)] font-semibold text-text-primary">Query</div>
+              <div className="mt-1 text-[var(--fs-xs)] text-text-tertiary">{t('http.graphql.queryDesc')}</div>
             </div>
             <span className="wb-tool-chip">GraphQL</span>
           </div>
@@ -1484,9 +1481,9 @@ function GraphQLBodyEditor({
           <div className="wb-panel-header shrink-0">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-[12px] font-semibold text-text-primary">Variables</span>
+                <span className="text-[var(--fs-sm)] font-semibold text-text-primary">Variables</span>
                 <span className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[var(--fs-xxs)] font-semibold",
                   variableState.valid
                     ? "bg-emerald-500/10 text-emerald-600"
                     : "bg-red-500/10 text-red-500"
@@ -1495,7 +1492,7 @@ function GraphQLBodyEditor({
                   {variableState.label}
                 </span>
               </div>
-              <div className="mt-1 text-[11px] text-text-tertiary">{variableState.detail}</div>
+              <div className="mt-1 text-[var(--fs-xs)] text-text-tertiary">{variableState.detail}</div>
             </div>
             {hasVariables ? <span className="wb-tool-chip">JSON</span> : null}
           </div>
@@ -1804,17 +1801,26 @@ function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placehold
 
   return (
     <>
-      <div className="relative">
-        <input ref={ref} value={value} onChange={e => onChange(e.target.value)} onFocus={onFocus} onBlur={onBlur} onKeyDown={onKeyDown}
-          placeholder={placeholder} className={cn(cls, disabled && "editor-table-muted", extractVariableKeys(value).length > 0 && "pr-16")} />
-        <FieldVariableBadge value={value} collectionId={collectionId} className="right-1 top-1/2 -translate-y-1/2" compact />
-      </div>
+      <VariableInlineInput
+        inputRef={ref}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
+        placeholder={placeholder}
+        disabled={disabled}
+        collectionId={collectionId}
+        className={cn(cls, disabled && "editor-table-muted")}
+        overlayClassName={cn(cls, disabled && "editor-table-muted")}
+        compactPopover
+      />
       {hasSugs && rect && onSelectSuggestion && createPortal(
         <div className="fixed bg-bg-elevated border border-border-default rounded-lg shadow-xl max-h-[220px] overflow-y-auto py-0.5"
           style={{ top: rect.bottom + 2, left: rect.left, width: rect.width, zIndex: 9999 }}>
           {suggestions!.map((s, si) => (
             <button key={si} onMouseDown={e => { e.preventDefault(); onSelectSuggestion!(s); }}
-              className={cn("w-full px-3 py-1.5 text-left text-[12px] font-mono transition-colors",
+              className={cn("w-full px-3 py-1.5 text-left text-[var(--fs-sm)] font-mono transition-colors",
                 si === (highlightIdx ?? -1) ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover",
                 value === s && si !== (highlightIdx ?? -1) && "text-accent font-semibold")}>
               {s || <span className="text-text-disabled italic">{t('http.emptyValue')}</span>}
@@ -1826,27 +1832,73 @@ function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placehold
   );
 }
 
-function FieldVariableBadge({
+interface VariableSegment {
+  kind: "text" | "token";
+  text: string;
+  key?: string;
+}
+
+function splitVariableSegments(value: string): VariableSegment[] {
+  if (!value) return [];
+
+  const segments: VariableSegment[] = [];
+  let lastIndex = 0;
+
+  for (const match of value.matchAll(/(\{\{\s*([\w.$-]+)\s*\}\})/g)) {
+    const full = match[1];
+    const key = match[2]?.trim();
+    const index = match.index ?? 0;
+
+    if (index > lastIndex) {
+      segments.push({ kind: "text", text: value.slice(lastIndex, index) });
+    }
+
+    if (full && key) {
+      segments.push({ kind: "token", text: full, key });
+    }
+
+    lastIndex = index + full.length;
+  }
+
+  if (lastIndex < value.length) {
+    segments.push({ kind: "text", text: value.slice(lastIndex) });
+  }
+
+  return segments;
+}
+
+function VariableInlineInput({
+  inputRef,
   value,
   collectionId,
   className,
-  compact,
-}: {
-  value: string;
+  overlayClassName,
+  compactPopover,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  inputRef?: React.RefObject<HTMLInputElement | null>;
   collectionId?: string | null;
-  className?: string;
-  compact?: boolean;
+  overlayClassName?: string;
+  compactPopover?: boolean;
 }) {
   const { t } = useTranslation();
-  const variableKeys = useMemo(() => extractVariableKeys(value), [value]);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const collections = useCollectionStore((state) => state.collections);
+  const activeEnvId = useEnvStore((state) => state.activeEnvId);
+  const envVars = useEnvStore((state) => state.variables);
+  const globalVars = useEnvStore((state) => state.globalVariables);
+  const variableKeys = useMemo(() => extractVariableKeys(String(value ?? '')), [value]);
+  const segments = useMemo(() => splitVariableSegments(String(value ?? '')), [value]);
+  const previews = useMemo(
+    () => new Map(variableKeys.map((key) => [key, getVariablePreview(key, collectionId)])),
+    [collectionId, collections, envVars, globalVars, activeEnvId, variableKeys]
+  );
+  const internalRef = useRef<HTMLInputElement>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const [scrollLeft, setScrollLeft] = useState(0);
   const [open, setOpen] = useState(false);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
-
-  const label = variableKeys.length === 1
-    ? `{{${variableKeys[0]}}}`
-    : t('http.variableCount', { count: variableKeys.length });
+  const hasVariables = variableKeys.length > 0;
 
   const cancelClose = () => {
     if (closeTimerRef.current) {
@@ -1861,37 +1913,77 @@ function FieldVariableBadge({
   };
 
   useEffect(() => {
-    if (open && buttonRef.current) {
-      setRect(buttonRef.current.getBoundingClientRect());
+    if (open && internalRef.current) {
+      setRect(internalRef.current.getBoundingClientRect());
     }
   }, [open, value]);
 
   useEffect(() => () => cancelClose(), []);
 
-  if (variableKeys.length === 0) return null;
+  if (!hasVariables) {
+    return <input ref={inputRef} value={value} className={className} {...props} />;
+  }
+
+  const attachRef = (node: HTMLInputElement | null) => {
+    internalRef.current = node;
+    if (inputRef) {
+      inputRef.current = node;
+    }
+  };
 
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
-        onMouseEnter={() => { cancelClose(); setOpen(true); }}
-        onMouseLeave={scheduleClose}
-        className={cn(
-          "absolute z-10 inline-flex max-w-[132px] items-center gap-1 rounded-full bg-bg-secondary/96 px-2 py-0.5 text-[10px] font-medium text-accent shadow-sm",
-          compact ? "max-w-[92px]" : "max-w-[160px]",
-          className
-        )}
-        title={variableKeys.join(", ")}
-      >
-        <Braces className="h-3 w-3 shrink-0" />
-        <span className="truncate">{label}</span>
-      </button>
-      {open && rect && createPortal(
+      <div className="variable-inline-shell">
+        <div className={cn("variable-inline-overlay", overlayClassName)} aria-hidden="true">
+          <div className="variable-inline-track" style={{ transform: `translateX(-${scrollLeft}px)` }}>
+            {segments.map((segment, index) => {
+              if (segment.kind === "token" && segment.key) {
+                const preview = previews.get(segment.key);
+                return (
+                  <span
+                    key={`${segment.key}-${index}`}
+                    className="variable-inline-token"
+                    data-source={preview?.source ?? "missing"}
+                    onMouseEnter={(event) => {
+                      cancelClose();
+                      setActiveKey(segment.key!);
+                      setRect(event.currentTarget.getBoundingClientRect());
+                      setOpen(true);
+                    }}
+                    onMouseLeave={scheduleClose}
+                  >
+                    {segment.text}
+                  </span>
+                );
+              }
+
+              return (
+                <span key={`text-${index}`} className="variable-inline-text">
+                  {segment.text || (index === 0 ? t('http.urlPlaceholder') : "")}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        <input
+          {...props}
+          ref={attachRef}
+          value={value}
+          className={cn(className, "variable-inline-input")}
+          onScroll={(event) => {
+            setScrollLeft(event.currentTarget.scrollLeft);
+            props.onScroll?.(event);
+          }}
+        />
+      </div>
+
+      {open && rect && activeKey && previews.get(activeKey) && createPortal(
         <VariableHoverPopover
           rect={rect}
-          value={value}
+          preview={previews.get(activeKey)!}
           collectionId={collectionId}
+          compact={compactPopover}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         />,
@@ -1903,39 +1995,29 @@ function FieldVariableBadge({
 
 function VariableHoverPopover({
   rect,
-  value,
+  preview,
   collectionId,
+  compact,
   onMouseEnter,
   onMouseLeave,
 }: {
   rect: DOMRect;
-  value: string;
+  preview: ReturnType<typeof getVariablePreview>;
   collectionId?: string | null;
+  compact?: boolean;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) {
   const { t } = useTranslation();
-  const collections = useCollectionStore((state) => state.collections);
-  const activeEnvId = useEnvStore((state) => state.activeEnvId);
-  const envVars = useEnvStore((state) => state.variables);
-  const globalVars = useEnvStore((state) => state.globalVariables);
-  const variableKeys = useMemo(() => extractVariableKeys(value), [value]);
-  const previews = useMemo(
-    () => variableKeys.map((key) => getVariablePreview(key, collectionId)),
-    [collectionId, collections, envVars, globalVars, activeEnvId, variableKeys]
-  );
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [savingKey, setSavingKey] = useState<string | null>(null);
-  const [savedKey, setSavedKey] = useState<string | null>(null);
-  const [revealedKeys, setRevealedKeys] = useState<Record<string, boolean>>({});
+  const [draft, setDraft] = useState(preview.source === "missing" ? "" : preview.rawValue);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
-    setDrafts(
-      Object.fromEntries(previews.map((preview) => [preview.key, preview.source === "missing" ? "" : preview.rawValue]))
-    );
-  }, [value, previews]);
-
-  if (previews.length === 0) return null;
+    setDraft(preview.source === "missing" ? "" : preview.rawValue);
+    setSaved(false);
+  }, [preview.key, preview.rawValue, preview.source]);
 
   const sourceLabelMap: Record<string, string> = {
     collection: t('http.variableSourceCollection'),
@@ -1945,97 +2027,103 @@ function VariableHoverPopover({
     missing: t('http.variableSourceMissing'),
   };
 
+  const isSecretHidden = preview.isSecret && !revealed;
+  const displayValue = preview.source === "missing"
+    ? t('http.variableMissing')
+    : isSecretHidden
+      ? "••••••••"
+      : preview.value;
+  const canSaveToCollection = Boolean(collectionId) && preview.source !== "dynamic";
+
   return (
     <div
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="fixed z-[10000] w-[320px] rounded-[16px] border border-border-default bg-bg-primary/98 p-3 shadow-[0_18px_44px_rgba(15,23,42,0.16)] backdrop-blur-xl"
-      style={{ top: rect.bottom + 6, left: Math.min(window.innerWidth - 332, Math.max(12, rect.right - 320)) }}
+      className={cn(
+        "fixed z-[10000] rounded-[16px] border border-border-default/85 bg-bg-primary/98 shadow-[0_18px_46px_rgba(15,23,42,0.14)] backdrop-blur-xl",
+        compact ? "w-[296px]" : "w-[340px]"
+      )}
+      style={{ top: rect.bottom + 10, left: Math.min(window.innerWidth - (compact ? 308 : 352), Math.max(12, rect.left - 8)) }}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">
-          {t('http.variablePreview')}
+      <div className="border-b border-border-subtle/80 px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
+              {t('http.variablePreview')}
+            </div>
+            <div className="mt-1 font-mono text-[var(--fs-sm)] font-semibold text-text-primary">
+              {`{{${preview.key}}}`}
+            </div>
+          </div>
+          <div className="inline-flex shrink-0 rounded-full bg-bg-hover px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-secondary">
+            {sourceLabelMap[preview.source]}
+          </div>
         </div>
-        <div className="text-[11px] text-text-disabled">{variableKeys.length}</div>
       </div>
 
-      <div className="space-y-2">
-        {previews.map((preview) => {
-          const isSecretHidden = preview.isSecret && !revealedKeys[preview.key];
-          const displayValue = preview.source === "missing"
-            ? t('http.variableMissing')
-            : isSecretHidden
-              ? "••••••••"
-              : preview.value;
-          const canSaveToCollection = Boolean(collectionId) && preview.source !== "dynamic";
+      <div className="space-y-3 px-4 py-3">
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[var(--fs-xxs)] font-medium text-text-tertiary">
+              {t('http.variableResolvedValue')}
+            </span>
+            {preview.isSecret && preview.source !== "missing" && (
+              <button
+                type="button"
+                onClick={() => setRevealed((current) => !current)}
+                className="text-text-disabled transition-colors hover:text-text-secondary"
+              >
+                {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </button>
+            )}
+          </div>
+          <div className="rounded-[12px] border border-border-subtle/75 bg-bg-secondary/55 px-3 py-2 font-mono text-[var(--fs-sm)] leading-6 text-text-primary">
+            {displayValue}
+          </div>
+        </div>
 
-          return (
-            <div key={preview.key} className="rounded-[12px] border border-border-subtle bg-bg-secondary/55 p-2.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="font-mono text-[12px] font-semibold text-text-primary">
-                    {`{{${preview.key}}}`}
-                  </div>
-                  <div className="mt-1 inline-flex rounded-full bg-bg-hover px-2 py-0.5 text-[10px] font-medium text-text-tertiary">
-                    {sourceLabelMap[preview.source]}
-                  </div>
-                </div>
-                {preview.isSecret && preview.source !== "missing" && (
-                  <button
-                    type="button"
-                    onClick={() => setRevealedKeys((current) => ({ ...current, [preview.key]: !current[preview.key] }))}
-                    className="text-text-disabled transition-colors hover:text-text-secondary"
-                  >
-                    {revealedKeys[preview.key] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                )}
-              </div>
-
-              <div className="mt-2 rounded-[10px] bg-bg-primary px-2.5 py-2 font-mono text-[11px] leading-5 text-text-secondary">
-                {displayValue}
-              </div>
-
-              {canSaveToCollection ? (
-                <div className="mt-2 space-y-2">
-                  <input
-                    value={drafts[preview.key] ?? ""}
-                    onChange={(event) => setDrafts((current) => ({ ...current, [preview.key]: event.target.value }))}
-                    placeholder={t('http.variableEditPlaceholder')}
-                    className="wb-field h-8 w-full px-2.5 text-[12px] font-mono"
-                  />
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-text-disabled">
-                      {collectionId ? t('http.variableSaveToCollection') : t('http.variableNoCollection')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!collectionId) return;
-                        setSavingKey(preview.key);
-                        try {
-                          await upsertCollectionVariable(collectionId, preview.key, drafts[preview.key] ?? "");
-                          setSavedKey(preview.key);
-                          window.setTimeout(() => setSavedKey((current) => current === preview.key ? null : current), 1200);
-                        } finally {
-                          setSavingKey((current) => current === preview.key ? null : current);
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-wait disabled:opacity-70"
-                      disabled={savingKey === preview.key}
-                    >
-                      {savingKey === preview.key ? <Loader2 className="h-3 w-3 animate-spin" /> : savedKey === preview.key ? <Check className="h-3 w-3" /> : <Save className="h-3 w-3" />}
-                      {savedKey === preview.key ? t('http.variableSaved') : t('http.variableSave')}
-                    </button>
-                  </div>
-                </div>
-              ) : !collectionId ? (
-                <div className="mt-2 text-[10px] text-text-disabled">{t('http.variableNoCollection')}</div>
-              ) : preview.source === "dynamic" ? (
-                <div className="mt-2 text-[10px] text-text-disabled">{t('http.variableDynamicReadonly')}</div>
-              ) : null}
+        {canSaveToCollection ? (
+          <div className="space-y-1.5">
+            <div className="text-[var(--fs-xxs)] font-medium text-text-tertiary">
+              {t('http.variableSaveToCollection')}
             </div>
-          );
-        })}
+            <div className="flex items-center gap-2">
+              <input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder={t('http.variableEditPlaceholder')}
+                className="wb-field h-9 w-full px-3 text-[var(--fs-sm)] font-mono"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!collectionId) return;
+                  setSaving(true);
+                  try {
+                    await upsertCollectionVariable(collectionId, preview.key, draft);
+                    setSaved(true);
+                    window.setTimeout(() => setSaved(false), 1200);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[10px] bg-accent px-3 text-[var(--fs-xs)] font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-wait disabled:opacity-70"
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+                {saved ? t('http.variableSaved') : t('http.variableSave')}
+              </button>
+            </div>
+          </div>
+        ) : !collectionId ? (
+          <div className="rounded-[12px] bg-bg-secondary/45 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary">
+            {t('http.variableNoCollection')}
+          </div>
+        ) : preview.source === "dynamic" ? (
+          <div className="rounded-[12px] bg-bg-secondary/45 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary">
+            {t('http.variableDynamicReadonly')}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -2113,7 +2201,7 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
               <td>
                 <select value={field.fieldType}
                   onChange={e => update(i, { fieldType: e.target.value as 'text' | 'file', value: '', fileName: undefined })}
-                  className={cn("editor-table-select text-[11px] text-text-secondary", !field.enabled && "editor-table-muted")}>
+                  className={cn("editor-table-select text-[var(--fs-xs)] text-text-secondary", !field.enabled && "editor-table-muted")}>
                   <option value="text">Text</option>
                   <option value="file">File</option>
                 </select>
@@ -2129,11 +2217,11 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
                 ) : (
                   <div className={cn("flex items-center w-full h-[34px]", !field.enabled && "editor-table-muted")}>
                     <button onClick={() => handleFilePick(i)}
-                      className="shrink-0 h-[34px] px-3 flex items-center gap-1 bg-transparent text-[11px] cursor-pointer hover:bg-bg-hover transition-colors">
+                      className="shrink-0 h-[34px] px-3 flex items-center gap-1 bg-transparent text-[var(--fs-xs)] cursor-pointer hover:bg-bg-hover transition-colors">
                       <Upload className="w-3 h-3 text-text-disabled shrink-0" />
                       <span className="text-text-tertiary whitespace-nowrap">{t('http.selectFile')}</span>
                     </button>
-                    <span className="truncate text-[11px] text-text-secondary px-2 min-w-0 flex-1">{field.fileName || field.value || ''}</span>
+                    <span className="truncate text-[var(--fs-xs)] text-text-secondary px-2 min-w-0 flex-1">{field.fileName || field.value || ''}</span>
                   </div>
                 )}
               </td>
@@ -2215,7 +2303,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <label className="text-[12px] font-medium text-text-secondary">{t('http.authType')}</label>
+        <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('http.authType')}</label>
         <div className="wb-segmented w-fit">
           {(["client_credentials", "authorization_code", "password"] as const).map((gt) => (
             <button
@@ -2229,46 +2317,46 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
         </div>
       </div>
       <div className="space-y-1.5">
-        <label className="text-[12px] font-medium text-text-secondary">Access Token URL</label>
-        <input value={config.accessTokenUrl} onChange={(e) => onChange({ accessTokenUrl: e.target.value })} placeholder="https://auth.example.com/oauth/token" className="wb-field w-full font-mono text-[13px]" />
+        <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Access Token URL</label>
+        <input value={config.accessTokenUrl} onChange={(e) => onChange({ accessTokenUrl: e.target.value })} placeholder="https://auth.example.com/oauth/token" className="wb-field w-full font-mono text-[var(--fs-base)]" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-[12px] font-medium text-text-secondary">Client ID</label>
-          <input value={config.clientId} onChange={(e) => onChange({ clientId: e.target.value })} className="wb-field w-full font-mono text-[13px]" />
+          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Client ID</label>
+          <input value={config.clientId} onChange={(e) => onChange({ clientId: e.target.value })} className="wb-field w-full font-mono text-[var(--fs-base)]" />
         </div>
         <div className="space-y-1.5">
-          <label className="text-[12px] font-medium text-text-secondary">Client Secret</label>
-          <input value={config.clientSecret} onChange={(e) => onChange({ clientSecret: e.target.value })} type="password" className="wb-field w-full font-mono text-[13px]" />
+          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Client Secret</label>
+          <input value={config.clientSecret} onChange={(e) => onChange({ clientSecret: e.target.value })} type="password" className="wb-field w-full font-mono text-[var(--fs-base)]" />
         </div>
       </div>
       {config.grantType === "authorization_code" && (
         <>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-text-secondary">Auth URL</label>
-            <input value={config.authUrl} onChange={(e) => onChange({ authUrl: e.target.value })} placeholder="https://auth.example.com/authorize" className="wb-field w-full font-mono text-[13px]" />
+            <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Auth URL</label>
+            <input value={config.authUrl} onChange={(e) => onChange({ authUrl: e.target.value })} placeholder="https://auth.example.com/authorize" className="wb-field w-full font-mono text-[var(--fs-base)]" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-text-secondary">Redirect URI</label>
-            <input value={config.redirectUri} onChange={(e) => onChange({ redirectUri: e.target.value })} className="wb-field w-full font-mono text-[13px]" />
+            <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Redirect URI</label>
+            <input value={config.redirectUri} onChange={(e) => onChange({ redirectUri: e.target.value })} className="wb-field w-full font-mono text-[var(--fs-base)]" />
           </div>
         </>
       )}
       {config.grantType === "password" && (
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-text-secondary">Username</label>
-            <input value={config.username} onChange={(e) => onChange({ username: e.target.value })} className="wb-field w-full text-[13px]" />
+            <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Username</label>
+            <input value={config.username} onChange={(e) => onChange({ username: e.target.value })} className="wb-field w-full text-[var(--fs-base)]" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-text-secondary">Password</label>
-            <input value={config.password} onChange={(e) => onChange({ password: e.target.value })} type="password" className="wb-field w-full text-[13px]" />
+            <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Password</label>
+            <input value={config.password} onChange={(e) => onChange({ password: e.target.value })} type="password" className="wb-field w-full text-[var(--fs-base)]" />
           </div>
         </div>
       )}
       <div className="space-y-1.5">
-        <label className="text-[12px] font-medium text-text-secondary">Scope</label>
-        <input value={config.scope} onChange={(e) => onChange({ scope: e.target.value })} placeholder="read write" className="wb-field w-full font-mono text-[13px]" />
+        <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Scope</label>
+        <input value={config.scope} onChange={(e) => onChange({ scope: e.target.value })} placeholder="read write" className="wb-field w-full font-mono text-[var(--fs-base)]" />
       </div>
 
       {/* Get Token + Access Token */}
@@ -2278,7 +2366,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
             onClick={handleFetchToken}
             disabled={loading || !canFetchToken}
             className={cn(
-              "px-4 py-2 text-[12px] font-semibold rounded-lg transition-all",
+              "px-4 py-2 text-[var(--fs-sm)] font-semibold rounded-lg transition-all",
               loading
                 ? "bg-amber-400 text-white cursor-wait"
                 : canFetchToken
@@ -2289,21 +2377,21 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
             {loading ? t('http.fetchingToken') : t('http.getToken')}
           </button>
           {tokenMeta && (
-            <div className="flex items-center gap-2 text-[11px] text-text-tertiary">
-              {tokenMeta.tokenType && <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded text-[10px] font-medium">{tokenMeta.tokenType}</span>}
+            <div className="flex items-center gap-2 text-[var(--fs-xs)] text-text-tertiary">
+              {tokenMeta.tokenType && <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded text-[var(--fs-xxs)] font-medium">{tokenMeta.tokenType}</span>}
               {tokenMeta.expiresIn && <span>{t('http.tokenExpiry', { time: tokenMeta.expiresIn })}</span>}
               {tokenMeta.scope && <span>scope: {tokenMeta.scope}</span>}
             </div>
           )}
         </div>
         {error && (
-          <div className="mb-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-[12px] text-red-600 dark:text-red-400 break-all">
+          <div className="mb-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-[var(--fs-sm)] text-red-600 dark:text-red-400 break-all">
             {error}
           </div>
         )}
         <div className="space-y-1.5">
-          <label className="text-[12px] font-medium text-text-secondary">Access Token</label>
-          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder="点击「获取 Token」自动填入，或手动粘贴" className="wb-field w-full font-mono text-[12px]" />
+          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Access Token</label>
+          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder="点击「获取 Token」自动填入，或手动粘贴" className="wb-field w-full font-mono text-[var(--fs-sm)]" />
         </div>
       </div>
     </div>
@@ -2327,8 +2415,8 @@ function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; file
         <div className="flex items-center gap-3 p-4 rounded-lg border border-border-default bg-bg-secondary/50">
           <FileIcon className="w-8 h-8 text-accent/60" />
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-text-primary truncate max-w-xs">{fileName}</p>
-            <p className="text-[11px] text-text-disabled font-mono truncate max-w-xs">{filePath}</p>
+            <p className="text-[var(--fs-base)] font-medium text-text-primary truncate max-w-xs">{fileName}</p>
+            <p className="text-[var(--fs-xs)] text-text-disabled font-mono truncate max-w-xs">{filePath}</p>
           </div>
           <button onClick={() => onChange('', '')} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-red-500 transition-colors" title={t('http.removeFile')}>
             <X className="w-4 h-4" />
@@ -2340,8 +2428,8 @@ function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; file
           className="flex flex-col items-center gap-2 p-6 rounded-lg border-2 border-dashed border-border-default hover:border-accent text-text-disabled hover:text-accent transition-colors cursor-pointer"
         >
           <Upload className="w-8 h-8" />
-          <span className="text-[13px] font-medium">{t('http.selectFile')}</span>
-          <span className="text-[11px]">{t('http.binaryDesc')}</span>
+          <span className="text-[var(--fs-base)] font-medium">{t('http.selectFile')}</span>
+          <span className="text-[var(--fs-xs)]">{t('http.binaryDesc')}</span>
         </button>
       )}
     </div>

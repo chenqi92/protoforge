@@ -204,7 +204,7 @@ export function MqttWorkspace() {
               )} />
               {status === 'idle' ? t('mqtt.idle') : status === 'connecting' ? t('mqtt.connecting') : status === 'connected' ? t('mqtt.connected') : status === 'disconnected' ? t('mqtt.disconnected') : t('mqtt.error')}
             </span>
-            {errorMsg ? <span className="text-[11px] text-red-500">{errorMsg}</span> : null}
+            {errorMsg ? <span className="text-[var(--fs-xs)] text-red-500">{errorMsg}</span> : null}
           </>
         )}
       />
@@ -214,8 +214,8 @@ export function MqttWorkspace() {
           <div className="wb-workbench-sidebar">
             <div className="flex shrink-0 flex-col p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-[10px] font-bold uppercase tracking-wider text-text-disabled">{t('mqtt.subscriptions')}</h3>
-                <span className="text-[10px] text-text-disabled">{t('mqtt.subscriptionCount', { count: subscriptions.length })}</span>
+                <h3 className="text-[var(--fs-xxs)] font-bold uppercase tracking-wider text-text-disabled">{t('mqtt.subscriptions')}</h3>
+                <span className="text-[var(--fs-xxs)] text-text-disabled">{t('mqtt.subscriptionCount', { count: subscriptions.length })}</span>
               </div>
               <div className="mb-2 flex items-center gap-2">
                 <input value={newSubTopic} onChange={(e) => setNewSubTopic(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSubscribe()}
@@ -232,15 +232,15 @@ export function MqttWorkspace() {
               </div>
               <div className="max-h-28 space-y-1 overflow-auto">
                 {subscriptions.length === 0 ? (
-                  <div className="border-t border-border-default/70 pt-3 text-[11px] text-text-disabled">
+                  <div className="border-t border-border-default/70 pt-3 text-[var(--fs-xs)] text-text-disabled">
                     {t('mqtt.subscriptionHint')}
                   </div>
                 ) : (
                   subscriptions.map((sub, i) => (
-                    <div key={i} className="flex items-center justify-between border-t border-border-default/70 py-2 text-[11px]">
+                    <div key={i} className="flex items-center justify-between border-t border-border-default/70 py-2 text-[var(--fs-xs)]">
                       <span className="truncate font-mono text-text-secondary">{sub.topic}</span>
                       <div className="flex shrink-0 items-center gap-1.5">
-                        <span className="rounded-[7px] bg-bg-primary px-1.5 py-0.5 text-[10px] text-text-tertiary">Q{sub.qos}</span>
+                        <span className="rounded-[7px] bg-bg-primary px-1.5 py-0.5 text-[var(--fs-xxs)] text-text-tertiary">Q{sub.qos}</span>
                         <button onClick={() => handleUnsubscribe(sub.topic)} className="flex h-6 w-6 items-center justify-center rounded-[8px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"><X className="w-3 h-3" /></button>
                       </div>
                     </div>
@@ -253,13 +253,13 @@ export function MqttWorkspace() {
 
             <div className="flex min-h-0 flex-1 flex-col p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-[10px] font-bold uppercase tracking-wider text-text-disabled">{t('mqtt.publish')}</h3>
-                <span className="text-[10px] text-text-disabled">{t('mqtt.publishDesc')}</span>
+                <h3 className="text-[var(--fs-xxs)] font-bold uppercase tracking-wider text-text-disabled">{t('mqtt.publish')}</h3>
+                <span className="text-[var(--fs-xxs)] text-text-disabled">{t('mqtt.publishDesc')}</span>
               </div>
               <input value={pubTopic} onChange={(e) => setPubTopic(e.target.value)} placeholder="topic/path" disabled={!isConnected}
                 className="wb-field-sm mb-2 font-mono disabled:opacity-50" />
               <textarea value={pubPayload} onChange={(e) => setPubPayload(e.target.value)} placeholder={t('mqtt.messagePlaceholder')} disabled={!isConnected}
-                className="wb-textarea mb-2 flex-1 min-h-[160px] text-[12px] text-text-secondary disabled:opacity-50" />
+                className="wb-textarea mb-2 flex-1 min-h-[160px] text-[var(--fs-sm)] text-text-secondary disabled:opacity-50" />
               <div className="flex flex-wrap items-center gap-2 border-t border-border-default/70 pt-2">
                 <select value={pubQos} onChange={(e) => setPubQos(Number(e.target.value))} disabled={!isConnected}
                   className="wb-field-sm wb-native-select w-[86px] shrink-0 disabled:opacity-50">
@@ -267,7 +267,7 @@ export function MqttWorkspace() {
                   <option value={1}>QoS 1</option>
                   <option value={2}>QoS 2</option>
                 </select>
-                <label className={cn("flex shrink-0 items-center gap-1 text-[11px] cursor-pointer", !isConnected && "opacity-50")}>
+                <label className={cn("flex shrink-0 items-center gap-1 text-[var(--fs-xs)] cursor-pointer", !isConnected && "opacity-50")}>
                   <input type="checkbox" checked={pubRetain} onChange={(e) => setPubRetain(e.target.checked)} disabled={!isConnected} className="accent-accent" /> Retain
                 </label>
                 <button onClick={handlePublish} disabled={!isConnected || !pubTopic.trim()} className="wb-primary-btn ml-auto min-w-[84px] bg-violet-500 hover:bg-violet-600 disabled:opacity-40">
@@ -279,12 +279,12 @@ export function MqttWorkspace() {
 
           <div className="wb-workbench-main">
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-bg-primary">
-              <div className="wb-pane-header shrink-0 text-[11px]">
+              <div className="wb-pane-header shrink-0 text-[var(--fs-xs)]">
                 <div className="min-w-0 flex flex-1 items-center">
                   <span className="text-text-disabled">{t('mqtt.messageCount', { count: messages.length })}</span>
                 </div>
                 <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-                  <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn px-2.5 text-[11px]", autoScroll && "text-accent")}>
+                  <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn px-2.5 text-[var(--fs-xs)]", autoScroll && "text-accent")}>
                     <ArrowDown className="w-3 h-3" /> {t('mqtt.autoScroll')}
                   </button>
                   <button onClick={() => setMessages([])} className="wb-icon-btn hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
@@ -296,23 +296,23 @@ export function MqttWorkspace() {
                     <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default/70 bg-bg-primary/78">
                       <Radio className="w-8 h-8 opacity-20 text-violet-500" />
                     </div>
-                    <p className="text-[13px] font-medium">{t('mqtt.emptyTitle')}</p>
-                    <p className="mt-1 text-[11px]">{t('mqtt.emptyDesc')}</p>
+                    <p className="text-[var(--fs-base)] font-medium">{t('mqtt.emptyTitle')}</p>
+                    <p className="mt-1 text-[var(--fs-xs)]">{t('mqtt.emptyDesc')}</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-border-default/55">
                     {messages.map((msg, i) => (
                       <div key={i} className={cn("px-4 py-3 transition-colors hover:bg-bg-hover/35", msg.direction === 'out' && "bg-violet-500/[0.035]")}>
                         <div className="mb-1 flex items-center gap-2">
-                          <span className={cn("rounded-[8px] px-1.5 py-0.5 text-[10px] font-bold", msg.direction === 'out' ? "bg-violet-500/20 text-violet-600" : "bg-emerald-500/20 text-emerald-600")}>
+                          <span className={cn("rounded-[8px] px-1.5 py-0.5 text-[var(--fs-xxs)] font-bold", msg.direction === 'out' ? "bg-violet-500/20 text-violet-600" : "bg-emerald-500/20 text-emerald-600")}>
                             {msg.direction === 'out' ? t('mqtt.sent') : t('mqtt.received')}
                           </span>
-                          <span className="min-w-0 truncate text-[10px] font-mono text-accent">{msg.topic}</span>
-                          <span className="ml-auto text-[10px] text-text-disabled">Q{msg.qos}</span>
-                          {msg.retain && <span className="rounded-[7px] bg-amber-500/10 px-1.5 py-0.5 text-[9px] text-amber-600">R</span>}
-                          <span className="text-[10px] font-mono text-text-disabled">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                          <span className="min-w-0 truncate text-[var(--fs-xxs)] font-mono text-accent">{msg.topic}</span>
+                          <span className="ml-auto text-[var(--fs-xxs)] text-text-disabled">Q{msg.qos}</span>
+                          {msg.retain && <span className="rounded-[7px] bg-amber-500/10 px-1.5 py-0.5 text-[var(--fs-3xs)] text-amber-600">R</span>}
+                          <span className="text-[var(--fs-xxs)] font-mono text-text-disabled">{new Date(msg.timestamp).toLocaleTimeString()}</span>
                         </div>
-                        <pre className="whitespace-pre-wrap break-all text-[12px] font-mono text-text-secondary">{msg.payload}</pre>
+                        <pre className="whitespace-pre-wrap break-all text-[var(--fs-sm)] font-mono text-text-secondary">{msg.payload}</pre>
                       </div>
                     ))}
                   </div>

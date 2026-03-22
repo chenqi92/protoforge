@@ -93,12 +93,12 @@ function AddressField({
 }) {
   return (
     <div className="flex items-center gap-2 rounded-[11px] border border-border-default/75 bg-bg-primary/78 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{label}</span>
+      <span className="shrink-0 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-7 flex-1 bg-transparent text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled"
+        className="h-7 flex-1 bg-transparent text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled"
       />
     </div>
   );

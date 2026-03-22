@@ -58,7 +58,7 @@ export function RequestProtocolSwitcher({
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="wb-protocol-menu absolute left-0 top-full z-50 mt-2 min-w-[180px]">
-            <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled">
+            <div className="px-2.5 pb-1 pt-1.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.14em] text-text-disabled">
               Switch Request Type
             </div>
             {options.map((option) => {
@@ -82,10 +82,10 @@ export function RequestProtocolSwitcher({
                     <Icon className="h-3.5 w-3.5" />
                   </span>
                   <span className="min-w-0 flex-1 text-left">
-                    <span className={cn("block text-[12px] font-medium", active ? "text-text-primary" : "text-text-secondary")}>
+                    <span className={cn("block text-[var(--fs-sm)] font-medium", active ? "text-text-primary" : "text-text-secondary")}>
                       {option.label}
                     </span>
-                    <span className="block text-[10px] text-text-disabled">{option.description}</span>
+                    <span className="block text-[var(--fs-xxs)] text-text-disabled">{option.description}</span>
                   </span>
                 </button>
               );

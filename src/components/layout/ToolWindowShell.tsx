@@ -50,7 +50,7 @@ export function ToolWindowShell({
                 accentClassName
               )}
             />
-            <div className="truncate text-[12px] font-semibold text-text-primary">{title}</div>
+            <div className="truncate text-[var(--fs-sm)] font-semibold text-text-primary">{title}</div>
           </div>
 
           <div className="flex-1" />
@@ -69,7 +69,7 @@ export function ToolWindowShell({
               {t('toolWindow.mergeBack')}
             </button>
             {badgeLabel ? (
-              <span className="rounded-full border border-border-default/70 bg-bg-secondary/80 px-2.5 py-1 text-[11px] text-text-tertiary">
+              <span className="rounded-full border border-border-default/70 bg-bg-secondary/80 px-2.5 py-1 text-[var(--fs-xs)] text-text-tertiary">
                 {badgeLabel}
               </span>
             ) : null}

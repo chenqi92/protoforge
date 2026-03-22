@@ -115,7 +115,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
             <div className={cn("flex items-center justify-between", activeView === "collections" ? "mb-2" : "mb-2")}>
               <div className="flex min-w-0 items-center gap-2">
                 {activeView !== "collections" ? (
-                  <span className="truncate text-[13px] font-semibold text-text-primary">
+                  <span className="truncate text-[var(--fs-base)] font-semibold text-text-primary">
                     {t(navItems.find(n => n.id === activeView)?.labelKey || '')}
                   </span>
                 ) : null}
@@ -125,7 +125,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                   <>
                     <button
                       onClick={handleNewCollection}
-                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[11px] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
+                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
                       title={t('sidebar.new')}
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -133,7 +133,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                     </button>
                     <button
                       onClick={handleImport}
-                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[11px] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
                       title={t('sidebar.import')}
                     >
                       <Download className="w-3 h-3" />
@@ -144,7 +144,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 {activeView === "environments" && (
                   <button
                     onClick={handleNewEnvironment}
-                    className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[11px] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
+                    className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
                     title={t('sidebar.addEnv')}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -161,7 +161,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`${t('common.search')}${t(navItems.find(n => n.id === activeView)?.labelKey || '')}...`}
-                className="h-[30px] w-full rounded-[10px] border border-border-default/80 bg-bg-secondary/42 pl-8 pr-3 text-[12px] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]"
+                className="h-[30px] w-full rounded-[10px] border border-border-default/80 bg-bg-secondary/42 pl-8 pr-3 text-[var(--fs-sm)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]"
               />
             </div>
           </div>
@@ -475,7 +475,7 @@ function CollectionsView({ search }: { search: string }) {
             <button
               onClick={() => toggleFolder(item.id)}
               onContextMenu={(e) => handleSubFolderContextMenu(e, item)}
-              className="w-full flex items-center gap-1.5 pr-2 py-[5px] rounded-md text-[12px] text-text-secondary hover:bg-bg-hover transition-colors group/folder"
+              className="w-full flex items-center gap-1.5 pr-2 py-[5px] rounded-md text-[var(--fs-sm)] text-text-secondary hover:bg-bg-hover transition-colors group/folder"
               style={{ paddingLeft: `${12 + depth * 14}px` }}
             >
               <motion.div
@@ -496,14 +496,14 @@ function CollectionsView({ search }: { search: string }) {
                     e.stopPropagation();
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex-1 min-w-0 text-[11px] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
+                  className="flex-1 min-w-0 text-[var(--fs-xs)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
                   autoFocus
                 />
               ) : (
-                <span className="truncate text-[11px] font-medium">{item.name}</span>
+                <span className="truncate text-[var(--fs-xs)] font-medium">{item.name}</span>
               )}
               {childCount > 0 && (
-                <span className="text-[10px] text-text-disabled ml-auto tabular-nums">{childCount}</span>
+                <span className="text-[var(--fs-xxs)] text-text-disabled ml-auto tabular-nums">{childCount}</span>
               )}
             </button>
             <AnimatePresence>
@@ -529,11 +529,11 @@ function CollectionsView({ search }: { search: string }) {
           key={item.id}
           onDoubleClick={() => isRenamingItem ? undefined : handleOpenItem(item)}
           onContextMenu={(e) => handleItemContextMenu(e, { ...item, name: item.name, url: item.url, collectionId: item.collectionId })}
-          className="w-full flex items-center gap-2 pr-2 py-[5px] rounded-md text-[12px] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
+          className="w-full flex items-center gap-2 pr-2 py-[5px] rounded-md text-[var(--fs-sm)] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
           style={{ paddingLeft: `${12 + depth * 14}px` }}
         >
           <span className={cn(
-            "text-[10px] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
+            "text-[var(--fs-xxs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
             color.text, color.bg
           )}>
             {method}
@@ -549,11 +549,11 @@ function CollectionsView({ search }: { search: string }) {
                 e.stopPropagation();
               }}
               onClick={(e) => e.stopPropagation()}
-              className="flex-1 min-w-0 text-[11px] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-mono"
+              className="flex-1 min-w-0 text-[var(--fs-xs)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-mono"
               autoFocus
             />
           ) : (
-            <span className="truncate font-mono text-[11px]">{item.name}</span>
+            <span className="truncate font-mono text-[var(--fs-xs)]">{item.name}</span>
           )}
         </button>
       );
@@ -567,8 +567,8 @@ function CollectionsView({ search }: { search: string }) {
           <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] border border-border-subtle bg-bg-hover shadow-sm">
             <FolderOpen className="w-6 h-6 text-text-tertiary" />
           </div>
-          <p className="text-[13px] font-medium text-text-secondary">{search ? t('sidebar.noMatch') : t('sidebar.noCollections')}</p>
-          <p className="text-[11px] mt-1 text-text-disabled">{t('sidebar.noCollectionsHint')}</p>
+          <p className="text-[var(--fs-base)] font-medium text-text-secondary">{search ? t('sidebar.noMatch') : t('sidebar.noCollections')}</p>
+          <p className="text-[var(--fs-xs)] mt-1 text-text-disabled">{t('sidebar.noCollectionsHint')}</p>
         </div>
       )}
       {filteredCollections.map((col) => {
@@ -579,7 +579,7 @@ function CollectionsView({ search }: { search: string }) {
             <button
               onClick={() => toggleExpand(col.id)}
               onContextMenu={(e) => handleFolderContextMenu(e, col)}
-              className="w-full flex items-center gap-1.5 px-2 py-[6px] rounded-md text-[12px] font-medium text-text-secondary hover:bg-bg-hover transition-colors group"
+              className="w-full flex items-center gap-1.5 px-2 py-[6px] rounded-md text-[var(--fs-sm)] font-medium text-text-secondary hover:bg-bg-hover transition-colors group"
             >
               <motion.div
                 animate={{ rotate: expanded[col.id] ? 90 : 0 }}
@@ -599,7 +599,7 @@ function CollectionsView({ search }: { search: string }) {
                     e.stopPropagation();
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex-1 min-w-0 text-[12px] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
+                  className="flex-1 min-w-0 text-[var(--fs-sm)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
                   autoFocus
                 />
               ) : (
@@ -607,7 +607,7 @@ function CollectionsView({ search }: { search: string }) {
               )}
               {renamingId !== col.id && (
                 <>
-                  <span className="text-[10px] text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
+                  <span className="text-[var(--fs-xxs)] text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
                   <span
                     role="button"
                     onClick={(e) => { e.stopPropagation(); handleFolderContextMenu(e, col); }}
@@ -628,7 +628,7 @@ function CollectionsView({ search }: { search: string }) {
                   className="overflow-hidden"
                 >
                   {colItems.length === 0 && (
-                    <p className="pl-[30px] pr-2 py-2 text-[11px] text-text-disabled">{t('sidebar.emptyCollection')}</p>
+                    <p className="pl-[30px] pr-2 py-2 text-[var(--fs-xs)] text-text-disabled">{t('sidebar.emptyCollection')}</p>
                   )}
                   {renderItems(colItems, null, 1)}
                 </motion.div>
@@ -720,7 +720,7 @@ function HistoryView({ search }: { search: string }) {
     <div className="py-0.5">
       {groups.map((group) => (
         <div key={group.label} className="mb-2">
-          <div className="px-2 py-1 text-[10px] font-semibold text-text-disabled uppercase tracking-wider">
+          <div className="px-2 py-1 text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider">
             {group.label}
           </div>
           {group.items.map((h) => {
@@ -730,24 +730,24 @@ function HistoryView({ search }: { search: string }) {
                 key={h.id}
                 onDoubleClick={() => handleOpenHistoryEntry(h)}
                 onContextMenu={(e) => handleHistoryContextMenu(e, h)}
-                className="w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[12px] hover:bg-bg-hover transition-colors group"
+                className="w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[var(--fs-sm)] hover:bg-bg-hover transition-colors group"
               >
                 <span className={cn(
-                  "text-[10px] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
+                  "text-[var(--fs-xxs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
                   color.text, color.bg
                 )}>
                   {h.method}
                 </span>
-                <span className="truncate font-mono text-[11px] text-text-tertiary flex-1">{h.url}</span>
+                <span className="truncate font-mono text-[var(--fs-xs)] text-text-tertiary flex-1">{h.url}</span>
                 {h.status && (
                   <span className={cn(
-                    "text-[10px] shrink-0 tabular-nums font-medium",
+                    "text-[var(--fs-xxs)] shrink-0 tabular-nums font-medium",
                     h.status < 400 ? "text-emerald-600" : "text-red-500"
                   )}>
                     {h.status}
                   </span>
                 )}
-                <span className="text-[10px] text-text-disabled shrink-0 hidden group-hover:inline">
+                <span className="text-[var(--fs-xxs)] text-text-disabled shrink-0 hidden group-hover:inline">
                   {formatTime(h.createdAt)}
                 </span>
               </button>
@@ -760,8 +760,8 @@ function HistoryView({ search }: { search: string }) {
           <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] border border-border-subtle bg-bg-hover shadow-sm">
             <Clock className="w-6 h-6 text-text-tertiary" />
           </div>
-          <p className="text-[13px] font-medium text-text-secondary">{search ? t('sidebar.noHistoryMatch') : t('sidebar.noHistory')}</p>
-          <p className="text-[11px] mt-1 text-text-disabled leading-relaxed">{t('sidebar.noHistoryHint')}</p>
+          <p className="text-[var(--fs-base)] font-medium text-text-secondary">{search ? t('sidebar.noHistoryMatch') : t('sidebar.noHistory')}</p>
+          <p className="text-[var(--fs-xs)] mt-1 text-text-disabled leading-relaxed">{t('sidebar.noHistoryHint')}</p>
         </div>
       )}
       {MenuComponent}
@@ -798,7 +798,7 @@ function EnvironmentsView() {
             onClick={() => setActive(isActive ? null : env.id)}
             onContextMenu={(e) => handleEnvContextMenu(e, env)}
             className={cn(
-              "flex items-center gap-2 px-2 py-[6px] rounded-md text-[12px] cursor-pointer transition-colors mb-0.5",
+              "flex items-center gap-2 px-2 py-[6px] rounded-md text-[var(--fs-sm)] cursor-pointer transition-colors mb-0.5",
               isActive
                 ? "text-text-secondary bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/8"
                 : "text-text-tertiary hover:bg-bg-hover border border-transparent"
@@ -811,7 +811,7 @@ function EnvironmentsView() {
             <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-emerald-600" : "text-text-disabled")} />
             <span className={cn("truncate", isActive && "font-medium")}>{env.name}</span>
             {isActive && (
-              <span className="ml-auto rounded-[8px] bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600">{t('sidebar.active')}</span>
+              <span className="ml-auto rounded-[8px] bg-emerald-500/10 px-1.5 py-0.5 text-[var(--fs-xxs)] font-semibold text-emerald-600">{t('sidebar.active')}</span>
             )}
           </div>
         );
@@ -824,8 +824,8 @@ function EnvironmentsView() {
               <Zap className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-[12px] font-medium">{t('sidebar.envVariables')}</p>
-              <p className="text-[10px] text-text-disabled">{t('sidebar.envVariablesHint')}</p>
+              <p className="text-[var(--fs-sm)] font-medium">{t('sidebar.envVariables')}</p>
+              <p className="text-[var(--fs-xxs)] text-text-disabled">{t('sidebar.envVariablesHint')}</p>
             </div>
           </div>
         </div>

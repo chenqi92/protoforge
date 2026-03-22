@@ -33,6 +33,17 @@ interface PluginRendererViewProps {
   className?: string;
 }
 
+/** 安全地将任意文本编码为 base64（支持 Unicode，不会像 btoa 那样崩溃） */
+function textToBase64(text: string): string {
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(text);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 export function PluginRendererView({ pluginId, body, isBinary, className }: PluginRendererViewProps) {
   const [result, setResult] = useState<RenderResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +58,9 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
 
     invoke<RenderResult>('plugin_render_data', {
       pluginId,
-      base64Data: isBinary ? body : btoa(body),
+      // isBinary=true 时 body 已经是 base64（Rust 后端编码的），直接传
+      // isBinary=false 时 body 是文本，用安全方法编码为 base64
+      base64Data: isBinary ? body : textToBase64(body),
     })
       .then((res) => {
         if (!cancelled) {
@@ -73,7 +86,7 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
     return (
       <div className={cn('flex flex-col items-center justify-center gap-3 p-8 text-text-disabled', className)}>
         <Loader2 className="h-8 w-8 animate-spin opacity-40" />
-        <p className="text-[13px]">插件处理中...</p>
+        <p className="text-[var(--fs-base)]">插件处理中...</p>
       </div>
     );
   }
@@ -82,8 +95,8 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
     return (
       <div className={cn('flex flex-col items-center justify-center gap-3 p-8 text-text-disabled', className)}>
         <AlertCircle className="h-10 w-10 opacity-30 text-red-400" />
-        <p className="text-[13px]">插件渲染失败</p>
-        <p className="text-[11px] text-text-tertiary max-w-[400px] text-center">{error || '未知错误'}</p>
+        <p className="text-[var(--fs-base)]">插件渲染失败</p>
+        <p className="text-[var(--fs-xs)] text-text-tertiary max-w-[400px] text-center">{error || '未知错误'}</p>
       </div>
     );
   }
@@ -93,7 +106,7 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
     return (
       <div className={cn('flex-1 overflow-auto p-2', className)}>
         <div
-          className="plugin-html-content text-[12px]"
+          className="plugin-html-content text-[var(--fs-sm)]"
           dangerouslySetInnerHTML={{ __html: result.html }}
         />
       </div>
@@ -106,7 +119,7 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
   }
 
   return (
-    <div className={cn('flex items-center justify-center h-full text-text-disabled text-[13px]', className)}>
+    <div className={cn('flex items-center justify-center h-full text-text-disabled text-[var(--fs-base)]', className)}>
       插件返回了未知的渲染类型: {result.type}
     </div>
   );
@@ -135,7 +148,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
                 key={s.name}
                 onClick={() => setActiveSheet(idx)}
                 className={cn(
-                  'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap',
+                  'rounded-md px-2.5 py-1 text-[var(--fs-xs)] font-medium transition-colors whitespace-nowrap',
                   activeSheet === idx
                     ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-400'
                     : 'text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
@@ -145,7 +158,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
               </button>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-1 text-[10px] text-text-disabled shrink-0">
+          <div className="ml-auto flex items-center gap-1 text-[var(--fs-xxs)] text-text-disabled shrink-0">
             <button
               onClick={() => setActiveSheet(Math.max(0, activeSheet - 1))}
               disabled={activeSheet === 0}
@@ -167,10 +180,10 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
 
       {/* Stats */}
       <div className="flex items-center gap-3 border-b border-border-default/60 bg-bg-secondary/15 px-3 py-1 shrink-0">
-        <span className="text-[10px] font-medium text-text-tertiary">
+        <span className="text-[var(--fs-xxs)] font-medium text-text-tertiary">
           Sheet: <span className="text-text-secondary">{sheet?.name}</span>
         </span>
-        <span className="text-[10px] text-text-disabled">
+        <span className="text-[var(--fs-xxs)] text-text-disabled">
           {columns.length} 列 · {rows.length} 行
         </span>
       </div>
@@ -178,13 +191,13 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
       {/* Table */}
       <div className="flex-1 overflow-auto p-2">
         {columns.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-text-disabled text-[13px]">
+          <div className="flex items-center justify-center h-full text-text-disabled text-[var(--fs-base)]">
             此 Sheet 为空
           </div>
         ) : (
           <div className="editor-table-shell">
             <div className="editor-table-frame">
-              <table className="editor-table text-[12px]">
+              <table className="editor-table text-[var(--fs-sm)]">
                 <thead>
                   <tr>
                     <th className="w-[40px] text-center text-text-disabled font-normal">#</th>
@@ -198,7 +211,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
                 <tbody>
                   {rows.slice(0, 500).map((row: string[], ri: number) => (
                     <tr key={ri}>
-                      <td className="text-center text-[10px] text-text-disabled tabular-nums">{ri + 1}</td>
+                      <td className="text-center text-[var(--fs-xxs)] text-text-disabled tabular-nums">{ri + 1}</td>
                       {row.map((cell: string, ci: number) => (
                         <td key={ci} className="px-3 py-2 break-words max-w-[300px]">
                           {cell}
@@ -212,7 +225,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
                 </tbody>
               </table>
               {rows.length > 500 && (
-                <div className="py-3 text-center text-[11px] text-text-disabled italic">
+                <div className="py-3 text-center text-[var(--fs-xs)] text-text-disabled italic">
                   仅显示前 500 行，共 {rows.length} 行
                 </div>
               )}

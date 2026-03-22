@@ -106,13 +106,13 @@ export function SendPanel({
     <div className={cn("flex h-full min-h-0 flex-col overflow-hidden", !embedded && "wb-panel")}>
       <div className={cn("shrink-0", embedded ? "wb-pane-header" : "wb-panel-header")}>
         <div>
-          <div className="text-[12px] font-semibold text-text-primary">{t('tcp.sendPanel.title')}</div>
-          <div className="mt-0.5 text-[11px] text-text-tertiary">
+          <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('tcp.sendPanel.title')}</div>
+          <div className="mt-0.5 text-[var(--fs-xs)] text-text-tertiary">
             {connected ? t('tcp.sendPanel.readyToSend') : t('tcp.sendPanel.connectToSend')}
           </div>
         </div>
         <span className={cn(
-          "rounded-[8px] px-2.5 py-1 text-[10px] font-semibold",
+          "rounded-[8px] px-2.5 py-1 text-[var(--fs-xxs)] font-semibold",
           connected ? "bg-emerald-500/10 text-emerald-600" : "bg-bg-secondary text-text-tertiary"
         )}>
           {connected ? t('tcp.sendPanel.online') : t('tcp.sendPanel.offline')}
@@ -123,7 +123,7 @@ export function SendPanel({
         <div className="flex min-h-full flex-col gap-3">
           <div>
             <div className="mb-1.5 flex items-center gap-1 px-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">{t('tcp.sendPanel.sendFormat')}</span>
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">{t('tcp.sendPanel.sendFormat')}</span>
             </div>
             <div className="wb-tool-segment">
               {FORMAT_OPTIONS.map((opt) => (
@@ -146,7 +146,7 @@ export function SendPanel({
                 onChange={(e) => onAppendNewlineChange(e.target.checked)}
                 className="h-3.5 w-3.5 cursor-pointer rounded border-border-default text-accent focus:ring-accent/30"
               />
-              <span className="text-[11px] text-text-tertiary transition-colors group-hover:text-text-secondary">
+              <span className="text-[var(--fs-xs)] text-text-tertiary transition-colors group-hover:text-text-secondary">
                 {t('tcp.sendPanel.appendNewline')}
               </span>
             </label>
@@ -158,7 +158,7 @@ export function SendPanel({
                 onChange={onTimerToggle}
                 className="h-3.5 w-3.5 cursor-pointer rounded border-border-default text-accent focus:ring-accent/30"
               />
-              <span className="text-[11px] text-text-tertiary transition-colors group-hover:text-text-secondary">
+              <span className="text-[var(--fs-xs)] text-text-tertiary transition-colors group-hover:text-text-secondary">
                 {t('tcp.sendPanel.timedSend')}
               </span>
             </label>
@@ -169,23 +169,23 @@ export function SendPanel({
                   type="number"
                   value={timerInterval}
                   onChange={(e) => onTimerIntervalChange(Math.max(100, parseInt(e.target.value) || 1000))}
-                  className="h-7 w-[76px] rounded-[9px] border border-border-default bg-bg-input px-2 text-center text-[11px] font-mono text-text-primary outline-none focus:border-accent"
+                  className="h-7 w-[76px] rounded-[9px] border border-border-default bg-bg-input px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent"
                   min={100}
                   step={100}
                 />
-                <span className="text-[10px] text-text-disabled">ms</span>
+                <span className="text-[var(--fs-xxs)] text-text-disabled">ms</span>
               </div>
             ) : null}
           </div>
 
           {sendTargetLabel ? (
             <div className="rounded-[10px] border border-border-default/65 bg-bg-secondary/26 px-3 py-2.5">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+              <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
                 {t("tcp.sendPanel.currentTarget")}
               </div>
-              <div className="mt-1 text-[12px] font-medium text-text-primary">{sendTargetLabel}</div>
+              <div className="mt-1 text-[var(--fs-sm)] font-medium text-text-primary">{sendTargetLabel}</div>
               {sendTargetHint ? (
-                <div className="mt-1 text-[11px] text-text-tertiary">{sendTargetHint}</div>
+                <div className="mt-1 text-[var(--fs-xs)] text-text-tertiary">{sendTargetHint}</div>
               ) : null}
             </div>
           ) : null}
@@ -206,13 +206,13 @@ export function SendPanel({
                 }
                 disabled={!connected}
                 className={cn(
-                  "h-full min-h-[188px] w-full flex-1 resize-none rounded-[12px] border border-border-default bg-bg-input/85 p-3 text-[12px] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled",
+                  "h-full min-h-[188px] w-full flex-1 resize-none rounded-[12px] border border-border-default bg-bg-input/85 p-3 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled",
                   "focus:border-accent focus:ring-2 focus:ring-accent/20",
                   "disabled:cursor-not-allowed disabled:opacity-45"
                 )}
               />
               {message.length > 0 ? (
-                <div className="absolute bottom-2 right-3 text-[9px] text-text-disabled">
+                <div className="absolute bottom-2 right-3 text-[var(--fs-3xs)] text-text-disabled">
                   {sendFormat === "hex"
                     ? `${message.replace(/[\s,]/g, "").replace(/0[xX]/g, "").length / 2} ${t('tcp.sendPanel.bytes')}`
                     : `${new TextEncoder().encode(message).length} ${t('tcp.sendPanel.bytes')}`
@@ -238,8 +238,8 @@ export function SendPanel({
           <div className="border-t border-border-default/70 pt-3">
             <div className="flex items-center justify-between px-1 pb-1.5">
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">{t('tcp.sendPanel.quickCommands')}</div>
-                <div className="mt-0.5 text-[10px] text-text-disabled">{t("tcp.sendPanel.newCommandHint")}</div>
+                <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">{t('tcp.sendPanel.quickCommands')}</div>
+                <div className="mt-0.5 text-[var(--fs-xxs)] text-text-disabled">{t("tcp.sendPanel.newCommandHint")}</div>
               </div>
               <button
                 onClick={openNewQuickCommand}
@@ -253,12 +253,12 @@ export function SendPanel({
             {showCommandEditor ? (
               <div className="mb-3 rounded-[12px] border border-border-default/70 bg-bg-secondary/30 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-[11px] font-semibold text-text-primary">
+                  <div className="text-[var(--fs-xs)] font-semibold text-text-primary">
                     {editingCommandId ? t("tcp.sendPanel.editCommand") : t("tcp.sendPanel.addCommand")}
                   </div>
                   <button
                     onClick={closeQuickCommandEditor}
-                    className="text-[10px] font-medium text-text-tertiary transition-colors hover:text-text-primary"
+                    className="text-[var(--fs-xxs)] font-medium text-text-tertiary transition-colors hover:text-text-primary"
                   >
                     {t("tcp.sendPanel.cancelCommand")}
                   </button>
@@ -266,7 +266,7 @@ export function SendPanel({
 
                 <div className="mt-2 space-y-2.5">
                   <div>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+                    <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
                       {t("tcp.sendPanel.commandName")}
                     </div>
                     <input
@@ -278,7 +278,7 @@ export function SendPanel({
                   </div>
 
                   <div>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+                    <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
                       {t("tcp.sendPanel.sendFormat")}
                     </div>
                     <div className="wb-tool-segment">
@@ -295,13 +295,13 @@ export function SendPanel({
                   </div>
 
                   <div>
-                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+                    <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
                       {t("tcp.sendPanel.commandContent")}
                     </div>
                     <textarea
                       value={commandData}
                       onChange={(e) => setCommandData(e.target.value)}
-                      className="min-h-[96px] w-full resize-none rounded-[12px] border border-border-default bg-bg-input/85 p-3 text-[12px] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:ring-2 focus:ring-accent/20"
+                      className="min-h-[96px] w-full resize-none rounded-[12px] border border-border-default bg-bg-input/85 p-3 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:ring-2 focus:ring-accent/20"
                       placeholder={t("tcp.sendPanel.placeholder")}
                     />
                   </div>
@@ -328,7 +328,7 @@ export function SendPanel({
                   <div key={cmd.id} className="flex items-center gap-1.5 rounded-[10px] border border-border-default bg-bg-secondary/70 px-1.5 py-1">
                     <button
                       onClick={() => onLoadQuickCommand(cmd)}
-                      className="inline-flex min-w-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[10px] font-medium text-text-secondary transition-all hover:bg-bg-hover hover:text-text-primary"
+                      className="inline-flex min-w-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--fs-xxs)] font-medium text-text-secondary transition-all hover:bg-bg-hover hover:text-text-primary"
                     >
                       <CornerDownLeft className="h-2.5 w-2.5 shrink-0 text-text-disabled" />
                       <span className="truncate">{cmd.name}</span>
@@ -353,7 +353,7 @@ export function SendPanel({
             ) : (
               <button
                 onClick={openNewQuickCommand}
-                className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-dashed border-border-default px-3 py-3 text-[11px] font-medium text-text-tertiary transition-colors hover:border-accent hover:bg-bg-hover/60 hover:text-accent"
+                className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-dashed border-border-default px-3 py-3 text-[var(--fs-xs)] font-medium text-text-tertiary transition-colors hover:border-accent hover:bg-bg-hover/60 hover:text-accent"
               >
                 <Plus className="h-3.5 w-3.5" />
                 {t("tcp.sendPanel.quickCommandEmpty")}
@@ -366,7 +366,7 @@ export function SendPanel({
               <div className="flex items-center justify-between px-1 pb-1.5">
                 <button
                   onClick={() => setShowHistory(!showHistory)}
-                  className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary transition-colors hover:text-text-secondary"
+                  className="flex items-center gap-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary transition-colors hover:text-text-secondary"
                 >
                   <RotateCcw className="h-3 w-3" />
                   {t('tcp.sendPanel.sendHistory')} ({sendHistory.length})
@@ -387,9 +387,9 @@ export function SendPanel({
                       onClick={() => onLoadHistory(item)}
                       className="group flex w-full items-center gap-2 rounded-[10px] px-2.5 py-2 text-left transition-colors hover:bg-bg-hover"
                     >
-                      <span className="w-8 shrink-0 text-[9px] font-bold uppercase text-text-disabled">{item.format}</span>
-                      <span className="flex-1 truncate font-mono text-[11px] text-text-secondary">{item.data}</span>
-                      <span className="shrink-0 text-[9px] text-text-disabled opacity-0 transition-opacity group-hover:opacity-100">
+                      <span className="w-8 shrink-0 text-[var(--fs-3xs)] font-bold uppercase text-text-disabled">{item.format}</span>
+                      <span className="flex-1 truncate font-mono text-[var(--fs-xs)] text-text-secondary">{item.data}</span>
+                      <span className="shrink-0 text-[var(--fs-3xs)] text-text-disabled opacity-0 transition-opacity group-hover:opacity-100">
                         {new Date(item.timestamp).toLocaleTimeString("zh-CN", { hour12: false })}
                       </span>
                     </button>

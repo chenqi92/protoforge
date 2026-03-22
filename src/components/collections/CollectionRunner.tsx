@@ -113,15 +113,15 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
       <div className="shrink-0 flex items-center h-10 px-3 bg-bg-secondary/40 border-b border-border-default gap-2">
         <button onClick={onClose} className="p-1 rounded hover:bg-bg-hover text-text-tertiary"><ArrowLeft className="w-4 h-4" /></button>
         <BarChart3 className="w-4 h-4 text-accent shrink-0" />
-        <span className="text-[13px] font-semibold text-text-primary truncate">Runner: {collectionName}</span>
+        <span className="text-[var(--fs-base)] font-semibold text-text-primary truncate">Runner: {collectionName}</span>
         <div className="flex-1" />
         {running ? (
-          <div className="flex items-center gap-2 text-[11px] text-accent">
+          <div className="flex items-center gap-2 text-[var(--fs-xs)] text-accent">
             <div className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
             {progress.index}/{progress.total}
           </div>
         ) : (
-          <button onClick={handleRun} disabled={selectedIds.length === 0} className="h-7 px-4 rounded-md text-[12px] font-semibold text-white bg-accent hover:bg-accent-hover disabled:opacity-40 flex items-center gap-1">
+          <button onClick={handleRun} disabled={selectedIds.length === 0} className="h-7 px-4 rounded-md text-[var(--fs-sm)] font-semibold text-white bg-accent hover:bg-accent-hover disabled:opacity-40 flex items-center gap-1">
             <Play className="w-3 h-3 fill-white" /> {t('runner.run')}
           </button>
         )}
@@ -133,8 +133,8 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
           {/* Request selection */}
           <div className="p-3 border-b border-border-default">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider">{t('runner.requests')}</h3>
-              <button onClick={toggleAll} className="text-[10px] text-accent hover:underline">
+              <h3 className="text-[var(--fs-xs)] font-bold text-text-disabled uppercase tracking-wider">{t('runner.requests')}</h3>
+              <button onClick={toggleAll} className="text-[var(--fs-xxs)] text-accent hover:underline">
                 {selectedIds.length === items.length ? t('runner.deselectAll') : t('runner.selectAll')}
               </button>
             </div>
@@ -142,8 +142,8 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
               {items.map(item => (
                 <label key={item.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-bg-hover cursor-pointer">
                   <input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => toggleItem(item.id)} className="accent-accent" />
-                  <span className={cn("text-[10px] font-bold w-10 shrink-0", methodColor(item.method || ''))}>{item.method || '?'}</span>
-                  <span className="text-[11px] text-text-secondary truncate">{item.name}</span>
+                  <span className={cn("text-[var(--fs-xxs)] font-bold w-10 shrink-0", methodColor(item.method || ''))}>{item.method || '?'}</span>
+                  <span className="text-[var(--fs-xs)] text-text-secondary truncate">{item.name}</span>
                 </label>
               ))}
             </div>
@@ -151,34 +151,34 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
 
           {/* Config */}
           <div className="p-3 space-y-3">
-            <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider flex items-center gap-1"><Settings2 className="w-3 h-3" /> {t('runner.config')}</h3>
+            <h3 className="text-[var(--fs-xs)] font-bold text-text-disabled uppercase tracking-wider flex items-center gap-1"><Settings2 className="w-3 h-3" /> {t('runner.config')}</h3>
             <div>
-              <label className="text-[11px] text-text-tertiary">{t('runner.iterations')}</label>
+              <label className="text-[var(--fs-xs)] text-text-tertiary">{t('runner.iterations')}</label>
               <input type="number" min={1} max={100} value={iterations} onChange={(e) => setIterations(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full h-7 px-2 mt-1 text-[12px] bg-bg-input border border-border-default rounded text-text-primary outline-none focus:border-accent" />
+                className="w-full h-7 px-2 mt-1 text-[var(--fs-sm)] bg-bg-input border border-border-default rounded text-text-primary outline-none focus:border-accent" />
             </div>
             <div>
-              <label className="text-[11px] text-text-tertiary">{t('runner.delay')}</label>
+              <label className="text-[var(--fs-xs)] text-text-tertiary">{t('runner.delay')}</label>
               <input type="number" min={0} max={10000} value={delayMs} onChange={(e) => setDelayMs(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full h-7 px-2 mt-1 text-[12px] bg-bg-input border border-border-default rounded text-text-primary outline-none focus:border-accent" />
+                className="w-full h-7 px-2 mt-1 text-[var(--fs-sm)] bg-bg-input border border-border-default rounded text-text-primary outline-none focus:border-accent" />
             </div>
           </div>
 
           {/* Summary */}
           {summary && (
             <div className="mt-auto p-3 border-t border-border-default bg-bg-secondary/30">
-              <h3 className="text-[11px] font-bold text-text-disabled uppercase tracking-wider mb-2">{t('runner.results')}</h3>
-              <div className="grid grid-cols-2 gap-2 text-[20px] font-bold">
+              <h3 className="text-[var(--fs-xs)] font-bold text-text-disabled uppercase tracking-wider mb-2">{t('runner.results')}</h3>
+              <div className="grid grid-cols-2 gap-2 text-[var(--fs-4xl)] font-bold">
                 <div className="text-center">
                   <p className="text-emerald-600">{summary.passed}</p>
-                  <p className="text-[9px] text-text-disabled font-normal">{t('runner.passed')}</p>
+                  <p className="text-[var(--fs-3xs)] text-text-disabled font-normal">{t('runner.passed')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-red-500">{summary.failed}</p>
-                  <p className="text-[9px] text-text-disabled font-normal">{t('runner.failed')}</p>
+                  <p className="text-[var(--fs-3xs)] text-text-disabled font-normal">{t('runner.failed')}</p>
                 </div>
               </div>
-              <div className="flex items-center justify-center mt-2 gap-1 text-[11px] text-text-tertiary">
+              <div className="flex items-center justify-center mt-2 gap-1 text-[var(--fs-xs)] text-text-tertiary">
                 <Clock className="w-3 h-3" /> {t('runner.totalTime')} {summary.totalMs}ms
               </div>
             </div>
@@ -190,8 +190,8 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
           {results.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-text-disabled">
               <BarChart3 className="w-10 h-10 mb-3 opacity-20" />
-              <p className="text-[13px] font-medium">{t('runner.emptyTitle')}</p>
-              <p className="text-[11px] mt-1">{t('runner.emptyDesc')}</p>
+              <p className="text-[var(--fs-base)] font-medium">{t('runner.emptyTitle')}</p>
+              <p className="text-[var(--fs-xs)] mt-1">{t('runner.emptyDesc')}</p>
             </div>
           ) : (
             results.map((r, i) => (
@@ -199,20 +199,20 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
                 r.success ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"
               )}>
                 {r.success ? <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
-                <span className={cn("text-[10px] font-bold w-10 shrink-0", methodColor(r.method))}>{r.method}</span>
+                <span className={cn("text-[var(--fs-xxs)] font-bold w-10 shrink-0", methodColor(r.method))}>{r.method}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-medium text-text-primary truncate">{r.name}</p>
-                  <p className="text-[10px] text-text-disabled truncate">{r.url}</p>
+                  <p className="text-[var(--fs-sm)] font-medium text-text-primary truncate">{r.name}</p>
+                  <p className="text-[var(--fs-xxs)] text-text-disabled truncate">{r.url}</p>
                 </div>
                 {r.status && (
-                  <span className={cn("text-[11px] font-mono font-bold px-1.5 py-0.5 rounded",
+                  <span className={cn("text-[var(--fs-xs)] font-mono font-bold px-1.5 py-0.5 rounded",
                     r.status < 300 ? "text-emerald-600 bg-emerald-500/10" :
                     r.status < 400 ? "text-amber-600 bg-amber-500/10" :
                     "text-red-500 bg-red-500/10"
                   )}>{r.status}</span>
                 )}
-                <span className="text-[10px] text-text-disabled shrink-0">{r.durationMs}ms</span>
-                {r.error && <span className="text-[10px] text-red-500 max-w-[120px] truncate" title={r.error}>{r.error}</span>}
+                <span className="text-[var(--fs-xxs)] text-text-disabled shrink-0">{r.durationMs}ms</span>
+                {r.error && <span className="text-[var(--fs-xxs)] text-red-500 max-w-[120px] truncate" title={r.error}>{r.error}</span>}
               </div>
             ))
           )}

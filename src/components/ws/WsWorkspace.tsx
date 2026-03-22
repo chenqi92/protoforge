@@ -406,8 +406,8 @@ export function WsWorkspace() {
           <div className="space-y-2.5 rounded-[10px] border border-border-default/65 bg-bg-secondary/24 p-2.5">
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-3">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-text-disabled">{t('ws.customHeaders')}</h4>
-                <button onClick={addHeader} className="text-[10px] text-accent hover:underline">+ {t('ws.addHeader')}</button>
+                <h4 className="text-[var(--fs-xxs)] font-bold uppercase tracking-wider text-text-disabled">{t('ws.customHeaders')}</h4>
+                <button onClick={addHeader} className="text-[var(--fs-xxs)] text-accent hover:underline">+ {t('ws.addHeader')}</button>
               </div>
               {headers.map((h, i) => (
                 <div key={i} className="mb-1 flex items-center gap-2">
@@ -419,18 +419,18 @@ export function WsWorkspace() {
               ))}
             </div>
             <div className="flex flex-wrap items-center gap-4">
-              <label className="flex items-center gap-1.5 text-[11px] text-text-secondary cursor-pointer">
+              <label className="flex items-center gap-1.5 text-[var(--fs-xs)] text-text-secondary cursor-pointer">
                 <input type="checkbox" checked={autoReconnect} onChange={() => setAutoReconnect(!autoReconnect)} className="accent-accent" />
                 <RefreshCw className="w-3 h-3" /> {t('ws.autoReconnect')}
               </label>
-              <label className="flex items-center gap-1.5 text-[11px] text-text-secondary cursor-pointer">
+              <label className="flex items-center gap-1.5 text-[var(--fs-xs)] text-text-secondary cursor-pointer">
                 <input type="checkbox" checked={heartbeatEnabled} onChange={() => setHeartbeatEnabled(!heartbeatEnabled)} className="accent-accent" />
                 {t('ws.heartbeat')}
               </label>
               {heartbeatEnabled && (
                 <>
                   <input value={heartbeatInterval} onChange={(e) => setHeartbeatInterval(Math.max(1, parseInt(e.target.value) || 30))} className="wb-field-sm w-14 text-center" />
-                  <span className="text-[10px] text-text-disabled">{t('ws.seconds')}</span>
+                  <span className="text-[var(--fs-xxs)] text-text-disabled">{t('ws.seconds')}</span>
                   <input value={heartbeatMsg} onChange={(e) => setHeartbeatMsg(e.target.value)} className="wb-field-sm w-24" placeholder="ping" />
                 </>
               )}
@@ -446,10 +446,10 @@ export function WsWorkspace() {
           <div className="wb-panel-header shrink-0">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <div className={cn("h-2 w-2 rounded-[3px] transition-colors", connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-text-disabled")} />
-              <span className="text-[12px] font-medium text-text-secondary">
+              <span className="text-[var(--fs-sm)] font-medium text-text-secondary">
                 {connected ? t('ws.connected') : connecting ? t('ws.connecting') : t('ws.disconnected')}
               </span>
-              {messages.length > 0 && <span className="text-[11px] text-text-tertiary ml-2">{filteredMessages.length}/{messages.length}</span>}
+              {messages.length > 0 && <span className="text-[var(--fs-xs)] text-text-tertiary ml-2">{filteredMessages.length}/{messages.length}</span>}
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
               {/* 搜索框 */}
@@ -459,7 +459,7 @@ export function WsWorkspace() {
                 {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3 h-3" /></button>}
               </div>
               {!autoScroll && messages.length > 0 && (
-                <button onClick={() => { setAutoScroll(true); messagesContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }} className="wb-ghost-btn px-2.5 text-[11px] text-accent">
+                <button onClick={() => { setAutoScroll(true); messagesContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }} className="wb-ghost-btn px-2.5 text-[var(--fs-xs)] text-accent">
                   <ArrowDown className="w-3 h-3 rotate-180" /> {t('ws.scrollToLatest')}
                 </button>
               )}
@@ -484,8 +484,8 @@ export function WsWorkspace() {
                   <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default bg-bg-secondary shadow-sm">
                     <Zap className="w-8 h-8 opacity-20 text-amber-500" />
                   </div>
-                  <p className="text-[14px] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
-                  <p className="mt-1 text-[12px]">{searchQuery ? '' : t('ws.emptyDesc')}</p>
+                  <p className="text-[var(--fs-md)] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
+                  <p className="mt-1 text-[var(--fs-sm)]">{searchQuery ? '' : t('ws.emptyDesc')}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border-default/60">
@@ -502,14 +502,14 @@ export function WsWorkspace() {
                       <div className="flex min-w-0 items-center gap-3">
                         <WsEventTypePill message={item} />
                         {getWsMessageFormat(item) && (
-                          <span className="rounded-full bg-bg-secondary px-2 py-0.5 text-[10px] font-medium text-text-tertiary">
+                          <span className="rounded-full bg-bg-secondary px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-tertiary">
                             {getWsMessageFormat(item)}
                           </span>
                         )}
-                        <div className="min-w-0 flex-1 truncate text-[12px] text-text-primary">
+                        <div className="min-w-0 flex-1 truncate text-[var(--fs-sm)] text-text-primary">
                           <span className="truncate">{getWsMessageSummary(item, t)}</span>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2 text-[11px] text-text-disabled">
+                        <div className="flex shrink-0 items-center gap-2 text-[var(--fs-xs)] text-text-disabled">
                           {item.size > 0 && <span>{formatSize(item.size)}</span>}
                           <span>{formatTime(item.timestamp)}</span>
                         </div>
@@ -529,7 +529,7 @@ export function WsWorkspace() {
                 formatSize={formatSize}
               />
             ) : filteredMessages.length > 0 ? (
-              <div className="shrink-0 border-t border-border-default/70 bg-bg-secondary/18 px-4 py-2 text-[11px] text-text-disabled">
+              <div className="shrink-0 border-t border-border-default/70 bg-bg-secondary/18 px-4 py-2 text-[var(--fs-xs)] text-text-disabled">
                 {t('ws.detailEmptyDesc')}
               </div>
             ) : null}
@@ -598,7 +598,7 @@ function WsEventTypePill({ message }: { message: WsMessage }) {
   if (message.kind === "status") {
     return (
       <span className={cn(
-        "rounded-full px-2 py-0.5 text-[10px] font-medium",
+        "rounded-full px-2 py-0.5 text-[var(--fs-xxs)] font-medium",
         message.status === "connected"
           ? "bg-emerald-500/10 text-emerald-600"
           : "bg-slate-500/10 text-slate-500"
@@ -609,12 +609,12 @@ function WsEventTypePill({ message }: { message: WsMessage }) {
   }
 
   if (message.kind === "error") {
-    return <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-500">ERROR</span>;
+    return <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-red-500">ERROR</span>;
   }
 
   return (
     <span className={cn(
-      "rounded-full px-2 py-0.5 text-[10px] font-medium",
+      "rounded-full px-2 py-0.5 text-[var(--fs-xxs)] font-medium",
       message.direction === "sent"
         ? "bg-amber-500/10 text-amber-600"
         : "bg-sky-500/10 text-sky-600"
@@ -673,10 +673,10 @@ function WsDetailPanel({
       <div className="flex items-center justify-between gap-3 border-b border-border-default/70 px-4 py-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="truncate text-[13px] font-semibold text-text-primary">{message.title}</span>
+            <span className="truncate text-[var(--fs-base)] font-semibold text-text-primary">{message.title}</span>
             <WsEventTypePill message={message} />
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-text-disabled">
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-[var(--fs-xs)] text-text-disabled">
             <span>{formatTime(message.timestamp)}</span>
             {message.size > 0 && <span>{formatSize(message.size)}</span>}
             {message.dataType === "binary" && <span>BINARY</span>}
@@ -689,7 +689,7 @@ function WsDetailPanel({
               type="button"
               onClick={() => onChangeView(tab.key)}
               className={cn(
-                "rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors",
+                "rounded-full px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-colors",
                 detailView === tab.key
                   ? "bg-bg-primary text-text-primary shadow-sm"
                   : "text-text-tertiary hover:text-text-secondary"
@@ -706,7 +706,7 @@ function WsDetailPanel({
           isJson ? (
             <ReadonlyCodeBlock value={prettyJson} language="json" minHeightClassName="min-h-[220px]" />
           ) : (
-            <div className="select-text px-1 text-[12px] leading-6 text-text-secondary">
+            <div className="select-text px-1 text-[var(--fs-sm)] leading-6 text-text-secondary">
               <pre className="whitespace-pre-wrap break-all font-mono">
                 {message.data}
               </pre>
@@ -716,7 +716,7 @@ function WsDetailPanel({
 
         {detailView === "text" && (
           <div className="select-text px-1">
-            <pre className="whitespace-pre-wrap break-all font-mono text-[12px] leading-6 text-text-secondary">{message.data}</pre>
+            <pre className="whitespace-pre-wrap break-all font-mono text-[var(--fs-sm)] leading-6 text-text-secondary">{message.data}</pre>
           </div>
         )}
 
@@ -726,7 +726,7 @@ function WsDetailPanel({
 
         {detailView === "hex" && (
           <div className="select-text px-1">
-            <pre className="whitespace-pre-wrap break-all font-mono text-[12px] leading-6 text-text-secondary">{hexText}</pre>
+            <pre className="whitespace-pre-wrap break-all font-mono text-[var(--fs-sm)] leading-6 text-text-secondary">{hexText}</pre>
           </div>
         )}
       </div>

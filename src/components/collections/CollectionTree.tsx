@@ -69,7 +69,7 @@ function TreeItem({ item, depth, onSelect, onDragStart, onDragOver, onDrop, drag
           {expanded ? <ChevronDown className="w-3 h-3 text-text-disabled" /> : <ChevronRight className="w-3 h-3 text-text-disabled" />}
           <FolderOpen className="w-3.5 h-3.5 text-method-post shrink-0" />
           <span className="text-xs text-text-primary truncate flex-1">{folder.name}</span>
-          <span className="text-[10px] text-text-disabled">{folder.items.length}</span>
+          <span className="text-[var(--fs-xxs)] text-text-disabled">{folder.items.length}</span>
         </div>
         <AnimatePresence>
           {expanded && (
@@ -106,7 +106,7 @@ function TreeItem({ item, depth, onSelect, onDragStart, onDragOver, onDrop, drag
       style={{ paddingLeft: `${depth * 16 + 8}px` }}
     >
       <GripVertical className="w-3 h-3 text-text-disabled opacity-0 group-hover:opacity-50 cursor-grab shrink-0" />
-      <span className={cn('text-[10px] font-bold w-8 shrink-0', getMethodColor(req.method))}>
+      <span className={cn('text-[var(--fs-xxs)] font-bold w-8 shrink-0', getMethodColor(req.method))}>
         {req.method.slice(0, 3)}
       </span>
       <span className="text-xs text-text-secondary truncate flex-1">{req.name}</span>

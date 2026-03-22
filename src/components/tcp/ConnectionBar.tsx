@@ -51,7 +51,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
 
   return (
     <div className="flex min-h-[38px] items-center gap-2 rounded-[11px] border border-border-default/75 bg-bg-primary/78 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)] transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-3 text-[11px] font-semibold text-white shadow-sm", cfg.badge)}>
+      <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-3 text-[var(--fs-xs)] font-semibold text-white shadow-sm", cfg.badge)}>
         {cfg.icon}
         {cfg.label}
       </div>
@@ -61,7 +61,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
         onChange={(e) => onHostChange(e.target.value)}
         placeholder={isServer ? "0.0.0.0" : t('tcp.hostPlaceholder')}
         disabled={connected}
-        className="h-7 min-w-0 flex-1 bg-transparent px-2 text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
+        className="h-7 min-w-0 flex-1 bg-transparent px-2 text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
       />
 
       <div className="h-5 w-px shrink-0 bg-border-default/70" />
@@ -72,7 +72,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
         placeholder={t('tcp.portPlaceholder')}
         type="number"
         disabled={connected}
-        className="h-7 w-[86px] bg-transparent px-2 text-center text-[12px] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
+        className="h-7 w-[86px] bg-transparent px-2 text-center text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
       />
 
       <button

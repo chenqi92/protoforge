@@ -125,7 +125,7 @@ export function UpdateChecker() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-default bg-bg-secondary/30">
         <div className="flex items-center gap-2">
           {statusIcon[status]}
-          <span className="text-[13px] font-semibold text-text-primary">{statusText[status]}</span>
+          <span className="text-[var(--fs-base)] font-semibold text-text-primary">{statusText[status]}</span>
         </div>
         <button onClick={() => setDismissed(true)} className="text-text-disabled hover:text-text-primary p-0.5">
           <X className="w-3.5 h-3.5" />
@@ -137,16 +137,16 @@ export function UpdateChecker() {
         {status === 'available' && updateInfo && (
           <>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-[12px] font-bold text-accent bg-accent/10 px-2 py-0.5 rounded">v{updateInfo.version}</span>
+              <span className="text-[var(--fs-sm)] font-bold text-accent bg-accent/10 px-2 py-0.5 rounded">v{updateInfo.version}</span>
             </div>
             {updateInfo.body && (
-              <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-4">{updateInfo.body}</p>
+              <p className="text-[var(--fs-xs)] text-text-secondary leading-relaxed line-clamp-4">{updateInfo.body}</p>
             )}
             <div className="flex items-center gap-2 mt-3">
-              <button onClick={installUpdate} className="flex-1 h-8 bg-accent text-white text-[12px] font-semibold rounded-lg hover:bg-accent/90 transition-colors">
+              <button onClick={installUpdate} className="flex-1 h-8 bg-accent text-white text-[var(--fs-sm)] font-semibold rounded-lg hover:bg-accent/90 transition-colors">
                 {t('update.install')}
               </button>
-              <button onClick={() => setDismissed(true)} className="h-8 px-4 text-[12px] text-text-tertiary hover:bg-bg-hover rounded-lg transition-colors">
+              <button onClick={() => setDismissed(true)} className="h-8 px-4 text-[var(--fs-sm)] text-text-tertiary hover:bg-bg-hover rounded-lg transition-colors">
                 {t('update.later')}
               </button>
             </div>
@@ -156,8 +156,8 @@ export function UpdateChecker() {
         {status === 'downloading' && (
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] text-text-tertiary">{t('update.progress')}</span>
-              <span className="text-[11px] text-text-secondary font-medium">{progress}%</span>
+              <span className="text-[var(--fs-xs)] text-text-tertiary">{t('update.progress')}</span>
+              <span className="text-[var(--fs-xs)] text-text-secondary font-medium">{progress}%</span>
             </div>
             <div className="h-2 bg-bg-input rounded-full overflow-hidden">
               <div className="h-full bg-accent rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
@@ -167,7 +167,7 @@ export function UpdateChecker() {
 
         {status === 'ready' && (
           <div className="flex items-center gap-2">
-            <button onClick={restartApp} className="flex-1 h-8 bg-emerald-500 text-white text-[12px] font-semibold rounded-lg hover:bg-emerald-600 transition-colors">
+            <button onClick={restartApp} className="flex-1 h-8 bg-emerald-500 text-white text-[var(--fs-sm)] font-semibold rounded-lg hover:bg-emerald-600 transition-colors">
               {t('update.restart')}
             </button>
           </div>
@@ -175,8 +175,8 @@ export function UpdateChecker() {
 
         {status === 'error' && error && (
           <div className="space-y-2">
-            <p className="text-[11px] text-red-500">{error}</p>
-            <button onClick={checkForUpdate} className="h-7 px-3 text-[11px] text-accent hover:bg-accent/10 rounded-md transition-colors">
+            <p className="text-[var(--fs-xs)] text-red-500">{error}</p>
+            <button onClick={checkForUpdate} className="h-7 px-3 text-[var(--fs-xs)] text-accent hover:bg-accent/10 rounded-md transition-colors">
               {t('update.retry')}
             </button>
           </div>

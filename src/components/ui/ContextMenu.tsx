@@ -78,7 +78,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
               disabled={entry.disabled}
               onClick={() => { entry.onClick(); onClose(); }}
               className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-[6px] text-[12px] transition-colors",
+                "w-full flex items-center gap-2.5 px-3 py-[6px] text-[var(--fs-sm)] transition-colors",
                 entry.disabled
                   ? "text-text-disabled cursor-not-allowed"
                   : entry.danger
@@ -89,7 +89,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
               {entry.icon && <span className="w-4 h-4 flex items-center justify-center shrink-0 opacity-60">{entry.icon}</span>}
               <span className="flex-1 text-left">{entry.label}</span>
               {entry.shortcut && (
-                <span className="text-[10px] text-text-disabled font-mono ml-4 shrink-0">{entry.shortcut}</span>
+                <span className="text-[var(--fs-xxs)] text-text-disabled font-mono ml-4 shrink-0">{entry.shortcut}</span>
               )}
             </button>
           );

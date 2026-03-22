@@ -126,8 +126,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
 
               <div className="min-w-0">
-                <p className="text-[16px] font-semibold tracking-tight text-text-primary">{t('settings.title')}</p>
-                <p className="mt-1 text-[12px] leading-5 text-text-secondary">
+                <p className="text-[var(--fs-xl)] font-semibold tracking-tight text-text-primary">{t('settings.title')}</p>
+                <p className="mt-1 text-[var(--fs-sm)] leading-5 text-text-secondary">
                   {t('settings.subtitle')}
                 </p>
               </div>
@@ -147,10 +147,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)]">
             <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
               <div className="shrink-0 px-4 pb-3 pt-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-disabled">
+                <p className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('settings.categoryNav')}
                 </p>
-                <p className="mt-2 text-[11px] leading-5 text-text-tertiary">
+                <p className="mt-2 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                   {t('settings.categoryNavDesc')}
                 </p>
               </div>
@@ -182,8 +182,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-semibold text-text-primary">{t(item.labelKey)}</div>
-                        <div className="mt-1 text-[11px] leading-5 text-text-tertiary">{t(item.descKey)}</div>
+                        <div className="text-[var(--fs-base)] font-semibold text-text-primary">{t(item.labelKey)}</div>
+                        <div className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">{t(item.descKey)}</div>
                       </div>
 
                       <ChevronRight
@@ -201,7 +201,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               <div className="shrink-0 border-t border-border-default/70 px-3 py-3">
                 <button
                   onClick={handleReset}
-                  className="flex w-full items-center gap-2 rounded-[16px] border border-border-default/75 bg-bg-primary/72 px-3.5 py-3 text-[12px] font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
+                  className="flex w-full items-center gap-2 rounded-[16px] border border-border-default/75 bg-bg-primary/72 px-3.5 py-3 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
                 >
                   <RotateCcw className="h-4 w-4" />
                   {t('settings.resetDefaults')}
@@ -222,7 +222,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       <CurrentSectionIcon className="h-4 w-4" />
                     </div>
                   <div className="min-w-0">
-                      <p className="text-[14px] font-semibold tracking-tight text-text-primary">
+                      <p className="text-[var(--fs-md)] font-semibold tracking-tight text-text-primary">
                         {t(currentSection.labelKey)}
                       </p>
                     </div>
@@ -268,9 +268,9 @@ function SettingRow({
   return (
     <div className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
       <div className="min-w-0">
-        <div className="text-[13px] font-semibold text-text-primary">{label}</div>
+        <div className="text-[var(--fs-base)] font-semibold text-text-primary">{label}</div>
         {desc ? (
-          <p className="mt-1.5 max-w-[520px] text-[11px] leading-5 text-text-tertiary">
+          <p className="mt-1.5 max-w-[520px] text-[var(--fs-xs)] leading-5 text-text-tertiary">
             {desc}
           </p>
         ) : null}
@@ -302,7 +302,7 @@ function SegmentedControl<T extends string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex h-8 items-center gap-1.5 rounded-[11px] px-3 text-[12px] font-medium transition-all",
+              "flex h-8 items-center gap-1.5 rounded-[11px] px-3 text-[var(--fs-sm)] font-medium transition-all",
               isActive
                 ? "bg-bg-primary text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_1px_2px_rgba(15,23,42,0.06)]"
                 : "text-text-tertiary hover:bg-bg-hover/80 hover:text-text-primary"
@@ -335,6 +335,11 @@ function GeneralSection({
     "noto-sans-sc": "Noto Sans SC",
     "lxgw-wenkai": t('settings.general.fontLxgw'),
     "source-han-sans": t('settings.general.fontSourceHan'),
+    "jetbrains-mono": "JetBrains Mono",
+    "fira-code": "Fira Code",
+    "roboto": "Roboto",
+    "outfit": "Outfit",
+    "maple-mono": "Maple Mono",
   };
   const languageLabelMap: Record<AppSettings["language"], string> = {
     "zh-CN": t('settings.general.langZh'),
@@ -384,9 +389,14 @@ function GeneralSection({
           <SelectContent className={selectContentClassName}>
             <SelectItem value="inter">Inter</SelectItem>
             <SelectItem value="system">{t('settings.general.fontSystem')}</SelectItem>
+            <SelectItem value="roboto">Roboto</SelectItem>
+            <SelectItem value="outfit">Outfit</SelectItem>
             <SelectItem value="noto-sans-sc">Noto Sans SC</SelectItem>
             <SelectItem value="lxgw-wenkai">{t('settings.general.fontLxgw')}</SelectItem>
             <SelectItem value="source-han-sans">{t('settings.general.fontSourceHan')}</SelectItem>
+            <SelectItem value="jetbrains-mono">JetBrains Mono</SelectItem>
+            <SelectItem value="fira-code">Fira Code</SelectItem>
+            <SelectItem value="maple-mono">Maple Mono</SelectItem>
           </SelectContent>
         </Select>
       </SettingRow>
@@ -428,7 +438,7 @@ function RequestSection({ settings, update }: SectionProps) {
             min={1000}
             className={cn(inputClassName, "w-28 text-center font-mono")}
           />
-          <span className="text-[11px] text-text-tertiary">{t('common.ms')}</span>
+          <span className="text-[var(--fs-xs)] text-text-tertiary">{t('common.ms')}</span>
         </div>
       </SettingRow>
 

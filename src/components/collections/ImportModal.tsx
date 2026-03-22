@@ -74,7 +74,7 @@ const METHOD_COLORS: Record<string, { text: string; bg: string }> = {
 };
 
 const inputClassName =
-  'h-9 rounded-[12px] border border-border-default/80 bg-bg-secondary/60 px-3 text-[12px] text-text-primary outline-none transition-all focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]';
+  'h-9 rounded-[12px] border border-border-default/80 bg-bg-secondary/60 px-3 text-[var(--fs-sm)] text-text-primary outline-none transition-all focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]';
 
 export function ImportModal({ open, onClose }: ImportModalProps) {
   const { t } = useTranslation();
@@ -108,15 +108,15 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               </div>
 
               <div className="min-w-0">
-                <p className="text-[16px] font-semibold tracking-tight text-text-primary">{t('import.title')}</p>
-                <p className="mt-1 text-[12px] leading-6 text-text-secondary">
+                <p className="text-[var(--fs-xl)] font-semibold tracking-tight text-text-primary">{t('import.title')}</p>
+                <p className="mt-1 text-[var(--fs-sm)] leading-6 text-text-secondary">
                   {t('import.subtitle')}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-3 py-1 text-[11px] font-medium text-text-secondary">
+              <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-3 py-1 text-[var(--fs-xs)] font-medium text-text-secondary">
                 {t('import.currentSource')}: {t(currentSource.label)}
               </span>
               <button
@@ -132,10 +132,10 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
           <div className="grid min-h-0 flex-1 grid-cols-[248px_minmax(0,1fr)]">
             <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-5 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
               <div className="px-1 pb-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-disabled">
+                <p className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('import.sourceTitle')}
                 </p>
-                <p className="mt-2 text-[11px] leading-5 text-text-tertiary">
+                <p className="mt-2 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                   {t('import.sourceDesc')}
                 </p>
               </div>
@@ -166,8 +166,8 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-semibold text-text-primary">{t(item.label)}</div>
-                        <div className="mt-1 text-[11px] leading-5 text-text-tertiary">{t(item.desc)}</div>
+                        <div className="text-[var(--fs-base)] font-semibold text-text-primary">{t(item.label)}</div>
+                        <div className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">{t(item.desc)}</div>
                       </div>
 
                       <ChevronRight
@@ -184,8 +184,8 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               </div>
 
               <div className="mt-auto rounded-[20px] border border-border-default/75 bg-bg-primary/78 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <p className="text-[12px] font-semibold text-text-primary">{t('import.instructions')}</p>
-                <ul className="mt-3 space-y-2 text-[11px] leading-5 text-text-tertiary">
+                <p className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('import.instructions')}</p>
+                <ul className="mt-3 space-y-2 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                   <li>{t('import.instructionTip1')}</li>
                   <li>{t('import.instructionTip2')}</li>
                   <li>{t('import.instructionTip3')}</li>
@@ -255,8 +255,8 @@ function ContentHeader({
           </div>
 
           <div className="min-w-0">
-            <p className="text-[17px] font-semibold tracking-tight text-text-primary">{title}</p>
-            <p className="mt-1 text-[12px] leading-6 text-text-secondary">{desc}</p>
+            <p className="text-[var(--fs-2xl)] font-semibold tracking-tight text-text-primary">{title}</p>
+            <p className="mt-1 text-[var(--fs-sm)] leading-6 text-text-secondary">{desc}</p>
           </div>
         </div>
 
@@ -276,7 +276,7 @@ function AlertMessage({
   return (
     <div className={cn('flex items-start gap-2 rounded-[16px] border border-red-500/15 bg-red-500/5 px-3 py-3', className)}>
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-      <p className="break-all whitespace-pre-wrap text-[11px] leading-5 text-red-600">{error}</p>
+      <p className="break-all whitespace-pre-wrap text-[var(--fs-xs)] leading-5 text-red-600">{error}</p>
     </div>
   );
 }
@@ -295,8 +295,8 @@ function EmptyState({
       <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-bg-secondary/75 text-text-disabled">
         <Icon className="h-6 w-6 opacity-70" />
       </div>
-      <p className="mt-4 text-[13px] font-semibold text-text-secondary">{title}</p>
-      <p className="mt-2 max-w-md text-[11px] leading-5 text-text-tertiary">{desc}</p>
+      <p className="mt-4 text-[var(--fs-base)] font-semibold text-text-secondary">{title}</p>
+      <p className="mt-2 max-w-md text-[var(--fs-xs)] leading-5 text-text-tertiary">{desc}</p>
     </div>
   );
 }
@@ -369,8 +369,8 @@ function FileImportView({
         <div className="grid min-h-0 flex-1 gap-5 p-6 xl:grid-cols-[minmax(0,1.1fr)_300px]">
           <PanelCard className="flex min-h-[360px] flex-col border-dashed bg-bg-primary/72">
             <div className="border-b border-border-default/70 px-5 py-4">
-              <p className="text-[13px] font-semibold text-text-primary">{t('import.collectionFile')}</p>
-              <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
+              <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.collectionFile')}</p>
+              <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                 {t('import.clickToSelect')}
               </p>
             </div>
@@ -401,10 +401,10 @@ function FileImportView({
                 </div>
               )}
 
-              <p className="mt-4 text-[14px] font-semibold text-text-primary">
+              <p className="mt-4 text-[var(--fs-md)] font-semibold text-text-primary">
                 {loading ? t('import.importing') : success ? t('import.importDone') : t('import.selectCollectionFile')}
               </p>
-              <p className="mt-2 max-w-sm text-[11px] leading-5 text-text-tertiary">
+              <p className="mt-2 max-w-sm text-[var(--fs-xs)] leading-5 text-text-tertiary">
                 {loading
                   ? t('import.importingDesc')
                   : success
@@ -416,25 +416,25 @@ function FileImportView({
 
           <PanelCard className="flex min-h-[360px] flex-col">
             <div className="border-b border-border-default/70 px-5 py-4">
-              <p className="text-[13px] font-semibold text-text-primary">{t('import.supportedContent')}</p>
-              <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
+              <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.supportedContent')}</p>
+              <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                 {t('import.fileRecognition')}
               </p>
             </div>
 
-            <div className="space-y-4 px-5 py-5 text-[11px] text-text-tertiary">
+            <div className="space-y-4 px-5 py-5 text-[var(--fs-xs)] text-text-tertiary">
               <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 p-4">
-                <p className="text-[12px] font-semibold text-text-primary">Postman Collection</p>
+                <p className="text-[var(--fs-sm)] font-semibold text-text-primary">Postman Collection</p>
                 <p className="mt-1 leading-5">{t('import.postmanCompat')}</p>
               </div>
 
               <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 p-4">
-                <p className="text-[12px] font-semibold text-text-primary">ProtoForge JSON</p>
+                <p className="text-[var(--fs-sm)] font-semibold text-text-primary">ProtoForge JSON</p>
                 <p className="mt-1 leading-5">{t('import.protoforgeCompat')}</p>
               </div>
 
               <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 p-4">
-                <p className="text-[12px] font-semibold text-text-primary">{t('import.importBehavior')}</p>
+                <p className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('import.importBehavior')}</p>
                 <p className="mt-1 leading-5">{t('import.importBehaviorDesc')}</p>
               </div>
             </div>
@@ -445,14 +445,14 @@ function FileImportView({
           {error ? <AlertMessage error={error} className="mb-4" /> : null}
 
           <div className="flex items-center justify-between">
-            <p className="text-[11px] text-text-tertiary">
+            <p className="text-[var(--fs-xs)] text-text-tertiary">
               {success ? t('import.importSuccess') : t('import.importHint')}
             </p>
 
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}
-                className="h-9 rounded-[12px] px-4 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
+                className="h-9 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
               >
                 {t('import.cancel')}
               </button>
@@ -460,7 +460,7 @@ function FileImportView({
                 onClick={handleSelectFile}
                 disabled={loading}
                 className={cn(
-                  'flex h-9 items-center gap-1.5 rounded-[12px] px-4 text-[12px] font-medium transition-all',
+                  'flex h-9 items-center gap-1.5 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium transition-all',
                   loading
                     ? 'cursor-wait bg-bg-hover text-text-disabled'
                     : 'bg-accent text-white hover:bg-accent-hover active:scale-[0.98]'
@@ -844,7 +844,7 @@ function SwaggerImportView({
           title={t('import.fromOpenApi')}
           desc={t('import.fromOpenApiDesc')}
           extra={
-            <div className="flex items-center gap-2 text-[11px] text-text-tertiary">
+            <div className="flex items-center gap-2 text-[var(--fs-xs)] text-text-tertiary">
               {groups.length > 0 ? (
                 <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-2.5 py-1">
                   {t('import.groupCount', { count: groups.length })}
@@ -863,15 +863,15 @@ function SwaggerImportView({
           <div className="flex min-h-0 flex-col gap-5">
             <PanelCard>
               <div className="border-b border-border-default/70 px-5 py-4">
-                <p className="text-[13px] font-semibold text-text-primary">{t('import.connectDoc')}</p>
-                <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
+                <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.connectDoc')}</p>
+                <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                   {t('import.urlInputDesc')}
                 </p>
               </div>
 
               <div className="space-y-4 px-5 py-5">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-medium text-text-secondary">{t('import.docUrl')}</label>
+                  <label className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('import.docUrl')}</label>
                   <div className="flex gap-2">
                     <input
                       value={url}
@@ -888,7 +888,7 @@ function SwaggerImportView({
                       onClick={() => void handleFetch()}
                       disabled={loading || !url.trim()}
                       className={cn(
-                        'flex h-9 shrink-0 items-center gap-1.5 rounded-[12px] px-4 text-[12px] font-medium transition-all',
+                        'flex h-9 shrink-0 items-center gap-1.5 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium transition-all',
                         loading || !url.trim()
                           ? 'cursor-not-allowed bg-bg-hover text-text-disabled'
                           : 'bg-accent text-white hover:bg-accent-hover active:scale-[0.98]'
@@ -901,7 +901,7 @@ function SwaggerImportView({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-medium text-text-secondary">{t('import.collectionName')}</label>
+                  <label className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('import.collectionName')}</label>
                   <input
                     value={collectionName}
                     onChange={(event) => setCollectionName(event.target.value)}
@@ -912,8 +912,8 @@ function SwaggerImportView({
 
                 {mergedBaseUrl ? (
                   <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 px-4 py-3">
-                    <p className="text-[11px] font-medium text-text-secondary">{t('import.parseResult')}</p>
-                    <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
+                    <p className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('import.parseResult')}</p>
+                    <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                       Base URL: <span className="font-mono text-text-secondary">{mergedBaseUrl}</span>
                     </p>
                   </div>
@@ -928,22 +928,22 @@ function SwaggerImportView({
                 <div className="border-b border-border-default/70 px-5 py-4">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-text-disabled" />
-                    <p className="text-[13px] font-semibold text-text-primary">{t('import.apiGroups')}</p>
+                    <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.apiGroups')}</p>
                   </div>
-                  <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
+                  <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                     {t('import.groupSelectDesc')}
                   </p>
                 </div>
 
                 <div className="px-5 py-5">
                   <div className="mb-3 flex items-center justify-between">
-                    <span className="text-[11px] text-text-tertiary">
+                    <span className="text-[var(--fs-xs)] text-text-tertiary">
                       {t('import.selectedGroups', { selected: selectedGroupUrls.size, total: groups.length })}
                     </span>
                     <button
                       onClick={selectAllGroups}
                       disabled={groupLoading}
-                      className="text-[11px] font-medium text-accent transition-colors hover:text-accent-hover"
+                      className="text-[var(--fs-xs)] font-medium text-accent transition-colors hover:text-accent-hover"
                     >
                       {allGroupsSelected ? t('import.deselectAll') : t('import.selectAll')}
                     </button>
@@ -961,7 +961,7 @@ function SwaggerImportView({
                           onClick={() => void toggleGroupSelection(group.url)}
                           disabled={isLoading}
                           className={cn(
-                            'flex items-center gap-1.5 rounded-[12px] border px-3 py-1.5 text-[11px] transition-all',
+                            'flex items-center gap-1.5 rounded-[12px] border px-3 py-1.5 text-[var(--fs-xs)] transition-all',
                             isSelected
                               ? 'border-accent/30 bg-accent/10 text-accent'
                               : 'border-border-default bg-bg-secondary/50 text-text-tertiary hover:bg-bg-hover hover:text-text-secondary',
@@ -977,7 +977,7 @@ function SwaggerImportView({
                           )}
                           <span>{group.displayName || group.name}</span>
                           {count !== undefined ? (
-                            <span className="text-[10px] opacity-65">({count})</span>
+                            <span className="text-[var(--fs-xxs)] opacity-65">({count})</span>
                           ) : null}
                         </button>
                       );
@@ -1002,14 +1002,14 @@ function SwaggerImportView({
             <div className="border-b border-border-default/70 px-5 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-text-primary">{t('import.endpointPreview')}</p>
-                  <p className="mt-1 text-[11px] leading-5 text-text-tertiary">
+                  <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.endpointPreview')}</p>
+                  <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                     {t('import.endpointPreviewDesc')}
                   </p>
                 </div>
 
                 {hasResults ? (
-                  <div className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-2.5 py-1 text-[11px] text-text-secondary">
+                  <div className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-2.5 py-1 text-[var(--fs-xs)] text-text-secondary">
                     {t('import.selectedEndpoints', { selected: selectedIds.size, total: mergedEndpoints.length })}
                   </div>
                 ) : null}
@@ -1031,7 +1031,7 @@ function SwaggerImportView({
 
                   <button
                     onClick={selectAllEndpoints}
-                    className="flex h-9 items-center gap-1.5 rounded-[12px] px-3 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                    className="flex h-9 items-center gap-1.5 rounded-[12px] px-3 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
                   >
                     {selectedIds.size === mergedEndpoints.length ? (
                       <MinusSquare className="h-3.5 w-3.5" />
@@ -1064,8 +1064,8 @@ function SwaggerImportView({
                               >
                                 <ChevronRight className="h-3.5 w-3.5 text-text-disabled" />
                               </motion.div>
-                              <span className="truncate text-[12px] font-semibold text-text-secondary">{tag}</span>
-                              <span className="text-[10px] text-text-disabled">({items.length})</span>
+                              <span className="truncate text-[var(--fs-sm)] font-semibold text-text-secondary">{tag}</span>
+                              <span className="text-[var(--fs-xxs)] text-text-disabled">({items.length})</span>
                             </button>
 
                             <button
@@ -1116,7 +1116,7 @@ function SwaggerImportView({
 
                                         <span
                                           className={cn(
-                                            'min-w-[44px] shrink-0 rounded-[8px] px-2 py-1 text-center text-[10px] font-bold',
+                                            'min-w-[44px] shrink-0 rounded-[8px] px-2 py-1 text-center text-[var(--fs-xxs)] font-bold',
                                             methodStyle.text,
                                             methodStyle.bg
                                           )}
@@ -1124,12 +1124,12 @@ function SwaggerImportView({
                                           {endpoint.method}
                                         </span>
 
-                                        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-text-secondary">
+                                        <span className="min-w-0 flex-1 truncate font-mono text-[var(--fs-xs)] text-text-secondary">
                                           {endpoint.path}
                                         </span>
 
                                         {endpoint.summary ? (
-                                          <span className="max-w-[220px] shrink-0 truncate text-[10px] text-text-disabled">
+                                          <span className="max-w-[220px] shrink-0 truncate text-[var(--fs-xxs)] text-text-disabled">
                                             {endpoint.summary}
                                           </span>
                                         ) : null}
@@ -1156,7 +1156,7 @@ function SwaggerImportView({
                   {error ? <AlertMessage error={error} className="mb-4" /> : null}
 
                   <div className="flex items-center justify-between">
-                    <div className="text-[11px] text-text-tertiary">
+                    <div className="text-[var(--fs-xs)] text-text-tertiary">
                       {mergedTitle ? (
                         <span>
                           {t('import.docTitle')}: <span className="text-text-secondary">{mergedTitle}</span>
@@ -1169,7 +1169,7 @@ function SwaggerImportView({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={onClose}
-                        className="h-9 rounded-[12px] px-4 text-[12px] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
+                        className="h-9 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
                       >
                         {t('import.cancel')}
                       </button>
@@ -1177,7 +1177,7 @@ function SwaggerImportView({
                         onClick={() => void handleImport()}
                         disabled={importing || selectedIds.size === 0}
                         className={cn(
-                          'flex h-9 items-center gap-1.5 rounded-[12px] px-4 text-[12px] font-medium transition-all',
+                          'flex h-9 items-center gap-1.5 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium transition-all',
                           importing || selectedIds.size === 0
                             ? 'cursor-not-allowed bg-bg-hover text-text-disabled'
                             : 'bg-accent text-white hover:bg-accent-hover active:scale-[0.98]'

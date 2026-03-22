@@ -21,6 +21,7 @@ import { SettingsModal } from "@/components/settings/SettingsModal";
 import { CollectionSettingsPanel } from "@/components/collections/CollectionSettingsPanel";
 import { useAppStore, type RequestProtocol, type ToolSession, type ToolWorkbench, type WorkbenchView } from "@/stores/appStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { usePluginStore } from "@/stores/pluginStore";
 import { closeWindowByLabel, listOpenToolWindowSessions, openToolWindow } from "@/lib/windowManager";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { UpdateChecker } from "@/components/settings/UpdateChecker";
@@ -157,7 +158,7 @@ function ToolWorkbenchPanel({
         <div className="flex shrink-0 items-center gap-2 pr-1">
           <div className="flex h-7 items-center gap-2 rounded-[10px] border border-border-default/70 bg-bg-primary/85 px-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
             <Icon className={cn("h-3.5 w-3.5 shrink-0", meta.accentClassName)} />
-            <div className="text-[12px] font-semibold text-text-primary">{t(meta.shortTitleKey)}</div>
+            <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t(meta.shortTitleKey)}</div>
           </div>
         </div>
 
@@ -171,7 +172,7 @@ function ToolWorkbenchPanel({
               <div
                 key={session.id}
                 className={cn(
-                  "group flex h-8 shrink-0 items-center gap-1 rounded-[9px] px-2 text-[12px] transition-colors",
+                  "group flex h-8 shrink-0 items-center gap-1 rounded-[9px] px-2 text-[var(--fs-sm)] transition-colors",
                   isActive
                     ? "bg-accent/10 text-text-primary"
                     : "bg-transparent text-text-secondary hover:bg-bg-hover hover:text-text-primary"
@@ -263,7 +264,7 @@ function ToolWorkbenchPanel({
             className="fixed z-[221] w-[220px] overflow-hidden rounded-[12px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
             style={{ top: sessionMenuPos.top, left: sessionMenuPos.left }}
           >
-            <div className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled">
+            <div className="px-2.5 pb-0.5 pt-1.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.14em] text-text-disabled">
               {t('toolWorkbench.allInstances')}
             </div>
             <div className="max-h-[320px] overflow-y-auto">
@@ -285,7 +286,7 @@ function ToolWorkbenchPanel({
                     )}
                   >
                     <span className={cn("h-[6px] w-[6px] shrink-0 rounded-full", isActive ? meta.accentDotClassName : isDetached ? "bg-accent" : "bg-border-strong")} />
-                    <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-text-primary">{label}</span>
+                    <span className="min-w-0 flex-1 truncate text-[var(--fs-sm)] font-medium text-text-primary">{label}</span>
                     {isDetached ? <ArrowUpRight className="h-3 w-3 text-text-disabled" /> : null}
                   </button>
                 );
@@ -315,6 +316,12 @@ function App() {
   useKeyboardShortcuts();
   useSettingsEffect();
   useLanguageSync();
+
+  // 启动时自动加载已安装的插件（确保渲染器 tab 等扩展点立即可用）
+  const fetchInstalledPlugins = usePluginStore((s) => s.fetchInstalledPlugins);
+  useEffect(() => {
+    fetchInstalledPlugins();
+  }, [fetchInstalledPlugins]);
 
   useEffect(() => {
     const handler = () => setCmdPaletteOpen((value) => !value);

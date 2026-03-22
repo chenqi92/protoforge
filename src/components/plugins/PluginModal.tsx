@@ -160,8 +160,8 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                 <Puzzle className="h-5 w-5 text-white" />
               </div>
               <div className="min-w-0">
-                <p className="text-[16px] font-semibold tracking-tight text-text-primary">{t('plugin.centerTitle')}</p>
-                <p className="mt-1 text-[12px] leading-6 text-text-secondary">
+                <p className="text-[var(--fs-xl)] font-semibold tracking-tight text-text-primary">{t('plugin.centerTitle')}</p>
+                <p className="mt-1 text-[var(--fs-sm)] leading-6 text-text-secondary">
                   {t('plugin.centerDesc')}
                 </p>
               </div>
@@ -173,7 +173,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                 <button
                   onClick={() => { setTab("store"); setSelectedPlugin(null); }}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[11px] font-medium transition-all",
+                    "flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all",
                     tab === "store"
                       ? "bg-bg-primary text-text-primary shadow-sm"
                       : "text-text-tertiary hover:text-text-secondary"
@@ -181,7 +181,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                 >
                   {t('plugin.store')}
                   {availablePlugins.filter((p) => !p.installed).length > 0 && (
-                    <span className="min-w-[16px] rounded-full bg-violet-500 px-1.5 py-[1px] text-center text-[9px] font-bold leading-tight text-white">
+                    <span className="min-w-[16px] rounded-full bg-violet-500 px-1.5 py-[1px] text-center text-[var(--fs-3xs)] font-bold leading-tight text-white">
                       {availablePlugins.filter((p) => !p.installed).length}
                     </span>
                   )}
@@ -189,7 +189,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                 <button
                   onClick={() => { setTab("installed"); setSelectedPlugin(null); }}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[11px] font-medium transition-all",
+                    "flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all",
                     tab === "installed"
                       ? "bg-bg-primary text-text-primary shadow-sm"
                       : "text-text-tertiary hover:text-text-secondary"
@@ -197,7 +197,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                 >
                   {t('plugin.installed')}
                   {installedPlugins.length > 0 && (
-                    <span className="min-w-[16px] rounded-full bg-bg-secondary px-1.5 py-[1px] text-center text-[9px] font-medium leading-tight text-text-disabled">
+                    <span className="min-w-[16px] rounded-full bg-bg-secondary px-1.5 py-[1px] text-center text-[var(--fs-3xs)] font-medium leading-tight text-text-disabled">
                       {installedPlugins.length}
                     </span>
                   )}
@@ -218,7 +218,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
             {/* Sidebar */}
             <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-4 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
               <div className="px-1 pb-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-disabled">
+                <p className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('plugin.categories')}
                 </p>
               </div>
@@ -248,13 +248,13 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="text-[12px] font-semibold text-text-primary">{t(cat.label)}</div>
+                        <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t(cat.label)}</div>
                       </div>
 
                       <div className="flex items-center gap-1.5">
                         {count > 0 && (
                           <span className={cn(
-                            "min-w-[18px] rounded-full px-1.5 py-[1px] text-center text-[9px] font-medium leading-tight",
+                            "min-w-[18px] rounded-full px-1.5 py-[1px] text-center text-[var(--fs-3xs)] font-medium leading-tight",
                             isActive ? "bg-violet-500/15 text-violet-600" : "bg-bg-secondary/90 text-text-disabled"
                           )}>
                             {count}
@@ -274,8 +274,8 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
 
               {/* Info card */}
               <div className="mt-3 rounded-[16px] border border-border-default/75 bg-bg-primary/78 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <p className="text-[11px] font-semibold text-text-primary">{t('plugin.aboutSystem')}</p>
-                <ul className="mt-2 space-y-1.5 text-[10px] leading-4 text-text-tertiary">
+                <p className="text-[var(--fs-xs)] font-semibold text-text-primary">{t('plugin.aboutSystem')}</p>
+                <ul className="mt-2 space-y-1.5 text-[var(--fs-xxs)] leading-4 text-text-tertiary">
                   <li>{t('plugin.aboutTip1')}</li>
                   <li>{t('plugin.aboutTip2')}</li>
                   <li>{t('plugin.aboutTip3')}</li>
@@ -293,8 +293,8 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       <CurrentIcon className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-[14px] font-semibold text-text-primary">{t(currentCategory.label)}</p>
-                      <p className="text-[11px] text-text-tertiary">{t(currentCategory.desc)}</p>
+                      <p className="text-[var(--fs-md)] font-semibold text-text-primary">{t(currentCategory.label)}</p>
+                      <p className="text-[var(--fs-xs)] text-text-tertiary">{t(currentCategory.desc)}</p>
                     </div>
                   </div>
 
@@ -306,7 +306,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder={t('plugin.searchPlaceholder')}
-                        className="h-8 w-[200px] rounded-[12px] border border-border-default/80 bg-bg-primary/78 pl-8 pr-3 text-[12px] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-violet-400 focus:shadow-[0_0_0_2px_rgba(124,58,237,0.08)]"
+                        className="h-8 w-[200px] rounded-[12px] border border-border-default/80 bg-bg-primary/78 pl-8 pr-3 text-[var(--fs-sm)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-violet-400 focus:shadow-[0_0_0_2px_rgba(124,58,237,0.08)]"
                       />
                     </div>
                     {/* Refresh */}
@@ -332,17 +332,17 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                   {loading ? (
                     <div className="flex flex-col items-center justify-center h-full text-text-disabled">
                       <RefreshCw className="w-8 h-8 animate-spin mb-3 opacity-30" />
-                      <p className="text-[13px]">{t('plugin.loading')}</p>
+                      <p className="text-[var(--fs-base)]">{t('plugin.loading')}</p>
                     </div>
                   ) : filteredPlugins.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-text-disabled">
                       <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-bg-secondary/75 text-text-disabled mb-4">
                         <Package className="h-6 w-6 opacity-50" />
                       </div>
-                      <p className="text-[13px] font-semibold text-text-secondary">
+                      <p className="text-[var(--fs-base)] font-semibold text-text-secondary">
                         {search ? t('plugin.noMatch') : tab === "installed" ? t('plugin.noInstalled') : t('plugin.noCategory')}
                       </p>
-                      <p className="text-[11px] mt-1 text-text-tertiary">
+                      <p className="text-[var(--fs-xs)] mt-1 text-text-tertiary">
                         {tab === "installed" ? t('plugin.installFromStore') : t('plugin.trySwitchCategory')}
                       </p>
                     </div>
@@ -441,25 +441,25 @@ function PluginCard({
         {/* Info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-semibold text-text-primary truncate">{pluginT(plugin, 'name')}</span>
+            <span className="text-[var(--fs-base)] font-semibold text-text-primary truncate">{pluginT(plugin, 'name')}</span>
             {plugin.installed && (
               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 shadow-sm">
                 <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
               </span>
             )}
           </div>
-          <p className="text-[11px] text-text-tertiary mt-0.5 line-clamp-2 leading-4">{pluginT(plugin, 'description')}</p>
+          <p className="text-[var(--fs-xs)] text-text-tertiary mt-0.5 line-clamp-2 leading-4">{pluginT(plugin, 'description')}</p>
 
           {/* Tags row */}
           {!compact && (
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              <span className={cn("text-[9px] font-medium px-1.5 py-[2px] rounded-full border shrink-0", cat.accentClassName)}>
+              <span className={cn("text-[var(--fs-3xs)] font-medium px-1.5 py-[2px] rounded-full border shrink-0", cat.accentClassName)}>
                 {t(cat.label)}
               </span>
               {plugin.source === "remote" && (
-                <span className="text-[9px] font-medium px-1.5 py-[2px] rounded-full bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 shrink-0">{t('plugin.remote')}</span>
+                <span className="text-[var(--fs-3xs)] font-medium px-1.5 py-[2px] rounded-full bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 shrink-0">{t('plugin.remote')}</span>
               )}
-              <span className="text-[9px] text-text-disabled">v{plugin.version}</span>
+              <span className="text-[var(--fs-3xs)] text-text-disabled">v{plugin.version}</span>
             </div>
           )}
         </div>
@@ -469,7 +469,7 @@ function PluginCard({
           onClick={handleAction}
           disabled={loading}
           className={cn(
-            "mt-0.5 flex h-7 shrink-0 items-center gap-1 rounded-[10px] px-2.5 text-[11px] font-semibold transition-all active:scale-[0.97]",
+            "mt-0.5 flex h-7 shrink-0 items-center gap-1 rounded-[10px] px-2.5 text-[var(--fs-xs)] font-semibold transition-all active:scale-[0.97]",
             plugin.installed
               ? "text-text-tertiary border border-border-default hover:text-red-500 hover:border-red-200 dark:hover:border-red-500/30"
               : "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm hover:from-violet-600 hover:to-purple-600"
@@ -523,11 +523,11 @@ function PluginDetail({
               {plugin.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-[17px] font-bold text-text-primary">{pluginT(plugin, 'name')}</h3>
+              <h3 className="text-[var(--fs-2xl)] font-bold text-text-primary">{pluginT(plugin, 'name')}</h3>
               <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
-                <span className="text-[11px] text-text-tertiary">{plugin.author}</span>
-                <span className="text-[11px] text-text-disabled">v{plugin.version}</span>
-                <span className={cn("text-[10px] font-medium px-2 py-[2px] rounded-full border flex items-center gap-1", cat.accentClassName)}>
+                <span className="text-[var(--fs-xs)] text-text-tertiary">{plugin.author}</span>
+                <span className="text-[var(--fs-xs)] text-text-disabled">v{plugin.version}</span>
+                <span className={cn("text-[var(--fs-xxs)] font-medium px-2 py-[2px] rounded-full border flex items-center gap-1", cat.accentClassName)}>
                   <CatIcon className="w-3 h-3" />
                   {t(cat.label)}
                 </span>
@@ -545,7 +545,7 @@ function PluginDetail({
           onClick={handleAction}
           disabled={loading}
           className={cn(
-            "w-full h-9 mt-4 rounded-xl flex items-center justify-center gap-2 text-[13px] font-bold transition-all active:scale-[0.98]",
+            "w-full h-9 mt-4 rounded-xl flex items-center justify-center gap-2 text-[var(--fs-base)] font-bold transition-all active:scale-[0.98]",
             plugin.installed
               ? "text-red-500 border-2 border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10"
               : "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm hover:from-violet-600 hover:to-purple-600"
@@ -564,17 +564,17 @@ function PluginDetail({
       {/* Content */}
       <div className="px-6 py-5 flex-1">
         <div className="mb-4">
-          <h4 className="text-[12px] font-bold text-text-secondary uppercase tracking-wider mb-2">{t('plugin.about')}</h4>
-          <p className="text-[13px] text-text-secondary leading-relaxed">{pluginT(plugin, 'description')}</p>
+          <h4 className="text-[var(--fs-sm)] font-bold text-text-secondary uppercase tracking-wider mb-2">{t('plugin.about')}</h4>
+          <p className="text-[var(--fs-base)] text-text-secondary leading-relaxed">{pluginT(plugin, 'description')}</p>
         </div>
 
         {/* Protocol IDs */}
         {plugin.protocolIds.length > 0 && (
           <div className="mb-4">
-            <h4 className="text-[12px] font-bold text-text-secondary uppercase tracking-wider mb-2">{t('plugin.protocols')}</h4>
+            <h4 className="text-[var(--fs-sm)] font-bold text-text-secondary uppercase tracking-wider mb-2">{t('plugin.protocols')}</h4>
             <div className="flex items-center gap-2 flex-wrap">
               {plugin.protocolIds.map((pid) => (
-                <span key={pid} className="inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-mono font-medium bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-200 dark:border-blue-500/20">
+                <span key={pid} className="inline-flex items-center gap-1 px-2.5 py-1 text-[var(--fs-sm)] font-mono font-medium bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-200 dark:border-blue-500/20">
                   <Shield className="w-3 h-3" />
                   {pid.toUpperCase()}
                 </span>
@@ -586,10 +586,10 @@ function PluginDetail({
         {/* Tags */}
         {plugin.tags.length > 0 && (
           <div className="mb-4">
-            <h4 className="text-[12px] font-bold text-text-secondary uppercase tracking-wider mb-2">{t('plugin.tags')}</h4>
+            <h4 className="text-[var(--fs-sm)] font-bold text-text-secondary uppercase tracking-wider mb-2">{t('plugin.tags')}</h4>
             <div className="flex items-center gap-1.5 flex-wrap">
               {plugin.tags.map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-text-tertiary bg-bg-secondary rounded-md border border-border-subtle">
+                <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 text-[var(--fs-xs)] font-medium text-text-tertiary bg-bg-secondary rounded-md border border-border-subtle">
                   <Tag className="w-3 h-3" />
                   {tag}
                 </span>
@@ -600,7 +600,7 @@ function PluginDetail({
 
         {/* Meta */}
         <div className="mt-auto pt-4 border-t border-border-subtle">
-          <div className="grid grid-cols-2 gap-3 text-[11px]">
+          <div className="grid grid-cols-2 gap-3 text-[var(--fs-xs)]">
             <div>
               <span className="text-text-disabled">{t('plugin.pluginId')}</span>
               <p className="text-text-secondary font-mono mt-0.5">{plugin.id}</p>

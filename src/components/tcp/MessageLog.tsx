@@ -100,16 +100,16 @@ export function MessageLog({
                 connected ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.45)]" : "bg-text-disabled"
               )} />
             ) : null}
-            <span className="truncate text-[12px] font-semibold text-text-primary">
+            <span className="truncate text-[var(--fs-sm)] font-semibold text-text-primary">
               {statusText || t('tcp.messageLog.title')}
             </span>
-            <span className="rounded-[8px] bg-bg-primary/75 px-2 py-0.5 text-[10px] font-medium text-text-tertiary">
+            <span className="rounded-[8px] bg-bg-primary/75 px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-tertiary">
               {filteredMessages.length}/{messages.length}
             </span>
           </div>
 
           {stats && hasTraffic ? (
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-text-tertiary">
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-[var(--fs-xs)] text-text-tertiary">
               <span className="inline-flex items-center gap-1">
                 <ArrowUpRight className="h-3 w-3 text-blue-500" />
                 {formatSize(stats.sentBytes)} ({stats.sentCount})
@@ -147,7 +147,7 @@ export function MessageLog({
           {!autoScroll && messages.length > 0 ? (
             <button
               onClick={() => { setAutoScroll(true); endRef.current?.scrollIntoView({ behavior: "smooth" }); }}
-              className="flex items-center gap-1 rounded-[12px] px-2.5 py-1.5 text-[11px] text-accent transition-colors hover:bg-accent-soft"
+              className="flex items-center gap-1 rounded-[12px] px-2.5 py-1.5 text-[var(--fs-xs)] text-accent transition-colors hover:bg-accent-soft"
             >
               <ArrowDown className="h-3 w-3" /> {t('tcp.messageLog.scrollToBottom')}
             </button>
@@ -171,8 +171,8 @@ export function MessageLog({
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default/70 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <Search className="h-6 w-6 opacity-35" />
               </div>
-              <p className="text-[14px] font-semibold text-text-secondary">{t('tcp.messageLog.noMatch')}</p>
-              <p className="mt-1 text-[12px] text-text-tertiary">{t('tcp.messageLog.noMatchHint')}</p>
+              <p className="text-[var(--fs-md)] font-semibold text-text-secondary">{t('tcp.messageLog.noMatch')}</p>
+              <p className="mt-1 text-[var(--fs-sm)] text-text-tertiary">{t('tcp.messageLog.noMatchHint')}</p>
             </div>
           ) : (
             <div className="flex h-full items-center justify-center px-6 py-8">
@@ -180,16 +180,16 @@ export function MessageLog({
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-border-default/70 bg-bg-primary/82">
                   <PlugZap className="h-5 w-5 text-text-disabled" />
                 </div>
-                <p className="text-[15px] font-semibold text-text-secondary">{emptyTitle}</p>
-                <p className="mt-2 text-[12px] leading-6 text-text-tertiary">{emptyDesc}</p>
+                <p className="text-[var(--fs-lg)] font-semibold text-text-secondary">{emptyTitle}</p>
+                <p className="mt-2 text-[var(--fs-sm)] leading-6 text-text-tertiary">{emptyDesc}</p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                  <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
                     {displayFormat.toUpperCase()}
                   </span>
                   {typeof connected === "boolean" ? (
                     <span
                       className={cn(
-                        "rounded-[9px] border px-2.5 py-1 text-[10px] font-semibold",
+                        "rounded-[9px] border px-2.5 py-1 text-[var(--fs-xxs)] font-semibold",
                         connected
                           ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
                           : "border-border-default/70 bg-bg-secondary/78 text-text-tertiary"
@@ -200,10 +200,10 @@ export function MessageLog({
                   ) : null}
                   {stats && hasTraffic ? (
                     <>
-                      <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[10px] text-text-secondary">
+                      <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
                         {formatSize(stats.sentBytes)} / {stats.sentCount} TX
                       </span>
-                      <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[10px] text-text-secondary">
+                      <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
                         {formatSize(stats.receivedBytes)} / {stats.receivedCount} RX
                       </span>
                     </>
@@ -232,21 +232,21 @@ export function MessageLog({
                 >
                   <div className="shrink-0">
                     {m.direction === "sent" ? (
-                      <span className="rounded-[8px] bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-600">TX</span>
+                      <span className="rounded-[8px] bg-blue-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-blue-600">TX</span>
                     ) : m.direction === "received" ? (
-                      <span className="rounded-[8px] bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600">RX</span>
+                      <span className="rounded-[8px] bg-emerald-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-emerald-600">RX</span>
                     ) : (
-                      <span className="rounded-[8px] bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-600">SYS</span>
+                      <span className="rounded-[8px] bg-amber-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-amber-600">SYS</span>
                     )}
                   </div>
 
-                  <span className="w-[84px] shrink-0 select-none font-mono text-[10px] text-text-disabled">
+                  <span className="w-[84px] shrink-0 select-none font-mono text-[var(--fs-xxs)] text-text-disabled">
                     {formatTime(m.timestamp)}
                   </span>
 
                   <div className="min-w-0 flex-1">
                     <div className={cn(
-                      "truncate font-mono text-[12px] leading-5 select-text",
+                      "truncate font-mono text-[var(--fs-sm)] leading-5 select-text",
                       m.direction === "sent" ? "text-blue-700 dark:text-blue-300" :
                       m.direction === "system" ? "text-amber-700 dark:text-amber-300" :
                       "text-text-primary"
@@ -255,7 +255,7 @@ export function MessageLog({
                     </div>
                   </div>
 
-                  <div className="hidden shrink-0 items-center gap-2 text-[10px] text-text-disabled lg:flex">
+                  <div className="hidden shrink-0 items-center gap-2 text-[var(--fs-xxs)] text-text-disabled lg:flex">
                     {m.remoteAddr ? (
                       <span className="truncate rounded-[8px] bg-bg-secondary/72 px-2 py-0.5">
                         {m.direction === "received" ? "← " : "→ "}{m.remoteAddr}
@@ -270,7 +270,7 @@ export function MessageLog({
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1.5">
-                    {m.size > 0 ? <span className="text-[10px] text-text-disabled lg:hidden">{formatSize(m.size)}</span> : null}
+                    {m.size > 0 ? <span className="text-[var(--fs-xxs)] text-text-disabled lg:hidden">{formatSize(m.size)}</span> : null}
                     <button
                       onClick={() => handleCopy(displayData, m.id)}
                       className="rounded-[10px] p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-accent group-hover:opacity-100"

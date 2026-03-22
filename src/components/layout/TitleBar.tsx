@@ -154,7 +154,7 @@ export function TitleBar({
                 }}
                 onMouseDown={isToolWorkbench ? (event) => handleToolMouseDown(workbench.id as ToolWorkbench, event) : undefined}
                 className={cn(
-                  "flex h-8 items-center gap-2 rounded-[12px] px-3 text-[12px] font-medium transition-all",
+                  "flex h-8 items-center gap-2 rounded-[12px] px-3 text-[var(--fs-sm)] font-medium transition-all",
                   isActive
                     ? "bg-bg-primary text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
                     : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",

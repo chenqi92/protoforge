@@ -21,7 +21,7 @@ export function RequestWorkbenchHeader({
     <div className={cn("shrink-0 px-3 pb-1 pt-1.5", className)}>
       <div
         className={cn(
-          "wb-request-shell transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted",
+          "wb-request-shell",
           shellClassName
         )}
       >

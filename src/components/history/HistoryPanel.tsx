@@ -93,7 +93,7 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
       <div className="flex-1 overflow-auto">
         {Object.entries(groups).map(([label, items]) => (
           <div key={label}>
-            <div className="px-3 py-1.5 text-[10px] font-medium text-text-disabled uppercase tracking-wider bg-bg-primary/50 sticky top-0">
+            <div className="px-3 py-1.5 text-[var(--fs-xxs)] font-medium text-text-disabled uppercase tracking-wider bg-bg-primary/50 sticky top-0">
               {label}
             </div>
             <AnimatePresence>
@@ -112,21 +112,21 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
                       'hover:bg-bg-hover transition-colors group',
                     )}
                   >
-                    <span className={cn('text-[10px] font-bold w-10 shrink-0', getMethodColor(item.method as any))}>
+                    <span className={cn('text-[var(--fs-xxs)] font-bold w-10 shrink-0', getMethodColor(item.method as any))}>
                       {item.method}
                     </span>
                     <span className="flex-1 text-xs text-text-secondary truncate font-mono">
                       {item.url}
                     </span>
                     {item.status && (
-                      <span className={cn('text-[10px] font-bold', getStatusColor(item.status))}>
+                      <span className={cn('text-[var(--fs-xxs)] font-bold', getStatusColor(item.status))}>
                         {item.status}
                       </span>
                     )}
                     {item.durationMs && (
-                      <span className="text-[10px] text-text-disabled">{item.durationMs}ms</span>
+                      <span className="text-[var(--fs-xxs)] text-text-disabled">{item.durationMs}ms</span>
                     )}
-                    <span className="text-[10px] text-text-disabled">{formatTime(item.timestamp)}</span>
+                    <span className="text-[var(--fs-xxs)] text-text-disabled">{formatTime(item.timestamp)}</span>
                     <ChevronRight className={cn(
                       'w-3 h-3 text-text-disabled transition-transform',
                       expanded === item.id && 'rotate-90'
@@ -141,7 +141,7 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
                     >
                       <button
                         onClick={() => onRestoreRequest?.(item.requestConfig)}
-                        className="flex items-center gap-1 text-[11px] text-accent hover:text-accent-hover transition-colors"
+                        className="flex items-center gap-1 text-[var(--fs-xs)] text-accent hover:text-accent-hover transition-colors"
                       >
                         <RotateCcw className="w-3 h-3" />
                         {t('history.restore')}

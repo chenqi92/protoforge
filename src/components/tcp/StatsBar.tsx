@@ -19,7 +19,7 @@ function formatBytes(bytes: number): string {
 
 export function StatsBar({ stats, connected, statusText, connectedAt }: StatsBarProps) {
   return (
-    <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/60 border-t border-border-default text-[11px] font-medium shrink-0 select-none">
+    <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/60 border-t border-border-default text-[var(--fs-xs)] font-medium shrink-0 select-none">
       {/* Connection Status */}
       <div className="flex items-center gap-1.5">
         <div className={cn(

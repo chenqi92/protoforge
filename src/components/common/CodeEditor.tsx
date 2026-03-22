@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { useThemeStore } from '@/stores/themeStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { Loader2 } from 'lucide-react';
 
 interface CodeEditorProps {
@@ -22,6 +23,7 @@ export function CodeEditor({
 }: CodeEditorProps) {
   const monaco = useMonaco();
   const theme = useThemeStore((s) => s.resolved);
+  const editorFontSize = useSettingsStore((s) => Math.max(10, s.settings.fontSize - 1));
   
   useEffect(() => {
     if (monaco) {
@@ -59,13 +61,15 @@ export function CodeEditor({
       loading={<div className="flex w-full h-full items-center justify-center text-text-tertiary"><Loader2 className="w-5 h-5 animate-spin" /></div>}
       options={{
         minimap: { enabled: false },
-        fontSize: 13,
+        fontSize: editorFontSize,
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         wordWrap: 'on',
         scrollBeyondLastLine: false,
         readOnly,
         renderLineHighlight: 'all',
         hideCursorInOverviewRuler: true,
+        overviewRulerBorder: false,
+        overviewRulerLanes: 0,
         scrollbar: {
           verticalScrollbarSize: 8,
           horizontalScrollbarSize: 8,

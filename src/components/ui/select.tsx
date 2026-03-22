@@ -39,7 +39,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "flex w-fit items-center justify-between gap-2 border border-border-default/80 bg-bg-input text-[12px] whitespace-nowrap text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/15 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 data-placeholder:text-text-tertiary data-[size=default]:h-[34px] data-[size=default]:rounded-[12px] data-[size=default]:py-2 data-[size=default]:pr-3 data-[size=default]:pl-3.5 data-[size=sm]:h-[30px] data-[size=sm]:rounded-[11px] data-[size=sm]:py-1.5 data-[size=sm]:pr-2.5 data-[size=sm]:pl-3 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "flex w-fit items-center justify-between gap-2 border border-border-default/80 bg-bg-input text-[var(--fs-sm)] whitespace-nowrap text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/15 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 data-placeholder:text-text-tertiary data-[size=default]:h-[34px] data-[size=default]:rounded-[12px] data-[size=default]:py-2 data-[size=default]:pr-3 data-[size=default]:pl-3.5 data-[size=sm]:h-[30px] data-[size=sm]:rounded-[11px] data-[size=sm]:py-1.5 data-[size=sm]:pr-2.5 data-[size=sm]:pl-3 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
@@ -100,7 +100,7 @@ function SelectLabel({
   return (
     <SelectPrimitive.GroupLabel
       data-slot="select-label"
-      className={cn("px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-disabled", className)}
+      className={cn("px-2.5 py-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.14em] text-text-disabled", className)}
       {...props}
     />
   )
@@ -115,7 +115,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex min-h-9 w-full cursor-default items-center gap-1.5 rounded-[12px] py-2 pr-9 pl-3 text-[12px] text-text-primary outline-hidden select-none transition-colors focus:bg-bg-hover focus:text-text-primary data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        "relative flex min-h-9 w-full cursor-default items-center gap-1.5 rounded-[12px] py-2 pr-9 pl-3 text-[var(--fs-sm)] text-text-primary outline-hidden select-none transition-colors focus:bg-bg-hover focus:text-text-primary data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className
       )}
       {...props}

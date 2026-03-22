@@ -14,7 +14,6 @@ export function useSettingsEffect() {
   // ── 字号 ──
   useEffect(() => {
     document.documentElement.style.setProperty('--app-font-size', `${settings.fontSize}px`);
-    document.documentElement.style.fontSize = `${settings.fontSize}px`;
   }, [settings.fontSize]);
 
   // ── 字体 ──
@@ -37,6 +36,26 @@ export function useSettingsEffect() {
       'source-han-sans': {
         family: "'Source Han Sans SC', 'Noto Sans SC', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
         url: "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap",
+      },
+      'jetbrains-mono': {
+        family: "'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace",
+        url: "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap",
+      },
+      'fira-code': {
+        family: "'Fira Code', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+        url: "https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap",
+      },
+      'roboto': {
+        family: "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+        url: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap",
+      },
+      'outfit': {
+        family: "'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+        url: "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap",
+      },
+      'maple-mono': {
+        family: "'Maple Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+        url: "https://fonts.googleapis.com/css2?family=Maple+Mono:wght@300;400;500;600;700&display=swap",
       },
     };
 

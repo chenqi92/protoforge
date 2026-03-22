@@ -544,8 +544,39 @@ fn is_binary_content_type(ct: Option<&str>) -> bool {
         Some(ct) => ct.to_lowercase(),
         None => return false,
     };
+    // 明确的二进制类型 — 优先判断（含 Office OpenXML 文档、归档等）
+    if ct.contains("octet-stream")
+        || ct.contains("spreadsheetml")
+        || ct.contains("wordprocessingml")
+        || ct.contains("presentationml")
+        || ct.contains("ms-excel")
+        || ct.contains("msword")
+        || ct.contains("ms-powerpoint")
+        || ct.contains("pdf")
+        || ct.contains("zip")
+        || ct.contains("gzip")
+        || ct.contains("tar")
+        || ct.contains("image/")
+        || ct.contains("audio/")
+        || ct.contains("video/")
+        || ct.contains("font/")
+        || ct.contains("protobuf")
+        || ct.contains("msgpack")
+        || ct.contains("wasm")
+    {
+        return true;
+    }
     // 明确的文本类型 → 非二进制
-    if ct.starts_with("text/") || ct.contains("json") || ct.contains("xml") || ct.contains("javascript") || ct.contains("html") || ct.contains("css") || ct.contains("csv") || ct.contains("yaml") || ct.contains("form-urlencoded") {
+    if ct.starts_with("text/")
+        || ct.contains("json")
+        || ct.contains("xml")
+        || ct.contains("javascript")
+        || ct.contains("html")
+        || ct.contains("css")
+        || ct.contains("csv")
+        || ct.contains("yaml")
+        || ct.contains("form-urlencoded")
+    {
         return false;
     }
     // 其余 application/ 和其他类型都视为二进制

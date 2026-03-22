@@ -50,8 +50,8 @@ function FeatureSection({
     <section>
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-[18px] font-semibold text-text-primary">{title}</h2>
-          <p className="mt-1 text-[13px] text-text-tertiary">{desc}</p>
+          <h2 className="text-[var(--fs-3xl)] font-semibold text-text-primary">{title}</h2>
+          <p className="mt-1 text-[var(--fs-base)] text-text-tertiary">{desc}</p>
         </div>
       </div>
 
@@ -79,7 +79,7 @@ function FeatureSection({
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="mb-1.5 text-sm font-semibold text-text-primary">{label}</h3>
-                <p className="text-[12px] leading-relaxed text-text-tertiary">{t(item.descKey)}</p>
+                <p className="text-[var(--fs-sm)] leading-relaxed text-text-tertiary">{t(item.descKey)}</p>
               </div>
             </motion.button>
           );
@@ -104,10 +104,10 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
           <h1 className="text-4xl font-extrabold tracking-tight text-text-primary">
             {t('welcome.badge')}
           </h1>
-          <p className="mt-4 text-[15px] leading-7 text-text-secondary">
+          <p className="mt-4 text-[var(--fs-lg)] leading-7 text-text-secondary">
             {t('welcome.title')}
           </p>
-          <p className="mt-2 text-[12px] text-text-disabled">
+          <p className="mt-2 text-[var(--fs-sm)] text-text-disabled">
             {t('welcome.subtitle')}
           </p>
         </motion.div>
@@ -130,18 +130,18 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
-          className="flex flex-wrap items-center gap-8 border-t border-border-subtle/70 pt-6 text-[13px] text-text-disabled"
+          className="flex flex-wrap items-center gap-8 border-t border-border-subtle/70 pt-6 text-[var(--fs-base)] text-text-disabled"
         >
           <div className="flex items-center gap-2">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[11px] font-mono shadow-sm">Ctrl+N</kbd>
+            <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[var(--fs-xs)] font-mono shadow-sm">Ctrl+N</kbd>
             <span>{t('welcome.newRequest')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[11px] font-mono shadow-sm">Ctrl+K</kbd>
+            <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[var(--fs-xs)] font-mono shadow-sm">Ctrl+K</kbd>
             <span>{t('welcome.commandPalette')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[11px] font-mono shadow-sm">Ctrl+,</kbd>
+            <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[var(--fs-xs)] font-mono shadow-sm">Ctrl+,</kbd>
             <span>{t('welcome.preferences')}</span>
           </div>
         </motion.div>

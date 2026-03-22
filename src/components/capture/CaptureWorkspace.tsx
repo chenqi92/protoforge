@@ -198,11 +198,11 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-3 flex items-center justify-between rounded-[10px] border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-[11px]">
+            <div className="mt-3 flex items-center justify-between rounded-[10px] border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-[var(--fs-xs)]">
               <div className="flex items-center gap-2">
                 <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                 <span className="text-amber-700">
-                  {t('capture.caPath')}: <code className="font-mono text-[10px] bg-amber-500/10 px-1 py-0.5 rounded">{caPath}</code>
+                  {t('capture.caPath')}: <code className="font-mono text-[var(--fs-xxs)] bg-amber-500/10 px-1 py-0.5 rounded">{caPath}</code>
                 </span>
               </div>
               <button
@@ -240,12 +240,12 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
             <div className="flex h-full flex-col overflow-hidden">
               <div className="wb-pane-header shrink-0">
                 <div>
-                  <div className="text-[12px] font-semibold text-text-primary">{t('capture.requestCount', { count: filteredEntries.length })}</div>
-                  <div className="text-[11px] text-text-tertiary">{t('capture.emptyDesc')}</div>
+                  <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('capture.requestCount', { count: filteredEntries.length })}</div>
+                  <div className="text-[var(--fs-xs)] text-text-tertiary">{t('capture.emptyDesc')}</div>
                 </div>
                 <span className="wb-tool-chip">{running ? t('capture.listening', { port: portInput }) : t('capture.awaitingStart')}</span>
               </div>
-              <div className="flex items-center h-8 bg-bg-secondary/36 border-b border-border-subtle text-[11px] font-semibold text-text-disabled uppercase tracking-wider select-none shrink-0 px-3">
+              <div className="flex items-center h-8 bg-bg-secondary/36 border-b border-border-subtle text-[var(--fs-xs)] font-semibold text-text-disabled uppercase tracking-wider select-none shrink-0 px-3">
                 <span className="w-[60px] shrink-0">{t('capture.method')}</span>
                 <span className="flex-1 min-w-0">URL</span>
                 <span className="w-[60px] shrink-0 text-center">{t('capture.status')}</span>
@@ -301,24 +301,24 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
         </div>
         {running ? (
           <>
-            <h3 className="text-[14px] font-semibold text-text-primary mb-1">
+            <h3 className="text-[var(--fs-md)] font-semibold text-text-primary mb-1">
               {t('capture.emptyTitle')}
             </h3>
-            <p className="text-[12px] text-text-tertiary mb-4">
-              {t('capture.proxyRunning')} <code className="font-mono text-accent bg-accent/5 px-1.5 py-0.5 rounded text-[11px]">127.0.0.1:{port}</code> {t('capture.proxyRunningOn')}
+            <p className="text-[var(--fs-sm)] text-text-tertiary mb-4">
+              {t('capture.proxyRunning')} <code className="font-mono text-accent bg-accent/5 px-1.5 py-0.5 rounded text-[var(--fs-xs)]">127.0.0.1:{port}</code> {t('capture.proxyRunningOn')}
             </p>
             <div className="grid gap-4 text-left sm:grid-cols-2">
-              <div className="border-t border-border-default/70 pt-3 text-[11px] text-text-tertiary">
+              <div className="border-t border-border-default/70 pt-3 text-[var(--fs-xs)] text-text-tertiary">
                 <p className="font-medium text-text-secondary">{t('capture.general')}</p>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="rounded bg-bg-tertiary px-2 py-0.5 text-[10px] font-mono">{t('capture.httpProxy')}</span>
+                  <span className="rounded bg-bg-tertiary px-2 py-0.5 text-[var(--fs-xxs)] font-mono">{t('capture.httpProxy')}</span>
                   <span className="font-mono text-text-primary">127.0.0.1:{port}</span>
                 </div>
-                <p className="mt-2 text-[10px] text-text-disabled">{t('capture.proxyHint')}</p>
+                <p className="mt-2 text-[var(--fs-xxs)] text-text-disabled">{t('capture.proxyHint')}</p>
               </div>
-              <div className="border-t border-border-default/70 pt-3 text-[11px] text-text-tertiary">
+              <div className="border-t border-border-default/70 pt-3 text-[var(--fs-xs)] text-text-tertiary">
                 <p className="font-medium text-text-secondary">{t('capture.general')}</p>
-                <div className="mt-2 flex items-start gap-1.5 text-[10px] text-text-disabled">
+                <div className="mt-2 flex items-start gap-1.5 text-[var(--fs-xxs)] text-text-disabled">
                   <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-[1px]" />
                   <span>{t('capture.httpsHint')}</span>
                 </div>
@@ -327,24 +327,24 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
           </>
         ) : (
           <>
-            <h3 className="text-[14px] font-semibold text-text-primary mb-1">
+            <h3 className="text-[var(--fs-md)] font-semibold text-text-primary mb-1">
               {t('capture.emptyTitle')}
             </h3>
-            <p className="text-[12px] text-text-tertiary">
+            <p className="text-[var(--fs-sm)] text-text-tertiary">
               {t('capture.emptyState')}
             </p>
             <div className="mt-6 grid gap-4 text-left sm:grid-cols-3">
               <div className="border-t border-border-default/70 pt-3">
-                <div className="text-[11px] font-semibold text-text-secondary">{t('capture.emptyStep1')}</div>
-                <div className="mt-1 text-[10px] text-text-tertiary">{t('capture.emptyStep1Desc')}</div>
+                <div className="text-[var(--fs-xs)] font-semibold text-text-secondary">{t('capture.emptyStep1')}</div>
+                <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('capture.emptyStep1Desc')}</div>
               </div>
               <div className="border-t border-border-default/70 pt-3">
-                <div className="text-[11px] font-semibold text-text-secondary">{t('capture.emptyStep2')}</div>
-                <div className="mt-1 text-[10px] text-text-tertiary">{t('capture.emptyStep2Desc')}</div>
+                <div className="text-[var(--fs-xs)] font-semibold text-text-secondary">{t('capture.emptyStep2')}</div>
+                <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('capture.emptyStep2Desc')}</div>
               </div>
               <div className="border-t border-border-default/70 pt-3">
-                <div className="text-[11px] font-semibold text-text-secondary">{t('capture.emptyStep3')}</div>
-                <div className="mt-1 text-[10px] text-text-tertiary">{t('capture.emptyStep3Desc')}</div>
+                <div className="text-[var(--fs-xs)] font-semibold text-text-secondary">{t('capture.emptyStep3')}</div>
+                <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('capture.emptyStep3Desc')}</div>
               </div>
             </div>
           </>
@@ -375,7 +375,7 @@ function RequestRow({
     <div
       onClick={onClick}
       className={cn(
-        "flex items-center h-[34px] px-3 text-[11px] cursor-pointer transition-colors border-b border-border-subtle/50",
+        "flex items-center h-[34px] px-3 text-[var(--fs-xs)] cursor-pointer transition-colors border-b border-border-subtle/50",
         isSelected
           ? "bg-accent/5 text-text-primary"
           : entry.completed
@@ -384,23 +384,23 @@ function RequestRow({
       )}
     >
       <span className="w-[60px] shrink-0">
-        <span className={cn("text-[10px] font-bold px-1.5 py-[2px] rounded-[8px]", mc.text, mc.bg)}>
+        <span className={cn("text-[var(--fs-xxs)] font-bold px-1.5 py-[2px] rounded-[8px]", mc.text, mc.bg)}>
           {entry.method}
         </span>
       </span>
-      <span className="flex-1 min-w-0 truncate font-mono text-[10px]" title={entry.url}>
+      <span className="flex-1 min-w-0 truncate font-mono text-[var(--fs-xxs)]" title={entry.url}>
         {entry.path || entry.url}
       </span>
-      <span className={cn("w-[60px] shrink-0 text-center font-mono text-[10px] font-medium", statusColor(entry.status))}>
+      <span className={cn("w-[60px] shrink-0 text-center font-mono text-[var(--fs-xxs)] font-medium", statusColor(entry.status))}>
         {entry.status || <Clock className="w-3 h-3 text-text-disabled animate-pulse" />}
       </span>
-      <span className="w-[80px] shrink-0 text-right text-[10px] text-text-disabled truncate" title={entry.contentType || ""}>
+      <span className="w-[80px] shrink-0 text-right text-[var(--fs-xxs)] text-text-disabled truncate" title={entry.contentType || ""}>
         {shortType}
       </span>
-      <span className="w-[70px] shrink-0 text-right font-mono text-[10px] tabular-nums text-text-disabled">
+      <span className="w-[70px] shrink-0 text-right font-mono text-[var(--fs-xxs)] tabular-nums text-text-disabled">
         {formatSize(entry.responseSize)}
       </span>
-      <span className="w-[70px] shrink-0 text-right font-mono text-[10px] tabular-nums text-text-disabled">
+      <span className="w-[70px] shrink-0 text-right font-mono text-[var(--fs-xxs)] tabular-nums text-text-disabled">
         {formatDuration(entry.durationMs)}
       </span>
     </div>
@@ -437,7 +437,7 @@ function DetailPanel({
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "h-8 px-3 text-[11px] font-medium transition-colors relative",
+                "h-8 px-3 text-[var(--fs-xs)] font-medium transition-colors relative",
                 activeTab === tab.id
                   ? "text-accent"
                   : "text-text-tertiary hover:text-text-secondary"
@@ -455,7 +455,7 @@ function DetailPanel({
           ))}
         </div>
         <div className="flex-1" />
-        <div className="flex items-center gap-2 px-3 text-[10px] text-text-disabled">
+        <div className="flex items-center gap-2 px-3 text-[var(--fs-xxs)] text-text-disabled">
           <span className={cn("font-mono font-medium", statusColor(entry.status))}>
             {entry.status} {entry.statusText}
           </span>
@@ -498,10 +498,10 @@ function HeadersView({ entry }: { entry: CapturedEntry }) {
   return (
     <div className="space-y-3">
       {/* 概要 */}
-      <div className="text-[11px] space-y-1">
+      <div className="text-[var(--fs-xs)] space-y-1">
         <div className="flex items-center gap-2">
           <span className="text-text-disabled w-16 shrink-0">URL</span>
-          <span className="font-mono text-text-primary break-all text-[10px]">{entry.url}</span>
+          <span className="font-mono text-text-primary break-all text-[var(--fs-xxs)]">{entry.url}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-text-disabled w-16 shrink-0">Method</span>
@@ -553,7 +553,7 @@ function HeaderSection({
     <div className="border-t border-border-default/70 pt-3">
       <button
         onClick={onToggle}
-        className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:text-text-primary"
+        className="mb-1 flex items-center gap-1.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-secondary transition-colors hover:text-text-primary"
       >
         {expanded ? (
           <ChevronDown className="w-3 h-3" />
@@ -579,7 +579,7 @@ function HeaderSection({
                 <div
                   key={`${key}-${i}`}
                   className={cn(
-                    "flex text-[10px] font-mono px-2.5 py-1",
+                    "flex text-[var(--fs-xxs)] font-mono px-2.5 py-1",
                     i > 0 && "border-t border-border-subtle/50"
                   )}
                 >
@@ -602,27 +602,27 @@ function BodyView({ entry }: { entry: CapturedEntry }) {
     <div className="space-y-4">
       {entry.requestBody ? (
         <div className="border-t border-border-default/70 pt-3">
-          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-disabled">Request Body</h4>
-          <pre className="max-h-[200px] overflow-auto rounded-[8px] border border-border-default/65 bg-bg-secondary/28 p-3 text-[10px] font-mono text-text-secondary whitespace-pre-wrap break-all">
+          <h4 className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-disabled">Request Body</h4>
+          <pre className="max-h-[200px] overflow-auto rounded-[8px] border border-border-default/65 bg-bg-secondary/28 p-3 text-[var(--fs-xxs)] font-mono text-text-secondary whitespace-pre-wrap break-all">
             {entry.requestBody}
           </pre>
         </div>
       ) : (
-        <div className="border-t border-border-default/70 pt-3 text-[11px] text-text-disabled">
-          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider">Request Body</h4>
+        <div className="border-t border-border-default/70 pt-3 text-[var(--fs-xs)] text-text-disabled">
+          <h4 className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider">Request Body</h4>
           <p>{t('capture.noRequestBody')}</p>
         </div>
       )}
       {entry.responseBody ? (
         <div className="border-t border-border-default/70 pt-3">
-          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-text-disabled">Response Body</h4>
-          <pre className="max-h-[300px] overflow-auto rounded-[8px] border border-border-default/65 bg-bg-secondary/28 p-3 text-[10px] font-mono text-text-secondary whitespace-pre-wrap break-all">
+          <h4 className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-disabled">Response Body</h4>
+          <pre className="max-h-[300px] overflow-auto rounded-[8px] border border-border-default/65 bg-bg-secondary/28 p-3 text-[var(--fs-xxs)] font-mono text-text-secondary whitespace-pre-wrap break-all">
             {entry.responseBody}
           </pre>
         </div>
       ) : (
-        <div className="border-t border-border-default/70 pt-3 text-[11px] text-text-disabled">
-          <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider">Response Body</h4>
+        <div className="border-t border-border-default/70 pt-3 text-[var(--fs-xs)] text-text-disabled">
+          <h4 className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider">Response Body</h4>
           <p>{t('capture.bodyNotSupported')}</p>
         </div>
       )}
@@ -633,7 +633,7 @@ function BodyView({ entry }: { entry: CapturedEntry }) {
 // ── Preview 视图 ──
 function PreviewView({ entry }: { entry: CapturedEntry }) {
   return (
-    <div className="space-y-2 text-[11px]">
+    <div className="space-y-2 text-[var(--fs-xs)]">
       <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
         <InfoRow label="URL" value={entry.url} mono />
         <InfoRow label="Host" value={entry.host} mono />
@@ -667,10 +667,10 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start gap-2">
-      <span className="text-text-disabled w-24 shrink-0 text-[10px]">{label}</span>
+      <span className="text-text-disabled w-24 shrink-0 text-[var(--fs-xxs)]">{label}</span>
       <span
         className={cn(
-          "text-text-secondary break-all text-[10px]",
+          "text-text-secondary break-all text-[var(--fs-xxs)]",
           mono && "font-mono",
           className
         )}
