@@ -390,8 +390,8 @@ function GeneralSection({
 
       <SettingRow label={t('settings.general.fontFamily')} desc={t('settings.general.fontFamilyDesc')}>
         <Select
-          value={settings.fontFamily}
-          onValueChange={(value) => update("fontFamily", value)}
+          value={settings.fontFamily || ""}
+          onValueChange={(value) => update("fontFamily", value || "")}
         >
           <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-48")}>
             <SelectValue>{currentFontLabel}</SelectValue>

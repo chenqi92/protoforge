@@ -19,11 +19,11 @@ interface MqttMessage {
   direction: string;
 }
 
-export function MqttWorkspace() {
-  const activeTab = useAppStore((s) => s.getActiveTab());
+export function MqttWorkspace({ tabId }: { tabId: string }) {
+  const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
-  const tabId = activeTab?.id || '';
+
   const { t } = useTranslation();
 
   // Connection config

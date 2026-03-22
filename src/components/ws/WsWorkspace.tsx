@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Zap, Send as SendIcon, X, Plug, Trash2, Search, Settings2, RefreshCw, ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { Play, Loader2, ChevronDown, X, Trash2, ArrowUp, ArrowDown, Search, ChevronUp, Plug, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
-import type { WsMessage } from "@/types/ws";
-import type { WsEvent } from "@/types/ws";
+import type { WsMessage, WsEvent } from "@/types/ws";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
 import { CodeEditor } from "@/components/common/CodeEditor";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
+import { KVEditor } from "@/components/http/HttpWorkspace";
 
 interface KVItem { key: string; value: string; enabled: boolean }
 
@@ -24,7 +25,6 @@ export function WsWorkspace() {
   const [sendMode, setSendMode] = useState<"json" | "text" | "binary">("text");
   const [messages, setMessages] = useState<WsMessage[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showHeaders, setShowHeaders] = useState(false);
   const [headers, setHeaders] = useState<KVItem[]>([{ key: "", value: "", enabled: true }]);
   const [autoReconnect, setAutoReconnect] = useState(false);
   const [heartbeatEnabled, setHeartbeatEnabled] = useState(false);
@@ -39,6 +39,36 @@ export function WsWorkspace() {
   const lastEventFingerprintRef = useRef<{ key: string; at: number } | null>(null);
 
   const tabId = activeTab?.id;
+  const [configTab, setConfigTab] = useState<"message" | "params" | "headers" | "settings">("message");
+  const [params, setParams] = useState<KVItem[]>([{ key: "", value: "", enabled: true }]);
+
+  const currentUrl = activeTab?.wsUrl || "ws://localhost:8080";
+
+  useEffect(() => {
+    try {
+      const urlObj = new URL(currentUrl);
+      const urlParams = new URLSearchParams(urlObj.search);
+      const newParams: KVItem[] = [];
+      urlParams.forEach((value, key) => {
+        newParams.push({ key, value, enabled: true });
+      });
+      newParams.push({ key: "", value: "", enabled: true });
+      setParams(newParams);
+    } catch {
+      // ignore
+    }
+  }, [currentUrl]);
+
+  const handleParamsChange = useCallback((newParams: KVItem[]) => {
+    setParams(newParams);
+    try {
+      const urlObj = new URL(currentUrl);
+      const urlParams = new URLSearchParams();
+      newParams.filter(p => p.enabled && p.key.trim()).forEach(p => urlParams.append(p.key, p.value));
+      urlObj.search = urlParams.toString();
+      updateTab(activeTab!.id, { wsUrl: urlObj.toString() });
+    } catch {}
+  }, [currentUrl, activeTab?.id, updateTab]);
 
   useEffect(() => {
     autoReconnectRef.current = autoReconnect;
@@ -297,9 +327,6 @@ export function WsWorkspace() {
 
   const displayMessages = useMemo(() => [...filteredMessages].reverse(), [filteredMessages]);
 
-  const addHeader = () => setHeaders([...headers, { key: "", value: "", enabled: true }]);
-  const removeHeader = (i: number) => setHeaders(headers.filter((_, idx) => idx !== i));
-
   const handleRequestKindChange = useCallback(async (kind: RequestKind) => {
     if (!activeTab || kind === activeTab.protocol) return;
     try {
@@ -308,7 +335,6 @@ export function WsWorkspace() {
         await wsDisconnect(activeTab.id);
       }
     } catch {}
-    setShowHeaders(false);
 
     if (kind === "ws") return;
 
@@ -335,7 +361,7 @@ export function WsWorkspace() {
         main={(
           <div className="flex min-w-0 flex-1 items-center">
             <input
-              value={url}
+              value={currentUrl}
               onChange={(e) => updateTab(activeTab.id, { wsUrl: e.target.value })}
               onKeyDown={(e) => e.key === "Enter" && handleConnect()}
               placeholder={t('ws.placeholder')}
@@ -346,17 +372,12 @@ export function WsWorkspace() {
         )}
         actions={(
           <>
-            <div className="wb-request-toolgroup">
-              <button onClick={() => setShowHeaders(!showHeaders)} className={cn("wb-icon-btn", showHeaders && "bg-amber-500/10 text-amber-600 border-amber-200")} title={t('ws.connectionSettings')}>
-                <Settings2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
             <button
               onClick={handleConnect}
               disabled={connecting}
               className={cn(
                 "wb-primary-btn min-w-[88px]",
-                connected ? "bg-red-500 hover:bg-red-600" : connecting ? "bg-amber-400 cursor-wait" : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                connected ? "bg-red-500 hover:bg-red-600 border-red-600 dark:border-red-500" : connecting ? "bg-amber-400 cursor-wait" : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
               )}
             >
               {connected ? <X className="w-4 h-4" /> : <Plug className="w-4 h-4" />}
@@ -366,126 +387,181 @@ export function WsWorkspace() {
         )}
       />
 
-      {/* Headers / Settings Panel */}
-      {showHeaders && (
-        <div className="shrink-0 px-3 pb-1.5">
-          <div className="space-y-2.5 rounded-[10px] border border-border-default/65 bg-bg-secondary/24 p-2.5">
-            <div>
-              <div className="mb-1.5 flex items-center justify-between gap-3">
-                <h4 className="text-[var(--fs-xxs)] font-bold uppercase tracking-wider text-text-disabled">{t('ws.customHeaders')}</h4>
-                <button onClick={addHeader} className="text-[var(--fs-xxs)] text-accent hover:underline">+ {t('ws.addHeader')}</button>
-              </div>
-              {headers.map((h, i) => (
-                <div key={i} className="mb-1 flex items-center gap-2">
-                  <input type="checkbox" checked={h.enabled} onChange={() => { const c = [...headers]; c[i].enabled = !c[i].enabled; setHeaders(c); }} className="accent-accent" />
-                  <input value={h.key} onChange={(e) => { const c = [...headers]; c[i].key = e.target.value; setHeaders(c); }} placeholder="Key" className="wb-field-sm min-w-0 flex-1" />
-                  <input value={h.value} onChange={(e) => { const c = [...headers]; c[i].value = e.target.value; setHeaders(c); }} placeholder="Value" className="wb-field-sm min-w-0 flex-1" />
-                  <button onClick={() => removeHeader(i)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"><X className="w-3 h-3" /></button>
-                </div>
-              ))}
+      <div className="flex-1 overflow-hidden pb-3 pt-1.5 relative">
+        <div className="http-workbench-shell h-full">
+          <PanelGroup orientation="vertical" className="h-full !overflow-visible">
+            <Panel defaultSize={40} minSize={20} className="http-workbench-section flex flex-col relative z-10">
+            <div className="wb-tabs shrink-0 scrollbar-hide">
+              <button onClick={() => setConfigTab("message")} className={cn("wb-tab", configTab === "message" && "wb-tab-active text-text-primary")}>{t('ws.message')}</button>
+              <button onClick={() => setConfigTab("params")} className={cn("wb-tab", configTab === "params" && "wb-tab-active text-text-primary")}>{t('http.params')}</button>
+              <button onClick={() => setConfigTab("headers")} className={cn("wb-tab", configTab === "headers" && "wb-tab-active text-text-primary")}>{t('http.headers', 'Headers')}</button>
+              <button onClick={() => setConfigTab("settings")} className={cn("wb-tab", configTab === "settings" && "wb-tab-active text-text-primary")}>{t('ws.settings')}</button>
             </div>
-            <div className="flex flex-wrap items-center gap-4">
-              <label className="flex items-center gap-1.5 text-[var(--fs-xs)] text-text-secondary cursor-pointer">
-                <input type="checkbox" checked={autoReconnect} onChange={() => setAutoReconnect(!autoReconnect)} className="accent-accent" />
-                <RefreshCw className="w-3 h-3" /> {t('ws.autoReconnect')}
-              </label>
-              <label className="flex items-center gap-1.5 text-[var(--fs-xs)] text-text-secondary cursor-pointer">
-                <input type="checkbox" checked={heartbeatEnabled} onChange={() => setHeartbeatEnabled(!heartbeatEnabled)} className="accent-accent" />
-                {t('ws.heartbeat')}
-              </label>
-              {heartbeatEnabled && (
-                <>
-                  <input value={heartbeatInterval} onChange={(e) => setHeartbeatInterval(Math.max(1, parseInt(e.target.value) || 30))} className="wb-field-sm w-14 text-center" />
-                  <span className="text-[var(--fs-xxs)] text-text-disabled">{t('ws.seconds')}</span>
-                  <input value={heartbeatMsg} onChange={(e) => setHeartbeatMsg(e.target.value)} className="wb-field-sm w-24" placeholder="ping" />
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Main Area */}
-      <div className="flex-1 flex flex-col overflow-hidden px-3 pb-3 pt-0.5">
-        <div className="wb-panel flex flex-1 flex-col overflow-hidden">
-          {/* Status Header with search */}
-          <div className="wb-panel-header shrink-0">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <div className={cn("h-2 w-2 rounded-[3px] transition-colors", connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-text-disabled")} />
-              <span className="text-[var(--fs-sm)] font-medium text-text-secondary">
-                {connected ? t('ws.connected') : connecting ? t('ws.connecting') : t('ws.disconnected')}
-              </span>
-              {messages.length > 0 && <span className="text-[var(--fs-xs)] text-text-tertiary ml-2">{filteredMessages.length}/{messages.length}</span>}
-            </div>
-            <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-              {/* 搜索框 */}
-              <div className="wb-search w-[200px] max-w-full">
-                <Search className="w-3 h-3 text-text-disabled" />
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('ws.searchMessages')} className="min-w-0 flex-1" />
-                {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3 h-3" /></button>}
-              </div>
-              {messages.length > 0 && (
-                <button onClick={() => setMessages([])} className="wb-icon-btn hover:text-red-500" title={t('ws.clearMessages')}><Trash2 className="w-3 h-3" /></button>
-              )}
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div
-            ref={messagesContainerRef}
-            className="flex-1 min-h-0 overflow-auto bg-bg-secondary/12"
-          >
-            {filteredMessages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center px-6 text-text-disabled">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default bg-bg-secondary shadow-sm">
-                  <Zap className="w-8 h-8 opacity-20 text-amber-500" />
+            <div className="http-workbench-body">
+              {configTab === "message" && (
+                <div className="h-full flex flex-col relative">
+                  <div className="flex-1 min-h-0 relative">
+                    <CodeEditor
+                      value={message}
+                      onChange={(v: string) => setMessage(v)}
+                      language={sendMode === "json" ? "json" : "plaintext"}
+                    />
+                  </div>
+                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
+                    <select
+                      value={sendMode}
+                      onChange={(e) => setSendMode(e.target.value as "json" | "text" | "binary")}
+                      className="pointer-events-auto wb-native-select text-[var(--fs-xs)] font-semibold text-text-tertiary uppercase tracking-wider h-7 px-2 focus:ring-0 cursor-pointer bg-bg-primary/90 backdrop-blur-md border border-border-default/50 hover:bg-bg-hover transition-colors rounded-[8px]"
+                    >
+                      <option value="text">TEXT</option>
+                      <option value="json">JSON</option>
+                      <option value="binary">BINARY</option>
+                    </select>
+                    <button
+                      onClick={handleSend}
+                      disabled={!connected || !message.trim()}
+                      className="pointer-events-auto inline-flex items-center justify-center gap-1.5 h-7 px-3.5 rounded-[9px] bg-amber-500 text-white text-[var(--fs-xs)] font-bold tracking-wide shadow-sm hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" /> {t('ws.send')}
+                    </button>
+                  </div>
                 </div>
-                <p className="text-[var(--fs-md)] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
-                <p className="mt-1 text-[var(--fs-sm)]">{searchQuery ? '' : t('ws.emptyDesc')}</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border-default/30">
-                {displayMessages.map((item) => (
-                  <WsMessageRow
-                    key={item.id}
-                    message={item}
-                    formatTime={formatTime}
-                    formatSize={formatSize}
+              )}
+              {configTab === "params" && (
+                <div className="px-3 py-0 h-full overflow-hidden">
+                  <KVEditor
+                    items={params}
+                    onChange={handleParamsChange}
+                    kp="Query Param"
+                    vp="Value"
                   />
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+              {configTab === "headers" && (
+                <div className="px-3 py-0 h-full overflow-hidden">
+                  <KVEditor
+                    items={headers}
+                    onChange={setHeaders}
+                    kp="Header"
+                    vp="Value"
+                    showPresets
+                  />
+                </div>
+              )}
+              {configTab === "settings" && (
+                <div className="p-4 space-y-5 overflow-auto h-full">
+                  <div className="space-y-3 max-w-xl">
+                    <label className="flex items-center gap-3 p-3 rounded-[10px] border border-border-default/50 bg-bg-secondary/20 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 text-amber-600">
+                        <Loader2 className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[var(--fs-sm)] font-medium text-text-primary">{t('ws.autoReconnect')}</div>
+                        <div className="text-[var(--fs-xs)] text-text-tertiary">Automatically attempt to reconnect if the connection drops</div>
+                      </div>
+                      <input type="checkbox" checked={autoReconnect} onChange={() => setAutoReconnect(!autoReconnect)} className="w-4 h-4 accent-amber-500 rounded border-border-default" />
+                    </label>
 
-          {/* Message Compose - Inside panel bottom */}
-          <div className="shrink-0 border-t border-border-default/70 overflow-hidden">
-            <div className="relative" style={{ height: 120 }}>
-              <CodeEditor
-                value={message}
-                onChange={(v: string) => setMessage(v)}
-                language={sendMode === "json" ? "json" : "plaintext"}
-              />
-              {/* Overlay controls at bottom */}
-              <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between pointer-events-none">
-                <select
-                  value={sendMode}
-                  onChange={(e) => setSendMode(e.target.value as "json" | "text" | "binary")}
-                  className="pointer-events-auto wb-field-xs wb-native-select min-w-[68px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary bg-bg-primary/90 backdrop-blur-sm"
-                >
-                  <option value="text">Text</option>
-                  <option value="json">JSON</option>
-                  <option value="binary">Binary</option>
-                </select>
-                <button
-                  onClick={handleSend}
-                  disabled={!connected || !message.trim()}
-                  className="pointer-events-auto inline-flex items-center justify-center gap-1.5 h-[26px] min-w-[60px] px-2.5 rounded-[9px] border-none bg-amber-500 text-white text-[var(--fs-xxs)] font-semibold shadow-sm hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
-                >
-                  <SendIcon className="w-3 h-3" /> {t('ws.send')}
+                    <div className="rounded-[10px] border border-border-default/50 bg-bg-secondary/20 overflow-hidden">
+                      <label className="flex items-center gap-3 p-3 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/10 text-blue-600">
+                          <Zap className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[var(--fs-sm)] font-medium text-text-primary">{t('ws.heartbeat')}</div>
+                          <div className="text-[var(--fs-xs)] text-text-tertiary">Send periodic ping messages to keep connection alive</div>
+                        </div>
+                        <input type="checkbox" checked={heartbeatEnabled} onChange={() => setHeartbeatEnabled(!heartbeatEnabled)} className="w-4 h-4 accent-amber-500 rounded border-border-default" />
+                      </label>
+                      {heartbeatEnabled && (
+                        <div className="p-3 bg-bg-secondary/10 border-t border-border-default/30 flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[var(--fs-xs)] text-text-secondary">Interval</span>
+                            <div className="relative">
+                              <input value={heartbeatInterval} onChange={(e) => setHeartbeatInterval(Math.max(1, parseInt(e.target.value) || 30))} className="wb-field-sm w-20 text-center pr-6" />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--fs-xxs)] text-text-disabled uppercase">s</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[var(--fs-xs)] text-text-secondary">Message</span>
+                            <input value={heartbeatMsg} onChange={(e) => setHeartbeatMsg(e.target.value)} className="wb-field-sm w-32 font-mono" placeholder="ping" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Panel>
+
+          <PanelResizeHandle className="http-workbench-divider relative z-20" />
+
+          <Panel defaultSize={45} minSize={20} className="http-workbench-section flex flex-col relative z-0">
+            <div className="http-response-head shrink-0 z-10 relative">
+              <div className="http-response-tabs scrollbar-hide">
+                <span className="http-response-tab is-active">{t('ws.messages') || 'Messages'}</span>
+              </div>
+
+              <div className="http-response-meta">
+                <div className="wb-search w-[200px] max-w-full">
+                  <Search className="w-3.5 h-3.5 text-text-disabled" />
+                  <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('ws.searchMessages')} className="min-w-0 flex-1" />
+                  {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>}
+                </div>
+
+                <span className={cn("http-response-status",
+                  connected
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300"
+                    : connecting
+                      ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300"
+                      : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-300"
+                )}>
+                  <span className={cn("http-response-status-dot",
+                    connected ? "bg-emerald-500" : connecting ? "bg-amber-500" : "bg-slate-400"
+                  )} />
+                  {connected ? t('ws.connected') : connecting ? t('ws.connecting') : t('ws.disconnected')}
+                </span>
+
+                <span className="http-response-meta-pill">
+                  <span className="http-response-meta-label">Messages</span>
+                  <span className="http-response-meta-value font-mono">{messages.length}</span>
+                </span>
+
+                <button onClick={() => setMessages([])} className="wb-icon-btn hover:bg-red-500/10 hover:text-red-500 transition-colors" title={t('ws.clearMessages')} disabled={messages.length === 0}>
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
-          </div>
+
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 min-h-0 overflow-auto"
+            >
+              {filteredMessages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center px-6 text-text-disabled">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default bg-bg-secondary shadow-sm">
+                    <Zap className="w-8 h-8 opacity-20 text-amber-500" />
+                  </div>
+                  <p className="text-[var(--fs-md)] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
+                  <p className="mt-1 text-[var(--fs-sm)]">{searchQuery ? '' : t('ws.emptyDesc')}</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border-default/30">
+                  {displayMessages.map((item) => (
+                    <WsMessageRow
+                      key={item.id}
+                      message={item}
+                      formatTime={formatTime}
+                      formatSize={formatSize}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </Panel>
+        </PanelGroup>
         </div>
       </div>
     </div>
@@ -579,18 +655,18 @@ function WsMessageRow({
       >
         {/* 方向箭头 */}
         {message.direction === "sent" ? (
-          <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+          <ArrowUp className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
         ) : (
-          <ArrowDownLeft className="h-3.5 w-3.5 shrink-0 text-sky-500" />
+          <ArrowDown className="h-3.5 w-3.5 shrink-0 text-sky-500" />
         )}
 
         {/* 格式标签 */}
         {format && (
           <span className={cn(
-            "inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 text-[var(--fs-xxs)] font-bold leading-none",
-            format === "JSON" ? "border-emerald-200 bg-emerald-500/8 text-emerald-600 dark:border-emerald-500/25" :
-            format === "HEX" ? "border-violet-200 bg-violet-500/8 text-violet-600 dark:border-violet-500/25" :
-            "border-slate-200 bg-slate-500/8 text-slate-500 dark:border-slate-500/25"
+            "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[var(--fs-xxs)] font-bold leading-none",
+            format === "JSON" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" :
+            format === "HEX" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" :
+            "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
           )}>
             {format}
           </span>

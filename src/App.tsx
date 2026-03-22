@@ -625,26 +625,7 @@ function App() {
     }
   }, [addTab, createHttpModeTab, handleSelectWorkbench]);
 
-  const renderRequestWorkspace = () => {
-    if (activeCollectionId) {
-      return <CollectionSettingsPanel collectionId={activeCollectionId} />;
-    }
 
-    if (!activeTab) {
-      return <WelcomePage onAction={handleWelcomeAction} />;
-    }
-
-    switch (activeTab.protocol) {
-      case "http":
-        return <HttpWorkspace />;
-      case "ws":
-        return <WsWorkspace />;
-      case "mqtt":
-        return <MqttWorkspace />;
-      default:
-        return <WelcomePage onAction={handleWelcomeAction} />;
-    }
-  };
 
   const renderContent = () => {
     return (
@@ -680,8 +661,23 @@ function App() {
                 onReorder={reorderTabs}
               />
 
-              <div className="min-h-0 flex-1 overflow-hidden">
-                {renderRequestWorkspace()}
+              <div className="min-h-0 flex-1 overflow-hidden relative">
+                <div className={cn("absolute inset-0 z-10 bg-bg-primary", activeCollectionId ? "block" : "hidden")}>
+                  {activeCollectionId && <CollectionSettingsPanel collectionId={activeCollectionId} />}
+                </div>
+                <div className={cn("absolute inset-0 z-10 bg-bg-primary", !activeCollectionId && !activeTab ? "block" : "hidden")}>
+                  {!activeCollectionId && !activeTab && <WelcomePage onAction={handleWelcomeAction} />}
+                </div>
+                {tabs.map((tab) => {
+                  const isActive = !activeCollectionId && activeTabId === tab.id;
+                  return (
+                    <div key={tab.id} className={cn("absolute inset-0 bg-bg-primary", isActive ? "block" : "hidden")}>
+                      {tab.protocol === "http" && <HttpWorkspace tabId={tab.id} />}
+                      {tab.protocol === "ws" && <WsWorkspace />}
+                      {tab.protocol === "mqtt" && <MqttWorkspace tabId={tab.id} />}
+                    </div>
+                  );
+                })}
               </div>
             </Panel>
           </PanelGroup>

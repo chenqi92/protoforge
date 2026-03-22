@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDownToLine, Trash2, Info, ChevronUp, Braces } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, FileIcon, X, Save, Search, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDownToLine, Trash2, Info, ChevronUp, Braces } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
@@ -41,9 +41,9 @@ interface SseEvent {
   timestamp: string;
 }
 
-export function HttpWorkspace() {
+export function HttpWorkspace({ tabId }: { tabId: string }) {
   const { t } = useTranslation();
-  const activeTab = useAppStore((s) => s.getActiveTab());
+  const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const updateTab = useAppStore((s) => s.updateTab);
   const setHttpResponse = useAppStore((s) => s.setHttpResponse);
@@ -91,7 +91,6 @@ export function HttpWorkspace() {
   const config = activeTab.httpConfig;
   const response = activeTab.httpResponse;
   const { loading, error } = activeTab;
-  const tabId = activeTab.id;
   const sseConnId = `sse-${tabId}`;
   const isSseMode = config.requestMode === "sse";
   const isGraphqlMode = config.requestMode === "graphql";
@@ -1227,9 +1226,19 @@ function HttpSseResponsePanel({
   listRef: { current: HTMLDivElement | null };
 }) {
   const { t } = useTranslation();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredEvents = useMemo(() => {
+    if (!searchQuery) return events;
+    const normalized = searchQuery.toLowerCase();
+    return events.filter(e => {
+      const haystack = `${e.eventType} ${e.data} ${e.id || ""}`.toLowerCase();
+      return haystack.includes(normalized);
+    });
+  }, [events, searchQuery]);
 
   // 倒序显示：最新事件在最上方
-  const reversedEvents = useMemo(() => [...events].reverse(), [events]);
+  const reversedEvents = useMemo(() => [...filteredEvents].reverse(), [filteredEvents]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -1239,6 +1248,12 @@ function HttpSseResponsePanel({
         </div>
 
         <div className="http-response-meta">
+          <div className="wb-search w-[200px] max-w-full">
+            <Search className="w-3.5 h-3.5 text-text-disabled" />
+            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('ws.searchMessages')} className="min-w-0 flex-1" />
+            {searchQuery && <button type="button" onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>}
+          </div>
+
           <span className={cn("http-response-status",
             status === 'connected'
               ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300"
@@ -1582,7 +1597,7 @@ function normalizeFormDataRows(fields: FormDataField[]) {
 }
 
 /* ── KV Editor (table-based, for params, headers, form-urlencoded) ── */
-function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, collectionId }: {
+export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, collectionId }: {
   items: KeyValue[];
   onChange: (v: KeyValue[]) => void;
   kp: string;
