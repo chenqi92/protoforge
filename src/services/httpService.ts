@@ -1,7 +1,7 @@
 // ProtoForge HTTP Service — Tauri IPC wrapper
 
 import { invoke } from '@tauri-apps/api/core';
-import type { HttpRequestConfig, HttpResponse, HttpResponseWithScripts, FormDataField } from '@/types/http';
+import type { HttpRequestConfig, HttpResponse, HttpResponseWithScripts, FormDataField, CookieInfo } from '@/types/http';
 import { useSettingsStore } from '@/stores/settingsStore';
 import {
   buildScopedVariableSnapshot,
@@ -158,11 +158,54 @@ function buildFinalPayload(payload: ReturnType<typeof buildRequestPayload>) {
   };
 }
 
+/** Filter and infer cookies based on RFC 6265 security and domain matching rules */
+function processAndFilterCookies(urlStr: string, cookies: CookieInfo[]): CookieInfo[] {
+  try {
+    const url = new URL(urlStr);
+    const requestHost = url.hostname.toLowerCase();
+    
+    // Check if the request host is an IP address (basic IPv4 or IPv6 detection)
+    const isIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(requestHost) || (requestHost.includes(':') && !requestHost.includes('.'));
+
+    return cookies.map(cookie => {
+      // 1. Completion Inference (补全推导)
+      if (!cookie.domain) {
+        return { ...cookie, domain: requestHost };
+      }
+      
+      const cookieDomain = cookie.domain.toLowerCase().replace(/^\./, '');
+      
+      // 2. Strict Security Filtering
+      let isValid = false;
+      if (isIp) {
+        // IP addresses must match exactly
+        isValid = requestHost === cookieDomain;
+      } else {
+        // Hostname suffix matching
+        if (requestHost === cookieDomain) {
+          isValid = true;
+        } else if (requestHost.endsWith('.' + cookieDomain)) {
+          isValid = true;
+        }
+      }
+      
+      return isValid ? cookie : null;
+    }).filter(Boolean) as CookieInfo[];
+  } catch {
+    return cookies;
+  }
+}
+
 export async function sendHttpRequest(config: HttpRequestConfig): Promise<HttpResponse> {
   const resolved = resolveConfigVariables(config);
   const payload = buildRequestPayload(resolved);
   const finalPayload = buildFinalPayload(payload);
-  return await invoke<HttpResponse>('send_request', { request: finalPayload });
+  const resp = await invoke<HttpResponse>('send_request', { request: finalPayload });
+  
+  if (resp && resp.cookies && Array.isArray(resp.cookies)) {
+    resp.cookies = processAndFilterCookies(resolved.url, resp.cookies);
+  }
+  return resp;
 }
 
 /** Send request with pre/post script execution */
@@ -173,7 +216,7 @@ export async function sendRequestWithScripts(config: HttpRequestConfig): Promise
   const collectionId = getLinkedCollectionIdForRequestConfig(config);
   const envVars = buildScopedVariableSnapshot(collectionId, true);
 
-  return await invoke<HttpResponseWithScripts>('send_request_with_scripts', {
+  const resp = await invoke<HttpResponseWithScripts>('send_request_with_scripts', {
     request: {
       ...finalPayload,
       preScript: config.preScript || null,
@@ -181,6 +224,11 @@ export async function sendRequestWithScripts(config: HttpRequestConfig): Promise
       envVars: Object.keys(envVars).length > 0 ? envVars : null,
     },
   });
+
+  if (resp && resp.response && resp.response.cookies && Array.isArray(resp.response.cookies)) {
+    resp.response.cookies = processAndFilterCookies(resolved.url, resp.response.cookies);
+  }
+  return resp;
 }
 
 // ── File picker helper ──

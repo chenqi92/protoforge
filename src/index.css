@@ -1613,8 +1613,8 @@
   }
 
   .response-table thead th {
-    height: 36px;
-    padding: 0 14px;
+    height: 32px;
+    padding: 0 12px;
     border-bottom: 1px solid color-mix(in srgb, var(--color-border-default) 88%, transparent);
     background: color-mix(in srgb, var(--color-bg-secondary) 68%, transparent);
     color: var(--color-text-tertiary);
@@ -1643,7 +1643,7 @@
   }
 
   .response-table td {
-    padding: 12px 14px;
+    padding: 6px 12px;
     border-top: 1px solid color-mix(in srgb, var(--color-border-default) 84%, transparent);
     vertical-align: top;
     font-size: var(--fs-sm);

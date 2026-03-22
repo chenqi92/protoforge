@@ -692,24 +692,29 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               )}
             
               {reqTab === "auth" && (
-                <div className="p-4">
-                  <div className="wb-segmented mb-4 w-fit flex-wrap">
-                    {(["none", "bearer", "basic", "apiKey", "oauth2"] as const).map((at) => (
-                      <button
-                        key={at}
-                        onClick={() => updateHttpConfig(tabId, { authType: at })}
-                        className={cn(
-                          "wb-segment",
-                          config.authType === at && "wb-segment-active"
-                        )}
-                      >
-                        {at === "none" ? "No Auth" : at === "bearer" ? "Bearer Token" : at === "basic" ? "Basic Auth" : at === "apiKey" ? "API Key" : "OAuth 2.0"}
-                      </button>
-                    ))}
+                <div className="flex h-full flex-1 min-h-0">
+                  <div className="w-[140px] shrink-0 border-r border-border-default/60 bg-bg-secondary/20 p-3 overflow-y-auto">
+                    <div className="flex flex-col gap-0.5">
+                      {(["none", "bearer", "basic", "apiKey", "oauth2"] as const).map((at) => (
+                        <button
+                          key={at}
+                          onClick={() => updateHttpConfig(tabId, { authType: at })}
+                          className={cn(
+                            "flex items-center w-full px-3 py-2 rounded-md text-left text-[var(--fs-sm)] transition-colors",
+                            config.authType === at
+                              ? "bg-accent/10 text-text-primary font-medium"
+                              : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                          )}
+                        >
+                          {at === "none" ? "No Auth" : at === "bearer" ? "Bearer Token" : at === "basic" ? "Basic Auth" : at === "apiKey" ? "API Key" : "OAuth 2.0"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   
-                  <div className="max-w-md">
-                    {config.authType === "none" && <p className="text-[var(--fs-base)] text-text-disabled mt-6">{t('http.noAuth')}</p>}
+                  <div className="flex-1 min-w-0 p-5 overflow-y-auto">
+                    <div className="max-w-2xl">
+                      {config.authType === "none" && <p className="text-[var(--fs-base)] text-text-disabled mt-2">{t('http.noAuth')}</p>}
                     {config.authType === "bearer" && (
                       <div className="space-y-2">
                         <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
@@ -776,9 +781,10 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                     )}
                   </div>
                 </div>
-              )}
+              </div>
+            )}
             
-              {reqTab === "pre-script" && (
+            {reqTab === "pre-script" && (
                 <ScriptEditor
                   type="pre"
                   value={config.preScript}
