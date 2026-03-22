@@ -6,6 +6,7 @@ import {
   FileOutput, LayoutDashboard, ChevronRight, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PluginIcon } from "@/components/plugins/PluginIcon";
 import { useTranslation } from 'react-i18next';
 import { usePluginStore } from "@/stores/pluginStore";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -422,8 +423,7 @@ function PluginCard({
   const cat = categoryMap[plugin.pluginType] || categories[0];
 
   return (
-    <motion.div
-      layout
+    <div
       onClick={onSelect}
       className={cn(
         "group cursor-pointer rounded-[18px] border p-3.5 transition-all hover:-translate-y-[1px]",
@@ -434,9 +434,7 @@ function PluginCard({
     >
       <div className="flex items-start gap-3">
         {/* Icon */}
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-border-default/75 bg-bg-primary text-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
-          {plugin.icon}
-        </div>
+        <PluginIcon pluginId={plugin.id} fallbackEmoji={plugin.icon} size="md" />
 
         {/* Info */}
         <div className="min-w-0 flex-1">
@@ -484,7 +482,7 @@ function PluginCard({
           )}
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -519,9 +517,7 @@ function PluginDetail({
       <div className="border-b border-border-default/70 bg-bg-primary/72 px-6 pb-5 pt-6">
         <div className="flex items-center justify-between">
           <div className="flex items-start gap-4 min-w-0">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-border-default/75 bg-bg-primary text-3xl shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
-              {plugin.icon}
-            </div>
+            <PluginIcon pluginId={plugin.id} fallbackEmoji={plugin.icon} size="lg" />
             <div className="flex-1 min-w-0">
               <h3 className="text-[var(--fs-2xl)] font-bold text-text-primary">{pluginT(plugin, 'name')}</h3>
               <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">

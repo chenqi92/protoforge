@@ -166,7 +166,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
       className="no-drag flex h-[var(--tabbar-height)] shrink-0 items-center border-b border-border-default/65 bg-transparent px-1.5"
     >
       <div ref={scrollRef} className="flex flex-1 items-center gap-1 overflow-x-auto py-0.5 scrollbar-hide">
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence mode="sync">
           {tabs.map((tab, index) => (
             <TabItem
               key={tab.id}
@@ -392,11 +392,11 @@ function TabItem({
   return (
     <>
       <motion.div
-        layout
-        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+        layoutId={tab.id}
+        initial={{ opacity: 0, scale: 0.92 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.1 } }}
+        transition={{ layout: { type: "spring", stiffness: 500, damping: 40 }, opacity: { duration: 0.12 }, scale: { duration: 0.12 } }}
         onClick={onClick}
         onDoubleClick={handleDoubleClick}
         onMouseDown={handleMouseDown}

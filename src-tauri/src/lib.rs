@@ -97,6 +97,9 @@ pub fn run() {
             commands::save_response_body,
             // OAuth 2.0
             commands::fetch_oauth2_token,
+            commands::open_oauth_window,
+            // Proxy Browser
+            commands::open_proxy_browser,
             // Collections
             commands::list_collections,
             commands::create_collection,
@@ -166,6 +169,7 @@ pub fn run() {
             commands::proxy_get_entries,
             commands::proxy_clear,
             commands::proxy_export_ca,
+            commands::proxy_install_ca,
             // Plugins
             commands::plugin_list,
             commands::plugin_list_available,
@@ -175,6 +179,7 @@ pub fn run() {
             commands::plugin_render_data,
             commands::plugin_get_protocol_parsers,
             commands::plugin_refresh_registry,
+            commands::plugin_get_icon,
             // SSE
             commands::sse_connect,
             commands::sse_disconnect,

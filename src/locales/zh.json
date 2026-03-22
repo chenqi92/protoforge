@@ -9,8 +9,6 @@
     "loadtest": "性能测试",
     "plugins": "插件",
     "settings": "设置",
-    "dragToDetach": "{{label}}，拖动可弹出为独立窗口",
-    "focusDetached": "{{label}} 已在独立窗口中，点击聚焦",
     "themeSystem": "跟随系统",
     "themeDark": "深色模式",
     "themeLight": "浅色模式"
@@ -97,14 +95,18 @@
     "newInstance": "新建实例",
     "singleInstance": "单实例工具",
     "popoutWindow": "弹出为独立窗口",
-    "focusWindow": "聚焦独立窗口"
+    "focusWindow": "聚焦独立窗口",
+    "dragToDetachSession": "拖拽此标签可弹出为独立窗口",
+    "allSessionsDetached": "所有实例已弹出到独立窗口"
   },
   "welcome": {
-    "badge": "请求工作台与工具工作台已经分层",
-    "title": "开始探索",
-    "subtitle": "从下方选择一项操作，快速开启工作流",
-    "requestFeatures": "请求功能",
-    "toolFeatures": "工具功能",
+    "badge": "全协议 API 调试平台",
+    "title": "选择一项功能，开始调试",
+    "subtitle": "ProtoForge 涵盖 HTTP、WebSocket、GraphQL 等主流协议调试，以及抓包、压测、TCP/UDP 等基础设施工具。",
+    "requestFeatures": "协议调试",
+    "requestFeaturesDesc": "覆盖 REST、GraphQL、WebSocket、SSE、MQTT 主流协议",
+    "toolFeatures": "基础设施",
+    "toolFeaturesDesc": "面向网络层的底层调试、流量分析与性能验证",
     "newRequest": "新建请求",
     "newRequestDesc": "创建 HTTP 请求并调试 API 接口",
     "commandPalette": "命令面板",
@@ -112,21 +114,21 @@
     "preferences": "偏好设置",
     "preferencesDesc": "自定义主题、代理与数据策略",
     "httpRequest": "HTTP 请求",
-    "httpRequestDesc": "支持 GET / POST / PUT / DELETE 等方法，完整的参数、请求头、请求体、认证与脚本配置",
+    "httpRequestDesc": "REST 全方法支持，参数 / 请求头 / 请求体 / 认证 / 脚本一站配置",
     "graphql": "GraphQL",
-    "graphqlDesc": "面向 Query / Mutation / Variables 的专用编辑模式，适合接口 schema 与文档驱动的请求调试",
+    "graphqlDesc": "Query / Mutation / Variables 专用编辑器，Schema 驱动的请求调试",
     "websocket": "WebSocket",
-    "websocketDesc": "双向实时通信调试，支持自动重连、心跳检测和自定义消息头",
-    "sseDesc": "服务端推送事件流实时监控",
-    "mqttDesc": "轻量级消息队列协议调试",
+    "websocketDesc": "双向实时通信调试，自动重连、心跳检测和自定义消息头",
+    "sseDesc": "服务端推送事件流的实时监控与分析",
+    "mqttDesc": "Pub/Sub 模式的轻量级消息队列调试",
     "tcpudp": "TCP / UDP",
-    "tcpudpDesc": "面向连接与无连接协议调试，支持客户端/服务端模式、HEX/ASCII/Base64 编码",
+    "tcpudpDesc": "客户端 / 服务端双模式，支持 HEX / ASCII / Base64 编码收发",
     "capture": "流量捕获",
-    "captureDesc": "基于 HTTP 代理的流量拦截与分析，支持 HTTPS 解密和请求详情查看",
+    "captureDesc": "本地 HTTP 代理抓包，支持 HTTPS 解密与请求详情分析",
     "loadtest": "性能测试",
-    "loadtestDesc": "高并发性能压测引擎，实时展示 RPS、延迟分布、错误率和状态码统计",
-    "pluginSystem": "插件系统",
-    "pluginSystemDesc": "通过插件扩展工作台能力，支持协议解析、数据生成和自定义渲染",
+    "loadtestDesc": "高并发压测引擎，实时 RPS / 延迟 / 错误率可视化",
+    "pluginSystem": "插件扩展",
+    "pluginSystemDesc": "通过插件扩展协议解析、数据生成和自定义渲染能力",
     "sse": "SSE",
     "mqtt": "MQTT"
   },
@@ -230,6 +232,9 @@
     "oauth2": {
       "fetchingToken": "获取中...",
       "fetchToken": "获取 Token",
+      "authorize": "获取授权码",
+      "authorizing": "授权中...",
+      "authorizingHint": "浏览器窗口已打开，请在授权页面完成登录并授权。完成后窗口将自动关闭。",
       "validity": "有效期 {{seconds}}s",
       "accessTokenPlaceholder": "点击「获取 Token」自动填入，或手动粘贴"
     },
@@ -559,7 +564,11 @@
     "proxyHint": "把浏览器或系统 HTTP 代理指向这个地址后，请求就会实时出现在上方列表中",
     "httpsHint": "如需抓取 HTTPS，请先导出并信任 CA 证书，然后刷新浏览器或目标应用",
     "emptyState": "点击 \"开始抓包\" 启动本地 HTTP 代理，然后配置浏览器代理以捕获流量",
-    "bodyNotSupported": "响应体抓取暂不支持（仅记录 Headers 和元数据）"
+    "bodyNotSupported": "响应体抓取暂不支持（仅记录 Headers 和元数据）",
+    "openBrowser": "浏览器",
+    "openBrowserHint": "打开内置浏览器，流量自动经过抓包代理",
+    "browserUrlPlaceholder": "输入要访问的 URL",
+    "browserProxyNotRunning": "请先启动抓包代理"
   },
   "loadtest": {
     "title": "HTTP 压测",
@@ -657,7 +666,8 @@
       "langZh": "中文",
       "langEn": "English",
       "fontLxgw": "霞鹜文楷",
-      "fontSourceHan": "思源黑体"
+      "fontSourceHan": "思源黑体",
+      "fontPlugin": "插件"
     },
     "request": {
       "timeout": "默认超时时间",

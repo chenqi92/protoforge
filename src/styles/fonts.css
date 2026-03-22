@@ -1,0 +1,10 @@
+/**
+ * fonts.css — 本地捆绑字体
+ * 使用 @fontsource-variable 包，构建时打包进应用，无需联网
+ */
+
+/* ── 内置 UI 字体 ── */
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/noto-sans-sc';
+@import '@fontsource-variable/roboto-flex';
+@import '@fontsource-variable/outfit';

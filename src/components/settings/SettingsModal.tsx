@@ -17,6 +17,8 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { usePluginStore } from "@/stores/pluginStore";
+import { BUILTIN_FONTS } from "@/hooks/useSettingsEffect";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -329,18 +331,26 @@ function GeneralSection({
 }: SectionProps & { onThemeChange: (theme: AppSettings["theme"]) => void }) {
   const { t } = useTranslation();
   const fontSizeLabel = `${settings.fontSize}px`;
-  const fontFamilyLabelMap: Record<AppSettings["fontFamily"], string> = {
-    inter: "Inter",
-    system: t('settings.general.fontSystem'),
-    "noto-sans-sc": "Noto Sans SC",
-    "lxgw-wenkai": t('settings.general.fontLxgw'),
-    "source-han-sans": t('settings.general.fontSourceHan'),
-    "jetbrains-mono": "JetBrains Mono",
-    "fira-code": "Fira Code",
-    "roboto": "Roboto",
-    "outfit": "Outfit",
-    "maple-mono": "Maple Mono",
-  };
+
+  // 合并内置字体 + 插件字体
+  const installedPlugins = usePluginStore((s) => s.installedPlugins);
+  const allFonts = useMemo(() => {
+    const fonts: { id: string; name: string; source: 'builtin' | 'plugin' }[] =
+      BUILTIN_FONTS.map((f) => ({ id: f.id, name: f.name, source: 'builtin' as const }));
+
+    for (const plugin of installedPlugins) {
+      if (plugin.contributes?.fonts) {
+        for (const font of plugin.contributes.fonts) {
+          fonts.push({ id: font.fontId, name: font.name, source: 'plugin' });
+        }
+      }
+    }
+    return fonts;
+  }, [installedPlugins]);
+
+  const currentFontLabel = allFonts.find((f) => f.id === settings.fontFamily)?.name
+    ?? (settings.fontFamily === 'system' ? t('settings.general.fontSystem') : settings.fontFamily);
+
   const languageLabelMap: Record<AppSettings["language"], string> = {
     "zh-CN": t('settings.general.langZh'),
     en: t('settings.general.langEn'),
@@ -381,22 +391,24 @@ function GeneralSection({
       <SettingRow label={t('settings.general.fontFamily')} desc={t('settings.general.fontFamilyDesc')}>
         <Select
           value={settings.fontFamily}
-          onValueChange={(value) => update("fontFamily", value as AppSettings["fontFamily"])}
+          onValueChange={(value) => update("fontFamily", value)}
         >
-          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-44")}>
-            <SelectValue>{fontFamilyLabelMap[settings.fontFamily]}</SelectValue>
+          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-48")}>
+            <SelectValue>{currentFontLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
-            <SelectItem value="inter">Inter</SelectItem>
-            <SelectItem value="system">{t('settings.general.fontSystem')}</SelectItem>
-            <SelectItem value="roboto">Roboto</SelectItem>
-            <SelectItem value="outfit">Outfit</SelectItem>
-            <SelectItem value="noto-sans-sc">Noto Sans SC</SelectItem>
-            <SelectItem value="lxgw-wenkai">{t('settings.general.fontLxgw')}</SelectItem>
-            <SelectItem value="source-han-sans">{t('settings.general.fontSourceHan')}</SelectItem>
-            <SelectItem value="jetbrains-mono">JetBrains Mono</SelectItem>
-            <SelectItem value="fira-code">Fira Code</SelectItem>
-            <SelectItem value="maple-mono">Maple Mono</SelectItem>
+            {allFonts.map((font) => (
+              <SelectItem key={font.id} value={font.id}>
+                <span className="flex items-center gap-2">
+                  <span>{font.name}</span>
+                  {font.source === 'plugin' && (
+                    <span className="rounded-full bg-accent/10 px-1.5 py-0 text-[10px] font-medium text-accent">
+                      {t('settings.general.fontPlugin')}
+                    </span>
+                  )}
+                </span>
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </SettingRow>

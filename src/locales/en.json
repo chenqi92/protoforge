@@ -9,8 +9,6 @@
     "loadtest": "Load Test",
     "plugins": "Plugins",
     "settings": "Settings",
-    "dragToDetach": "{{label}}, drag to detach as a separate window",
-    "focusDetached": "{{label}} is already detached, click to focus it",
     "themeSystem": "System Theme",
     "themeDark": "Dark Mode",
     "themeLight": "Light Mode"
@@ -97,14 +95,18 @@
     "newInstance": "New Instance",
     "singleInstance": "Single-instance tool",
     "popoutWindow": "Detach as Separate Window",
-    "focusWindow": "Focus Detached Window"
+    "focusWindow": "Focus Detached Window",
+    "dragToDetachSession": "Drag this tab to detach as a separate window",
+    "allSessionsDetached": "All instances are detached into separate windows"
   },
   "welcome": {
-    "badge": "Request workbench and tool workbenches are now separated",
-    "title": "Get Started",
-    "subtitle": "Select an action below to quickly start your workflow",
-    "requestFeatures": "Request Features",
-    "toolFeatures": "Tool Features",
+    "badge": "Full-Protocol API Debugging Platform",
+    "title": "Pick a feature to get started",
+    "subtitle": "ProtoForge covers HTTP, WebSocket, GraphQL and more, plus traffic capture, load testing, and low-level networking tools.",
+    "requestFeatures": "Protocol Debugging",
+    "requestFeaturesDesc": "REST, GraphQL, WebSocket, SSE, and MQTT — all in one place",
+    "toolFeatures": "Infrastructure",
+    "toolFeaturesDesc": "Low-level networking, traffic analysis, and performance testing",
     "newRequest": "New Request",
     "newRequestDesc": "Create an HTTP request and debug API endpoints",
     "commandPalette": "Command Palette",
@@ -112,21 +114,21 @@
     "preferences": "Preferences",
     "preferencesDesc": "Customize theme, proxy, and data policies",
     "httpRequest": "HTTP Request",
-    "httpRequestDesc": "Supports GET / POST / PUT / DELETE and more methods with full configuration for parameters, headers, body, authentication, and scripts",
+    "httpRequestDesc": "Full REST method support with params, headers, body, auth, and scripts",
     "graphql": "GraphQL",
-    "graphqlDesc": "Dedicated Query / Mutation / Variables editing mode built on top of the same HTTP request pipeline",
+    "graphqlDesc": "Dedicated Query / Mutation / Variables editor with schema-driven debugging",
     "websocket": "WebSocket",
-    "websocketDesc": "Bidirectional real-time communication debugging with auto-reconnect, heartbeat, and custom headers",
-    "sseDesc": "Server-Sent Events real-time stream monitoring",
-    "mqttDesc": "Lightweight message queue protocol debugging",
+    "websocketDesc": "Bidirectional real-time debugging with auto-reconnect, heartbeat, and custom headers",
+    "sseDesc": "Real-time monitoring and analysis of server-sent event streams",
+    "mqttDesc": "Lightweight pub/sub message queue debugging",
     "tcpudp": "TCP / UDP",
-    "tcpudpDesc": "Connection-oriented and connectionless protocol debugging with Client/Server modes, HEX/ASCII/Base64 encoding",
+    "tcpudpDesc": "Client and server modes with HEX / ASCII / Base64 encoding",
     "capture": "Traffic Capture",
-    "captureDesc": "HTTP proxy-based traffic interception and analysis with HTTPS decryption and request detail inspection",
+    "captureDesc": "Local HTTP proxy capture with HTTPS decryption and request detail analysis",
     "loadtest": "Load Test",
-    "loadtestDesc": "High-concurrency load testing engine with real-time RPS, latency distribution, error rate, and status code statistics",
-    "pluginSystem": "Plugin System",
-    "pluginSystemDesc": "Extend workbench capabilities through plugins for protocol parsing, data generation, and custom rendering",
+    "loadtestDesc": "High-concurrency load testing with real-time RPS, latency, and error rate visualization",
+    "pluginSystem": "Plugin Extensions",
+    "pluginSystemDesc": "Extend capabilities with protocol parsing, data generation, and custom rendering plugins",
     "sse": "SSE",
     "mqtt": "MQTT"
   },
@@ -229,6 +231,9 @@
     "oauth2": {
       "fetchingToken": "Fetching...",
       "fetchToken": "Get Token",
+      "authorize": "Authorize",
+      "authorizing": "Authorizing...",
+      "authorizingHint": "A browser window has been opened. Please complete the login and authorization. The window will close automatically.",
       "validity": "Expires in {{seconds}}s",
       "accessTokenPlaceholder": "Click \"Get Token\" to auto-fill, or paste manually"
     },
@@ -558,7 +563,11 @@
     "proxyHint": "Point your browser or system HTTP proxy to this address, and requests will appear in the list above in real time",
     "httpsHint": "To capture HTTPS, export and trust the CA certificate first, then refresh your browser or target application",
     "emptyState": "Click \"Start Capture\" to launch the local HTTP proxy, then configure your browser proxy to capture traffic",
-    "bodyNotSupported": "Response body capture is not supported (only Headers and metadata are recorded)"
+    "bodyNotSupported": "Response body capture is not supported (only Headers and metadata are recorded)",
+    "openBrowser": "Browser",
+    "openBrowserHint": "Open built-in browser with traffic routed through capture proxy",
+    "browserUrlPlaceholder": "Enter URL to visit",
+    "browserProxyNotRunning": "Please start the capture proxy first"
   },
   "loadtest": {
     "title": "HTTP Load Test",
@@ -656,7 +665,8 @@
       "langZh": "中文",
       "langEn": "English",
       "fontLxgw": "LXGW WenKai",
-      "fontSourceHan": "Source Han Sans"
+      "fontSourceHan": "Source Han Sans",
+      "fontPlugin": "Plugin"
     },
     "request": {
       "timeout": "Default Timeout",

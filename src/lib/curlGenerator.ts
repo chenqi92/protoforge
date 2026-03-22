@@ -109,8 +109,14 @@ export function generateCurlFromItem(item: CollectionItem): string {
             const fields = JSON.parse(item.bodyContent);
             if (Array.isArray(fields)) {
               fields.filter((f: any) => f.enabled !== false && f.key).forEach((f: any) => {
-                if (f.type === 'file') {
-                  parts.push(`-F '${f.key}=@${f.value || "file"}'`);
+                if (f.type === 'file' || f.fieldType === 'file') {
+                  // Support both filePaths array and legacy comma-separated value
+                  const paths: string[] = Array.isArray(f.filePaths) && f.filePaths.length > 0
+                    ? f.filePaths
+                    : (f.value || '').split(',').map((p: string) => p.trim()).filter(Boolean);
+                  for (const p of paths) {
+                    parts.push(`-F '${f.key}=@${p}'`);
+                  }
                 } else {
                   parts.push(`-F '${f.key}=${f.value || ""}'`);
                 }

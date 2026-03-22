@@ -8,7 +8,7 @@ export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   language: 'zh-CN' | 'en';
   fontSize: 12 | 13 | 14 | 15 | 16;
-  fontFamily: 'inter' | 'system' | 'noto-sans-sc' | 'lxgw-wenkai' | 'source-han-sans' | 'jetbrains-mono' | 'fira-code' | 'roboto' | 'outfit' | 'maple-mono';
+  fontFamily: string; // 内置字体 ID 或插件贡献的 fontId
 
   // ── 请求默认值 ──
   defaultTimeoutMs: number;
@@ -68,7 +68,7 @@ const defaultSettings: AppSettings = {
   maxHistoryCount: 200,
   autoSaveInterval: 0,
 
-  sidebarWidth: 22,
+  sidebarWidth: 44,
   windowWidth: 1280,
   windowHeight: 800,
 
@@ -90,9 +90,9 @@ export const useSettingsStore = create<SettingsStore>()(
       migrate: (persistedState: unknown) => {
         const state = persistedState as { settings?: Record<string, unknown> };
         if (state?.settings) {
-          // 迁移旧的 fontFamily 值
+          // 迁移旧的 fontFamily: 'mono' 等无效值回退到 inter
           const ff = state.settings.fontFamily;
-          if (ff === 'mono' || !['inter', 'system', 'noto-sans-sc', 'lxgw-wenkai', 'source-han-sans', 'jetbrains-mono', 'fira-code', 'roboto', 'outfit', 'maple-mono'].includes(ff as string)) {
+          if (ff === 'mono' || typeof ff !== 'string' || ff === '') {
             state.settings.fontFamily = 'inter';
           }
         }

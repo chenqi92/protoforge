@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -120,7 +120,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
             <div className={cn("flex items-center justify-between", activeView === "collections" ? "mb-2" : "mb-2")}>
               <div className="flex min-w-0 items-center gap-2">
                 {activeView !== "collections" ? (
-                  <span className="truncate text-[var(--fs-base)] font-semibold text-text-primary">
+                  <span className="truncate text-[var(--fs-sm)] font-semibold text-text-primary">
                     {t(navItems.find(n => n.id === activeView)?.labelKey || '')}
                   </span>
                 ) : null}
@@ -130,7 +130,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                   <>
                     <button
                       onClick={handleNewCollection}
-                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
+                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
                       title={t('sidebar.new')}
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -138,7 +138,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                     </button>
                     <button
                       onClick={handleImport}
-                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
                       title={t('sidebar.import')}
                     >
                       <Download className="w-3 h-3" />
@@ -149,7 +149,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 {activeView === "environments" && (
                   <button
                     onClick={handleNewEnvironment}
-                    className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
+                    className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
                     title={t('sidebar.addEnv')}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -166,7 +166,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`${t('common.search')}${t(navItems.find(n => n.id === activeView)?.labelKey || '')}...`}
-                className="h-[30px] w-full rounded-[10px] border border-border-default/80 bg-bg-secondary/42 pl-8 pr-3 text-[var(--fs-sm)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]"
+                className="h-[30px] w-full rounded-[10px] border border-border-default/80 bg-bg-secondary/42 pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]"
               />
             </div>
           </div>
@@ -483,7 +483,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
             <button
               onClick={() => toggleFolder(item.id)}
               onContextMenu={(e) => handleSubFolderContextMenu(e, item)}
-              className="w-full flex items-center gap-1.5 pr-2 py-[5px] rounded-md text-[var(--fs-sm)] text-text-secondary hover:bg-bg-hover transition-colors group/folder"
+              className="w-full flex items-center gap-1.5 pr-2 py-[3px] rounded-md text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover transition-colors group/folder"
               style={{ paddingLeft: `${12 + depth * 14}px` }}
             >
               <motion.div
@@ -504,14 +504,14 @@ function CollectionsView({ search, expanded, setExpanded }: {
                     e.stopPropagation();
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex-1 min-w-0 text-[var(--fs-xs)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
+                  className="flex-1 min-w-0 text-[length:var(--fs-sidebar-sm)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
                   autoFocus
                 />
               ) : (
-                <span className="truncate text-[var(--fs-xs)] font-medium">{item.name}</span>
+                <span className="truncate text-[length:var(--fs-sidebar-sm)] font-medium">{item.name}</span>
               )}
               {childCount > 0 && (
-                <span className="text-[var(--fs-xxs)] text-text-disabled ml-auto tabular-nums">{childCount}</span>
+                <span className="text-[var(--fs-3xs)] text-text-disabled ml-auto tabular-nums">{childCount}</span>
               )}
             </button>
             <AnimatePresence>
@@ -558,8 +558,8 @@ function CollectionsView({ search, expanded, setExpanded }: {
           <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] border border-border-subtle bg-bg-hover shadow-sm">
             <FolderOpen className="w-6 h-6 text-text-tertiary" />
           </div>
-          <p className="text-[var(--fs-base)] font-medium text-text-secondary">{search ? t('sidebar.noMatch') : t('sidebar.noCollections')}</p>
-          <p className="text-[var(--fs-xs)] mt-1 text-text-disabled">{t('sidebar.noCollectionsHint')}</p>
+          <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">{search ? t('sidebar.noMatch') : t('sidebar.noCollections')}</p>
+          <p className="text-[length:var(--fs-sidebar-sm)] mt-1 text-text-disabled">{t('sidebar.noCollectionsHint')}</p>
         </div>
       )}
       {filteredCollections.map((col) => {
@@ -570,7 +570,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
             <button
               onClick={() => toggleExpand(col.id)}
               onContextMenu={(e) => handleFolderContextMenu(e, col)}
-              className="w-full flex items-center gap-1.5 px-2 py-[6px] rounded-md text-[var(--fs-sm)] font-medium text-text-secondary hover:bg-bg-hover transition-colors group"
+              className="w-full flex items-center gap-1.5 px-2 py-[4px] rounded-md text-[length:var(--fs-sidebar)] font-medium text-text-secondary hover:bg-bg-hover transition-colors group"
             >
               <motion.div
                 animate={{ rotate: expanded[col.id] ? 90 : 0 }}
@@ -590,7 +590,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
                     e.stopPropagation();
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex-1 min-w-0 text-[var(--fs-sm)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
+                  className="flex-1 min-w-0 text-[length:var(--fs-sidebar)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
                   autoFocus
                 />
               ) : (
@@ -598,7 +598,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
               )}
               {renamingId !== col.id && (
                 <>
-                  <span className="text-[var(--fs-xxs)] text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
+                  <span className="text-[var(--fs-3xs)] text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
                   <span
                     role="button"
                     onClick={(e) => { e.stopPropagation(); handleFolderContextMenu(e, col); }}
@@ -619,7 +619,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
                   className="overflow-hidden"
                 >
                   {colItems.length === 0 && (
-                    <p className="pl-[30px] pr-2 py-2 text-[var(--fs-xs)] text-text-disabled">{t('sidebar.emptyCollection')}</p>
+                    <p className="pl-[30px] pr-2 py-2 text-[length:var(--fs-sidebar-sm)] text-text-disabled">{t('sidebar.emptyCollection')}</p>
                   )}
                   {renderItems(colItems, null, 1)}
                 </motion.div>
@@ -656,23 +656,50 @@ function RequestItemWithTooltip({
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [copied, setCopied] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
   const curlCommand = useCallback(() => generateCurlFromItem(item), [item]);
 
-  const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+  // 构建请求摘要信息
+  const requestSummary = useMemo(() => {
+    const summary: { label: string; value: string; accent?: string }[] = [];
+    // URL
+    if (item.url) summary.push({ label: "URL", value: item.url });
+    // Query params
+    const params = (() => { try { const p = JSON.parse(item.queryParams || "[]"); return Array.isArray(p) ? p.filter((q: any) => q.key && q.enabled !== false) : []; } catch { return []; } })();
+    if (params.length > 0) summary.push({ label: t('http.params'), value: params.map((p: any) => p.key).join(', ') });
+    // Headers
+    const headers = (() => { try { const h = JSON.parse(item.headers || "[]"); return Array.isArray(h) ? h.filter((h: any) => h.key && h.enabled !== false && !h.isAuto) : []; } catch { return []; } })();
+    if (headers.length > 0) summary.push({ label: t('http.headers'), value: headers.map((h: any) => h.key).join(', ') });
+    // Auth
+    if (item.authType && item.authType !== "none") summary.push({ label: t('http.auth'), value: item.authType === "bearer" ? "Bearer Token" : item.authType === "basic" ? "Basic Auth" : item.authType === "apiKey" ? "API Key" : item.authType === "oauth2" ? "OAuth 2.0" : item.authType, accent: "text-amber-500" });
+    // Body
+    if (item.bodyType && item.bodyType !== "none") summary.push({ label: t('http.body'), value: item.bodyType === "json" ? "JSON" : item.bodyType === "formUrlencoded" ? "URL-Encoded" : item.bodyType === "formData" ? "Form-Data" : item.bodyType === "binary" ? "Binary" : item.bodyType === "graphql" ? "GraphQL" : item.bodyType.toUpperCase() });
+    return summary;
+  }, [item, t]);
+
+  const scheduleShow = useCallback((e: React.MouseEvent) => {
     if (isRenamingItem) return;
+    if (hideTimerRef.current) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     hoverTimerRef.current = setTimeout(() => {
-      setTooltipPos({ x: rect.right + 8, y: rect.top });
+      // 确保 tooltip 不超出屏幕底部
+      const tooltipHeight = 320;
+      const y = Math.min(rect.top, window.innerHeight - tooltipHeight - 16);
+      setTooltipPos({ x: rect.right + 8, y: Math.max(8, y) });
       setShowTooltip(true);
       setCopied(false);
-    }, 400);
+    }, 350);
   }, [isRenamingItem]);
 
-  const handleMouseLeave = useCallback(() => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    setShowTooltip(false);
+  const scheduleHide = useCallback(() => {
+    if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+    hideTimerRef.current = setTimeout(() => setShowTooltip(false), 200);
+  }, []);
+
+  const cancelHide = useCallback(() => {
+    if (hideTimerRef.current) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
   }, []);
 
   const handleCopy = useCallback(async (e: React.MouseEvent) => {
@@ -688,13 +715,13 @@ function RequestItemWithTooltip({
         ref={btnRef}
         onClick={() => isRenamingItem ? undefined : handleOpenItem(item)}
         onContextMenu={(e) => handleItemContextMenu(e, { ...item, name: item.name, url: item.url, collectionId: item.collectionId })}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        className="w-full flex items-center gap-2 pr-2 py-[5px] rounded-md text-[var(--fs-sm)] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
+        onMouseEnter={scheduleShow}
+        onMouseLeave={scheduleHide}
+        className="w-full flex items-center gap-2 pr-2 py-[3px] rounded-md text-[length:var(--fs-sidebar)] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
         style={{ paddingLeft: `${12 + depth * 14}px` }}
       >
         <span className={cn(
-          "text-[var(--fs-xxs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
+          "text-[var(--fs-3xs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
           color.text, color.bg
         )}>
           {method}
@@ -710,34 +737,70 @@ function RequestItemWithTooltip({
               e.stopPropagation();
             }}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 min-w-0 text-[var(--fs-xs)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-mono"
+            className="flex-1 min-w-0 text-[length:var(--fs-sidebar-sm)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-mono"
             autoFocus
           />
         ) : (
-          <span className="truncate font-mono text-[var(--fs-xs)]">{item.name}</span>
+          <span className="truncate font-mono text-[length:var(--fs-sidebar-sm)]">{item.name}</span>
         )}
       </button>
       {showTooltip && createPortal(
         <div
-          className="curl-preview-tooltip"
+          className="request-preview-tooltip"
           style={{ position: 'fixed', left: tooltipPos.x, top: tooltipPos.y, zIndex: 9999 }}
-          onMouseEnter={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={cancelHide}
+          onMouseLeave={scheduleHide}
         >
-          <div className="flex items-center justify-between gap-2 mb-1.5 px-0.5">
-            <span className="text-[var(--fs-xxs)] font-semibold text-text-secondary uppercase tracking-wider">{t('sidebar.curlPreview')}</span>
-            <button
-              onClick={handleCopy}
-              className={cn(
-                "flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--fs-xxs)] font-medium transition-colors",
-                copied ? "bg-emerald-500/10 text-emerald-600" : "bg-bg-hover text-text-tertiary hover:text-text-secondary"
-              )}
-            >
-              <Copy className="w-3 h-3" />
-              {copied ? t('sidebar.copied') : t('sidebar.copyCurl')}
-            </button>
+          {/* 顶部: Method + Name */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className={cn(
+              "text-[var(--fs-xxs)] font-bold px-1.5 py-[2px] rounded shrink-0",
+              color.text, color.bg
+            )}>
+              {method}
+            </span>
+            <span className="text-[var(--fs-sm)] font-semibold text-text-primary truncate">{item.name}</span>
           </div>
-          <pre className="text-[var(--fs-xs)] text-text-primary font-mono whitespace-pre-wrap break-all leading-relaxed max-h-[300px] overflow-auto">{curlCommand()}</pre>
+
+          {/* 接口描述（如果有 — 使用 URL 作为补充说明） */}
+
+          {/* 请求摘要 */}
+          {requestSummary.length > 0 && (
+            <div className="mb-3 space-y-1.5">
+              {requestSummary.map((s: { label: string; value: string; accent?: string }, i: number) => (
+                <div key={i} className="flex items-start gap-2 text-[var(--fs-xs)]">
+                  <span className="shrink-0 text-text-disabled font-medium min-w-[52px]">{s.label}</span>
+                  <span className={cn("text-text-secondary break-all", s.accent)}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Shell 风格 cURL 区域 */}
+          <div className="request-preview-shell">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-1.5">
+                <div className="flex gap-1">
+                  <span className="h-[7px] w-[7px] rounded-full bg-[#ff5f57] opacity-60" />
+                  <span className="h-[7px] w-[7px] rounded-full bg-[#febc2e] opacity-60" />
+                  <span className="h-[7px] w-[7px] rounded-full bg-[#28c840] opacity-60" />
+                </div>
+                <span className="text-[10px] font-semibold ml-1.5" style={{ color: 'var(--shell-accent)' }}>cURL</span>
+              </div>
+              <button
+                onClick={handleCopy}
+                className={cn(
+                  "flex items-center gap-1 px-1.5 py-[2px] rounded text-[10px] font-medium transition-colors",
+                  copied ? "text-emerald-500" : "hover:opacity-80"
+                )}
+                style={{ color: copied ? undefined : 'var(--shell-copy)' }}
+              >
+                <Copy className="w-3 h-3" />
+                {copied ? t('sidebar.copied') : t('sidebar.copyCurl')}
+              </button>
+            </div>
+            <pre className="font-mono whitespace-pre-wrap break-all leading-relaxed max-h-[160px] overflow-auto scrollbar-hide" style={{ fontSize: 'var(--fs-xs)', color: 'var(--shell-text)' }}>{curlCommand()}</pre>
+          </div>
         </div>,
         document.body
       )}

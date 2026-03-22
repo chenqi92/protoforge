@@ -39,6 +39,7 @@ export interface PluginContributes {
   sidebarPanels?: SidebarContribution[];
   generators?: GeneratorContribution[];
   exportFormats?: ExportFormatContribution[];
+  fonts?: FontContribution[];
 }
 
 export interface ParserContribution {
@@ -97,4 +98,21 @@ export interface ParseResult {
   fields: ParsedField[];
   rawHex?: string;
   error?: string;
+}
+
+/** 字体贡献 — 插件可携带字体文件 */
+export interface FontContribution {
+  fontId: string;         // e.g. "jetbrains-mono"
+  name: string;           // "JetBrains Mono"
+  family: string;         // CSS font-family stack
+  category: 'sans-serif' | 'monospace' | 'serif';
+  /** 字体文件相对于插件目录的路径 */
+  files: FontFile[];
+}
+
+export interface FontFile {
+  path: string;           // e.g. "fonts/JetBrainsMono-Regular.woff2"
+  weight?: string;        // e.g. "100 900" or "400"
+  style?: string;         // "normal" | "italic"
+  format?: string;        // "woff2" | "truetype"
 }

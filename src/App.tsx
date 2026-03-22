@@ -92,13 +92,79 @@ function ToolWorkbenchPanel({
   const { t } = useTranslation();
   const meta = toolWorkbenchMeta[tool];
   const Icon = meta.icon;
-  const activeDetached = activeSessionId ? detachedSessionIds.includes(activeSessionId) : false;
+
+  // Filter out detached sessions from visible tab list
+  const visibleSessions = sessions.filter((s) => !detachedSessionIds.includes(s.id));
+  const activeVisible = activeSessionId && !detachedSessionIds.includes(activeSessionId);
+
   const sessionScrollRef = useRef<HTMLDivElement>(null);
+  const sessionBarRef = useRef<HTMLDivElement>(null);
   const sessionMenuAnchorRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [showSessionMenu, setShowSessionMenu] = useState(false);
   const [sessionMenuPos, setSessionMenuPos] = useState({ top: 0, left: 0 });
+
+  // Drag-to-popout state for session tabs
+  const dragStateRef = useRef<{
+    sessionId: string | null;
+    startX: number;
+    startY: number;
+    popped: boolean;
+  }>({
+    sessionId: null,
+    startX: 0,
+    startY: 0,
+    popped: false,
+  });
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const ds = dragStateRef.current;
+      if (!ds.sessionId || ds.popped || !sessionBarRef.current) return;
+
+      const movedX = Math.abs(event.clientX - ds.startX);
+      const movedY = Math.abs(event.clientY - ds.startY);
+      if (movedX < 18 && movedY < 18) return;
+
+      const rect = sessionBarRef.current.getBoundingClientRect();
+      const outside =
+        event.clientX < rect.left - 24 ||
+        event.clientX > rect.right + 24 ||
+        event.clientY < rect.top - 18 ||
+        event.clientY > rect.bottom + 24;
+
+      if (!outside) return;
+
+      ds.popped = true;
+      onPopout(tool, ds.sessionId);
+    };
+
+    const clearDrag = () => {
+      dragStateRef.current.sessionId = null;
+      dragStateRef.current.popped = false;
+    };
+
+    window.addEventListener("mousemove", handleMouseMove, true);
+    window.addEventListener("mouseup", clearDrag, true);
+    window.addEventListener("blur", clearDrag);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove, true);
+      window.removeEventListener("mouseup", clearDrag, true);
+      window.removeEventListener("blur", clearDrag);
+    };
+  }, [onPopout, tool]);
+
+  const handleSessionTabMouseDown = (sessionId: string, event: React.MouseEvent) => {
+    if (event.button !== 0) return;
+    dragStateRef.current = {
+      sessionId,
+      startX: event.clientX,
+      startY: event.clientY,
+      popped: false,
+    };
+  };
 
   const updateSessionScrollState = useCallback(() => {
     const el = sessionScrollRef.current;
@@ -135,7 +201,7 @@ function ToolWorkbenchPanel({
       el.removeEventListener("wheel", handleWheel);
       observer.disconnect();
     };
-  }, [sessions.length, updateSessionScrollState]);
+  }, [visibleSessions.length, updateSessionScrollState]);
 
   const hasOverflow = canScrollLeft || canScrollRight;
   const scrollSessionsBy = (direction: "left" | "right") => {
@@ -152,9 +218,15 @@ function ToolWorkbenchPanel({
     setShowSessionMenu((prev) => !prev);
   };
 
+  // Use a stable label counter that counts only within all sessions (not just visible)
+  const sessionLabelMap = new Map<string, string>();
+  sessions.forEach((session, index) => {
+    sessionLabelMap.set(session.id, session.customLabel?.trim() || `${t(meta.shortTitleKey)} ${index + 1}`);
+  });
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex h-11 shrink-0 items-center gap-3 border-b border-border-default/65 bg-bg-primary/38 px-3">
+      <div ref={sessionBarRef} className="flex h-11 shrink-0 items-center gap-3 border-b border-border-default/65 bg-bg-primary/38 px-3">
         <div className="flex shrink-0 items-center gap-2 pr-1">
           <div className="flex h-7 items-center gap-2 rounded-[10px] border border-border-default/70 bg-bg-primary/85 px-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
             <Icon className={cn("h-3.5 w-3.5 shrink-0", meta.accentClassName)} />
@@ -163,37 +235,45 @@ function ToolWorkbenchPanel({
         </div>
 
         <div ref={sessionScrollRef} className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto scrollbar-hide">
-          {sessions.map((session, index) => {
+          {visibleSessions.map((session) => {
             const isActive = session.id === activeSessionId;
-            const isDetached = detachedSessionIds.includes(session.id);
-            const label = session.customLabel?.trim() || `${t(meta.shortTitleKey)} ${index + 1}`;
+            const label = sessionLabelMap.get(session.id) ?? session.id;
 
             return (
               <div
                 key={session.id}
+                onMouseDown={(e) => handleSessionTabMouseDown(session.id, e)}
+                onClick={() => {
+                  const ds = dragStateRef.current;
+                  if (ds.popped && ds.sessionId === session.id) {
+                    ds.sessionId = null;
+                    ds.popped = false;
+                    return;
+                  }
+                  onSelectSession(tool, session.id);
+                }}
                 className={cn(
-                  "group flex h-8 shrink-0 items-center gap-1 rounded-[9px] px-2 text-[var(--fs-sm)] transition-colors",
+                  "group flex h-8 shrink-0 cursor-grab items-center gap-1 rounded-[9px] px-2 text-[var(--fs-sm)] transition-colors",
                   isActive
                     ? "bg-accent/10 text-text-primary"
                     : "bg-transparent text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                 )}
+                title={t('toolWorkbench.dragToDetachSession')}
               >
-                <button
-                  onClick={() => onSelectSession(tool, session.id)}
-                  className="flex min-w-0 items-center gap-1.5 rounded-[8px] px-1 py-1"
-                >
-                  <span
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      isActive ? meta.accentDotClassName : isDetached ? "bg-accent" : "bg-border-strong"
-                    )}
-                  />
-                  <span className="truncate">{label}</span>
-                  {isDetached ? <ArrowUpRight className="h-3 w-3 text-text-disabled" /> : null}
-                </button>
-                {sessions.length > 1 ? (
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    isActive ? meta.accentDotClassName : "bg-border-strong"
+                  )}
+                />
+                <span className="truncate">{label}</span>
+                {visibleSessions.length > 1 ? (
                   <button
-                    onClick={() => onCloseSession(tool, session.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCloseSession(tool, session.id);
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
                     className="flex h-4.5 w-4.5 items-center justify-center rounded-[6px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary"
                     title={t('tabBar.closeTab')}
                   >
@@ -246,13 +326,13 @@ function ToolWorkbenchPanel({
           </button>
 
           <button
-            onClick={() => activeSessionId && onPopout(tool, activeSessionId)}
-            disabled={!activeSessionId}
+            onClick={() => activeSessionId && activeVisible && onPopout(tool, activeSessionId)}
+            disabled={!activeSessionId || !activeVisible}
             className="wb-ghost-btn px-2.5"
-            title={activeDetached ? t('toolWorkbench.focusWindow') : t('toolWorkbench.popoutWindow')}
+            title={t('toolWorkbench.popoutWindow')}
           >
             <ArrowUpRight className="h-3.5 w-3.5" />
-            {activeDetached ? t('toolWorkbench.focusWindow') : t('toolWorkbench.popoutWindow')}
+            {t('toolWorkbench.popoutWindow')}
           </button>
         </div>
       </div>
@@ -268,8 +348,8 @@ function ToolWorkbenchPanel({
               {t('toolWorkbench.allInstances')}
             </div>
             <div className="max-h-[320px] overflow-y-auto">
-              {sessions.map((session, index) => {
-                const label = session.customLabel?.trim() || `${t(meta.shortTitleKey)} ${index + 1}`;
+              {sessions.map((session) => {
+                const label = sessionLabelMap.get(session.id) ?? session.id;
                 const isActive = session.id === activeSessionId;
                 const isDetached = detachedSessionIds.includes(session.id);
 
@@ -277,15 +357,20 @@ function ToolWorkbenchPanel({
                   <button
                     key={session.id}
                     onClick={() => {
-                      onSelectSession(tool, session.id);
+                      if (isDetached) {
+                        // Focus the detached window instead
+                        onPopout(tool, session.id);
+                      } else {
+                        onSelectSession(tool, session.id);
+                      }
                       setShowSessionMenu(false);
                     }}
                     className={cn(
                       "flex w-full items-center gap-2 rounded-[10px] px-2.5 py-[7px] text-left transition-colors hover:bg-bg-hover/70",
-                      isActive && "bg-bg-hover/45"
+                      isActive && !isDetached && "bg-bg-hover/45"
                     )}
                   >
-                    <span className={cn("h-[6px] w-[6px] shrink-0 rounded-full", isActive ? meta.accentDotClassName : isDetached ? "bg-accent" : "bg-border-strong")} />
+                    <span className={cn("h-[6px] w-[6px] shrink-0 rounded-full", isActive && !isDetached ? meta.accentDotClassName : isDetached ? "bg-accent" : "bg-border-strong")} />
                     <span className="min-w-0 flex-1 truncate text-[var(--fs-sm)] font-medium text-text-primary">{label}</span>
                     {isDetached ? <ArrowUpRight className="h-3 w-3 text-text-disabled" /> : null}
                   </button>
@@ -296,14 +381,28 @@ function ToolWorkbenchPanel({
         </>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {visibleSessions.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-text-tertiary">
+            <ArrowUpRight className="h-8 w-8 text-text-disabled" />
+            <div className="text-[var(--fs-sm)]">{t('toolWorkbench.allSessionsDetached')}</div>
+            <button
+              onClick={() => onAddSession(tool)}
+              className="wb-ghost-btn mt-1 px-3"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t('toolWorkbench.newInstance')}
+            </button>
+          </div>
+        ) : children}
+      </div>
     </div>
   );
 }
 
 function App() {
   const sidebarPanelRef = usePanelRef();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [pluginModalOpen, setPluginModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
@@ -449,10 +548,24 @@ function App() {
 
   const handlePopoutWorkbench = useCallback(async (tool: ToolWorkbench, sessionId: string) => {
     const detachedSessionId = await openToolWindow(tool, sessionId);
-    setDetachedToolSessions((prev) => ({
-      ...prev,
-      [tool]: prev[tool].includes(detachedSessionId) ? prev[tool] : [...prev[tool], detachedSessionId],
-    }));
+    setDetachedToolSessions((prev) => {
+      const nextDetached = prev[tool].includes(detachedSessionId) ? prev[tool] : [...prev[tool], detachedSessionId];
+
+      // Auto-switch to next visible session if the popped-out one was active
+      const currentActiveId = useAppStore.getState().activeToolSessionIds[tool];
+      if (currentActiveId === detachedSessionId) {
+        const sessions = useAppStore.getState().toolSessions[tool];
+        const nextVisible = sessions.find((s) => !nextDetached.includes(s.id));
+        if (nextVisible) {
+          useAppStore.getState().setActiveToolSession(tool, nextVisible.id);
+        }
+      }
+
+      return {
+        ...prev,
+        [tool]: nextDetached,
+      };
+    });
   }, []);
 
   const handleOpenPlugins = useCallback(() => {
@@ -531,7 +644,7 @@ function App() {
           <PanelGroup orientation="horizontal">
             <Panel
               id="sidebar"
-              defaultSize={String(useSettingsStore.getState().settings.sidebarWidth || 22)}
+              defaultSize="0"
               minSize="14"
               maxSize="50"
               collapsible
@@ -642,25 +755,14 @@ function App() {
           : activeTab?.protocol || "requests"
       : activeWorkbench;
 
-  const detachedToolFlags: Record<ToolWorkbench, boolean> = {
-    tcpudp: detachedToolSessions.tcpudp.length > 0,
-    capture: detachedToolSessions.capture.length > 0,
-    loadtest: detachedToolSessions.loadtest.length > 0,
-  };
-
   return (
     <>
       <WindowScaffold
         header={(
           <TitleBar
             activeWorkbench={activeWorkbench}
-            detachedTools={detachedToolFlags}
             onSelectWorkbench={(workbench) => {
               void handleSelectWorkbench(workbench);
-            }}
-            onPopoutWorkbench={(workbench) => {
-              const sessionId = activeToolSessionIds[workbench] ?? openToolTab(workbench);
-              void handlePopoutWorkbench(workbench, sessionId);
             }}
             onOpenPlugins={handleOpenPlugins}
             onOpenSettings={handleOpenSettings}

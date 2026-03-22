@@ -191,6 +191,185 @@ pub async fn fetch_oauth2_token(req: OAuth2TokenRequest) -> Result<OAuth2TokenRe
 }
 
 // ═══════════════════════════════════════════
+//  OAuth 2.0 Authorization Code 弹窗
+// ═══════════════════════════════════════════
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OAuthWindowRequest {
+    pub auth_url: String,
+    pub client_id: String,
+    pub redirect_uri: String,
+    pub scope: Option<String>,
+    pub state: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OAuthWindowResult {
+    pub code: String,
+    pub state: Option<String>,
+}
+
+/// 打开 OAuth 授权弹窗，通过 on_navigation 拦截 redirect_uri 提取 code
+#[tauri::command]
+pub async fn open_oauth_window(
+    app: AppHandle,
+    req: OAuthWindowRequest,
+) -> Result<OAuthWindowResult, String> {
+    use tauri::WebviewWindowBuilder;
+    use std::sync::Arc;
+    use tokio::sync::oneshot;
+
+    // 构建标准 OAuth 授权 URL
+    let mut url = reqwest::Url::parse(&req.auth_url)
+        .map_err(|e| format!("Auth URL 解析失败: {}", e))?;
+    url.query_pairs_mut()
+        .append_pair("response_type", "code")
+        .append_pair("client_id", &req.client_id)
+        .append_pair("redirect_uri", &req.redirect_uri);
+    if let Some(scope) = &req.scope {
+        if !scope.is_empty() {
+            url.query_pairs_mut().append_pair("scope", scope);
+        }
+    }
+    if let Some(state) = &req.state {
+        url.query_pairs_mut().append_pair("state", state);
+    }
+
+    let label = format!("oauth-{}", uuid::Uuid::new_v4().to_string().replace("-", "").chars().take(8).collect::<String>());
+    let redirect_uri = req.redirect_uri.clone();
+
+    // 用 channel 传递结果
+    let (tx, rx) = oneshot::channel::<Result<OAuthWindowResult, String>>();
+    let tx = Arc::new(std::sync::Mutex::new(Some(tx)));
+
+    let tx_nav = tx.clone();
+    let redirect_uri_clone = redirect_uri.clone();
+
+    let window = WebviewWindowBuilder::new(
+        &app,
+        &label,
+        tauri::WebviewUrl::External(url),
+    )
+    .title("OAuth Authorization")
+    .inner_size(800.0, 680.0)
+    .center()
+    .decorations(true)
+    .resizable(true)
+    .on_navigation(move |nav_url| {
+        let nav_str = nav_url.as_str();
+        if nav_str.starts_with(&redirect_uri_clone) {
+            // 拦截到 redirect，提取 code
+            let parsed = reqwest::Url::parse(nav_str).ok();
+            let code = parsed.as_ref().and_then(|u| {
+                u.query_pairs().find(|(k, _)| k == "code").map(|(_, v)| v.to_string())
+            });
+            let state = parsed.as_ref().and_then(|u| {
+                u.query_pairs().find(|(k, _)| k == "state").map(|(_, v)| v.to_string())
+            });
+            let error = parsed.as_ref().and_then(|u| {
+                u.query_pairs().find(|(k, _)| k == "error").map(|(_, v)| v.to_string())
+            });
+            let error_desc = parsed.as_ref().and_then(|u| {
+                u.query_pairs().find(|(k, _)| k == "error_description").map(|(_, v)| v.to_string())
+            });
+
+            let result = if let Some(err) = error {
+                Err(format!("OAuth 错误: {}{}", err, error_desc.map(|d| format!(" — {}", d)).unwrap_or_default()))
+            } else if let Some(code) = code {
+                Ok(OAuthWindowResult { code, state })
+            } else {
+                Err("OAuth 响应中缺少 code 参数".to_string())
+            };
+
+            if let Ok(mut guard) = tx_nav.lock() {
+                if let Some(sender) = guard.take() {
+                    let _ = sender.send(result);
+                }
+            }
+
+            // 阻止导航到 redirect_uri
+            return false;
+        }
+        true
+    })
+    .build()
+    .map_err(|e| format!("创建 OAuth 窗口失败: {}", e))?;
+
+    // 监听窗口关闭，如果用户关闭窗口则发送取消信号
+    let tx_close = tx.clone();
+    let label_close = label.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Destroyed = event {
+            if let Ok(mut guard) = tx_close.lock() {
+                if let Some(sender) = guard.take() {
+                    let _ = sender.send(Err("用户取消了 OAuth 授权".to_string()));
+                }
+            }
+            log::debug!("OAuth 窗口 {} 已关闭", label_close);
+        }
+    });
+
+    // 等待结果
+    let result = rx.await.map_err(|_| "OAuth 授权通道关闭".to_string())?;
+
+    // 关闭窗口
+    let _ = window.close();
+
+    result
+}
+
+// ═══════════════════════════════════════════
+//  抓包内置浏览器
+// ═══════════════════════════════════════════
+
+/// 打开代理浏览器窗口，流量经过抓包代理
+#[tauri::command]
+pub async fn open_proxy_browser(
+    app: AppHandle,
+    url: String,
+    proxy_port: u16,
+) -> Result<String, String> {
+    use tauri::WebviewWindowBuilder;
+
+    let target_url = if url.is_empty() {
+        "https://www.example.com".to_string()
+    } else if !url.starts_with("http://") && !url.starts_with("https://") {
+        format!("https://{}", url)
+    } else {
+        url
+    };
+
+    let parsed = reqwest::Url::parse(&target_url)
+        .map_err(|e| format!("URL 解析失败: {}", e))?;
+
+    let label = format!("proxy-browser-{}", uuid::Uuid::new_v4().to_string().replace("-", "").chars().take(8).collect::<String>());
+
+    let mut builder = WebviewWindowBuilder::new(
+        &app,
+        &label,
+        tauri::WebviewUrl::External(parsed),
+    )
+    .title(format!("ProtoForge Browser — proxy 127.0.0.1:{}", proxy_port))
+    .inner_size(1200.0, 800.0)
+    .center()
+    .decorations(true)
+    .resizable(true);
+
+    // 设置代理
+    builder = builder.proxy_url(
+        reqwest::Url::parse(&format!("http://127.0.0.1:{}", proxy_port))
+            .map_err(|e| format!("代理 URL 解析失败: {}", e))?
+    );
+
+    builder.build()
+        .map_err(|e| format!("创建浏览器窗口失败: {}", e))?;
+
+    Ok(label)
+}
+
+// ═══════════════════════════════════════════
 //  Collections
 // ═══════════════════════════════════════════
 
@@ -704,6 +883,73 @@ pub async fn proxy_export_ca(
     proxy_capture::export_ca_cert(&state).await
 }
 
+/// 一键安装 CA 证书到系统信任库
+/// macOS: security add-trusted-cert
+/// Windows: certutil -addstore Root
+#[tauri::command]
+pub async fn proxy_install_ca(
+    state: State<'_, ProxyState>,
+) -> Result<String, String> {
+    let cert_path = {
+        let path = state.ca_cert_path.lock().await;
+        match &*path {
+            Some(p) => p.clone(),
+            None => return Err("CA 证书尚未生成，请先启动代理".to_string()),
+        }
+    };
+
+    let cert_path_str = cert_path.to_string_lossy().to_string();
+
+    #[cfg(target_os = "macos")]
+    {
+        // macOS: 使用 security 命令安装到系统钥匙串
+        let output = std::process::Command::new("security")
+            .args([
+                "add-trusted-cert",
+                "-d",                    // 添加到 admin cert store
+                "-r", "trustRoot",       // 设为信任根证书
+                "-k", "/Library/Keychains/System.keychain",
+                &cert_path_str,
+            ])
+            .output()
+            .map_err(|e| format!("执行 security 命令失败: {}", e))?;
+
+        if output.status.success() {
+            Ok("CA 证书已安装到系统钥匙串并设为信任".to_string())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            // 用户拒绝了权限请求
+            if stderr.contains("canceled") || stderr.contains("User canceled") {
+                Err("用户取消了证书安装".to_string())
+            } else {
+                Err(format!("安装 CA 证书失败: {}", stderr))
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: 使用 certutil 命令安装到受信任根证书存储
+        let output = std::process::Command::new("certutil")
+            .args(["-addstore", "Root", &cert_path_str])
+            .output()
+            .map_err(|e| format!("执行 certutil 命令失败: {}", e))?;
+
+        if output.status.success() {
+            Ok("CA 证书已安装到 Windows 受信任根证书存储".to_string())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            Err(format!("安装 CA 证书失败: {} {}", stderr, stdout))
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        Err("当前平台不支持自动安装 CA 证书，请手动导入".to_string())
+    }
+}
+
 // ═══════════════════════════════════════════
 //  Plugins
 // ═══════════════════════════════════════════
@@ -770,6 +1016,14 @@ pub async fn plugin_refresh_registry(
     mgr: State<'_, PluginManager>,
 ) -> Result<usize, String> {
     mgr.refresh_registry().await
+}
+
+#[tauri::command]
+pub async fn plugin_get_icon(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+) -> Result<Option<String>, String> {
+    Ok(mgr.get_plugin_icon(&plugin_id).await)
 }
 
 // ═══════════════════════════════════════════

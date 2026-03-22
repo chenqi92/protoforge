@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Send, Zap, Network, Radio, Eye, Puzzle, Waves, Braces } from "lucide-react";
+import { Send, Zap, Network, Radio, Eye, Puzzle, Waves, Braces, ArrowRight, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
@@ -33,115 +33,116 @@ interface WelcomePageProps {
   onAction?: (action: WelcomeAction) => void;
 }
 
-function FeatureSection({
-  title,
-  desc,
-  items,
-  onAction,
-}: {
-  title: string;
-  desc: string;
-  items: FeatureItem[];
-  onAction?: (action: WelcomeAction) => void;
-}) {
+function FeatureCard({ item, index, onAction }: { item: FeatureItem; index: number; onAction?: (action: WelcomeAction) => void }) {
   const { t } = useTranslation();
-
+  const Icon = item.icon;
   return (
-    <section>
-      <div className="mb-5 flex items-end justify-between gap-4">
-        <div>
-          <h2 className="text-[var(--fs-3xl)] font-semibold text-text-primary">{title}</h2>
-          <p className="mt-1 text-[var(--fs-base)] text-text-tertiary">{desc}</p>
+    <motion.button
+      type="button"
+      initial={{ y: 12, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ delay: 0.08 + index * 0.04, duration: 0.32, ease: "easeOut" }}
+      onClick={() => onAction?.(item.action)}
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border border-border-default/60 bg-gradient-to-br p-4 text-left transition-all duration-300",
+        "hover:border-border-strong/70 hover:shadow-[0_8px_28px_rgba(15,23,42,0.06)] active:scale-[0.985]",
+        item.color
+      )}
+    >
+      <div className="relative z-10 flex items-start gap-3">
+        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110", item.iconColor)}>
+          <Icon className="h-[18px] w-[18px]" />
         </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[var(--fs-sm)] font-semibold text-text-primary leading-tight">{t(item.labelKey)}</h3>
+          <p className="mt-1 text-[var(--fs-xs)] leading-relaxed text-text-tertiary line-clamp-2">{t(item.descKey)}</p>
+        </div>
+        <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-disabled opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0.5" />
       </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {items.map((item, index) => {
-          const Icon = item.icon;
-          const label = t(item.labelKey);
-          return (
-            <motion.button
-              key={item.action}
-              type="button"
-              initial={{ y: 16, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: index * 0.04, duration: 0.32 }}
-              onClick={() => onAction?.(item.action)}
-              className={cn(
-                "group relative overflow-hidden rounded-[22px] border border-border-default/75 bg-bg-primary/50 p-5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] transition-all duration-300",
-                "hover:border-border-strong/80 hover:bg-bg-primary/68 hover:shadow-[0_12px_36px_rgba(15,23,42,0.08)] active:scale-[0.985]",
-                item.color
-              )}
-            >
-              <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/90 to-transparent opacity-70 dark:via-white/12" />
-              <div className="relative z-10">
-                <div className={cn("mb-4 flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110", item.iconColor)}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="mb-1.5 text-sm font-semibold text-text-primary">{label}</h3>
-                <p className="text-[var(--fs-sm)] leading-relaxed text-text-tertiary">{t(item.descKey)}</p>
-              </div>
-            </motion.button>
-          );
-        })}
-      </div>
-    </section>
+    </motion.button>
   );
 }
 
 export function WelcomePage({ onAction }: WelcomePageProps) {
   const { t } = useTranslation();
+  const isMac = navigator.platform?.toLowerCase().includes("mac");
+  const mod = isMac ? "⌘" : "Ctrl";
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-transparent px-8 py-10">
-      <div className="mx-auto flex max-w-6xl flex-col gap-10">
+    <div className="h-full w-full overflow-y-auto bg-transparent">
+      <div className="mx-auto flex max-w-5xl flex-col gap-8 px-10 py-10">
+        {/* Hero */}
         <motion.div
-          initial={{ y: 20, opacity: 0 }}
+          initial={{ y: 16, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
-          className="max-w-2xl"
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="flex flex-col items-center text-center"
         >
-          <h1 className="text-4xl font-extrabold tracking-tight text-text-primary">
-            {t('welcome.badge')}
-          </h1>
-          <p className="mt-4 text-[var(--fs-lg)] leading-7 text-text-secondary">
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-accent/8 px-3 py-1 text-[var(--fs-xs)] font-medium text-accent">
+            <Sparkles className="h-3 w-3" />
+            <span>{t('welcome.badge')}</span>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-text-primary">
             {t('welcome.title')}
-          </p>
-          <p className="mt-2 text-[var(--fs-sm)] text-text-disabled">
+          </h1>
+          <p className="mt-2 max-w-lg text-[var(--fs-base)] leading-relaxed text-text-secondary">
             {t('welcome.subtitle')}
           </p>
         </motion.div>
 
-        <FeatureSection
-          title={t('welcome.requestFeatures')}
-          desc={t('welcome.httpRequestDesc')}
-          items={requestFeatures}
-          onAction={onAction}
-        />
+        {/* Request Features */}
+        <section>
+          <motion.div
+            initial={{ y: 8, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.06, duration: 0.35 }}
+            className="mb-3"
+          >
+            <h2 className="text-[var(--fs-base)] font-semibold text-text-primary">{t('welcome.requestFeatures')}</h2>
+            <p className="mt-0.5 text-[var(--fs-xs)] text-text-disabled">{t('welcome.requestFeaturesDesc')}</p>
+          </motion.div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {requestFeatures.map((item, index) => (
+              <FeatureCard key={item.action} item={item} index={index} onAction={onAction} />
+            ))}
+          </div>
+        </section>
 
-        <FeatureSection
-          title={t('welcome.toolFeatures')}
-          desc={t('welcome.tcpudpDesc')}
-          items={toolFeatures}
-          onAction={onAction}
-        />
+        {/* Tool Features */}
+        <section>
+          <motion.div
+            initial={{ y: 8, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.18, duration: 0.35 }}
+            className="mb-3"
+          >
+            <h2 className="text-[var(--fs-base)] font-semibold text-text-primary">{t('welcome.toolFeatures')}</h2>
+            <p className="mt-0.5 text-[var(--fs-xs)] text-text-disabled">{t('welcome.toolFeaturesDesc')}</p>
+          </motion.div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
+            {toolFeatures.map((item, index) => (
+              <FeatureCard key={item.action} item={item} index={index + requestFeatures.length} onAction={onAction} />
+            ))}
+          </div>
+        </section>
 
+        {/* Keyboard Shortcuts */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.4 }}
-          className="flex flex-wrap items-center gap-8 border-t border-border-subtle/70 pt-6 text-[var(--fs-base)] text-text-disabled"
+          transition={{ delay: 0.35, duration: 0.35 }}
+          className="flex flex-wrap items-center justify-center gap-6 border-t border-border-subtle/60 pt-5 text-[var(--fs-xs)] text-text-disabled"
         >
-          <div className="flex items-center gap-2">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[var(--fs-xs)] font-mono shadow-sm">Ctrl+N</kbd>
+          <div className="flex items-center gap-1.5">
+            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[var(--fs-xxs)] font-mono shadow-sm">{mod}+N</kbd>
             <span>{t('welcome.newRequest')}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[var(--fs-xs)] font-mono shadow-sm">Ctrl+K</kbd>
+          <div className="flex items-center gap-1.5">
+            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[var(--fs-xxs)] font-mono shadow-sm">{mod}+K</kbd>
             <span>{t('welcome.commandPalette')}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-[var(--fs-xs)] font-mono shadow-sm">Ctrl+,</kbd>
+          <div className="flex items-center gap-1.5">
+            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[var(--fs-xxs)] font-mono shadow-sm">{mod}+,</kbd>
             <span>{t('welcome.preferences')}</span>
           </div>
         </motion.div>

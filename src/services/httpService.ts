@@ -77,7 +77,17 @@ export function buildRequestPayload(config: HttpRequestConfig) {
       const fields: { key: string; value: string; fieldType: string }[] = [];
       for (const f of config.formDataFields) {
         if (f.enabled && f.key.trim()) {
-          fields.push({ key: f.key.trim(), value: f.value, fieldType: f.fieldType });
+          if (f.fieldType === 'file') {
+            // Multi-file: each path becomes a separate field for the backend
+            const paths = f.filePaths && f.filePaths.length > 0
+              ? f.filePaths
+              : f.value ? f.value.split(',').map(p => p.trim()).filter(Boolean) : [];
+            for (const p of paths) {
+              fields.push({ key: f.key.trim(), value: p, fieldType: 'file' });
+            }
+          } else {
+            fields.push({ key: f.key.trim(), value: f.value, fieldType: f.fieldType });
+          }
         }
       }
       body = { type: 'formData', fields };
@@ -193,8 +203,8 @@ export async function pickFile(): Promise<{ path: string; name: string } | null>
   }
 }
 
-/** 选择多个文件 */
-export async function pickFiles(): Promise<{ paths: string; names: string } | null> {
+/** 选择多个文件，返回路径和名称数组 */
+export async function pickFiles(): Promise<{ paths: string[]; names: string[] } | null> {
   try {
     const { open } = await import('@tauri-apps/plugin-dialog');
     const result = await open({
@@ -214,8 +224,8 @@ export async function pickFiles(): Promise<{ paths: string; names: string } | nu
       }).filter(Boolean) as { path: string; name: string }[];
       if (files.length === 0) return null;
       return {
-        paths: files.map(f => f.path).join(','),
-        names: files.map(f => f.name).join(', '),
+        paths: files.map(f => f.path),
+        names: files.map(f => f.name),
       };
     }
     return null;

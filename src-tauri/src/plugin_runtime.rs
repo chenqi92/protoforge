@@ -156,6 +156,34 @@ pub struct PluginContributes {
     /// 导出格式
     #[serde(default)]
     pub export_formats: Vec<ExportFormatContribution>,
+    /// 字体贡献 — 插件可携带字体文件
+    #[serde(default)]
+    pub fonts: Vec<FontContribution>,
+}
+
+/// 字体贡献
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FontContribution {
+    pub font_id: String,
+    pub name: String,
+    pub family: String,
+    pub category: String,
+    #[serde(default)]
+    pub files: Vec<FontFile>,
+}
+
+/// 字体文件描述
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FontFile {
+    pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weight: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub style: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -572,6 +600,13 @@ impl PluginManager {
         manifest.installed = true;
         manifest.source = "remote".to_string();
 
+        // 将更新后的 manifest 写回磁盘，确保重启后 scan_installed 仍能读到 source="remote"
+        let updated_json = serde_json::to_string_pretty(&manifest)
+            .map_err(|e| format!("序列化 manifest 失败: {}", e))?;
+        tokio::fs::write(&manifest_path, &updated_json)
+            .await
+            .map_err(|e| format!("写回 manifest.json 失败: {}", e))?;
+
         // 根据 entrypoint 确定运行时类型
         let runtime = if manifest.entrypoint.ends_with(".wasm") {
             PluginRuntime::Wasm
@@ -645,6 +680,34 @@ impl PluginManager {
             .filter(|rp| &rp.manifest.plugin_type == plugin_type)
             .map(|rp| rp.manifest.clone())
             .collect()
+    }
+
+    /// 获取插件图标文件并返回 base64 data URI
+    /// 查找顺序: icon.svg → icon.png → None (前端 fallback 到 emoji)
+    pub async fn get_plugin_icon(&self, plugin_id: &str) -> Option<String> {
+        let plugin_dir = self.plugins_dir.join(plugin_id);
+        
+        // 优先 SVG
+        let svg_path = plugin_dir.join("icon.svg");
+        if svg_path.exists() {
+            if let Ok(data) = tokio::fs::read(&svg_path).await {
+                use base64::Engine;
+                let b64 = base64::engine::general_purpose::STANDARD.encode(&data);
+                return Some(format!("data:image/svg+xml;base64,{}", b64));
+            }
+        }
+        
+        // 其次 PNG
+        let png_path = plugin_dir.join("icon.png");
+        if png_path.exists() {
+            if let Ok(data) = tokio::fs::read(&png_path).await {
+                use base64::Engine;
+                let b64 = base64::engine::general_purpose::STANDARD.encode(&data);
+                return Some(format!("data:image/png;base64,{}", b64));
+            }
+        }
+        
+        None
     }
 
     /// Execute a plugin's parse function on raw data.

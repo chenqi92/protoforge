@@ -35,3 +35,8 @@ export async function getProtocolParsers(): Promise<ProtocolParser[]> {
 export async function refreshRegistry(): Promise<number> {
   return invoke<number>("plugin_refresh_registry");
 }
+
+/** 获取插件图标 (base64 data URI)，无图标文件时返回 null */
+export async function getPluginIcon(pluginId: string): Promise<string | null> {
+  return invoke<string | null>("plugin_get_icon", { pluginId });
+}

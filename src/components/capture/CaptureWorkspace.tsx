@@ -5,13 +5,14 @@ import { useEffect, useCallback, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play, Square, Trash2, Shield, Search,
-  ChevronDown, ChevronRight, ArrowUpDown, X, Lightbulb, Clock,
+  ChevronDown, ChevronRight, ArrowUpDown, X, Lightbulb, Clock, Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { useCaptureStore } from "@/stores/captureStore";
 import type { CapturedEntry } from "@/types/capture";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── HTTP Method 颜色 ──
 const methodColors: Record<string, { text: string; bg: string }> = {
@@ -109,6 +110,24 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
     }
   }, [exportCaCert]);
 
+  const [browserUrl, setBrowserUrl] = useState("");
+  const [showBrowserInput, setShowBrowserInput] = useState(false);
+
+  const handleOpenBrowser = useCallback(async () => {
+    if (!running) return;
+    const urlToOpen = browserUrl.trim() || "https://www.example.com";
+    try {
+      await invoke("open_proxy_browser", {
+        url: urlToOpen,
+        proxyPort: parseInt(portInput, 10),
+      });
+      setShowBrowserInput(false);
+      setBrowserUrl("");
+    } catch (e) {
+      console.error("打开浏览器失败:", e);
+    }
+  }, [running, browserUrl, portInput]);
+
   // 过滤后的条目
   const filteredEntries = filter
     ? entries.filter(
@@ -176,6 +195,31 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
             <Shield className="h-3.5 w-3.5" />
             {t('capture.caCert')}
           </button>
+          <div className="relative">
+            <button
+              onClick={() => running ? setShowBrowserInput(!showBrowserInput) : undefined}
+              className={cn("wb-ghost-btn", !running && "opacity-50 cursor-not-allowed")}
+              title={running ? t('capture.openBrowserHint') : t('capture.browserProxyNotRunning')}
+            >
+              <Globe className="h-3.5 w-3.5" />
+              {t('capture.openBrowser')}
+            </button>
+            {showBrowserInput && running && (
+              <div className="absolute right-0 top-full mt-1 z-50 flex items-center gap-1.5 rounded-lg border border-border-default bg-bg-primary p-1.5 shadow-lg">
+                <input
+                  value={browserUrl}
+                  onChange={(e) => setBrowserUrl(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleOpenBrowser(); if (e.key === "Escape") setShowBrowserInput(false); }}
+                  placeholder={t('capture.browserUrlPlaceholder')}
+                  className="wb-field h-7 w-[280px] text-[var(--fs-xs)] font-mono px-2"
+                  autoFocus
+                />
+                <button onClick={handleOpenBrowser} className="wb-primary-btn h-7 px-3 text-[var(--fs-xs)]">
+                  <Play className="h-3 w-3" fill="currentColor" />
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={handleToggleCapture}
             className={cn(

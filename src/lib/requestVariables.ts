@@ -273,6 +273,8 @@ export function resolveRequestConfigVariables(config: HttpRequestConfig, collect
       ...field,
       key: resolveVariableTemplate(field.key, collectionId),
       value: field.fieldType === "text" ? resolveVariableTemplate(field.value, collectionId) : field.value,
+      filePaths: field.filePaths,
+      fileNames: field.fileNames,
     })),
   };
 }

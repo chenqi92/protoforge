@@ -18,9 +18,11 @@ export interface KeyValue {
 /** Form-Data field — supports text and file */
 export interface FormDataField {
   key: string;
-  value: string;        // text value or file path(s), multiple separated by comma
+  value: string;        // text value (for text type) or legacy comma-separated file paths
   fieldType: 'text' | 'file';
-  fileName?: string;    // display name for file(s)
+  fileName?: string;    // legacy display name (comma-separated), kept for compat
+  filePaths?: string[]; // multiple file full paths
+  fileNames?: string[]; // corresponding file display names
   description?: string;
   contentType?: string;
   enabled: boolean;

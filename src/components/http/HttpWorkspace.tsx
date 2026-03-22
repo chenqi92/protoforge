@@ -444,10 +444,12 @@ export function HttpWorkspace() {
     ? "compact"
     : reqTab === "body" && !isGraphqlMode && (config.bodyType === "formUrlencoded" || config.bodyType === "formData")
       ? "table-body"
-      : "default";
+      : isGraphqlMode
+        ? "graphql"
+        : "default";
 
-  const requestDefaultSize = requestLayoutMode === "compact" ? 18 : requestLayoutMode === "table-body" ? 44 : 32;
-  const responseDefaultSize = requestLayoutMode === "compact" ? 82 : requestLayoutMode === "table-body" ? 56 : 68;
+  const requestDefaultSize = requestLayoutMode === "compact" ? 28 : requestLayoutMode === "table-body" ? 44 : requestLayoutMode === "graphql" ? 55 : 42;
+  const responseDefaultSize = requestLayoutMode === "compact" ? 72 : requestLayoutMode === "table-body" ? 56 : requestLayoutMode === "graphql" ? 45 : 58;
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
@@ -620,7 +622,7 @@ export function HttpWorkspace() {
             
               {reqTab === "body" && (
                 <div className="p-4 flex flex-col h-full">
-                  {!isGraphqlMode ? (
+                  {!isGraphqlMode && (
                     <div className="wb-segmented mb-4 w-fit shrink-0">
                       {(["none", "json", "raw", "graphql", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
                         <button
@@ -634,14 +636,6 @@ export function HttpWorkspace() {
                           {bt === "none" ? "None" : bt === "formUrlencoded" ? "URL-Encoded" : bt === "formData" ? "Form-Data" : bt === "binary" ? "Binary" : bt === "graphql" ? "GraphQL" : bt.toUpperCase()}
                         </button>
                       ))}
-                    </div>
-                  ) : (
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <div>
-                        <div className="text-[var(--fs-base)] font-semibold text-text-primary">{t('http.graphql.modeTitle')}</div>
-                        <div className="mt-1 text-[var(--fs-xs)] text-text-tertiary">{t('http.graphql.modeDesc')}</div>
-                      </div>
-                      <span className="wb-tool-chip">GraphQL</span>
                     </div>
                   )}
                 
@@ -2139,10 +2133,50 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
   const update = (i: number, u: Partial<FormDataField>) => { const n = [...safe]; n[i] = { ...n[i], ...u }; onChange(normalizeFormDataRows(n)); };
   const toggle = (i: number) => { const n = [...safe]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(normalizeFormDataRows(n)); };
   const remove = (i: number) => onChange(normalizeFormDataRows(safe.filter((_, j) => j !== i)));
+
+  /** Get effective file paths/names (compat with legacy comma-separated data) */
+  const getFilePaths = (field: FormDataField): string[] => {
+    if (field.filePaths && field.filePaths.length > 0) return field.filePaths;
+    if (field.value) return field.value.split(',').map(p => p.trim()).filter(Boolean);
+    return [];
+  };
+  const getFileNames = (field: FormDataField): string[] => {
+    if (field.fileNames && field.fileNames.length > 0) return field.fileNames;
+    if (field.fileName) return field.fileName.split(',').map(n => n.trim()).filter(Boolean);
+    // fallback: extract names from paths
+    return getFilePaths(field).map(p => p.split(/[\\/]/).pop() || 'file');
+  };
+
   const handleFilePick = async (i: number) => {
     const { pickFiles } = await import("@/services/httpService");
     const r = await pickFiles();
-    if (r) update(i, { value: r.paths, fileName: r.names });
+    if (!r) return;
+    const field = safe[i];
+    const existingPaths = getFilePaths(field);
+    const existingNames = getFileNames(field);
+    // Append new files to existing list
+    const newPaths = [...existingPaths, ...r.paths];
+    const newNames = [...existingNames, ...r.names];
+    update(i, {
+      filePaths: newPaths,
+      fileNames: newNames,
+      value: newPaths.join(','),
+      fileName: newNames.join(', '),
+    });
+  };
+
+  const handleRemoveFile = (fieldIdx: number, fileIdx: number) => {
+    const field = safe[fieldIdx];
+    const paths = [...getFilePaths(field)];
+    const names = [...getFileNames(field)];
+    paths.splice(fileIdx, 1);
+    names.splice(fileIdx, 1);
+    update(fieldIdx, {
+      filePaths: paths,
+      fileNames: names,
+      value: paths.join(','),
+      fileName: names.join(', '),
+    });
   };
 
   useEffect(() => {
@@ -2200,7 +2234,7 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
               </td>
               <td>
                 <select value={field.fieldType}
-                  onChange={e => update(i, { fieldType: e.target.value as 'text' | 'file', value: '', fileName: undefined })}
+                  onChange={e => update(i, { fieldType: e.target.value as 'text' | 'file', value: '', fileName: undefined, filePaths: [], fileNames: [] })}
                   className={cn("editor-table-select text-[var(--fs-xs)] text-text-secondary", !field.enabled && "editor-table-muted")}>
                   <option value="text">Text</option>
                   <option value="file">File</option>
@@ -2215,13 +2249,34 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
                   <input value={field.value} onChange={e => update(i, { value: e.target.value })} placeholder="Value"
                     className={cn("editor-table-input", !field.enabled && "editor-table-muted")} />
                 ) : (
-                  <div className={cn("flex items-center w-full h-[34px]", !field.enabled && "editor-table-muted")}>
+                  <div className={cn("flex items-start w-full min-h-[34px]", !field.enabled && "editor-table-muted")}>
                     <button onClick={() => handleFilePick(i)}
-                      className="shrink-0 h-[34px] px-3 flex items-center gap-1 bg-transparent text-[var(--fs-xs)] cursor-pointer hover:bg-bg-hover transition-colors">
+                      className="shrink-0 h-[34px] px-2 flex items-center gap-1 bg-transparent text-[var(--fs-xs)] cursor-pointer hover:bg-bg-hover transition-colors rounded"
+                      title={getFilePaths(field).length > 0 ? "添加更多文件" : t('http.selectFile')}>
                       <Upload className="w-3 h-3 text-text-disabled shrink-0" />
-                      <span className="text-text-tertiary whitespace-nowrap">{t('http.selectFile')}</span>
+                      <span className="text-text-tertiary whitespace-nowrap">{getFilePaths(field).length > 0 ? "+" : t('http.selectFile')}</span>
                     </button>
-                    <span className="truncate text-[var(--fs-xs)] text-text-secondary px-2 min-w-0 flex-1">{field.fileName || field.value || ''}</span>
+                    {getFilePaths(field).length > 0 && (
+                      <div className="flex-1 min-w-0 max-h-[68px] overflow-y-auto flex flex-wrap gap-1 py-1 px-1">
+                        {getFileNames(field).map((name, fi) => (
+                          <span
+                            key={fi}
+                            title={getFilePaths(field)[fi] || name}
+                            className="inline-flex items-center gap-0.5 max-w-[160px] px-1.5 py-0.5 rounded bg-bg-hover text-[var(--fs-xxs)] text-text-secondary border border-border-subtle cursor-default group/chip"
+                          >
+                            <span className="truncate">{name}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleRemoveFile(i, fi); }}
+                              className="shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-red-500/15 hover:text-red-500 text-text-disabled transition-colors"
+                              title={`移除 ${name}`}
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </td>
@@ -2254,51 +2309,111 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
 function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (updates: Partial<OAuth2Config>) => void }) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  const [authorizing, setAuthorizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tokenMeta, setTokenMeta] = useState<{ tokenType?: string; expiresIn?: number; scope?: string } | null>(null);
 
   const canFetchToken = config.accessTokenUrl && config.clientId && (
     config.grantType === "client_credentials" ||
     (config.grantType === "password" && config.username) ||
-    config.grantType === "authorization_code"
+    (config.grantType === "authorization_code" && config.authUrl && config.redirectUri)
   );
+
+  const exchangeCodeForToken = async (code: string) => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return invoke<{
+      accessToken: string;
+      tokenType?: string;
+      expiresIn?: number;
+      refreshToken?: string;
+      scope?: string;
+    }>("fetch_oauth2_token", {
+      req: {
+        grantType: config.grantType,
+        accessTokenUrl: config.accessTokenUrl,
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+        scope: config.scope || null,
+        username: config.username || null,
+        password: config.password || null,
+        code,
+        redirectUri: config.redirectUri || null,
+      },
+    });
+  };
 
   const handleFetchToken = async () => {
     setLoading(true);
     setError(null);
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      const result = await invoke<{
-        accessToken: string;
-        tokenType?: string;
-        expiresIn?: number;
-        refreshToken?: string;
-        scope?: string;
-      }>("fetch_oauth2_token", {
-        req: {
-          grantType: config.grantType,
-          accessTokenUrl: config.accessTokenUrl,
-          clientId: config.clientId,
-          clientSecret: config.clientSecret,
-          scope: config.scope || null,
-          username: config.username || null,
-          password: config.password || null,
-          code: null,
-          redirectUri: config.redirectUri || null,
-        },
-      });
-      onChange({ accessToken: result.accessToken });
-      setTokenMeta({
-        tokenType: result.tokenType,
-        expiresIn: result.expiresIn,
-        scope: result.scope,
-      });
+      if (config.grantType === "authorization_code") {
+        // Step 1: Open OAuth window to get authorization code
+        setAuthorizing(true);
+        const { openOAuthWindow } = await import("@/lib/oauthWindow");
+        let oauthResult;
+        try {
+          oauthResult = await openOAuthWindow({
+            authUrl: config.authUrl,
+            clientId: config.clientId,
+            redirectUri: config.redirectUri,
+            scope: config.scope,
+          });
+        } finally {
+          setAuthorizing(false);
+        }
+
+        // Step 2: Exchange code for token
+        const result = await exchangeCodeForToken(oauthResult.code);
+        onChange({ accessToken: result.accessToken });
+        setTokenMeta({
+          tokenType: result.tokenType,
+          expiresIn: result.expiresIn,
+          scope: result.scope,
+        });
+      } else {
+        // client_credentials or password: direct token request
+        const { invoke } = await import("@tauri-apps/api/core");
+        const result = await invoke<{
+          accessToken: string;
+          tokenType?: string;
+          expiresIn?: number;
+          refreshToken?: string;
+          scope?: string;
+        }>("fetch_oauth2_token", {
+          req: {
+            grantType: config.grantType,
+            accessTokenUrl: config.accessTokenUrl,
+            clientId: config.clientId,
+            clientSecret: config.clientSecret,
+            scope: config.scope || null,
+            username: config.username || null,
+            password: config.password || null,
+            code: null,
+            redirectUri: null,
+          },
+        });
+        onChange({ accessToken: result.accessToken });
+        setTokenMeta({
+          tokenType: result.tokenType,
+          expiresIn: result.expiresIn,
+          scope: result.scope,
+        });
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
+      setAuthorizing(false);
     }
   };
+
+  const buttonLabel = authorizing
+    ? t('http.oauth2.authorizing')
+    : loading
+      ? t('http.oauth2.fetchingToken')
+      : config.grantType === "authorization_code"
+        ? t('http.oauth2.authorize')
+        : t('http.oauth2.fetchToken');
 
   return (
     <div className="space-y-3">
@@ -2366,7 +2481,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
             onClick={handleFetchToken}
             disabled={loading || !canFetchToken}
             className={cn(
-              "px-4 py-2 text-[var(--fs-sm)] font-semibold rounded-lg transition-all",
+              "px-4 py-2 text-[var(--fs-sm)] font-semibold rounded-lg transition-all flex items-center gap-2",
               loading
                 ? "bg-amber-400 text-white cursor-wait"
                 : canFetchToken
@@ -2374,7 +2489,12 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
                   : "bg-bg-tertiary text-text-disabled cursor-not-allowed"
             )}
           >
-            {loading ? t('http.fetchingToken') : t('http.getToken')}
+            {(loading || authorizing) && (
+              <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="31.4 31.4" />
+              </svg>
+            )}
+            {buttonLabel}
           </button>
           {tokenMeta && (
             <div className="flex items-center gap-2 text-[var(--fs-xs)] text-text-tertiary">
@@ -2384,6 +2504,12 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
             </div>
           )}
         </div>
+        {authorizing && (
+          <div className="mb-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-[var(--fs-sm)] text-blue-600 dark:text-blue-400 flex items-center gap-2">
+            <svg className="w-4 h-4 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            {t('http.oauth2.authorizingHint')}
+          </div>
+        )}
         {error && (
           <div className="mb-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-[var(--fs-sm)] text-red-600 dark:text-red-400 break-all">
             {error}
@@ -2391,7 +2517,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
         )}
         <div className="space-y-1.5">
           <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Access Token</label>
-          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder="点击「获取 Token」自动填入，或手动粘贴" className="wb-field w-full font-mono text-[var(--fs-sm)]" />
+          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder={t('http.oauth2.accessTokenPlaceholder')} className="wb-field w-full font-mono text-[var(--fs-sm)]" />
         </div>
       </div>
     </div>
