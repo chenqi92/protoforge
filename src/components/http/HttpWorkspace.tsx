@@ -1673,11 +1673,11 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
     const valSugs = activeValueSuggest === i ? getValueSuggestions(item.key) : [];
     return (
       <tr key={i} className={cn("group", item.isAuto && "bg-bg-secondary/18")}>
-        <td className="editor-table-check">
+        <td className="editor-table-check relative">
           {isSelectable ? (
-            <input type="checkbox" checked={item.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer" />
+            <input type="checkbox" checked={item.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer m-0 align-middle block mx-auto" />
           ) : (
-            <span className="editor-table-empty-check" aria-hidden="true" />
+            <span className="editor-table-empty-check block mx-auto" aria-hidden="true" />
           )}
         </td>
         <td>
@@ -1737,7 +1737,7 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
           </colgroup>
         <thead>
           <tr>
-            <th className="editor-table-check">
+            <th className="editor-table-check relative">
               <input
                 type="checkbox"
                 checked={allVisibleEnabled}
@@ -1748,7 +1748,7 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
                     return { ...item, enabled: !allVisibleEnabled };
                   }));
                 }}
-                className="w-3 h-3 rounded accent-accent cursor-pointer"
+                className="w-3 h-3 rounded accent-accent cursor-pointer m-0 align-middle block mx-auto"
                 title={allVisibleEnabled ? t('import.deselectAll') : t('import.selectAll')}
                 disabled={selectableVisibleItems.length === 0}
               />

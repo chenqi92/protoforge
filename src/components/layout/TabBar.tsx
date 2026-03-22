@@ -72,8 +72,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   const [tabMenuPos, setTabMenuPos] = useState({ top: 0, left: 0 });
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
-  const createProtocol: RequestProtocol = activeTab && activeTab.protocol !== "http" ? activeTab.protocol : "http";
+  const createProtocol: RequestProtocol = "http";
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;

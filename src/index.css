@@ -1345,9 +1345,10 @@
   }
 
   .editor-table-check {
-    width: 28px;
-    padding-left: 4px;
+    width: 32px;
+    padding: 0 !important;
     text-align: center;
+    vertical-align: middle;
   }
 
   .editor-table-empty-check {
