@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Play, Square, Trash2, ArrowDown, Waves } from 'lucide-react';
+import { Play, Square, Trash2, Waves } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
@@ -30,7 +30,6 @@ export function SseWorkspace() {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'>('idle');
   const [events, setEvents] = useState<SseEvent[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
-  const [autoScroll, setAutoScroll] = useState(true);
   const listRef = useRef<HTMLDivElement>(null);
 
   const connId = `sse-${tabId}`;
@@ -51,12 +50,6 @@ export function SseWorkspace() {
     return () => { unlisten1.then(f => f()); unlisten2.then(f => f()); };
   }, [connId]);
 
-  // 自动滚动
-  useEffect(() => {
-    if (autoScroll && listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
-  }, [events, autoScroll]);
 
   const handleConnect = useCallback(async () => {
     if (!url.trim()) return;
@@ -156,9 +149,6 @@ export function SseWorkspace() {
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
               <span className="text-[var(--fs-xxs)] text-text-disabled">{t('sse.eventCount', { count: events.length })}</span>
-              <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn px-2.5 text-[var(--fs-xs)]", autoScroll && "text-accent")}>
-                <ArrowDown className="w-3 h-3" /> {t('sse.autoScroll')}
-              </button>
               <button onClick={() => setEvents([])} className="wb-icon-btn hover:text-red-500 transition-colors">
                 <Trash2 className="w-3 h-3" />
               </button>

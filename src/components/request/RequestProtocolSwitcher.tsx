@@ -50,17 +50,13 @@ export function RequestProtocolSwitcher({
         <span className={cn("wb-protocol-dropdown-icon", activeOption.iconBgClass)}>
           <ActiveIcon className="h-3.5 w-3.5" />
         </span>
-        <span className="wb-protocol-dropdown-label">{activeOption.label}</span>
-        <ChevronDown className={cn("h-3.5 w-3.5 text-text-disabled transition-transform", open && "rotate-180")} />
+        <ChevronDown className={cn("h-3 w-3 text-text-disabled transition-transform", open && "rotate-180")} />
       </button>
 
       {open ? (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="wb-protocol-menu absolute left-0 top-full z-50 mt-2 min-w-[180px]">
-            <div className="px-2 pb-0.5 pt-1 text-[var(--fs-3xs)] font-semibold uppercase tracking-[0.14em] text-text-disabled">
-              Switch Request Type
-            </div>
             {options.map((option) => {
               const Icon = option.icon;
               const active = option.kind === activeKind;

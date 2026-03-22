@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDown, ArrowDownToLine, Trash2, Info, ChevronUp, Braces } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, FileIcon, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDownToLine, Trash2, Info, ChevronUp, Braces } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
@@ -65,7 +65,6 @@ export function HttpWorkspace() {
   const [sseStatus, setSseStatus] = useState<'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'>('idle');
   const [sseEvents, setSseEvents] = useState<SseEvent[]>([]);
   const [sseError, setSseError] = useState('');
-  const [sseAutoScroll, setSseAutoScroll] = useState(true);
   const toggleSecret = (field: string) => setShowSecrets(prev => ({ ...prev, [field]: !prev[field] }));
   const urlInputRef = useRef<HTMLInputElement>(null);
   const urlRectRef = useRef<DOMRect | null>(null);
@@ -166,11 +165,6 @@ export function HttpWorkspace() {
     };
   }, [sseConnId]);
 
-  useEffect(() => {
-    if (sseAutoScroll && sseListRef.current) {
-      sseListRef.current.scrollTop = sseListRef.current.scrollHeight;
-    }
-  }, [sseAutoScroll, sseEvents]);
 
   useEffect(() => {
     const allowedTabs = isSseMode ? ["params", "headers", "auth"] : ["params", "headers", "body", "auth", "pre-script", "post-script"];
@@ -808,8 +802,6 @@ export function HttpWorkspace() {
                 status={sseStatus}
                 error={sseError}
                 events={sseEvents}
-                autoScroll={sseAutoScroll}
-                onToggleAutoScroll={() => setSseAutoScroll((prev) => !prev)}
                 onClear={() => setSseEvents([])}
                 listRef={sseListRef}
               />
@@ -1225,16 +1217,12 @@ function HttpSseResponsePanel({
   status,
   error,
   events,
-  autoScroll,
-  onToggleAutoScroll,
   onClear,
   listRef,
 }: {
   status: 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
   error: string;
   events: SseEvent[];
-  autoScroll: boolean;
-  onToggleAutoScroll: () => void;
   onClear: () => void;
   listRef: { current: HTMLDivElement | null };
 }) {
@@ -1266,14 +1254,6 @@ function HttpSseResponsePanel({
             {status === 'idle' ? t('sse.idle') : status === 'connecting' ? t('sse.connecting') : status === 'connected' ? t('sse.connected') : status === 'disconnected' ? t('sse.disconnected') : t('sse.error')}
           </span>
           <ResponseMetaPill label={t('sse.events')} value={`${events.length}`} />
-          <button
-            type="button"
-            onClick={onToggleAutoScroll}
-            className={cn("wb-icon-btn", autoScroll && "bg-accent/10 text-accent")}
-            title={t('sse.autoScroll')}
-          >
-            <ArrowDown className="h-3.5 w-3.5" />
-          </button>
           <button type="button" onClick={onClear} className="wb-icon-btn" title={t('common.delete')}>
             <Trash2 className="h-3.5 w-3.5" />
           </button>

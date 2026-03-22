@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Zap, Send as SendIcon, X, Plug, Trash2, ArrowDown, Search, Settings2, RefreshCw } from "lucide-react";
+import { Zap, Send as SendIcon, X, Plug, Trash2, Search, Settings2, RefreshCw, ArrowUpRight, ArrowDownLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
-import type { WsMessage, WsEvent } from "@/types/ws";
+import type { WsMessage } from "@/types/ws";
+import type { WsEvent } from "@/types/ws";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
-import { ReadonlyCodeBlock } from "@/components/ui/ResponseViewer";
+import { CodeEditor } from "@/components/common/CodeEditor";
 
 interface KVItem { key: string; value: string; enabled: boolean }
 
@@ -20,11 +21,8 @@ export function WsWorkspace() {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [message, setMessage] = useState("");
-  const [sendMode, setSendMode] = useState<"text" | "binary">("text");
+  const [sendMode, setSendMode] = useState<"json" | "text" | "binary">("text");
   const [messages, setMessages] = useState<WsMessage[]>([]);
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const [detailView, setDetailView] = useState<"preview" | "text" | "json" | "hex">("preview");
-  const [autoScroll, setAutoScroll] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showHeaders, setShowHeaders] = useState(false);
   const [headers, setHeaders] = useState<KVItem[]>([{ key: "", value: "", enabled: true }]);
@@ -84,19 +82,6 @@ export function WsWorkspace() {
 
   if (!activeTab) return null;
   const url = activeTab.wsUrl || "ws://localhost:8080";
-
-  // 自动滚动
-  useEffect(() => {
-    if (autoScroll && messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  }, [messages, autoScroll]);
-
-  const handleScroll = useCallback(() => {
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    setAutoScroll(el.scrollTop < 50);
-  }, []);
 
   // 心跳定时器
   useEffect(() => {
@@ -293,9 +278,6 @@ export function WsWorkspace() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  };
 
   const formatTime = (ts: string) => {
     try { return new Date(ts).toLocaleTimeString("zh-CN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
@@ -314,22 +296,6 @@ export function WsWorkspace() {
   }, [messages, searchQuery]);
 
   const displayMessages = useMemo(() => [...filteredMessages].reverse(), [filteredMessages]);
-
-  const selectedMessage = useMemo(
-    () => filteredMessages.find((messageItem) => messageItem.id === selectedMessageId) ?? null,
-    [filteredMessages, selectedMessageId]
-  );
-
-  useEffect(() => {
-    if (selectedMessage) return;
-    if (selectedMessageId && filteredMessages.every((messageItem) => messageItem.id !== selectedMessageId)) {
-      setSelectedMessageId(null);
-    }
-  }, [filteredMessages, selectedMessage, selectedMessageId]);
-
-  useEffect(() => {
-    setDetailView("preview");
-  }, [selectedMessageId]);
 
   const addHeader = () => setHeaders([...headers, { key: "", value: "", enabled: true }]);
   const removeHeader = (i: number) => setHeaders(headers.filter((_, idx) => idx !== i));
@@ -440,7 +406,7 @@ export function WsWorkspace() {
       )}
 
       {/* Main Area */}
-      <div className="flex-1 flex flex-col overflow-hidden px-3 pb-3 pt-1.5">
+      <div className="flex-1 flex flex-col overflow-hidden px-3 pb-3 pt-0.5">
         <div className="wb-panel flex flex-1 flex-col overflow-hidden">
           {/* Status Header with search */}
           <div className="wb-panel-header shrink-0">
@@ -458,11 +424,6 @@ export function WsWorkspace() {
                 <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('ws.searchMessages')} className="min-w-0 flex-1" />
                 {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3 h-3" /></button>}
               </div>
-              {!autoScroll && messages.length > 0 && (
-                <button onClick={() => { setAutoScroll(true); messagesContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }} className="wb-ghost-btn px-2.5 text-[var(--fs-xs)] text-accent">
-                  <ArrowDown className="w-3 h-3 rotate-180" /> {t('ws.scrollToLatest')}
-                </button>
-              )}
               {messages.length > 0 && (
                 <button onClick={() => setMessages([])} className="wb-icon-btn hover:text-red-500" title={t('ws.clearMessages')}><Trash2 className="w-3 h-3" /></button>
               )}
@@ -470,95 +431,59 @@ export function WsWorkspace() {
           </div>
 
           {/* Messages */}
-          <div className="flex flex-1 min-h-0 flex-col bg-bg-secondary/12">
-            <div
-              ref={messagesContainerRef}
-              onScroll={handleScroll}
-              className={cn(
-                "min-h-0 overflow-auto",
-                selectedMessage ? "basis-[44%] border-b border-border-default/70" : "flex-1"
-              )}
-            >
-              {filteredMessages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center px-6 text-text-disabled">
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default bg-bg-secondary shadow-sm">
-                    <Zap className="w-8 h-8 opacity-20 text-amber-500" />
-                  </div>
-                  <p className="text-[var(--fs-md)] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
-                  <p className="mt-1 text-[var(--fs-sm)]">{searchQuery ? '' : t('ws.emptyDesc')}</p>
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 min-h-0 overflow-auto bg-bg-secondary/12"
+          >
+            {filteredMessages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center px-6 text-text-disabled">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default bg-bg-secondary shadow-sm">
+                  <Zap className="w-8 h-8 opacity-20 text-amber-500" />
                 </div>
-              ) : (
-                <div className="divide-y divide-border-default/60">
-                  {displayMessages.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setSelectedMessageId((current) => current === item.id ? null : item.id)}
-                      className={cn(
-                        "w-full px-3.5 py-2.5 text-left transition-colors hover:bg-bg-hover/70",
-                        selectedMessageId === item.id && "bg-accent/5"
-                      )}
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <WsEventTypePill message={item} />
-                        {getWsMessageFormat(item) && (
-                          <span className="rounded-full bg-bg-secondary px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-tertiary">
-                            {getWsMessageFormat(item)}
-                          </span>
-                        )}
-                        <div className="min-w-0 flex-1 truncate text-[var(--fs-sm)] text-text-primary">
-                          <span className="truncate">{getWsMessageSummary(item, t)}</span>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2 text-[var(--fs-xs)] text-text-disabled">
-                          {item.size > 0 && <span>{formatSize(item.size)}</span>}
-                          <span>{formatTime(item.timestamp)}</span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {selectedMessage ? (
-              <WsDetailPanel
-                message={selectedMessage}
-                detailView={detailView}
-                onChangeView={setDetailView}
-                formatTime={formatTime}
-                formatSize={formatSize}
-              />
-            ) : filteredMessages.length > 0 ? (
-              <div className="shrink-0 border-t border-border-default/70 bg-bg-secondary/18 px-4 py-2 text-[var(--fs-xs)] text-text-disabled">
-                {t('ws.detailEmptyDesc')}
+                <p className="text-[var(--fs-md)] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
+                <p className="mt-1 text-[var(--fs-sm)]">{searchQuery ? '' : t('ws.emptyDesc')}</p>
               </div>
-            ) : null}
+            ) : (
+              <div className="divide-y divide-border-default/30">
+                {displayMessages.map((item) => (
+                  <WsMessageRow
+                    key={item.id}
+                    message={item}
+                    formatTime={formatTime}
+                    formatSize={formatSize}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Input Bar */}
-          <div className="shrink-0 border-t border-border-default/70 bg-bg-secondary/18 p-2">
-            <div className="flex items-stretch gap-2">
-              {/* Send mode toggle */}
-              <div className="flex shrink-0 flex-col gap-1">
-                <button onClick={() => setSendMode(sendMode === "text" ? "binary" : "text")} className={cn("wb-field-sm h-10 min-w-[62px] px-3 font-semibold", sendMode === "binary" ? "border-violet-300 bg-violet-500/10 text-violet-600" : "text-text-tertiary")}>
-                  {sendMode === "text" ? "TEXT" : "HEX"}
+          {/* Message Compose - Inside panel bottom */}
+          <div className="shrink-0 border-t border-border-default/70 overflow-hidden">
+            <div className="relative" style={{ height: 120 }}>
+              <CodeEditor
+                value={message}
+                onChange={(v: string) => setMessage(v)}
+                language={sendMode === "json" ? "json" : "plaintext"}
+              />
+              {/* Overlay controls at bottom */}
+              <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between pointer-events-none">
+                <select
+                  value={sendMode}
+                  onChange={(e) => setSendMode(e.target.value as "json" | "text" | "binary")}
+                  className="pointer-events-auto wb-field-xs wb-native-select min-w-[68px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary bg-bg-primary/90 backdrop-blur-sm"
+                >
+                  <option value="text">Text</option>
+                  <option value="json">JSON</option>
+                  <option value="binary">Binary</option>
+                </select>
+                <button
+                  onClick={handleSend}
+                  disabled={!connected || !message.trim()}
+                  className="pointer-events-auto inline-flex items-center justify-center gap-1.5 h-[26px] min-w-[60px] px-2.5 rounded-[9px] border-none bg-amber-500 text-white text-[var(--fs-xxs)] font-semibold shadow-sm hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+                >
+                  <SendIcon className="w-3 h-3" /> {t('ws.send')}
                 </button>
               </div>
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={sendMode === "binary" ? t('tcp.sendPanel.hexPlaceholder') : t('ws.messagePlaceholder')}
-                disabled={!connected}
-                className="wb-textarea h-10 min-h-10 max-h-[108px] flex-1 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 disabled:cursor-not-allowed disabled:opacity-50"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!connected || !message.trim()}
-                className="wb-primary-btn h-10 min-w-[84px] bg-amber-500 hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <SendIcon className="w-4 h-4" /> {t('ws.send')}
-              </button>
             </div>
           </div>
         </div>
@@ -567,6 +492,17 @@ export function WsWorkspace() {
   );
 }
 
+/** 尝试格式化 JSON */
+function tryFormatJson(data: string): { isJson: boolean; formatted: string } {
+  try {
+    const parsed = JSON.parse(data);
+    return { isJson: true, formatted: JSON.stringify(parsed, null, 2) };
+  } catch {
+    return { isJson: false, formatted: data };
+  }
+}
+
+/** 单行消息预览 */
 function getWsMessageSummary(message: WsMessage, t: (key: string) => string) {
   if (message.kind === "status") {
     return message.status === "connected"
@@ -582,6 +518,7 @@ function getWsMessageSummary(message: WsMessage, t: (key: string) => string) {
   return compact || t('http.emptyValue');
 }
 
+/** 获取消息格式标签 (JSON/HEX/TEXT) */
 function getWsMessageFormat(message: WsMessage) {
   if (message.kind !== "message") return null;
   if (message.dataType === "binary") return "HEX";
@@ -594,142 +531,103 @@ function getWsMessageFormat(message: WsMessage) {
   }
 }
 
-function WsEventTypePill({ message }: { message: WsMessage }) {
-  if (message.kind === "status") {
-    return (
-      <span className={cn(
-        "rounded-full px-2 py-0.5 text-[var(--fs-xxs)] font-medium",
-        message.status === "connected"
-          ? "bg-emerald-500/10 text-emerald-600"
-          : "bg-slate-500/10 text-slate-500"
-      )}>
-        {message.status === "connected" ? "CONNECTED" : "DISCONNECTED"}
-      </span>
-    );
-  }
-
-  if (message.kind === "error") {
-    return <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-red-500">ERROR</span>;
-  }
-
-  return (
-    <span className={cn(
-      "rounded-full px-2 py-0.5 text-[var(--fs-xxs)] font-medium",
-      message.direction === "sent"
-        ? "bg-amber-500/10 text-amber-600"
-        : "bg-sky-500/10 text-sky-600"
-    )}>
-      {message.direction === "sent" ? "OUT" : "IN"}
-    </span>
-  );
-}
-
-function WsDetailPanel({
+/** 单条消息行 - 支持内联展开 */
+function WsMessageRow({
   message,
-  detailView,
-  onChangeView,
   formatTime,
   formatSize,
 }: {
   message: WsMessage;
-  detailView: "preview" | "text" | "json" | "hex";
-  onChangeView: (view: "preview" | "text" | "json" | "hex") => void;
-  formatTime: (value: string) => string;
-  formatSize: (value: number) => string;
+  formatTime: (ts: string) => string;
+  formatSize: (bytes: number) => string;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const { t } = useTranslation();
-  const isJson = useMemo(() => {
-    try {
-      JSON.parse(message.data);
-      return true;
-    } catch {
-      return false;
-    }
-  }, [message.data]);
+  const { isJson, formatted } = useMemo(() => tryFormatJson(message.data), [message.data]);
+  const format = getWsMessageFormat(message);
+  const preview = message.data.replace(/\n/g, ' ').slice(0, 200);
 
-  const prettyJson = useMemo(() => {
-    if (!isJson) return message.data;
-    return JSON.stringify(JSON.parse(message.data), null, 2);
-  }, [isJson, message.data]);
+  // 状态消息行
+  if (message.kind === "status" || message.kind === "error") {
+    return (
+      <div className="flex items-center gap-2.5 px-4 py-2 text-[var(--fs-xs)] text-text-tertiary">
+        {message.kind === "status" && message.status === "connected" ? (
+          <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+        ) : message.kind === "error" ? (
+          <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
+        ) : (
+          <span className="h-2 w-2 rounded-full bg-slate-400 shrink-0" />
+        )}
+        <span className="flex-1 truncate">{getWsMessageSummary(message, t)}</span>
+        <span className="shrink-0 font-mono text-[var(--fs-xxs)] text-text-disabled">
+          {formatTime(message.timestamp)}
+        </span>
+      </div>
+    );
+  }
 
-  const hexText = useMemo(() => {
-    if (message.dataType === "binary") {
-      return message.data;
-    }
-    return Array.from(new TextEncoder().encode(message.data))
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join(" ");
-  }, [message.data, message.dataType]);
-
-  const tabs: Array<{ key: "preview" | "text" | "json" | "hex"; label: string; hidden?: boolean }> = [
-    { key: "preview", label: t('ws.preview') },
-    { key: "text", label: t('ws.textView') },
-    { key: "json", label: "JSON", hidden: !isJson },
-    { key: "hex", label: "HEX" },
-  ];
-
+  // 数据消息行
   return (
-    <div className="flex min-h-[220px] flex-1 flex-col">
-      <div className="flex items-center justify-between gap-3 border-b border-border-default/70 px-4 py-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-[var(--fs-base)] font-semibold text-text-primary">{message.title}</span>
-            <WsEventTypePill message={message} />
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-3 text-[var(--fs-xs)] text-text-disabled">
-            <span>{formatTime(message.timestamp)}</span>
-            {message.size > 0 && <span>{formatSize(message.size)}</span>}
-            {message.dataType === "binary" && <span>BINARY</span>}
-          </div>
+    <div className="group">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className={cn(
+          "flex w-full items-center gap-2.5 px-4 py-2 text-left transition-colors hover:bg-bg-hover/50",
+          expanded && "bg-bg-hover/30"
+        )}
+      >
+        {/* 方向箭头 */}
+        {message.direction === "sent" ? (
+          <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+        ) : (
+          <ArrowDownLeft className="h-3.5 w-3.5 shrink-0 text-sky-500" />
+        )}
+
+        {/* 格式标签 */}
+        {format && (
+          <span className={cn(
+            "inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 text-[var(--fs-xxs)] font-bold leading-none",
+            format === "JSON" ? "border-emerald-200 bg-emerald-500/8 text-emerald-600 dark:border-emerald-500/25" :
+            format === "HEX" ? "border-violet-200 bg-violet-500/8 text-violet-600 dark:border-violet-500/25" :
+            "border-slate-200 bg-slate-500/8 text-slate-500 dark:border-slate-500/25"
+          )}>
+            {format}
+          </span>
+        )}
+
+        {/* 内容摘要 */}
+        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text-secondary">
+          {preview}
+        </span>
+
+        {/* 大小 & 时间 */}
+        <div className="flex shrink-0 items-center gap-2 text-[var(--fs-xxs)] text-text-disabled">
+          {message.size > 0 && <span>{formatSize(message.size)}</span>}
+          <span className="font-mono">{formatTime(message.timestamp)}</span>
         </div>
-        <div className="flex items-center gap-1 rounded-full bg-bg-secondary/80 p-1">
-          {tabs.filter((tab) => !tab.hidden).map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => onChangeView(tab.key)}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-colors",
-                detailView === tab.key
-                  ? "bg-bg-primary text-text-primary shadow-sm"
-                  : "text-text-tertiary hover:text-text-secondary"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
+
+        {/* 展开/收起 */}
+        {expanded
+          ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-text-disabled" />
+          : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-text-disabled" />
+        }
+      </button>
+
+      {/* 内联展开详情 */}
+      {expanded && (
+        <div className="mx-4 mb-2 mt-0.5 rounded-lg border border-border-default/60 bg-bg-secondary/20 overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-border-default/40 px-3 py-1.5 text-[var(--fs-xxs)] text-text-tertiary">
+            <span className="font-semibold">{isJson ? 'JSON' : message.dataType === 'binary' ? 'HEX' : 'TEXT'}</span>
+            {message.size > 0 && <span className="ml-auto">{formatSize(message.size)}</span>}
+          </div>
+          <pre className={cn(
+            "selectable overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11.5px] leading-[1.6] text-text-primary max-h-[320px]",
+          )}>
+            {formatted}
+          </pre>
         </div>
-      </div>
-
-      <div className="flex-1 overflow-auto bg-bg-primary px-4 py-4">
-        {detailView === "preview" && (
-          isJson ? (
-            <ReadonlyCodeBlock value={prettyJson} language="json" minHeightClassName="min-h-[220px]" />
-          ) : (
-            <div className="select-text px-1 text-[var(--fs-sm)] leading-6 text-text-secondary">
-              <pre className="whitespace-pre-wrap break-all font-mono">
-                {message.data}
-              </pre>
-            </div>
-          )
-        )}
-
-        {detailView === "text" && (
-          <div className="select-text px-1">
-            <pre className="whitespace-pre-wrap break-all font-mono text-[var(--fs-sm)] leading-6 text-text-secondary">{message.data}</pre>
-          </div>
-        )}
-
-        {detailView === "json" && isJson && (
-          <ReadonlyCodeBlock value={prettyJson} language="json" minHeightClassName="min-h-[220px]" />
-        )}
-
-        {detailView === "hex" && (
-          <div className="select-text px-1">
-            <pre className="whitespace-pre-wrap break-all font-mono text-[var(--fs-sm)] leading-6 text-text-secondary">{hexText}</pre>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
