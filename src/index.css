@@ -1828,6 +1828,84 @@
   .variable-inline-input:not(:focus) ~ .variable-inline-overlay {
     pointer-events: auto;
   }
+  /* ── Plugin Table (spreadsheet-style renderer) ── */
+
+  .plugin-table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .plugin-table-th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    height: 32px;
+    padding: 0 12px;
+    text-align: left;
+    color: var(--color-text-secondary);
+    font-size: var(--fs-xxs);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--color-bg-secondary) 92%, var(--color-bg-primary));
+    border-bottom: 1.5px solid var(--color-border-default);
+    border-right: 1px solid color-mix(in srgb, var(--color-border-default) 50%, transparent);
+  }
+
+  .plugin-table-th:last-child {
+    border-right: none;
+  }
+
+  .plugin-table-row-num {
+    color: var(--color-text-disabled);
+    font-weight: 500;
+    background: color-mix(in srgb, var(--color-bg-secondary) 50%, transparent);
+    border-right: 1px solid color-mix(in srgb, var(--color-border-default) 60%, transparent) !important;
+    min-width: 42px;
+    width: 42px;
+  }
+
+  thead .plugin-table-row-num {
+    font-size: var(--fs-xxs);
+  }
+
+  .plugin-table-td {
+    height: 34px;
+    padding: 4px 12px;
+    color: var(--color-text-primary);
+    font-size: var(--fs-sm);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border-default) 45%, transparent);
+    border-right: 1px solid color-mix(in srgb, var(--color-border-default) 30%, transparent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+  }
+
+  .plugin-table-td:last-child {
+    border-right: none;
+  }
+
+  .plugin-table-row {
+    transition: background-color 0.1s ease;
+  }
+
+  .plugin-table-row:nth-child(even) {
+    background: color-mix(in srgb, var(--color-bg-secondary) 30%, transparent);
+  }
+
+  .plugin-table-row:hover {
+    background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+  }
+
+  .plugin-table-row:hover .plugin-table-td {
+    border-bottom-color: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  }
+
+  .plugin-table-row:hover .plugin-table-row-num {
+    color: var(--color-accent);
+  }
 }
 
 /* ── shadcn/ui @theme inline: map shadcn tokens to ProtoForge design system ── */
@@ -1901,4 +1979,27 @@
   --sidebar-accent-foreground: #0f172a;
   --sidebar-border: #e2e8f0;
   --sidebar-ring: #3b82f6;
+}
+
+/* ── cURL Preview Tooltip ── */
+.curl-preview-tooltip {
+  max-width: 480px;
+  min-width: 280px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-elevated);
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(16px);
+  animation: curl-tooltip-in 0.15s ease-out;
+  pointer-events: auto;
+}
+
+.dark .curl-preview-tooltip {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+@keyframes curl-tooltip-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: translateX(0); }
 }

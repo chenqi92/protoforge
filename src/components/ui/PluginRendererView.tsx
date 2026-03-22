@@ -10,7 +10,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { cn } from '@/lib/utils';
-import { Loader2, AlertCircle, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronLeft, ChevronRight, FileSpreadsheet, Rows3, Columns3 } from 'lucide-react';
 
 /** 后端 RenderResult 对应的前端类型 */
 interface RenderSheet {
@@ -58,8 +58,6 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
 
     invoke<RenderResult>('plugin_render_data', {
       pluginId,
-      // isBinary=true 时 body 已经是 base64（Rust 后端编码的），直接传
-      // isBinary=false 时 body 是文本，用安全方法编码为 base64
       base64Data: isBinary ? body : textToBase64(body),
     })
       .then((res) => {
@@ -85,8 +83,8 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
   if (loading) {
     return (
       <div className={cn('flex flex-col items-center justify-center gap-3 p-8 text-text-disabled', className)}>
-        <Loader2 className="h-8 w-8 animate-spin opacity-40" />
-        <p className="text-[var(--fs-base)]">插件处理中...</p>
+        <Loader2 className="h-6 w-6 animate-spin opacity-40" />
+        <p style={{ fontSize: 'var(--fs-sm)' }}>插件处理中...</p>
       </div>
     );
   }
@@ -94,9 +92,9 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
   if (error || !result) {
     return (
       <div className={cn('flex flex-col items-center justify-center gap-3 p-8 text-text-disabled', className)}>
-        <AlertCircle className="h-10 w-10 opacity-30 text-red-400" />
-        <p className="text-[var(--fs-base)]">插件渲染失败</p>
-        <p className="text-[var(--fs-xs)] text-text-tertiary max-w-[400px] text-center">{error || '未知错误'}</p>
+        <AlertCircle className="h-8 w-8 opacity-30 text-red-400" />
+        <p style={{ fontSize: 'var(--fs-sm)' }}>插件渲染失败</p>
+        <p className="text-text-tertiary max-w-[400px] text-center" style={{ fontSize: 'var(--fs-xs)' }}>{error || '未知错误'}</p>
       </div>
     );
   }
@@ -106,7 +104,8 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
     return (
       <div className={cn('flex-1 overflow-auto p-2', className)}>
         <div
-          className="plugin-html-content text-[var(--fs-sm)]"
+          className="plugin-html-content"
+          style={{ fontSize: 'var(--fs-sm)' }}
           dangerouslySetInnerHTML={{ __html: result.html }}
         />
       </div>
@@ -119,13 +118,13 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
   }
 
   return (
-    <div className={cn('flex items-center justify-center h-full text-text-disabled text-[var(--fs-base)]', className)}>
+    <div className={cn('flex items-center justify-center h-full text-text-disabled', className)} style={{ fontSize: 'var(--fs-sm)' }}>
       插件返回了未知的渲染类型: {result.type}
     </div>
   );
 }
 
-/* ── 表格渲染子组件（多 Sheet + 分页） ── */
+/* ── 表格渲染子组件（多 Sheet + 分页 + 精致样式） ── */
 function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className?: string }) {
   const [activeSheet, setActiveSheet] = useState(0);
 
@@ -138,98 +137,103 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
 
   return (
     <div className={cn('flex h-full flex-col overflow-hidden', className)}>
-      {/* Sheet tabs */}
-      {sheets.length > 1 && (
-        <div className="flex items-center gap-1 border-b border-border-default bg-bg-secondary/30 px-3 py-1.5 shrink-0">
-          <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-          <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide">
-            {sheets.map((s, idx) => (
-              <button
-                key={s.name}
-                onClick={() => setActiveSheet(idx)}
-                className={cn(
-                  'rounded-md px-2.5 py-1 text-[var(--fs-xs)] font-medium transition-colors whitespace-nowrap',
-                  activeSheet === idx
-                    ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-400'
-                    : 'text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
-                )}
-              >
-                {s.name}
-              </button>
-            ))}
-          </div>
-          <div className="ml-auto flex items-center gap-1 text-[var(--fs-xxs)] text-text-disabled shrink-0">
+      {/* ── 底部 Sheet 切换条（Excel 风格，始终显示） ── */}
+      <div className="flex items-center border-b border-border-default/60 bg-bg-secondary/20 shrink-0">
+        {/* Sheet tabs */}
+        <div className="flex items-center gap-0 overflow-x-auto scrollbar-hide">
+          {sheets.map((s, idx) => (
             <button
-              onClick={() => setActiveSheet(Math.max(0, activeSheet - 1))}
-              disabled={activeSheet === 0}
-              className="h-5 w-5 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-30"
+              key={s.name}
+              onClick={() => setActiveSheet(idx)}
+              className={cn(
+                'relative flex items-center gap-1.5 border-r border-border-default/40 px-3 py-1.5 transition-all whitespace-nowrap',
+                activeSheet === idx
+                  ? 'bg-bg-primary text-emerald-600 dark:text-emerald-400 font-semibold'
+                  : 'text-text-tertiary hover:bg-bg-hover/60 hover:text-text-secondary'
+              )}
+              style={{ fontSize: 'var(--fs-xs)' }}
             >
-              <ChevronLeft className="h-3 w-3" />
+              <FileSpreadsheet className="h-3 w-3 shrink-0 opacity-70" />
+              {s.name}
+              {activeSheet === idx && (
+                <span className="absolute bottom-0 left-1 right-1 h-[2px] rounded-full bg-emerald-500" />
+              )}
             </button>
-            <span className="tabular-nums">{activeSheet + 1}/{sheets.length}</span>
-            <button
-              onClick={() => setActiveSheet(Math.min(sheets.length - 1, activeSheet + 1))}
-              disabled={activeSheet === sheets.length - 1}
-              className="h-5 w-5 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-30"
-            >
-              <ChevronRight className="h-3 w-3" />
-            </button>
-          </div>
+          ))}
         </div>
-      )}
 
-      {/* Stats */}
-      <div className="flex items-center gap-3 border-b border-border-default/60 bg-bg-secondary/15 px-3 py-1 shrink-0">
-        <span className="text-[var(--fs-xxs)] font-medium text-text-tertiary">
-          Sheet: <span className="text-text-secondary">{sheet?.name}</span>
-        </span>
-        <span className="text-[var(--fs-xxs)] text-text-disabled">
-          {columns.length} 列 · {rows.length} 行
-        </span>
+        {/* Sheet 导航 + 统计 */}
+        <div className="ml-auto flex items-center gap-2 px-3 text-text-disabled shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
+          {sheets.length > 1 && (
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={() => setActiveSheet(Math.max(0, activeSheet - 1))}
+                disabled={activeSheet === 0}
+                className="h-5 w-5 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-30 transition-colors"
+              >
+                <ChevronLeft className="h-3 w-3" />
+              </button>
+              <span className="tabular-nums px-1">{activeSheet + 1}/{sheets.length}</span>
+              <button
+                onClick={() => setActiveSheet(Math.min(sheets.length - 1, activeSheet + 1))}
+                disabled={activeSheet === sheets.length - 1}
+                className="h-5 w-5 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-30 transition-colors"
+              >
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          <span className="flex items-center gap-1 text-text-disabled">
+            <Columns3 className="h-3 w-3 opacity-50" />
+            <span className="tabular-nums">{columns.length}</span>
+          </span>
+          <span className="flex items-center gap-1 text-text-disabled">
+            <Rows3 className="h-3 w-3 opacity-50" />
+            <span className="tabular-nums">{rows.length}</span>
+          </span>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto p-2">
+      {/* ── 表格内容 ── */}
+      <div className="flex-1 overflow-auto">
         {columns.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-text-disabled text-[var(--fs-base)]">
+          <div className="flex items-center justify-center h-full text-text-disabled" style={{ fontSize: 'var(--fs-sm)' }}>
             此 Sheet 为空
           </div>
         ) : (
-          <div className="editor-table-shell">
-            <div className="editor-table-frame">
-              <table className="editor-table text-[var(--fs-sm)]">
-                <thead>
-                  <tr>
-                    <th className="w-[40px] text-center text-text-disabled font-normal">#</th>
-                    {columns.map((h: string, i: number) => (
-                      <th key={i} className="min-w-[80px] whitespace-nowrap">
-                        {h || `Col ${i + 1}`}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.slice(0, 500).map((row: string[], ri: number) => (
-                    <tr key={ri}>
-                      <td className="text-center text-[var(--fs-xxs)] text-text-disabled tabular-nums">{ri + 1}</td>
-                      {row.map((cell: string, ci: number) => (
-                        <td key={ci} className="px-3 py-2 break-words max-w-[300px]">
-                          {cell}
-                        </td>
-                      ))}
-                      {row.length < columns.length && Array.from({ length: columns.length - row.length }).map((_, ci) => (
-                        <td key={`pad-${ci}`} className="px-3 py-2 text-text-disabled">—</td>
-                      ))}
-                    </tr>
+          <table className="plugin-table w-full border-collapse" style={{ fontSize: 'var(--fs-sm)' }}>
+            <thead className="sticky top-0 z-10">
+              <tr>
+                <th className="plugin-table-th plugin-table-row-num w-[42px] text-center">#</th>
+                {columns.map((h: string, i: number) => (
+                  <th key={i} className="plugin-table-th">
+                    {h || `Col ${i + 1}`}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.slice(0, 500).map((row: string[], ri: number) => (
+                <tr key={ri} className="plugin-table-row">
+                  <td className="plugin-table-td plugin-table-row-num text-center tabular-nums" style={{ fontSize: 'var(--fs-xxs)' }}>
+                    {ri + 1}
+                  </td>
+                  {row.map((cell: string, ci: number) => (
+                    <td key={ci} className="plugin-table-td">
+                      {cell}
+                    </td>
                   ))}
-                </tbody>
-              </table>
-              {rows.length > 500 && (
-                <div className="py-3 text-center text-[var(--fs-xs)] text-text-disabled italic">
-                  仅显示前 500 行，共 {rows.length} 行
-                </div>
-              )}
-            </div>
+                  {row.length < columns.length && Array.from({ length: columns.length - row.length }).map((_, ci) => (
+                    <td key={`pad-${ci}`} className="plugin-table-td text-text-disabled">—</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {rows.length > 500 && (
+          <div className="py-3 text-center text-text-disabled italic" style={{ fontSize: 'var(--fs-xs)' }}>
+            仅显示前 500 行，共 {rows.length.toLocaleString()} 行
           </div>
         )}
       </div>

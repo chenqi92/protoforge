@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen, Clock, Search, Plus,
@@ -17,6 +18,7 @@ import { ImportModal } from "@/components/collections/ImportModal";
 import type { HistoryEntry, CollectionItem } from '@/types/collections';
 import { getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { generateCurlFromItem } from "@/lib/curlGenerator";
 
 type SidebarView = "collections" | "history" | "environments";
 
@@ -36,6 +38,9 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
   const [activeView, setActiveView] = useState<SidebarView>("collections");
   const [search, setSearch] = useState("");
   const [importModalOpen, setImportModalOpen] = useState(false);
+
+  // 合集展开状态提升到 Sidebar，避免切换 tab 时丢失
+  const [collectionExpanded, setCollectionExpanded] = useState<Record<string, boolean>>({});
 
   // 初始化数据
   const fetchCollections = useCollectionStore((s) => s.fetchCollections);
@@ -176,7 +181,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
                 exit={{ opacity: 0, x: 8 }}
                 transition={{ duration: 0.15 }}
               >
-                {activeView === "collections" && <CollectionsView search={search} />}
+                {activeView === "collections" && <CollectionsView search={search} expanded={collectionExpanded} setExpanded={setCollectionExpanded} />}
                 {activeView === "history" && <HistoryView search={search} />}
                 {activeView === "environments" && <EnvironmentsView />}
               </motion.div>
@@ -192,9 +197,12 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
 }
 
 /* ── Collections View (Real Data) ── */
-function CollectionsView({ search }: { search: string }) {
+function CollectionsView({ search, expanded, setExpanded }: {
+  search: string;
+  expanded: Record<string, boolean>;
+  setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+}) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const addTab = useAppStore((s) => s.addTab);
@@ -525,37 +533,20 @@ function CollectionsView({ search }: { search: string }) {
 
       // request item
       return (
-        <button
+        <RequestItemWithTooltip
           key={item.id}
-          onDoubleClick={() => isRenamingItem ? undefined : handleOpenItem(item)}
-          onContextMenu={(e) => handleItemContextMenu(e, { ...item, name: item.name, url: item.url, collectionId: item.collectionId })}
-          className="w-full flex items-center gap-2 pr-2 py-[5px] rounded-md text-[var(--fs-sm)] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
-          style={{ paddingLeft: `${12 + depth * 14}px` }}
-        >
-          <span className={cn(
-            "text-[var(--fs-xxs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
-            color.text, color.bg
-          )}>
-            {method}
-          </span>
-          {isRenamingItem ? (
-            <input
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              onBlur={() => commitItemRename(item.id, item.collectionId)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitItemRename(item.id, item.collectionId);
-                if (e.key === 'Escape') setRenamingId(null);
-                e.stopPropagation();
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="flex-1 min-w-0 text-[var(--fs-xs)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-mono"
-              autoFocus
-            />
-          ) : (
-            <span className="truncate font-mono text-[var(--fs-xs)]">{item.name}</span>
-          )}
-        </button>
+          item={item}
+          method={method}
+          color={color}
+          depth={depth}
+          isRenamingItem={isRenamingItem}
+          renameValue={renameValue}
+          setRenameValue={setRenameValue}
+          commitItemRename={commitItemRename}
+          setRenamingId={setRenamingId}
+          handleOpenItem={handleOpenItem}
+          handleItemContextMenu={handleItemContextMenu}
+        />
       );
     });
   };
@@ -639,6 +630,118 @@ function CollectionsView({ search }: { search: string }) {
       })}
       {MenuComponent}
     </div>
+  );
+}
+
+/* ── Request Item with cURL Tooltip ── */
+function RequestItemWithTooltip({
+  item, method, color, depth, isRenamingItem,
+  renameValue, setRenameValue, commitItemRename, setRenamingId,
+  handleOpenItem, handleItemContextMenu,
+}: {
+  item: CollectionItem;
+  method: string;
+  color: { text: string; bg: string };
+  depth: number;
+  isRenamingItem: boolean;
+  renameValue: string;
+  setRenameValue: (v: string) => void;
+  commitItemRename: (id: string, colId: string) => void;
+  setRenamingId: (id: string | null) => void;
+  handleOpenItem: (item: CollectionItem) => void;
+  handleItemContextMenu: (e: React.MouseEvent, item: { id: string; name: string; url: string | null; collectionId: string }) => void;
+}) {
+  const { t } = useTranslation();
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [copied, setCopied] = useState(false);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const curlCommand = useCallback(() => generateCurlFromItem(item), [item]);
+
+  const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+    if (isRenamingItem) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    hoverTimerRef.current = setTimeout(() => {
+      setTooltipPos({ x: rect.right + 8, y: rect.top });
+      setShowTooltip(true);
+      setCopied(false);
+    }, 400);
+  }, [isRenamingItem]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    setShowTooltip(false);
+  }, []);
+
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await copyTextToClipboard(curlCommand());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [curlCommand]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={() => isRenamingItem ? undefined : handleOpenItem(item)}
+        onContextMenu={(e) => handleItemContextMenu(e, { ...item, name: item.name, url: item.url, collectionId: item.collectionId })}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className="w-full flex items-center gap-2 pr-2 py-[5px] rounded-md text-[var(--fs-sm)] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
+        style={{ paddingLeft: `${12 + depth * 14}px` }}
+      >
+        <span className={cn(
+          "text-[var(--fs-xxs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
+          color.text, color.bg
+        )}>
+          {method}
+        </span>
+        {isRenamingItem ? (
+          <input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onBlur={() => commitItemRename(item.id, item.collectionId)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitItemRename(item.id, item.collectionId);
+              if (e.key === 'Escape') setRenamingId(null);
+              e.stopPropagation();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 min-w-0 text-[var(--fs-xs)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-mono"
+            autoFocus
+          />
+        ) : (
+          <span className="truncate font-mono text-[var(--fs-xs)]">{item.name}</span>
+        )}
+      </button>
+      {showTooltip && createPortal(
+        <div
+          className="curl-preview-tooltip"
+          style={{ position: 'fixed', left: tooltipPos.x, top: tooltipPos.y, zIndex: 9999 }}
+          onMouseEnter={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className="flex items-center justify-between gap-2 mb-1.5 px-0.5">
+            <span className="text-[var(--fs-xxs)] font-semibold text-text-secondary uppercase tracking-wider">{t('sidebar.curlPreview')}</span>
+            <button
+              onClick={handleCopy}
+              className={cn(
+                "flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--fs-xxs)] font-medium transition-colors",
+                copied ? "bg-emerald-500/10 text-emerald-600" : "bg-bg-hover text-text-tertiary hover:text-text-secondary"
+              )}
+            >
+              <Copy className="w-3 h-3" />
+              {copied ? t('sidebar.copied') : t('sidebar.copyCurl')}
+            </button>
+          </div>
+          <pre className="text-[var(--fs-xs)] text-text-primary font-mono whitespace-pre-wrap break-all leading-relaxed max-h-[300px] overflow-auto">{curlCommand()}</pre>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 
@@ -728,7 +831,7 @@ function HistoryView({ search }: { search: string }) {
             return (
               <button
                 key={h.id}
-                onDoubleClick={() => handleOpenHistoryEntry(h)}
+                onClick={() => handleOpenHistoryEntry(h)}
                 onContextMenu={(e) => handleHistoryContextMenu(e, h)}
                 className="w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[var(--fs-sm)] hover:bg-bg-hover transition-colors group"
               >

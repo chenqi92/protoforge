@@ -15,7 +15,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { RendererContribution } from '@/types/plugin';
 import { PluginRendererView } from '@/components/ui/PluginRendererView';
 
-export type ViewMode = 'json' | 'raw' | 'preview' | 'hex';
+export type ViewMode = 'json' | 'raw' | 'preview' | 'hex' | 'base64';
 
 /** 插件渲染器 tab 描述 */
 interface PluginRendererTab {
@@ -176,6 +176,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     const m: ViewMode[] = [];
     if (isJson) m.push('json');
     m.push('raw');
+    m.push('base64');
     if (isHtml) m.push('preview');
     m.push('hex');
     return m;
@@ -213,6 +214,19 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     return body;
   }, [body, isJson, isXml]);
 
+  // For binary responses, decode base64 to text for Raw view
+  const rawDisplayBody = useMemo(() => {
+    if (!isBinary) return body;
+    try {
+      const binary = atob(body);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+    } catch {
+      return body;
+    }
+  }, [body, isBinary]);
+
   const searchCount = useMemo(() => {
     if (!searchText) return 0;
     const target =
@@ -226,6 +240,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   const modeLabels: Record<ViewMode, string> = {
     json: 'JSON',
     raw: 'Raw',
+    base64: 'Base64',
     preview: t('response.preview'),
     hex: 'Hex',
   };
@@ -383,12 +398,16 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                 style={{ fontSize: 'var(--fs-sm)' }}
               >
                 {searchText ? (
-                  <HighlightedText text={body} search={searchText} />
+                  <HighlightedText text={rawDisplayBody} search={searchText} />
                 ) : (
-                  body
+                  rawDisplayBody
                 )}
               </pre>
             </div>
+          )}
+
+          {activeBuiltinMode === 'base64' && (
+            <Base64View body={body} isBinary={isBinary} wordWrap={wordWrap} searchText={searchText} />
           )}
 
           {activeBuiltinMode === 'preview' && isHtml && (
@@ -414,6 +433,71 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Base64 View ── */
+function Base64View({ body, isBinary, wordWrap, searchText }: {
+  body: string;
+  isBinary?: boolean;
+  wordWrap: boolean;
+  searchText: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const base64Content = useMemo(() => {
+    if (isBinary) return body; // already base64
+    try {
+      // text → base64
+      const bytes = new TextEncoder().encode(body);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary);
+    } catch {
+      return body;
+    }
+  }, [body, isBinary]);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(base64Content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [base64Content]);
+
+  const sizeLabel = base64Content.length < 1024
+    ? `${base64Content.length} chars`
+    : `${(base64Content.length / 1024).toFixed(1)} KB`;
+
+  return (
+    <div className={cn("max-w-full", !wordWrap && "overflow-x-auto")}>
+      <div className="flex items-center gap-2 mb-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/30 px-3 py-1.5" style={{ fontSize: 'var(--fs-xs)' }}>
+        <span className="font-medium text-text-secondary">Base64</span>
+        <span className="text-text-disabled">·</span>
+        <span className="text-text-tertiary tabular-nums">{sizeLabel}</span>
+        <div className="flex-1" />
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1 px-2 py-0.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-bg-hover transition-colors"
+          style={{ fontSize: 'var(--fs-xxs)' }}
+        >
+          {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <pre
+        className={cn(
+          'font-mono text-text-primary leading-[20px]',
+          wordWrap ? 'whitespace-pre-wrap break-all' : 'min-w-max whitespace-pre'
+        )}
+        style={{ fontSize: 'var(--fs-sm)' }}
+      >
+        {searchText ? (
+          <HighlightedText text={base64Content} search={searchText} />
+        ) : (
+          base64Content
+        )}
+      </pre>
     </div>
   );
 }

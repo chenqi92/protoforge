@@ -42,6 +42,9 @@
     "exportPostman": "导出为 Postman",
     "openInNewTab": "在新标签中打开",
     "copyUrl": "复制 URL",
+    "copyCurl": "复制",
+    "curlPreview": "cURL 预览",
+    "copied": "已复制",
     "deleteRecord": "删除记录",
     "noMatch": "无匹配结果",
     "noCollections": "暂无集合",
@@ -958,7 +961,10 @@
     "searchPlaceholder": "搜索内容...",
     "truncated": "仅显示前 4096 字节 (总 {{total}} 字节)",
     "matchCount": "{{count}} 个匹配",
-    "invalidJsonPrettyFallback": "响应声明为 JSON，但内容无法正确解析，下面展示原始内容。"
+    "invalidJsonPrettyFallback": "响应声明为 JSON，但内容无法正确解析，下面展示原始内容。",
+    "binaryResponse": "二进制文件流",
+    "decoded": "解码",
+    "binaryDecodeError": "无法解码为文本"
   },
   "history": {
     "lastWeek": "7 天内",

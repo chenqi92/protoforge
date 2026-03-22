@@ -42,6 +42,9 @@
     "exportPostman": "Export as Postman",
     "openInNewTab": "Open in New Tab",
     "copyUrl": "Copy URL",
+    "copyCurl": "Copy",
+    "curlPreview": "cURL Preview",
+    "copied": "Copied!",
     "deleteRecord": "Delete Record",
     "noMatch": "No matches found",
     "noCollections": "No collections yet",
@@ -957,7 +960,10 @@
     "searchPlaceholder": "Search content...",
     "truncated": "Showing first 4096 bytes ({{total}} bytes total)",
     "matchCount": "{{count}} matches",
-    "invalidJsonPrettyFallback": "The response is marked as JSON, but it could not be parsed. Showing the raw content below."
+    "invalidJsonPrettyFallback": "The response is marked as JSON, but it could not be parsed. Showing the raw content below.",
+    "binaryResponse": "Binary File Stream",
+    "decoded": "Decoded",
+    "binaryDecodeError": "Unable to decode as text"
   },
   "history": {
     "lastWeek": "Last 7 Days",
