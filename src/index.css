@@ -2035,3 +2035,25 @@
   from { opacity: 0; transform: translateX(-4px) scale(0.98); }
   to   { opacity: 1; transform: translateX(0) scale(1); }
 }
+
+/* Suppress react-resizable-panels v4.7 separator blue focus/active outlines */
+[data-separator] {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+[data-separator]:focus,
+[data-separator]:focus-visible,
+[data-separator]:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+/* Also cover legacy data attributes just in case */
+[data-panel-resize-handle-id] {
+  outline: none !important;
+  box-shadow: none !important;
+}
+[data-panel-resize-handle-id]:focus-visible {
+  outline: none !important;
+}

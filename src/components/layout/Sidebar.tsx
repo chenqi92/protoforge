@@ -25,6 +25,7 @@ type SidebarView = "collections" | "history" | "environments";
 interface SidebarProps {
   panelCollapsed: boolean;
   onTogglePanel: () => void;
+  onOpenEnvModal: () => void;
 }
 
 const navItems: { id: SidebarView; icon: typeof FolderOpen; labelKey: string }[] = [
@@ -33,7 +34,7 @@ const navItems: { id: SidebarView; icon: typeof FolderOpen; labelKey: string }[]
   { id: "history", icon: Clock, labelKey: 'sidebar.history' },
 ];
 
-export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
+export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: SidebarProps) {
   const { t } = useTranslation();
   const [activeView, setActiveView] = useState<SidebarView>("collections");
   const [search, setSearch] = useState("");
@@ -183,7 +184,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel }: SidebarProps) {
               >
                 {activeView === "collections" && <CollectionsView search={search} expanded={collectionExpanded} setExpanded={setCollectionExpanded} />}
                 {activeView === "history" && <HistoryView search={search} />}
-                {activeView === "environments" && <EnvironmentsView />}
+                {activeView === "environments" && <EnvironmentsView onOpenEnvModal={onOpenEnvModal} />}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -218,6 +219,12 @@ function CollectionsView({ search, expanded, setExpanded }: {
   const renameItem = useCollectionStore((s) => s.renameItem);
   const createItem = useCollectionStore((s) => s.createItem);
   const deleteItem = useCollectionStore((s) => s.deleteItem);
+  const moveItem = useCollectionStore((s) => s.moveItem);
+
+  // Drag-and-drop state
+  const [dragItemId, setDragItemId] = useState<string | null>(null);
+  const [dragCollectionId, setDragCollectionId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   const startRename = (id: string, currentName: string) => {
     setRenamingId(id);
@@ -478,12 +485,44 @@ function CollectionsView({ search, expanded, setExpanded }: {
 
       if (item.itemType === 'folder') {
         const childCount = colItems.filter(c => c.parentId === item.id && c.itemType === 'request').length;
+        const isDropTarget = dropTargetId === `folder:${item.id}`;
         return (
           <div key={item.id}>
             <button
+              draggable={!isRenamingItem}
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/plain', item.id);
+                e.dataTransfer.effectAllowed = 'move';
+                setDragItemId(item.id);
+                setDragCollectionId(item.collectionId);
+              }}
+              onDragEnd={() => { setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); }}
+              onDragOver={(e) => {
+                if (dragItemId && dragItemId !== item.id) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  setDropTargetId(`folder:${item.id}`);
+                }
+              }}
+              onDragLeave={() => { if (dropTargetId === `folder:${item.id}`) setDropTargetId(null); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropTargetId(null);
+                if (dragItemId && dragCollectionId === item.collectionId && dragItemId !== item.id) {
+                  moveItem(dragItemId, item.collectionId, item.id);
+                  // Auto-expand the target folder
+                  setExpanded((prev) => ({ ...prev, [`folder:${item.id}`]: true }));
+                }
+                setDragItemId(null);
+                setDragCollectionId(null);
+              }}
               onClick={() => toggleFolder(item.id)}
               onContextMenu={(e) => handleSubFolderContextMenu(e, item)}
-              className="w-full flex items-center gap-1.5 pr-2 py-[3px] rounded-md text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover transition-colors group/folder"
+              className={cn(
+                "w-full flex items-center gap-1.5 pr-2 py-[3px] rounded-md text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover transition-colors group/folder",
+                isDropTarget && "ring-1 ring-accent bg-accent/5",
+                dragItemId === item.id && "opacity-40"
+              )}
               style={{ paddingLeft: `${12 + depth * 14}px` }}
             >
               <motion.div
@@ -546,6 +585,14 @@ function CollectionsView({ search, expanded, setExpanded }: {
           setRenamingId={setRenamingId}
           handleOpenItem={handleOpenItem}
           handleItemContextMenu={handleItemContextMenu}
+          dragItemId={dragItemId}
+          onDragStart={(e: React.DragEvent) => {
+            e.dataTransfer.setData('text/plain', item.id);
+            e.dataTransfer.effectAllowed = 'move';
+            setDragItemId(item.id);
+            setDragCollectionId(item.collectionId);
+          }}
+          onDragEnd={() => { setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); }}
         />
       );
     });
@@ -565,12 +612,33 @@ function CollectionsView({ search, expanded, setExpanded }: {
       {filteredCollections.map((col) => {
         const colItems = items[col.id] || [];
         const requestItems = colItems.filter((i) => i.itemType === 'request');
+        const isColDropTarget = dropTargetId === `col:${col.id}`;
         return (
           <div key={col.id} className="mb-0.5">
             <button
               onClick={() => toggleExpand(col.id)}
               onContextMenu={(e) => handleFolderContextMenu(e, col)}
-              className="w-full flex items-center gap-1.5 px-2 py-[4px] rounded-md text-[length:var(--fs-sidebar)] font-medium text-text-secondary hover:bg-bg-hover transition-colors group"
+              onDragOver={(e) => {
+                if (dragItemId && dragCollectionId === col.id) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  setDropTargetId(`col:${col.id}`);
+                }
+              }}
+              onDragLeave={() => { if (dropTargetId === `col:${col.id}`) setDropTargetId(null); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropTargetId(null);
+                if (dragItemId && dragCollectionId === col.id) {
+                  moveItem(dragItemId, col.id, null);
+                }
+                setDragItemId(null);
+                setDragCollectionId(null);
+              }}
+              className={cn(
+                "w-full flex items-center gap-1.5 px-2 py-[4px] rounded-md text-[length:var(--fs-sidebar)] font-medium text-text-secondary hover:bg-bg-hover transition-colors group",
+                isColDropTarget && "ring-1 ring-accent bg-accent/5"
+              )}
             >
               <motion.div
                 animate={{ rotate: expanded[col.id] ? 90 : 0 }}
@@ -638,6 +706,7 @@ function RequestItemWithTooltip({
   item, method, color, depth, isRenamingItem,
   renameValue, setRenameValue, commitItemRename, setRenamingId,
   handleOpenItem, handleItemContextMenu,
+  dragItemId, onDragStart, onDragEnd,
 }: {
   item: CollectionItem;
   method: string;
@@ -650,6 +719,9 @@ function RequestItemWithTooltip({
   setRenamingId: (id: string | null) => void;
   handleOpenItem: (item: CollectionItem) => void;
   handleItemContextMenu: (e: React.MouseEvent, item: { id: string; name: string; url: string | null; collectionId: string }) => void;
+  dragItemId: string | null;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
 }) {
   const { t } = useTranslation();
   const [showTooltip, setShowTooltip] = useState(false);
@@ -713,15 +785,21 @@ function RequestItemWithTooltip({
     <>
       <button
         ref={btnRef}
+        draggable={!isRenamingItem}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
         onClick={() => isRenamingItem ? undefined : handleOpenItem(item)}
         onContextMenu={(e) => handleItemContextMenu(e, { ...item, name: item.name, url: item.url, collectionId: item.collectionId })}
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
-        className="w-full flex items-center gap-2 pr-2 py-[3px] rounded-md text-[length:var(--fs-sidebar)] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item"
+        className={cn(
+          "w-full flex items-center gap-2 pr-2 py-[3px] rounded-md text-[length:var(--fs-sidebar)] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item",
+          dragItemId === item.id && "opacity-40"
+        )}
         style={{ paddingLeft: `${12 + depth * 14}px` }}
       >
         <span className={cn(
-          "text-[var(--fs-3xs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
+          "text-[9px] font-semibold px-[3px] py-[0.5px] rounded shrink-0 min-w-[26px] text-center leading-tight",
           color.text, color.bg
         )}>
           {method}
@@ -896,24 +974,24 @@ function HistoryView({ search }: { search: string }) {
                 key={h.id}
                 onClick={() => handleOpenHistoryEntry(h)}
                 onContextMenu={(e) => handleHistoryContextMenu(e, h)}
-                className="w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[var(--fs-sm)] hover:bg-bg-hover transition-colors group"
+                className="w-full flex items-center gap-1.5 px-2 py-[4px] rounded-md text-[var(--fs-3xs)] hover:bg-bg-hover transition-colors group text-left"
               >
                 <span className={cn(
-                  "text-[var(--fs-xxs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[32px] text-center",
+                  "text-[var(--fs-3xs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[28px] text-center",
                   color.text, color.bg
                 )}>
                   {h.method}
                 </span>
-                <span className="truncate font-mono text-[var(--fs-xs)] text-text-tertiary flex-1">{h.url}</span>
+                <span className="truncate font-mono text-[var(--fs-3xs)] text-text-tertiary flex-1 text-left">{h.url}</span>
                 {h.status && (
                   <span className={cn(
-                    "text-[var(--fs-xxs)] shrink-0 tabular-nums font-medium",
+                    "text-[var(--fs-3xs)] shrink-0 tabular-nums font-medium",
                     h.status < 400 ? "text-emerald-600" : "text-red-500"
                   )}>
                     {h.status}
                   </span>
                 )}
-                <span className="text-[var(--fs-xxs)] text-text-disabled shrink-0 hidden group-hover:inline">
+                <span className="text-[var(--fs-3xs)] text-text-disabled shrink-0 hidden group-hover:inline">
                   {formatTime(h.createdAt)}
                 </span>
               </button>
@@ -922,12 +1000,12 @@ function HistoryView({ search }: { search: string }) {
         </div>
       ))}
       {filtered.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+        <div className="flex flex-col items-start py-16 px-4">
           <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] border border-border-subtle bg-bg-hover shadow-sm">
             <Clock className="w-6 h-6 text-text-tertiary" />
           </div>
-          <p className="text-[var(--fs-base)] font-medium text-text-secondary">{search ? t('sidebar.noHistoryMatch') : t('sidebar.noHistory')}</p>
-          <p className="text-[var(--fs-xs)] mt-1 text-text-disabled leading-relaxed">{t('sidebar.noHistoryHint')}</p>
+          <p className="text-[var(--fs-sm)] font-medium text-text-secondary">{search ? t('sidebar.noHistoryMatch') : t('sidebar.noHistory')}</p>
+          <p className="text-[var(--fs-xxs)] mt-1 text-text-disabled leading-relaxed">{t('sidebar.noHistoryHint')}</p>
         </div>
       )}
       {MenuComponent}
@@ -935,23 +1013,20 @@ function HistoryView({ search }: { search: string }) {
   );
 }
 
-/* ── Environments View (Real Data) ── */
-function EnvironmentsView() {
+/* ── Environments View (Simplified — opens modal for editing) ── */
+function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
   const { t } = useTranslation();
   const environments = useEnvStore((s) => s.environments);
   const activeEnvId = useEnvStore((s) => s.activeEnvId);
   const setActive = useEnvStore((s) => s.setActive);
-  const deleteEnvironment = useEnvStore((s) => s.deleteEnvironment);
   const { showMenu, MenuComponent } = useContextMenu();
 
   const handleEnvContextMenu = (e: React.MouseEvent, env: { id: string; name: string }) => {
     const isActive = env.id === activeEnvId;
-    const menuItems: ContextMenuEntry[] = [
+    showMenu(e, [
       { id: "activate", label: isActive ? t('sidebar.deactivate') : t('sidebar.activate'), icon: <Zap className="w-3.5 h-3.5" />, onClick: () => setActive(isActive ? null : env.id) },
-      { type: "divider" },
-      { id: "delete", label: t('contextMenu.delete'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteEnvironment(env.id) },
-    ];
-    showMenu(e, menuItems);
+      { id: "edit-vars", label: "管理变量", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: onOpenEnvModal },
+    ]);
   };
 
   return (
@@ -959,44 +1034,44 @@ function EnvironmentsView() {
       {environments.map((env) => {
         const isActive = env.id === activeEnvId;
         return (
-          <div
-            key={env.id}
-            onClick={() => setActive(isActive ? null : env.id)}
-            onContextMenu={(e) => handleEnvContextMenu(e, env)}
-            className={cn(
-              "flex items-center gap-2 px-2 py-[6px] rounded-md text-[var(--fs-sm)] cursor-pointer transition-colors mb-0.5",
-              isActive
-                ? "text-text-secondary bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/8"
-                : "text-text-tertiary hover:bg-bg-hover border border-transparent"
-            )}
-          >
-            <div className={cn(
-              "w-[6px] h-[6px] rounded-[3px] shrink-0",
-              isActive ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" : "bg-border-strong"
-            )} />
-            <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-emerald-600" : "text-text-disabled")} />
-            <span className={cn("truncate", isActive && "font-medium")}>{env.name}</span>
-            {isActive && (
-              <span className="ml-auto rounded-[8px] bg-emerald-500/10 px-1.5 py-0.5 text-[var(--fs-xxs)] font-semibold text-emerald-600">{t('sidebar.active')}</span>
-            )}
+          <div key={env.id} className="mb-0.5">
+            <button
+              onClick={() => setActive(isActive ? null : env.id)}
+              onContextMenu={(e) => handleEnvContextMenu(e, env)}
+              className={cn(
+                "w-full flex items-center gap-2 px-2 py-[6px] rounded-md text-[length:var(--fs-sidebar)] cursor-pointer transition-colors",
+                isActive
+                  ? "text-text-secondary bg-emerald-500/5 hover:bg-emerald-500/8"
+                  : "text-text-tertiary hover:bg-bg-hover"
+              )}
+            >
+              <div className={cn(
+                "w-[6px] h-[6px] rounded-[3px] shrink-0",
+                isActive ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" : "bg-border-strong"
+              )} />
+              <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-emerald-600" : "text-text-disabled")} />
+              <span className={cn("truncate flex-1 text-left", isActive && "font-medium")}>{env.name}</span>
+              {isActive && (
+                <span className="rounded-[8px] bg-emerald-500/10 px-1.5 py-0.5 text-[var(--fs-3xs)] font-semibold text-emerald-600 shrink-0">{t('sidebar.active')}</span>
+              )}
+            </button>
           </div>
         );
       })}
 
-      {environments.length === 0 && (
-        <div className="mt-4 px-2">
-          <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-border-default text-text-tertiary hover:border-accent hover:text-accent transition-colors cursor-pointer group">
-            <div className="w-8 h-8 rounded-md bg-bg-hover flex items-center justify-center group-hover:bg-accent-soft transition-colors">
-              <Zap className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[var(--fs-sm)] font-medium">{t('sidebar.envVariables')}</p>
-              <p className="text-[var(--fs-xxs)] text-text-disabled">{t('sidebar.envVariablesHint')}</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* "管理变量" button */}
+      <div className="mt-2 px-1">
+        <button
+          onClick={onOpenEnvModal}
+          className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-dashed border-border-default text-[length:var(--fs-sidebar)] text-text-tertiary hover:border-accent hover:text-accent transition-colors"
+        >
+          <Zap className="w-3.5 h-3.5" />
+          <span>管理变量</span>
+        </button>
+      </div>
+
       {MenuComponent}
     </div>
   );
 }
+

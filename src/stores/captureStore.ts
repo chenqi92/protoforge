@@ -83,6 +83,7 @@ function createCaptureSessionStore(sessionId: string) {
       if (!listenerPromise) {
         listenerPromise = listen<CapturedEntry>("capture-event", (event) => {
           const entry = event.payload;
+          console.log("[CAPTURE] 收到事件:", entry.sessionId, "期望:", sessionId, "url:", entry.url, "匹配:", entry.sessionId === sessionId);
           if (entry.sessionId !== sessionId) {
             return;
           }

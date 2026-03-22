@@ -18,6 +18,7 @@ import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
 import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
 import { PluginModal } from "@/components/plugins/PluginModal";
 import { SettingsModal } from "@/components/settings/SettingsModal";
+import EnvironmentVariablesModal from "@/components/modals/EnvironmentVariablesModal";
 import { CollectionSettingsPanel } from "@/components/collections/CollectionSettingsPanel";
 import { useAppStore, type RequestProtocol, type ToolSession, type ToolWorkbench, type WorkbenchView } from "@/stores/appStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -405,6 +406,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [pluginModalOpen, setPluginModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [envModalOpen, setEnvModalOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [detachedToolSessions, setDetachedToolSessions] = useState<Record<ToolWorkbench, string[]>>({
     tcpudp: [],
@@ -577,7 +579,7 @@ function App() {
   }, []);
 
   const handleSidebarResize = useCallback((size: { asPercentage: number; inPixels: number }) => {
-    setSidebarCollapsed(size.inPixels <= 50);
+    setSidebarCollapsed(size.inPixels <= 52);
     if (size.asPercentage > 5) {
       useSettingsStore.getState().update("sidebarWidth", Math.round(size.asPercentage));
     }
@@ -585,10 +587,17 @@ function App() {
 
   const handleSidebarToggle = useCallback(() => {
     const ref = sidebarPanelRef.current;
-    if (ref) {
-      ref.isCollapsed() ? ref.expand() : ref.collapse();
+    if (!ref) return;
+    if (sidebarCollapsed) {
+      // 展开：先退出 collapsed 状态，再 resize 到已保存的宽度
+      ref.expand();
+      const width = useSettingsStore.getState().settings.sidebarWidth;
+      // 必须传字符串，数字会被解释为像素而非百分比
+      ref.resize(`${Math.max(width, 14)}%`);
+    } else {
+      ref.collapse();
     }
-  }, [sidebarPanelRef]);
+  }, [sidebarPanelRef, sidebarCollapsed]);
 
   const handleWelcomeAction = useCallback((action: WelcomeAction) => {
     switch (action) {
@@ -644,11 +653,11 @@ function App() {
           <PanelGroup orientation="horizontal">
             <Panel
               id="sidebar"
-              defaultSize="0"
-              minSize="14"
-              maxSize="50"
+              defaultSize="48px"
+              minSize="14%"
+              maxSize="50%"
               collapsible
-              collapsedSize="44px"
+              collapsedSize="48px"
               panelRef={sidebarPanelRef}
               onResize={handleSidebarResize}
               className="relative flex h-full shrink-0 flex-col"
@@ -656,9 +665,10 @@ function App() {
               <Sidebar
                 panelCollapsed={sidebarCollapsed}
                 onTogglePanel={handleSidebarToggle}
+                onOpenEnvModal={() => setEnvModalOpen(true)}
               />
             </Panel>
-            <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/70 transition-colors hover:bg-accent active:bg-accent" />
+            <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/60 transition-colors hover:bg-text-disabled" />
 
             <Panel className="flex flex-col overflow-hidden bg-transparent">
               <TabBar
@@ -784,6 +794,7 @@ function App() {
 
       <PluginModal open={pluginModalOpen} onClose={() => setPluginModalOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <EnvironmentVariablesModal open={envModalOpen} onClose={() => setEnvModalOpen(false)} />
       <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
       <UpdateChecker />
     </>

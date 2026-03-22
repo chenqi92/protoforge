@@ -565,9 +565,18 @@
     "emptyState": "Click \"Start Capture\" to launch the local HTTP proxy, then configure your browser proxy to capture traffic",
     "bodyNotSupported": "Response body capture is not supported (only Headers and metadata are recorded)",
     "openBrowser": "Browser",
-    "openBrowserHint": "Open built-in browser with traffic routed through capture proxy",
+    "openBrowserHint": "Set system proxy and open in default browser, auto-restore when capture stops",
     "browserUrlPlaceholder": "Enter URL to visit",
-    "browserProxyNotRunning": "Please start the capture proxy first"
+    "browserProxyNotRunning": "Please start the capture proxy first",
+    "caCertTitle": "Trust CA Certificate for HTTPS Capture",
+    "caCertDesc": "The capture proxy uses a self-signed CA certificate to decrypt HTTPS traffic. You need to install this certificate into your system trust store, otherwise browsers and apps will reject connections.",
+    "installCaCert": "Install to System",
+    "installCaCertHint": "Requires admin privileges",
+    "exportCaCert": "Export Certificate",
+    "caNotTrustedTitle": "⚠️ Install CA Certificate for HTTPS Capture",
+    "caNotTrustedDesc": "ProtoForge CA certificate is not installed in your system. HTTPS sites cannot be captured without it (browsers will reject the proxy certificate). Click to install automatically.",
+    "caTrustedTitle": "✅ CA Certificate Installed",
+    "caTrustedDesc": "ProtoForge CA certificate is installed and trusted. HTTPS traffic can be captured normally."
   },
   "loadtest": {
     "title": "HTTP Load Test",

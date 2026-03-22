@@ -70,7 +70,26 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
 
   const [portInput, setPortInput] = useState(String(port));
   const [caPath, setCaPath] = useState<string | null>(null);
+  const [caInstallStatus, setCaInstallStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [caTrusted, setCaTrusted] = useState<boolean | null>(null); // null = 未检查
   const listEndRef = useRef<HTMLDivElement>(null);
+
+  // 检查 CA 是否已信任
+  const checkCaTrust = useCallback(async () => {
+    try {
+      const trusted = await invoke<boolean>("proxy_check_ca_trusted");
+      setCaTrusted(trusted);
+      if (trusted) {
+        // 证书已安装，自动获取路径
+        try {
+          const path = await invoke<string>("proxy_export_ca");
+          setCaPath(path);
+        } catch { /* ignore */ }
+      }
+    } catch {
+      setCaTrusted(false);
+    }
+  }, []);
 
   // 初始化事件监听
   useEffect(() => {
@@ -91,8 +110,33 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
     listEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [entries.length]);
 
+  // 代理启动后检查 CA 信任状态
+  useEffect(() => {
+    if (running) {
+      checkCaTrust();
+    }
+  }, [running, checkCaTrust]);
+
+  // 轮询后备：每 2 秒从后端拉取条目（确保事件推送失败时也能展示）
+  useEffect(() => {
+    if (!running) return;
+    const interval = setInterval(() => {
+      loadEntries();
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [running, loadEntries]);
+
   const handleToggleCapture = useCallback(async () => {
     if (running) {
+      // 停止抓包时恢复系统代理
+      if (proxyServiceRef.current) {
+        try {
+          await invoke("close_proxy_browser", { serviceName: proxyServiceRef.current });
+        } catch (e) {
+          console.warn("恢复系统代理失败:", e);
+        }
+        proxyServiceRef.current = null;
+      }
       await stopCapture();
     } else {
       const p = parseInt(portInput, 10);
@@ -110,6 +154,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
     }
   }, [exportCaCert]);
 
+  const proxyServiceRef = useRef<string | null>(null);
   const [browserUrl, setBrowserUrl] = useState("");
   const [showBrowserInput, setShowBrowserInput] = useState(false);
 
@@ -117,10 +162,11 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
     if (!running) return;
     const urlToOpen = browserUrl.trim() || "https://www.example.com";
     try {
-      await invoke("open_proxy_browser", {
+      const serviceName = await invoke<string>("open_proxy_browser", {
         url: urlToOpen,
         proxyPort: parseInt(portInput, 10),
       });
+      proxyServiceRef.current = serviceName;
       setShowBrowserInput(false);
       setBrowserUrl("");
     } catch (e) {
@@ -233,28 +279,86 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
         </div>
       </div>
 
-      {/* CA 证书提示 */}
+      {/* CA 证书状态面板 — 根据安装状态显示不同样式 */}
       <AnimatePresence>
-        {caPath && (
+        {running && caTrusted !== null && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-3 flex items-center justify-between rounded-[10px] border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-[var(--fs-xs)]">
-              <div className="flex items-center gap-2">
-                <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span className="text-amber-700">
-                  {t('capture.caPath')}: <code className="font-mono text-[var(--fs-xxs)] bg-amber-500/10 px-1 py-0.5 rounded">{caPath}</code>
-                </span>
+            <div className={cn(
+              "mt-3 rounded-[10px] border px-4 py-3 text-[var(--fs-xs)]",
+              caTrusted
+                ? "border-emerald-500/20 bg-emerald-500/5"
+                : "border-orange-500/30 bg-gradient-to-r from-orange-500/10 to-amber-500/10"
+            )}>
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "shrink-0 mt-0.5 w-6 h-6 rounded-full flex items-center justify-center",
+                  caTrusted ? "bg-emerald-500/20" : "bg-orange-500/20"
+                )}>
+                  <Shield className={cn("w-3.5 h-3.5", caTrusted ? "text-emerald-600" : "text-orange-600")} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={cn("font-semibold mb-1", caTrusted ? "text-emerald-700" : "text-orange-700")}>
+                    {caTrusted ? t('capture.caTrustedTitle') : t('capture.caNotTrustedTitle')}
+                  </div>
+                  <p className="text-text-tertiary text-[var(--fs-xxs)] mb-2 leading-relaxed">
+                    {caTrusted ? t('capture.caTrustedDesc') : t('capture.caNotTrustedDesc')}
+                  </p>
+                  {caPath && (
+                    <code className={cn(
+                      "font-mono text-[var(--fs-xxs)] px-1.5 py-0.5 rounded break-all",
+                      caTrusted ? "bg-emerald-500/10 text-emerald-700" : "bg-orange-500/10 text-orange-700"
+                    )}>{caPath}</code>
+                  )}
+                  {!caTrusted && (
+                    <div className="flex items-center gap-2 mt-2.5">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const msg = await invoke<string>("proxy_install_ca");
+                            setCaInstallStatus({ ok: true, msg });
+                            // 延迟重新检查信任状态
+                            setTimeout(() => checkCaTrust(), 1500);
+                          } catch (e) {
+                            setCaInstallStatus({ ok: false, msg: String(e) });
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[var(--fs-xxs)] font-semibold transition-colors shadow-sm"
+                      >
+                        <Shield className="w-3 h-3" />
+                        {t('capture.installCaCert')}
+                      </button>
+                      <button
+                        onClick={handleExportCA}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-hover text-text-secondary text-[var(--fs-xxs)] font-medium transition-colors"
+                      >
+                        {t('capture.exportCaCert')}
+                      </button>
+                      <span className="text-text-disabled text-[var(--fs-xxs)]">{t('capture.installCaCertHint')}</span>
+                    </div>
+                  )}
+                  {caInstallStatus && (
+                    <div className={cn(
+                      "mt-2 px-2.5 py-1.5 rounded-lg text-[var(--fs-xxs)]",
+                      caInstallStatus.ok
+                        ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                        : "bg-red-500/10 text-red-500 border border-red-500/20"
+                    )}>
+                      {caInstallStatus.msg}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setCaTrusted(null)}
+                  className="text-text-tertiary hover:text-text-primary transition-colors px-1 mt-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
               </div>
-              <button
-                onClick={() => setCaPath(null)}
-                className="text-text-tertiary hover:text-text-primary transition-colors px-1"
-              >
-                <X className="w-3 h-3" />
-              </button>
             </div>
           </motion.div>
         )}

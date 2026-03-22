@@ -25,6 +25,7 @@ interface CollectionStore {
   importPostman: (json: string) => Promise<void>;
   exportPostman: (id: string) => Promise<string>;
   renameItem: (id: string, collectionId: string, name: string) => Promise<void>;
+  moveItem: (id: string, collectionId: string, newParentId: string | null) => Promise<void>;
   saveRequest: (item: CollectionItem) => Promise<CollectionItem>;
   loadItems: (collectionId: string) => Promise<void>;
 }
@@ -168,6 +169,32 @@ export const useCollectionStore = create<CollectionStore>((set, get) => ({
     const item = items.find((i) => i.id === id);
     if (!item) return;
     const updated = { ...item, name, updatedAt: nowISO() };
+    await svc.updateCollectionItem(updated);
+    set((s) => ({
+      items: {
+        ...s.items,
+        [collectionId]: (s.items[collectionId] || []).map((i) =>
+          i.id === id ? updated : i
+        ),
+      },
+    }));
+  },
+
+  moveItem: async (id: string, collectionId: string, newParentId: string | null) => {
+    const items = get().items[collectionId] || [];
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+    // Prevent moving a folder into itself or its own descendants
+    if (newParentId === id) return;
+    if (item.itemType === 'folder') {
+      let checkId: string | null = newParentId;
+      while (checkId) {
+        if (checkId === id) return; // circular
+        const parent = items.find((i) => i.id === checkId);
+        checkId = parent?.parentId ?? null;
+      }
+    }
+    const updated = { ...item, parentId: newParentId, updatedAt: nowISO() };
     await svc.updateCollectionItem(updated);
     set((s) => ({
       items: {

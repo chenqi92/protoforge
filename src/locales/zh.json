@@ -566,9 +566,18 @@
     "emptyState": "点击 \"开始抓包\" 启动本地 HTTP 代理，然后配置浏览器代理以捕获流量",
     "bodyNotSupported": "响应体抓取暂不支持（仅记录 Headers 和元数据）",
     "openBrowser": "浏览器",
-    "openBrowserHint": "打开内置浏览器，流量自动经过抓包代理",
+    "openBrowserHint": "设置系统代理并在默认浏览器中打开，停止抓包时自动恢复",
     "browserUrlPlaceholder": "输入要访问的 URL",
-    "browserProxyNotRunning": "请先启动抓包代理"
+    "browserProxyNotRunning": "请先启动抓包代理",
+    "caCertTitle": "HTTPS 抓包需要信任 CA 证书",
+    "caCertDesc": "抓包代理使用自签 CA 证书解密 HTTPS 流量。你需要将该证书安装到系统信任库，否则浏览器和应用会拒绝连接。安装后即可正常抓取 HTTPS 请求。",
+    "installCaCert": "一键安装到系统",
+    "installCaCertHint": "需要管理员权限",
+    "exportCaCert": "手动导出证书",
+    "caNotTrustedTitle": "⚠️ HTTPS 抓包需要先安装 CA 证书",
+    "caNotTrustedDesc": "检测到系统中未安装 ProtoForge CA 证书。如果不安装，HTTPS 网站将无法正常抓取（浏览器会拒绝代理证书）。点击一键安装即可自动完成配置。",
+    "caTrustedTitle": "✅ CA 证书已安装",
+    "caTrustedDesc": "ProtoForge CA 证书已安装到系统信任库，HTTPS 流量可以正常抓取。"
   },
   "loadtest": {
     "title": "HTTP 压测",

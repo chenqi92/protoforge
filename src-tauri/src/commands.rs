@@ -324,15 +324,51 @@ pub async fn open_oauth_window(
 //  抓包内置浏览器
 // ═══════════════════════════════════════════
 
-/// 打开代理浏览器窗口，流量经过抓包代理
+/// 获取 macOS 当前网络服务名称（Wi-Fi / Ethernet 等）
+#[cfg(target_os = "macos")]
+fn get_active_network_service() -> Option<String> {
+    // 获取默认网络接口
+    let route_output = std::process::Command::new("route")
+        .args(["get", "default"])
+        .output()
+        .ok()?;
+    let route_str = String::from_utf8_lossy(&route_output.stdout);
+    let interface = route_str.lines()
+        .find(|l| l.contains("interface:"))?
+        .split("interface:")
+        .nth(1)?
+        .trim()
+        .to_string();
+
+    // 从 networksetup 中找到对应的网络服务名
+    let services_output = std::process::Command::new("networksetup")
+        .args(["-listallhardwareports"])
+        .output()
+        .ok()?;
+    let services_str = String::from_utf8_lossy(&services_output.stdout);
+
+    let mut current_service: Option<String> = None;
+    for line in services_str.lines() {
+        if line.starts_with("Hardware Port:") {
+            current_service = line.split(": ").nth(1).map(|s| s.to_string());
+        }
+        if line.starts_with("Device:") {
+            let device = line.split(": ").nth(1).unwrap_or("").trim();
+            if device == interface {
+                return current_service;
+            }
+        }
+    }
+    None
+}
+
 #[tauri::command]
 pub async fn open_proxy_browser(
-    app: AppHandle,
+    _app: tauri::AppHandle,
     url: String,
     proxy_port: u16,
 ) -> Result<String, String> {
-    use tauri::WebviewWindowBuilder;
-
+    // 确保 URL 有协议前缀
     let target_url = if url.is_empty() {
         "https://www.example.com".to_string()
     } else if !url.starts_with("http://") && !url.starts_with("https://") {
@@ -341,32 +377,108 @@ pub async fn open_proxy_browser(
         url
     };
 
-    let parsed = reqwest::Url::parse(&target_url)
-        .map_err(|e| format!("URL 解析失败: {}", e))?;
+    log::info!("打开代理浏览器: url={}, proxy_port={}", target_url, proxy_port);
 
-    let label = format!("proxy-browser-{}", uuid::Uuid::new_v4().to_string().replace("-", "").chars().take(8).collect::<String>());
+    #[cfg(target_os = "macos")]
+    {
+        // macOS: 设置系统代理 → 打开默认浏览器
+        let service = get_active_network_service()
+            .unwrap_or_else(|| "Wi-Fi".to_string());
 
-    let mut builder = WebviewWindowBuilder::new(
-        &app,
-        &label,
-        tauri::WebviewUrl::External(parsed),
-    )
-    .title(format!("ProtoForge Browser — proxy 127.0.0.1:{}", proxy_port))
-    .inner_size(1200.0, 800.0)
-    .center()
-    .decorations(true)
-    .resizable(true);
+        log::info!("设置系统代理: service={}, proxy=127.0.0.1:{}", service, proxy_port);
 
-    // 设置代理
-    builder = builder.proxy_url(
-        reqwest::Url::parse(&format!("http://127.0.0.1:{}", proxy_port))
-            .map_err(|e| format!("代理 URL 解析失败: {}", e))?
-    );
+        let port_str = proxy_port.to_string();
 
-    builder.build()
-        .map_err(|e| format!("创建浏览器窗口失败: {}", e))?;
+        // 设置 HTTP 代理参数
+        let _ = std::process::Command::new("networksetup")
+            .args(["-setwebproxy", &service, "127.0.0.1", &port_str])
+            .output();
+        // 启用 HTTP 代理
+        let _ = std::process::Command::new("networksetup")
+            .args(["-setwebproxystate", &service, "on"])
+            .output();
+        // 设置 HTTPS 代理参数
+        let _ = std::process::Command::new("networksetup")
+            .args(["-setsecurewebproxy", &service, "127.0.0.1", &port_str])
+            .output();
+        // 启用 HTTPS 代理
+        let _ = std::process::Command::new("networksetup")
+            .args(["-setsecurewebproxystate", &service, "on"])
+            .output();
 
-    Ok(label)
+        // 打开默认浏览器
+        let _ = std::process::Command::new("open")
+            .arg(&target_url)
+            .output();
+
+        Ok(service)
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let proxy_value = format!("127.0.0.1:{}", proxy_port);
+        let _ = std::process::Command::new("reg")
+            .args([
+                "add",
+                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "1", "/f",
+            ])
+            .output();
+        let _ = std::process::Command::new("reg")
+            .args([
+                "add",
+                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                "/v", "ProxyServer", "/t", "REG_SZ", "/d", &proxy_value, "/f",
+            ])
+            .output();
+        let _ = std::process::Command::new("cmd")
+            .args(["/c", "start", &target_url])
+            .output();
+
+        Ok("windows".to_string())
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        Err("当前平台不支持系统代理设置".to_string())
+    }
+}
+
+/// 关闭系统代理（在抓包停止时调用）
+#[tauri::command]
+pub async fn close_proxy_browser(
+    service_name: String,
+) -> Result<(), String> {
+    log::info!("恢复系统代理设置: service={}", service_name);
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("networksetup")
+            .args(["-setwebproxystate", &service_name, "off"])
+            .output();
+        let _ = std::process::Command::new("networksetup")
+            .args(["-setsecurewebproxystate", &service_name, "off"])
+            .output();
+        Ok(())
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("reg")
+            .args([
+                "add",
+                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings",
+                "/v", "ProxyEnable", "/t", "REG_DWORD", "/d", "0", "/f",
+            ])
+            .output();
+        Ok(())
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = service_name;
+        Ok(())
+    }
 }
 
 // ═══════════════════════════════════════════
@@ -884,7 +996,7 @@ pub async fn proxy_export_ca(
 }
 
 /// 一键安装 CA 证书到系统信任库
-/// macOS: security add-trusted-cert
+/// macOS: security import + open（触发原生证书信任对话框）
 /// Windows: certutil -addstore Root
 #[tauri::command]
 pub async fn proxy_install_ca(
@@ -902,34 +1014,36 @@ pub async fn proxy_install_ca(
 
     #[cfg(target_os = "macos")]
     {
-        // macOS: 使用 security 命令安装到系统钥匙串
+        // macOS 策略:
+        // 直接使用 security add-trusted-cert (用户域，不加 -d)
+        // macOS 安全框架会弹出原生密码/授权对话框
         let output = std::process::Command::new("security")
-            .args([
-                "add-trusted-cert",
-                "-d",                    // 添加到 admin cert store
-                "-r", "trustRoot",       // 设为信任根证书
-                "-k", "/Library/Keychains/System.keychain",
-                &cert_path_str,
-            ])
+            .args(["add-trusted-cert", "-r", "trustRoot", &cert_path_str])
             .output()
             .map_err(|e| format!("执行 security 命令失败: {}", e))?;
 
         if output.status.success() {
-            Ok("CA 证书已安装到系统钥匙串并设为信任".to_string())
+            Ok("CA 证书已安装并设为信任".to_string())
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            // 用户拒绝了权限请求
-            if stderr.contains("canceled") || stderr.contains("User canceled") {
-                Err("用户取消了证书安装".to_string())
-            } else {
-                Err(format!("安装 CA 证书失败: {}", stderr))
-            }
+            log::warn!("security add-trusted-cert 失败: {}", stderr);
+
+            // 回退方案：打开钥匙串访问，让用户手动信任
+            let _ = std::process::Command::new("security")
+                .args(["import", &cert_path_str, "-t", "cert"])
+                .output();
+
+            let _ = std::process::Command::new("open")
+                .args(["-a", "Keychain Access"])
+                .output();
+
+            Ok("已打开钥匙串访问。请搜索「ProtoForge CA」，双击证书 → 展开「信任」→ 选择「始终信任」".to_string())
         }
     }
 
     #[cfg(target_os = "windows")]
     {
-        // Windows: 使用 certutil 命令安装到受信任根证书存储
+        // Windows: 使用 certutil 命令安装到受信任根证书存储（会弹出 UAC）
         let output = std::process::Command::new("certutil")
             .args(["-addstore", "Root", &cert_path_str])
             .output()
@@ -947,6 +1061,48 @@ pub async fn proxy_install_ca(
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         Err("当前平台不支持自动安装 CA 证书，请手动导入".to_string())
+    }
+}
+
+/// 检查 CA 证书是否已安装到系统信任库
+#[tauri::command]
+pub async fn proxy_check_ca_trusted(
+    state: State<'_, ProxyState>,
+) -> Result<bool, String> {
+    let cert_path = {
+        let path = state.ca_cert_path.lock().await;
+        match &*path {
+            Some(p) => p.clone(),
+            None => return Ok(false),
+        }
+    };
+
+    #[cfg(target_os = "macos")]
+    {
+        // 检查系统钥匙串中是否包含 ProtoForge CA
+        let output = std::process::Command::new("security")
+            .args(["find-certificate", "-c", "ProtoForge CA", "/Library/Keychains/System.keychain"])
+            .output()
+            .map_err(|e| format!("执行 security 命令失败: {}", e))?;
+
+        Ok(output.status.success())
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // 检查受信任根证书存储中是否包含证书
+        let output = std::process::Command::new("certutil")
+            .args(["-verify", &cert_path.to_string_lossy()])
+            .output()
+            .map_err(|e| format!("执行 certutil 命令失败: {}", e))?;
+
+        Ok(output.status.success())
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = cert_path;
+        Ok(false)
     }
 }
 

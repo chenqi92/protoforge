@@ -100,6 +100,7 @@ pub fn run() {
             commands::open_oauth_window,
             // Proxy Browser
             commands::open_proxy_browser,
+            commands::close_proxy_browser,
             // Collections
             commands::list_collections,
             commands::create_collection,
@@ -170,6 +171,7 @@ pub fn run() {
             commands::proxy_clear,
             commands::proxy_export_ca,
             commands::proxy_install_ca,
+            commands::proxy_check_ca_trusted,
             // Plugins
             commands::plugin_list,
             commands::plugin_list_available,

@@ -178,8 +178,11 @@ impl HttpHandler for CaptureHandler {
         let method = req.method().to_string();
         let url = extract_url(&req);
 
+        log::info!("[CAPTURE] 收到请求: {} {} (session={})", method, url, self.session_id);
+
         // 跳过 CONNECT 请求本身（HTTPS 隧道建立阶段）
         if method == "CONNECT" {
+            log::info!("[CAPTURE] CONNECT 隧道请求，跳过捕获: {}", url);
             return req.into();
         }
 
@@ -224,7 +227,11 @@ impl HttpHandler for CaptureHandler {
             completed: false,
         };
 
-        let _ = self.app.emit("capture-event", &pending_entry);
+        log::info!("[CAPTURE] 推送 pending entry: id={}, session={}, url={}", entry_id, self.session_id, url);
+        let emit_result = self.app.emit("capture-event", &pending_entry);
+        if let Err(e) = &emit_result {
+            log::error!("[CAPTURE] emit 失败: {:?}", e);
+        }
 
         // 存入当前实例的 request 元数据
         let meta = RequestMeta {
@@ -300,8 +307,12 @@ impl HttpHandler for CaptureHandler {
                 completed: true,
             };
 
+            log::info!("[CAPTURE] 推送 completed entry: id={}, session={}, status={}, url={}", entry.id, self.session_id, status, entry.url);
             // 推送完整条目到前端
-            let _ = self.app.emit("capture-event", &entry);
+            let emit_result = self.app.emit("capture-event", &entry);
+            if let Err(e) = &emit_result {
+                log::error!("[CAPTURE] emit 失败: {:?}", e);
+            }
 
             // 存入历史列表（限制最大 5000 条）
             let mut entries = self.entries.lock().await;
