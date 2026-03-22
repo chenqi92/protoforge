@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download } from 'lucide-react';
+import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { CodeEditor } from '@/components/common/CodeEditor';
@@ -156,23 +156,31 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     return tabs;
   }, [contentType, responseHeaders, installedPlugins]);
 
-  // Detect content type
+  // Detect content type — skip expensive parsing for binary
   const isJson = useMemo(() => {
+    if (isBinary) return false;
     if (contentType?.includes('json')) return true;
     try { JSON.parse(body); return true; } catch { return false; }
-  }, [body, contentType]);
+  }, [body, contentType, isBinary]);
 
   const isHtml = useMemo(() => {
+    if (isBinary) return false;
     return contentType?.includes('html') || body.trimStart().startsWith('<!') || body.trimStart().startsWith('<html');
-  }, [body, contentType]);
+  }, [body, contentType, isBinary]);
 
   const isXml = useMemo(() => {
+    if (isBinary) return false;
     return contentType?.includes('xml') || body.trimStart().startsWith('<?xml');
-  }, [body, contentType]);
+  }, [body, contentType, isBinary]);
 
   // Available modes
   const availableModes = useMemo(() => {
     if (modes) return modes;
+    if (isBinary) {
+      // 二进制响应：默认显示文件信息卡片，可选 Hex 预览
+      const m: ViewMode[] = ['raw', 'hex'];
+      return m;
+    }
     const m: ViewMode[] = [];
     if (isJson) m.push('json');
     m.push('raw');
@@ -180,7 +188,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     if (isHtml) m.push('preview');
     m.push('hex');
     return m;
-  }, [modes, isJson, isHtml]);
+  }, [modes, isJson, isHtml, isBinary]);
 
   // 联合 tab：内置 + 插件
   type ActiveTab = ViewMode | `plugin:${string}`;
@@ -196,35 +204,36 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     setTimeout(() => setCopied(false), 2000);
   }, [body]);
 
-  // Parsed JSON data
+  // Parsed JSON data — skip for binary
   const jsonData = useMemo(() => {
-    if (!isJson) return null;
+    if (isBinary || !isJson) return null;
     try { return JSON.parse(body); } catch { return null; }
-  }, [body, isJson]);
+  }, [body, isJson, isBinary]);
 
-  // Formatted raw text (for XML/JSON pretty-print)
+  // Formatted raw text (for XML/JSON pretty-print) — skip for binary
   const prettyBody = useMemo(() => {
+    if (isBinary) return '';
     if (isJson) {
       try { return JSON.stringify(JSON.parse(body), null, 2); } catch { return body; }
     }
     if (isXml) {
       // Simple XML formatting
-      return body.replace(/></g, '>\n<').replace(/(<[^\/!][^>]*>)/g, '\n$1');
+      return body.replace(/><|/g, '>\n<').replace(/(<[^\/!][^>]*>)/g, '\n$1');
     }
     return body;
-  }, [body, isJson, isXml]);
+  }, [body, isJson, isXml, isBinary]);
 
-  // For binary responses, decode base64 to text for Raw view
+  // For binary responses, skip raw text decoding (this was causing the UI freeze)
   const rawDisplayBody = useMemo(() => {
-    if (!isBinary) return body;
-    try {
-      const binary = atob(body);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-    } catch {
-      return body;
-    }
+    if (isBinary) return '';
+    return body;
+  }, [body, isBinary]);
+
+  // 二进制文件真实大小（从 base64 反算）
+  const binaryFileSize = useMemo(() => {
+    if (!isBinary) return 0;
+    const padding = (body.match(/=+$/) || [''])[0].length;
+    return Math.floor((body.length * 3) / 4) - padding;
   }, [body, isBinary]);
 
   const searchCount = useMemo(() => {
@@ -239,7 +248,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
 
   const modeLabels: Record<ViewMode, string> = {
     json: 'JSON',
-    raw: 'Raw',
+    raw: isBinary ? t('response.fileInfo', { defaultValue: '文件信息' }) : 'Raw',
     base64: 'Base64',
     preview: t('response.preview'),
     hex: 'Hex',
@@ -301,30 +310,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
               <Search className="w-3 h-3" />
             </button>
 
-            {/* Save binary response to file */}
-            {isBinary && (
-              <button
-                onClick={async () => {
-                  const disposition = getHeaderValue(responseHeaders, 'content-disposition');
-                  const filenameMatch = disposition.match(/filename[*]?=["']?([^"';\s]+)/i);
-                  const suggested = filenameMatch?.[1] || 'response.bin';
-                  try {
-                    await invoke('save_response_body', {
-                      bodyBase64: body,
-                      suggestedName: suggested,
-                    });
-                  } catch (e) {
-                    // 用户取消保存或其他错误
-                    console.warn('保存失败:', e);
-                  }
-                }}
-                className="h-6 px-2 flex items-center gap-1 rounded-md text-text-tertiary hover:bg-bg-hover transition-colors" style={{ fontSize: 'var(--fs-xs)' }}
-                title="另存为"
-              >
-                <Download className="w-3 h-3" />
-                <span>另存为</span>
-              </button>
-            )}
+
 
             {/* Word wrap */}
             <button
@@ -389,21 +375,30 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
           )}
 
           {activeBuiltinMode === 'raw' && (
-            <div className={cn("max-w-full", !wordWrap && "overflow-x-auto")}>
-              <pre
-                className={cn(
-                  'font-mono text-text-primary leading-[20px]',
-                  wordWrap ? 'whitespace-pre-wrap break-all' : 'min-w-max whitespace-pre'
-                )}
-                style={{ fontSize: 'var(--fs-sm)' }}
-              >
-                {searchText ? (
-                  <HighlightedText text={rawDisplayBody} search={searchText} />
-                ) : (
-                  rawDisplayBody
-                )}
-              </pre>
-            </div>
+            isBinary ? (
+              <BinaryFileCard
+                contentType={contentType}
+                fileSize={binaryFileSize}
+                body={body}
+                responseHeaders={responseHeaders}
+              />
+            ) : (
+              <div className={cn("max-w-full", !wordWrap && "overflow-x-auto")}>
+                <pre
+                  className={cn(
+                    'font-mono text-text-primary leading-[20px]',
+                    wordWrap ? 'whitespace-pre-wrap break-all' : 'min-w-max whitespace-pre'
+                  )}
+                  style={{ fontSize: 'var(--fs-sm)' }}
+                >
+                  {searchText ? (
+                    <HighlightedText text={rawDisplayBody} search={searchText} />
+                  ) : (
+                    rawDisplayBody
+                  )}
+                </pre>
+              </div>
+            )
           )}
 
           {activeBuiltinMode === 'base64' && (
@@ -500,6 +495,285 @@ function Base64View({ body, isBinary, wordWrap, searchText }: {
       </pre>
     </div>
   );
+}
+
+/* ── Binary file preview / info card ── */
+function BinaryFileCard({ contentType, fileSize, body, responseHeaders }: {
+  contentType?: string | null;
+  fileSize: number;
+  body: string;
+  responseHeaders?: Record<string, string> | Array<[string, string]>;
+}) {
+  const { t } = useTranslation();
+
+  const ct = (contentType || '').toLowerCase();
+
+  // ── 魔数嗅探 ──
+  const sniffedMime = useMemo(() => {
+    return detectMimeFromBase64(body, ct);
+  }, [body, ct]);
+
+  // ── 分类 ──
+  const previewKind = useMemo(() => {
+    if (sniffedMime.includes('image/')) return 'image' as const;
+    if (sniffedMime.includes('pdf')) return 'pdf' as const;
+    if (sniffedMime.includes('audio/') || sniffedMime.includes('mpeg') || sniffedMime.includes('wav') || sniffedMime.includes('ogg')) return 'audio' as const;
+    if (sniffedMime.includes('video/')) return 'video' as const;
+    return 'generic' as const;
+  }, [sniffedMime]);
+
+  // ── 文件大小标签 ──
+  const sizeLabel = fileSize < 1024
+    ? `${fileSize} B`
+    : fileSize < 1024 * 1024
+      ? `${(fileSize / 1024).toFixed(1)} KB`
+      : `${(fileSize / (1024 * 1024)).toFixed(2)} MB`;
+
+  // ── 文件类型标签 ──
+  const fileTypeLabel = useMemo(() => {
+    if (sniffedMime.includes('pdf')) return 'PDF';
+    if (sniffedMime.includes('zip')) return 'ZIP';
+    if (sniffedMime.includes('gzip')) return 'GZIP';
+    if (sniffedMime.includes('tar')) return 'TAR';
+    if (sniffedMime.includes('png')) return 'PNG';
+    if (sniffedMime.includes('jpeg') || sniffedMime.includes('jpg')) return 'JPEG';
+    if (sniffedMime.includes('gif')) return 'GIF';
+    if (sniffedMime.includes('webp')) return 'WebP';
+    if (sniffedMime.includes('svg')) return 'SVG';
+    if (sniffedMime.includes('mp4')) return 'MP4';
+    if (sniffedMime.includes('mp3') || sniffedMime.includes('mpeg')) return 'MP3';
+    if (sniffedMime.includes('wav')) return 'WAV';
+    if (sniffedMime.includes('spreadsheetml') || sniffedMime.includes('ms-excel')) return 'Excel';
+    if (sniffedMime.includes('wordprocessingml') || sniffedMime.includes('msword')) return 'Word';
+    if (sniffedMime.includes('presentationml') || sniffedMime.includes('ms-powerpoint')) return 'PowerPoint';
+    if (ct.includes('protobuf')) return 'Protobuf';
+    if (ct.includes('wasm')) return 'WebAssembly';
+    if (ct.includes('octet-stream')) return t('response.binaryFile', { defaultValue: '二进制文件' });
+    if (ct.includes('image/')) return t('response.imageFile', { defaultValue: '图片' });
+    if (ct.includes('audio/')) return t('response.audioFile', { defaultValue: '音频' });
+    if (ct.includes('video/')) return t('response.videoFile', { defaultValue: '视频' });
+    return t('response.binaryFile', { defaultValue: '二进制文件' });
+  }, [ct, t]);
+
+  // ── 从 Content-Disposition 中提取文件名 ──
+  const fileName = useMemo(() => {
+    const disposition = getHeaderValue(responseHeaders, 'content-disposition');
+    const match = disposition.match(/filename[*]?=["']?([^"';\s]+)/i);
+    return match?.[1] || null;
+  }, [responseHeaders]);
+
+  // ── 另存为 ──
+  const handleSave = useCallback(async () => {
+    const suggested = fileName || `response.${guessExtension(sniffedMime)}`;
+    try {
+      await invoke('save_response_body', {
+        bodyBase64: body,
+        suggestedName: suggested,
+      });
+    } catch (e) {
+      console.warn('保存失败:', e);
+    }
+  }, [body, sniffedMime, fileName]);
+
+  // ── 图片/PDF/音视频：生成 data URL 或 blob URL ──
+  const mediaUrl = useMemo(() => {
+    if (previewKind === 'image') {
+      // 图片直接用 data URL（避免 blob 生命周期问题）
+      // 如果后端传的是 application/octet-stream，直接用 data URL 渲染可能会失败，所以强制指定 image mime
+      let mime = sniffedMime;
+      if (!mime.includes('image/')) mime = 'image/jpeg';
+      return `data:${mime};base64,${body}`;
+    }
+    if (previewKind === 'pdf' || previewKind === 'audio' || previewKind === 'video') {
+      // PDF/音视频用 Blob URL
+      try {
+        const binary = atob(body);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: sniffedMime || 'application/octet-stream' });
+        return URL.createObjectURL(blob);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [body, sniffedMime, previewKind]);
+
+  // 清理 blob URL
+  useEffect(() => {
+    return () => {
+      if (mediaUrl && mediaUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(mediaUrl);
+      }
+    };
+  }, [mediaUrl]);
+
+  // ── 底部工具栏（所有类型通用） ──
+  const toolbar = (
+    <div className="flex items-center gap-3 shrink-0 border-t border-border-default/60 bg-bg-secondary/40 px-4 py-2.5">
+      <FileBox className="h-4 w-4 text-text-disabled shrink-0" />
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <span className="font-semibold text-text-primary truncate" style={{ fontSize: 'var(--fs-sm)' }}>
+          {fileName || fileTypeLabel}
+        </span>
+        <span className="text-text-disabled" style={{ fontSize: 'var(--fs-xs)' }}>·</span>
+        <span className="text-text-tertiary shrink-0" style={{ fontSize: 'var(--fs-xs)' }}>
+          {sniffedMime || 'unknown'}
+        </span>
+        <span className="text-text-disabled" style={{ fontSize: 'var(--fs-xs)' }}>·</span>
+        <span className="text-text-disabled tabular-nums shrink-0" style={{ fontSize: 'var(--fs-xs)' }}>
+          {sizeLabel}
+        </span>
+      </div>
+      <button
+        onClick={handleSave}
+        className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 font-medium text-white shadow-sm transition-colors hover:bg-accent-hover shrink-0"
+        style={{ fontSize: 'var(--fs-xs)' }}
+      >
+        <Download className="h-3.5 w-3.5" />
+        {t('response.saveToFile', { defaultValue: '另存为' })}
+      </button>
+    </div>
+  );
+
+  // ── 图片预览 ──
+  if (previewKind === 'image' && mediaUrl) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="flex-1 min-h-0 flex items-center justify-center overflow-auto p-4 bg-[repeating-conic-gradient(var(--color-border-default)_0%_25%,transparent_0%_50%)_50%/20px_20px]">
+          <img
+            src={mediaUrl}
+            alt={fileName || 'Response image'}
+            className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
+            style={{ imageRendering: 'auto' }}
+          />
+        </div>
+        {toolbar}
+      </div>
+    );
+  }
+
+  // ── PDF 预览 ──
+  if (previewKind === 'pdf' && mediaUrl) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="flex-1 min-h-0">
+          <iframe
+            src={mediaUrl}
+            title="PDF Preview"
+            className="w-full h-full border-0 rounded-lg"
+          />
+        </div>
+        {toolbar}
+      </div>
+    );
+  }
+
+  // ── 音频预览 ──
+  if (previewKind === 'audio' && mediaUrl) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="flex-1 min-h-0 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-5">
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-violet-500/10">
+              <span className="text-3xl">🎵</span>
+            </div>
+            <span className="font-semibold text-text-primary" style={{ fontSize: 'var(--fs-base)' }}>
+              {fileName || fileTypeLabel}
+            </span>
+            <audio controls src={mediaUrl} className="w-[360px] max-w-full" />
+          </div>
+        </div>
+        {toolbar}
+      </div>
+    );
+  }
+
+  // ── 视频预览 ──
+  if (previewKind === 'video' && mediaUrl) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="flex-1 min-h-0 flex items-center justify-center overflow-auto p-4">
+          <video
+            controls
+            src={mediaUrl}
+            className="max-w-full max-h-full rounded-lg shadow-sm"
+          />
+        </div>
+        {toolbar}
+      </div>
+    );
+  }
+
+  // ── 通用二进制文件（不可预览） ──
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex-1 min-h-0 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-5 rounded-[20px] border border-border-default/60 bg-bg-secondary/40 px-12 py-10 shadow-sm">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10">
+            <FileBox className="h-8 w-8 text-accent" />
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="text-text-primary font-semibold" style={{ fontSize: 'var(--fs-base)' }}>
+              {fileName || fileTypeLabel}
+            </span>
+            <span className="text-text-tertiary" style={{ fontSize: 'var(--fs-sm)' }}>
+              {contentType || 'unknown'}
+            </span>
+            <div className="flex items-center gap-1.5 text-text-disabled" style={{ fontSize: 'var(--fs-xs)' }}>
+              <HardDrive className="h-3 w-3" />
+              <span>{sizeLabel}</span>
+            </div>
+          </div>
+          <button
+            onClick={handleSave}
+            className="mt-2 flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
+            style={{ fontSize: 'var(--fs-sm)' }}
+          >
+            <Download className="h-4 w-4" />
+            {t('response.saveToFile', { defaultValue: '另存为文件' })}
+          </button>
+          <p className="max-w-[280px] text-center text-text-disabled leading-relaxed" style={{ fontSize: 'var(--fs-xxs)' }}>
+            {t('response.binaryHint', { defaultValue: '该响应为二进制文件，无法作为文本预览。可切换到 Hex 查看字节数据。' })}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 根据 Content-Type 猜文件扩展名 */
+function guessExtension(ct: string): string {
+  if (ct.includes('pdf')) return 'pdf';
+  if (ct.includes('png')) return 'png';
+  if (ct.includes('jpeg') || ct.includes('jpg')) return 'jpg';
+  if (ct.includes('gif')) return 'gif';
+  if (ct.includes('webp')) return 'webp';
+  if (ct.includes('svg')) return 'svg';
+  if (ct.includes('zip')) return 'zip';
+  if (ct.includes('gzip')) return 'gz';
+  if (ct.includes('tar')) return 'tar';
+  if (ct.includes('mp4')) return 'mp4';
+  if (ct.includes('mp3') || ct.includes('mpeg')) return 'mp3';
+  if (ct.includes('wav')) return 'wav';
+  if (ct.includes('spreadsheetml')) return 'xlsx';
+  if (ct.includes('ms-excel')) return 'xls';
+  if (ct.includes('wordprocessingml') || ct.includes('msword')) return 'docx';
+  if (ct.includes('presentationml') || ct.includes('ms-powerpoint')) return 'pptx';
+  if (ct.includes('wasm')) return 'wasm';
+  return 'bin';
+}
+
+/** 通过 Base64 魔数嗅探真实的 MIME 类型（应对泛用 octet-stream 或缺失 Content-Type 的情况） */
+function detectMimeFromBase64(b64: string, fallback: string): string {
+  // 提取前缀
+  const prefix = b64.substring(0, 16);
+  if (prefix.startsWith('/9j/')) return 'image/jpeg';
+  if (prefix.startsWith('iVBORw0KGgo')) return 'image/png';
+  if (prefix.startsWith('R0lGOD')) return 'image/gif';
+  if (prefix.startsWith('UklGR')) return 'image/webp'; // WebP base64 starts with UklGR
+  if (prefix.startsWith('JVBERi0')) return 'application/pdf';
+  return fallback;
 }
 
 /* ── Highlighted text with search matches ── */

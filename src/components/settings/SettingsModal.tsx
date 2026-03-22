@@ -100,8 +100,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     setMode(theme);
   };
 
-  const handleReset = () => {
-    if (confirm(t('settings.resetConfirm'))) {
+  const handleReset = async () => {
+    const { confirm } = await import('@tauri-apps/plugin-dialog');
+    const yes = await confirm(t('settings.resetConfirm'));
+    if (yes) {
       reset();
       setMode("light");
     }
