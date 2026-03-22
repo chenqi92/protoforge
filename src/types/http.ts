@@ -149,8 +149,6 @@ export function createDefaultRequest(): HttpRequestConfig {
     method: 'GET',
     url: '',
     headers: [
-      { key: 'User-Agent', value: 'ProtoForge/0.1.0', enabled: true, isAuto: true },
-      { key: 'Accept', value: '*/*', enabled: true, isAuto: true },
       { key: '', value: '', enabled: true },
     ],
     queryParams: [{ key: '', value: '', enabled: true }],
@@ -209,4 +207,26 @@ export function getStatusColor(status: number): string {
   if (status < 400) return 'text-warning';
   if (status < 500) return 'text-method-post';
   return 'text-error';
+}
+
+/** 注入默认请求头，补齐老数据中没有的隐式 Headers */
+export function ensureAutoHeaders(headers: KeyValue[]): KeyValue[] {
+  const arr = Array.isArray(headers) ? headers : [];
+  const hasKey = (k: string) => arr.some(h => h.key.trim().toLowerCase() === k.toLowerCase());
+  const defaults = [
+    { key: 'User-Agent', value: 'ProtoForge/0.1.0', isAuto: true, enabled: true },
+    { key: 'Accept', value: '*/*', isAuto: true, enabled: true },
+    { key: 'Accept-Encoding', value: 'gzip, deflate, br', isAuto: true, enabled: true },
+    { key: 'Connection', value: 'keep-alive', isAuto: true, enabled: true },
+  ];
+  const toUnshift = [];
+  for (const def of defaults) {
+    if (!hasKey(def.key)) {
+      toUnshift.push(def);
+    }
+  }
+  if (toUnshift.length > 0) {
+    return [...toUnshift, ...arr];
+  }
+  return arr;
 }

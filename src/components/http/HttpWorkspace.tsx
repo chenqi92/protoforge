@@ -10,7 +10,7 @@ import { useCollectionStore } from "@/stores/collectionStore";
 import { useEnvStore } from "@/stores/envStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import type { HttpMethod, KeyValue, FormDataField, ScriptResult, HttpRequestMode } from "@/types/http";
-import type { OAuth2Config } from "@/types/http";
+import { ensureAutoHeaders, type OAuth2Config } from "@/types/http";
 import type { CollectionItem } from "@/types/collections";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { SaveRequestDialog } from "./SaveRequestDialog";
@@ -359,7 +359,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
   }, [activeTab.protocol, config.requestMode, handleModeChange, isSseConnected, setTabProtocol, sseConnId, tabId]);
 
   const params = Array.isArray(config.queryParams) ? config.queryParams : [];
-  const headers = Array.isArray(config.headers) ? config.headers : [];
+  const headers = useMemo(() => ensureAutoHeaders(Array.isArray(config.headers) ? config.headers : []), [config.headers]);
   const formFields = Array.isArray(config.formFields) ? config.formFields : [];
   const formDataFields = Array.isArray(config.formDataFields) ? config.formDataFields : [];
 
@@ -422,14 +422,17 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
     tabId,
   ]);
 
+  const hasAuthContent = config.authType !== "none";
+  const hasBodyContent = config.bodyType !== "none";
+
   const reqTabs = [
     { key: "params" as const, label: `${t('http.params')}${params.filter(p => p.key).length ? ` (${params.filter(p => p.key).length})` : ""}` },
     { key: "headers" as const, label: `${t('http.headers')}${headers.filter(h => h.key).length ? ` (${headers.filter(h => h.key).length})` : ""}` },
-    ...(!isSseMode ? [{ key: "body" as const, label: isGraphqlMode ? t('http.graphql.modeLabel') : t('http.body') }] : []),
-    { key: "auth" as const, label: t('http.auth') },
+    ...(!isSseMode ? [{ key: "body" as const, label: isGraphqlMode ? t('http.graphql.modeLabel') : t('http.body'), hasContent: hasBodyContent }] : []),
+    { key: "auth" as const, label: t('http.auth'), hasContent: hasAuthContent },
     ...(!isSseMode ? [
-      { key: "pre-script" as const, label: t('http.preScript') },
-      { key: "post-script" as const, label: t('http.postScript') },
+      { key: "pre-script" as const, label: t('http.preScript'), hasContent: !!config.preScript?.trim() },
+      { key: "post-script" as const, label: t('http.postScript'), hasContent: !!config.postScript?.trim() },
     ] : []),
   ];
 
@@ -588,7 +591,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
       />
 
       {/* Main Split Area */}
-      <div className="flex-1 overflow-hidden pb-3 pt-1.5">
+      <div className="flex-1 min-h-0 overflow-hidden pb-3 pt-1.5">
         <div className="http-workbench-shell">
           <PanelGroup orientation="vertical" key={`request-layout-${requestLayoutMode}`}>
         
@@ -600,21 +603,22 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                   key={t.key}
                   onClick={() => setReqTab(t.key)}
                   className={cn(
-                    "wb-tab",
+                    "wb-tab flex items-center gap-1.5",
                     reqTab === t.key && "wb-tab-active text-text-primary"
                   )}
                 >
                   {t.label}
+                  {(t as any).hasContent && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/90 shadow-[0_0_6px_rgba(16,185,129,0.4)] shrink-0" />}
                 </button>
               ))}
             </div>
           
             <div className="http-workbench-body">
-              {reqTab === "params" && <div className="px-3 py-0"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
-              {reqTab === "headers" && <div className="px-3 py-0"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} /></div>}
+              {reqTab === "params" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
+              {reqTab === "headers" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} /></div>}
             
               {reqTab === "body" && (
-                <div className="p-4 flex flex-col h-full">
+                <div className="p-4 flex flex-col flex-1 min-h-0">
                   {!isGraphqlMode && (
                     <div className="wb-segmented mb-4 w-fit shrink-0">
                       {(["none", "json", "raw", "graphql", "formUrlencoded", "formData", "binary"] as const).map((bt) => (
@@ -626,7 +630,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                             config.bodyType === bt && "wb-segment-active"
                           )}
                         >
-                          {bt === "none" ? "None" : bt === "formUrlencoded" ? "URL-Encoded" : bt === "formData" ? "Form-Data" : bt === "binary" ? "Binary" : bt === "graphql" ? "GraphQL" : bt.toUpperCase()}
+                          {bt === "none" ? "none" : bt === "formUrlencoded" ? "x-www-form-urlencoded" : bt === "formData" ? "form-data" : bt === "binary" ? "binary" : bt === "graphql" ? "GraphQL" : bt === "raw" ? "raw" : "JSON"}
                         </button>
                       ))}
                     </div>
@@ -680,8 +684,8 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                         </div>
                       </div>
                     )}
-                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="overflow-auto h-full"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
-                    {!isGraphqlMode && config.bodyType === "formData" && <div className="overflow-auto h-full"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
+                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="flex-1 min-h-0 flex flex-col"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
+                    {!isGraphqlMode && config.bodyType === "formData" && <div className="flex-1 min-h-0 flex flex-col"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
                     {!isGraphqlMode && config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
                   </div>
                 </div>

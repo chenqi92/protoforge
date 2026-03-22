@@ -8,10 +8,13 @@ import {
   getLinkedCollectionIdForRequestConfig,
   resolveRequestConfigVariables,
 } from '@/lib/requestVariables';
+import { ensureAutoHeaders } from '@/types/http';
 
 function resolveConfigVariables(config: HttpRequestConfig): HttpRequestConfig {
   const collectionId = getLinkedCollectionIdForRequestConfig(config);
-  return resolveRequestConfigVariables(config, collectionId);
+  const resolved = resolveRequestConfigVariables(config, collectionId);
+  resolved.headers = ensureAutoHeaders(resolved.headers);
+  return resolved;
 }
 
 /** 如果 URL 没有协议前缀，自动补全 http:// */

@@ -1163,9 +1163,11 @@
 
   .http-workbench-body {
     flex: 1 1 auto;
-    min-height: 200px;
-    overflow: auto;
+    min-height: 0;
+    overflow: hidden;
     background: transparent;
+    display: flex;
+    flex-direction: column;
   }
 
   .http-workbench-divider {
@@ -1286,12 +1288,17 @@
   .editor-table-shell {
     display: flex;
     width: 100%;
+    flex: 1;
+    min-height: 0;
     flex-direction: column;
     gap: 4px;
   }
 
   .editor-table-frame {
-    overflow: auto;
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: auto;
     border: 1px solid var(--color-border-default);
     border-radius: 8px;
     background: transparent;
@@ -1304,6 +1311,9 @@
   }
 
   .editor-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
     height: 28px;
     padding: 0 10px;
     text-align: left;
@@ -1312,8 +1322,13 @@
     font-weight: 600;
     letter-spacing: 0;
     text-transform: none;
-    background: color-mix(in srgb, var(--color-bg-secondary) 72%, transparent);
+    background: color-mix(in srgb, var(--color-bg-primary) 98%, #fff);
     border-bottom: 1px solid var(--color-border-default);
+    box-shadow: 0 1px 0 var(--color-border-default);
+  }
+
+  .dark .editor-table thead th {
+    background: color-mix(in srgb, var(--color-bg-secondary) 95%, transparent);
   }
 
   .editor-table thead th:first-child {
