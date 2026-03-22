@@ -995,6 +995,14 @@ pub async fn proxy_export_ca(
     proxy_capture::export_ca_cert(&state).await
 }
 
+/// 通过代理发送测试请求，验证代理功能
+#[tauri::command]
+pub async fn proxy_test_connection(
+    port: u16,
+) -> Result<String, String> {
+    proxy_capture::test_proxy_connection(port).await
+}
+
 /// 一键安装 CA 证书到系统信任库
 /// macOS: security import + open（触发原生证书信任对话框）
 /// Windows: certutil -addstore Root

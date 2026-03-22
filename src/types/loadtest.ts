@@ -11,6 +11,17 @@ export interface LoadTestConfig {
   totalRequests?: number;
   timeoutMs?: number;
   rpsLimit?: number;
+  latencyThresholdMs?: number;
+}
+
+export interface RequestRecord {
+  seq: number;
+  elapsedMs: number;
+  status: number;
+  latencyMs: number;
+  bytes: number;
+  success: boolean;
+  errorMsg?: string;
 }
 
 export interface MetricsSnapshot {
@@ -27,6 +38,12 @@ export interface MetricsSnapshot {
   p95Ms: number;
   p99Ms: number;
   statusCodes: Record<number, number>;
+  // ── Advanced statistics ──
+  bytesDownloaded: number;
+  activeConnections: number;
+  ttfbAvgMs: number;
+  latencyPoints: number[];
+  errorSamples: RequestRecord[];
 }
 
 export interface LoadTestComplete {
@@ -42,4 +59,7 @@ export interface LoadTestComplete {
   p95Ms: number;
   p99Ms: number;
   statusCodes: Record<number, number>;
+  // ── Advanced statistics ──
+  totalBytesDownloaded: number;
+  avgThroughputBps: number;
 }

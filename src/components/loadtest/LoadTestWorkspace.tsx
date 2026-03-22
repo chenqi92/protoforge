@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Flame, Play, Square, Settings2, Activity, BarChart3, Clock,
   AlertTriangle, Zap, TrendingUp, ChevronDown, ChevronUp,
-  Plus, Trash2, Download, Gauge,
+  Plus, Trash2, Download, Gauge, Wifi,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { MetricsChart } from "./MetricsChart";
-import type { MetricsSnapshot, LoadTestComplete, LoadTestConfig } from "@/types/loadtest";
+import { ErrorSamplesPanel } from "./ErrorSamplesPanel";
+import type { MetricsSnapshot, LoadTestComplete, LoadTestConfig, RequestRecord } from "@/types/loadtest";
 
 type DurationMode = "duration" | "requests";
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
@@ -30,9 +31,12 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
   const [totalRequests, setTotalRequests] = useState(100);
   const [timeoutMs, setTimeoutMs] = useState(30000);
   const [rpsLimit, setRpsLimit] = useState<number | null>(null);
+  const [thresholdEnabled, setThresholdEnabled] = useState(false);
+  const [latencyThreshold, setLatencyThreshold] = useState(500);
   const [rpsEnabled, setRpsEnabled] = useState(false);
 
   // Advanced config
+  const [showConfig, setShowConfig] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [headers, setHeaders] = useState<{ key: string; value: string }[]>([{ key: "", value: "" }]);
   const [bodyMode, setBodyMode] = useState<BodyMode>("none");
@@ -45,10 +49,11 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
   // ─── Runtime ───
   const [running, setRunning] = useState(false);
   const [snapshots, setSnapshots] = useState<MetricsSnapshot[]>([]);
+  const [errorSamples, setErrorSamples] = useState<RequestRecord[]>([]);
   const [summary, setSummary] = useState<LoadTestComplete | null>(null);
   const [latestMetrics, setLatestMetrics] = useState<MetricsSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [chartTab, setChartTab] = useState<"rps" | "latency">("rps");
+  const [chartTab, setChartTab] = useState<"rps" | "latency" | "error" | "throughput" | "concurrency" | "scatter" | "errorSamples">("rps");
 
   const applyPrefill = useCallback((prefill: Partial<LoadTestConfig> | null) => {
     if (!prefill) return;
@@ -114,6 +119,12 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
         if (s.testId !== tabId) return;
         setSnapshots((prev) => [...prev, s]);
         setLatestMetrics(s);
+        if (s.errorSamples && s.errorSamples.length > 0) {
+          setErrorSamples((prev) => {
+            const next = [...prev, ...s.errorSamples];
+            return next.length > 200 ? next.slice(-200) : next;
+          });
+        }
       });
       unComplete = await onLoadTestComplete((r) => {
         if (r.testId !== tabId) return;
@@ -151,11 +162,12 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
       concurrency, timeoutMs,
       ...(durationMode === "duration" ? { durationSecs } : { totalRequests }),
       ...(rpsEnabled && rpsLimit ? { rpsLimit } : {}),
+      ...(thresholdEnabled && latencyThreshold > 0 ? { latencyThresholdMs: latencyThreshold } : {}),
     };
-  }, [url, method, headers, bodyMode, bodyContent, authMode, bearerToken, basicUser, basicPass, concurrency, timeoutMs, durationMode, durationSecs, totalRequests, rpsEnabled, rpsLimit]);
+  }, [url, method, headers, bodyMode, bodyContent, authMode, bearerToken, basicUser, basicPass, concurrency, timeoutMs, durationMode, durationSecs, totalRequests, rpsEnabled, rpsLimit, thresholdEnabled, latencyThreshold]);
 
   const handleStart = useCallback(async () => {
-    setError(null); setSnapshots([]); setSummary(null); setLatestMetrics(null); setRunning(true);
+    setError(null); setSnapshots([]); setErrorSamples([]); setSummary(null); setLatestMetrics(null); setRunning(true);
     try {
       const { startLoadTest } = await import("@/services/loadTestService");
       await startLoadTest(tabId, buildConfig());
@@ -186,8 +198,8 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
 
   const handleExportCsv = useCallback(() => {
     if (snapshots.length === 0) return;
-    const csvHeaders = ["elapsed_secs","total_requests","total_errors","rps","avg_latency_ms","min_latency_ms","max_latency_ms","p50_ms","p95_ms","p99_ms"];
-    const rows = snapshots.map(s => [s.elapsedSecs,s.totalRequests,s.totalErrors,s.rps.toFixed(2),s.avgLatencyMs.toFixed(2),s.minLatencyMs,s.maxLatencyMs,s.p50Ms,s.p95Ms,s.p99Ms].join(","));
+    const csvHeaders = ["elapsed_secs","total_requests","total_errors","rps","avg_latency_ms","min_latency_ms","max_latency_ms","p50_ms","p95_ms","p99_ms","bytes_downloaded","active_connections","ttfb_avg_ms"];
+    const rows = snapshots.map(s => [s.elapsedSecs,s.totalRequests,s.totalErrors,s.rps.toFixed(2),s.avgLatencyMs.toFixed(2),s.minLatencyMs,s.maxLatencyMs,s.p50Ms,s.p95Ms,s.p99Ms,s.bytesDownloaded,s.activeConnections,s.ttfbAvgMs.toFixed(2)].join(","));
     const csv = [csvHeaders.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const u = URL.createObjectURL(blob);
@@ -219,7 +231,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
     : "—";
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-auto bg-transparent p-3">
+    <div className="flex h-full flex-col overflow-y-auto bg-transparent p-3">
       <div className="shrink-0">
         <div className="wb-tool-strip">
           <div className="wb-tool-strip-main flex-1 flex-nowrap">
@@ -262,14 +274,17 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
         </div>
 
         <div className="wb-panel mt-3 p-3">
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border-default/70 pb-3">
-            <div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <button
+              onClick={() => setShowConfig(!showConfig)}
+              className="flex items-center gap-2 group"
+            >
               <div className="flex items-center gap-2 text-[var(--fs-sm)] font-semibold text-text-primary">
                 <Settings2 className="h-3.5 w-3.5 text-rose-500" />
                 {t('loadtest.configTitle')}
               </div>
-              <div className="mt-1 text-[var(--fs-xs)] text-text-tertiary">{t('loadtest.configDesc')}</div>
-            </div>
+              {showConfig ? <ChevronUp className="w-3.5 h-3.5 text-text-tertiary" /> : <ChevronDown className="w-3.5 h-3.5 text-text-tertiary" />}
+            </button>
 
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -292,6 +307,8 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
             </div>
           </div>
 
+          {showConfig && (
+          <>
           <div className="grid gap-3 pt-3 sm:grid-cols-2 xl:grid-cols-5">
             <ControlBlock label={t('loadtest.method')} icon={<Flame className="h-3 w-3" />}>
               <select
@@ -350,6 +367,23 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                   </div>
                 ) : (
                   <div className="text-[var(--fs-xs)] text-text-disabled">{t('loadtest.noRateLimitDesc')}</div>
+                )}
+              </div>
+            </ControlBlock>
+
+            <ControlBlock label={t('loadtest.latencyThreshold', '延迟阈值')} icon={<AlertTriangle className="h-3 w-3" />}>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[var(--fs-xs)] text-text-secondary">
+                  <input type="checkbox" checked={thresholdEnabled} onChange={(e) => setThresholdEnabled(e.target.checked)} disabled={running} className="h-3.5 w-3.5 accent-amber-500" />
+                  {t('loadtest.enableThreshold', '启用延迟阈值断言')}
+                </label>
+                {thresholdEnabled ? (
+                  <div className="flex items-center gap-2">
+                    <input type="number" value={latencyThreshold} onChange={(e) => setLatencyThreshold(Math.max(1, parseInt(e.target.value) || 500))} disabled={running} min={1} className="cfg-input w-full text-left" />
+                    <span className="text-[var(--fs-xs)] text-text-tertiary">ms</span>
+                  </div>
+                ) : (
+                  <div className="text-[var(--fs-xs)] text-text-disabled">{t('loadtest.noThresholdDesc', '未启用延迟阈值，仅状态码 ≥ 400 视为失败')}</div>
                 )}
               </div>
             </ControlBlock>
@@ -416,6 +450,8 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
               </div>
             </div>
           )}
+          </>
+          )}
         </div>
 
         {/* ── Progress Bar ── */}
@@ -435,7 +471,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
       </div>
 
       {/* ── Main Content ── */}
-      <div className="flex min-h-0 flex-1 flex-col pt-3">
+      <div className="flex flex-col pt-3 pb-6 mt-3">
         {error && (
           <div className="mb-3 flex items-center gap-2 rounded-[10px] border border-red-200 bg-red-50 px-4 py-2.5 text-[var(--fs-base)] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
             <AlertTriangle className="w-4 h-4 shrink-0" />{error}
@@ -444,42 +480,50 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
 
         {/* Metrics Cards */}
         {(latestMetrics || summary) && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-3">
             <MetricCard label="RPS" value={summary ? summary.avgRps.toFixed(1) : latestMetrics ? latestMetrics.rps.toFixed(1) : "—"} icon={<Zap className="w-4 h-4" />} color="rose" sub={summary ? t('loadtest.average') : t('loadtest.current')} />
-            <MetricCard label={t('loadtest.avgLatency')} value={`${(summary?.avgLatencyMs ?? latestMetrics?.avgLatencyMs ?? 0).toFixed(1)} ms`} icon={<Activity className="w-4 h-4" />} color="blue" sub={`P95: ${summary?.p95Ms ?? latestMetrics?.p95Ms ?? 0}ms`} />
+            <MetricCard label={t('loadtest.avgLatency')} value={`${(summary?.avgLatencyMs ?? latestMetrics?.avgLatencyMs ?? 0).toFixed(1)} ms`} icon={<Activity className="w-4 h-4" />} color="blue" sub={`P50: ${summary?.p50Ms ?? latestMetrics?.p50Ms ?? 0}ms · P95: ${summary?.p95Ms ?? latestMetrics?.p95Ms ?? 0}ms`} />
             <MetricCard label={t('loadtest.errorRate')} value={summary ? summary.totalRequests > 0 ? `${((summary.totalErrors / summary.totalRequests) * 100).toFixed(1)}%` : "0%" : `${errorRate}%`} icon={<AlertTriangle className="w-4 h-4" />} color={Number(errorRate) > 5 ? "red" : "emerald"} sub={t('loadtest.errors', { count: summary?.totalErrors ?? latestMetrics?.totalErrors ?? 0 })} />
             <MetricCard label={t('loadtest.totalRequests')} value={String(summary?.totalRequests ?? latestMetrics?.totalRequests ?? 0)} icon={<TrendingUp className="w-4 h-4" />} color="violet" sub={summary ? `${summary.totalDurationSecs.toFixed(1)}s` : running ? t('loadtest.runningStatus') : t('loadtest.readyStatus')} />
+            <MetricCard label={t('loadtest.throughput')} value={formatBytes(summary ? summary.avgThroughputBps : latestMetrics?.bytesDownloaded ?? 0)} icon={<Wifi className="w-4 h-4" />} color="cyan" sub={summary ? t('loadtest.average') + "/s" : t('loadtest.current') + "/s"} />
+            <MetricCard label="TTFB" value={`${(latestMetrics?.ttfbAvgMs ?? 0).toFixed(1)} ms`} icon={<Clock className="w-4 h-4" />} color="amber" sub={`${t('loadtest.concurrency')}: ${latestMetrics?.activeConnections ?? 0}`} />
           </div>
         )}
 
         {/* Charts */}
         {snapshots.length >= 2 && (
           <div className="wb-panel mb-3 overflow-hidden panel">
-            <div className="flex items-center gap-1 px-4 py-2.5 bg-bg-secondary/32 border-b border-border-default">
-              <BarChart3 className="w-4 h-4 text-text-tertiary mr-1" />
-              <button
-                onClick={() => setChartTab("rps")}
-                className={cn(
-                  "relative px-3 py-1 text-[var(--fs-sm)] font-medium transition-colors",
-                  chartTab === "rps" ? "text-rose-600" : "text-text-tertiary hover:text-text-secondary"
-                )}
-              >
-                RPS
-                {chartTab === "rps" ? <span className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-rose-500" /> : null}
-              </button>
-              <button
-                onClick={() => setChartTab("latency")}
-                className={cn(
-                  "relative px-3 py-1 text-[var(--fs-sm)] font-medium transition-colors",
-                  chartTab === "latency" ? "text-blue-600" : "text-text-tertiary hover:text-text-secondary"
-                )}
-              >
-                {t('loadtest.latency')}
-                {chartTab === "latency" ? <span className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-blue-500" /> : null}
-              </button>
+            <div className="flex items-center gap-1 px-4 py-2.5 bg-bg-secondary/32 border-b border-border-default overflow-x-auto">
+              <BarChart3 className="w-4 h-4 text-text-tertiary mr-1 shrink-0" />
+              {([
+                { key: "rps" as const, label: "RPS", activeColor: "text-rose-600", barColor: "bg-rose-500" },
+                { key: "latency" as const, label: t('loadtest.latency'), activeColor: "text-blue-600", barColor: "bg-blue-500" },
+                { key: "error" as const, label: t('loadtest.errorRate'), activeColor: "text-red-500", barColor: "bg-red-500" },
+                { key: "throughput" as const, label: t('loadtest.throughput'), activeColor: "text-cyan-500", barColor: "bg-cyan-500" },
+                { key: "concurrency" as const, label: t('loadtest.concurrency'), activeColor: "text-emerald-500", barColor: "bg-emerald-500" },
+                { key: "scatter" as const, label: t('loadtest.scatterPlot'), activeColor: "text-rose-500", barColor: "bg-rose-500" },
+                ...(errorSamples.length > 0 ? [{ key: "errorSamples" as const, label: t('loadtest.errorSamples', '错误样本'), activeColor: "text-red-500", barColor: "bg-red-500" }] : []),
+              ]).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setChartTab(tab.key)}
+                  className={cn(
+                    "relative px-3 py-1 text-[var(--fs-sm)] font-medium transition-colors whitespace-nowrap",
+                    chartTab === tab.key ? tab.activeColor : "text-text-tertiary hover:text-text-secondary"
+                  )}
+                >
+                  {tab.label}
+                  {tab.key === "errorSamples" && <span className="ml-1 text-[10px] bg-red-500/15 text-red-600 px-1.5 py-0.5 rounded-full tabular-nums">{errorSamples.length}</span>}
+                  {chartTab === tab.key ? <span className={cn("absolute inset-x-2 bottom-0 h-[2px] rounded-full", tab.barColor)} /> : null}
+                </button>
+              ))}
             </div>
             <div className="p-4">
-              <MetricsChart data={snapshots} type={chartTab} height={220} />
+              {chartTab === "errorSamples" ? (
+                <ErrorSamplesPanel samples={errorSamples} />
+              ) : (
+                <MetricsChart data={snapshots} type={chartTab} height={220} />
+              )}
             </div>
           </div>
         )}
@@ -558,6 +602,12 @@ function AdvancedSection({ title, children }: { title: string; children: React.R
   );
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
 function MetricCard({ label, value, icon, color, sub }: { label: string; value: string; icon: React.ReactNode; color: string; sub: string }) {
   const cm: Record<string, { bg: string; text: string; iconBg: string }> = {
     rose:    { bg: "from-rose-500/5 to-pink-500/5",       text: "text-rose-600",    iconBg: "bg-rose-500/10" },
@@ -565,6 +615,8 @@ function MetricCard({ label, value, icon, color, sub }: { label: string; value: 
     emerald: { bg: "from-emerald-500/5 to-green-500/5",   text: "text-emerald-600", iconBg: "bg-emerald-500/10" },
     red:     { bg: "from-red-500/5 to-orange-500/5",      text: "text-red-600",     iconBg: "bg-red-500/10" },
     violet:  { bg: "from-violet-500/5 to-purple-500/5",   text: "text-violet-600",  iconBg: "bg-violet-500/10" },
+    cyan:    { bg: "from-cyan-500/5 to-teal-500/5",       text: "text-cyan-600",    iconBg: "bg-cyan-500/10" },
+    amber:   { bg: "from-amber-500/5 to-yellow-500/5",    text: "text-amber-600",   iconBg: "bg-amber-500/10" },
   };
   const c = cm[color] || cm.rose;
   return (

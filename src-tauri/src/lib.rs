@@ -172,6 +172,7 @@ pub fn run() {
             commands::proxy_export_ca,
             commands::proxy_install_ca,
             commands::proxy_check_ca_trusted,
+            commands::proxy_test_connection,
             // Plugins
             commands::plugin_list,
             commands::plugin_list_available,

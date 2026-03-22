@@ -581,7 +581,8 @@
     "caNotTrustedTitle": "⚠️ Install CA Certificate for HTTPS Capture",
     "caNotTrustedDesc": "ProtoForge CA certificate is not installed in your system. HTTPS sites cannot be captured without it (browsers will reject the proxy certificate). Click to install automatically.",
     "caTrustedTitle": "✅ CA Certificate Installed",
-    "caTrustedDesc": "ProtoForge CA certificate is installed and trusted. HTTPS traffic can be captured normally."
+    "caTrustedDesc": "ProtoForge CA certificate is installed and trusted. HTTPS traffic can be captured normally.",
+    "testingProxy": "Testing proxy connectivity…"
   },
   "loadtest": {
     "title": "HTTP Load Test",
@@ -630,6 +631,8 @@
     "runningStatus": "Running...",
     "readyStatus": "Ready",
     "latency": "Latency",
+    "throughput": "Throughput",
+    "scatterPlot": "Scatter Plot",
     "statusCodeDist": "Status Code Distribution",
     "totalRequestsLabel": "{{count}} requests",
     "emptyTitle": "HTTP Load Testing",

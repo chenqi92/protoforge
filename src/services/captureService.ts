@@ -26,3 +26,7 @@ export async function clearEntries(sessionId: string): Promise<void> {
 export async function exportCaCert(): Promise<string> {
   return invoke("proxy_export_ca");
 }
+
+export async function testProxyConnection(port: number): Promise<string> {
+  return invoke("proxy_test_connection", { port });
+}

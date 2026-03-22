@@ -1424,30 +1424,6 @@ function GraphQLBodyEditor({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="wb-subpanel flex flex-wrap items-start justify-between gap-3 p-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[var(--fs-sm)] font-semibold text-text-primary">
-            <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-violet-500/10 text-violet-600">
-              <Braces className="h-4 w-4" />
-            </div>
-            {t('http.graphql.title')}
-          </div>
-          <div className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
-            {t('http.graphql.desc')}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="wb-tool-chip">POST JSON Payload</span>
-          <button onClick={handleInsertTemplate} className="wb-ghost-btn">
-            {t('http.graphql.insertTemplate')}
-          </button>
-          <button onClick={handleFormatVariables} className="wb-ghost-btn">
-            {t('http.graphql.formatVariables')}
-          </button>
-        </div>
-      </div>
-
       <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.95fr)]">
         <div className="wb-panel flex min-h-[320px] min-w-0 flex-col overflow-hidden">
           <div className="wb-panel-header shrink-0">
@@ -1455,7 +1431,12 @@ function GraphQLBodyEditor({
               <div className="text-[var(--fs-sm)] font-semibold text-text-primary">Query</div>
               <div className="mt-1 text-[var(--fs-xs)] text-text-tertiary">{t('http.graphql.queryDesc')}</div>
             </div>
-            <span className="wb-tool-chip">GraphQL</span>
+            <div className="flex items-center gap-2">
+              <span className="wb-tool-chip">GraphQL</span>
+              <button onClick={handleInsertTemplate} className="wb-ghost-btn">
+                {t('http.graphql.insertTemplate')}
+              </button>
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/70 bg-bg-input/88">
             <CodeEditor
@@ -1483,7 +1464,12 @@ function GraphQLBodyEditor({
               </div>
               <div className="mt-1 text-[var(--fs-xs)] text-text-tertiary">{variableState.detail}</div>
             </div>
-            {hasVariables ? <span className="wb-tool-chip">JSON</span> : null}
+            <div className="flex items-center gap-2">
+              {hasVariables ? <span className="wb-tool-chip">JSON</span> : null}
+              <button onClick={handleFormatVariables} className="wb-ghost-btn">
+                {t('http.graphql.formatVariables')}
+              </button>
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/70 bg-bg-input/88">
             <CodeEditor

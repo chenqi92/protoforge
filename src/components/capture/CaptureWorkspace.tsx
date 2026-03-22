@@ -5,7 +5,7 @@ import { useEffect, useCallback, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play, Square, Trash2, Shield, Search,
-  ChevronDown, ChevronRight, ArrowUpDown, X, Lightbulb, Clock, Globe,
+  ChevronDown, ChevronRight, ArrowUpDown, X, Lightbulb, Clock, Globe, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -67,11 +67,15 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
   const loadEntries = useCaptureStore(sessionId, (s) => s.loadEntries);
   const exportCaCert = useCaptureStore(sessionId, (s) => s.exportCaCert);
   const initListener = useCaptureStore(sessionId, (s) => s.initListener);
+  const testConnection = useCaptureStore(sessionId, (s) => s.testConnection);
+  const storeError = useCaptureStore(sessionId, (s) => s.error);
 
   const [portInput, setPortInput] = useState(String(port));
   const [caPath, setCaPath] = useState<string | null>(null);
   const [caInstallStatus, setCaInstallStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [caTrusted, setCaTrusted] = useState<boolean | null>(null); // null = 未检查
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [testing, setTesting] = useState(false);
   const listEndRef = useRef<HTMLDivElement>(null);
 
   // 检查 CA 是否已信任
@@ -138,12 +142,29 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
         proxyServiceRef.current = null;
       }
       await stopCapture();
+      setTestResult(null);
     } else {
       const p = parseInt(portInput, 10);
       if (isNaN(p) || p < 1 || p > 65535) return;
-      await startCapture(p);
+      try {
+        await startCapture(p);
+        // 启动后自动测试代理连通性
+        setTimeout(async () => {
+          try {
+            setTesting(true);
+            const msg = await testConnection();
+            setTestResult({ ok: true, msg });
+          } catch (e) {
+            setTestResult({ ok: false, msg: String(e) });
+          } finally {
+            setTesting(false);
+          }
+        }, 500);
+      } catch (e) {
+        console.error("启动代理失败:", e);
+      }
     }
-  }, [running, portInput, startCapture, stopCapture]);
+  }, [running, portInput, startCapture, stopCapture, testConnection]);
 
   const handleExportCA = useCallback(async () => {
     try {
@@ -278,6 +299,48 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
           </button>
         </div>
       </div>
+
+      {/* 错误/测试结果面板 */}
+      <AnimatePresence>
+        {(storeError || testResult || testing) && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            {storeError && (
+              <div className="mt-2 rounded-[10px] border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-[var(--fs-xs)] text-red-600 flex items-center gap-2">
+                <X className="w-3.5 h-3.5 shrink-0" />
+                <span className="min-w-0 break-all">{storeError}</span>
+              </div>
+            )}
+            {testing && !storeError && (
+              <div className="mt-2 rounded-[10px] border border-accent/20 bg-accent/5 px-4 py-2.5 text-[var(--fs-xs)] text-accent flex items-center gap-2">
+                <Zap className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+                <span>{t('capture.testingProxy')}</span>
+              </div>
+            )}
+            {testResult && !storeError && !testing && (
+              <div className={cn(
+                "mt-2 rounded-[10px] border px-4 py-2.5 text-[var(--fs-xs)] flex items-center gap-2",
+                testResult.ok
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
+                  : "border-orange-500/20 bg-orange-500/10 text-orange-600"
+              )}>
+                <Zap className="w-3.5 h-3.5 shrink-0" />
+                <span className="min-w-0 break-all">{testResult.msg}</span>
+                <button
+                  onClick={() => setTestResult(null)}
+                  className="ml-auto shrink-0 text-text-tertiary hover:text-text-primary transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* CA 证书状态面板 — 根据安装状态显示不同样式 */}
       <AnimatePresence>

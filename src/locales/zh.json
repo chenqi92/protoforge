@@ -582,7 +582,8 @@
     "caNotTrustedTitle": "⚠️ HTTPS 抓包需要先安装 CA 证书",
     "caNotTrustedDesc": "检测到系统中未安装 ProtoForge CA 证书。如果不安装，HTTPS 网站将无法正常抓取（浏览器会拒绝代理证书）。点击一键安装即可自动完成配置。",
     "caTrustedTitle": "✅ CA 证书已安装",
-    "caTrustedDesc": "ProtoForge CA 证书已安装到系统信任库，HTTPS 流量可以正常抓取。"
+    "caTrustedDesc": "ProtoForge CA 证书已安装到系统信任库，HTTPS 流量可以正常抓取。",
+    "testingProxy": "正在测试代理连通性…"
   },
   "loadtest": {
     "title": "HTTP 压测",
@@ -631,6 +632,8 @@
     "runningStatus": "运行中...",
     "readyStatus": "就绪",
     "latency": "延迟",
+    "throughput": "吞吐量",
+    "scatterPlot": "延迟散点",
     "statusCodeDist": "状态码分布",
     "totalRequestsLabel": "{{count}} 请求",
     "emptyTitle": "HTTP 压力测试",

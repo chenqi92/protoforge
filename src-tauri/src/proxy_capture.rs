@@ -170,6 +170,8 @@ fn extract_path(url: &str) -> String {
 }
 
 impl HttpHandler for CaptureHandler {
+    // NOTE: hudsucker 为每个连接克隆一个 handler 实例（通过 Clone trait）
+    // handle_request 和 handle_response 在同一个实例上成对调用
     async fn handle_request(
         &mut self,
         _ctx: &HttpContext,
@@ -323,6 +325,35 @@ impl HttpHandler for CaptureHandler {
         }
 
         res
+    }
+}
+
+/// 通过代理发送测试请求，验证代理是否正常工作
+pub async fn test_proxy_connection(port: u16) -> Result<String, String> {
+    // 构建一个通过代理发送的 HTTP 请求
+    let proxy_url = format!("http://127.0.0.1:{}", port);
+    log::info!("[CAPTURE] 测试代理连接: proxy={}", proxy_url);
+
+    let proxy = reqwest::Proxy::http(&proxy_url)
+        .map_err(|e| format!("创建代理配置失败: {}", e))?;
+
+    let client = reqwest::Client::builder()
+        .proxy(proxy)
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+    match client.get("http://httpbin.org/get").send().await {
+        Ok(resp) => {
+            let status = resp.status().as_u16();
+            log::info!("[CAPTURE] 代理测试成功: status={}", status);
+            Ok(format!("代理连通性测试成功: HTTP {}", status))
+        }
+        Err(e) => {
+            log::error!("[CAPTURE] 代理测试失败: {}", e);
+            Err(format!("代理测试失败: {}", e))
+        }
     }
 }
 

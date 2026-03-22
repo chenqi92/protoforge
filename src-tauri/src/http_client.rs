@@ -133,7 +133,7 @@ pub struct HttpResponse {
 pub struct ResponseTiming {
     pub total_ms: u64,
     pub connect_ms: Option<u64>,
-    pub ttfb_ms: Option<u64>,
+    pub ttfb_ms: Option<f64>,
     pub download_ms: Option<u64>,
 }
 
@@ -305,7 +305,7 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
     let response = request_builder.send().await
         .map_err(|e| format!("请求发送失败: {}", e))?;
 
-    let ttfb_ms = start.elapsed().as_millis() as u64;
+    let ttfb_ms = start.elapsed().as_secs_f64() * 1000.0;
 
     let status = response.status().as_u16();
     let status_text = response.status().canonical_reason()

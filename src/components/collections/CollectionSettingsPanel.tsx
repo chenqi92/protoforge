@@ -151,7 +151,7 @@ function OverviewTab({ collection }: { collection: Collection }) {
             'flex items-center gap-1.5 px-4 py-2 rounded-md text-[var(--fs-sm)] font-medium transition-all',
             dirty
               ? 'gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98]'
-              : 'bg-bg-hover text-text-disabled cursor-not-allowed'
+              : 'border border-border-default text-text-disabled cursor-not-allowed'
           )}
         >
           <Save className="w-3.5 h-3.5" />
@@ -215,61 +215,74 @@ function VariablesTab({ collection }: { collection: Collection }) {
           <p className="text-[var(--fs-xs)] mt-0.5 opacity-60">{t('collectionSettings.noVarsHint')}</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {/* Header */}
-          <div className="grid grid-cols-[1fr_1fr_auto] gap-3 px-3 text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider">
-            <span>KEY</span>
-            <span>VALUE</span>
-            <span className="w-[88px]" />
-          </div>
-          {vars.map((v, i) => (
-            <div
-              key={i}
-              className={cn(
-                'grid grid-cols-[1fr_1fr_auto] gap-3 items-center rounded-xl border border-border-default/60 bg-bg-secondary/30 px-3 py-2 transition-all hover:border-border-default',
-                !v.enabled && 'opacity-40'
-              )}
-            >
-              <input
-                value={v.key}
-                onChange={(e) => updateVar(i, 'key', e.target.value)}
-                placeholder="key"
-                className="h-8 px-2.5 text-[var(--fs-sm)] bg-bg-primary border border-border-default/70 rounded-lg outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-colors"
-              />
-              <input
-                value={v.isSecret ? '••••••••' : v.value}
-                onChange={(e) => updateVar(i, 'value', e.target.value)}
-                placeholder="value"
-                type={v.isSecret ? 'password' : 'text'}
-                className="h-8 px-2.5 text-[var(--fs-sm)] bg-bg-primary border border-border-default/70 rounded-lg outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-colors"
-              />
-              <div className="flex items-center gap-0.5">
-                <button
-                  onClick={() => updateVar(i, 'isSecret', !v.isSecret)}
-                  className="w-7 h-7 flex items-center justify-center text-text-disabled hover:text-text-secondary transition-colors rounded-lg hover:bg-bg-hover"
-                  title={v.isSecret ? t('collectionSettings.showValue') : t('collectionSettings.hideValue')}
-                >
-                  {v.isSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={() => updateVar(i, 'enabled', !v.enabled)}
+        <div className="border border-border-default/60 rounded-lg overflow-hidden">
+          <table className="w-full text-[var(--fs-sm)]">
+            <thead>
+              <tr className="bg-bg-secondary/50 border-b border-border-default/50">
+                <th className="px-3 py-2 text-left text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider w-6">
+                  <span className="sr-only">Enabled</span>
+                </th>
+                <th className="px-3 py-2 text-left text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider">KEY</th>
+                <th className="px-3 py-2 text-left text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider">VALUE</th>
+                <th className="px-3 py-2 text-right text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider w-20">{t('collectionSettings.actions', 'Actions')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vars.map((v, i) => (
+                <tr
+                  key={i}
                   className={cn(
-                    'w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-bg-hover',
-                    v.enabled ? 'text-emerald-500' : 'text-text-disabled'
+                    'border-b border-border-default/30 last:border-b-0 transition-colors hover:bg-bg-hover/50',
+                    !v.enabled && 'opacity-40'
                   )}
-                  title={v.enabled ? t('collectionSettings.disable') : t('collectionSettings.enable')}
                 >
-                  <div className={cn('w-3 h-3 rounded-full border-2 transition-colors', v.enabled ? 'border-emerald-500 bg-emerald-500' : 'border-text-disabled')} />
-                </button>
-                <button
-                  onClick={() => removeVar(i)}
-                  className="w-7 h-7 flex items-center justify-center text-text-disabled hover:text-red-500 transition-colors rounded-lg hover:bg-red-500/8"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
+                  <td className="px-3 py-1.5">
+                    <button
+                      onClick={() => updateVar(i, 'enabled', !v.enabled)}
+                      className="flex items-center justify-center"
+                      title={v.enabled ? t('collectionSettings.disable') : t('collectionSettings.enable')}
+                    >
+                      <div className={cn('w-3 h-3 rounded-full border-2 transition-colors', v.enabled ? 'border-emerald-500 bg-emerald-500' : 'border-text-disabled')} />
+                    </button>
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <input
+                      value={v.key}
+                      onChange={(e) => updateVar(i, 'key', e.target.value)}
+                      placeholder="key"
+                      className="w-full h-7 px-2 text-[var(--fs-sm)] bg-transparent border-none outline-none text-text-primary placeholder:text-text-tertiary font-mono"
+                    />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <input
+                      value={v.isSecret ? '••••••••' : v.value}
+                      onChange={(e) => updateVar(i, 'value', e.target.value)}
+                      placeholder="value"
+                      type={v.isSecret ? 'password' : 'text'}
+                      className="w-full h-7 px-2 text-[var(--fs-sm)] bg-transparent border-none outline-none text-text-primary placeholder:text-text-tertiary font-mono"
+                    />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <div className="flex items-center justify-end gap-0.5">
+                      <button
+                        onClick={() => updateVar(i, 'isSecret', !v.isSecret)}
+                        className="w-6 h-6 flex items-center justify-center text-text-disabled hover:text-text-secondary transition-colors rounded hover:bg-bg-hover"
+                        title={v.isSecret ? t('collectionSettings.showValue') : t('collectionSettings.hideValue')}
+                      >
+                        {v.isSecret ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                      </button>
+                      <button
+                        onClick={() => removeVar(i)}
+                        className="w-6 h-6 flex items-center justify-center text-text-disabled hover:text-red-500 transition-colors rounded hover:bg-red-500/8"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
