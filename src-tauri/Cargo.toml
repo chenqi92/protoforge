@@ -1,6 +1,6 @@
 [package]
 name = "protoforge"
-version = "0.1.3"
+version = "0.2.0"
 description = "ProtoForge - A modern API development and testing tool built with Tauri"
 authors = ["chenqi"]
 license = "MIT"
