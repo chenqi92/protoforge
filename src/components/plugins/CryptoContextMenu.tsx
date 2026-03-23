@@ -1,38 +1,23 @@
 /**
- * CryptoContextMenu — 全局加密/解密事件处理器
- * 
- * 职责：
- * 1. 监听 Monaco 里 crypto actions 派发的 `crypto-action` 事件 → 弹出参数对话框
- * 2. 监听 `crypto-result` 事件 → 弹出结果对话框
- * 3. 在非 Monaco 区域监听 `contextmenu` → 显示加密/解密右键菜单
+ * CryptoContextMenu — 统一自定义右键菜单
+ *
+ * 完全替代 Monaco 原生右键菜单 + 处理非 Monaco 区域。
+ * - Cut / Copy / Paste（仅 Monaco 内）
+ * - 🪄 Mock 数据生成 → hover → 子菜单
+ * - 🔐 加密 / 编码   → hover → 子菜单
+ * - 🔓 解密 / 解码   → hover → 子菜单
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useTranslation } from 'react-i18next';
-import { Lock, Unlock, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { runCrypto } from '@/services/pluginService';
+import { runCrypto, runGenerator } from '@/services/pluginService';
 import { usePluginStore } from '@/stores/pluginStore';
-import type { InstalledCryptoAlgorithm, CryptoAlgorithm } from '@/types/plugin';
+import type { InstalledCryptoAlgorithm, CryptoAlgorithm, GeneratorContribution } from '@/types/plugin';
 import { CryptoParamsDialog } from './CryptoParamsDialog';
 import { CryptoResultDialog } from './CryptoResultDialog';
 
-interface MenuPosition {
-  x: number;
-  y: number;
-}
-
-interface PendingAction {
-  pluginId: string;
-  algorithm: CryptoAlgorithm;
-  mode: 'encrypt' | 'decrypt';
-  selectedText: string;
-  /** 原始 input 元素 — 用于加密后回写 */
-  sourceInput?: HTMLInputElement | HTMLTextAreaElement;
-  /** Monaco editor id — 如果来自 Monaco 则有值 */
-  editorId?: string;
-}
+/* ── 常量 ──────────────────────────────────────────── */
 
 const CATEGORY_LABELS: Record<string, string> = {
   encode: '编码',
@@ -40,45 +25,68 @@ const CATEGORY_LABELS: Record<string, string> = {
   symmetric: '对称加密',
   asymmetric: '非对称加密',
 };
-
 const CATEGORY_ORDER = ['encode', 'hash', 'symmetric', 'asymmetric'];
 
-/**
- * 获取当前页面的选中文本 —— 兼容 input/textarea 和普通文本选区
- */
-function getSelectedText(): { text: string; inputEl?: HTMLInputElement | HTMLTextAreaElement } {
-  // 1) 先检查 focused input/textarea 的 selection
-  const active = document.activeElement;
-  if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
-    const inputEl = active as HTMLInputElement | HTMLTextAreaElement;
-    const start = inputEl.selectionStart ?? 0;
-    const end = inputEl.selectionEnd ?? 0;
-    if (start !== end) {
-      return { text: inputEl.value.substring(start, end), inputEl };
-    }
-  }
-  // 2) fallback 到 window.getSelection()
-  const sel = window.getSelection();
-  const text = sel?.toString().trim() || '';
-  return { text };
+/* ── 类型 ──────────────────────────────────────────── */
+
+interface MenuPosition { x: number; y: number }
+
+interface PendingAction {
+  pluginId: string;
+  algorithm: CryptoAlgorithm;
+  mode: 'encrypt' | 'decrypt';
+  selectedText: string;
+  sourceInput?: HTMLInputElement | HTMLTextAreaElement;
+  monacoEditor?: any;
+  monacoSelection?: any;
 }
 
+/* ── 获取选中文本 ─────────────────────────────────── */
+
+function getSelectedText(): { text: string; inputEl?: HTMLInputElement | HTMLTextAreaElement } {
+  const active = document.activeElement;
+  if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+    const el = active as HTMLInputElement | HTMLTextAreaElement;
+    const s = el.selectionStart ?? 0;
+    const e = el.selectionEnd ?? 0;
+    if (s !== e) return { text: el.value.substring(s, e), inputEl: el };
+  }
+  const sel = window.getSelection();
+  return { text: sel?.toString().trim() || '' };
+}
+
+/**
+ * 获取 Monaco 编辑器实例（如果右键在 Monaco 内）
+ */
+function getMonacoEditor(target: Element): any | null {
+  const monacoEl = target.closest('.monaco-editor');
+  if (!monacoEl) return null;
+  const editors = (window as any).monaco?.editor?.getEditors() as any[] | undefined;
+  if (!editors) return null;
+  for (const ed of editors) {
+    if (ed.getDomNode() === monacoEl || monacoEl.contains(ed.getDomNode())) return ed;
+  }
+  return null;
+}
+
+/* ── 主组件 ────────────────────────────────────────── */
+
 export function CryptoContextMenu() {
-  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [position, setPosition] = useState<MenuPosition>({ x: 0, y: 0 });
   const [selectedText, setSelectedText] = useState('');
-  const [expandedSub, setExpandedSub] = useState<'encrypt' | 'decrypt' | null>(null);
+  const [hoveredSub, setHoveredSub] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [resultDialog, setResultDialog] = useState<{ output: string; algorithmName: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const sourceInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const monacoEditorRef = useRef<any>(null);
+  const monacoSelectionRef = useRef<any>(null);
 
-  // 从 plugin store 获取已安装的 crypto 插件
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
 
-  // 用 ref 保存算法列表，避免 useEffect 闭包问题
+  // 构建算法列表
   const algorithmsRef = useRef<InstalledCryptoAlgorithm[]>([]);
   const algorithms: InstalledCryptoAlgorithm[] = [];
   const cryptoPlugins = installedPlugins.filter((p) => p.pluginType === 'crypto-tool');
@@ -89,88 +97,112 @@ export function CryptoContextMenu() {
   }
   algorithmsRef.current = algorithms;
 
-  // 1) 监听 Monaco 派发的 crypto-action (需要参数的算法)
+  // 构建生成器列表
+  const generatorsRef = useRef<{ pluginId: string; gen: GeneratorContribution }[]>([]);
+  const generators: { pluginId: string; gen: GeneratorContribution }[] = [];
+  for (const p of installedPlugins.filter((p) => p.pluginType === 'data-generator')) {
+    for (const g of (p.contributes?.generators || [])) {
+      generators.push({ pluginId: p.id, gen: g });
+    }
+  }
+  generatorsRef.current = generators;
+
+  // 是否在 Monaco 内 → 决定是否显示 Cut/Copy/Paste
+  const isInMonacoRef = useRef(false);
+
+  // 监听 crypto-action（来自其他组件的参数弹框请求）
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (!detail) return;
+      const d = (e as CustomEvent).detail;
+      if (!d) return;
       setPendingAction({
-        pluginId: detail.pluginId,
-        algorithm: detail.algorithm,
-        mode: detail.mode,
-        selectedText: detail.selectedText,
-        editorId: detail.editorId,
+        pluginId: d.pluginId,
+        algorithm: d.algorithm,
+        mode: d.mode,
+        selectedText: d.selectedText,
+        monacoEditor: d.editorId ? getMonacoEditorById(d.editorId) : undefined,
       });
     };
     window.addEventListener('crypto-action', handler);
     return () => window.removeEventListener('crypto-action', handler);
   }, []);
 
-  // 2) 监听 crypto-result (解密或错误结果)
+  // 监听 crypto-result
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (!detail) return;
-      setResultDialog({ output: detail.output, algorithmName: detail.algorithmName });
+      const d = (e as CustomEvent).detail;
+      if (!d) return;
+      setResultDialog({ output: d.output, algorithmName: d.algorithmName });
     };
     window.addEventListener('crypto-result', handler);
     return () => window.removeEventListener('crypto-result', handler);
   }, []);
 
-  // 3) 非 Monaco 区域右键菜单 —— 使用 ref 避免闭包陈旧
+  // 全局 contextmenu
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      // Monaco editor 内 → 让 Monaco 自己的 context menu 处理
       const target = e.target as Element;
-      if (target.closest('.monaco-editor')) return;
+      const monacoEditor = getMonacoEditor(target);
 
-      // 如果没有算法可用 → 不拦截
-      if (algorithmsRef.current.length === 0) return;
+      let text = '';
+      let inputEl: HTMLInputElement | HTMLTextAreaElement | undefined;
 
-      // 获取选中文本（兼容 input/textarea）
-      const { text, inputEl } = getSelectedText();
-      if (!text) return;
+      if (monacoEditor) {
+        // Monaco: 从编辑器获取选区 & 文本
+        const selection = monacoEditor.getSelection();
+        text = selection ? monacoEditor.getModel()?.getValueInRange(selection) || '' : '';
+        monacoEditorRef.current = monacoEditor;
+        monacoSelectionRef.current = selection;
+        isInMonacoRef.current = true;
+        sourceInputRef.current = null;
+      } else {
+        // 非 Monaco: 从 input/textarea 或 window.getSelection
+        const result = getSelectedText();
+        text = result.text;
+        inputEl = result.inputEl;
+        monacoEditorRef.current = null;
+        monacoSelectionRef.current = null;
+        isInMonacoRef.current = false;
+        sourceInputRef.current = inputEl || null;
+      }
+
+      // 如果在 Monaco 内 → 总是拦截（显示我们的菜单）
+      // 如果不在 Monaco 内 → 只在有选中文本且有插件时拦截
+      const hasPlugins = algorithmsRef.current.length > 0 || generatorsRef.current.length > 0;
+      if (!monacoEditor && (!text || !hasPlugins)) return;
 
       e.preventDefault();
+      e.stopPropagation();
       setSelectedText(text);
-      sourceInputRef.current = inputEl || null;
 
-      // 计算菜单位置
-      const x = Math.min(e.clientX, window.innerWidth - 280);
-      const y = Math.min(e.clientY, window.innerHeight - 300);
+      const x = Math.min(e.clientX, window.innerWidth - 260);
+      const y = Math.min(e.clientY, window.innerHeight - 400);
       setPosition({ x, y });
       setVisible(true);
-      setExpandedSub(null);
+      setHoveredSub(null);
     };
 
-    document.addEventListener('contextmenu', handler);
-    return () => document.removeEventListener('contextmenu', handler);
-  }, []); // 空依赖 — 通过 ref 读取最新算法列表
+    document.addEventListener('contextmenu', handler, true); // capture phase
+    return () => document.removeEventListener('contextmenu', handler, true);
+  }, []);
 
-  // 关闭菜单
+  // 关闭
   useEffect(() => {
     if (!visible) return;
-    const close = () => {
-      setVisible(false);
-      setExpandedSub(null);
+    const close = () => { setVisible(false); setHoveredSub(null); };
+    const onMouseDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) close();
     };
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        close();
-      }
-    };
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-    };
-    document.addEventListener('mousedown', handleClick);
-    document.addEventListener('keydown', handleEsc);
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleEsc);
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
     };
   }, [visible]);
 
-  // 按类别分组
+  // 按类别分组 crypto
   const grouped = algorithms.reduce<Record<string, InstalledCryptoAlgorithm[]>>((acc, item) => {
     const cat = item.algorithm.category || 'encode';
     if (!acc[cat]) acc[cat] = [];
@@ -178,44 +210,65 @@ export function CryptoContextMenu() {
     return acc;
   }, {});
 
-  // 执行加密/解密
-  const executeCrypto = useCallback(async (
-    pluginId: string,
-    algorithm: CryptoAlgorithm,
-    mode: 'encrypt' | 'decrypt',
-    input: string,
-    paramsJson: string = '{}',
-    inputEl?: HTMLInputElement | HTMLTextAreaElement | null,
-  ) => {
-    setLoading(true);
-    try {
-      const result = await runCrypto(pluginId, algorithm.algorithmId, mode, input, paramsJson);
-      if (!result.success) {
-        setResultDialog({ output: `❌ ${result.error || '未知错误'}`, algorithmName: algorithm.name });
-        return;
-      }
-
-      if (mode === 'encrypt') {
-        replaceSelectedText(result.output, inputEl);
-      } else {
-        setResultDialog({ output: result.output, algorithmName: algorithm.name });
-      }
-    } catch (err: any) {
-      setResultDialog({ output: `❌ ${err?.message || err}`, algorithmName: algorithm.name });
-    } finally {
-      setLoading(false);
-      setVisible(false);
+  // ── Monaco 操作 ──
+  const handleCut = useCallback(() => {
+    const ed = monacoEditorRef.current;
+    if (ed) {
+      ed.focus();
+      ed.trigger('custom', 'editor.action.clipboardCutAction', null);
     }
+    setVisible(false);
   }, []);
 
-  // 非 Monaco 右键菜单中点击算法
-  const handleAlgorithmClick = useCallback((
+  const handleCopy = useCallback(() => {
+    const ed = monacoEditorRef.current;
+    if (ed) {
+      ed.focus();
+      ed.trigger('custom', 'editor.action.clipboardCopyAction', null);
+    } else {
+      navigator.clipboard.writeText(selectedText);
+    }
+    setVisible(false);
+  }, [selectedText]);
+
+  const handlePaste = useCallback(async () => {
+    const ed = monacoEditorRef.current;
+    if (ed) {
+      ed.focus();
+      const text = await navigator.clipboard.readText();
+      const selection = ed.getSelection();
+      if (selection) {
+        ed.executeEdits('paste', [{ range: selection, text, forceMoveMarkers: true }]);
+      }
+    }
+    setVisible(false);
+  }, []);
+
+  // ── Mock 生成器 ──
+  const handleGenerate = useCallback(async (pluginId: string, generatorId: string) => {
+    setVisible(false);
+    try {
+      const result = await runGenerator(pluginId, generatorId, '{}');
+      if (!result.error && result.data) {
+        const ed = monacoEditorRef.current;
+        const sel = monacoSelectionRef.current;
+        if (ed && sel) {
+          ed.focus();
+          ed.executeEdits('mock-gen', [{ range: sel, text: result.data, forceMoveMarkers: true }]);
+        } else {
+          replaceSelectedText(result.data, sourceInputRef.current);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // ── Crypto 算法点击 ──
+  const handleCryptoClick = useCallback((
     pluginId: string,
     algorithm: CryptoAlgorithm,
     mode: 'encrypt' | 'decrypt',
   ) => {
     const hasParams = algorithm.params && algorithm.params.length > 0;
-
     if (hasParams) {
       setPendingAction({
         pluginId,
@@ -223,17 +276,51 @@ export function CryptoContextMenu() {
         mode,
         selectedText,
         sourceInput: sourceInputRef.current || undefined,
+        monacoEditor: monacoEditorRef.current || undefined,
+        monacoSelection: monacoSelectionRef.current || undefined,
       });
       setVisible(false);
     } else {
-      executeCrypto(pluginId, algorithm, mode, selectedText, '{}', sourceInputRef.current);
+      executeCrypto(pluginId, algorithm, mode, selectedText);
     }
-  }, [selectedText, executeCrypto]);
+  }, [selectedText]);
 
-  // 参数弹框确认
+  const executeCrypto = useCallback(async (
+    pluginId: string,
+    algorithm: CryptoAlgorithm,
+    mode: 'encrypt' | 'decrypt',
+    input: string,
+    paramsJson = '{}',
+  ) => {
+    setLoading(true);
+    setVisible(false);
+    try {
+      const result = await runCrypto(pluginId, algorithm.algorithmId, mode, input, paramsJson);
+      if (!result.success) {
+        setResultDialog({ output: `❌ ${result.error || '未知错误'}`, algorithmName: algorithm.name });
+        return;
+      }
+      if (mode === 'encrypt') {
+        const ed = monacoEditorRef.current;
+        const sel = monacoSelectionRef.current;
+        if (ed && sel) {
+          ed.focus();
+          ed.executeEdits('crypto', [{ range: sel, text: result.output, forceMoveMarkers: true }]);
+        } else {
+          replaceSelectedText(result.output, sourceInputRef.current);
+        }
+      } else {
+        setResultDialog({ output: result.output, algorithmName: algorithm.name });
+      }
+    } catch (err: any) {
+      setResultDialog({ output: `❌ ${err?.message || err}`, algorithmName: algorithm.name });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const handleParamsConfirm = useCallback(async (paramsJson: string) => {
     if (!pendingAction) return;
-
     setLoading(true);
     try {
       const result = await runCrypto(
@@ -243,14 +330,14 @@ export function CryptoContextMenu() {
         pendingAction.selectedText,
         paramsJson,
       );
-
       if (!result.success) {
         setResultDialog({ output: `❌ ${result.error || '未知错误'}`, algorithmName: pendingAction.algorithm.name });
       } else if (pendingAction.mode === 'encrypt') {
-        if (pendingAction.editorId) {
-          window.dispatchEvent(new CustomEvent('crypto-replace', {
-            detail: { editorId: pendingAction.editorId, text: result.output }
-          }));
+        const ed = pendingAction.monacoEditor;
+        const sel = pendingAction.monacoSelection;
+        if (ed && sel) {
+          ed.focus();
+          ed.executeEdits('crypto', [{ range: sel, text: result.output, forceMoveMarkers: true }]);
         } else {
           replaceSelectedText(result.output, pendingAction.sourceInput);
         }
@@ -265,69 +352,87 @@ export function CryptoContextMenu() {
     }
   }, [pendingAction]);
 
+  const hasEncrypt = algorithms.some((a) => a.algorithm.supportEncrypt);
+  const hasDecrypt = algorithms.some((a) => a.algorithm.supportDecrypt);
+  const isInMonaco = isInMonacoRef.current;
+
   if (!visible && !pendingAction && !resultDialog) return null;
 
   return (
     <>
-      {/* 非 Monaco 区域的右键菜单 */}
       {visible && createPortal(
         <div
           ref={menuRef}
-          className="fixed z-[9999] min-w-[220px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl"
+          className="fixed z-[9999] min-w-[200px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
           style={{ left: position.x, top: position.y, fontSize: 'var(--fs-sm)' }}
         >
-          {/* 加密子菜单 */}
-          <div
-            className="relative"
-            onMouseEnter={() => setExpandedSub('encrypt')}
-            onMouseLeave={() => setExpandedSub(null)}
-          >
-            <button
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-text-primary hover:bg-bg-hover rounded-t-xl transition-colors"
+          {/* Cut / Copy / Paste — 仅 Monaco */}
+          {isInMonaco && (
+            <>
+              <MenuItem label="剪切" shortcut="⌘X" onClick={handleCut} disabled={!selectedText} />
+              <MenuItem label="复制" shortcut="⌘C" onClick={handleCopy} disabled={!selectedText} />
+              <MenuItem label="粘贴" shortcut="⌘V" onClick={handlePaste} />
+              <Divider />
+            </>
+          )}
+
+          {/* 🪄 Mock 数据生成 — hover 子菜单 */}
+          {generators.length > 0 && (
+            <HoverSubmenu
+              label="🪄 Mock 数据"
+              hoverKey="mock"
+              hoveredSub={hoveredSub}
+              onHover={setHoveredSub}
             >
-              <Lock className="w-3.5 h-3.5 text-amber-500" />
-              <span className="flex-1">{t('crypto.encrypt', '加密 / 编码')}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-text-tertiary" />
-            </button>
-            {expandedSub === 'encrypt' && (
-              <SubMenu
+              {generators.map((g) => (
+                <button
+                  key={`${g.pluginId}:${g.gen.generatorId}`}
+                  onClick={() => handleGenerate(g.pluginId, g.gen.generatorId)}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-text-primary hover:bg-bg-hover transition-colors"
+                >
+                  {g.gen.name}
+                </button>
+              ))}
+            </HoverSubmenu>
+          )}
+
+          {/* 🔐 加密 / 编码 — hover 子菜单 */}
+          {hasEncrypt && selectedText && (
+            <HoverSubmenu
+              label="🔐 加密 / 编码"
+              hoverKey="encrypt"
+              hoveredSub={hoveredSub}
+              onHover={setHoveredSub}
+            >
+              <CryptoSubItems
                 grouped={grouped}
                 mode="encrypt"
-                onSelect={handleAlgorithmClick}
                 loading={loading}
+                onClick={handleCryptoClick}
               />
-            )}
-          </div>
+            </HoverSubmenu>
+          )}
 
-          <div className="mx-2 border-t border-border-default/60" />
-
-          {/* 解密子菜单 */}
-          <div
-            className="relative"
-            onMouseEnter={() => setExpandedSub('decrypt')}
-            onMouseLeave={() => setExpandedSub(null)}
-          >
-            <button
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-text-primary hover:bg-bg-hover rounded-b-xl transition-colors"
+          {/* 🔓 解密 / 解码 — hover 子菜单 */}
+          {hasDecrypt && selectedText && (
+            <HoverSubmenu
+              label="🔓 解密 / 解码"
+              hoverKey="decrypt"
+              hoveredSub={hoveredSub}
+              onHover={setHoveredSub}
             >
-              <Unlock className="w-3.5 h-3.5 text-emerald-500" />
-              <span className="flex-1">{t('crypto.decrypt', '解密 / 解码')}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-text-tertiary" />
-            </button>
-            {expandedSub === 'decrypt' && (
-              <SubMenu
+              <CryptoSubItems
                 grouped={grouped}
                 mode="decrypt"
-                onSelect={handleAlgorithmClick}
                 loading={loading}
+                onClick={handleCryptoClick}
               />
-            )}
-          </div>
+            </HoverSubmenu>
+          )}
         </div>,
         document.body,
       )}
 
-      {/* 参数填写弹框 */}
       {pendingAction && (
         <CryptoParamsDialog
           algorithm={pendingAction.algorithm}
@@ -337,7 +442,6 @@ export function CryptoContextMenu() {
         />
       )}
 
-      {/* 结果展示弹框 */}
       {resultDialog && (
         <CryptoResultDialog
           output={resultDialog.output}
@@ -349,32 +453,97 @@ export function CryptoContextMenu() {
   );
 }
 
-/** 子菜单 */
-function SubMenu({
-  grouped,
-  mode,
-  onSelect,
-  loading,
+/* ── 菜单项 ────────────────────────────────────────── */
+
+function MenuItem({
+  label,
+  shortcut,
+  onClick,
+  disabled,
 }: {
-  grouped: Record<string, InstalledCryptoAlgorithm[]>;
-  mode: 'encrypt' | 'decrypt';
-  onSelect: (pluginId: string, algo: CryptoAlgorithm, mode: 'encrypt' | 'decrypt') => void;
-  loading: boolean;
+  label: string;
+  shortcut?: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'flex w-full items-center justify-between px-3 py-1.5 text-left transition-colors',
+        disabled ? 'text-text-disabled cursor-default' : 'text-text-primary hover:bg-bg-hover',
+      )}
+    >
+      <span>{label}</span>
+      {shortcut && <span className="ml-4 text-text-disabled" style={{ fontSize: 'var(--fs-xxs)' }}>{shortcut}</span>}
+    </button>
+  );
+}
+
+function Divider() {
+  return <div className="mx-2 my-1 border-t border-border-default/50" />;
+}
+
+/* ── Hover 子菜单容器 ────────────────────────────── */
+
+function HoverSubmenu({
+  label,
+  hoverKey,
+  hoveredSub,
+  onHover,
+  children,
+}: {
+  label: string;
+  hoverKey: string;
+  hoveredSub: string | null;
+  onHover: (key: string | null) => void;
+  children: React.ReactNode;
 }) {
   return (
     <div
-      className="absolute left-full top-0 z-[10000] ml-1 min-w-[200px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
-      style={{ fontSize: 'var(--fs-sm)' }}
+      className="relative"
+      onMouseEnter={() => onHover(hoverKey)}
+      onMouseLeave={() => onHover(null)}
     >
+      <button className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-text-primary hover:bg-bg-hover transition-colors">
+        <span className="flex-1">{label}</span>
+        <span className="text-text-tertiary text-xs">▸</span>
+      </button>
+      {hoveredSub === hoverKey && (
+        <div
+          className="absolute left-full top-0 z-[10000] ml-1 min-w-[180px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
+          style={{ fontSize: 'var(--fs-sm)' }}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Crypto 子菜单内容 ────────────────────────────── */
+
+function CryptoSubItems({
+  grouped,
+  mode,
+  loading,
+  onClick,
+}: {
+  grouped: Record<string, InstalledCryptoAlgorithm[]>;
+  mode: 'encrypt' | 'decrypt';
+  loading: boolean;
+  onClick: (pluginId: string, algo: CryptoAlgorithm, mode: 'encrypt' | 'decrypt') => void;
+}) {
+  return (
+    <>
       {CATEGORY_ORDER.map((cat) => {
         const items = grouped[cat];
         if (!items?.length) return null;
-
         const filtered = items.filter((i) =>
           mode === 'encrypt' ? i.algorithm.supportEncrypt : i.algorithm.supportDecrypt,
         );
         if (!filtered.length) return null;
-
         return (
           <div key={cat}>
             <div className="px-3 py-1 text-text-disabled font-medium tracking-wide" style={{ fontSize: 'var(--fs-xxs)' }}>
@@ -384,7 +553,7 @@ function SubMenu({
               <button
                 key={`${item.pluginId}:${item.algorithm.algorithmId}`}
                 disabled={loading}
-                onClick={() => onSelect(item.pluginId, item.algorithm, mode)}
+                onClick={() => onClick(item.pluginId, item.algorithm, mode)}
                 className={cn(
                   'flex w-full items-center gap-2 px-3 py-1.5 text-left text-text-primary hover:bg-bg-hover transition-colors',
                   loading && 'opacity-50 cursor-not-allowed',
@@ -399,30 +568,30 @@ function SubMenu({
           </div>
         );
       })}
-    </div>
+    </>
   );
 }
 
-/** 替换选中的文本 — 兼容 input/textarea 和普通文本 */
+/* ── 工具函数 ──────────────────────────────────────── */
+
+function getMonacoEditorById(editorId: string): any | null {
+  const editors = (window as any).monaco?.editor?.getEditors() as any[] | undefined;
+  return editors?.find((e: any) => e.getId() === editorId) || null;
+}
+
 function replaceSelectedText(replacement: string, inputEl?: HTMLInputElement | HTMLTextAreaElement | null) {
-  // 优先使用传入的 input 元素
   if (inputEl && inputEl.selectionStart !== null && inputEl.selectionEnd !== null) {
     const start = inputEl.selectionStart;
     const end = inputEl.selectionEnd;
     const val = inputEl.value;
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype, 'value'
-    )?.set || Object.getOwnPropertyDescriptor(
-      window.HTMLTextAreaElement.prototype, 'value'
-    )?.set;
-    nativeInputValueSetter?.call(inputEl, val.substring(0, start) + replacement + val.substring(end));
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+      || Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+    setter?.call(inputEl, val.substring(0, start) + replacement + val.substring(end));
     inputEl.dispatchEvent(new Event('input', { bubbles: true }));
     inputEl.focus();
     inputEl.setSelectionRange(start, start + replacement.length);
     return;
   }
-
-  // fallback: window.getSelection
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return;
   const range = sel.getRangeAt(0);

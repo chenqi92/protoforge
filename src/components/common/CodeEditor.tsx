@@ -63,6 +63,7 @@ export function CodeEditor({
       loading={<div className="flex w-full h-full items-center justify-center text-text-tertiary"><Loader2 className="w-5 h-5 animate-spin" /></div>}
       options={{
         minimap: { enabled: false },
+        contextmenu: false,
         fontSize: editorFontSize,
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         wordWrap: 'on',

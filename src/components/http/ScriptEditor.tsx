@@ -167,54 +167,6 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
     setShowSnippets(false);
   }, [value, onChange]);
 
-  const handleEditorMount = useCallback((editor: any) => {
-    editorRef.current = editor;
-
-    // 注册分组入口 actions（与 HttpWorkspace 一致，只注册入口不展开所有算法）
-    const plugins = usePluginStore.getState().installedPlugins;
-
-    const hasGens = plugins.some(p => p.pluginType === 'data-generator' && (p.contributes?.generators?.length || 0) > 0);
-    if (hasGens) {
-      editor.addAction({
-        id: 'plugin-mock-data',
-        label: '🪄 Mock 数据生成',
-        contextMenuGroupId: '9_plugins',
-        contextMenuOrder: 1,
-        run: (ed: any) => {
-          const rect = ed.getDomNode()?.getBoundingClientRect();
-          const pos = ed.getPosition();
-          const coords = pos ? ed.getScrolledVisiblePosition(pos) : null;
-          const x = (rect?.left || 0) + (coords?.left || 100);
-          const y = (rect?.top || 0) + (coords?.top || 100) + 20;
-          window.dispatchEvent(new CustomEvent('plugin-action-menu', {
-            detail: { type: 'mock', editorId: ed.getId(), x, y },
-          }));
-        },
-      });
-    }
-
-    const hasCrypto = plugins.some(p => p.pluginType === 'crypto-tool' && (p.contributes?.cryptoAlgorithms?.length || 0) > 0);
-    if (hasCrypto) {
-      editor.addAction({
-        id: 'plugin-crypto',
-        label: '🔐 加密 / 解密',
-        contextMenuGroupId: '9_plugins',
-        contextMenuOrder: 2,
-        precondition: 'editorHasSelection',
-        run: (ed: any) => {
-          const rect = ed.getDomNode()?.getBoundingClientRect();
-          const pos = ed.getPosition();
-          const coords = pos ? ed.getScrolledVisiblePosition(pos) : null;
-          const x = (rect?.left || 0) + (coords?.left || 100);
-          const y = (rect?.top || 0) + (coords?.top || 100) + 20;
-          window.dispatchEvent(new CustomEvent('plugin-action-menu', {
-            detail: { type: 'crypto', editorId: ed.getId(), x, y },
-          }));
-        },
-      });
-    }
-  }, []);
-
   return (
     <div className="h-full flex flex-col p-4">
       {/* Toolbar */}
@@ -284,7 +236,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
             value={value}
             onChange={onChange}
             language="javascript"
-            onMount={handleEditorMount}
+            onMount={(editor) => { editorRef.current = editor; }}
           />
         </div>
       </div>

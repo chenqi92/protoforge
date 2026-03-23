@@ -760,52 +760,6 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           value={config.jsonBody || ''}
                           onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
                           language="json"
-                          onMount={(editor) => {
-                            const plugins = usePluginStore.getState().installedPlugins;
-
-                            // Mock 数据生成器 — 一个入口
-                            const hasGens = plugins.some(p => p.pluginType === 'data-generator' && (p.contributes?.generators?.length || 0) > 0);
-                            if (hasGens) {
-                              editor.addAction({
-                                id: 'plugin-mock-data',
-                                label: '🪄 Mock 数据生成',
-                                contextMenuGroupId: '9_plugins',
-                                contextMenuOrder: 1,
-                                run: (ed: any) => {
-                                  const rect = ed.getDomNode()?.getBoundingClientRect();
-                                  const pos = ed.getPosition();
-                                  const coords = pos ? ed.getScrolledVisiblePosition(pos) : null;
-                                  const x = (rect?.left || 0) + (coords?.left || 100);
-                                  const y = (rect?.top || 0) + (coords?.top || 100) + 20;
-                                  window.dispatchEvent(new CustomEvent('plugin-action-menu', {
-                                    detail: { type: 'mock', editorId: ed.getId(), x, y },
-                                  }));
-                                },
-                              });
-                            }
-
-                            // 加密/解密 — 一个入口
-                            const hasCrypto = plugins.some(p => p.pluginType === 'crypto-tool' && (p.contributes?.cryptoAlgorithms?.length || 0) > 0);
-                            if (hasCrypto) {
-                              editor.addAction({
-                                id: 'plugin-crypto',
-                                label: '🔐 加密 / 解密',
-                                contextMenuGroupId: '9_plugins',
-                                contextMenuOrder: 2,
-                                precondition: 'editorHasSelection',
-                                run: (ed: any) => {
-                                  const rect = ed.getDomNode()?.getBoundingClientRect();
-                                  const pos = ed.getPosition();
-                                  const coords = pos ? ed.getScrolledVisiblePosition(pos) : null;
-                                  const x = (rect?.left || 0) + (coords?.left || 100);
-                                  const y = (rect?.top || 0) + (coords?.top || 100) + 20;
-                                  window.dispatchEvent(new CustomEvent('plugin-action-menu', {
-                                    detail: { type: 'crypto', editorId: ed.getId(), x, y },
-                                  }));
-                                },
-                              });
-                            }
-                          }}
                         />
                       </div>
                     )}
