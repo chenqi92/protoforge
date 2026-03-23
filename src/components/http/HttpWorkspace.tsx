@@ -29,6 +29,7 @@ import { buildRequestPayload, resolveHttpConfig } from "@/services/httpService";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
+
 const methodTextColor: Record<string, string> = {
   GET: "text-emerald-600", POST: "text-amber-600", PUT: "text-blue-600",
   DELETE: "text-red-500", PATCH: "text-violet-600", HEAD: "text-cyan-600", OPTIONS: "text-gray-500",
@@ -107,7 +108,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
     } else if (hasRealParams && !hasUrlQuery) {
       // Case 2: params 表格有值，但 URL 没有 query string → 拼接 params 回 URL
       const baseUrl = qIndex >= 0 ? url.slice(0, qIndex) : url;
-      const qs = enabledParams.map(p => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`).join('&');
+      const qs = enabledParams.map(p => `${p.key}=${p.value}`).join('&');
       updateHttpConfig(tabId, { url: `${baseUrl}?${qs}` });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -714,7 +715,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                   const enabledParams = v.filter(p => p.key.trim() && p.enabled);
                   const baseUrl = config.url.split('?')[0];
                   if (enabledParams.length > 0) {
-                    const qs = enabledParams.map(p => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`).join('&');
+                    const qs = enabledParams.map(p => `${p.key}=${p.value}`).join('&');
                     updateHttpConfig(tabId, { queryParams: v, url: `${baseUrl}?${qs}` });
                   } else {
                     updateHttpConfig(tabId, { queryParams: v, url: baseUrl });
@@ -2794,7 +2795,9 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
   const [result, setResult] = useState<{ content: string; filename: string } | null>(null);
   const [copying, setCopying] = useState(false);
   const [loading, setLoading] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
 
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
   const exportPlugins = useMemo(() => installedPlugins.filter(p => p.pluginType === 'export-format'), [installedPlugins]);
@@ -2814,16 +2817,27 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
   useEffect(() => {
     if (!open) return;
     const handleClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setResult(null);
-      }
+      if (
+        btnRef.current?.contains(e.target as Node) ||
+        panelRef.current?.contains(e.target as Node)
+      ) return;
+      setOpen(false);
+      setResult(null);
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
   if (formats.length === 0) return null;
+
+  const handleToggle = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    }
+    setOpen(!open);
+    setResult(null);
+  };
 
   const handleExport = async (pluginId: string) => {
     setLoading(true);
@@ -2851,9 +2865,10 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <>
       <button
-        onClick={() => { setOpen(!open); setResult(null); }}
+        ref={btnRef}
+        onClick={handleToggle}
         className="wb-icon-btn hover:text-indigo-600"
         title={t('http.export', '导出')}
         disabled={!config.url.trim()}
@@ -2861,8 +2876,12 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
         <FileOutput className="w-3.5 h-3.5" />
       </button>
 
-      {open && (
-        <div className="absolute top-full right-0 mt-1.5 z-50 min-w-[320px] max-w-[480px] rounded-[12px] border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden">
+      {open && pos && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed z-[10000] min-w-[320px] max-w-[480px] rounded-[12px] border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden"
+          style={{ top: pos.top, right: pos.right }}
+        >
           {!result ? (
             <div className="p-1.5">
               <div className="px-3 py-2 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">
@@ -2898,9 +2917,10 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
               </pre>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
 

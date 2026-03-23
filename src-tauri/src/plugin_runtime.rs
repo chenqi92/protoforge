@@ -209,6 +209,9 @@ pub struct PluginContributes {
     /// 字体贡献 — 插件可携带字体文件
     #[serde(default)]
     pub fonts: Vec<FontContribution>,
+    /// 加密解密算法贡献
+    #[serde(default)]
+    pub crypto_algorithms: Vec<CryptoAlgorithmContribution>,
 }
 
 /// 字体贡献
@@ -284,6 +287,65 @@ pub struct ExportFormatContribution {
     pub format_id: String,
     pub name: String,
     pub file_extension: String,
+}
+
+/// 加密解密算法贡献
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CryptoAlgorithmContribution {
+    pub algorithm_id: String,
+    pub name: String,
+    /// "encode" | "hash" | "symmetric" | "asymmetric"
+    pub category: String,
+    #[serde(default)]
+    pub support_encrypt: bool,
+    #[serde(default)]
+    pub support_decrypt: bool,
+    #[serde(default)]
+    pub params: Vec<CryptoParamDef>,
+}
+
+/// 加密算法参数定义
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CryptoParamDef {
+    pub param_id: String,
+    pub name: String,
+    /// "text" | "select" | "number"
+    pub param_type: String,
+    #[serde(default)]
+    pub required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_value: Option<String>,
+    #[serde(default)]
+    pub options: Vec<CryptoParamOption>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub placeholder: Option<String>,
+}
+
+/// 加密算法参数选项（type=select 时使用）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CryptoParamOption {
+    pub label: String,
+    pub value: String,
+}
+
+/// 加密/解密执行结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CryptoResult {
+    pub success: bool,
+    pub output: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// 已安装的加密插件算法信息（含 plugin_id）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledCryptoAlgorithm {
+    pub plugin_id: String,
+    pub algorithm: CryptoAlgorithmContribution,
 }
 
 // ── Remote Registry ──
@@ -1131,6 +1193,67 @@ impl PluginManager {
             }
         }
     }
+
+    /// 列出所有已安装 crypto-tool 插件的算法
+    pub async fn list_crypto_algorithms(&self) -> Vec<InstalledCryptoAlgorithm> {
+        let reg = self.registry.read().await;
+        let mut result = Vec::new();
+        for rp in reg.values() {
+            if rp.manifest.plugin_type == PluginType::CryptoTool {
+                for algo in &rp.manifest.contributes.crypto_algorithms {
+                    result.push(InstalledCryptoAlgorithm {
+                        plugin_id: rp.manifest.id.clone(),
+                        algorithm: algo.clone(),
+                    });
+                }
+            }
+        }
+        result
+    }
+
+    /// 执行加密/解密操作
+    /// mode: "encrypt" 或 "decrypt"
+    pub async fn run_crypto(
+        &self,
+        plugin_id: &str,
+        algorithm_id: &str,
+        mode: &str,
+        input: &str,
+        params_json: &str,
+    ) -> Result<CryptoResult, String> {
+        let reg = self.registry.read().await;
+        let rp = reg
+            .get(plugin_id)
+            .ok_or_else(|| format!("插件 '{}' 未注册", plugin_id))?;
+
+        match &rp.runtime {
+            PluginRuntime::Native(_) => {
+                drop(reg);
+                Err(format!("原生插件 '{}' 不支持 crypto 操作", plugin_id))
+            }
+            PluginRuntime::JavaScript => {
+                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                drop(reg);
+                let script = tokio::fs::read_to_string(&script_path)
+                    .await
+                    .map_err(|e| format!("读取插件脚本失败: {}", e))?;
+                let algo = algorithm_id.to_string();
+                let m = mode.to_string();
+                let inp = input.to_string();
+                let params = params_json.to_string();
+                let result = tokio::task::spawn_blocking(move || {
+                    execute_crypto_script(&script, &algo, &m, &inp, &params)
+                })
+                .await
+                .map_err(|e| format!("执行插件失败: {}", e))??;
+                Ok(result)
+            }
+            PluginRuntime::Wasm => {
+                drop(reg);
+                Err(format!("WASM 插件 '{}' 不支持 crypto 操作（暂未实现）", plugin_id))
+            }
+        }
+    }
 }
 
 // ── tar.gz extraction ──
@@ -1483,6 +1606,51 @@ fn execute_export_script(script: &str, request_json: &str) -> Result<ExportResul
 
     let parsed: ExportResult =
         serde_json::from_str(&json_str).map_err(|e| format!("解析 export 返回 JSON 失败: {}", e))?;
+
+    Ok(parsed)
+}
+
+/// Execute a JS plugin's encrypt/decrypt function in a sandboxed boa_engine context.
+/// mode: "encrypt" or "decrypt"
+fn execute_crypto_script(
+    script: &str,
+    algorithm_id: &str,
+    mode: &str,
+    input: &str,
+    params_json: &str,
+) -> Result<CryptoResult, String> {
+    let mut context = Context::default();
+
+    context
+        .eval(Source::from_bytes(script))
+        .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
+
+    let algo_escaped = serde_json::to_string(algorithm_id)
+        .map_err(|e| format!("序列化 algorithmId 失败: {}", e))?;
+    let input_escaped = serde_json::to_string(input)
+        .map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let params_escaped = serde_json::to_string(params_json)
+        .map_err(|e| format!("序列化参数失败: {}", e))?;
+
+    // 调用 encrypt(algorithmId, input, params) 或 decrypt(algorithmId, input, params)
+    let fn_name = if mode == "encrypt" { "encrypt" } else { "decrypt" };
+    let call_script = format!(
+        "JSON.stringify({}({}, {}, JSON.parse({})))",
+        fn_name, algo_escaped, input_escaped, params_escaped
+    );
+
+    let result = context
+        .eval(Source::from_bytes(call_script.as_bytes()))
+        .map_err(|e| format!("调用 {}() 失败: {}", fn_name, format_js_error(&e)))?;
+
+    let json_str = result
+        .as_string()
+        .ok_or_else(|| format!("{}() 返回值不是字符串（需要 JSON.stringify 包装）", fn_name))?
+        .to_std_string()
+        .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
+
+    let parsed: CryptoResult =
+        serde_json::from_str(&json_str).map_err(|e| format!("解析 {} 返回 JSON 失败: {}", fn_name, e))?;
 
     Ok(parsed)
 }

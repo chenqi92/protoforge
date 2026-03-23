@@ -828,7 +828,11 @@ function RequestItemWithTooltip({
   const requestSummary = useMemo(() => {
     const summary: { label: string; value: string; accent?: string }[] = [];
     // URL
-    if (item.url) summary.push({ label: "URL", value: item.url });
+    if (item.url) {
+      let displayUrl = item.url;
+      try { displayUrl = decodeURIComponent(item.url); } catch { /* keep original if decode fails */ }
+      summary.push({ label: "URL", value: displayUrl });
+    }
     // Query params
     const params = (() => { try { const p = JSON.parse(item.queryParams || "[]"); return Array.isArray(p) ? p.filter((q: any) => q.key && q.enabled !== false) : []; } catch { return []; } })();
     if (params.length > 0) summary.push({ label: t('http.params'), value: params.map((p: any) => p.key).join(', ') });

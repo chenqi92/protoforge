@@ -12,17 +12,18 @@ export function generateCurlFromItem(item: CollectionItem): string {
 
   // Build URL with query params
   let url = item.url || '';
+  try { url = decodeURIComponent(url); } catch { /* keep original */ }
   try {
     if (item.queryParams) {
       const params = JSON.parse(item.queryParams);
       const paramPairs: string[] = [];
       if (Array.isArray(params)) {
         params.filter((p: any) => p.enabled !== false && p.key).forEach((p: any) => {
-          paramPairs.push(`${encodeURIComponent(p.key)}=${encodeURIComponent(p.value || '')}`);
+          paramPairs.push(`${p.key}=${p.value || ''}`);
         });
       } else if (typeof params === 'object') {
         Object.entries(params).forEach(([k, v]) => {
-          if (k) paramPairs.push(`${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`);
+          if (k) paramPairs.push(`${k}=${String(v)}`);
         });
       }
       if (paramPairs.length > 0) {

@@ -1129,7 +1129,7 @@ pub async fn proxy_check_ca_trusted(
 //  Plugins
 // ═══════════════════════════════════════════
 
-use crate::plugin_runtime::{PluginManager, PluginManifest, ProtocolParser, ParseResult, RenderResult, HookResult, GenerateDataResult, ExportResult};
+use crate::plugin_runtime::{PluginManager, PluginManifest, ProtocolParser, ParseResult, RenderResult, HookResult, GenerateDataResult, ExportResult, CryptoResult, InstalledCryptoAlgorithm};
 
 
 
@@ -1231,7 +1231,26 @@ pub async fn plugin_run_export(
     mgr.run_export(&plugin_id, &request_json).await
 }
 
-// ═══════════════════════════════════════════
+#[tauri::command]
+pub async fn plugin_run_crypto(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+    algorithm_id: String,
+    mode: String,
+    input: String,
+    params_json: String,
+) -> Result<CryptoResult, String> {
+    mgr.run_crypto(&plugin_id, &algorithm_id, &mode, &input, &params_json).await
+}
+
+#[tauri::command]
+pub async fn plugin_list_crypto_algorithms(
+    mgr: State<'_, PluginManager>,
+) -> Result<Vec<InstalledCryptoAlgorithm>, String> {
+    Ok(mgr.list_crypto_algorithms().await)
+}
+
+// ═════════════════════════════════════════════
 //  Collection Runner
 // ═══════════════════════════════════════════
 

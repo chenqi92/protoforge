@@ -45,6 +45,7 @@ export interface PluginContributes {
   generators?: GeneratorContribution[];
   exportFormats?: ExportFormatContribution[];
   fonts?: FontContribution[];
+  cryptoAlgorithms?: CryptoAlgorithm[];
 }
 
 export interface ParserContribution {
@@ -141,4 +142,36 @@ export interface ExportResult {
   filename: string;
   mimeType: string;
   error?: string;
+}
+
+// ── Crypto Tool Types ──
+
+export interface CryptoAlgorithm {
+  algorithmId: string;
+  name: string;
+  category: 'encode' | 'hash' | 'symmetric' | 'asymmetric';
+  supportEncrypt: boolean;
+  supportDecrypt: boolean;
+  params?: CryptoParam[];
+}
+
+export interface CryptoParam {
+  paramId: string;
+  name: string;
+  type: 'text' | 'select' | 'number';
+  required: boolean;
+  defaultValue?: string;
+  options?: { label: string; value: string }[];
+  placeholder?: string;
+}
+
+export interface CryptoResult {
+  success: boolean;
+  output: string;
+  error?: string;
+}
+
+export interface InstalledCryptoAlgorithm {
+  pluginId: string;
+  algorithm: CryptoAlgorithm;
 }

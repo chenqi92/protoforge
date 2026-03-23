@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { PluginManifest, ProtocolParser, ParseResult, HookResult, GenerateDataResult, ExportResult } from "@/types/plugin";
+import type { PluginManifest, ProtocolParser, ParseResult, HookResult, GenerateDataResult, ExportResult, CryptoResult, InstalledCryptoAlgorithm } from "@/types/plugin";
 
 /** 列出所有已安装插件 */
 export async function listPlugins(): Promise<PluginManifest[]> {
@@ -56,3 +56,18 @@ export async function runExport(pluginId: string, requestJson: string): Promise<
   return invoke<ExportResult>("plugin_run_export", { pluginId, requestJson });
 }
 
+/** 执行加密/解密操作 */
+export async function runCrypto(
+  pluginId: string,
+  algorithmId: string,
+  mode: 'encrypt' | 'decrypt',
+  input: string,
+  paramsJson: string = '{}',
+): Promise<CryptoResult> {
+  return invoke<CryptoResult>("plugin_run_crypto", { pluginId, algorithmId, mode, input, paramsJson });
+}
+
+/** 列出所有已安装的加密算法（含 plugin ID） */
+export async function listCryptoAlgorithms(): Promise<InstalledCryptoAlgorithm[]> {
+  return invoke<InstalledCryptoAlgorithm[]>("plugin_list_crypto_algorithms");
+}
