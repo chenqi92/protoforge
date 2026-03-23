@@ -28,6 +28,8 @@ interface PendingAction {
   algorithm: CryptoAlgorithm;
   mode: 'encrypt' | 'decrypt';
   selectedText: string;
+  /** 原始 input 元素 — 用于加密后回写 */
+  sourceInput?: HTMLInputElement | HTMLTextAreaElement;
   /** Monaco editor id — 如果来自 Monaco 则有值 */
   editorId?: string;
 }
@@ -41,6 +43,26 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const CATEGORY_ORDER = ['encode', 'hash', 'symmetric', 'asymmetric'];
 
+/**
+ * 获取当前页面的选中文本 —— 兼容 input/textarea 和普通文本选区
+ */
+function getSelectedText(): { text: string; inputEl?: HTMLInputElement | HTMLTextAreaElement } {
+  // 1) 先检查 focused input/textarea 的 selection
+  const active = document.activeElement;
+  if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+    const inputEl = active as HTMLInputElement | HTMLTextAreaElement;
+    const start = inputEl.selectionStart ?? 0;
+    const end = inputEl.selectionEnd ?? 0;
+    if (start !== end) {
+      return { text: inputEl.value.substring(start, end), inputEl };
+    }
+  }
+  // 2) fallback 到 window.getSelection()
+  const sel = window.getSelection();
+  const text = sel?.toString().trim() || '';
+  return { text };
+}
+
 export function CryptoContextMenu() {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
@@ -51,18 +73,21 @@ export function CryptoContextMenu() {
   const [resultDialog, setResultDialog] = useState<{ output: string; algorithmName: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const sourceInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
   // 从 plugin store 获取已安装的 crypto 插件
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
-  const cryptoPlugins = installedPlugins.filter((p) => p.pluginType === 'crypto-tool');
 
-  // 构建算法列表
+  // 用 ref 保存算法列表，避免 useEffect 闭包问题
+  const algorithmsRef = useRef<InstalledCryptoAlgorithm[]>([]);
   const algorithms: InstalledCryptoAlgorithm[] = [];
+  const cryptoPlugins = installedPlugins.filter((p) => p.pluginType === 'crypto-tool');
   for (const cp of cryptoPlugins) {
     for (const algo of (cp.contributes?.cryptoAlgorithms || [])) {
       algorithms.push({ pluginId: cp.id, algorithm: algo });
     }
   }
+  algorithmsRef.current = algorithms;
 
   // 1) 监听 Monaco 派发的 crypto-action (需要参数的算法)
   useEffect(() => {
@@ -92,21 +117,23 @@ export function CryptoContextMenu() {
     return () => window.removeEventListener('crypto-result', handler);
   }, []);
 
-  // 3) 非 Monaco 区域右键菜单
+  // 3) 非 Monaco 区域右键菜单 —— 使用 ref 避免闭包陈旧
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      const selection = window.getSelection();
-      const text = selection?.toString().trim() || '';
-
-      // 没有选中文本或没有 crypto 算法 → 不拦截
-      if (!text || algorithms.length === 0) return;
-
       // Monaco editor 内 → 让 Monaco 自己的 context menu 处理
       const target = e.target as Element;
       if (target.closest('.monaco-editor')) return;
 
+      // 如果没有算法可用 → 不拦截
+      if (algorithmsRef.current.length === 0) return;
+
+      // 获取选中文本（兼容 input/textarea）
+      const { text, inputEl } = getSelectedText();
+      if (!text) return;
+
       e.preventDefault();
       setSelectedText(text);
+      sourceInputRef.current = inputEl || null;
 
       // 计算菜单位置
       const x = Math.min(e.clientX, window.innerWidth - 280);
@@ -118,7 +145,7 @@ export function CryptoContextMenu() {
 
     document.addEventListener('contextmenu', handler);
     return () => document.removeEventListener('contextmenu', handler);
-  }, [algorithms.length]);
+  }, []); // 空依赖 — 通过 ref 读取最新算法列表
 
   // 关闭菜单
   useEffect(() => {
@@ -158,6 +185,7 @@ export function CryptoContextMenu() {
     mode: 'encrypt' | 'decrypt',
     input: string,
     paramsJson: string = '{}',
+    inputEl?: HTMLInputElement | HTMLTextAreaElement | null,
   ) => {
     setLoading(true);
     try {
@@ -168,7 +196,7 @@ export function CryptoContextMenu() {
       }
 
       if (mode === 'encrypt') {
-        replaceSelectedText(result.output);
+        replaceSelectedText(result.output, inputEl);
       } else {
         setResultDialog({ output: result.output, algorithmName: algorithm.name });
       }
@@ -194,11 +222,11 @@ export function CryptoContextMenu() {
         algorithm,
         mode,
         selectedText,
-        targetElement: undefined,
-      } as any);
+        sourceInput: sourceInputRef.current || undefined,
+      });
       setVisible(false);
     } else {
-      executeCrypto(pluginId, algorithm, mode, selectedText);
+      executeCrypto(pluginId, algorithm, mode, selectedText, '{}', sourceInputRef.current);
     }
   }, [selectedText, executeCrypto]);
 
@@ -219,17 +247,14 @@ export function CryptoContextMenu() {
       if (!result.success) {
         setResultDialog({ output: `❌ ${result.error || '未知错误'}`, algorithmName: pendingAction.algorithm.name });
       } else if (pendingAction.mode === 'encrypt') {
-        // 加密 → 替换文本
         if (pendingAction.editorId) {
-          // Monaco 中的加密 → 通过 event 通知替换
           window.dispatchEvent(new CustomEvent('crypto-replace', {
             detail: { editorId: pendingAction.editorId, text: result.output }
           }));
         } else {
-          replaceSelectedText(result.output);
+          replaceSelectedText(result.output, pendingAction.sourceInput);
         }
       } else {
-        // 解密 → 展示结果
         setResultDialog({ output: result.output, algorithmName: pendingAction.algorithm.name });
       }
     } catch (err: any) {
@@ -378,16 +403,9 @@ function SubMenu({
   );
 }
 
-/** 替换当前页面中选中的文本（非 Monaco） */
-function replaceSelectedText(replacement: string) {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return;
-
-  const range = sel.getRangeAt(0);
-  const ancestor = range.commonAncestorContainer;
-
-  // input / textarea
-  const inputEl = (ancestor instanceof Element ? ancestor : ancestor.parentElement)?.closest('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null;
+/** 替换选中的文本 — 兼容 input/textarea 和普通文本 */
+function replaceSelectedText(replacement: string, inputEl?: HTMLInputElement | HTMLTextAreaElement | null) {
+  // 优先使用传入的 input 元素
   if (inputEl && inputEl.selectionStart !== null && inputEl.selectionEnd !== null) {
     const start = inputEl.selectionStart;
     const end = inputEl.selectionEnd;
@@ -399,11 +417,15 @@ function replaceSelectedText(replacement: string) {
     )?.set;
     nativeInputValueSetter?.call(inputEl, val.substring(0, start) + replacement + val.substring(end));
     inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+    inputEl.focus();
     inputEl.setSelectionRange(start, start + replacement.length);
     return;
   }
 
-  // contentEditable / 普通文本节点
+  // fallback: window.getSelection
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
   range.deleteContents();
   range.insertNode(document.createTextNode(replacement));
   sel.removeAllRanges();
