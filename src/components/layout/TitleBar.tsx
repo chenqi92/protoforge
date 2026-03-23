@@ -8,6 +8,7 @@ import {
   Settings,
   Network,
   FileText,
+  Home,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useThemeStore } from "@/stores/themeStore";
@@ -30,6 +31,7 @@ const workbenches: Array<{
   icon: typeof FileText;
   accentClassName: string;
 }> = [
+  { id: "home", labelKey: "titleBar.home", icon: Home, accentClassName: "text-slate-600" },
   { id: "requests", labelKey: "titleBar.requests", icon: FileText, accentClassName: "text-emerald-600" },
   { id: "tcpudp", labelKey: "titleBar.tcpudp", icon: Network, accentClassName: "text-blue-600" },
   { id: "capture", labelKey: "titleBar.capture", icon: Radio, accentClassName: "text-cyan-600" },

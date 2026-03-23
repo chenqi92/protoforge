@@ -3,6 +3,7 @@
     "name": "ProtoForge"
   },
   "titleBar": {
+    "home": "控制台",
     "requests": "接口调试",
     "tcpudp": "连接测试",
     "capture": "流量捕获",
@@ -684,7 +685,10 @@
       "langEn": "English",
       "fontLxgw": "霞鹜文楷",
       "fontSourceHan": "思源黑体",
-      "fontPlugin": "插件"
+      "fontPlugin": "插件",
+      "checkUpdate": "检查更新",
+      "checkUpdateDesc": "当前版本 v{{version}}，检查 GitHub Release 获取最新版本。",
+      "checkUpdateBtn": "检查更新"
     },
     "request": {
       "timeout": "默认超时时间",
@@ -992,12 +996,29 @@
     "invalidJsonPrettyFallback": "响应声明为 JSON，但内容无法正确解析，下面展示原始内容。",
     "binaryResponse": "二进制文件流",
     "decoded": "解码",
-    "binaryDecodeError": "无法解码为文本"
+    "binaryDecodeError": "无法解码为文本",
+    "stickyScrollOn": "开启粘连区域",
+    "stickyScrollOff": "关闭粘连区域"
   },
   "history": {
     "lastWeek": "7 天内",
     "searchPlaceholder": "搜索历史...",
     "clearHistory": "清空历史",
     "restore": "恢复到工作区"
+  },
+  "update": {
+    "checking": "正在检查更新…",
+    "available": "发现新版本",
+    "downloading": "正在下载更新…",
+    "ready": "更新已就绪",
+    "upToDate": "已是最新版本",
+    "failed": "检查更新失败",
+    "install": "下载安装",
+    "later": "稍后",
+    "progress": "下载进度",
+    "restart": "立即重启",
+    "retry": "重试",
+    "clickToCheck": "点击检查更新",
+    "clickToUpdate": "发现新版本 v{{version}}，点击查看"
   }
 }

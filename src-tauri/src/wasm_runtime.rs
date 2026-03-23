@@ -127,6 +127,7 @@ impl WasmPluginRuntime {
     }
 
     /// Execute the `render(ptr, len) -> ptr` export for renderer plugins.
+    #[allow(dead_code)]
     pub async fn render_data(
         &self,
         plugin_id: &str,
@@ -341,6 +342,7 @@ fn execute_parse(engine: &Engine, module: &Module, raw_data: &str) -> Result<Par
 }
 
 /// Execute the render(ptr, len) -> ptr export for renderer plugins.
+#[allow(dead_code)]
 fn execute_render(engine: &Engine, module: &Module, base64_data: &str) -> Result<crate::plugin_runtime::RenderResult, String> {
     let mut store = Store::new(engine, ());
     // 渲染操作可能需要更多资源（Excel 解析等），给予更多 fuel

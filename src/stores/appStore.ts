@@ -4,7 +4,7 @@ import { createDefaultRequest } from "@/types/http";
 
 export type RequestProtocol = "http" | "ws" | "mqtt";
 export type ToolWorkbench = "tcpudp" | "loadtest" | "capture";
-export type WorkbenchView = "requests" | ToolWorkbench;
+export type WorkbenchView = "home" | "requests" | ToolWorkbench;
 export type WorkspaceProtocol = RequestProtocol | ToolWorkbench | "collection";
 
 export interface ToolSession {

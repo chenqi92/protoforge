@@ -107,15 +107,17 @@ export function ReadonlyCodeBlock({
   value,
   language = 'json',
   minHeightClassName = 'min-h-[320px]',
+  stickyScroll = true,
 }: {
   value: string;
   language?: string;
   minHeightClassName?: string;
+  stickyScroll?: boolean;
 }) {
   return (
     <div className={cn("flex flex-col overflow-hidden rounded-[12px] border border-border-default/70 bg-bg-primary h-full", minHeightClassName)}>
       <div className="flex-1 min-h-0">
-        <CodeEditor value={value} language={language} readOnly height="100%" />
+        <CodeEditor value={value} language={language} readOnly height="100%" stickyScroll={stickyScroll} />
       </div>
     </div>
   );
@@ -128,6 +130,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   const [wordWrap, setWordWrap] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [stickyScroll, setStickyScroll] = useState(true);
 
   // 插件渲染器匹配
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
@@ -218,7 +221,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     }
     if (isXml) {
       // Simple XML formatting
-      return body.replace(/><|/g, '>\n<').replace(/(<[^\/!][^>]*>)/g, '\n$1');
+      return body.replace(/><|/g, '>\n<').replace(/(< [^\/!][^>]*>)/g, '\n$1');
     }
     return body;
   }, [body, isJson, isXml, isBinary]);
@@ -297,7 +300,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
             ))}
           </div>
           <div className="flex-1" />
-          <div className="flex items-center gap-0.5 px-2">
+          <div className="flex items-center gap-1.5 px-2">
             {/* Search toggle */}
             <button
               onClick={() => setShowSearch(!showSearch)}
@@ -310,7 +313,19 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
               <Search className="w-3 h-3" />
             </button>
 
-
+            {/* Sticky Scroll toggle — 仅 JSON 模式可见 */}
+            {activeBuiltinMode === 'json' && (
+              <button
+                onClick={() => setStickyScroll(!stickyScroll)}
+                className={cn(
+                  'h-6 w-6 flex items-center justify-center rounded-md transition-colors',
+                  stickyScroll ? 'text-accent bg-accent/10' : 'text-text-tertiary hover:bg-bg-hover'
+                )}
+                title={stickyScroll ? t('response.stickyScrollOff') : t('response.stickyScrollOn')}
+              >
+                {stickyScroll ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+              </button>
+            )}
 
             {/* Word wrap */}
             <button
@@ -369,6 +384,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                 <ReadonlyCodeBlock
                   value={prettyBody}
                   language={jsonData !== null ? 'json' : isXml ? 'xml' : 'plaintext'}
+                  stickyScroll={stickyScroll}
                 />
               </div>
             </div>

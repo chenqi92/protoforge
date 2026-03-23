@@ -2,6 +2,21 @@
 
 > 🛠️ 现代化的 API 开发与测试工具，基于 Tauri 2 + React + Rust 构建。
 
+[![GitHub Release](https://img.shields.io/github/v/release/chenqi92/protoforge?style=flat-square&logo=github&label=最新版本)](https://github.com/chenqi92/protoforge/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/chenqi92/protoforge/total?style=flat-square&logo=github&label=下载量)](https://github.com/chenqi92/protoforge/releases)
+[![License](https://img.shields.io/github/license/chenqi92/protoforge?style=flat-square&label=许可证)](LICENSE)
+
+## 下载安装
+
+| 平台 | 下载 |
+|------|------|
+| 🍎 macOS (Apple Silicon) | [.dmg](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_aarch64-apple-darwin.dmg) |
+| 🍎 macOS (Intel) | [.dmg](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_x86_64-apple-darwin.dmg) |
+| 🪟 Windows (64-bit) | [.msi](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_0.2.0_x64-setup.msi) · [.exe](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_0.2.0_x64-setup.exe) |
+| 🐧 Linux (64-bit) | [.deb](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_0.2.0_amd64.deb) · [.AppImage](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_0.2.0_amd64.AppImage) |
+
+> 📥 更多版本请查看 [Releases 页面](https://github.com/chenqi92/protoforge/releases)
+
 ## 功能特性
 
 ### 🌐 HTTP 客户端

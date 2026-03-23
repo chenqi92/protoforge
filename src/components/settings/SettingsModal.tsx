@@ -12,12 +12,16 @@ import {
   Monitor,
   X,
   ChevronRight,
+  RefreshCw,
+  Download,
+  CheckCircle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { usePluginStore } from "@/stores/pluginStore";
+import { useUpdateStore } from "@/stores/updateStore";
 import { BUILTIN_FONTS } from "@/hooks/useSettingsEffect";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -429,7 +433,73 @@ function GeneralSection({
           </SelectContent>
         </Select>
       </SettingRow>
+
+      <UpdateSettingRow />
     </>
+  );
+}
+
+function UpdateSettingRow() {
+  const { t } = useTranslation();
+  const currentVersion = useUpdateStore((s) => s.currentVersion);
+  const latestVersion = useUpdateStore((s) => s.latestVersion);
+  const status = useUpdateStore((s) => s.status);
+  const checkForUpdate = useUpdateStore((s) => s.checkForUpdate);
+  const installUpdate = useUpdateStore((s) => s.installUpdate);
+  const restartApp = useUpdateStore((s) => s.restartApp);
+
+  const isChecking = status === 'checking';
+  const hasUpdate = status === 'available' && latestVersion;
+  const isDownloading = status === 'downloading';
+  const isReady = status === 'ready';
+  const isUpToDate = status === 'up-to-date';
+
+  return (
+    <SettingRow
+      label={t('settings.general.checkUpdate')}
+      desc={t('settings.general.checkUpdateDesc', { version: currentVersion || '—' })}
+    >
+      <div className="flex items-center gap-2">
+        {hasUpdate && (
+          <span className="text-[var(--fs-xs)] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded">
+            v{latestVersion}
+          </span>
+        )}
+        {isUpToDate && (
+          <span className="flex items-center gap-1 text-[var(--fs-xs)] text-emerald-600">
+            <CheckCircle className="h-3.5 w-3.5" />
+            {t('update.upToDate')}
+          </span>
+        )}
+
+        {isReady ? (
+          <button
+            onClick={restartApp}
+            className="h-8 px-4 text-[var(--fs-sm)] font-semibold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors"
+          >
+            {t('update.restart')}
+          </button>
+        ) : hasUpdate ? (
+          <button
+            onClick={installUpdate}
+            disabled={isDownloading}
+            className="flex items-center gap-1.5 h-8 px-4 text-[var(--fs-sm)] font-semibold text-white bg-accent hover:bg-accent/90 rounded-lg transition-colors disabled:opacity-60"
+          >
+            <Download className={cn("h-3.5 w-3.5", isDownloading && "animate-bounce")} />
+            {isDownloading ? t('update.downloading') : t('update.install')}
+          </button>
+        ) : (
+          <button
+            onClick={checkForUpdate}
+            disabled={isChecking}
+            className="flex items-center gap-1.5 h-8 px-4 text-[var(--fs-sm)] font-medium text-text-secondary border border-border-default/75 bg-bg-primary/72 hover:bg-bg-hover rounded-lg transition-colors disabled:opacity-60"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", isChecking && "animate-spin")} />
+            {isChecking ? t('update.checking') : t('settings.general.checkUpdateBtn')}
+          </button>
+        )}
+      </div>
+    </SettingRow>
   );
 }
 

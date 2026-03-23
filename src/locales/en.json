@@ -3,6 +3,7 @@
     "name": "ProtoForge"
   },
   "titleBar": {
+    "home": "Home",
     "requests": "API Debug",
     "tcpudp": "Connectivity",
     "capture": "Capture",
@@ -683,7 +684,10 @@
       "langEn": "English",
       "fontLxgw": "LXGW WenKai",
       "fontSourceHan": "Source Han Sans",
-      "fontPlugin": "Plugin"
+      "fontPlugin": "Plugin",
+      "checkUpdate": "Check for Updates",
+      "checkUpdateDesc": "Current version v{{version}}. Checks GitHub Release for newer versions.",
+      "checkUpdateBtn": "Check for Updates"
     },
     "request": {
       "timeout": "Default Timeout",
@@ -991,12 +995,29 @@
     "invalidJsonPrettyFallback": "The response is marked as JSON, but it could not be parsed. Showing the raw content below.",
     "binaryResponse": "Binary File Stream",
     "decoded": "Decoded",
-    "binaryDecodeError": "Unable to decode as text"
+    "binaryDecodeError": "Unable to decode as text",
+    "stickyScrollOn": "Enable sticky scroll",
+    "stickyScrollOff": "Disable sticky scroll"
   },
   "history": {
     "lastWeek": "Last 7 Days",
     "searchPlaceholder": "Search history...",
     "clearHistory": "Clear History",
     "restore": "Restore to Workspace"
+  },
+  "update": {
+    "checking": "Checking for updates…",
+    "available": "Update Available",
+    "downloading": "Downloading update…",
+    "ready": "Update Ready",
+    "upToDate": "Up to date",
+    "failed": "Update check failed",
+    "install": "Install Update",
+    "later": "Later",
+    "progress": "Download progress",
+    "restart": "Restart Now",
+    "retry": "Retry",
+    "clickToCheck": "Click to check for updates",
+    "clickToUpdate": "New version v{{version}} available, click to update"
   }
 }

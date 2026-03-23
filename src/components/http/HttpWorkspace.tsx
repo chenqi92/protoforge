@@ -70,6 +70,37 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
   const urlInputRef = useRef<HTMLInputElement>(null);
   const urlRectRef = useRef<DOMRect | null>(null);
   const sseListRef = useRef<HTMLDivElement>(null);
+  const syncingFromRef = useRef<'url' | 'params' | null>(null);
+  const initializedTabsRef = useRef<Set<string>>(new Set());
+
+  // 初次加载 tab 时：如果 URL 含 ?query 但 queryParams 为空，自动解析填充
+  useEffect(() => {
+    const httpConfig = activeTab?.httpConfig;
+    if (!httpConfig || !tabId) return;
+    if (initializedTabsRef.current.has(tabId)) return;
+    initializedTabsRef.current.add(tabId);
+
+    const url = httpConfig.url || '';
+    const qIndex = url.indexOf('?');
+    if (qIndex < 0) return;
+
+    // 检查 queryParams 是否为空（只含空行）
+    const hasRealParams = (httpConfig.queryParams || []).some(p => p.key.trim());
+    if (hasRealParams) return;
+
+    // 解析 URL 中的 query params
+    const queryStr = url.slice(qIndex + 1);
+    const parsed = new URLSearchParams(queryStr);
+    const newParams: KeyValue[] = [];
+    parsed.forEach((v, k) => {
+      newParams.push({ key: k, value: v, enabled: true });
+    });
+    if (newParams.length > 0) {
+      newParams.push({ key: '', value: '', enabled: true });
+      updateHttpConfig(tabId, { queryParams: newParams });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabId]);
 
   // URL history autocomplete
   const historyEntries = useHistoryStore((s) => s.entries);
@@ -515,7 +546,36 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               <VariableInlineInput
                 inputRef={urlInputRef}
                 value={config.url}
-                onChange={(e) => { updateHttpConfig(tabId, { url: e.target.value }); setUrlHighlight(-1); }}
+                onChange={(e) => {
+                  const newUrl = e.target.value;
+                  setUrlHighlight(-1);
+                  // 防止循环：如果是 params 触发的 URL 变更，跳过解析
+                  if (syncingFromRef.current === 'params') {
+                    updateHttpConfig(tabId, { url: newUrl });
+                    return;
+                  }
+                  syncingFromRef.current = 'url';
+                  try {
+                    // 解析 URL 中的查询参数
+                    const qIndex = newUrl.indexOf('?');
+                    if (qIndex >= 0) {
+                      const queryStr = newUrl.slice(qIndex + 1);
+                      const parsed = new URLSearchParams(queryStr);
+                      const newParams: KeyValue[] = [];
+                      parsed.forEach((v, k) => {
+                        newParams.push({ key: k, value: v, enabled: true });
+                      });
+                      // 保留一行空行供继续输入
+                      newParams.push({ key: '', value: '', enabled: true });
+                      updateHttpConfig(tabId, { url: newUrl, queryParams: newParams });
+                    } else {
+                      // 没有 ? 号时，清空参数（保留空行）
+                      updateHttpConfig(tabId, { url: newUrl, queryParams: [{ key: '', value: '', enabled: true }] });
+                    }
+                  } finally {
+                    syncingFromRef.current = null;
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (urlSuggestions.length > 0) {
                     if (e.key === 'ArrowDown') { e.preventDefault(); setUrlHighlight(h => (h + 1) % urlSuggestions.length); return; }
@@ -626,7 +686,27 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
             </div>
           
             <div className="http-workbench-body">
-              {reqTab === "params" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={params} onChange={(v) => updateHttpConfig(tabId, { queryParams: v })} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
+              {reqTab === "params" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={params} onChange={(v) => {
+                // 防止循环：如果是 URL 触发的参数变更，跳过
+                if (syncingFromRef.current === 'url') {
+                  updateHttpConfig(tabId, { queryParams: v });
+                  return;
+                }
+                syncingFromRef.current = 'params';
+                try {
+                  // 从参数表格同步回 URL
+                  const enabledParams = v.filter(p => p.key.trim() && p.enabled);
+                  const baseUrl = config.url.split('?')[0];
+                  if (enabledParams.length > 0) {
+                    const qs = enabledParams.map(p => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`).join('&');
+                    updateHttpConfig(tabId, { queryParams: v, url: `${baseUrl}?${qs}` });
+                  } else {
+                    updateHttpConfig(tabId, { queryParams: v, url: baseUrl });
+                  }
+                } finally {
+                  syncingFromRef.current = null;
+                }
+              }} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
               {reqTab === "headers" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} /></div>}
             
               {reqTab === "body" && (
@@ -987,56 +1067,123 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                   ) : resTab === "timing" ? (
                     <div className="selectable p-4 overflow-auto h-full">
                       <div className="flex min-h-full flex-col gap-3">
-                        <div className="grid gap-3 xl:grid-cols-[minmax(260px,0.88fr)_minmax(0,1.12fr)]">
+                        {/* 上方：总耗时 + 请求概要 */}
+                        <div className="grid gap-3 xl:grid-cols-[minmax(220px,0.7fr)_minmax(0,1.3fr)]">
                           <div className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                             <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.totalTime')}</div>
-                            <div className="mt-3 text-[var(--fs-6xl)] font-semibold tracking-tight text-text-primary">{response.durationMs} ms</div>
-                            <div className="mt-2 text-[var(--fs-sm)] leading-5 text-text-tertiary">
-                              请求往返耗时，包含连接建立、首字节等待与下载阶段。
+                            <div className="mt-3 text-[var(--fs-6xl)] font-semibold tracking-tight text-text-primary">{Number(response.durationMs).toFixed(2)} ms</div>
+                            <div className="mt-3 grid grid-cols-3 gap-2">
+                              <div>
+                                <div className="text-[var(--fs-xxs)] text-text-disabled">{t('http.statusCode', { defaultValue: '状态码' })}</div>
+                                <div className="mt-0.5 font-mono text-[var(--fs-sm)] font-semibold text-text-primary">{response.status} {response.statusText}</div>
+                              </div>
+                              <div>
+                                <div className="text-[var(--fs-xxs)] text-text-disabled">{t('http.responseSize', { defaultValue: '响应大小' })}</div>
+                                <div className="mt-0.5 font-mono text-[var(--fs-sm)] font-semibold text-text-primary">{responseSizeLabel}</div>
+                              </div>
+                              <div>
+                                <div className="text-[var(--fs-xxs)] text-text-disabled">{t('http.method', { defaultValue: '方法' })}</div>
+                                <div className="mt-0.5 font-mono text-[var(--fs-sm)] font-semibold text-text-primary">{config.method}</div>
+                              </div>
                             </div>
                           </div>
 
+                          {/* 瀑布流时间线 */}
                           <div className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.timing')}</div>
-                              <div className="text-[var(--fs-xs)] font-mono text-text-tertiary">{response.durationMs} ms</div>
+                            <div className="flex items-center justify-between gap-3 mb-4">
+                              <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.waterfall', { defaultValue: '请求瀑布流' })}</div>
+                              <div className="text-[var(--fs-xs)] font-mono text-text-tertiary">{Number(response.durationMs).toFixed(2)} ms</div>
                             </div>
-                            <div className="mt-4 h-3 overflow-hidden rounded-full bg-bg-secondary">
+                            <div className="space-y-3">
                               {timingCards.slice(0, 3).map(({ label, value, color }) => {
-                                const width = value && response.timing.totalMs ? Math.max(6, (value / response.timing.totalMs) * 100) : 0;
-                                if (!width) return null;
-                                return <div key={label} className={cn("h-full transition-all", color)} style={{ width: `${width}%` }} />;
-                              })}
-                            </div>
-                            <div className="mt-4 grid gap-2 md:grid-cols-3">
-                              {timingCards.slice(0, 3).map(({ label, value, color }) => (
-                                <div key={label} className="rounded-[12px] border border-border-default/75 bg-bg-secondary/24 px-3 py-2.5">
-                                  <div className="flex items-center gap-2">
-                                    <span className={cn("h-2.5 w-2.5 rounded-full", color)} />
-                                    <span className="text-[var(--fs-xs)] font-medium text-text-secondary">{label}</span>
+                                const total = response.timing.totalMs || 1;
+                                const widthPct = value ? Math.max(4, (value / total) * 100) : 0;
+                                // 计算偏移量 (waterfall offset)
+                                const offsetPct = label === t('http.connectTime')
+                                  ? 0
+                                  : label === t('http.ttfb')
+                                    ? ((response.timing.connectMs || 0) / total) * 100
+                                    : ((response.timing.connectMs || 0) + (response.timing.ttfbMs || 0)) / total * 100;
+                                return (
+                                  <div key={label} className="flex items-center gap-3">
+                                    <div className="w-[100px] shrink-0 text-right">
+                                      <span className="text-[var(--fs-xs)] font-medium text-text-secondary">{label}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="h-6 rounded-lg bg-bg-secondary/60 relative overflow-hidden">
+                                        <div
+                                          className={cn("h-full rounded-lg transition-all flex items-center justify-end px-2", color)}
+                                          style={{ width: `${widthPct}%`, marginLeft: `${offsetPct}%` }}
+                                        >
+                                          {widthPct > 15 && (
+                                            <span className="text-[10px] font-mono text-white font-semibold whitespace-nowrap">
+                                              {value != null ? `${Number(value).toFixed(2)} ms` : '—'}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="w-[72px] shrink-0 text-right">
+                                      <span className="font-mono text-[var(--fs-xs)] font-semibold text-text-primary">
+                                        {value != null ? `${Number(value).toFixed(2)}` : '—'} ms
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="mt-1 font-mono text-[var(--fs-base)] font-semibold text-text-primary">{value ?? "—"} ms</div>
+                                );
+                              })}
+                              {/* 总耗时行 */}
+                              <div className="flex items-center gap-3 border-t border-border-default/50 pt-3">
+                                <div className="w-[100px] shrink-0 text-right">
+                                  <span className="text-[var(--fs-xs)] font-semibold text-text-primary">{t('http.totalTime')}</span>
                                 </div>
-                              ))}
+                                <div className="flex-1 min-w-0">
+                                  <div className="h-6 rounded-lg bg-bg-secondary/60 relative overflow-hidden">
+                                    <div className="h-full rounded-lg bg-violet-500 w-full flex items-center justify-end px-2">
+                                      <span className="text-[10px] font-mono text-white font-semibold whitespace-nowrap">
+                                        {Number(response.durationMs).toFixed(2)} ms
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="w-[72px] shrink-0 text-right">
+                                  <span className="font-mono text-[var(--fs-xs)] font-bold text-text-primary">
+                                    {Number(response.durationMs).toFixed(2)} ms
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
 
-                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                          {timingCards.map(({ label, value, color }) => (
-                            <div key={label} className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-[var(--fs-sm)] font-medium text-text-secondary">{label}</span>
-                                <span className="font-mono text-[var(--fs-base)] font-semibold text-text-primary">{value ?? "—"} ms</span>
-                              </div>
-                              <div className="mt-3 h-2 overflow-hidden rounded-full bg-bg-secondary">
-                                <div
-                                  className={cn("h-full rounded-full transition-all", color)}
-                                  style={{ width: `${value && response.timing.totalMs ? Math.max(6, (value / response.timing.totalMs) * 100) : 0}%` }}
-                                />
-                              </div>
+                        {/* 各阶段说明卡片 */}
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div className="rounded-[14px] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
+                              <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.connectTime')}</span>
                             </div>
-                          ))}
+                            <p className="text-[var(--fs-xs)] text-text-tertiary leading-relaxed">
+                              {t('http.connectTimeDesc', { defaultValue: 'TCP 连接建立耗时，包括 DNS 解析和 TLS 握手。' })}
+                            </p>
+                          </div>
+                          <div className="rounded-[14px] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                              <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.ttfb')}</span>
+                            </div>
+                            <p className="text-[var(--fs-xs)] text-text-tertiary leading-relaxed">
+                              {t('http.ttfbDesc', { defaultValue: '从请求发出到接收到第一个字节的等待时间，反映服务器处理速度。' })}
+                            </p>
+                          </div>
+                          <div className="rounded-[14px] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                              <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.download')}</span>
+                            </div>
+                            <p className="text-[var(--fs-xs)] text-text-tertiary leading-relaxed">
+                              {t('http.downloadDesc', { defaultValue: '响应体下载耗时，受带宽和响应体大小影响。' })}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>

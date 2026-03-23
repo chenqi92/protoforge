@@ -11,6 +11,7 @@ interface CodeEditorProps {
   readOnly?: boolean;
   onMount?: (editor: any, monaco: any) => void;
   height?: string;
+  stickyScroll?: boolean;
 }
 
 export function CodeEditor({ 
@@ -20,6 +21,7 @@ export function CodeEditor({
   readOnly = false,
   onMount,
   height = '100%',
+  stickyScroll = true,
 }: CodeEditorProps) {
   const monaco = useMonaco();
   const theme = useThemeStore((s) => s.resolved);
@@ -75,6 +77,7 @@ export function CodeEditor({
           horizontalScrollbarSize: 8,
         },
         padding: { top: 12, bottom: 12 },
+        stickyScroll: { enabled: stickyScroll },
       }}
     />
   );

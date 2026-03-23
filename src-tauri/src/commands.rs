@@ -1073,7 +1073,7 @@ pub async fn proxy_install_ca(
 pub async fn proxy_check_ca_trusted(
     state: State<'_, ProxyState>,
 ) -> Result<bool, String> {
-    let cert_path = {
+    let _cert_path = {
         let path = state.ca_cert_path.lock().await;
         match &*path {
             Some(p) => p.clone(),
@@ -1096,7 +1096,7 @@ pub async fn proxy_check_ca_trusted(
     {
         // 检查受信任根证书存储中是否包含证书
         let output = std::process::Command::new("certutil")
-            .args(["-verify", &cert_path.to_string_lossy()])
+            .args(["-verify", &_cert_path.to_string_lossy()])
             .output()
             .map_err(|e| format!("执行 certutil 命令失败: {}", e))?;
 
@@ -1105,7 +1105,7 @@ pub async fn proxy_check_ca_trusted(
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        let _ = cert_path;
+        let _ = _cert_path;
         Ok(false)
     }
 }

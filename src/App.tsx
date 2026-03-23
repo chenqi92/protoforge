@@ -403,7 +403,8 @@ function ToolWorkbenchPanel({
 
 function App() {
   const sidebarPanelRef = usePanelRef();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sidebarDefaultSize = `${Math.max(useSettingsStore.getState().settings.sidebarWidth, 14)}%`;
   const [pluginModalOpen, setPluginModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [envModalOpen, setEnvModalOpen] = useState(false);
@@ -441,6 +442,24 @@ function App() {
       window.removeEventListener("open-plugin-modal", openPlugins);
       window.removeEventListener("open-settings-modal", openSettings);
     };
+  }, []);
+
+  // 监听 macOS 菜单「检查更新」事件
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        unlisten = await listen('check-for-updates', () => {
+          import('@/stores/updateStore').then(({ useUpdateStore: store }) => {
+            store.getState().checkForUpdate();
+          });
+        });
+      } catch {
+        // 非 Tauri 环境忽略
+      }
+    })();
+    return () => { unlisten?.(); };
   }, []);
 
   const tabs = useAppStore((s) => s.tabs);
@@ -537,6 +556,10 @@ function App() {
   }, [addTab]);
 
   const handleSelectWorkbench = useCallback(async (workbench: WorkbenchView) => {
+    if (workbench === "home") {
+      setActiveWorkbench("home");
+      return;
+    }
     if (workbench === "requests") {
       setActiveWorkbench("requests");
       if (activeCollectionId && !activeTabId) {
@@ -630,11 +653,16 @@ function App() {
   const renderContent = () => {
     return (
       <div className="h-full">
+        {/* Home 视图 — 全屏渲染 WelcomePage，无侧边栏 */}
+        <div className={cn("h-full", activeWorkbench === "home" ? "block" : "hidden")}>
+          <WelcomePage onAction={handleWelcomeAction} />
+        </div>
+
         <div className={cn("h-full", activeWorkbench === "requests" ? "block" : "hidden")}>
           <PanelGroup orientation="horizontal">
             <Panel
               id="sidebar"
-              defaultSize="48px"
+              defaultSize={sidebarDefaultSize}
               minSize="14%"
               maxSize="50%"
               collapsible

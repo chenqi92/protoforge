@@ -47,6 +47,54 @@ pub fn run() {
             app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
             app.handle().plugin(tauri_plugin_process::init())?;
 
+            // ── macOS 系统级菜单 ──
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder, PredefinedMenuItem};
+
+                let check_updates = MenuItemBuilder::with_id("check_for_updates", "Check for Updates…")
+                    .build(app)?;
+
+                let help_submenu = SubmenuBuilder::new(app, "Help")
+                    .item(&check_updates)
+                    .build()?;
+
+                let app_submenu = SubmenuBuilder::new(app, "ProtoForge")
+                    .about(None)
+                    .separator()
+                    .item(&PredefinedMenuItem::hide(app, None)?)
+                    .item(&PredefinedMenuItem::hide_others(app, None)?)
+                    .item(&PredefinedMenuItem::show_all(app, None)?)
+                    .separator()
+                    .quit(None)
+                    .build()?;
+
+                let edit_submenu = SubmenuBuilder::new(app, "Edit")
+                    .undo(None)
+                    .redo(None)
+                    .separator()
+                    .cut(None)
+                    .copy(None)
+                    .paste(None)
+                    .select_all(None)
+                    .build()?;
+
+                let menu = MenuBuilder::new(app)
+                    .item(&app_submenu)
+                    .item(&edit_submenu)
+                    .item(&help_submenu)
+                    .build()?;
+
+                app.set_menu(menu)?;
+
+                let handle_menu = app.handle().clone();
+                app.on_menu_event(move |_app, event| {
+                    if event.id().0 == "check_for_updates" {
+                        let _ = handle_menu.emit("check-for-updates", ());
+                    }
+                });
+            }
+
             // 初始化连接管理器
             app.manage(WsConnections::new());
             app.manage(TcpConnections::new());
