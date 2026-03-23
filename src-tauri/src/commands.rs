@@ -1114,21 +1114,9 @@ pub async fn proxy_check_ca_trusted(
 //  Plugins
 // ═══════════════════════════════════════════
 
-use crate::plugin_runtime::{PluginManager, PluginManifest, ProtocolParser, ParseResult, RenderResult, GenerateResult, Hj212Params, HookResult, GenerateDataResult, ExportResult};
+use crate::plugin_runtime::{PluginManager, PluginManifest, ProtocolParser, ParseResult, RenderResult, HookResult, GenerateDataResult, ExportResult};
 
-// ═══════════════════════════════════════════
-//  HJ212 协议
-// ═══════════════════════════════════════════
 
-#[tauri::command]
-pub fn hj212_parse(raw_data: String) -> ParseResult {
-    crate::builtin_parsers::parse_hj212(&raw_data)
-}
-
-#[tauri::command]
-pub fn hj212_generate(params: Hj212Params) -> Result<GenerateResult, String> {
-    Ok(crate::builtin_parsers::generate_hj212(&params))
-}
 
 #[tauri::command]
 pub async fn plugin_list(
