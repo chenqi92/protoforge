@@ -16,15 +16,15 @@ export function PluginsView({ search }: { search: string }) {
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
   const availablePlugins = usePluginStore((s) => s.availablePlugins);
   const loading = usePluginStore((s) => s.loading);
+  const initializeIfNeeded = usePluginStore((s) => s.initializeIfNeeded);
   const fetchInstalled = usePluginStore((s) => s.fetchInstalledPlugins);
   const fetchAvailable = usePluginStore((s) => s.fetchAvailablePlugins);
   const install = usePluginStore((s) => s.installPlugin);
   const uninstall = usePluginStore((s) => s.uninstallPlugin);
 
   useEffect(() => {
-    fetchInstalled();
-    fetchAvailable();
-  }, [fetchInstalled, fetchAvailable]);
+    initializeIfNeeded();
+  }, [initializeIfNeeded]);
 
   const filteredInstalled = installedPlugins.filter(
     (p) => !search || pluginT(p, 'name').toLowerCase().includes(search.toLowerCase()) ||

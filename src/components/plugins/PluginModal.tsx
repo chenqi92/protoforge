@@ -94,18 +94,17 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
   const availablePlugins = usePluginStore((s) => s.availablePlugins);
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
   const loading = usePluginStore((s) => s.loading);
-  const fetchInstalled = usePluginStore((s) => s.fetchInstalledPlugins);
-  const fetchAvailable = usePluginStore((s) => s.fetchAvailablePlugins);
+  const initializeIfNeeded = usePluginStore((s) => s.initializeIfNeeded);
   const install = usePluginStore((s) => s.installPlugin);
   const uninstall = usePluginStore((s) => s.uninstallPlugin);
   const refreshRegistry = usePluginStore((s) => s.refreshRegistry);
+  const fetchInstalled = usePluginStore((s) => s.fetchInstalledPlugins);
 
   useEffect(() => {
     if (open) {
-      fetchInstalled();
-      fetchAvailable();
+      initializeIfNeeded();
     }
-  }, [open, fetchInstalled, fetchAvailable]);
+  }, [open, initializeIfNeeded]);
 
   // Data source based on tab
   const sourcePlugins = tab === "store" ? availablePlugins : installedPlugins;

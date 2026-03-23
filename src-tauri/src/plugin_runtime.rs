@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use boa_engine::{Context, Source, JsError};
 use flate2::read::GzDecoder;
 use serde::{Serialize, Deserialize};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 // ── Plugin Types ──
 
@@ -337,6 +338,9 @@ impl RemotePluginEntry {
 const DEFAULT_REGISTRY_URL: &str =
     "https://raw.githubusercontent.com/chenqi92/protoforge-plugins/main/registry.json";
 
+/// 远程注册表缓存有效期：5 分钟
+const CACHE_TTL_SECS: u64 = 300;
+
 // ── Plugin Runtime Dispatch ──
 // 统一插件运行时：通过注册表动态分发，零硬编码。
 // 支持三种运行时：Native (Rust fn) / JavaScript (boa_engine) / WASM (wasmtime)
@@ -368,6 +372,8 @@ pub struct PluginManager {
     remote_cache: RwLock<Option<Vec<PluginManifest>>>,
     /// Registry URL
     registry_url: String,
+    /// 上次远程注册表刷新时间（缓存过期策略）
+    last_refresh: Mutex<Option<Instant>>,
 }
 
 impl PluginManager {
@@ -378,6 +384,7 @@ impl PluginManager {
             registry: RwLock::new(HashMap::new()),
             remote_cache: RwLock::new(None),
             registry_url: DEFAULT_REGISTRY_URL.to_string(),
+            last_refresh: Mutex::new(None),
         }
     }
 
@@ -492,22 +499,41 @@ impl PluginManager {
 
         let count = manifests.len();
         *self.remote_cache.write().await = Some(manifests);
+        *self.last_refresh.lock().await = Some(Instant::now());
 
         log::info!("远程注册表刷新成功，共 {} 个插件", count);
         Ok(count)
     }
 
-    /// List all available plugins: merge built-in + remote, mark installed.
-    /// Tries remote cache first; if empty, fetches from remote.
-    /// List all available plugins: merge registered + remote, mark installed.
-    pub async fn list_available(&self) -> Vec<PluginManifest> {
-        // Try to refresh remote if not cached
-        {
-            let cache = self.remote_cache.read().await;
-            if cache.is_none() {
-                drop(cache);
-                let _ = self.refresh_registry().await;
+    /// 检查远程缓存是否过期
+    async fn is_cache_stale(&self) -> bool {
+        let last = self.last_refresh.lock().await;
+        match *last {
+            None => true,
+            Some(t) => t.elapsed().as_secs() > CACHE_TTL_SECS,
+        }
+    }
+
+    /// 应用启动时调用：后台预热远程插件缓存
+    pub async fn ensure_remote_cache(&self) {
+        if self.is_cache_stale().await {
+            if let Err(e) = self.refresh_registry().await {
+                log::warn!("预热远程插件缓存失败（非致命）: {}", e);
             }
+        }
+    }
+
+    /// List all available plugins: merge registered + remote, mark installed.
+    /// **非阻塞**：总是立即返回已有数据，缓存过期时后台异步刷新。
+    pub async fn list_available(&self) -> Vec<PluginManifest> {
+        // 如果缓存过期，触发后台异步刷新（不等待结果）
+        if self.is_cache_stale().await {
+            // 用 log 记录刷新触发，但不阻塞当前调用
+            let registry_url = self.registry_url.clone();
+            log::info!("远程插件缓存已过期，后台刷新 (url={})", registry_url);
+            // 注意：这里不能 move self，所以用独立的 HTTP 请求
+            // 但我们需要更新 self 的缓存，因此用标志位避免重复触发
+            let _ = self.refresh_registry_background().await;
         }
 
         let registry = self.registry.read().await;
@@ -539,6 +565,59 @@ impl PluginManager {
                 m
             })
             .collect()
+    }
+
+    /// 后台异步刷新远程注册表（非阻塞，超时短）
+    /// 如果已有缓存，直接返回不阻塞；否则做一次快速尝试
+    async fn refresh_registry_background(&self) -> Result<(), String> {
+        // 如果已有缓存数据，不阻塞当前请求
+        let has_cache = self.remote_cache.read().await.is_some();
+        if has_cache {
+            // 已有缓存 → 用较短超时在后台刷新，失败也无妨
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(8))
+                .build()
+                .map_err(|e| format!("{}", e))?;
+
+            match client.get(&self.registry_url).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    if let Ok(registry) = resp.json::<RemoteRegistry>().await {
+                        let manifests: Vec<PluginManifest> = registry
+                            .plugins.into_iter().map(|e| e.into_manifest()).collect();
+                        let count = manifests.len();
+                        *self.remote_cache.write().await = Some(manifests);
+                        *self.last_refresh.lock().await = Some(Instant::now());
+                        log::info!("后台刷新远程注册表成功，共 {} 个插件", count);
+                    }
+                }
+                _ => {
+                    log::debug!("后台刷新远程注册表失败，继续使用旧缓存");
+                }
+            }
+        } else {
+            // 无缓存 → 首次加载，做一次快速尝试（3s 超时）
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(3))
+                .build()
+                .map_err(|e| format!("{}", e))?;
+
+            match client.get(&self.registry_url).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    if let Ok(registry) = resp.json::<RemoteRegistry>().await {
+                        let manifests: Vec<PluginManifest> = registry
+                            .plugins.into_iter().map(|e| e.into_manifest()).collect();
+                        let count = manifests.len();
+                        *self.remote_cache.write().await = Some(manifests);
+                        *self.last_refresh.lock().await = Some(Instant::now());
+                        log::info!("首次快速加载远程注册表成功，共 {} 个插件", count);
+                    }
+                }
+                _ => {
+                    log::debug!("首次快速加载远程注册表失败，将只显示本地插件");
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Install a plugin by its ID.

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Download, Trash2, Check, Loader2, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -39,11 +38,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
   const typeInfo = typeLabels[plugin.pluginType] || { label: plugin.pluginType, color: "text-text-tertiary bg-bg-secondary" };
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
+    <div
       className="group relative rounded-xl border border-border-default bg-bg-primary hover:border-border-strong hover:shadow-md transition-all duration-200 overflow-hidden"
     >
       <div className="p-4">
@@ -82,7 +77,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
                 key={tag}
                 className="text-[var(--fs-xxs)] font-medium text-text-tertiary bg-bg-secondary px-1.5 py-0.5 rounded-md border border-border-subtle"
               >
-                {tag}
+              {tag}
               </span>
             ))}
           </div>
@@ -123,6 +118,6 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

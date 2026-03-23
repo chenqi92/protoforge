@@ -1,6 +1,7 @@
 // 发送面板组件 — 编码选择、定时发送、发送控制
 import { useState, useRef } from "react";
-import { Send, Timer, Plus, Trash2, ChevronDown, RotateCcw, CornerDownLeft, Pencil } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Send, Timer, Plus, Trash2, ChevronDown, RotateCcw, CornerDownLeft, Pencil, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { DataFormat, SendHistoryItem, QuickCommand } from "@/types/tcp";
@@ -105,12 +106,7 @@ export function SendPanel({
   return (
     <div className={cn("flex h-full min-h-0 flex-col overflow-hidden", !embedded && "wb-panel")}>
       <div className={cn("shrink-0", embedded ? "wb-pane-header" : "wb-panel-header")}>
-        <div>
-          <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('tcp.sendPanel.title')}</div>
-          <div className="mt-0.5 text-[var(--fs-xs)] text-text-tertiary">
-            {connected ? t('tcp.sendPanel.readyToSend') : t('tcp.sendPanel.connectToSend')}
-          </div>
-        </div>
+        <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('tcp.sendPanel.title')}</div>
         <span className={cn(
           "rounded-[8px] px-2.5 py-1 text-[var(--fs-xxs)] font-semibold",
           connected ? "bg-emerald-500/10 text-emerald-600" : "bg-bg-secondary text-text-tertiary"
@@ -250,76 +246,83 @@ export function SendPanel({
               </button>
             </div>
 
-            {showCommandEditor ? (
-              <div className="mb-3 rounded-[12px] border border-border-default/70 bg-bg-secondary/30 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-[var(--fs-xs)] font-semibold text-text-primary">
-                    {editingCommandId ? t("tcp.sendPanel.editCommand") : t("tcp.sendPanel.addCommand")}
+            {showCommandEditor ? createPortal(
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={closeQuickCommandEditor}>
+                <div
+                  className="w-[420px] rounded-[14px] border border-border-default bg-bg-primary shadow-2xl overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-border-default/60">
+                    <div className="flex items-center gap-2">
+                      <CornerDownLeft className="w-4 h-4 text-accent" />
+                      <span className="text-[var(--fs-sm)] font-semibold text-text-primary">
+                        {editingCommandId ? t("tcp.sendPanel.editCommand") : t("tcp.sendPanel.addCommand")}
+                      </span>
+                    </div>
+                    <button onClick={closeQuickCommandEditor} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-text-primary transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={closeQuickCommandEditor}
-                    className="text-[var(--fs-xxs)] font-medium text-text-tertiary transition-colors hover:text-text-primary"
-                  >
-                    {t("tcp.sendPanel.cancelCommand")}
-                  </button>
+
+                  <div className="p-4 space-y-3">
+                    <div>
+                      <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
+                        {t("tcp.sendPanel.commandName")}
+                      </div>
+                      <input
+                        value={commandName}
+                        onChange={(e) => setCommandName(e.target.value)}
+                        className="wb-field w-full"
+                        placeholder={t("tcp.sendPanel.commandName")}
+                        autoFocus
+                      />
+                    </div>
+
+                    <div>
+                      <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
+                        {t("tcp.sendPanel.sendFormat")}
+                      </div>
+                      <div className="wb-tool-segment">
+                        {FORMAT_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setCommandFormat(opt.value)}
+                            className={cn("flex-1", commandFormat === opt.value && "is-active")}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
+                        {t("tcp.sendPanel.commandContent")}
+                      </div>
+                      <textarea
+                        value={commandData}
+                        onChange={(e) => setCommandData(e.target.value)}
+                        className="min-h-[120px] w-full resize-none rounded-[12px] border border-border-default bg-bg-input/85 p-3 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        placeholder={t("tcp.sendPanel.placeholder")}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border-default/60">
+                    <button onClick={closeQuickCommandEditor} className="wb-ghost-btn px-3">
+                      {t("tcp.sendPanel.cancelCommand")}
+                    </button>
+                    <button
+                      onClick={handleSaveQuickCommand}
+                      disabled={!commandName.trim() || !commandData.trim()}
+                      className="wb-primary-btn bg-accent hover:bg-accent-hover disabled:hover:bg-accent"
+                    >
+                      {t("tcp.sendPanel.saveCommand")}
+                    </button>
+                  </div>
                 </div>
-
-                <div className="mt-2 space-y-2.5">
-                  <div>
-                    <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
-                      {t("tcp.sendPanel.commandName")}
-                    </div>
-                    <input
-                      value={commandName}
-                      onChange={(e) => setCommandName(e.target.value)}
-                      className="wb-field w-full"
-                      placeholder={t("tcp.sendPanel.commandName")}
-                    />
-                  </div>
-
-                  <div>
-                    <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
-                      {t("tcp.sendPanel.sendFormat")}
-                    </div>
-                    <div className="wb-tool-segment">
-                      {FORMAT_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => setCommandFormat(opt.value)}
-                          className={cn("flex-1", commandFormat === opt.value && "is-active")}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
-                      {t("tcp.sendPanel.commandContent")}
-                    </div>
-                    <textarea
-                      value={commandData}
-                      onChange={(e) => setCommandData(e.target.value)}
-                      className="min-h-[96px] w-full resize-none rounded-[12px] border border-border-default bg-bg-input/85 p-3 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:ring-2 focus:ring-accent/20"
-                      placeholder={t("tcp.sendPanel.placeholder")}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-3 flex items-center justify-end gap-2">
-                  <button onClick={closeQuickCommandEditor} className="wb-ghost-btn px-3">
-                    {t("tcp.sendPanel.cancelCommand")}
-                  </button>
-                  <button
-                    onClick={handleSaveQuickCommand}
-                    disabled={!commandName.trim() || !commandData.trim()}
-                    className="wb-primary-btn bg-accent hover:bg-accent-hover disabled:hover:bg-accent"
-                  >
-                    {t("tcp.sendPanel.saveCommand")}
-                  </button>
-                </div>
-              </div>
+              </div>,
+              document.body
             ) : null}
 
             {quickCommands.length > 0 ? (

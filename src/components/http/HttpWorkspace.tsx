@@ -646,7 +646,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                 <Flame className="w-3.5 h-3.5" />
               </button>
               <ExportPluginDropdown config={config} />
-              <MockGeneratorDropdown onInsert={(data) => updateHttpConfig(tabId, { jsonBody: data })} />
+
             </div>
             <button
               onClick={handleSend}
@@ -702,7 +702,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
             </div>
           
             <div className="http-workbench-body">
-              {reqTab === "params" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={params} onChange={(v) => {
+              {reqTab === "params" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={params} showMockGenerator onChange={(v) => {
                 // 防止循环：如果是 URL 触发的参数变更，跳过
                 if (syncingFromRef.current === 'url') {
                   updateHttpConfig(tabId, { queryParams: v });
@@ -723,7 +723,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                   syncingFromRef.current = null;
                 }
               }} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
-              {reqTab === "headers" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={headers} onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} /></div>}
+              {reqTab === "headers" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={headers} showMockGenerator onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} /></div>}
             
               {reqTab === "body" && (
                 <div className="p-4 flex flex-col flex-1 min-h-0">
@@ -759,6 +759,41 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           value={config.jsonBody || ''}
                           onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
                           language="json"
+                          onMount={(editor) => {
+                            // Register mock generator context menu actions
+                            const plugins = usePluginStore.getState().installedPlugins;
+                            const gens: { pluginId: string; gen: GeneratorContribution }[] = [];
+                            for (const p of plugins.filter(p => p.pluginType === 'data-generator')) {
+                              for (const g of (p.contributes?.generators || [])) {
+                                gens.push({ pluginId: p.id, gen: g });
+                              }
+                            }
+                            for (const { pluginId, gen } of gens) {
+                              editor.addAction({
+                                id: `mock-generate-${pluginId}-${gen.generatorId}`,
+                                label: `🪄 ${gen.name}`,
+                                contextMenuGroupId: '9_mock',
+                                contextMenuOrder: 1,
+                                run: async (ed: any) => {
+                                  try {
+                                    const result = await pluginService.runGenerator(pluginId, gen.generatorId, '{}');
+                                    if (!result.error && result.data) {
+                                      const selection = ed.getSelection();
+                                      if (selection) {
+                                        ed.executeEdits('mock-generator', [{
+                                          range: selection,
+                                          text: result.data,
+                                          forceMoveMarkers: true,
+                                        }]);
+                                      }
+                                    }
+                                  } catch (e) {
+                                    console.warn('[ProtoForge] generator failed:', e);
+                                  }
+                                },
+                              });
+                            }
+                          }}
                         />
                       </div>
                     )}
@@ -792,7 +827,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                         </div>
                       </div>
                     )}
-                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="flex-1 min-h-0 flex flex-col"><KVEditor items={formFields} onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
+                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="flex-1 min-h-0 flex flex-col"><KVEditor items={formFields} showMockGenerator onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
                     {!isGraphqlMode && config.bodyType === "formData" && <div className="flex-1 min-h-0 flex flex-col"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
                     {!isGraphqlMode && config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
                   </div>
@@ -1788,13 +1823,14 @@ function normalizeFormDataRows(fields: FormDataField[]) {
 }
 
 /* ── KV Editor (table-based, for params, headers, form-urlencoded) ── */
-export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, collectionId }: {
+export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, showMockGenerator, collectionId }: {
   items: KeyValue[];
   onChange: (v: KeyValue[]) => void;
   kp: string;
   vp: string;
   showPresets?: boolean;
   showAutoToggle?: boolean;
+  showMockGenerator?: boolean;
   collectionId?: string | null;
 }) {
   const { t } = useTranslation();
@@ -1880,12 +1916,15 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
             onSelectSuggestion={k => selectKeySuggestion(i, k)} className={cellInput} collectionId={collectionId} />
         </td>
         <td>
-          <TableCellInput value={item.value} onChange={v => update(i, "value", v)}
-            onFocus={() => { if (showPresets && HEADER_DICT[item.key]) { setActiveValueSuggest(i); setActiveKeySuggest(null); setHighlightIdx(-1); } }}
-            onBlur={() => setTimeout(() => { setActiveValueSuggest(null); setHighlightIdx(-1); }, 150)}
-            onKeyDown={e => handleKeyDown(e, valSugs, v => selectValueSuggestion(i, v), () => setActiveValueSuggest(null))}
-            placeholder={vp} disabled={!item.enabled} suggestions={valSugs} highlightIdx={highlightIdx}
-            onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cellInput} collectionId={collectionId} />
+          <div className="flex items-center gap-0">
+            <TableCellInput value={item.value} onChange={v => update(i, "value", v)}
+              onFocus={() => { if (showPresets && HEADER_DICT[item.key]) { setActiveValueSuggest(i); setActiveKeySuggest(null); setHighlightIdx(-1); } }}
+              onBlur={() => setTimeout(() => { setActiveValueSuggest(null); setHighlightIdx(-1); }, 150)}
+              onKeyDown={e => handleKeyDown(e, valSugs, v => selectValueSuggestion(i, v), () => setActiveValueSuggest(null))}
+              placeholder={vp} disabled={!item.enabled} suggestions={valSugs} highlightIdx={highlightIdx}
+              onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cn(cellInput, "flex-1 min-w-0")} collectionId={collectionId} />
+            {showMockGenerator && <InlineMockButton onInsert={(v: string) => update(i, "value", v)} />}
+          </div>
         </td>
         <td>
           <input value={item.description || ""} onChange={e => update(i, "description", e.target.value)} placeholder="Description"
@@ -2865,134 +2904,90 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
   );
 }
 
-/* ── Mock Data Generator Dropdown ── */
-function MockGeneratorDropdown({ onInsert }: { onInsert: (data: string) => void }) {
+/* ── Inline Mock Button: small wand icon that opens a generator menu ── */
+function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (data: string) => void; label?: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [lastResult, setLastResult] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   const installedPlugins2 = usePluginStore((s) => s.installedPlugins);
-  const generatorPlugins = useMemo(() => installedPlugins2.filter(p => p.pluginType === 'data-generator'), [installedPlugins2]);
-
-  // 聚合所有 Generator
   const generators = useMemo(() => {
     const items: { pluginId: string; generator: GeneratorContribution }[] = [];
-    for (const p of generatorPlugins) {
+    for (const p of installedPlugins2.filter(p => p.pluginType === 'data-generator')) {
       for (const gen of (p.contributes?.generators || [])) {
         items.push({ pluginId: p.id, generator: gen });
       }
     }
     return items;
-  }, [generatorPlugins]);
-
-  // 点击外部关闭
-  useEffect(() => {
-    if (!open) return;
-    const handleClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setLastResult(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
+  }, [installedPlugins2]);
 
   if (generators.length === 0) return null;
+
+  const handleOpen = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: Math.max(8, rect.right - 260) });
+    }
+    setOpen(true);
+  };
 
   const handleGenerate = async (pluginId: string, generatorId: string) => {
     setLoading(true);
     try {
       const result = await pluginService.runGenerator(pluginId, generatorId, '{}');
-      if (result.error) {
-        console.warn('[ProtoForge] generator plugin error:', result.error);
-      } else {
-        setLastResult(result.data);
+      if (!result.error && result.data) {
+        onInsert(result.data);
+        setOpen(false);
       }
     } catch (e) {
-      console.warn('[ProtoForge] generator plugin failed:', e);
+      console.warn('[ProtoForge] generator failed:', e);
     }
     setLoading(false);
   };
 
-  const handleInsert = () => {
-    if (lastResult) {
-      onInsert(lastResult);
-      setOpen(false);
-      setLastResult(null);
-    }
-  };
-
-  const handleCopy = async () => {
-    if (lastResult) {
-      await navigator.clipboard.writeText(lastResult);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
   return (
-    <div className="relative" ref={dropdownRef}>
+    <>
       <button
-        onClick={() => { setOpen(!open); setLastResult(null); }}
-        className="wb-icon-btn hover:text-purple-600"
+        ref={btnRef}
+        onClick={handleOpen}
+        className={cn(
+          "shrink-0 rounded-[8px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-purple-500",
+          showLabel ? "flex items-center gap-1 px-2 py-1 text-[var(--fs-xs)]" : "p-1"
+        )}
         title={t('http.mockGenerator', '数据生成')}
+        type="button"
       >
-        <Wand2 className="w-3.5 h-3.5" />
+        <Wand2 className="w-3 h-3" />
+        {showLabel && <span className="font-medium">{t('http.mockGenerator', '数据生成')}</span>}
       </button>
 
-      {open && (
-        <div className="absolute top-full right-0 mt-1.5 z-50 min-w-[300px] max-w-[420px] rounded-[12px] border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden">
-          <div className="p-1.5">
-            <div className="px-3 py-2 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">
-              {t('http.generateData', '生成数据')}
+      {open && createPortal(
+        <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)}>
+          <div
+            className="absolute min-w-[180px] rounded-[10px] border border-border-default bg-bg-primary shadow-lg shadow-black/8 overflow-hidden"
+            style={pos ? { top: pos.top, left: pos.left } : undefined}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-1">
+              {generators.map((item) => (
+                <button
+                  key={`${item.pluginId}:${item.generator.generatorId}`}
+                  onClick={() => handleGenerate(item.pluginId, item.generator.generatorId)}
+                  disabled={loading}
+                  className="w-full flex items-center gap-1.5 rounded-[7px] px-2.5 py-1.5 text-left text-[var(--fs-xs)] text-text-primary hover:bg-bg-hover transition-colors"
+                >
+                  <Wand2 className="w-3 h-3 text-purple-500/60 shrink-0" />
+                  <span className="font-medium truncate">{item.generator.name}</span>
+                </button>
+              ))}
             </div>
-            {generators.map((item) => (
-              <button
-                key={`${item.pluginId}:${item.generator.generatorId}`}
-                onClick={() => handleGenerate(item.pluginId, item.generator.generatorId)}
-                disabled={loading}
-                className="w-full flex items-center gap-2 rounded-[8px] px-3 py-2 text-left text-[var(--fs-sm)] text-text-primary hover:bg-bg-hover transition-colors"
-              >
-                <Wand2 className="w-3.5 h-3.5 text-purple-500/60 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <span className="font-medium">{item.generator.name}</span>
-                  {item.generator.description && (
-                    <p className="text-[var(--fs-xxs)] text-text-tertiary truncate">{item.generator.description}</p>
-                  )}
-                </div>
-              </button>
-            ))}
           </div>
-          {lastResult && (
-            <div className="border-t border-border-default/60">
-              <pre className="selectable p-3 max-h-[160px] overflow-auto font-mono text-[var(--fs-xs)] text-text-primary leading-5 whitespace-pre-wrap break-all bg-bg-secondary/30">
-                {lastResult}
-              </pre>
-              <div className="flex items-center gap-2 px-3 py-2 border-t border-border-default/60">
-                <button
-                  onClick={handleInsert}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[var(--fs-xs)] font-medium text-white bg-accent hover:bg-accent-hover transition-colors"
-                >
-                  <ArrowDownToLine className="w-3 h-3" />
-                  {t('http.insertToBody', '插入到 Body')}
-                </button>
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[var(--fs-xs)] font-medium text-text-secondary hover:bg-bg-hover transition-colors"
-                >
-                  {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                  {copied ? t('sidebar.copied', '已复制') : t('response.copy', '复制')}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
 

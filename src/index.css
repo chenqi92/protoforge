@@ -465,7 +465,7 @@
     flex-direction: column;
     overflow: hidden;
     border-right: 1px solid var(--color-border-default);
-    background: color-mix(in srgb, var(--color-bg-secondary) 24%, transparent);
+    background: transparent;
   }
 
   .wb-workbench-main {

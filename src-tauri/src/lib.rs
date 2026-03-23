@@ -159,6 +159,8 @@ pub fn run() {
                 if !wasm_loaded.is_empty() {
                     log::info!("已加载 {} 个 WASM 插件", wasm_loaded.len());
                 }
+                // 预热远程插件注册表缓存（非阻塞，失败不影响启动）
+                pm.ensure_remote_cache().await;
             });
 
             Ok(())
