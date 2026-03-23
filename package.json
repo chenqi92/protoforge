@@ -2,7 +2,7 @@
   "name": "protoforge",
   "description": "ProtoForge - A modern API development and testing tool",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,9 +12,6 @@
     "build:debug": "tauri build --debug",
     "preview": "vite preview",
     "tauri": "tauri",
-    "version:patch": "node scripts/sync-version.mjs patch",
-    "version:minor": "node scripts/sync-version.mjs minor",
-    "version:major": "node scripts/sync-version.mjs major",
     "version:set": "node scripts/sync-version.mjs",
     "release:patch": "node scripts/sync-version.mjs patch --push",
     "release:minor": "node scripts/sync-version.mjs minor --push",
