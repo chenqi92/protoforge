@@ -158,7 +158,7 @@ export interface CryptoAlgorithm {
 export interface CryptoParam {
   paramId: string;
   name: string;
-  type: 'text' | 'select' | 'number';
+  paramType: 'text' | 'select' | 'number';
   required: boolean;
   defaultValue?: string;
   options?: { label: string; value: string }[];

@@ -121,7 +121,7 @@ function ParamField({
         {param.required && <span className="text-red-400">*</span>}
       </label>
 
-      {param.type === 'select' && param.options ? (
+      {param.paramType === 'select' && param.options ? (
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -134,7 +134,7 @@ function ParamField({
             </option>
           ))}
         </select>
-      ) : param.type === 'number' ? (
+      ) : param.paramType === 'number' ? (
         <input
           type="number"
           value={value}

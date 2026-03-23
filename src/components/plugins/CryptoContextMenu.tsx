@@ -1,12 +1,10 @@
 /**
- * CryptoContextMenu — 全局右键加密/解密菜单
+ * CryptoContextMenu — 全局加密/解密事件处理器
  * 
- * 特点：
- * 1. 挂载在应用根组件，监听整个页面的 contextmenu 事件
- * 2. 当有文本选中 + 有 crypto 插件安装时才出现
- * 3. 按算法类别分组显示（编码/哈希/对称加密/非对称加密）
- * 4. 无参数算法直接执行，有参数算法弹出 CryptoParamsDialog
- * 5. 加密结果替换选中文本，解密结果弹框展示
+ * 职责：
+ * 1. 监听 Monaco 里 crypto actions 派发的 `crypto-action` 事件 → 弹出参数对话框
+ * 2. 监听 `crypto-result` 事件 → 弹出结果对话框
+ * 3. 在非 Monaco 区域监听 `contextmenu` → 显示加密/解密右键菜单
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -14,7 +12,8 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Lock, Unlock, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { runCrypto, listCryptoAlgorithms } from '@/services/pluginService';
+import { runCrypto } from '@/services/pluginService';
+import { usePluginStore } from '@/stores/pluginStore';
 import type { InstalledCryptoAlgorithm, CryptoAlgorithm } from '@/types/plugin';
 import { CryptoParamsDialog } from './CryptoParamsDialog';
 import { CryptoResultDialog } from './CryptoResultDialog';
@@ -29,8 +28,8 @@ interface PendingAction {
   algorithm: CryptoAlgorithm;
   mode: 'encrypt' | 'decrypt';
   selectedText: string;
-  /** 用于加密替换的元素和选区范围 */
-  targetElement: Element | null;
+  /** Monaco editor id — 如果来自 Monaco 则有值 */
+  editorId?: string;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -46,47 +45,70 @@ export function CryptoContextMenu() {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [position, setPosition] = useState<MenuPosition>({ x: 0, y: 0 });
-  const [algorithms, setAlgorithms] = useState<InstalledCryptoAlgorithm[]>([]);
   const [selectedText, setSelectedText] = useState('');
   const [expandedSub, setExpandedSub] = useState<'encrypt' | 'decrypt' | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [resultDialog, setResultDialog] = useState<{ output: string; algorithmName: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const targetElementRef = useRef<Element | null>(null);
 
-  // 加载已安装的加密算法
-  const refreshAlgorithms = useCallback(async () => {
-    try {
-      const algos = await listCryptoAlgorithms();
-      setAlgorithms(algos);
-    } catch {
-      setAlgorithms([]);
+  // 从 plugin store 获取已安装的 crypto 插件
+  const installedPlugins = usePluginStore((s) => s.installedPlugins);
+  const cryptoPlugins = installedPlugins.filter((p) => p.pluginType === 'crypto-tool');
+
+  // 构建算法列表
+  const algorithms: InstalledCryptoAlgorithm[] = [];
+  for (const cp of cryptoPlugins) {
+    for (const algo of (cp.contributes?.cryptoAlgorithms || [])) {
+      algorithms.push({ pluginId: cp.id, algorithm: algo });
     }
+  }
+
+  // 1) 监听 Monaco 派发的 crypto-action (需要参数的算法)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail) return;
+      setPendingAction({
+        pluginId: detail.pluginId,
+        algorithm: detail.algorithm,
+        mode: detail.mode,
+        selectedText: detail.selectedText,
+        editorId: detail.editorId,
+      });
+    };
+    window.addEventListener('crypto-action', handler);
+    return () => window.removeEventListener('crypto-action', handler);
   }, []);
 
+  // 2) 监听 crypto-result (解密或错误结果)
   useEffect(() => {
-    refreshAlgorithms();
-  }, [refreshAlgorithms]);
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail) return;
+      setResultDialog({ output: detail.output, algorithmName: detail.algorithmName });
+    };
+    window.addEventListener('crypto-result', handler);
+    return () => window.removeEventListener('crypto-result', handler);
+  }, []);
 
-  // 监听 contextmenu 事件
+  // 3) 非 Monaco 区域右键菜单
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const selection = window.getSelection();
       const text = selection?.toString().trim() || '';
 
-      // 没有选中文本或没有 crypto 算法 → 不拦截原生右键菜单
+      // 没有选中文本或没有 crypto 算法 → 不拦截
       if (!text || algorithms.length === 0) return;
 
-      // 如果在 Monaco editor 中，不拦截（Monaco 有自己的 context menu）
+      // Monaco editor 内 → 让 Monaco 自己的 context menu 处理
       const target = e.target as Element;
       if (target.closest('.monaco-editor')) return;
 
       e.preventDefault();
       setSelectedText(text);
-      targetElementRef.current = target;
 
-      // 计算菜单位置（确保不超出视口）
+      // 计算菜单位置
       const x = Math.min(e.clientX, window.innerWidth - 280);
       const y = Math.min(e.clientY, window.innerHeight - 300);
       setPosition({ x, y });
@@ -96,7 +118,7 @@ export function CryptoContextMenu() {
 
     document.addEventListener('contextmenu', handler);
     return () => document.removeEventListener('contextmenu', handler);
-  }, [algorithms]);
+  }, [algorithms.length]);
 
   // 关闭菜单
   useEffect(() => {
@@ -146,10 +168,8 @@ export function CryptoContextMenu() {
       }
 
       if (mode === 'encrypt') {
-        // 加密：尝试替换选中文本
         replaceSelectedText(result.output);
       } else {
-        // 解密：展示结果
         setResultDialog({ output: result.output, algorithmName: algorithm.name });
       }
     } catch (err: any) {
@@ -160,7 +180,7 @@ export function CryptoContextMenu() {
     }
   }, []);
 
-  // 点击算法
+  // 非 Monaco 右键菜单中点击算法
   const handleAlgorithmClick = useCallback((
     pluginId: string,
     algorithm: CryptoAlgorithm,
@@ -169,39 +189,62 @@ export function CryptoContextMenu() {
     const hasParams = algorithm.params && algorithm.params.length > 0;
 
     if (hasParams) {
-      // 需要参数 → 弹框
       setPendingAction({
         pluginId,
         algorithm,
         mode,
         selectedText,
-        targetElement: targetElementRef.current,
-      });
+        targetElement: undefined,
+      } as any);
       setVisible(false);
     } else {
-      // 无参数 → 直接执行
       executeCrypto(pluginId, algorithm, mode, selectedText);
     }
   }, [selectedText, executeCrypto]);
 
   // 参数弹框确认
-  const handleParamsConfirm = useCallback((paramsJson: string) => {
+  const handleParamsConfirm = useCallback(async (paramsJson: string) => {
     if (!pendingAction) return;
-    executeCrypto(
-      pendingAction.pluginId,
-      pendingAction.algorithm,
-      pendingAction.mode,
-      pendingAction.selectedText,
-      paramsJson,
-    );
-    setPendingAction(null);
-  }, [pendingAction, executeCrypto]);
+
+    setLoading(true);
+    try {
+      const result = await runCrypto(
+        pendingAction.pluginId,
+        pendingAction.algorithm.algorithmId,
+        pendingAction.mode,
+        pendingAction.selectedText,
+        paramsJson,
+      );
+
+      if (!result.success) {
+        setResultDialog({ output: `❌ ${result.error || '未知错误'}`, algorithmName: pendingAction.algorithm.name });
+      } else if (pendingAction.mode === 'encrypt') {
+        // 加密 → 替换文本
+        if (pendingAction.editorId) {
+          // Monaco 中的加密 → 通过 event 通知替换
+          window.dispatchEvent(new CustomEvent('crypto-replace', {
+            detail: { editorId: pendingAction.editorId, text: result.output }
+          }));
+        } else {
+          replaceSelectedText(result.output);
+        }
+      } else {
+        // 解密 → 展示结果
+        setResultDialog({ output: result.output, algorithmName: pendingAction.algorithm.name });
+      }
+    } catch (err: any) {
+      setResultDialog({ output: `❌ ${err?.message || err}`, algorithmName: pendingAction.algorithm.name });
+    } finally {
+      setLoading(false);
+      setPendingAction(null);
+    }
+  }, [pendingAction]);
 
   if (!visible && !pendingAction && !resultDialog) return null;
 
   return (
     <>
-      {/* 右键菜单 */}
+      {/* 非 Monaco 区域的右键菜单 */}
       {visible && createPortal(
         <div
           ref={menuRef}
@@ -302,7 +345,6 @@ function SubMenu({
         const items = grouped[cat];
         if (!items?.length) return null;
 
-        // 根据 mode 过滤
         const filtered = items.filter((i) =>
           mode === 'encrypt' ? i.algorithm.supportEncrypt : i.algorithm.supportDecrypt,
         );
@@ -336,7 +378,7 @@ function SubMenu({
   );
 }
 
-/** 替换当前页面中选中的文本 */
+/** 替换当前页面中选中的文本（非 Monaco） */
 function replaceSelectedText(replacement: string) {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return;
@@ -344,13 +386,12 @@ function replaceSelectedText(replacement: string) {
   const range = sel.getRangeAt(0);
   const ancestor = range.commonAncestorContainer;
 
-  // 如果选区在 input/textarea 中
+  // input / textarea
   const inputEl = (ancestor instanceof Element ? ancestor : ancestor.parentElement)?.closest('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null;
   if (inputEl && inputEl.selectionStart !== null && inputEl.selectionEnd !== null) {
     const start = inputEl.selectionStart;
     const end = inputEl.selectionEnd;
     const val = inputEl.value;
-    // 触发 React onChange
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
       window.HTMLInputElement.prototype, 'value'
     )?.set || Object.getOwnPropertyDescriptor(
@@ -362,7 +403,7 @@ function replaceSelectedText(replacement: string) {
     return;
   }
 
-  // contentEditable / 普通文本节点 — 使用 Range API
+  // contentEditable / 普通文本节点
   range.deleteContents();
   range.insertNode(document.createTextNode(replacement));
   sel.removeAllRanges();

@@ -19,6 +19,7 @@ import type { HistoryEntrySummary, CollectionItem } from '@/types/collections';
 import { getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { generateCurlFromItem } from "@/lib/curlGenerator";
+import { resolveVariableTemplate } from "@/lib/requestVariables";
 import { usePluginStore } from "@/stores/pluginStore";
 import { RequestStatsPanel } from "@/components/plugins/RequestStatsPanel";
 import { ProtocolParserPanel } from "@/components/plugins/ProtocolParserPanel";
@@ -822,7 +823,7 @@ function RequestItemWithTooltip({
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const curlCommand = useCallback(() => generateCurlFromItem(item), [item]);
+  const curlCommand = useCallback(() => generateCurlFromItem(item, item.collectionId), [item]);
 
   // 构建请求摘要信息
   const requestSummary = useMemo(() => {
@@ -831,6 +832,7 @@ function RequestItemWithTooltip({
     if (item.url) {
       let displayUrl = item.url;
       try { displayUrl = decodeURIComponent(item.url); } catch { /* keep original if decode fails */ }
+      displayUrl = resolveVariableTemplate(displayUrl, item.collectionId);
       summary.push({ label: "URL", value: displayUrl });
     }
     // Query params
