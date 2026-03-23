@@ -15,7 +15,7 @@ import { useCollectionStore } from "@/stores/collectionStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useEnvStore } from "@/stores/envStore";
 import { ImportModal } from "@/components/collections/ImportModal";
-import type { HistoryEntry, CollectionItem } from '@/types/collections';
+import type { HistoryEntrySummary, CollectionItem } from '@/types/collections';
 import { getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { generateCurlFromItem } from "@/lib/curlGenerator";
@@ -987,12 +987,13 @@ function HistoryView({ search }: { search: string }) {
   const entries = useHistoryStore((s) => s.entries);
   const deleteEntry = useHistoryStore((s) => s.deleteEntry);
 
-  // 从历史记录恢复请求到新 tab
-  const handleOpenHistoryEntry = (entry: HistoryEntry) => {
+  // 从历史记录恢复请求到新 tab（按需从 SQLite 加载 requestConfig）
+  const handleOpenHistoryEntry = async (entry: HistoryEntrySummary) => {
     const tabId = addTab('http');
-    if (!entry.requestConfig) return;
+    const detail = await useHistoryStore.getState().getEntryDetail(entry.id);
+    if (!detail?.requestConfig) return;
     try {
-      const config = JSON.parse(entry.requestConfig);
+      const config = JSON.parse(detail.requestConfig);
       updateHttpConfig(tabId, config);
       useAppStore.getState().renameTab(tabId, `${entry.method} ${entry.url}`);
     } catch { /* requestConfig 解析失败时保留空 tab */ }
@@ -1007,13 +1008,13 @@ function HistoryView({ search }: { search: string }) {
   };
 
   // 按日期分组
-  const groupByDate = (items: HistoryEntry[]) => {
+  const groupByDate = (items: HistoryEntrySummary[]) => {
     const today = new Date().toDateString();
     const yesterday = new Date(Date.now() - 86400000).toDateString();
-    const groups: { label: string; items: HistoryEntry[] }[] = [];
-    const todayItems: HistoryEntry[] = [];
-    const yesterdayItems: HistoryEntry[] = [];
-    const olderItems: HistoryEntry[] = [];
+    const groups: { label: string; items: HistoryEntrySummary[] }[] = [];
+    const todayItems: HistoryEntrySummary[] = [];
+    const yesterdayItems: HistoryEntrySummary[] = [];
+    const olderItems: HistoryEntrySummary[] = [];
 
     for (const e of items) {
       const d = new Date(e.createdAt).toDateString();
@@ -1031,7 +1032,7 @@ function HistoryView({ search }: { search: string }) {
   const filtered = entries.filter((e) => !search || e.url.includes(search) || e.method.includes(search.toUpperCase()));
   const groups = groupByDate(filtered);
 
-  const handleHistoryContextMenu = (e: React.MouseEvent, entry: HistoryEntry) => {
+  const handleHistoryContextMenu = (e: React.MouseEvent, entry: HistoryEntrySummary) => {
     const menuItems: ContextMenuEntry[] = [
       { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => handleOpenHistoryEntry(entry) },
       { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => void copyTextToClipboard(entry.url) },

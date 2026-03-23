@@ -73,6 +73,17 @@ export interface HistoryEntry {
   createdAt: string;
 }
 
+/** 轻量版历史记录（不含 requestConfig / responseSummary），用于列表展示 */
+export interface HistoryEntrySummary {
+  id: string;
+  method: string;
+  url: string;
+  status: number | null;
+  durationMs: number | null;
+  bodySize: number | null;
+  createdAt: string;
+}
+
 /** Generate ISO timestamp */
 export function nowISO(): string {
   return new Date().toISOString();

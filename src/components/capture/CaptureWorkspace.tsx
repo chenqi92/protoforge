@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
-import { useCaptureStore } from "@/stores/captureStore";
+import { useCaptureStore, destroyCaptureStore } from "@/stores/captureStore";
 import type { CapturedEntry } from "@/types/capture";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { invoke } from "@tauri-apps/api/core";
@@ -99,8 +99,9 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
     const unlistenPromise = initListener();
     return () => {
       unlistenPromise.then((fn) => fn());
+      destroyCaptureStore(sessionId);
     };
-  }, [initListener, loadEntries, refreshStatus]);
+  }, [initListener, loadEntries, refreshStatus, sessionId]);
 
   useEffect(() => {
     setPortInput(String(port));

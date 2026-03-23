@@ -103,7 +103,10 @@ export function WsWorkspace() {
   }, [tabId]);
 
   const appendMessage = useCallback((message: WsMessage) => {
-    setMessages((prev) => [...prev, message]);
+    setMessages((prev) => {
+      const next = [...prev, message];
+      return next.length > 5000 ? next.slice(-5000) : next;
+    });
   }, []);
 
   const pushWsEventMessage = useCallback((message: WsMessage) => {

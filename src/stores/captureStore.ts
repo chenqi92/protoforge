@@ -158,3 +158,8 @@ export function useCaptureStore<T>(
 ): T {
   return useStore(getCaptureStore(sessionId), selector);
 }
+
+/** 释放指定会话的 store 实例，防止内存泄漏 */
+export function destroyCaptureStore(sessionId: string) {
+  captureStores.delete(sessionId);
+}

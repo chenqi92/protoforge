@@ -617,6 +617,16 @@ pub async fn list_history(pool: State<'_, SqlitePool>, limit: i64) -> Result<Vec
 }
 
 #[tauri::command]
+pub async fn list_history_summary(pool: State<'_, SqlitePool>, limit: i64) -> Result<Vec<collections::HistoryEntrySummary>, String> {
+    collections::list_history_summary(&pool, limit).await
+}
+
+#[tauri::command]
+pub async fn get_history_entry(pool: State<'_, SqlitePool>, id: String) -> Result<HistoryEntry, String> {
+    collections::get_history_entry(&pool, &id).await
+}
+
+#[tauri::command]
 pub async fn delete_history_entry(pool: State<'_, SqlitePool>, id: String) -> Result<(), String> {
     collections::delete_history_entry(&pool, &id).await
 }

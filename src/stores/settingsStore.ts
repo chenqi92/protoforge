@@ -1,7 +1,32 @@
-// ProtoForge Settings Store — Zustand + localStorage persistence
-
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware';
+
+// Safe storage adapter: falls back to in-memory storage if localStorage is blocked
+// (e.g. by WebView2 Tracking Prevention)
+const memoryStore = new Map<string, string>();
+const safeStorage: StateStorage = {
+  getItem: (name: string) => {
+    try {
+      return localStorage.getItem(name);
+    } catch {
+      return memoryStore.get(name) ?? null;
+    }
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      localStorage.setItem(name, value);
+    } catch {
+      memoryStore.set(name, value);
+    }
+  },
+  removeItem: (name: string) => {
+    try {
+      localStorage.removeItem(name);
+    } catch {
+      memoryStore.delete(name);
+    }
+  },
+};
 
 export interface AppSettings {
   // ── 通用 ──
@@ -87,6 +112,7 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: 'protoforge-settings',
+      storage: createJSONStorage(() => safeStorage),
       migrate: (persistedState: unknown) => {
         const state = persistedState as { settings?: Record<string, unknown> };
         if (state?.settings) {

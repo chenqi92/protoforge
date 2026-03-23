@@ -7,9 +7,14 @@ import zh from '@/locales/zh.json';
 import en from '@/locales/en.json';
 
 // 从 localStorage 读取上次保存的语言偏好
-const savedLang = typeof window !== 'undefined'
-  ? localStorage.getItem('protoforge-language') || 'zh'
-  : 'zh';
+let savedLang = 'zh';
+try {
+  if (typeof window !== 'undefined') {
+    savedLang = localStorage.getItem('protoforge-language') || 'zh';
+  }
+} catch {
+  // Tracking Prevention may block localStorage access
+}
 
 i18n
   .use(initReactI18next)
@@ -27,7 +32,11 @@ i18n
 
 // 监听语言切换并保存到 localStorage
 i18n.on('languageChanged', (lng) => {
-  localStorage.setItem('protoforge-language', lng);
+  try {
+    localStorage.setItem('protoforge-language', lng);
+  } catch {
+    // Tracking Prevention may block localStorage access
+  }
 });
 
 export default i18n;

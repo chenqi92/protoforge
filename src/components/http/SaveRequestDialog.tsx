@@ -91,8 +91,8 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
     : [];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[74vh] w-[520px] max-w-[92vw] flex-col overflow-hidden rounded-[24px] border border-white/60 bg-bg-primary/96 shadow-[0_28px_80px_rgba(15,23,42,0.22)] backdrop-blur-xl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
+      <div className="flex max-h-[74vh] w-[520px] max-w-[92vw] flex-col overflow-hidden rounded-[24px] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border-default/75 bg-bg-primary/78 px-5 py-4">
           <h2 className="text-[var(--fs-lg)] font-semibold text-text-primary flex items-center gap-2">

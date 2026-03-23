@@ -99,8 +99,8 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-[999] backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed left-1/2 top-[15%] z-[1000] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden rounded-[24px] border border-white/60 bg-bg-primary/96 shadow-[0_28px_80px_rgba(15,23,42,0.22)] backdrop-blur-xl">
+      <div className="fixed inset-0 bg-black/40 z-[999]" onClick={onClose} />
+      <div className="fixed left-1/2 top-[15%] z-[1000] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden rounded-[24px] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
         {/* Search Input */}
         <div className="flex items-center gap-3 border-b border-border-default/75 bg-bg-primary/78 px-5 py-3">
           <Search className="w-4 h-4 text-text-disabled shrink-0" />

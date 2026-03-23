@@ -148,7 +148,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { setSelectedPlugin(null); onClose(); } }}>
       <DialogContent
-        className="w-[1080px] max-w-[96vw] min-h-[680px] max-h-[88vh] gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary/96 p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] backdrop-blur-xl sm:max-w-[1080px]"
+        className="w-[1080px] max-w-[96vw] min-h-[680px] max-h-[88vh] gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[1080px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('plugin.centerTitle')}</DialogTitle>

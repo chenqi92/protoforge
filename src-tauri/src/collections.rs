@@ -60,6 +60,19 @@ pub struct HistoryEntry {
     pub created_at: String,
 }
 
+/// 历史记录摘要（不含 request_config / response_summary，用于列表展示）
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryEntrySummary {
+    pub id: String,
+    pub method: String,
+    pub url: String,
+    pub status: Option<i64>,
+    pub duration_ms: Option<i64>,
+    pub body_size: Option<i64>,
+    pub created_at: String,
+}
+
 /// 环境
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
@@ -399,6 +412,24 @@ pub async fn list_history(pool: &SqlitePool, limit: i64) -> Result<Vec<HistoryEn
     )
     .bind(limit)
     .fetch_all(pool).await.map_err(|e| format!("查询历史失败: {}", e))
+}
+
+/// 轻量列表：不返回 request_config / response_summary，节省内存
+pub async fn list_history_summary(pool: &SqlitePool, limit: i64) -> Result<Vec<HistoryEntrySummary>, String> {
+    sqlx::query_as::<_, HistoryEntrySummary>(
+        "SELECT id, method, url, status, duration_ms, body_size, created_at FROM history ORDER BY created_at DESC LIMIT ?"
+    )
+    .bind(limit)
+    .fetch_all(pool).await.map_err(|e| format!("查询历史摘要失败: {}", e))
+}
+
+/// 按 ID 获取完整历史记录（含 request_config）
+pub async fn get_history_entry(pool: &SqlitePool, id: &str) -> Result<HistoryEntry, String> {
+    sqlx::query_as::<_, HistoryEntry>(
+        "SELECT * FROM history WHERE id = ?"
+    )
+    .bind(id)
+    .fetch_one(pool).await.map_err(|e| format!("历史记录不存在: {}", e))
 }
 
 pub async fn delete_history_entry(pool: &SqlitePool, id: &str) -> Result<(), String> {

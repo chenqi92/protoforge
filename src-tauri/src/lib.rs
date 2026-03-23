@@ -203,6 +203,8 @@ pub fn run() {
             // History
             commands::add_history,
             commands::list_history,
+            commands::list_history_summary,
+            commands::get_history_entry,
             commands::delete_history_entry,
             commands::clear_history,
             // Postman Import

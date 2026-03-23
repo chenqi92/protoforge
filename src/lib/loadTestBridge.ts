@@ -31,7 +31,11 @@ export async function pushLoadTestConfig(httpConfig: HttpRequestConfig): Promise
   const config = httpToLoadTestConfig(httpConfig);
   const payload: LoadTestPrefillPayload = { config, ts: Date.now() };
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // Tracking Prevention may block localStorage access
+  }
 
   if (typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel(CHANNEL_NAME);
@@ -52,10 +56,15 @@ export async function pushLoadTestConfig(httpConfig: HttpRequestConfig): Promise
  * 从 localStorage 读取预填配置（读完即清除）
  */
 export function popLoadTestConfig(): Partial<LoadTestConfig> | null {
-  const payload = readPayload(localStorage.getItem(STORAGE_KEY));
-  if (!payload) return null;
-  localStorage.removeItem(STORAGE_KEY);
-  return payload.config;
+  try {
+    const payload = readPayload(localStorage.getItem(STORAGE_KEY));
+    if (!payload) return null;
+    localStorage.removeItem(STORAGE_KEY);
+    return payload.config;
+  } catch {
+    // Tracking Prevention may block localStorage access
+    return null;
+  }
 }
 
 export function subscribeLoadTestPrefill(callback: (config: Partial<LoadTestConfig>) => void) {

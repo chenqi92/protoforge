@@ -124,7 +124,10 @@ function useSocketState() {
   const [stats, setStats] = useState<ConnectionStats>({ sentBytes: 0, receivedBytes: 0, sentCount: 0, receivedCount: 0 });
 
   const addMessage = useCallback((msg: TcpMessage) => {
-    setMessages((prev) => [...prev, msg]);
+    setMessages((prev) => {
+      const next = [...prev, msg];
+      return next.length > 5000 ? next.slice(-5000) : next;
+    });
     if (msg.direction === "sent") {
       setStats((s) => ({ ...s, sentBytes: s.sentBytes + msg.size, sentCount: s.sentCount + 1 }));
     } else if (msg.direction === "received") {

@@ -55,7 +55,10 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
   // Listen to backend events
   useEffect(() => {
     const unlisten1 = listen<MqttMessage>(`mqtt-message-${connId}`, (e) => {
-      setMessages((prev) => [...prev, e.payload]);
+      setMessages((prev) => {
+        const next = [...prev, e.payload];
+        return next.length > 5000 ? next.slice(-5000) : next;
+      });
     });
     const unlisten2 = listen<string>(`mqtt-status-${connId}`, (e) => {
       const s = e.payload;
@@ -117,10 +120,13 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
     if (!pubTopic.trim()) return;
     try {
       await invoke('mqtt_publish', { connId, topic: pubTopic, payload: pubPayload, qos: pubQos, retain: pubRetain });
-      setMessages((prev) => [...prev, {
-        topic: pubTopic, payload: pubPayload, qos: pubQos, retain: pubRetain,
-        timestamp: new Date().toISOString(), direction: 'out',
-      }]);
+      setMessages((prev) => {
+        const next = [...prev, {
+          topic: pubTopic, payload: pubPayload, qos: pubQos, retain: pubRetain,
+          timestamp: new Date().toISOString(), direction: 'out',
+        }];
+        return next.length > 5000 ? next.slice(-5000) : next;
+      });
     } catch (err: any) {
       setErrorMsg(err.message || String(err));
     }

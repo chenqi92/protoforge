@@ -177,7 +177,10 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
 
   useEffect(() => {
     const unlistenEvent = listen<SseEvent>(`sse-event-${sseConnId}`, (event) => {
-      setSseEvents((prev) => [...prev, event.payload]);
+      setSseEvents((prev) => {
+        const next = [...prev, event.payload];
+        return next.length > 5000 ? next.slice(-5000) : next;
+      });
     });
     const unlistenStatus = listen<string>(`sse-status-${sseConnId}`, (event) => {
       const nextStatus = event.payload;
