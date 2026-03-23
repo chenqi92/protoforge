@@ -85,7 +85,7 @@ function createToolSession(tool: ToolWorkbench, id?: string): ToolSession {
 export const useAppStore = create<AppStore>((set, get) => ({
   tabs: [],
   activeTabId: null,
-  activeWorkbench: "requests",
+  activeWorkbench: "home",
   activeCollectionId: null,
   toolSessions: {
     tcpudp: [],

@@ -30,6 +30,7 @@ export interface CollectionItem {
   authConfig: string;
   preScript: string;
   postScript: string;
+  responseExample: string;
   createdAt: string;
   updatedAt: string;
 }

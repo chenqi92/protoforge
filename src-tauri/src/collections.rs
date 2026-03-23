@@ -40,6 +40,7 @@ pub struct CollectionItem {
     pub auth_config: String,
     pub pre_script: String,
     pub post_script: String,
+    pub response_example: String,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -189,14 +190,14 @@ pub async fn create_collection_item(pool: &SqlitePool, item: CollectionItem) -> 
     sqlx::query(
         "INSERT INTO collection_items (id, collection_id, parent_id, item_type, name, sort_order,
          method, url, headers, query_params, body_type, body_content, auth_type, auth_config,
-         pre_script, post_script, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+         pre_script, post_script, response_example, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .bind(&item.id).bind(&item.collection_id).bind(&item.parent_id)
     .bind(&item.item_type).bind(&item.name).bind(item.sort_order)
     .bind(&item.method).bind(&item.url).bind(&item.headers).bind(&item.query_params)
     .bind(&item.body_type).bind(&item.body_content).bind(&item.auth_type).bind(&item.auth_config)
-    .bind(&item.pre_script).bind(&item.post_script)
+    .bind(&item.pre_script).bind(&item.post_script).bind(&item.response_example)
     .bind(&item.created_at).bind(&item.updated_at)
     .execute(pool).await.map_err(|e| format!("创建集合项失败: {}", e))?;
     Ok(item)
@@ -205,13 +206,14 @@ pub async fn create_collection_item(pool: &SqlitePool, item: CollectionItem) -> 
 pub async fn update_collection_item(pool: &SqlitePool, item: CollectionItem) -> Result<(), String> {
     sqlx::query(
         "UPDATE collection_items SET name=?, sort_order=?, method=?, url=?, headers=?, query_params=?,
-         body_type=?, body_content=?, auth_type=?, auth_config=?, pre_script=?, post_script=?, updated_at=?
+         body_type=?, body_content=?, auth_type=?, auth_config=?, pre_script=?, post_script=?,
+         response_example=?, updated_at=?
          WHERE id=?"
     )
     .bind(&item.name).bind(item.sort_order).bind(&item.method).bind(&item.url)
     .bind(&item.headers).bind(&item.query_params).bind(&item.body_type).bind(&item.body_content)
     .bind(&item.auth_type).bind(&item.auth_config).bind(&item.pre_script).bind(&item.post_script)
-    .bind(&item.updated_at).bind(&item.id)
+    .bind(&item.response_example).bind(&item.updated_at).bind(&item.id)
     .execute(pool).await.map_err(|e| format!("更新集合项失败: {}", e))?;
     Ok(())
 }
@@ -235,6 +237,27 @@ pub async fn reorder_collection_items(pool: &SqlitePool, item_ids: Vec<String>) 
     }
     tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
     Ok(())
+}
+
+/// 集合去重：同一 parent_id 下 method+url 相同的请求，保留 sort_order 最小的一条
+pub async fn deduplicate_collection_items(pool: &SqlitePool, collection_id: &str) -> Result<u64, String> {
+    let result = sqlx::query(
+        "DELETE FROM collection_items WHERE id IN (
+            SELECT ci.id FROM collection_items ci
+            INNER JOIN (
+                SELECT MIN(id) AS keep_id, COALESCE(parent_id, '') AS pid, method, url
+                FROM collection_items
+                WHERE collection_id = ? AND item_type = 'request' AND method IS NOT NULL AND url IS NOT NULL
+                GROUP BY COALESCE(parent_id, ''), method, url
+                HAVING COUNT(*) > 1
+            ) dup ON COALESCE(ci.parent_id, '') = dup.pid AND ci.method = dup.method AND ci.url = dup.url
+            WHERE ci.collection_id = ? AND ci.item_type = 'request' AND ci.id != dup.keep_id
+        )"
+    )
+    .bind(collection_id)
+    .bind(collection_id)
+    .execute(pool).await.map_err(|e| format!("去重失败: {}", e))?;
+    Ok(result.rows_affected())
 }
 
 // ═══════════════════════════════════════════

@@ -540,6 +540,11 @@ pub async fn reorder_collection_items(pool: State<'_, SqlitePool>, item_ids: Vec
     collections::reorder_collection_items(&pool, item_ids).await
 }
 
+#[tauri::command]
+pub async fn deduplicate_collection_items(pool: State<'_, SqlitePool>, collection_id: String) -> Result<u64, String> {
+    collections::deduplicate_collection_items(&pool, &collection_id).await
+}
+
 // ═══════════════════════════════════════════
 //  Environments
 // ═══════════════════════════════════════════

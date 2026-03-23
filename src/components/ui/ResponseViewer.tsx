@@ -14,6 +14,7 @@ import { usePluginStore } from '@/stores/pluginStore';
 import { invoke } from '@tauri-apps/api/core';
 import type { RendererContribution } from '@/types/plugin';
 import { PluginRendererView } from '@/components/ui/PluginRendererView';
+import { ProtocolParserPanel } from '@/components/plugins/ProtocolParserPanel';
 
 export type ViewMode = 'json' | 'raw' | 'preview' | 'hex' | 'base64';
 
@@ -194,8 +195,14 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   }, [modes, isJson, isHtml, isBinary]);
 
   // 联合 tab：内置 + 插件
-  type ActiveTab = ViewMode | `plugin:${string}`;
+  type ActiveTab = ViewMode | `plugin:${string}` | 'protocol-parser';
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => availableModes[0] || 'raw');
+
+  // Check if protocol-parser plugins are installed (for non-binary text responses)
+  const hasParserPlugin = useMemo(() => {
+    if (isBinary) return false;
+    return installedPlugins.some((p) => p.pluginType === 'protocol-parser');
+  }, [installedPlugins, isBinary]);
 
   useEffect(() => {
     setActiveTab(availableModes[0] || 'raw');
@@ -298,6 +305,19 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                 <span>{pt.renderer.name}</span>
               </button>
             ))}
+            {/* 协议解析器 tab */}
+            {hasParserPlugin && (
+              <button
+                onClick={() => setActiveTab('protocol-parser')}
+                className={cn(
+                  'response-viewer-tab flex items-center gap-1',
+                  activeTab === 'protocol-parser' && 'is-active'
+                )}
+              >
+                <span>🔍</span>
+                <span>{t('parser.tabLabel', '协议解析')}</span>
+              </button>
+            )}
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-1.5 px-2">
@@ -441,6 +461,11 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
               body={body}
               isBinary={isBinary}
             />
+          )}
+
+          {/* 协议解析器面板 */}
+          {activeTab === 'protocol-parser' && (
+            <ProtocolParserPanel initialData={body} compact className="h-full" />
           )}
         </div>
       </div>

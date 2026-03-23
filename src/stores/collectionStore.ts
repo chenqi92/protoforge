@@ -28,6 +28,7 @@ interface CollectionStore {
   moveItem: (id: string, collectionId: string, newParentId: string | null) => Promise<void>;
   saveRequest: (item: CollectionItem) => Promise<CollectionItem>;
   loadItems: (collectionId: string) => Promise<void>;
+  deduplicateItems: (collectionId: string) => Promise<number>;
 }
 
 export const useCollectionStore = create<CollectionStore>((set, get) => ({
@@ -111,6 +112,7 @@ export const useCollectionStore = create<CollectionStore>((set, get) => ({
       authConfig: '{}',
       preScript: '',
       postScript: '',
+      responseExample: '',
       createdAt: now,
       updatedAt: now,
     };
@@ -215,5 +217,11 @@ export const useCollectionStore = create<CollectionStore>((set, get) => ({
 
   loadItems: async (collectionId: string) => {
     await get().fetchItems(collectionId);
+  },
+
+  deduplicateItems: async (collectionId: string) => {
+    const removed = await svc.deduplicateCollectionItems(collectionId);
+    await get().fetchItems(collectionId);
+    return removed;
   },
 }));

@@ -1,9 +1,11 @@
-// 消息日志组件 — 多编码显示、过滤
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Trash2, ArrowDown, Search, Copy, Check, ArrowUpRight, ArrowDownLeft, PlugZap } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Trash2, ArrowDown, Search, Copy, Check, ArrowUpRight, ArrowDownLeft, PlugZap, FileCode2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { convertFormat } from "@/services/tcpService";
+import { usePluginStore } from "@/stores/pluginStore";
+import { ProtocolParserPanel } from "@/components/plugins/ProtocolParserPanel";
 import type { ConnectionStats, TcpMessage, DataFormat } from "@/types/tcp";
 
 interface MessageLogProps {
@@ -53,6 +55,8 @@ export function MessageLog({
   const [autoScroll, setAutoScroll] = useState(true);
   const [filter, setFilter] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [parserTarget, setParserTarget] = useState<TcpMessage | null>(null);
+  const hasParserPlugin = usePluginStore((s) => s.installedPlugins.some((p) => p.pluginType === 'protocol-parser'));
 
   useEffect(() => {
     if (autoScroll && endRef.current) {
@@ -277,6 +281,15 @@ export function MessageLog({
                     >
                       {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
+                    {hasParserPlugin && m.direction === 'received' && (
+                      <button
+                        onClick={() => setParserTarget(m)}
+                        className="rounded-[10px] p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-blue-500 group-hover:opacity-100"
+                        title={t('parser.parse', '解析')}
+                      >
+                        <FileCode2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -285,6 +298,28 @@ export function MessageLog({
           </div>
         )}
       </div>
+
+      {/* 协议解析弹窗 */}
+      {parserTarget && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={() => setParserTarget(null)}>
+          <div
+            className="w-[560px] max-h-[80vh] rounded-[14px] border border-border-default bg-bg-primary shadow-2xl overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border-default/60 shrink-0">
+              <div className="flex items-center gap-2">
+                <FileCode2 className="w-4 h-4 text-accent" />
+                <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('parser.parseMessage', '解析报文')}</span>
+              </div>
+              <button onClick={() => setParserTarget(null)} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-text-primary transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <ProtocolParserPanel initialData={parserTarget.data} className="flex-1 min-h-0" />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -17,15 +17,40 @@ mod builtin_parsers;
 mod plugins;
 
 use tauri::Manager;
+#[cfg(target_os = "macos")]
+use tauri::Emitter;
 use ws_client::WsConnections;
 use tcp_client::{TcpConnections, TcpServers, UdpSockets};
 use load_test::LoadTestState;
 use proxy_capture::ProxyState;
 use plugin_runtime::PluginManager;
 
+/// 开发模式：保留 DevTools / Reload / ContextMenu（方便调试）
+/// 生产模式：禁用所有浏览器默认行为
+#[cfg(debug_assertions)]
+fn prevent_default() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    use tauri_plugin_prevent_default::Flags;
+    tauri_plugin_prevent_default::Builder::new()
+        .with_flags(Flags::all().difference(Flags::DEV_TOOLS | Flags::RELOAD | Flags::CONTEXT_MENU))
+        .build()
+}
+
+#[cfg(not(debug_assertions))]
+fn prevent_default() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    use tauri_plugin_prevent_default::PlatformOptions;
+    tauri_plugin_prevent_default::Builder::new()
+        .platform(
+            PlatformOptions::new()
+                .default_context_menus(false)
+                .browser_accelerator_keys(false)
+        )
+        .build()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(prevent_default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -66,17 +91,17 @@ pub fn run() {
                     .item(&PredefinedMenuItem::hide_others(app, None)?)
                     .item(&PredefinedMenuItem::show_all(app, None)?)
                     .separator()
-                    .quit(None)
+                    .quit()
                     .build()?;
 
                 let edit_submenu = SubmenuBuilder::new(app, "Edit")
-                    .undo(None)
-                    .redo(None)
+                    .undo()
+                    .redo()
                     .separator()
-                    .cut(None)
-                    .copy(None)
-                    .paste(None)
-                    .select_all(None)
+                    .cut()
+                    .copy()
+                    .paste()
+                    .select_all()
                     .build()?;
 
                 let menu = MenuBuilder::new(app)
@@ -162,6 +187,7 @@ pub fn run() {
             commands::update_collection_item,
             commands::delete_collection_item,
             commands::reorder_collection_items,
+            commands::deduplicate_collection_items,
             // Environments
             commands::list_environments,
             commands::create_environment,

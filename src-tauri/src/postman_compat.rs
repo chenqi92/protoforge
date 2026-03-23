@@ -743,6 +743,7 @@ async fn import_items(
                 auth_config: "{}".to_string(),
                 pre_script,
                 post_script,
+                response_example: String::new(),
                 created_at: now.to_string(),
                 updated_at: now.to_string(),
             };
@@ -776,6 +777,7 @@ async fn import_items(
                 auth_config,
                 pre_script,
                 post_script,
+                response_example: String::new(),
                 created_at: now.to_string(),
                 updated_at: now.to_string(),
             };

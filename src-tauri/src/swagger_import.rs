@@ -48,6 +48,7 @@ pub struct SwaggerEndpoint {
     pub operation_id: String,
     pub parameters: Vec<SwaggerParameter>,
     pub request_body: Option<SwaggerRequestBody>,
+    pub response_example: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -403,6 +404,9 @@ fn parse_openapi3(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerPa
 
                         let request_body = extract_request_body_v3(operation.get("requestBody"), doc);
 
+                        // 提取响应示例 (200/201)
+                        let response_example = extract_response_example(operation.get("responses"), doc);
+
                         endpoints.push(SwaggerEndpoint {
                             path: path.clone(),
                             method: method.to_uppercase(),
@@ -412,6 +416,7 @@ fn parse_openapi3(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerPa
                             operation_id,
                             parameters: params,
                             request_body,
+                            response_example,
                         });
                     }
                 }
@@ -493,6 +498,9 @@ fn parse_swagger2(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerPa
                         params.extend(op_params.into_iter()
                             .filter(|p| p.location != "body" && p.location != "formData"));
 
+                        // 提取响应示例 (200/201)
+                        let response_example = extract_response_example(operation.get("responses"), doc);
+
                         endpoints.push(SwaggerEndpoint {
                             path: path.clone(),
                             method: method.to_uppercase(),
@@ -502,6 +510,7 @@ fn parse_swagger2(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerPa
                             operation_id,
                             parameters: params,
                             request_body,
+                            response_example,
                         });
                     }
                 }
@@ -630,6 +639,66 @@ fn extract_request_body_v3(body_val: Option<&serde_json::Value>, doc: &serde_jso
     }
 
     None
+}
+
+/// 从 responses 对象中提取成功响应(200/201)的示例 JSON
+fn extract_response_example(responses_val: Option<&serde_json::Value>, doc: &serde_json::Value) -> String {
+    let responses = match responses_val {
+        Some(r) => r,
+        None => return String::new(),
+    };
+
+    // 优先 200，其次 201
+    let success_resp = responses.get("200")
+        .or_else(|| responses.get("201"))
+        .or_else(|| responses.get("default"));
+
+    let resp = match success_resp {
+        Some(r) => resolve_ref(r, doc),
+        None => return String::new(),
+    };
+
+    // OpenAPI 3.x: responses.200.content.application/json.schema
+    if let Some(content) = resp.get("content").and_then(|c| c.as_object()) {
+        if let Some(json_content) = content.get("application/json") {
+            // 优先 example 字段
+            if let Some(example) = json_content.get("example") {
+                return serde_json::to_string_pretty(example).unwrap_or_default();
+            }
+            // 优先 examples.*.value
+            if let Some(examples) = json_content.get("examples").and_then(|e| e.as_object()) {
+                if let Some(first) = examples.values().next() {
+                    if let Some(val) = first.get("value") {
+                        return serde_json::to_string_pretty(val).unwrap_or_default();
+                    }
+                }
+            }
+            // 从 schema 生成
+            if let Some(schema) = json_content.get("schema") {
+                let example = generate_example_json(schema, doc);
+                if example != "null" && example != "{}" {
+                    return example;
+                }
+            }
+        }
+    }
+
+    // Swagger 2.0: responses.200.schema
+    if let Some(schema) = resp.get("schema") {
+        let example = generate_example_json(schema, doc);
+        if example != "null" && example != "{}" {
+            return example;
+        }
+    }
+
+    // 兜底: responses.200.examples.application/json
+    if let Some(examples) = resp.get("examples") {
+        if let Some(json_example) = examples.get("application/json") {
+            return serde_json::to_string_pretty(json_example).unwrap_or_default();
+        }
+    }
+
+    String::new()
 }
 
 // ── $ref 解析 ──
@@ -825,6 +894,7 @@ pub async fn import_selected(
                     auth_config: "{}".to_string(),
                     pre_script: String::new(),
                     post_script: String::new(),
+                    response_example: String::new(),
                     created_at: now.clone(),
                     updated_at: now.clone(),
                 };
@@ -899,6 +969,7 @@ pub async fn import_selected(
             auth_config: "{}".to_string(),
             pre_script: String::new(),
             post_script: String::new(),
+            response_example: ep.response_example.clone(),
             created_at: now.clone(),
             updated_at: now.clone(),
         };

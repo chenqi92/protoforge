@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, FileIcon, X, Save, Search, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDownToLine, Trash2, Info, ChevronUp, Braces } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, FileIcon, X, Save, Search, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDownToLine, Trash2, Info, ChevronUp, Braces, FileOutput, Wand2, ClipboardCopy } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
@@ -9,9 +9,12 @@ import { useAppStore } from "@/stores/appStore";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { useEnvStore } from "@/stores/envStore";
 import { useHistoryStore } from "@/stores/historyStore";
+import { usePluginStore } from "@/stores/pluginStore";
+import * as pluginService from "@/services/pluginService";
 import type { HttpMethod, KeyValue, FormDataField, ScriptResult, HttpRequestMode } from "@/types/http";
 import { ensureAutoHeaders, type OAuth2Config } from "@/types/http";
 import type { CollectionItem } from "@/types/collections";
+import type { ExportFormatContribution, GeneratorContribution } from "@/types/plugin";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { SaveRequestDialog } from "./SaveRequestDialog";
 import { ScriptEditor } from "./ScriptEditor";
@@ -22,6 +25,7 @@ import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/
 import { buildCollectionItemFromHttpConfig, getCollectionRequestSignatureFromConfig, getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
 import { extractVariableKeys, getVariablePreview, upsertCollectionVariable } from "@/lib/requestVariables";
 import { recordRequestStat } from "@/components/plugins/RequestStatsPanel";
+import { buildRequestPayload, resolveHttpConfig } from "@/services/httpService";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -73,7 +77,9 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
   const syncingFromRef = useRef<'url' | 'params' | null>(null);
   const initializedTabsRef = useRef<Set<string>>(new Set());
 
-  // 初次加载 tab 时：如果 URL 含 ?query 但 queryParams 为空，自动解析填充
+  // 初次加载 tab 时：双向同步 URL ↔ queryParams（学习 Postman 行为）
+  // 1) URL 含 ?query 但 params 为空 → 解析 URL 填充 params
+  // 2) params 有值但 URL 无 ?query → 拼接 params 回 URL
   useEffect(() => {
     const httpConfig = activeTab?.httpConfig;
     if (!httpConfig || !tabId) return;
@@ -82,22 +88,27 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
 
     const url = httpConfig.url || '';
     const qIndex = url.indexOf('?');
-    if (qIndex < 0) return;
+    const hasUrlQuery = qIndex >= 0 && url.slice(qIndex + 1).length > 0;
+    const enabledParams = (httpConfig.queryParams || []).filter(p => p.key.trim() && p.enabled);
+    const hasRealParams = enabledParams.length > 0;
 
-    // 检查 queryParams 是否为空（只含空行）
-    const hasRealParams = (httpConfig.queryParams || []).some(p => p.key.trim());
-    if (hasRealParams) return;
-
-    // 解析 URL 中的 query params
-    const queryStr = url.slice(qIndex + 1);
-    const parsed = new URLSearchParams(queryStr);
-    const newParams: KeyValue[] = [];
-    parsed.forEach((v, k) => {
-      newParams.push({ key: k, value: v, enabled: true });
-    });
-    if (newParams.length > 0) {
-      newParams.push({ key: '', value: '', enabled: true });
-      updateHttpConfig(tabId, { queryParams: newParams });
+    if (hasUrlQuery && !hasRealParams) {
+      // Case 1: URL 有 query string，但 params 表格为空 → 解析 URL 填充 params
+      const queryStr = url.slice(qIndex + 1);
+      const parsed = new URLSearchParams(queryStr);
+      const newParams: KeyValue[] = [];
+      parsed.forEach((v, k) => {
+        newParams.push({ key: k, value: v, enabled: true });
+      });
+      if (newParams.length > 0) {
+        newParams.push({ key: '', value: '', enabled: true });
+        updateHttpConfig(tabId, { queryParams: newParams });
+      }
+    } else if (hasRealParams && !hasUrlQuery) {
+      // Case 2: params 表格有值，但 URL 没有 query string → 拼接 params 回 URL
+      const baseUrl = qIndex >= 0 ? url.slice(0, qIndex) : url;
+      const qs = enabledParams.map(p => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`).join('&');
+      updateHttpConfig(tabId, { url: `${baseUrl}?${qs}` });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabId]);
@@ -631,6 +642,8 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               >
                 <Flame className="w-3.5 h-3.5" />
               </button>
+              <ExportPluginDropdown config={config} />
+              <MockGeneratorDropdown onInsert={(data) => updateHttpConfig(tabId, { jsonBody: data })} />
             </div>
             <button
               onClick={handleSend}
@@ -1192,15 +1205,35 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                   )}
                 </div>
               </>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-text-disabled">
-                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary shadow-sm">
-                  <Braces className="h-7 w-7 opacity-20" />
+            ) : (() => {
+              // 查找当前关联的集合项的 responseExample
+              const linkedItem = (activeTab.linkedCollectionItemId && activeTab.linkedCollectionId)
+                ? (useCollectionStore.getState().items[activeTab.linkedCollectionId] || [])
+                    .find(i => i.id === activeTab.linkedCollectionItemId)
+                : null;
+              const respExample = linkedItem?.responseExample || '';
+              
+              return respExample ? (
+                <div className="h-full flex flex-col overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-2 border-b border-border-default/50 shrink-0">
+                    <Braces className="h-4 w-4 text-accent opacity-70" />
+                    <span className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('http.responseExample', { defaultValue: '响应示例' })}</span>
+                    <span className="text-[var(--fs-xs)] text-text-tertiary ml-auto">{t('http.fromSwagger', { defaultValue: '来自 Swagger 文档' })}</span>
+                  </div>
+                  <div className="flex-1 overflow-auto p-4">
+                    <pre className="text-[var(--fs-xs)] font-mono text-text-secondary whitespace-pre-wrap break-all bg-bg-secondary/40 rounded-lg p-4 border border-border-default/30">{respExample}</pre>
+                  </div>
                 </div>
-                <p className="text-[var(--fs-base)] font-medium text-text-secondary">{t('http.ready')}</p>
-                <p className="mt-1 text-[var(--fs-xs)]">{t('http.readyDesc')}</p>
-              </div>
-            )}
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-text-disabled">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary shadow-sm">
+                    <Braces className="h-7 w-7 opacity-20" />
+                  </div>
+                  <p className="text-[var(--fs-base)] font-medium text-text-secondary">{t('http.ready')}</p>
+                  <p className="mt-1 text-[var(--fs-xs)]">{t('http.readyDesc')}</p>
+                </div>
+              );
+            })()}
           </Panel>
           
           </PanelGroup>
@@ -2711,3 +2744,252 @@ function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; file
     </div>
   );
 }
+
+/* ── Export Plugin Dropdown (cURL 导出等) ── */
+function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpRequestConfig }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [result, setResult] = useState<{ content: string; filename: string } | null>(null);
+  const [copying, setCopying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const installedPlugins = usePluginStore((s) => s.installedPlugins);
+  const exportPlugins = useMemo(() => installedPlugins.filter(p => p.pluginType === 'export-format'), [installedPlugins]);
+
+  // 聚合所有导出格式
+  const formats = useMemo(() => {
+    const items: { pluginId: string; pluginName: string; format: ExportFormatContribution }[] = [];
+    for (const p of exportPlugins) {
+      for (const fmt of (p.contributes?.exportFormats || [])) {
+        items.push({ pluginId: p.id, pluginName: p.name, format: fmt });
+      }
+    }
+    return items;
+  }, [exportPlugins]);
+
+  // 点击外部关闭
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setResult(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  if (formats.length === 0) return null;
+
+  const handleExport = async (pluginId: string) => {
+    setLoading(true);
+    try {
+      const resolved = resolveHttpConfig(config);
+      const payload = buildRequestPayload(resolved);
+      const requestJson = JSON.stringify(payload);
+      const res = await pluginService.runExport(pluginId, requestJson);
+      if (res.error) {
+        console.warn('[ProtoForge] export plugin error:', res.error);
+      } else {
+        setResult({ content: res.content, filename: res.filename });
+      }
+    } catch (e) {
+      console.warn('[ProtoForge] export plugin failed:', e);
+    }
+    setLoading(false);
+  };
+
+  const handleCopy = async () => {
+    if (!result) return;
+    await navigator.clipboard.writeText(result.content);
+    setCopying(true);
+    setTimeout(() => setCopying(false), 2000);
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => { setOpen(!open); setResult(null); }}
+        className="wb-icon-btn hover:text-indigo-600"
+        title={t('http.export', '导出')}
+        disabled={!config.url.trim()}
+      >
+        <FileOutput className="w-3.5 h-3.5" />
+      </button>
+
+      {open && (
+        <div className="absolute top-full right-0 mt-1.5 z-50 min-w-[320px] max-w-[480px] rounded-[12px] border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden">
+          {!result ? (
+            <div className="p-1.5">
+              <div className="px-3 py-2 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">
+                {t('http.exportAs', '导出为')}
+              </div>
+              {formats.map((item) => (
+                <button
+                  key={`${item.pluginId}:${item.format.formatId}`}
+                  onClick={() => handleExport(item.pluginId)}
+                  disabled={loading}
+                  className="w-full flex items-center gap-2 rounded-[8px] px-3 py-2 text-left text-[var(--fs-sm)] text-text-primary hover:bg-bg-hover transition-colors"
+                >
+                  <FileOutput className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+                  <span className="font-medium">{item.format.name}</span>
+                  <span className="text-[var(--fs-xxs)] text-text-disabled ml-auto">.{item.format.fileExtension}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60">
+                <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{result.filename}</span>
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[var(--fs-xs)] text-accent hover:bg-accent-soft transition-colors"
+                >
+                  {copying ? <Check className="w-3 h-3" /> : <ClipboardCopy className="w-3 h-3" />}
+                  {copying ? t('sidebar.copied', '已复制') : t('response.copy', '复制')}
+                </button>
+              </div>
+              <pre className="selectable p-3 max-h-[280px] overflow-auto font-mono text-[var(--fs-xs)] text-text-primary leading-5 whitespace-pre-wrap break-all bg-bg-secondary/30">
+                {result.content}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Mock Data Generator Dropdown ── */
+function MockGeneratorDropdown({ onInsert }: { onInsert: (data: string) => void }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [lastResult, setLastResult] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const installedPlugins2 = usePluginStore((s) => s.installedPlugins);
+  const generatorPlugins = useMemo(() => installedPlugins2.filter(p => p.pluginType === 'data-generator'), [installedPlugins2]);
+
+  // 聚合所有 Generator
+  const generators = useMemo(() => {
+    const items: { pluginId: string; generator: GeneratorContribution }[] = [];
+    for (const p of generatorPlugins) {
+      for (const gen of (p.contributes?.generators || [])) {
+        items.push({ pluginId: p.id, generator: gen });
+      }
+    }
+    return items;
+  }, [generatorPlugins]);
+
+  // 点击外部关闭
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setLastResult(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  if (generators.length === 0) return null;
+
+  const handleGenerate = async (pluginId: string, generatorId: string) => {
+    setLoading(true);
+    try {
+      const result = await pluginService.runGenerator(pluginId, generatorId, '{}');
+      if (result.error) {
+        console.warn('[ProtoForge] generator plugin error:', result.error);
+      } else {
+        setLastResult(result.data);
+      }
+    } catch (e) {
+      console.warn('[ProtoForge] generator plugin failed:', e);
+    }
+    setLoading(false);
+  };
+
+  const handleInsert = () => {
+    if (lastResult) {
+      onInsert(lastResult);
+      setOpen(false);
+      setLastResult(null);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (lastResult) {
+      await navigator.clipboard.writeText(lastResult);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => { setOpen(!open); setLastResult(null); }}
+        className="wb-icon-btn hover:text-purple-600"
+        title={t('http.mockGenerator', '数据生成')}
+      >
+        <Wand2 className="w-3.5 h-3.5" />
+      </button>
+
+      {open && (
+        <div className="absolute top-full right-0 mt-1.5 z-50 min-w-[300px] max-w-[420px] rounded-[12px] border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden">
+          <div className="p-1.5">
+            <div className="px-3 py-2 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">
+              {t('http.generateData', '生成数据')}
+            </div>
+            {generators.map((item) => (
+              <button
+                key={`${item.pluginId}:${item.generator.generatorId}`}
+                onClick={() => handleGenerate(item.pluginId, item.generator.generatorId)}
+                disabled={loading}
+                className="w-full flex items-center gap-2 rounded-[8px] px-3 py-2 text-left text-[var(--fs-sm)] text-text-primary hover:bg-bg-hover transition-colors"
+              >
+                <Wand2 className="w-3.5 h-3.5 text-purple-500/60 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium">{item.generator.name}</span>
+                  {item.generator.description && (
+                    <p className="text-[var(--fs-xxs)] text-text-tertiary truncate">{item.generator.description}</p>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+          {lastResult && (
+            <div className="border-t border-border-default/60">
+              <pre className="selectable p-3 max-h-[160px] overflow-auto font-mono text-[var(--fs-xs)] text-text-primary leading-5 whitespace-pre-wrap break-all bg-bg-secondary/30">
+                {lastResult}
+              </pre>
+              <div className="flex items-center gap-2 px-3 py-2 border-t border-border-default/60">
+                <button
+                  onClick={handleInsert}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[var(--fs-xs)] font-medium text-white bg-accent hover:bg-accent-hover transition-colors"
+                >
+                  <ArrowDownToLine className="w-3 h-3" />
+                  {t('http.insertToBody', '插入到 Body')}
+                </button>
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[var(--fs-xs)] font-medium text-text-secondary hover:bg-bg-hover transition-colors"
+                >
+                  {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                  {copied ? t('sidebar.copied', '已复制') : t('response.copy', '复制')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+

@@ -19,6 +19,7 @@ interface UpdateStore {
   progress: number;
   error: string | null;
   dismissed: boolean;
+  lastCheckTime: number | null;
 
   // Actions
   initVersion: () => Promise<void>;
@@ -37,6 +38,7 @@ export const useUpdateStore = create<UpdateStore>()((set, get) => ({
   progress: 0,
   error: null,
   dismissed: false,
+  lastCheckTime: null,
 
   initVersion: async () => {
     try {
@@ -65,20 +67,22 @@ export const useUpdateStore = create<UpdateStore>()((set, get) => ({
           },
           latestVersion: update.version,
           status: 'available',
+          lastCheckTime: Date.now(),
         });
       } else {
-        set({ status: 'up-to-date', latestVersion: null });
-        setTimeout(() => {
-          // 仅在状态仍然是 up-to-date 时才重置
-          if (get().status === 'up-to-date') {
-            set({ status: 'idle' });
-          }
-        }, 4000);
+        set({ status: 'up-to-date', latestVersion: null, lastCheckTime: Date.now() });
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      // 开发模式下 updater 未配置，静默忽略
-      if (msg.includes('not configured') || msg.includes('No such plugin') || msg.includes('not found')) {
+      // 开发模式下 updater 未配置 / 非 Tauri 环境 / platforms 为空 — 静默忽略
+      if (
+        msg.includes('not configured') ||
+        msg.includes('No such plugin') ||
+        msg.includes('not found') ||
+        msg.includes('fallback platforms') ||
+        msg.includes('invoke') ||
+        msg.includes('__TAURI__')
+      ) {
         set({ status: 'idle' });
         return;
       }

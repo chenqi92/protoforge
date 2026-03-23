@@ -12,7 +12,7 @@
 |------|------|
 | 🍎 macOS (Apple Silicon) | [.dmg](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_aarch64-apple-darwin.dmg) |
 | 🍎 macOS (Intel) | [.dmg](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_x86_64-apple-darwin.dmg) |
-| 🪟 Windows (64-bit) | [.msi](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_0.2.0_x64-setup.msi) · [.exe](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_0.2.0_x64-setup.exe) |
+| 🪟 Windows (64-bit) | [.msi](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_0.2.0_x64_en-US.msi) · [.exe](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_0.2.0_x64-setup.exe) |
 | 🐧 Linux (64-bit) | [.deb](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_0.2.0_amd64.deb) · [.AppImage](https://github.com/chenqi92/protoforge/releases/latest/download/protoforge_0.2.0_amd64.AppImage) |
 
 > 📥 更多版本请查看 [Releases 页面](https://github.com/chenqi92/protoforge/releases)

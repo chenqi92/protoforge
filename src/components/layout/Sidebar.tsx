@@ -5,7 +5,7 @@ import {
   FolderOpen, Clock, Search, Plus,
   ChevronRight, Download, Settings, Globe,
   MoreHorizontal, Folder, Zap, Edit3, Trash2, ExternalLink, Copy, FolderPlus,
-  ChevronsUpDown, BarChart3,
+  ChevronsUpDown, BarChart3, FileCode2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -21,8 +21,9 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 import { generateCurlFromItem } from "@/lib/curlGenerator";
 import { usePluginStore } from "@/stores/pluginStore";
 import { RequestStatsPanel } from "@/components/plugins/RequestStatsPanel";
+import { ProtocolParserPanel } from "@/components/plugins/ProtocolParserPanel";
 
-type SidebarView = "collections" | "history" | "environments" | "stats";
+type SidebarView = "collections" | "history" | "environments" | "stats" | "parser";
 
 interface SidebarProps {
   panelCollapsed: boolean;
@@ -38,6 +39,7 @@ const navItems: { id: SidebarView; icon: typeof FolderOpen; labelKey: string }[]
 
 // Dynamic nav item for installed sidebar-panel plugins
 const statsNavItem = { id: "stats" as SidebarView, icon: BarChart3, labelKey: 'plugin.statsPanel' };
+const parserNavItem = { id: "parser" as SidebarView, icon: FileCode2, labelKey: 'plugin.protocolParser' };
 
 export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: SidebarProps) {
   const { t } = useTranslation();
@@ -65,11 +67,14 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
   // Check if sidebar-panel plugin is installed
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
   const hasSidebarPanelPlugin = installedPlugins.some((p) => p.pluginType === 'sidebar-panel');
+  const hasParserPlugin = installedPlugins.some((p) => p.pluginType === 'protocol-parser');
 
-  const allNavItems = useMemo(() =>
-    hasSidebarPanelPlugin ? [...navItems, statsNavItem] : navItems,
-    [hasSidebarPanelPlugin]
-  );
+  const allNavItems = useMemo(() => {
+    const items = [...navItems];
+    if (hasSidebarPanelPlugin) items.push(statsNavItem);
+    if (hasParserPlugin) items.push(parserNavItem);
+    return items;
+  }, [hasSidebarPanelPlugin, hasParserPlugin]);
 
   const handleNavClick = (view: SidebarView) => {
     if (panelCollapsed) {
@@ -211,6 +216,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                 {activeView === "history" && <HistoryView search={search} />}
                 {activeView === "environments" && <EnvironmentsView onOpenEnvModal={onOpenEnvModal} />}
                 {activeView === "stats" && <RequestStatsPanel />}
+                {activeView === "parser" && <ProtocolParserPanel />}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -246,6 +252,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
   const createItem = useCollectionStore((s) => s.createItem);
   const deleteItem = useCollectionStore((s) => s.deleteItem);
   const moveItem = useCollectionStore((s) => s.moveItem);
+  const deduplicateItems = useCollectionStore((s) => s.deduplicateItems);
 
   // Drag-and-drop state
   const [dragItemId, setDragItemId] = useState<string | null>(null);
@@ -460,6 +467,12 @@ function CollectionsView({ search, expanded, setExpanded }: {
       { type: "divider" },
       { id: "expand-all", label: t('sidebar.expandAll'), icon: <ChevronsUpDown className="w-3.5 h-3.5" />, onClick: () => expandAllFolders(col.id, true) },
       { id: "collapse-all", label: t('sidebar.collapseAll'), icon: <ChevronsUpDown className="w-3.5 h-3.5" />, onClick: () => expandAllFolders(col.id, false) },
+      { id: "deduplicate", label: t('sidebar.deduplicate', { defaultValue: '一键去重' }), icon: <Zap className="w-3.5 h-3.5" />, onClick: async () => {
+        const removed = await deduplicateItems(col.id);
+        if (removed > 0) {
+          console.log(`去重完成，移除 ${removed} 条重复项`);
+        }
+      }},
       { type: "divider" },
       { id: "settings", label: t('collection.settings'), icon: <Settings className="w-3.5 h-3.5" />, onClick: () => openCollectionPanel(col.id) },
       { id: "rename", label: t('contextMenu.rename'), icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(col.id, col.name) },
@@ -494,20 +507,72 @@ function CollectionsView({ search, expanded, setExpanded }: {
     showMenu(e, menuItems);
   };
 
+  // 搜索匹配辅助函数：匹配请求名称、URL、HTTP 方法
+  const searchLower = search.toLowerCase();
+  const itemMatchesSearch = (item: CollectionItem): boolean => {
+    if (!search) return true;
+    if (item.itemType !== 'request') return false;
+    const nameMatch = item.name.toLowerCase().includes(searchLower);
+    const urlMatch = item.url?.toLowerCase().includes(searchLower) ?? false;
+    const methodMatch = item.method?.toLowerCase().includes(searchLower) ?? false;
+    return nameMatch || urlMatch || methodMatch;
+  };
+
+  // 检查集合内是否有匹配的请求项
+  const collectionHasMatchingItems = (colId: string): boolean => {
+    const colItems = items[colId] || [];
+    return colItems.some(itemMatchesSearch);
+  };
+
+  // 搜索时自动加载未加载集合的 items
+  useEffect(() => {
+    if (!search) return;
+    collections.forEach((col) => {
+      if (!items[col.id]) {
+        fetchItems(col.id);
+      }
+    });
+  }, [search, collections, items, fetchItems]);
+
   const filteredCollections = collections.filter(
-    (col) => !search || col.name.toLowerCase().includes(search.toLowerCase())
+    (col) => !search || col.name.toLowerCase().includes(searchLower) || collectionHasMatchingItems(col.id)
   );
+
+  // 在搜索模式下，获取匹配项所在的所有祖先文件夹 ID
+  const getAncestorFolderIds = (colItems: CollectionItem[], itemId: string): Set<string> => {
+    const ancestors = new Set<string>();
+    let current = colItems.find(it => it.id === itemId);
+    while (current?.parentId) {
+      ancestors.add(current.parentId);
+      current = colItems.find(it => it.id === current!.parentId);
+    }
+    return ancestors;
+  };
 
   // ── 递归渲染集合树节点 ──
   const renderItems = (colItems: CollectionItem[], parentId: string | null, depth: number) => {
-    const children = colItems.filter(it => it.parentId === parentId);
+    let children = colItems.filter(it => it.parentId === parentId);
+    // 搜索模式下过滤子项
+    if (search) {
+      // 收集所有匹配项的祖先文件夹 ID
+      const matchingItems = colItems.filter(itemMatchesSearch);
+      const keepFolderIds = new Set<string>();
+      matchingItems.forEach(mi => {
+        getAncestorFolderIds(colItems, mi.id).forEach(id => keepFolderIds.add(id));
+      });
+      children = children.filter(it => {
+        if (it.itemType === 'request') return itemMatchesSearch(it);
+        if (it.itemType === 'folder') return keepFolderIds.has(it.id);
+        return true;
+      });
+    }
     if (children.length === 0) return null;
     return children.map((item) => {
       const method = item.method || '';
       const color = methodColors[method] || { text: "text-text-tertiary", bg: "" };
       const isRenamingItem = renamingId === item.id;
       const folderKey = `folder:${item.id}`;
-      const isFolderExpanded = expanded[folderKey] === true; // 默认收起
+      const isFolderExpanded = search ? true : expanded[folderKey] === true; // 搜索时自动展开文件夹
 
       if (item.itemType === 'folder') {
         const childCount = colItems.filter(c => c.parentId === item.id && c.itemType === 'request').length;
@@ -704,7 +769,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
               )}
             </button>
             <AnimatePresence>
-              {expanded[col.id] && (
+              {(search || expanded[col.id]) && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}

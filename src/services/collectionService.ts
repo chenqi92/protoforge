@@ -79,3 +79,9 @@ export async function importSwaggerEndpoints(
 export async function saveRequestToCollection(item: CollectionItem): Promise<CollectionItem> {
   return invoke<CollectionItem>('save_request_to_collection', { item });
 }
+
+// ── Deduplicate ──
+
+export async function deduplicateCollectionItems(collectionId: string): Promise<number> {
+  return invoke<number>('deduplicate_collection_items', { collectionId });
+}

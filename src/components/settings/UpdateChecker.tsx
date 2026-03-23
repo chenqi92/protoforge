@@ -2,13 +2,14 @@
 // 使用 Tauri updater API 检测和安装应用更新（右下角浮动弹窗）
 
 import { useEffect } from 'react';
-import { Download, X, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Download, X, RefreshCw, CheckCircle, AlertTriangle, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useUpdateStore } from '@/stores/updateStore';
 
 export function UpdateChecker() {
   const { t } = useTranslation();
+  const currentVersion = useUpdateStore((s) => s.currentVersion);
   const status = useUpdateStore((s) => s.status);
   const updateInfo = useUpdateStore((s) => s.updateInfo);
   const error = useUpdateStore((s) => s.error);
@@ -25,6 +26,7 @@ export function UpdateChecker() {
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // idle 或 dismissed 不渲染
   if (dismissed || status === 'idle') return null;
 
   const statusText: Record<string, string> = {
@@ -38,7 +40,7 @@ export function UpdateChecker() {
 
   const statusIcon: Record<string, React.ReactNode> = {
     checking: <RefreshCw className="w-4 h-4 text-accent animate-spin" />,
-    available: <Download className="w-4 h-4 text-accent" />,
+    available: <Sparkles className="w-4 h-4 text-accent" />,
     downloading: <Download className="w-4 h-4 text-accent animate-bounce" />,
     ready: <CheckCircle className="w-4 h-4 text-emerald-500" />,
     'up-to-date': <CheckCircle className="w-4 h-4 text-emerald-500" />,
@@ -56,13 +58,55 @@ export function UpdateChecker() {
           {statusIcon[status]}
           <span className="text-[var(--fs-base)] font-semibold text-text-primary">{statusText[status]}</span>
         </div>
-        <button onClick={dismiss} className="text-text-disabled hover:text-text-primary p-0.5">
-          <X className="w-3.5 h-3.5" />
-        </button>
+        {status !== 'checking' && (
+          <button onClick={dismiss} className="text-text-disabled hover:text-text-primary p-0.5 transition-colors">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Body */}
       <div className="px-4 py-3 space-y-2">
+        {/* 正在检查 */}
+        {status === 'checking' && (
+          <div className="flex items-center gap-3 py-2">
+            <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+              <RefreshCw className="w-4 h-4 text-accent animate-spin" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[var(--fs-sm)] text-text-secondary">
+                {t('update.checkingDesc')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* 已是最新版本 */}
+        {status === 'up-to-date' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 py-1">
+              <div className="w-9 h-9 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <CheckCircle className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[var(--fs-sm)] font-medium text-text-primary">
+                  {t('update.upToDateDesc')}
+                </p>
+                <p className="text-[var(--fs-xs)] text-text-tertiary mt-0.5">
+                  v{currentVersion}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={dismiss}
+              className="w-full h-8 text-[var(--fs-sm)] font-medium text-text-secondary border border-border-default/75 bg-bg-primary/72 hover:bg-bg-hover rounded-lg transition-colors"
+            >
+              {t('update.dismiss')}
+            </button>
+          </div>
+        )}
+
+        {/* 有新版本 */}
         {status === 'available' && updateInfo && (
           <>
             <div className="flex items-center gap-2 mb-2">
@@ -82,6 +126,7 @@ export function UpdateChecker() {
           </>
         )}
 
+        {/* 下载中 */}
         {status === 'downloading' && (
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -94,6 +139,7 @@ export function UpdateChecker() {
           </div>
         )}
 
+        {/* 下载完成 */}
         {status === 'ready' && (
           <div className="flex items-center gap-2">
             <button onClick={restartApp} className="flex-1 h-8 bg-emerald-500 text-white text-[var(--fs-sm)] font-semibold rounded-lg hover:bg-emerald-600 transition-colors">
@@ -102,12 +148,18 @@ export function UpdateChecker() {
           </div>
         )}
 
+        {/* 错误 */}
         {status === 'error' && error && (
           <div className="space-y-2">
             <p className="text-[var(--fs-xs)] text-red-500">{error}</p>
-            <button onClick={checkForUpdate} className="h-7 px-3 text-[var(--fs-xs)] text-accent hover:bg-accent/10 rounded-md transition-colors">
-              {t('update.retry')}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={checkForUpdate} className="h-7 px-3 text-[var(--fs-xs)] text-accent hover:bg-accent/10 rounded-md transition-colors">
+                {t('update.retry')}
+              </button>
+              <button onClick={dismiss} className="h-7 px-3 text-[var(--fs-xs)] text-text-tertiary hover:bg-bg-hover rounded-md transition-colors">
+                {t('update.dismiss')}
+              </button>
+            </div>
           </div>
         )}
       </div>

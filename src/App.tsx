@@ -529,6 +529,13 @@ function App() {
     });
   }, [openToolTab]);
 
+  // 接口调试视图下，关闭所有 tab 后自动新建一个空 HTTP 请求
+  useEffect(() => {
+    if (activeWorkbench === "requests" && tabs.length === 0 && !activeCollectionId) {
+      addTab("http");
+    }
+  }, [activeWorkbench, tabs.length, activeCollectionId, addTab]);
+
   const displayTabs: Tab[] = tabs.map((tab) => ({
     id: tab.id,
     label: tab.customLabel?.trim()
@@ -565,11 +572,15 @@ function App() {
       if (activeCollectionId && !activeTabId) {
         closeCollectionPanel();
       }
+      // 如果接口调试视图没有任何 tab，自动创建一个空请求
+      if (tabs.length === 0 && !activeCollectionId) {
+        addTab("http");
+      }
       return;
     }
 
     openToolTab(workbench);
-  }, [activeCollectionId, activeTabId, closeCollectionPanel, openToolTab, setActiveWorkbench]);
+  }, [activeCollectionId, activeTabId, closeCollectionPanel, openToolTab, setActiveWorkbench, tabs, addTab]);
 
   const handlePopoutWorkbench = useCallback(async (tool: ToolWorkbench, sessionId: string) => {
     const detachedSessionId = await openToolWindow(tool, sessionId);
@@ -693,9 +704,7 @@ function App() {
                 <div className={cn("absolute inset-0 z-10 bg-bg-primary", activeCollectionId ? "block" : "hidden")}>
                   {activeCollectionId && <CollectionSettingsPanel collectionId={activeCollectionId} />}
                 </div>
-                <div className={cn("absolute inset-0 z-10 bg-bg-primary", !activeCollectionId && !activeTab ? "block" : "hidden")}>
-                  {!activeCollectionId && !activeTab && <WelcomePage onAction={handleWelcomeAction} />}
-                </div>
+
                 {tabs.map((tab) => {
                   const isActive = !activeCollectionId && activeTabId === tab.id;
                   return (

@@ -45,6 +45,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     // 按顺序执行未应用的迁移
     let migrations: Vec<(i64, &str, &str)> = vec![
         (1, "initial_schema", include_str!("../migrations/001_initial_schema.sql")),
+        (2, "add_response_example", include_str!("../migrations/002_add_response_example.sql")),
     ];
 
     for (version, name, sql) in migrations {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   type LucideIcon,
@@ -14,6 +14,9 @@ import {
   AlertCircle,
   MinusSquare,
   Layers,
+  FolderOpen,
+  GitMerge,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -30,6 +33,7 @@ import type {
   SwaggerEndpoint,
   SwaggerGroup,
 } from '@/types/swagger';
+import type { Collection, CollectionItem } from '@/types/collections';
 
 interface ImportModalProps {
   open: boolean;
@@ -37,6 +41,7 @@ interface ImportModalProps {
 }
 
 type ImportSource = 'file' | 'swagger';
+type ImportMode = 'create' | 'merge';
 
 type SourceMeta = {
   id: ImportSource;
@@ -84,8 +89,6 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
     () => sourceItems.find((item) => item.id === activeSource) ?? sourceItems[0],
     [activeSource]
   );
-
-  const CurrentSourceIcon = currentSource.icon;
 
   return (
     <Dialog
@@ -182,23 +185,14 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                   );
                 })}
               </div>
-
-              <div className="mt-auto rounded-[20px] border border-border-default/75 bg-bg-primary/78 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <p className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('import.instructions')}</p>
-                <ul className="mt-3 space-y-2 text-[var(--fs-xs)] leading-5 text-text-tertiary">
-                  <li>{t('import.instructionTip1')}</li>
-                  <li>{t('import.instructionTip2')}</li>
-                  <li>{t('import.instructionTip3')}</li>
-                </ul>
-              </div>
             </aside>
 
             <section className="min-w-0 bg-bg-primary/36">
               <AnimatePresence mode="wait">
                 {activeSource === 'file' ? (
-                  <FileImportView key="file" onClose={onClose} icon={CurrentSourceIcon} accentClassName={currentSource.accentClassName} />
+                  <FileImportView key="file" onClose={onClose} accentClassName={currentSource.accentClassName} />
                 ) : (
-                  <SwaggerImportView key="swagger" onClose={onClose} icon={CurrentSourceIcon} accentClassName={currentSource.accentClassName} />
+                  <SwaggerImportView key="swagger" onClose={onClose} accentClassName={currentSource.accentClassName} />
                 )}
               </AnimatePresence>
             </section>
@@ -208,6 +202,8 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
     </Dialog>
   );
 }
+
+/* ── Shared small components ── */
 
 function PanelCard({
   className,
@@ -224,44 +220,6 @@ function PanelCard({
       )}
     >
       {children}
-    </div>
-  );
-}
-
-function ContentHeader({
-  icon: Icon,
-  accentClassName,
-  title,
-  desc,
-  extra,
-}: {
-  icon: LucideIcon;
-  accentClassName: string;
-  title: string;
-  desc: string;
-  extra?: React.ReactNode;
-}) {
-  return (
-    <div className="border-b border-border-default/70 px-6 py-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div
-            className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px]',
-              accentClassName
-            )}
-          >
-            <Icon className="h-4.5 w-4.5" />
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-[var(--fs-2xl)] font-semibold tracking-tight text-text-primary">{title}</p>
-            <p className="mt-1 text-[var(--fs-sm)] leading-6 text-text-secondary">{desc}</p>
-          </div>
-        </div>
-
-        {extra ? <div className="shrink-0">{extra}</div> : null}
-      </div>
     </div>
   );
 }
@@ -301,21 +259,139 @@ function EmptyState({
   );
 }
 
+/* ── Target selector + Import mode toggle (shared) ── */
+
+function TargetSelector({
+  targetCollectionId,
+  setTargetCollectionId,
+  targetFolderId,
+  setTargetFolderId,
+}: {
+  targetCollectionId: string | null;
+  setTargetCollectionId: (id: string | null) => void;
+  targetFolderId: string | null;
+  setTargetFolderId: (id: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  const collections = useCollectionStore((s) => s.collections);
+  const items = useCollectionStore((s) => s.items);
+  const fetchItems = useCollectionStore((s) => s.fetchItems);
+
+  // Fetch items when a collection is selected
+  useEffect(() => {
+    if (targetCollectionId && !items[targetCollectionId]) {
+      void fetchItems(targetCollectionId);
+    }
+  }, [targetCollectionId, items, fetchItems]);
+
+  const folders = useMemo(() => {
+    if (!targetCollectionId) return [];
+    const colItems = items[targetCollectionId] || [];
+    return colItems.filter((item: CollectionItem) => item.itemType === 'folder');
+  }, [targetCollectionId, items]);
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <FolderOpen className="h-3.5 w-3.5 text-text-disabled" />
+        <span className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('import.targetCollection')}</span>
+      </div>
+      <select
+        value={targetCollectionId ?? ''}
+        onChange={(e) => {
+          setTargetCollectionId(e.target.value || null);
+          setTargetFolderId(null);
+        }}
+        className={cn(inputClassName, 'h-8 min-w-[160px] cursor-pointer px-2 text-[var(--fs-xs)]')}
+      >
+        <option value="">{t('import.createNewCollection')}</option>
+        {collections.map((col: Collection) => (
+          <option key={col.id} value={col.id}>{col.name}</option>
+        ))}
+      </select>
+
+      {targetCollectionId && folders.length > 0 && (
+        <>
+          <ChevronRight className="h-3 w-3 text-text-disabled" />
+          <select
+            value={targetFolderId ?? ''}
+            onChange={(e) => setTargetFolderId(e.target.value || null)}
+            className={cn(inputClassName, 'h-8 min-w-[140px] cursor-pointer px-2 text-[var(--fs-xs)]')}
+          >
+            <option value="">{t('import.rootLevel')}</option>
+            {folders.map((folder: CollectionItem) => (
+              <option key={folder.id} value={folder.id}>{folder.name}</option>
+            ))}
+          </select>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ImportModeToggle({
+  mode,
+  setMode,
+}: {
+  mode: ImportMode;
+  setMode: (mode: ImportMode) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => setMode('create')}
+        className={cn(
+          'flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all',
+          mode === 'create'
+            ? 'bg-accent/10 text-accent ring-1 ring-inset ring-accent/20'
+            : 'text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
+        )}
+      >
+        <Plus className="h-3 w-3" />
+        {t('import.modeCreate')}
+      </button>
+      <button
+        onClick={() => setMode('merge')}
+        className={cn(
+          'flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all',
+          mode === 'merge'
+            ? 'bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/20'
+            : 'text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
+        )}
+      >
+        <GitMerge className="h-3 w-3" />
+        {t('import.modeMerge')}
+      </button>
+    </div>
+  );
+}
+
+/* ── File Import View ── */
+
 function FileImportView({
   onClose,
-  icon,
   accentClassName,
 }: {
   onClose: () => void;
-  icon: LucideIcon;
   accentClassName: string;
 }) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [importMode, setImportMode] = useState<ImportMode>('create');
+  const [targetCollectionId, setTargetCollectionId] = useState<string | null>(null);
+  const [targetFolderId, setTargetFolderId] = useState<string | null>(null);
   const importCollection = useCollectionStore((state) => state.importCollection);
   const importPostman = useCollectionStore((state) => state.importPostman);
+  const fetchCollections = useCollectionStore((state) => state.fetchCollections);
+
+  // Fetch collections on mount for the target selector
+  useEffect(() => {
+    void fetchCollections();
+  }, [fetchCollections]);
 
   const handleSelectFile = async () => {
     setError(null);
@@ -359,131 +435,99 @@ function FileImportView({
       className="flex h-full min-h-0 flex-col p-6"
     >
       <PanelCard className="flex min-h-0 flex-1 flex-col">
-        <ContentHeader
-          icon={icon}
-          accentClassName={accentClassName}
-          title={t('import.fromFile')}
-          desc={t('import.fromFileDesc')}
-        />
-
-        <div className="grid min-h-0 flex-1 gap-5 p-6 xl:grid-cols-[minmax(0,1.1fr)_300px]">
-          <PanelCard className="flex min-h-[360px] flex-col border-dashed bg-bg-primary/72">
-            <div className="border-b border-border-default/70 px-5 py-4">
-              <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.collectionFile')}</p>
-              <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
-                {t('import.clickToSelect')}
-              </p>
-            </div>
-
-            <button
-              onClick={handleSelectFile}
-              disabled={loading}
-              className={cn(
-                'group flex flex-1 flex-col items-center justify-center px-8 py-10 text-center transition-all',
-                loading
-                  ? 'cursor-wait bg-accent-soft/10'
-                  : success
-                    ? 'bg-emerald-500/5 hover:bg-emerald-500/8'
-                    : 'hover:bg-accent-soft/10'
-              )}
-            >
-              {loading ? (
-                <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-accent/10 text-accent">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-              ) : success ? (
-                <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-emerald-500/10 text-emerald-600">
-                  <CheckSquare className="h-6 w-6" />
-                </div>
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-bg-secondary/75 text-text-disabled transition-colors group-hover:bg-accent/10 group-hover:text-accent">
-                  <FileJson className="h-6 w-6" />
-                </div>
-              )}
-
-              <p className="mt-4 text-[var(--fs-md)] font-semibold text-text-primary">
-                {loading ? t('import.importing') : success ? t('import.importDone') : t('import.selectCollectionFile')}
-              </p>
-              <p className="mt-2 max-w-sm text-[var(--fs-xs)] leading-5 text-text-tertiary">
-                {loading
-                  ? t('import.importingDesc')
-                  : success
-                    ? t('import.importDoneDesc')
-                    : t('import.supportedFiles')}
-              </p>
-            </button>
-          </PanelCard>
-
-          <PanelCard className="flex min-h-[360px] flex-col">
-            <div className="border-b border-border-default/70 px-5 py-4">
-              <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.supportedContent')}</p>
-              <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
-                {t('import.fileRecognition')}
-              </p>
-            </div>
-
-            <div className="space-y-4 px-5 py-5 text-[var(--fs-xs)] text-text-tertiary">
-              <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 p-4">
-                <p className="text-[var(--fs-sm)] font-semibold text-text-primary">Postman Collection</p>
-                <p className="mt-1 leading-5">{t('import.postmanCompat')}</p>
-              </div>
-
-              <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 p-4">
-                <p className="text-[var(--fs-sm)] font-semibold text-text-primary">ProtoForge JSON</p>
-                <p className="mt-1 leading-5">{t('import.protoforgeCompat')}</p>
-              </div>
-
-              <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 p-4">
-                <p className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('import.importBehavior')}</p>
-                <p className="mt-1 leading-5">{t('import.importBehaviorDesc')}</p>
-              </div>
-            </div>
-          </PanelCard>
-        </div>
-
-        <div className="border-t border-border-default/70 px-6 py-4">
-          {error ? <AlertMessage error={error} className="mb-4" /> : null}
-
-          <div className="flex items-center justify-between">
-            <p className="text-[var(--fs-xs)] text-text-tertiary">
-              {success ? t('import.importSuccess') : t('import.importHint')}
-            </p>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onClose}
-                className="h-9 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
-              >
-                {t('import.cancel')}
-              </button>
-              <button
-                onClick={handleSelectFile}
-                disabled={loading}
+        {/* Header */}
+        <div className="border-b border-border-default/70 px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div
                 className={cn(
-                  'flex h-9 items-center gap-1.5 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium transition-all',
-                  loading
-                    ? 'cursor-wait bg-bg-hover text-text-disabled'
-                    : 'bg-accent text-white hover:bg-accent-hover active:scale-[0.98]'
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px]',
+                  accentClassName
                 )}
               >
-                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                {loading ? t('import.importingBtn') : t('import.selectFileBtn')}
-              </button>
+                <FileJson className="h-4.5 w-4.5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[var(--fs-2xl)] font-semibold tracking-tight text-text-primary">{t('import.fromFile')}</p>
+                <p className="mt-1 text-[var(--fs-sm)] leading-6 text-text-secondary">{t('import.fromFileDesc')}</p>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Target + Mode bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default/70 px-6 py-3">
+          <TargetSelector
+            targetCollectionId={targetCollectionId}
+            setTargetCollectionId={setTargetCollectionId}
+            targetFolderId={targetFolderId}
+            setTargetFolderId={setTargetFolderId}
+          />
+          <ImportModeToggle mode={importMode} setMode={setImportMode} />
+        </div>
+
+        {/* Upload area — full width, centered */}
+        <button
+          onClick={handleSelectFile}
+          disabled={loading}
+          className={cn(
+            'group flex flex-1 flex-col items-center justify-center px-8 py-12 text-center transition-all',
+            loading
+              ? 'cursor-wait bg-accent-soft/10'
+              : success
+                ? 'bg-emerald-500/5 hover:bg-emerald-500/8'
+                : 'hover:bg-accent-soft/6'
+          )}
+        >
+          <div
+            className={cn(
+              'flex h-20 w-20 items-center justify-center rounded-[24px] border-2 border-dashed transition-all',
+              loading
+                ? 'border-accent/40 bg-accent/8 text-accent'
+                : success
+                  ? 'border-emerald-500/40 bg-emerald-500/8 text-emerald-600'
+                  : 'border-border-default/80 bg-bg-secondary/50 text-text-disabled group-hover:border-accent/50 group-hover:bg-accent/8 group-hover:text-accent'
+            )}
+          >
+            {loading ? (
+              <Loader2 className="h-8 w-8 animate-spin" />
+            ) : success ? (
+              <CheckSquare className="h-8 w-8" />
+            ) : (
+              <FileJson className="h-8 w-8" />
+            )}
+          </div>
+
+          <p className="mt-5 text-[var(--fs-lg)] font-semibold text-text-primary">
+            {loading ? t('import.importing') : success ? t('import.importDone') : t('import.selectCollectionFile')}
+          </p>
+          <p className="mt-2 max-w-md text-[var(--fs-sm)] leading-6 text-text-tertiary">
+            {loading
+              ? t('import.importingDesc')
+              : success
+                ? t('import.importDoneDesc')
+                : t('import.supportedFormats')}
+          </p>
+        </button>
+
+        {/* Error area */}
+        {error ? (
+          <div className="border-t border-border-default/70 px-6 py-4">
+            <AlertMessage error={error} />
+          </div>
+        ) : null}
       </PanelCard>
     </motion.div>
   );
 }
 
+/* ── Swagger Import View ── */
+
 function SwaggerImportView({
   onClose,
-  icon,
   accentClassName,
 }: {
   onClose: () => void;
-  icon: LucideIcon;
   accentClassName: string;
 }) {
   const { t } = useTranslation();
@@ -500,7 +544,15 @@ function SwaggerImportView({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
+  const [importMode, setImportMode] = useState<ImportMode>('create');
+  const [targetCollectionId, setTargetCollectionId] = useState<string | null>(null);
+  const [targetFolderId, setTargetFolderId] = useState<string | null>(null);
   const fetchCollections = useCollectionStore((state) => state.fetchCollections);
+
+  // Fetch collections on mount for the target selector
+  useEffect(() => {
+    void fetchCollections();
+  }, [fetchCollections]);
 
   const mergeEndpoints = (
     urls: Set<string>,
@@ -838,12 +890,25 @@ function SwaggerImportView({
       className="flex h-full min-h-0 flex-col p-6"
     >
       <PanelCard className="flex min-h-0 flex-1 flex-col">
-        <ContentHeader
-          icon={icon}
-          accentClassName={accentClassName}
-          title={t('import.fromOpenApi')}
-          desc={t('import.fromOpenApiDesc')}
-          extra={
+        {/* Header */}
+        <div className="border-b border-border-default/70 px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div
+                className={cn(
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px]',
+                  accentClassName
+                )}
+              >
+                <Globe className="h-4.5 w-4.5" />
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-[var(--fs-2xl)] font-semibold tracking-tight text-text-primary">{t('import.fromOpenApi')}</p>
+                <p className="mt-1 text-[var(--fs-sm)] leading-6 text-text-secondary">{t('import.fromOpenApiDesc')}</p>
+              </div>
+            </div>
+
             <div className="flex items-center gap-2 text-[var(--fs-xs)] text-text-tertiary">
               {groups.length > 0 ? (
                 <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-2.5 py-1">
@@ -856,11 +921,23 @@ function SwaggerImportView({
                 </span>
               ) : null}
             </div>
-          }
-        />
+          </div>
+        </div>
+
+        {/* Target + Mode bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default/70 px-6 py-3">
+          <TargetSelector
+            targetCollectionId={targetCollectionId}
+            setTargetCollectionId={setTargetCollectionId}
+            targetFolderId={targetFolderId}
+            setTargetFolderId={setTargetFolderId}
+          />
+          <ImportModeToggle mode={importMode} setMode={setImportMode} />
+        </div>
 
         <div className="grid min-h-0 flex-1 gap-5 p-6 xl:grid-cols-[340px_minmax(0,1fr)]">
           <div className="flex min-h-0 flex-col gap-5">
+            {/* URL Input Card */}
             <PanelCard>
               <div className="border-b border-border-default/70 px-5 py-4">
                 <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.connectDoc')}</p>
@@ -919,10 +996,11 @@ function SwaggerImportView({
                   </div>
                 ) : null}
 
-                {error ? <AlertMessage error={error} /> : null}
+                {error && !hasResults ? <AlertMessage error={error} /> : null}
               </div>
             </PanelCard>
 
+            {/* Group selector */}
             {groups.length > 1 ? (
               <PanelCard>
                 <div className="border-b border-border-default/70 px-5 py-4">
@@ -998,6 +1076,7 @@ function SwaggerImportView({
             ) : null}
           </div>
 
+          {/* Endpoint Preview */}
           <PanelCard className="flex min-h-[460px] min-h-0 flex-col">
             <div className="border-b border-border-default/70 px-5 py-4">
               <div className="flex items-start justify-between gap-4">
@@ -1152,41 +1231,30 @@ function SwaggerImportView({
                   )}
                 </div>
 
+                {/* Footer with import button */}
                 <div className="border-t border-border-default/70 px-5 py-4">
                   {error ? <AlertMessage error={error} className="mb-4" /> : null}
 
-                  <div className="flex items-center justify-between">
-                    <div className="text-[var(--fs-xs)] text-text-tertiary">
-                      {mergedTitle ? (
-                        <span>
-                          {t('import.docTitle')}: <span className="text-text-secondary">{mergedTitle}</span>
-                        </span>
-                      ) : (
-                        <span>{t('import.importAutoCreate')}</span>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={onClose}
+                      className="h-9 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
+                    >
+                      {t('import.cancel')}
+                    </button>
+                    <button
+                      onClick={() => void handleImport()}
+                      disabled={importing || selectedIds.size === 0}
+                      className={cn(
+                        'flex h-9 items-center gap-1.5 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium transition-all',
+                        importing || selectedIds.size === 0
+                          ? 'cursor-not-allowed bg-bg-hover text-text-disabled'
+                          : 'bg-accent text-white hover:bg-accent-hover active:scale-[0.98]'
                       )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={onClose}
-                        className="h-9 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
-                      >
-                        {t('import.cancel')}
-                      </button>
-                      <button
-                        onClick={() => void handleImport()}
-                        disabled={importing || selectedIds.size === 0}
-                        className={cn(
-                          'flex h-9 items-center gap-1.5 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium transition-all',
-                          importing || selectedIds.size === 0
-                            ? 'cursor-not-allowed bg-bg-hover text-text-disabled'
-                            : 'bg-accent text-white hover:bg-accent-hover active:scale-[0.98]'
-                        )}
-                      >
-                        {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                        {importing ? t('import.importingBtn') : t('import.importEndpoints', { count: selectedIds.size })}
-                      </button>
-                    </div>
+                    >
+                      {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                      {importing ? t('import.importingBtn') : t('import.importEndpoints', { count: selectedIds.size })}
+                    </button>
                   </div>
                 </div>
               </>

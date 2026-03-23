@@ -105,6 +105,7 @@ export function buildCollectionItemFromHttpConfig(params: {
     sortOrder,
     createdAt,
     updatedAt,
+    responseExample: '',
     ...getCollectionRequestContent(config, name),
   };
 }

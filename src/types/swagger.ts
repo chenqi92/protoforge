@@ -28,6 +28,7 @@ export interface SwaggerEndpoint {
   operationId: string;
   parameters: SwaggerParameter[];
   requestBody: SwaggerRequestBody | null;
+  responseExample: string;
 }
 
 export interface SwaggerParameter {

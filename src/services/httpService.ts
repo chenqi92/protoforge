@@ -9,6 +9,8 @@ import {
   resolveRequestConfigVariables,
 } from '@/lib/requestVariables';
 import { ensureAutoHeaders } from '@/types/http';
+import { usePluginStore } from '@/stores/pluginStore';
+import * as pluginService from '@/services/pluginService';
 
 function resolveConfigVariables(config: HttpRequestConfig): HttpRequestConfig {
   const collectionId = getLinkedCollectionIdForRequestConfig(config);
@@ -196,10 +198,49 @@ function processAndFilterCookies(urlStr: string, cookies: CookieInfo[]): CookieI
   }
 }
 
+/**
+ * 自动执行已安装的 request-hook 类型插件（如时间戳签名）
+ * 将返回的 headers / queryParams 合并到请求 payload
+ */
+async function applyRequestHooks(payload: ReturnType<typeof buildRequestPayload>): Promise<ReturnType<typeof buildRequestPayload>> {
+  const hookPlugins = usePluginStore.getState().getInstalledByType('request-hook');
+  if (hookPlugins.length === 0) return payload;
+
+  let mutated = { ...payload, headers: { ...payload.headers }, queryParams: { ...payload.queryParams } };
+
+  for (const plugin of hookPlugins) {
+    try {
+      const requestJson = JSON.stringify({
+        method: mutated.method,
+        url: mutated.url,
+        headers: mutated.headers,
+        queryParams: mutated.queryParams,
+        body: mutated.body,
+      });
+      const result = await pluginService.runHook(plugin.id, requestJson);
+      if (result.error) {
+        console.warn(`[ProtoForge] request-hook plugin "${plugin.name}":`, result.error);
+        continue;
+      }
+      if (result.headers && typeof result.headers === 'object') {
+        mutated.headers = { ...mutated.headers, ...result.headers };
+      }
+      if (result.queryParams && typeof result.queryParams === 'object') {
+        mutated.queryParams = { ...mutated.queryParams, ...result.queryParams };
+      }
+    } catch (e) {
+      console.warn(`[ProtoForge] request-hook plugin "${plugin.name}" failed:`, e);
+    }
+  }
+
+  return mutated;
+}
+
 export async function sendHttpRequest(config: HttpRequestConfig): Promise<HttpResponse> {
   const resolved = resolveConfigVariables(config);
   const payload = buildRequestPayload(resolved);
-  const finalPayload = buildFinalPayload(payload);
+  const hookedPayload = await applyRequestHooks(payload);
+  const finalPayload = buildFinalPayload(hookedPayload);
   const resp = await invoke<HttpResponse>('send_request', { request: finalPayload });
   
   if (resp && resp.cookies && Array.isArray(resp.cookies)) {
@@ -212,7 +253,8 @@ export async function sendHttpRequest(config: HttpRequestConfig): Promise<HttpRe
 export async function sendRequestWithScripts(config: HttpRequestConfig): Promise<HttpResponseWithScripts> {
   const resolved = resolveConfigVariables(config);
   const payload = buildRequestPayload(resolved);
-  const finalPayload = buildFinalPayload(payload);
+  const hookedPayload = await applyRequestHooks(payload);
+  const finalPayload = buildFinalPayload(hookedPayload);
   const collectionId = getLinkedCollectionIdForRequestConfig(config);
   const envVars = buildScopedVariableSnapshot(collectionId, true);
 
