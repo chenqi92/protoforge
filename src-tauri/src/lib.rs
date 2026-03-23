@@ -159,6 +159,8 @@ pub fn run() {
                 if !wasm_loaded.is_empty() {
                     log::info!("已加载 {} 个 WASM 插件", wasm_loaded.len());
                 }
+                // 检测 IP 地理位置，自动选择最优下载源（中国大陆 → R2 CDN）
+                pm.detect_and_set_mirror().await;
                 // 预热远程插件注册表缓存（非阻塞，失败不影响启动）
                 pm.ensure_remote_cache().await;
             });

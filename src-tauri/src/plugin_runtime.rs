@@ -334,9 +334,19 @@ impl RemotePluginEntry {
     }
 }
 
-/// Default registry URL — configurable in the future via settings
+/// GitHub 基础 URL（默认 / 海外）
+const GITHUB_BASE_URL: &str =
+    "https://raw.githubusercontent.com/chenqi92/protoforge-plugins/main/";
+
+/// Cloudflare R2 CDN 基础 URL（中国大陆加速）
+const R2_BASE_URL: &str = "https://protoforge.tuytuy.com/";
+
+/// Default registry URL — GitHub
 const DEFAULT_REGISTRY_URL: &str =
     "https://raw.githubusercontent.com/chenqi92/protoforge-plugins/main/registry.json";
+
+/// R2 registry URL
+const R2_REGISTRY_URL: &str = "https://protoforge.tuytuy.com/registry.json";
 
 /// 远程注册表缓存有效期：5 分钟
 const CACHE_TTL_SECS: u64 = 300;
@@ -370,8 +380,10 @@ pub struct PluginManager {
     registry: RwLock<HashMap<String, RegisteredPlugin>>,
     /// Cached remote registry manifests (refreshed on demand)
     remote_cache: RwLock<Option<Vec<PluginManifest>>>,
-    /// Registry URL
-    registry_url: String,
+    /// Registry URL (dynamically selected based on IP geolocation)
+    registry_url: RwLock<String>,
+    /// 是否使用 R2 CDN（中国大陆 IP 时为 true）
+    use_r2: RwLock<bool>,
     /// 上次远程注册表刷新时间（缓存过期策略）
     last_refresh: Mutex<Option<Instant>>,
 }
@@ -383,8 +395,37 @@ impl PluginManager {
             plugins_dir,
             registry: RwLock::new(HashMap::new()),
             remote_cache: RwLock::new(None),
-            registry_url: DEFAULT_REGISTRY_URL.to_string(),
+            registry_url: RwLock::new(DEFAULT_REGISTRY_URL.to_string()),
+            use_r2: RwLock::new(false),
             last_refresh: Mutex::new(None),
+        }
+    }
+
+    /// 检测用户 IP 地理位置，自动选择最优下载源。
+    /// 中国大陆 IP → R2 CDN；其他地区 → GitHub。
+    /// 检测失败时默认 GitHub（降级策略）。
+    pub async fn detect_and_set_mirror(&self) {
+        match detect_china_ip().await {
+            Ok(true) => {
+                log::info!("检测到中国大陆 IP，切换到 Cloudflare R2 CDN 下载源");
+                *self.registry_url.write().await = R2_REGISTRY_URL.to_string();
+                *self.use_r2.write().await = true;
+            }
+            Ok(false) => {
+                log::info!("检测到非中国大陆 IP，使用 GitHub 默认下载源");
+            }
+            Err(e) => {
+                log::warn!("IP 地理位置检测失败（降级为 GitHub）: {}", e);
+            }
+        }
+    }
+
+    /// 将 GitHub 下载 URL 替换为 R2 CDN URL（仅在 use_r2 时生效）
+    async fn rewrite_download_url(&self, url: &str) -> String {
+        if *self.use_r2.read().await {
+            url.replace(GITHUB_BASE_URL, R2_BASE_URL)
+        } else {
+            url.to_string()
         }
     }
 
@@ -469,7 +510,8 @@ impl PluginManager {
     /// Refresh remote registry — fetch from remote URL and cache.
     /// Returns the number of remote plugins found.
     pub async fn refresh_registry(&self) -> Result<usize, String> {
-        log::info!("正在从远程仓库刷新插件注册表: {}", self.registry_url);
+        let url = self.registry_url.read().await.clone();
+        log::info!("正在从远程仓库刷新插件注册表: {}", url);
 
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
@@ -477,7 +519,7 @@ impl PluginManager {
             .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
 
         let resp = client
-            .get(&self.registry_url)
+            .get(&url)
             .send()
             .await
             .map_err(|e| format!("获取远程注册表失败: {}", e))?;
@@ -529,7 +571,7 @@ impl PluginManager {
         // 如果缓存过期，触发后台异步刷新（不等待结果）
         if self.is_cache_stale().await {
             // 用 log 记录刷新触发，但不阻塞当前调用
-            let registry_url = self.registry_url.clone();
+            let registry_url = self.registry_url.read().await.clone();
             log::info!("远程插件缓存已过期，后台刷新 (url={})", registry_url);
             // 注意：这里不能 move self，所以用独立的 HTTP 请求
             // 但我们需要更新 self 的缓存，因此用标志位避免重复触发
@@ -579,7 +621,8 @@ impl PluginManager {
                 .build()
                 .map_err(|e| format!("{}", e))?;
 
-            match client.get(&self.registry_url).send().await {
+            let url = self.registry_url.read().await.clone();
+            match client.get(&url).send().await {
                 Ok(resp) if resp.status().is_success() => {
                     if let Ok(registry) = resp.json::<RemoteRegistry>().await {
                         let manifests: Vec<PluginManifest> = registry
@@ -601,7 +644,8 @@ impl PluginManager {
                 .build()
                 .map_err(|e| format!("{}", e))?;
 
-            match client.get(&self.registry_url).send().await {
+            let url = self.registry_url.read().await.clone();
+            match client.get(&url).send().await {
                 Ok(resp) if resp.status().is_success() => {
                     if let Ok(registry) = resp.json::<RemoteRegistry>().await {
                         let manifests: Vec<PluginManifest> = registry
@@ -643,7 +687,8 @@ impl PluginManager {
         };
 
         if let Some(url) = download_url {
-            return self.install_from_remote(plugin_id, &url).await;
+            let actual_url = self.rewrite_download_url(&url).await;
+            return self.install_from_remote(plugin_id, &actual_url).await;
         }
 
         Err(format!("插件 '{}' 在仓库中不存在", plugin_id))
@@ -1339,4 +1384,40 @@ fn execute_export_script(script: &str, request_json: &str) -> Result<ExportResul
 
 fn format_js_error(err: &JsError) -> String {
     format!("{}", err)
+}
+
+// ── IP Geolocation Detection ──
+
+/// IP 地理位置检测 API 的响应结构
+#[derive(Deserialize)]
+struct IpApiResponse {
+    #[serde(default)]
+    country_code: String,
+}
+
+/// 检测当前公网 IP 是否位于中国大陆。
+/// 使用 ip-api.com 免费服务（不需要 API key，限 45 req/min）。
+/// 超时 3 秒，失败返回 Err。
+async fn detect_china_ip() -> Result<bool, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+    let resp = client
+        .get("http://ip-api.com/json/?fields=countryCode")
+        .send()
+        .await
+        .map_err(|e| format!("IP 检测请求失败: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("IP 检测 API 返回 HTTP {}", resp.status()));
+    }
+
+    let data: IpApiResponse = resp
+        .json()
+        .await
+        .map_err(|e| format!("解析 IP 检测响应失败: {}", e))?;
+
+    Ok(data.country_code == "CN")
 }
