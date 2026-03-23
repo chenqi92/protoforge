@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Code, Copy, Check, Eraser, BookOpen, ChevronDown } from 'lucide-react';
 import { CodeEditor } from '@/components/common/CodeEditor';
 import { usePluginStore } from '@/stores/pluginStore';
-import * as pluginService from '@/services/pluginService';
 
 
 interface ScriptEditorProps {
@@ -141,9 +140,6 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
     return [...base, ...CRYPTO_SNIPPETS];
   }, [type, hasCryptoPlugin]);
 
-  // 获取已安装插件（用于 Monaco actions 注册）
-  const installedPlugins = usePluginStore((s) => s.installedPlugins);
-
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(value);
     setCopied(true);
@@ -174,90 +170,50 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
   const handleEditorMount = useCallback((editor: any) => {
     editorRef.current = editor;
 
-    // 注册 crypto 右键菜单 actions（与 HttpWorkspace 中的逻辑一致）
-    const plugins = installedPlugins;
-    const cryptoPlugins = plugins.filter(p => p.pluginType === 'crypto-tool');
-    let cryptoOrder = 1;
-    for (const cp of cryptoPlugins) {
-      for (const algo of (cp.contributes?.cryptoAlgorithms || [])) {
-        const hasParams = algo.params && algo.params.length > 0;
+    // 注册分组入口 actions（与 HttpWorkspace 一致，只注册入口不展开所有算法）
+    const plugins = usePluginStore.getState().installedPlugins;
 
-        if (algo.supportEncrypt) {
-          editor.addAction({
-            id: `crypto-encrypt-${cp.id}-${algo.algorithmId}`,
-            label: `🔐 ${algo.name}${hasParams ? ' ⚙' : ''}`,
-            contextMenuGroupId: '8_crypto_encrypt',
-            contextMenuOrder: cryptoOrder,
-            precondition: 'editorHasSelection',
-            run: async (ed: any) => {
-              const selection = ed.getSelection();
-              const selectedText = ed.getModel()?.getValueInRange(selection) || '';
-              if (!selectedText) return;
-              if (hasParams) {
-                window.dispatchEvent(new CustomEvent('crypto-action', {
-                  detail: { pluginId: cp.id, algorithm: algo, mode: 'encrypt', selectedText, editorId: ed.getId() }
-                }));
-              } else {
-                try {
-                  const result = await pluginService.runCrypto(cp.id, algo.algorithmId, 'encrypt', selectedText, '{}');
-                  if (result.success && selection) {
-                    ed.executeEdits('crypto-encrypt', [{ range: selection, text: result.output, forceMoveMarkers: true }]);
-                  } else if (!result.success) {
-                    window.dispatchEvent(new CustomEvent('crypto-result', {
-                      detail: { output: `❌ ${result.error || '未知错误'}`, algorithmName: algo.name }
-                    }));
-                  }
-                } catch (e: any) {
-                  window.dispatchEvent(new CustomEvent('crypto-result', {
-                    detail: { output: `❌ ${e?.message || e}`, algorithmName: algo.name }
-                  }));
-                }
-              }
-            },
-          });
-        }
-
-        if (algo.supportDecrypt) {
-          editor.addAction({
-            id: `crypto-decrypt-${cp.id}-${algo.algorithmId}`,
-            label: `🔓 ${algo.name}${hasParams ? ' ⚙' : ''}`,
-            contextMenuGroupId: '8_crypto_decrypt',
-            contextMenuOrder: cryptoOrder,
-            precondition: 'editorHasSelection',
-            run: async (ed: any) => {
-              const selection = ed.getSelection();
-              const selectedText = ed.getModel()?.getValueInRange(selection) || '';
-              if (!selectedText) return;
-              if (hasParams) {
-                window.dispatchEvent(new CustomEvent('crypto-action', {
-                  detail: { pluginId: cp.id, algorithm: algo, mode: 'decrypt', selectedText, editorId: ed.getId() }
-                }));
-              } else {
-                try {
-                  const result = await pluginService.runCrypto(cp.id, algo.algorithmId, 'decrypt', selectedText, '{}');
-                  if (result.success) {
-                    window.dispatchEvent(new CustomEvent('crypto-result', {
-                      detail: { output: result.output, algorithmName: algo.name }
-                    }));
-                  } else {
-                    window.dispatchEvent(new CustomEvent('crypto-result', {
-                      detail: { output: `❌ ${result.error || '未知错误'}`, algorithmName: algo.name }
-                    }));
-                  }
-                } catch (e: any) {
-                  window.dispatchEvent(new CustomEvent('crypto-result', {
-                    detail: { output: `❌ ${e?.message || e}`, algorithmName: algo.name }
-                  }));
-                }
-              }
-            },
-          });
-        }
-
-        cryptoOrder++;
-      }
+    const hasGens = plugins.some(p => p.pluginType === 'data-generator' && (p.contributes?.generators?.length || 0) > 0);
+    if (hasGens) {
+      editor.addAction({
+        id: 'plugin-mock-data',
+        label: '🪄 Mock 数据生成',
+        contextMenuGroupId: '9_plugins',
+        contextMenuOrder: 1,
+        run: (ed: any) => {
+          const rect = ed.getDomNode()?.getBoundingClientRect();
+          const pos = ed.getPosition();
+          const coords = pos ? ed.getScrolledVisiblePosition(pos) : null;
+          const x = (rect?.left || 0) + (coords?.left || 100);
+          const y = (rect?.top || 0) + (coords?.top || 100) + 20;
+          window.dispatchEvent(new CustomEvent('plugin-action-menu', {
+            detail: { type: 'mock', editorId: ed.getId(), x, y },
+          }));
+        },
+      });
     }
-  }, [installedPlugins]);
+
+    const hasCrypto = plugins.some(p => p.pluginType === 'crypto-tool' && (p.contributes?.cryptoAlgorithms?.length || 0) > 0);
+    if (hasCrypto) {
+      editor.addAction({
+        id: 'plugin-crypto',
+        label: '🔐 加密 / 解密',
+        contextMenuGroupId: '9_plugins',
+        contextMenuOrder: 2,
+        precondition: 'editorHasSelection',
+        run: (ed: any) => {
+          const rect = ed.getDomNode()?.getBoundingClientRect();
+          const pos = ed.getPosition();
+          const coords = pos ? ed.getScrolledVisiblePosition(pos) : null;
+          const x = (rect?.left || 0) + (coords?.left || 100);
+          const y = (rect?.top || 0) + (coords?.top || 100) + 20;
+          window.dispatchEvent(new CustomEvent('plugin-action-menu', {
+            detail: { type: 'crypto', editorId: ed.getId(), x, y },
+          }));
+        },
+      });
+    }
+  }, []);
 
   return (
     <div className="h-full flex flex-col p-4">

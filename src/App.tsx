@@ -27,6 +27,7 @@ import { closeWindowByLabel, listOpenToolWindowSessions, openToolWindow } from "
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { UpdateChecker } from "@/components/settings/UpdateChecker";
 import { CryptoContextMenu } from "@/components/plugins/CryptoContextMenu";
+import { PluginActionMenu } from "@/components/plugins/PluginActionMenu";
 import { WindowScaffold } from "@/components/layout/WindowScaffold";
 import { subscribeDockToolRequests } from "@/lib/toolDocking";
 import { cn } from "@/lib/utils";
@@ -832,6 +833,7 @@ function App() {
       <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
       <UpdateChecker />
       <CryptoContextMenu />
+      <PluginActionMenu />
     </>
   );
 }

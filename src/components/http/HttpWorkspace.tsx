@@ -761,131 +761,49 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
                           language="json"
                           onMount={(editor) => {
-                            // Register mock generator context menu actions
                             const plugins = usePluginStore.getState().installedPlugins;
-                            const gens: { pluginId: string; gen: GeneratorContribution }[] = [];
-                            for (const p of plugins.filter(p => p.pluginType === 'data-generator')) {
-                              for (const g of (p.contributes?.generators || [])) {
-                                gens.push({ pluginId: p.id, gen: g });
-                              }
-                            }
-                            for (const { pluginId, gen } of gens) {
+
+                            // Mock 数据生成器 — 一个入口
+                            const hasGens = plugins.some(p => p.pluginType === 'data-generator' && (p.contributes?.generators?.length || 0) > 0);
+                            if (hasGens) {
                               editor.addAction({
-                                id: `mock-generate-${pluginId}-${gen.generatorId}`,
-                                label: `🪄 ${gen.name}`,
-                                contextMenuGroupId: '9_mock',
+                                id: 'plugin-mock-data',
+                                label: '🪄 Mock 数据生成',
+                                contextMenuGroupId: '9_plugins',
                                 contextMenuOrder: 1,
-                                run: async (ed: any) => {
-                                  try {
-                                    const result = await pluginService.runGenerator(pluginId, gen.generatorId, '{}');
-                                    if (!result.error && result.data) {
-                                      const selection = ed.getSelection();
-                                      if (selection) {
-                                        ed.executeEdits('mock-generator', [{
-                                          range: selection,
-                                          text: result.data,
-                                          forceMoveMarkers: true,
-                                        }]);
-                                      }
-                                    }
-                                  } catch (e) {
-                                    console.warn('[ProtoForge] generator failed:', e);
-                                  }
+                                run: (ed: any) => {
+                                  const rect = ed.getDomNode()?.getBoundingClientRect();
+                                  const pos = ed.getPosition();
+                                  const coords = pos ? ed.getScrolledVisiblePosition(pos) : null;
+                                  const x = (rect?.left || 0) + (coords?.left || 100);
+                                  const y = (rect?.top || 0) + (coords?.top || 100) + 20;
+                                  window.dispatchEvent(new CustomEvent('plugin-action-menu', {
+                                    detail: { type: 'mock', editorId: ed.getId(), x, y },
+                                  }));
                                 },
                               });
                             }
 
-                            // Register crypto algorithm context menu actions
-                            const cryptoPlugins = plugins.filter(p => p.pluginType === 'crypto-tool');
-                            let cryptoOrder = 1;
-                            for (const cp of cryptoPlugins) {
-                              for (const algo of (cp.contributes?.cryptoAlgorithms || [])) {
-                                const hasParams = algo.params && algo.params.length > 0;
-
-                                // 加密 action
-                                if (algo.supportEncrypt) {
-                                  editor.addAction({
-                                    id: `crypto-encrypt-${cp.id}-${algo.algorithmId}`,
-                                    label: `🔐 ${algo.name}${hasParams ? ' ⚙' : ''}`,
-                                    contextMenuGroupId: '8_crypto_encrypt',
-                                    contextMenuOrder: cryptoOrder,
-                                    precondition: 'editorHasSelection',
-                                    run: async (ed: any) => {
-                                      const selection = ed.getSelection();
-                                      const selectedText = ed.getModel()?.getValueInRange(selection) || '';
-                                      if (!selectedText) return;
-
-                                      if (hasParams) {
-                                        // Dispatch event for CryptoContextMenu to handle
-                                        window.dispatchEvent(new CustomEvent('crypto-action', {
-                                          detail: { pluginId: cp.id, algorithm: algo, mode: 'encrypt', selectedText, editorId: ed.getId() }
-                                        }));
-                                      } else {
-                                        try {
-                                          const result = await pluginService.runCrypto(cp.id, algo.algorithmId, 'encrypt', selectedText, '{}');
-                                          if (result.success && selection) {
-                                            ed.executeEdits('crypto-encrypt', [{
-                                              range: selection,
-                                              text: result.output,
-                                              forceMoveMarkers: true,
-                                            }]);
-                                          } else if (!result.success) {
-                                            window.dispatchEvent(new CustomEvent('crypto-result', {
-                                              detail: { output: `❌ ${result.error || '未知错误'}`, algorithmName: algo.name }
-                                            }));
-                                          }
-                                        } catch (e: any) {
-                                          window.dispatchEvent(new CustomEvent('crypto-result', {
-                                            detail: { output: `❌ ${e?.message || e}`, algorithmName: algo.name }
-                                          }));
-                                        }
-                                      }
-                                    },
-                                  });
-                                }
-
-                                // 解密 action
-                                if (algo.supportDecrypt) {
-                                  editor.addAction({
-                                    id: `crypto-decrypt-${cp.id}-${algo.algorithmId}`,
-                                    label: `🔓 ${algo.name}${hasParams ? ' ⚙' : ''}`,
-                                    contextMenuGroupId: '8_crypto_decrypt',
-                                    contextMenuOrder: cryptoOrder,
-                                    precondition: 'editorHasSelection',
-                                    run: async (ed: any) => {
-                                      const selection = ed.getSelection();
-                                      const selectedText = ed.getModel()?.getValueInRange(selection) || '';
-                                      if (!selectedText) return;
-
-                                      if (hasParams) {
-                                        window.dispatchEvent(new CustomEvent('crypto-action', {
-                                          detail: { pluginId: cp.id, algorithm: algo, mode: 'decrypt', selectedText, editorId: ed.getId() }
-                                        }));
-                                      } else {
-                                        try {
-                                          const result = await pluginService.runCrypto(cp.id, algo.algorithmId, 'decrypt', selectedText, '{}');
-                                          if (result.success) {
-                                            // 解密结果弹框展示
-                                            window.dispatchEvent(new CustomEvent('crypto-result', {
-                                              detail: { output: result.output, algorithmName: algo.name }
-                                            }));
-                                          } else {
-                                            window.dispatchEvent(new CustomEvent('crypto-result', {
-                                              detail: { output: `❌ ${result.error || '未知错误'}`, algorithmName: algo.name }
-                                            }));
-                                          }
-                                        } catch (e: any) {
-                                          window.dispatchEvent(new CustomEvent('crypto-result', {
-                                            detail: { output: `❌ ${e?.message || e}`, algorithmName: algo.name }
-                                          }));
-                                        }
-                                      }
-                                    },
-                                  });
-                                }
-
-                                cryptoOrder++;
-                              }
+                            // 加密/解密 — 一个入口
+                            const hasCrypto = plugins.some(p => p.pluginType === 'crypto-tool' && (p.contributes?.cryptoAlgorithms?.length || 0) > 0);
+                            if (hasCrypto) {
+                              editor.addAction({
+                                id: 'plugin-crypto',
+                                label: '🔐 加密 / 解密',
+                                contextMenuGroupId: '9_plugins',
+                                contextMenuOrder: 2,
+                                precondition: 'editorHasSelection',
+                                run: (ed: any) => {
+                                  const rect = ed.getDomNode()?.getBoundingClientRect();
+                                  const pos = ed.getPosition();
+                                  const coords = pos ? ed.getScrolledVisiblePosition(pos) : null;
+                                  const x = (rect?.left || 0) + (coords?.left || 100);
+                                  const y = (rect?.top || 0) + (coords?.top || 100) + 20;
+                                  window.dispatchEvent(new CustomEvent('plugin-action-menu', {
+                                    detail: { type: 'crypto', editorId: ed.getId(), x, y },
+                                  }));
+                                },
+                              });
                             }
                           }}
                         />
