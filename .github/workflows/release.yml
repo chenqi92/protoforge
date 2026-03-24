@@ -248,48 +248,41 @@ jobs:
           BASE_URL="https://github.com/${REPO}/releases/download/${TAG}"
           DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          # 构建 platforms JSON
+          # 构建 platforms JSON — 签名可选（未配置签名密钥时仍能生成有效的 latest.json）
           PLATFORMS="{}"
 
           # macOS aarch64
-          MAC_ARM_SIG=$(cat all-artifacts/*aarch64-apple-darwin.app.tar.gz.sig 2>/dev/null || echo "")
-          if [ -n "$MAC_ARM_SIG" ]; then
-            MAC_ARM_FILE=$(ls all-artifacts/*aarch64-apple-darwin.app.tar.gz 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
-            if [ -n "$MAC_ARM_FILE" ]; then
-              PLATFORMS=$(echo "$PLATFORMS" | jq --arg sig "$MAC_ARM_SIG" --arg url "${BASE_URL}/${MAC_ARM_FILE}" \
-                '. + {"darwin-aarch64": {"signature": $sig, "url": $url}}')
-            fi
+          MAC_ARM_FILE=$(ls all-artifacts/*aarch64-apple-darwin*.tar.gz 2>/dev/null | grep -v '.sig$' | head -1 | xargs basename 2>/dev/null || echo "")
+          if [ -n "$MAC_ARM_FILE" ]; then
+            MAC_ARM_SIG=$(cat "all-artifacts/${MAC_ARM_FILE}.sig" 2>/dev/null || echo "")
+            PLATFORMS=$(echo "$PLATFORMS" | jq --arg sig "$MAC_ARM_SIG" --arg url "${BASE_URL}/${MAC_ARM_FILE}" \
+              '. + {"darwin-aarch64": {"signature": $sig, "url": $url}}')
           fi
 
           # macOS x86_64
-          MAC_X64_SIG=$(cat all-artifacts/*x86_64-apple-darwin.app.tar.gz.sig 2>/dev/null || echo "")
-          if [ -n "$MAC_X64_SIG" ]; then
-            MAC_X64_FILE=$(ls all-artifacts/*x86_64-apple-darwin.app.tar.gz 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
-            if [ -n "$MAC_X64_FILE" ]; then
-              PLATFORMS=$(echo "$PLATFORMS" | jq --arg sig "$MAC_X64_SIG" --arg url "${BASE_URL}/${MAC_X64_FILE}" \
-                '. + {"darwin-x86_64": {"signature": $sig, "url": $url}}')
-            fi
+          MAC_X64_FILE=$(ls all-artifacts/*x86_64-apple-darwin*.tar.gz 2>/dev/null | grep -v '.sig$' | head -1 | xargs basename 2>/dev/null || echo "")
+          if [ -n "$MAC_X64_FILE" ]; then
+            MAC_X64_SIG=$(cat "all-artifacts/${MAC_X64_FILE}.sig" 2>/dev/null || echo "")
+            PLATFORMS=$(echo "$PLATFORMS" | jq --arg sig "$MAC_X64_SIG" --arg url "${BASE_URL}/${MAC_X64_FILE}" \
+              '. + {"darwin-x86_64": {"signature": $sig, "url": $url}}')
           fi
 
           # Windows x86_64 (prefer nsis.zip over msi)
-          WIN_SIG=$(cat all-artifacts/*.nsis.zip.sig 2>/dev/null || cat all-artifacts/*.msi.sig 2>/dev/null || echo "")
-          if [ -n "$WIN_SIG" ]; then
-            WIN_FILE=$(ls all-artifacts/*.nsis.zip 2>/dev/null || ls all-artifacts/*.msi 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
-            if [ -n "$WIN_FILE" ]; then
-              WIN_FILE=$(basename "$WIN_FILE")
-              PLATFORMS=$(echo "$PLATFORMS" | jq --arg sig "$WIN_SIG" --arg url "${BASE_URL}/${WIN_FILE}" \
-                '. + {"windows-x86_64": {"signature": $sig, "url": $url}}')
-            fi
+          WIN_FILE=$(ls all-artifacts/*.nsis.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || \
+                     ls all-artifacts/*_x64-setup.exe 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+          if [ -n "$WIN_FILE" ]; then
+            WIN_SIG=$(cat "all-artifacts/${WIN_FILE}.sig" 2>/dev/null || echo "")
+            PLATFORMS=$(echo "$PLATFORMS" | jq --arg sig "$WIN_SIG" --arg url "${BASE_URL}/${WIN_FILE}" \
+              '. + {"windows-x86_64": {"signature": $sig, "url": $url}}')
           fi
 
           # Linux x86_64
-          LINUX_SIG=$(cat all-artifacts/*.AppImage.tar.gz.sig 2>/dev/null || echo "")
-          if [ -n "$LINUX_SIG" ]; then
-            LINUX_FILE=$(ls all-artifacts/*.AppImage.tar.gz 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
-            if [ -n "$LINUX_FILE" ]; then
-              PLATFORMS=$(echo "$PLATFORMS" | jq --arg sig "$LINUX_SIG" --arg url "${BASE_URL}/${LINUX_FILE}" \
-                '. + {"linux-x86_64": {"signature": $sig, "url": $url}}')
-            fi
+          LINUX_FILE=$(ls all-artifacts/*.AppImage.tar.gz 2>/dev/null | grep -v '.sig$' | head -1 | xargs basename 2>/dev/null || \
+                       ls all-artifacts/*.AppImage 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+          if [ -n "$LINUX_FILE" ]; then
+            LINUX_SIG=$(cat "all-artifacts/${LINUX_FILE}.sig" 2>/dev/null || echo "")
+            PLATFORMS=$(echo "$PLATFORMS" | jq --arg sig "$LINUX_SIG" --arg url "${BASE_URL}/${LINUX_FILE}" \
+              '. + {"linux-x86_64": {"signature": $sig, "url": $url}}')
           fi
 
           # 生成 latest.json

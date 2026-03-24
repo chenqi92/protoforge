@@ -810,8 +810,19 @@ impl PluginManager {
             .await
             .map_err(|e| format!("读取已安装插件 manifest 失败: {}", e))?;
 
+        // 去掉 UTF-8 BOM（某些编辑器会在文件头添加 \u{FEFF}）
+        let manifest_content = manifest_content.strip_prefix('\u{feff}').unwrap_or(&manifest_content);
+
+        if manifest_content.trim().is_empty() {
+            let _ = tokio::fs::remove_dir_all(&plugin_dir).await;
+            return Err(format!(
+                "插件 '{}' 的 manifest.json 为空，可能是 tar.gz 包结构不正确",
+                plugin_id
+            ));
+        }
+
         let mut manifest: PluginManifest = serde_json::from_str(&manifest_content)
-            .map_err(|e| format!("解析已安装插件 manifest 失败: {}", e))?;
+            .map_err(|e| format!("解析已安装插件 manifest 失败: {} (内容前100字符: {:?})", e, &manifest_content[..manifest_content.len().min(100)]))?;
 
         manifest.installed = true;
         manifest.source = "remote".to_string();
@@ -1125,31 +1136,73 @@ impl PluginManager {
 // ── tar.gz extraction ──
 
 /// Extract a .tar.gz archive into the target directory.
+/// 自动检测 tar.gz 是否包含根目录前缀，兼容两种打包格式：
+///   - 有前缀: `plugin-name/manifest.json` → 提取时去掉 `plugin-name/`
+///   - 无前缀: `manifest.json` → 直接提取
 fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), String> {
-    let gz = GzDecoder::new(data);
-    let mut archive = tar::Archive::new(gz);
+    // ── Pass 1: 检测是否所有条目共享一个公共根目录 ──
+    let should_strip = {
+        let gz = GzDecoder::new(data);
+        let mut archive = tar::Archive::new(gz);
+        let entries = archive.entries().map_err(|e| format!("读取 tar 条目失败: {}", e))?;
+
+        let mut common_root: Option<String> = None;
+        let mut all_share_root = true;
+
+        for entry_result in entries {
+            let entry = entry_result.map_err(|e| format!("读取 tar 条目失败: {}", e))?;
+            let path = entry.path().map_err(|e| format!("获取条目路径失败: {}", e))?;
+            let components: Vec<_> = path.components().collect();
+
+            if components.len() <= 1 {
+                // 单组件条目（如 "manifest.json" 或 "plugin-name/"）
+                if entry.header().entry_type().is_dir() && components.len() == 1 {
+                    // 根目录条目本身，跳过不影响判断
+                    continue;
+                }
+                // 单组件文件 → 无根目录前缀
+                all_share_root = false;
+                break;
+            }
+
+            // 多组件：检查第一个组件是否一致
+            let first = components[0].as_os_str().to_string_lossy().to_string();
+            match &common_root {
+                None => common_root = Some(first),
+                Some(root) if *root == first => {} // 一致
+                Some(_) => {
+                    all_share_root = false;
+                    break;
+                }
+            }
+        }
+
+        all_share_root && common_root.is_some()
+    };
+
+    // ── Pass 2: 实际解压 ──
+    let gz2 = GzDecoder::new(data);
+    let mut archive2 = tar::Archive::new(gz2);
 
     // 预先获取 target_dir 的规范路径用于安全校验
     let canonical_target = std::fs::canonicalize(target_dir)
         .unwrap_or_else(|_| target_dir.to_path_buf());
 
-    for entry_result in archive.entries().map_err(|e| format!("读取 tar 条目失败: {}", e))? {
+    let skip_count = if should_strip { 1 } else { 0 };
+
+    for entry_result in archive2.entries().map_err(|e| format!("读取 tar 条目失败: {}", e))? {
         let mut entry = entry_result.map_err(|e| format!("读取 tar 条目失败: {}", e))?;
         let path = entry.path().map_err(|e| format!("获取条目路径失败: {}", e))?;
 
-        // Strip the first component if the archive has a root directory
-        // e.g., "hj212-parser/manifest.json" → "manifest.json"
         let relative: PathBuf = path
             .components()
-            .skip(1) // skip root dir in archive
+            .skip(skip_count)
             .collect();
 
-        // If stripping leaves nothing, use the original path
-        let relative = if relative.as_os_str().is_empty() {
-            path.to_path_buf()
-        } else {
-            relative
-        };
+        // 跳过空路径（根目录条目本身）
+        if relative.as_os_str().is_empty() {
+            continue;
+        }
 
         // 安全检查：过滤掉包含 ".." 的路径组件以防止路径穿越攻击 (Zip Slip)
         if relative.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
@@ -1198,6 +1251,7 @@ fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), Strin
         }
     }
 
+    log::info!("tar.gz 解压完成 (strip_root={})", should_strip);
     Ok(())
 }
 

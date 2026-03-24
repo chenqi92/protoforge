@@ -98,12 +98,12 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
       }}
     >
       <DialogContent
-        className="w-[1080px] max-w-[96vw] min-h-[680px] max-h-[88vh] gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[1080px]"
+        className="w-[1080px] max-w-[96vw] h-[88vh] gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[1080px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('import.title')}</DialogTitle>
 
-        <div className="flex h-full min-h-[680px] flex-col">
+        <div className="flex h-full overflow-hidden flex-col">
           <div className="flex shrink-0 items-start justify-between border-b border-border-default/75 px-6 py-5">
             <div className="flex items-center gap-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
