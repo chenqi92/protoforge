@@ -62,10 +62,18 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col pt-3">
-        {mode === "tcp-client" && <TcpClientPanel sessionKey={sessionKey} />}
-        {mode === "tcp-server" && <TcpServerPanel sessionKey={sessionKey} />}
-        {mode === "udp-client" && <UdpClientPanel sessionKey={sessionKey} />}
-        {mode === "udp-server" && <UdpServerPanel sessionKey={sessionKey} />}
+        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "tcp-client" && "hidden")}>
+          <TcpClientPanel sessionKey={sessionKey} />
+        </div>
+        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "tcp-server" && "hidden")}>
+          <TcpServerPanel sessionKey={sessionKey} />
+        </div>
+        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "udp-client" && "hidden")}>
+          <UdpClientPanel sessionKey={sessionKey} />
+        </div>
+        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "udp-server" && "hidden")}>
+          <UdpServerPanel sessionKey={sessionKey} />
+        </div>
       </div>
     </div>
   );

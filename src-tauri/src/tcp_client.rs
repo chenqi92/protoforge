@@ -311,6 +311,8 @@ pub async fn tcp_server_start(
 ) -> Result<(), String> {
     // 先停止已有同 id 服务器
     tcp_server_stop(servers, &server_id).await.ok();
+    // 等待系统释放端口（abort 是异步的，旧 listener 可能延迟释放）
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
 
     let addr = format!("{}:{}", host, port);
     let listener = TcpListener::bind(&addr)

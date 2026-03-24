@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, ArrowDown, Search, Copy, Check, ArrowUpRight, ArrowDownLeft, PlugZap, FileCode2, X } from "lucide-react";
+import { Trash2, Search, Copy, Check, ArrowUpRight, ArrowDownLeft, PlugZap, FileCode2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { convertFormat } from "@/services/tcpService";
@@ -51,24 +51,10 @@ export function MessageLog({
 }: MessageLogProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
   const [filter, setFilter] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [parserTarget, setParserTarget] = useState<TcpMessage | null>(null);
   const hasParserPlugin = usePluginStore((s) => s.installedPlugins.some((p) => p.pluginType === 'protocol-parser'));
-
-  useEffect(() => {
-    if (autoScroll && endRef.current) {
-      endRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, autoScroll]);
-
-  const handleScroll = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    setAutoScroll(el.scrollHeight - el.scrollTop - el.clientHeight < 50);
-  }, []);
 
   const handleCopy = async (text: string, id: string) => {
     await navigator.clipboard.writeText(text);
@@ -79,6 +65,8 @@ export function MessageLog({
   const filteredMessages = filter
     ? messages.filter((m) => m.data.toLowerCase().includes(filter.toLowerCase()))
     : messages;
+  // 倒序显示：最新消息在顶部
+  const reversedMessages = [...filteredMessages].reverse();
   const hasTraffic = Boolean(
     stats && (
       stats.sentBytes > 0 ||
@@ -148,14 +136,7 @@ export function MessageLog({
             />
           </div>
 
-          {!autoScroll && messages.length > 0 ? (
-            <button
-              onClick={() => { setAutoScroll(true); endRef.current?.scrollIntoView({ behavior: "smooth" }); }}
-              className="flex items-center gap-1 rounded-[12px] px-2.5 py-1.5 text-[var(--fs-xs)] text-accent transition-colors hover:bg-accent-soft"
-            >
-              <ArrowDown className="h-3 w-3" /> {t('tcp.messageLog.scrollToBottom')}
-            </button>
-          ) : null}
+
 
           {messages.length > 0 ? (
             <button
@@ -168,7 +149,7 @@ export function MessageLog({
         </div>
       </div>
 
-      <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-auto bg-bg-primary/34">
+      <div ref={containerRef} className="flex-1 overflow-auto bg-bg-primary/34">
         {filteredMessages.length === 0 ? (
           isFiltering ? (
             <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
@@ -218,7 +199,7 @@ export function MessageLog({
           )
         ) : (
           <div className="divide-y divide-border-default/55">
-            {filteredMessages.map((m) => {
+            {reversedMessages.map((m) => {
               const displayData = m.direction === "system"
                 ? m.data
                 : convertFormat(m.data, m.rawHex, "ascii", displayFormat);
@@ -294,7 +275,6 @@ export function MessageLog({
                 </div>
               );
             })}
-            <div ref={endRef} />
           </div>
         )}
       </div>
