@@ -1637,3 +1637,90 @@ pub async fn wasm_list_loaded(
     let list = runtime.list_loaded().await;
     serde_json::to_value(list).map_err(|e| e.to_string())
 }
+
+// ═══════════════════════════════════════════
+//  Workflow Engine (自动化流程)
+// ═══════════════════════════════════════════
+
+use crate::workflow_engine::{self, Workflow, WorkflowState};
+use tauri::Emitter as _;
+
+#[tauri::command]
+pub async fn workflow_list(pool: State<'_, SqlitePool>) -> Result<Vec<Workflow>, String> {
+    workflow_engine::list_workflows(&pool).await
+}
+
+#[tauri::command]
+pub async fn workflow_get(pool: State<'_, SqlitePool>, id: String) -> Result<Workflow, String> {
+    workflow_engine::get_workflow(&pool, &id).await
+}
+
+#[tauri::command]
+pub async fn workflow_create(pool: State<'_, SqlitePool>, workflow: Workflow) -> Result<Workflow, String> {
+    workflow_engine::create_workflow(&pool, &workflow).await
+}
+
+#[tauri::command]
+pub async fn workflow_update(pool: State<'_, SqlitePool>, workflow: Workflow) -> Result<(), String> {
+    workflow_engine::update_workflow(&pool, &workflow).await
+}
+
+#[tauri::command]
+pub async fn workflow_delete(pool: State<'_, SqlitePool>, id: String) -> Result<(), String> {
+    workflow_engine::delete_workflow(&pool, &id).await
+}
+
+/// 运行流程 — 在后台 tokio 任务中异步执行，通过 Event 实时推送进度
+#[tauri::command]
+pub async fn workflow_run(
+    app: AppHandle,
+    pool: State<'_, SqlitePool>,
+    state: State<'_, WorkflowState>,
+    id: String,
+) -> Result<String, String> {
+    let workflow = workflow_engine::get_workflow(&pool, &id).await?;
+
+    let cancel_token = tokio_util::sync::CancellationToken::new();
+    let execution_id = uuid::Uuid::new_v4().to_string();
+
+    // 存储取消令牌
+    {
+        let mut running = state.running.lock().await;
+        running.insert(execution_id.clone(), cancel_token.clone());
+    }
+
+    let exec_id = execution_id.clone();
+    let state_inner = state.inner().clone();
+
+    // 后台异步执行
+    let app_clone = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let result = workflow_engine::run_workflow(&workflow, app_clone.clone(), cancel_token).await;
+
+        // 清理取消令牌
+        {
+            let mut running = state_inner.running.lock().await;
+            running.remove(&exec_id);
+        }
+
+        // 发送完成事件
+        let _ = app_clone.emit("workflow-completed", &result);
+    });
+
+    Ok(execution_id)
+}
+
+/// 取消正在运行的流程
+#[tauri::command]
+pub async fn workflow_cancel(
+    state: State<'_, WorkflowState>,
+    execution_id: String,
+) -> Result<(), String> {
+    let running = state.running.lock().await;
+    if let Some(token) = running.get(&execution_id) {
+        token.cancel();
+        Ok(())
+    } else {
+        Err(format!("流程执行 {} 不存在或已完成", execution_id))
+    }
+}

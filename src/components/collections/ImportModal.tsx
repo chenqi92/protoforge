@@ -555,10 +555,17 @@ function SwaggerImportView({
     cache: Record<string, SwaggerParseResult>
   ): SwaggerEndpoint[] => {
     const all: SwaggerEndpoint[] = [];
+    const seen = new Set<string>();
     for (const groupUrl of urls) {
       const cached = cache[groupUrl];
       if (cached) {
-        all.push(...cached.endpoints);
+        for (const ep of cached.endpoints) {
+          const key = `${ep.method}|${ep.path}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            all.push(ep);
+          }
+        }
       }
     }
     return all;

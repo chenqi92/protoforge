@@ -4373,6 +4373,7 @@ dependencies = [
  "hudsucker",
  "log",
  "rcgen",
+ "regex-lite",
  "reqwest",
  "rumqttc",
  "serde",
@@ -4390,6 +4391,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite 0.26.2",
+ "tokio-util",
  "url",
  "uuid",
  "wasmtime",
@@ -4766,6 +4768,12 @@ dependencies = [
  "memchr",
  "regex-syntax",
 ]
+
+[[package]]
+name = "regex-lite"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab834c73d247e67f4fae452806d17d3c7501756d98c8808d7c9c7aa7d18f973"
 
 [[package]]
 name = "regex-syntax"

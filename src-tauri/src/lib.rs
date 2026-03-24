@@ -15,6 +15,7 @@ mod mqtt_client;
 mod wasm_runtime;
 mod builtin_parsers;
 mod plugins;
+mod workflow_engine;
 
 use tauri::Manager;
 #[cfg(target_os = "macos")]
@@ -134,6 +135,7 @@ pub fn run() {
             app.manage(UdpSockets::new());
             app.manage(LoadTestState::new());
             app.manage(ProxyState::new());
+            app.manage(workflow_engine::WorkflowState::new());
 
             // SSE / MQTT 连接管理
             app.manage(sse_client::new_connections());
@@ -289,6 +291,14 @@ pub fn run() {
             commands::wasm_unload_plugin,
             commands::wasm_parse_data,
             commands::wasm_list_loaded,
+            // Workflow Engine
+            commands::workflow_list,
+            commands::workflow_get,
+            commands::workflow_create,
+            commands::workflow_update,
+            commands::workflow_delete,
+            commands::workflow_run,
+            commands::workflow_cancel,
             // macOS Rounded Corners
             plugins::mac_rounded_corners::enable_rounded_corners,
         ])

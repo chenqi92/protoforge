@@ -46,6 +46,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     let migrations: Vec<(i64, &str, &str)> = vec![
         (1, "initial_schema", include_str!("../migrations/001_initial_schema.sql")),
         (2, "add_response_example", include_str!("../migrations/002_add_response_example.sql")),
+        (3, "workflow_schema", include_str!("../migrations/003_workflow_schema.sql")),
     ];
 
     for (version, name, sql) in migrations {

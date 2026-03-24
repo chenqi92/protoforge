@@ -1775,7 +1775,7 @@
   .variable-inline-track {
     display: flex;
     align-items: center;
-    pointer-events: auto;
+    pointer-events: none;
     height: 100%;
   }
 
@@ -1793,6 +1793,7 @@
     font-weight: 600;
     cursor: pointer;
     white-space: pre;
+    pointer-events: auto;
     transition: filter 0.15s ease;
   }
 
@@ -1845,10 +1846,7 @@
     color: var(--color-text-tertiary);
   }
 
-  .variable-inline-input:not(:focus) + .variable-inline-overlay,
-  .variable-inline-input:not(:focus) ~ .variable-inline-overlay {
-    pointer-events: auto;
-  }
+
   /* ── Plugin Table (spreadsheet-style renderer) ── */
 
   .plugin-table {
