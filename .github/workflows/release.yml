@@ -321,3 +321,28 @@ jobs:
           else
             echo "⚠️ No artifacts were uploaded." >> $GITHUB_STEP_SUMMARY
           fi
+
+      # 清理旧版本，仅保留最新 3 个 Release
+      - name: Cleanup old releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          KEEP=3
+          echo "🧹 Cleaning up old releases (keeping latest $KEEP)..."
+
+          # 按创建时间降序获取所有 release 的 tag
+          TAGS=$(gh release list --repo "${{ github.repository }}" --limit 100 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .[].tagName')
+
+          COUNT=0
+          for TAG in $TAGS; do
+            COUNT=$((COUNT + 1))
+            if [ $COUNT -gt $KEEP ]; then
+              echo "  🗑️ Deleting release & tag: $TAG"
+              gh release delete "$TAG" --repo "${{ github.repository }}" --yes --cleanup-tag 2>/dev/null || true
+            else
+              echo "  ✅ Keeping: $TAG"
+            fi
+          done
+
+          echo "✨ Cleanup complete. Kept $KEEP latest releases."
