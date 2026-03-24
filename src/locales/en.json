@@ -786,7 +786,7 @@
     "updateAvailable": "Update Available",
     "cryptoTool": "Crypto Tool",
     "cryptoToolDesc": "Encryption, decryption and hashing tools",
-    "iconPack": "Icon Pack",
+    "iconPack": "Icon Library",
     "iconPackDesc": "Custom icon libraries for other plugins"
   },
   "commandPalette": {

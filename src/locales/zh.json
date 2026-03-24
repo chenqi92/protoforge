@@ -787,7 +787,7 @@
     "updateAvailable": "有新版本",
     "cryptoTool": "加密工具",
     "cryptoToolDesc": "加密解密、编码哈希工具",
-    "iconPack": "图标包",
+    "iconPack": "图标仓库",
     "iconPackDesc": "自定义图标库，其他插件可引用"
   },
   "parser": {

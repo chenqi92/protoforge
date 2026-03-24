@@ -857,6 +857,15 @@ impl PluginManager {
             }
         }
 
+        // 清理可能残留的旧插件目录（确保干净安装）
+        if !is_upgrade {
+            let plugin_dir = self.plugins_dir.join(plugin_id);
+            if plugin_dir.exists() {
+                log::info!("发现插件目录残留，清理中: {:?}", plugin_dir);
+                let _ = tokio::fs::remove_dir_all(&plugin_dir).await;
+            }
+        }
+
         // Try remote
         let download_url = {
             let cache = self.remote_cache.read().await;
@@ -1342,6 +1351,14 @@ fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), Strin
         for entry_result in entries {
             let entry = entry_result.map_err(|e| format!("读取 tar 条目失败: {}", e))?;
             let path = entry.path().map_err(|e| format!("获取条目路径失败: {}", e))?;
+
+            // 跳过 macOS AppleDouble 资源分支文件 (._xxx)，不影响公共根目录判断
+            if let Some(name) = path.file_name() {
+                if name.to_string_lossy().starts_with("._") {
+                    continue;
+                }
+            }
+
             let components: Vec<_> = path.components().collect();
 
             if components.len() <= 1 {
