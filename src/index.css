@@ -1754,46 +1754,50 @@
     font-weight: 500;
   }
 
-  /* ── Variable Inline Input ── */
-  .variable-inline-shell {
-    position: relative;
+  /* ── Variable Inline Input (contentEditable) ── */
+  .variable-inline-editable {
     width: 100%;
     min-width: 0;
-  }
-
-  .variable-inline-overlay {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    pointer-events: none;
-    display: flex;
-    align-items: center;
     white-space: nowrap;
-    z-index: 3;
+    overflow-x: auto;
+    overflow-y: hidden;
+    outline: none;
+    cursor: text;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  .variable-inline-track {
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-    height: 100%;
+  /* Vertical centering: match height & line-height from the host class.
+     .wb-request-input sets height:28px;  .editor-table-input sets height:30px.
+     We use line-height equal to the same height so text is vertically centered. */
+  .wb-request-input.variable-inline-editable {
+    line-height: 28px;
   }
 
-  .variable-inline-text {
-    color: var(--color-text-primary);
+  .editor-table-input.variable-inline-editable {
+    line-height: 30px;
+  }
+
+  .variable-inline-editable::-webkit-scrollbar {
+    display: none;
+  }
+
+  .variable-inline-editable:empty::before {
+    content: attr(data-placeholder);
+    color: var(--color-text-tertiary);
     pointer-events: none;
-    white-space: pre;
+  }
+
+  .variable-inline-editable::selection,
+  .variable-inline-editable *::selection {
+    background: color-mix(in srgb, var(--color-accent) 25%, transparent);
   }
 
   .variable-inline-token {
-    display: inline-flex;
-    align-items: center;
     border-radius: 5px;
     padding: 1px 4px;
     font-weight: 600;
-    cursor: pointer;
     white-space: pre;
-    pointer-events: auto;
     transition: filter 0.15s ease;
   }
 
@@ -1828,24 +1832,6 @@
     text-decoration-color: rgba(239, 68, 68, 0.5);
     text-underline-offset: 2px;
   }
-
-  .variable-inline-input {
-    position: relative;
-    z-index: 1;
-    color: transparent;
-    caret-color: var(--color-text-primary);
-    background: transparent !important;
-  }
-
-  .variable-inline-input::selection {
-    color: transparent;
-    background: color-mix(in srgb, var(--color-accent) 25%, transparent);
-  }
-
-  .variable-inline-input::placeholder {
-    color: var(--color-text-tertiary);
-  }
-
 
   /* ── Plugin Table (spreadsheet-style renderer) ── */
 

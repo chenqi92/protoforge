@@ -2057,9 +2057,15 @@ function VariableInlineInput({
   value,
   collectionId,
   className,
-  overlayClassName,
+  overlayClassName: _overlayClassName,
   compactPopover,
-  ...props
+  onChange,
+  onKeyDown,
+  onFocus,
+  onBlur,
+  placeholder,
+  disabled,
+  ...rest
 }: React.InputHTMLAttributes<HTMLInputElement> & {
   inputRef?: React.RefObject<HTMLInputElement | null>;
   collectionId?: string | null;
@@ -2071,97 +2077,220 @@ function VariableInlineInput({
   const activeEnvId = useEnvStore((state) => state.activeEnvId);
   const envVars = useEnvStore((state) => state.variables);
   const globalVars = useEnvStore((state) => state.globalVariables);
-  const variableKeys = useMemo(() => extractVariableKeys(String(value ?? '')), [value]);
-  const segments = useMemo(() => splitVariableSegments(String(value ?? '')), [value]);
+  const strValue = String(value ?? '');
+  const variableKeys = useMemo(() => extractVariableKeys(strValue), [strValue]);
+  const segments = useMemo(() => splitVariableSegments(strValue), [strValue]);
   const previews = useMemo(
     () => new Map(variableKeys.map((key) => [key, getVariablePreview(key, collectionId)])),
     [collectionId, collections, envVars, globalVars, activeEnvId, variableKeys]
   );
-  const internalRef = useRef<HTMLInputElement>(null);
+  const divRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<number | null>(null);
-  const [scrollLeft, setScrollLeft] = useState(0);
+  const composingRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const hasVariables = variableKeys.length > 0;
 
+  // ── Helpers for popover ──
   const cancelClose = () => {
     if (closeTimerRef.current) {
       window.clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
   };
-
   const scheduleClose = () => {
     cancelClose();
     closeTimerRef.current = window.setTimeout(() => setOpen(false), 120);
   };
-
-  useEffect(() => {
-    if (open && internalRef.current) {
-      setRect(internalRef.current.getBoundingClientRect());
-    }
-  }, [open, value]);
-
   useEffect(() => () => cancelClose(), []);
 
-  if (!hasVariables) {
-    return <input ref={inputRef} value={value} className={className} {...props} />;
-  }
-
-  const attachRef = (node: HTMLInputElement | null) => {
-    internalRef.current = node;
+  // ── Expose ref to callers (they expect HTMLInputElement but we provide HTMLElement) ──
+  useEffect(() => {
     if (inputRef) {
-      inputRef.current = node;
+      (inputRef as React.MutableRefObject<any>).current = divRef.current;
     }
+  });
+
+  // ── Cursor save / restore helpers ──
+  const getCaretOffset = (): number => {
+    const el = divRef.current;
+    if (!el) return 0;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return 0;
+    const range = sel.getRangeAt(0);
+    const preRange = document.createRange();
+    preRange.selectNodeContents(el);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    return preRange.toString().length;
   };
+
+  const setCaretOffset = (offset: number) => {
+    const el = divRef.current;
+    if (!el) return;
+    const sel = window.getSelection();
+    if (!sel) return;
+
+    let remaining = offset;
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node: Text | null;
+    while ((node = walker.nextNode() as Text | null)) {
+      const len = node.textContent?.length ?? 0;
+      if (remaining <= len) {
+        const range = document.createRange();
+        range.setStart(node, remaining);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        return;
+      }
+      remaining -= len;
+    }
+    // If offset is beyond all text, place cursor at the end
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
+
+  // ── Build highlighted innerHTML from segments ──
+  const buildInnerHTML = useCallback((segs: VariableSegment[], pvs: Map<string, ReturnType<typeof getVariablePreview>>) => {
+    return segs.map((seg) => {
+      if (seg.kind === 'token' && seg.key) {
+        const p = pvs.get(seg.key);
+        const source = p?.source ?? 'missing';
+        // Use data-var-key so we can attach popover listeners via event delegation
+        return `<span class="variable-inline-token" data-source="${source}" data-var-key="${seg.key}">${escapeHtml(seg.text)}</span>`;
+      }
+      return escapeHtml(seg.text);
+    }).join('');
+  }, []);
+
+  // ── Sync DOM when value changes (not during IME composition) ──
+  // We need to rebuild innerHTML whenever strValue/segments/previews change,
+  // but skip during IME composition to avoid breaking input.
+  const expectedHTML = useMemo(() => buildInnerHTML(segments, previews), [segments, previews, buildInnerHTML]);
+
+  useEffect(() => {
+    const el = divRef.current;
+    if (!el || composingRef.current) return;
+
+    // Skip if DOM already matches expected HTML
+    if (el.innerHTML === expectedHTML) return;
+
+    const hasFocus = document.activeElement === el;
+    const savedOffset = hasFocus ? getCaretOffset() : -1;
+
+    el.innerHTML = expectedHTML;
+
+    if (hasFocus && savedOffset >= 0) {
+      setCaretOffset(savedOffset);
+    }
+  }, [expectedHTML]);
+
+  // ── Fire synthetic onChange ──
+  const fireChange = useCallback((newText: string) => {
+    if (!onChange) return;
+    // Synthesize a fake event that has `target.value`
+    const fakeEvent = {
+      target: { value: newText },
+      currentTarget: { value: newText },
+      preventDefault: () => {},
+      stopPropagation: () => {},
+    } as unknown as React.ChangeEvent<HTMLInputElement>;
+    onChange(fakeEvent);
+  }, [onChange]);
+
+  // ── Event handlers ──
+  const handleInput = useCallback(() => {
+    const el = divRef.current;
+    if (!el) return;
+    const newText = el.textContent ?? '';
+    // Do NOT update lastValueRef here; let the useEffect handle it
+    // so the innerHTML gets rebuilt with highlighting on next render
+    fireChange(newText);
+  }, [fireChange]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+    // Forward to caller's onKeyDown
+    if (onKeyDown) {
+      onKeyDown(e as unknown as React.KeyboardEvent<HTMLInputElement>);
+    }
+  }, [onKeyDown]);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  }, []);
+
+  const handleCompositionStart = useCallback(() => {
+    composingRef.current = true;
+  }, []);
+
+  const handleCompositionEnd = useCallback(() => {
+    composingRef.current = false;
+    // After IME finishes, sync the value
+    handleInput();
+  }, [handleInput]);
+
+  const handleMouseOver = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-var-key]');
+    if (target) {
+      cancelClose();
+      setActiveKey(target.getAttribute('data-var-key'));
+      setRect(target.getBoundingClientRect());
+      setOpen(true);
+    }
+  }, []);
+
+  const handleMouseOut = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-var-key]');
+    if (target) {
+      scheduleClose();
+    }
+  }, []);
+
+  const handleFocus = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+    if (onFocus) onFocus(e as unknown as React.FocusEvent<HTMLInputElement>);
+  }, [onFocus]);
+
+  const handleBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+    if (onBlur) onBlur(e as unknown as React.FocusEvent<HTMLInputElement>);
+  }, [onBlur]);
+
+  // Copy over passthrough attributes
+  const passthroughAttrs: Record<string, any> = {};
+  for (const [k, v] of Object.entries(rest)) {
+    if (k.startsWith('data-') || k.startsWith('aria-')) {
+      passthroughAttrs[k] = v;
+    }
+  }
 
   return (
     <>
-      <div className="variable-inline-shell">
-        <div className={cn("variable-inline-overlay", overlayClassName)} aria-hidden="true">
-          <div className="variable-inline-track" style={{ transform: `translateX(-${scrollLeft}px)` }}>
-            {segments.map((segment, index) => {
-              if (segment.kind === "token" && segment.key) {
-                const preview = previews.get(segment.key);
-                return (
-                  <span
-                    key={`${segment.key}-${index}`}
-                    className="variable-inline-token"
-                    data-source={preview?.source ?? "missing"}
-                    onMouseEnter={(event) => {
-                      cancelClose();
-                      setActiveKey(segment.key!);
-                      setRect(event.currentTarget.getBoundingClientRect());
-                      setOpen(true);
-                    }}
-                    onMouseLeave={scheduleClose}
-                  >
-                    {segment.text}
-                  </span>
-                );
-              }
-
-              return (
-                <span key={`text-${index}`} className="variable-inline-text">
-                  {segment.text || (index === 0 ? t('http.urlPlaceholder') : "")}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-
-        <input
-          {...props}
-          ref={attachRef}
-          value={value}
-          className={cn(className, "variable-inline-input")}
-          onScroll={(event) => {
-            setScrollLeft(event.currentTarget.scrollLeft);
-            props.onScroll?.(event);
-          }}
-        />
-      </div>
+      <div
+        ref={divRef}
+        contentEditable={!disabled}
+        suppressContentEditableWarning
+        role="textbox"
+        aria-placeholder={placeholder || t('http.urlPlaceholder')}
+        className={cn('variable-inline-editable', className)}
+        onInput={handleInput}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        onCompositionStart={handleCompositionStart}
+        onCompositionEnd={handleCompositionEnd}
+        onMouseOver={handleMouseOver}
+        onMouseOut={handleMouseOut}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        data-placeholder={placeholder || t('http.urlPlaceholder')}
+        {...passthroughAttrs}
+      />
 
       {open && rect && activeKey && previews.get(activeKey) && createPortal(
         <VariableHoverPopover
@@ -2176,6 +2305,11 @@ function VariableInlineInput({
       )}
     </>
   );
+}
+
+/** Escape HTML special characters for safe innerHTML insertion */
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function VariableHoverPopover({

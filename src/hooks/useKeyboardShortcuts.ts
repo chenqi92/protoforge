@@ -57,7 +57,7 @@ export function useKeyboardShortcuts() {
       // Ctrl+L — Focus URL input
       if (ctrl && !shift && e.key === "l") {
         e.preventDefault();
-        const urlInput = document.querySelector<HTMLInputElement>("[data-url-input]");
+        const urlInput = document.querySelector<HTMLElement>("[data-url-input]");
         if (urlInput) urlInput.focus();
         return;
       }
