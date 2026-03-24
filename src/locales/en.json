@@ -780,7 +780,12 @@
     "local": "Local",
     "storeEmpty": "Store Empty",
     "noPlugins": "No plugins available",
-    "statsPanel": "Stats"
+    "statsPanel": "Stats",
+    "update": "Update",
+    "updatePlugin": "Update Plugin",
+    "updateAvailable": "Update Available",
+    "cryptoTool": "Crypto Tool",
+    "cryptoToolDesc": "Encryption, decryption and hashing tools"
   },
   "commandPalette": {
     "placeholder": "Search actions, requests, collections...",

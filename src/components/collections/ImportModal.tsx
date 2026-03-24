@@ -187,14 +187,13 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               </div>
             </aside>
 
-            <section className="min-w-0 bg-bg-primary/36">
-              <AnimatePresence mode="wait">
-                {activeSource === 'file' ? (
-                  <FileImportView key="file" onClose={onClose} accentClassName={currentSource.accentClassName} />
-                ) : (
-                  <SwaggerImportView key="swagger" onClose={onClose} accentClassName={currentSource.accentClassName} />
-                )}
-              </AnimatePresence>
+            <section className="min-w-0 overflow-hidden bg-bg-primary/36">
+              <div className={cn('h-full', activeSource !== 'file' && 'hidden')}>
+                <FileImportView onClose={onClose} accentClassName={sourceItems[0].accentClassName} />
+              </div>
+              <div className={cn('h-full', activeSource !== 'swagger' && 'hidden')}>
+                <SwaggerImportView onClose={onClose} accentClassName={sourceItems[1].accentClassName} />
+              </div>
             </section>
           </div>
         </div>
@@ -428,10 +427,7 @@ function FileImportView({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 10 }}
+    <div
       className="flex h-full min-h-0 flex-col p-6"
     >
       <PanelCard className="flex min-h-0 flex-1 flex-col">
@@ -517,7 +513,7 @@ function FileImportView({
           </div>
         ) : null}
       </PanelCard>
-    </motion.div>
+    </div>
   );
 }
 
@@ -883,10 +879,7 @@ function SwaggerImportView({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 10 }}
+    <div
       className="flex h-full min-h-0 flex-col p-6"
     >
       <PanelCard className="flex min-h-0 flex-1 flex-col">
@@ -935,8 +928,8 @@ function SwaggerImportView({
           <ImportModeToggle mode={importMode} setMode={setImportMode} />
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-5 p-6 xl:grid-cols-[340px_minmax(0,1fr)]">
-          <div className="flex min-h-0 flex-col gap-5">
+        <div className="grid min-h-0 flex-1 gap-5 overflow-hidden p-6 xl:grid-cols-[340px_minmax(0,1fr)]">
+          <div className="flex min-h-0 flex-col gap-5 overflow-y-auto">
             {/* URL Input Card */}
             <PanelCard>
               <div className="border-b border-border-default/70 px-5 py-4">
@@ -1077,7 +1070,7 @@ function SwaggerImportView({
           </div>
 
           {/* Endpoint Preview */}
-          <PanelCard className="flex min-h-[460px] min-h-0 flex-col">
+          <PanelCard className="flex min-h-0 flex-col overflow-hidden">
             <div className="border-b border-border-default/70 px-5 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -1274,6 +1267,6 @@ function SwaggerImportView({
           </PanelCard>
         </div>
       </PanelCard>
-    </motion.div>
+    </div>
   );
 }

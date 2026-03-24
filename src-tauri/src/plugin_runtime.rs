@@ -25,6 +25,8 @@ pub enum PluginType {
     ExportFormat,
     /// 侧边栏面板 — 独立功能面板（监控、日志、统计）
     SidebarPanel,
+    /// 加密工具 — 编码/解码、哈希、对称加密等
+    CryptoTool,
 }
 
 /// 插件可翻译字段
@@ -67,6 +69,12 @@ pub struct PluginManifest {
     /// 多语言翻译 — 键为语言代码 ("en"), 值为可翻译字段
     #[serde(default)]
     pub i18n: HashMap<String, PluginI18nEntry>,
+    /// 是否有可用更新（仅用于前端展示, 运行时计算）
+    #[serde(default)]
+    pub has_update: bool,
+    /// 远程仓库中的最新版本号（有更新时填充）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latest_version: Option<String>,
 }
 
 fn default_source() -> String {
@@ -330,6 +338,8 @@ impl RemotePluginEntry {
             source: "remote".to_string(),
             contributes: self.contributes,
             i18n: self.i18n,
+            has_update: false,
+            latest_version: None,
         }
     }
 }
@@ -573,8 +583,6 @@ impl PluginManager {
             // 用 log 记录刷新触发，但不阻塞当前调用
             let registry_url = self.registry_url.read().await.clone();
             log::info!("远程插件缓存已过期，后台刷新 (url={})", registry_url);
-            // 注意：这里不能 move self，所以用独立的 HTTP 请求
-            // 但我们需要更新 self 的缓存，因此用标志位避免重复触发
             let _ = self.refresh_registry_background().await;
         }
 
@@ -583,27 +591,42 @@ impl PluginManager {
 
         let mut all_plugins: HashMap<String, PluginManifest> = HashMap::new();
 
-        // 1. 注册表中的非 native 插件（用户安装的 JS/WASM 插件）
-        for (id, rp) in registry.iter() {
-            if rp.manifest.source != "native" {
-                all_plugins.insert(id.clone(), rp.manifest.clone());
-            }
-        }
-
-        // 2. 远程仓库中的插件
+        // 1. 先添加远程仓库的插件（以远程版本信息为基准）
         if let Some(remote_plugins) = remote_cache.as_ref() {
             for p in remote_plugins {
-                all_plugins.entry(p.id.clone()).or_insert(p.clone());
+                all_plugins.insert(p.id.clone(), p.clone());
             }
         }
 
-        // Mark installed (只有在 registry 中且非 native 的才算用户安装)
+        // 2. 对于仅本地安装但远程不存在的插件，补充添加
+        for (id, rp) in registry.iter() {
+            if rp.manifest.source != "native" {
+                all_plugins.entry(id.clone()).or_insert(rp.manifest.clone());
+            }
+        }
+
+        // 3. 标记安装状态 + 版本升级检测
         all_plugins
             .into_values()
             .map(|mut m| {
-                m.installed = registry.get(&m.id)
+                let is_installed = registry.get(&m.id)
                     .map(|rp| rp.manifest.source != "native")
                     .unwrap_or(false);
+                m.installed = is_installed;
+
+                // 版本比对：已安装 且 远程有此插件 → 比较版本号
+                if is_installed {
+                    if let Some(rp) = registry.get(&m.id) {
+                        let installed_version = &rp.manifest.version;
+                        let remote_version = &m.version;
+                        if installed_version != remote_version {
+                            m.has_update = true;
+                            m.latest_version = Some(remote_version.clone());
+                            // 保留已安装的版本号在 version 字段，便于前端展示
+                            m.version = installed_version.clone();
+                        }
+                    }
+                }
                 m
             })
             .collect()
@@ -665,16 +688,44 @@ impl PluginManager {
     }
 
     /// Install a plugin by its ID.
+    /// 支持首次安装和版本升级（已安装时先清理旧版本目录再重新下载）。
     pub async fn install(&self, plugin_id: &str) -> Result<PluginManifest, String> {
-        // 检查是否已安装（仅拒绝非 native 的重复安装，native 插件允许被远程版本覆盖）
-        {
+        // 检查是否已安装
+        let is_upgrade = {
             let reg = self.registry.read().await;
             if let Some(rp) = reg.get(plugin_id) {
-                if !matches!(rp.runtime, PluginRuntime::Native(_)) {
-                    return Err(format!("插件 '{}' 已安装", plugin_id));
+                if matches!(rp.runtime, PluginRuntime::Native(_)) {
+                    // native 插件 → 允许被远程版本覆盖
+                    false
+                } else {
+                    // 检查远程是否有更新版本
+                    let remote_version = {
+                        let cache = self.remote_cache.read().await;
+                        cache.as_ref()
+                            .and_then(|ps| ps.iter().find(|p| p.id == plugin_id))
+                            .map(|p| p.version.clone())
+                    };
+                    match remote_version {
+                        Some(rv) if rv != rp.manifest.version => true, // 版本不同 → 升级
+                        Some(_) => return Err(format!("插件 '{}' 已是最新版本", plugin_id)),
+                        None => return Err(format!("插件 '{}' 已安装", plugin_id)),
+                    }
                 }
-                // native 插件 → 允许继续安装远程版本（覆盖）
+            } else {
+                false
             }
+        };
+
+        // 升级时先清理旧版本
+        if is_upgrade {
+            let plugin_dir = self.plugins_dir.join(plugin_id);
+            if plugin_dir.exists() {
+                tokio::fs::remove_dir_all(&plugin_dir)
+                    .await
+                    .map_err(|e| format!("清理旧版本失败: {}", e))?;
+            }
+            self.registry.write().await.remove(plugin_id);
+            log::info!("已清理旧版本插件: {}", plugin_id);
         }
 
         // Try remote

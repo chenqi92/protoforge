@@ -781,7 +781,12 @@
     "local": "本地",
     "storeEmpty": "仓库为空",
     "noPlugins": "暂无可用插件",
-    "statsPanel": "请求统计"
+    "statsPanel": "请求统计",
+    "update": "升级",
+    "updatePlugin": "升级插件",
+    "updateAvailable": "有新版本",
+    "cryptoTool": "加密工具",
+    "cryptoToolDesc": "加密解密、编码哈希工具"
   },
   "parser": {
     "tabLabel": "协议解析",

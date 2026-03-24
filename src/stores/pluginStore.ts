@@ -21,6 +21,7 @@ interface PluginStore {
   refreshRegistry: () => Promise<void>;
   installPlugin: (pluginId: string) => Promise<void>;
   uninstallPlugin: (pluginId: string) => Promise<void>;
+  updatePlugin: (pluginId: string) => Promise<void>;
   getInstalledByType: (type: PluginType) => PluginManifest[];
 }
 
@@ -119,7 +120,7 @@ export const usePluginStore = create<PluginStore>((set, get) => ({
       set((s) => ({
         installedPlugins: [...s.installedPlugins, manifest],
         availablePlugins: s.availablePlugins.map((p) =>
-          p.id === pluginId ? { ...p, installed: true } : p
+          p.id === pluginId ? { ...p, installed: true, hasUpdate: false, latestVersion: undefined } : p
         ),
       }));
       // Refresh protocol parsers after install
@@ -137,7 +138,7 @@ export const usePluginStore = create<PluginStore>((set, get) => ({
       set((s) => ({
         installedPlugins: s.installedPlugins.filter((p) => p.id !== pluginId),
         availablePlugins: s.availablePlugins.map((p) =>
-          p.id === pluginId ? { ...p, installed: false } : p
+          p.id === pluginId ? { ...p, installed: false, hasUpdate: false, latestVersion: undefined } : p
         ),
       }));
       // Refresh protocol parsers after uninstall
@@ -145,6 +146,28 @@ export const usePluginStore = create<PluginStore>((set, get) => ({
       set({ protocolParsers: parsers });
     } catch (e) {
       console.error('Failed to uninstall plugin:', e);
+      throw e;
+    }
+  },
+
+  /** 升级插件：卸载旧版本 → 安装新版本 → 刷新数据 */
+  updatePlugin: async (pluginId: string) => {
+    try {
+      // 后端 install 已支持升级逻辑（自动清理旧版本）
+      const manifest = await pluginService.installPlugin(pluginId);
+      set((s) => ({
+        installedPlugins: s.installedPlugins.map((p) =>
+          p.id === pluginId ? manifest : p
+        ),
+        availablePlugins: s.availablePlugins.map((p) =>
+          p.id === pluginId ? { ...p, version: manifest.version, installed: true, hasUpdate: false, latestVersion: undefined } : p
+        ),
+      }));
+      // Refresh protocol parsers after update
+      const parsers = await pluginService.getProtocolParsers();
+      set({ protocolParsers: parsers });
+    } catch (e) {
+      console.error('Failed to update plugin:', e);
       throw e;
     }
   },

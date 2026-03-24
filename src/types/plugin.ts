@@ -4,7 +4,8 @@ export type PluginType =
   | 'response-renderer'
   | 'data-generator'
   | 'export-format'
-  | 'sidebar-panel';
+  | 'sidebar-panel'
+  | 'crypto-tool';
 
 /** 插件可翻译字段 */
 export interface PluginI18nEntry {
@@ -29,6 +30,10 @@ export interface PluginManifest {
   contributes: PluginContributes;
   /** 多语言翻译 — 键为语言代码 (如 "en")，值为可翻译字段 */
   i18n?: Record<string, PluginI18nEntry>;
+  /** 是否有可用更新 */
+  hasUpdate?: boolean;
+  /** 远程仓库最新版本号 */
+  latestVersion?: string;
 }
 
 /** 插件扩展点贡献声明 (类似 VS Code contributes) */

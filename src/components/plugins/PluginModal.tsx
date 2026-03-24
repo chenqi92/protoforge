@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   X, Search, Package, RefreshCw, Puzzle, Download, Trash2, Check,
   Loader2, Tag, Sparkles, Shield, Code2, Terminal, Wand2,
-  FileOutput, LayoutDashboard, ChevronRight, type LucideIcon,
+  FileOutput, LayoutDashboard, ChevronRight, ArrowUpCircle, Lock,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PluginIcon } from "@/components/plugins/PluginIcon";
@@ -78,6 +79,13 @@ const categories: CategoryMeta[] = [
     icon: LayoutDashboard,
     accentClassName: "bg-rose-500/10 text-rose-600 ring-1 ring-inset ring-rose-500/15",
   },
+  {
+    id: "crypto-tool",
+    label: "plugin.cryptoTool",
+    desc: "plugin.cryptoToolDesc",
+    icon: Lock,
+    accentClassName: "bg-orange-500/10 text-orange-600 ring-1 ring-inset ring-orange-500/15",
+  },
 ];
 
 const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c]));
@@ -97,6 +105,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
   const initializeIfNeeded = usePluginStore((s) => s.initializeIfNeeded);
   const install = usePluginStore((s) => s.installPlugin);
   const uninstall = usePluginStore((s) => s.uninstallPlugin);
+  const update = usePluginStore((s) => s.updatePlugin);
   const refreshRegistry = usePluginStore((s) => s.refreshRegistry);
   const fetchInstalled = usePluginStore((s) => s.fetchInstalledPlugins);
 
@@ -360,6 +369,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                           onSelect={() => setSelectedPlugin(selectedPlugin?.id === plugin.id ? null : plugin)}
                           onInstall={install}
                           onUninstall={uninstall}
+                          onUpdate={update}
                         />
                       ))}
                     </div>
@@ -380,6 +390,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                         plugin={selectedPlugin}
                         onInstall={install}
                         onUninstall={uninstall}
+                        onUpdate={update}
                         onClose={() => setSelectedPlugin(null)}
                       />
                     </motion.div>
@@ -397,7 +408,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
 // ── 插件卡片 ──
 
 function PluginCard({
-  plugin, selected, compact, onSelect, onInstall, onUninstall,
+  plugin, selected, compact, onSelect, onInstall, onUninstall, onUpdate,
 }: {
   plugin: PluginManifest;
   selected: boolean;
@@ -405,6 +416,7 @@ function PluginCard({
   onSelect: () => void;
   onInstall: (id: string) => Promise<void>;
   onUninstall: (id: string) => Promise<void>;
+  onUpdate: (id: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
@@ -413,7 +425,8 @@ function PluginCard({
     e.stopPropagation();
     setLoading(true);
     try {
-      if (plugin.installed) await onUninstall(plugin.id);
+      if (plugin.hasUpdate) await onUpdate(plugin.id);
+      else if (plugin.installed) await onUninstall(plugin.id);
       else await onInstall(plugin.id);
     } catch (err) { console.error("Plugin action failed:", err); }
     finally { setLoading(false); }
@@ -439,9 +452,15 @@ function PluginCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[var(--fs-base)] font-semibold text-text-primary truncate">{pluginT(plugin, 'name')}</span>
-            {plugin.installed && (
+            {plugin.installed && !plugin.hasUpdate && (
               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 shadow-sm">
                 <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+              </span>
+            )}
+            {plugin.hasUpdate && (
+              <span className="flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 text-[var(--fs-3xs)] font-semibold text-amber-600">
+                <ArrowUpCircle className="w-3 h-3" />
+                {t('plugin.updateAvailable')}
               </span>
             )}
           </div>
@@ -456,7 +475,12 @@ function PluginCard({
               {plugin.source === "remote" && (
                 <span className="text-[var(--fs-3xs)] font-medium px-1.5 py-[2px] rounded-full bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 shrink-0">{t('plugin.remote')}</span>
               )}
-              <span className="text-[var(--fs-3xs)] text-text-disabled">v{plugin.version}</span>
+              <span className="text-[var(--fs-3xs)] text-text-disabled">
+                v{plugin.version}
+                {plugin.hasUpdate && plugin.latestVersion && (
+                  <> → v{plugin.latestVersion}</>
+                )}
+              </span>
             </div>
           )}
         </div>
@@ -467,13 +491,17 @@ function PluginCard({
           disabled={loading}
           className={cn(
             "mt-0.5 flex h-7 shrink-0 items-center gap-1 rounded-[10px] px-2.5 text-[var(--fs-xs)] font-semibold transition-all active:scale-[0.97]",
-            plugin.installed
-              ? "text-text-tertiary border border-border-default hover:text-red-500 hover:border-red-200 dark:hover:border-red-500/30"
-              : "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm hover:from-violet-600 hover:to-purple-600"
+            plugin.hasUpdate
+              ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm hover:from-amber-600 hover:to-orange-600"
+              : plugin.installed
+                ? "text-text-tertiary border border-border-default hover:text-red-500 hover:border-red-200 dark:hover:border-red-500/30"
+                : "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm hover:from-violet-600 hover:to-purple-600"
           )}
         >
           {loading ? (
             <Loader2 className="w-3 h-3 animate-spin" />
+          ) : plugin.hasUpdate ? (
+            <><ArrowUpCircle className="w-3 h-3" /> {t('plugin.update')}</>
           ) : plugin.installed ? (
             <><Trash2 className="w-3 h-3" /> {t('plugin.uninstall')}</>
           ) : (
@@ -488,11 +516,12 @@ function PluginCard({
 // ── 详情面板 ──
 
 function PluginDetail({
-  plugin, onInstall, onUninstall, onClose,
+  plugin, onInstall, onUninstall, onUpdate, onClose,
 }: {
   plugin: PluginManifest;
   onInstall: (id: string) => Promise<void>;
   onUninstall: (id: string) => Promise<void>;
+  onUpdate: (id: string) => Promise<void>;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -501,7 +530,8 @@ function PluginDetail({
   const handleAction = async () => {
     setLoading(true);
     try {
-      if (plugin.installed) await onUninstall(plugin.id);
+      if (plugin.hasUpdate) await onUpdate(plugin.id);
+      else if (plugin.installed) await onUninstall(plugin.id);
       else await onInstall(plugin.id);
     } catch (err) { console.error("Plugin action failed:", err); }
     finally { setLoading(false); }
@@ -521,11 +551,22 @@ function PluginDetail({
               <h3 className="text-[var(--fs-2xl)] font-bold text-text-primary">{pluginT(plugin, 'name')}</h3>
               <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
                 <span className="text-[var(--fs-xs)] text-text-tertiary">{plugin.author}</span>
-                <span className="text-[var(--fs-xs)] text-text-disabled">v{plugin.version}</span>
+                <span className="text-[var(--fs-xs)] text-text-disabled">
+                  v{plugin.version}
+                  {plugin.hasUpdate && plugin.latestVersion && (
+                    <span className="text-amber-600 font-semibold"> → v{plugin.latestVersion}</span>
+                  )}
+                </span>
                 <span className={cn("text-[var(--fs-xxs)] font-medium px-2 py-[2px] rounded-full border flex items-center gap-1", cat.accentClassName)}>
                   <CatIcon className="w-3 h-3" />
                   {t(cat.label)}
                 </span>
+                {plugin.hasUpdate && (
+                  <span className="text-[var(--fs-xxs)] font-semibold px-2 py-[2px] rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/20 flex items-center gap-1">
+                    <ArrowUpCircle className="w-3 h-3" />
+                    {t('plugin.updateAvailable')}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -541,13 +582,17 @@ function PluginDetail({
           disabled={loading}
           className={cn(
             "w-full h-9 mt-4 rounded-xl flex items-center justify-center gap-2 text-[var(--fs-base)] font-bold transition-all active:scale-[0.98]",
-            plugin.installed
-              ? "text-red-500 border-2 border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10"
-              : "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm hover:from-violet-600 hover:to-purple-600"
+            plugin.hasUpdate
+              ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm hover:from-amber-600 hover:to-orange-600"
+              : plugin.installed
+                ? "text-red-500 border-2 border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10"
+                : "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm hover:from-violet-600 hover:to-purple-600"
           )}
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
+          ) : plugin.hasUpdate ? (
+            <><ArrowUpCircle className="w-4 h-4" /> {t('plugin.updatePlugin')}</>
           ) : plugin.installed ? (
             <><Trash2 className="w-4 h-4" /> {t('plugin.uninstallPlugin')}</>
           ) : (
