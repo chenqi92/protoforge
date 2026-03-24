@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   X, Search, Package, RefreshCw, Puzzle, Download, Trash2, Check,
   Loader2, Tag, Sparkles, Shield, Code2, Terminal, Wand2,
-  FileOutput, LayoutDashboard, ChevronRight, ArrowUpCircle, Lock,
+  FileOutput, LayoutDashboard, ChevronRight, ArrowUpCircle, Lock, Palette,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -85,6 +85,13 @@ const categories: CategoryMeta[] = [
     desc: "plugin.cryptoToolDesc",
     icon: Lock,
     accentClassName: "bg-orange-500/10 text-orange-600 ring-1 ring-inset ring-orange-500/15",
+  },
+  {
+    id: "icon-pack",
+    label: "plugin.iconPack",
+    desc: "plugin.iconPackDesc",
+    icon: Palette,
+    accentClassName: "bg-teal-500/10 text-teal-600 ring-1 ring-inset ring-teal-500/15",
   },
 ];
 
@@ -652,7 +659,7 @@ function PluginDetail({
             <div>
               <span className="text-text-disabled">{t('plugin.source')}</span>
               <p className="text-text-secondary font-mono mt-0.5">
-                {plugin.source === "remote" ? `🌐 ${t('plugin.remoteRegistry')}` : `📦 ${t('plugin.local')}`}
+                {plugin.source === "remote" ? t('plugin.remoteRegistry') : t('plugin.local')}
               </p>
             </div>
           </div>

@@ -448,6 +448,9 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
     setSavingRequest(true);
     try {
       const now = new Date().toISOString();
+      // Preserve existing responseExample from the linked collection item
+      const linkedItems = useCollectionStore.getState().items[activeTab.linkedCollectionId!] || [];
+      const existingItem = linkedItems.find(i => i.id === activeTab.linkedCollectionItemId);
       const item = buildCollectionItemFromHttpConfig({
         config,
         itemId: activeTab.linkedCollectionItemId!,
@@ -456,6 +459,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
         sortOrder: activeTab.linkedCollectionSortOrder ?? 0,
         createdAt: activeTab.linkedCollectionCreatedAt ?? now,
         updatedAt: now,
+        responseExample: existingItem?.responseExample || '',
       });
       const saved = await saveRequestToCollection(item);
       syncSavedCollectionBinding(saved);

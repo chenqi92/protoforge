@@ -143,3 +143,34 @@ export async function udpClose(socketId: string): Promise<void> {
 export function onUdpEvent(callback: (event: TcpEvent) => void): Promise<UnlistenFn> {
   return listen<TcpEvent>('udp-event', (e) => callback(e.payload));
 }
+
+// ═══════════════════════════════════════════
+//  活跃连接查询（刷新后状态恢复）
+// ═══════════════════════════════════════════
+
+export interface ActiveTcpConnection {
+  connectionId: string;
+}
+
+export interface ActiveTcpServer {
+  serverId: string;
+  clientIds: string[];
+  clientAddrs: string[];
+}
+
+export interface ActiveUdpSocket {
+  socketId: string;
+}
+
+export async function tcpListConnections(): Promise<ActiveTcpConnection[]> {
+  return invoke('tcp_list_connections');
+}
+
+export async function tcpListServers(): Promise<ActiveTcpServer[]> {
+  return invoke('tcp_list_servers');
+}
+
+export async function udpListSockets(): Promise<ActiveUdpSocket[]> {
+  return invoke('udp_list_sockets');
+}
+

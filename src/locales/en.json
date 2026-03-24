@@ -579,9 +579,9 @@
     "installCaCert": "Install to System",
     "installCaCertHint": "Requires admin privileges",
     "exportCaCert": "Export Certificate",
-    "caNotTrustedTitle": "⚠️ Install CA Certificate for HTTPS Capture",
+    "caNotTrustedTitle": "Install CA Certificate for HTTPS Capture",
     "caNotTrustedDesc": "ProtoForge CA certificate is not installed in your system. HTTPS sites cannot be captured without it (browsers will reject the proxy certificate). Click to install automatically.",
-    "caTrustedTitle": "✅ CA Certificate Installed",
+    "caTrustedTitle": "CA Certificate Installed",
     "caTrustedDesc": "ProtoForge CA certificate is installed and trusted. HTTPS traffic can be captured normally.",
     "testingProxy": "Testing proxy connectivity…"
   },
@@ -769,8 +769,8 @@
     "pluginId": "Plugin ID",
     "entryFile": "Entry File",
     "source": "Source",
-    "sourceRemote": "🌐 Remote Registry",
-    "sourceLocal": "📦 Local",
+    "sourceRemote": "Remote Registry",
+    "sourceLocal": "Local",
     "remote": "Remote",
     "uiPanel": "UI Panel",
     "about": "About Plugin",
@@ -785,7 +785,9 @@
     "updatePlugin": "Update Plugin",
     "updateAvailable": "Update Available",
     "cryptoTool": "Crypto Tool",
-    "cryptoToolDesc": "Encryption, decryption and hashing tools"
+    "cryptoToolDesc": "Encryption, decryption and hashing tools",
+    "iconPack": "Icon Pack",
+    "iconPackDesc": "Custom icon libraries for other plugins"
   },
   "commandPalette": {
     "placeholder": "Search actions, requests, collections...",

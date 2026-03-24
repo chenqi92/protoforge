@@ -94,8 +94,9 @@ export function buildCollectionItemFromHttpConfig(params: {
   createdAt: string;
   updatedAt: string;
   name?: string;
+  responseExample?: string;
 }): CollectionItem {
-  const { config, itemId, collectionId, parentId, sortOrder, createdAt, updatedAt, name } = params;
+  const { config, itemId, collectionId, parentId, sortOrder, createdAt, updatedAt, name, responseExample } = params;
 
   return {
     id: itemId,
@@ -105,7 +106,7 @@ export function buildCollectionItemFromHttpConfig(params: {
     sortOrder,
     createdAt,
     updatedAt,
-    responseExample: '',
+    responseExample: responseExample ?? '',
     ...getCollectionRequestContent(config, name),
   };
 }

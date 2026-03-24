@@ -27,6 +27,11 @@ pub enum PluginType {
     SidebarPanel,
     /// 加密工具 — 编码/解码、哈希、对称加密等
     CryptoTool,
+    /// 图标包 — 提供自定义图标库（如 iconfont）
+    IconPack,
+    /// 未知类型 — 向前兼容，旧版本 app 遇到新插件类型时不会崩溃
+    #[serde(other)]
+    Unknown,
 }
 
 /// 插件可翻译字段
@@ -75,6 +80,9 @@ pub struct PluginManifest {
     /// 远程仓库中的最新版本号（有更新时填充）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_version: Option<String>,
+    /// 图标命名空间 — 仅 icon-pack 类型插件使用
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_namespace: Option<String>,
 }
 
 fn default_source() -> String {
@@ -212,6 +220,9 @@ pub struct PluginContributes {
     /// 加密解密算法贡献
     #[serde(default)]
     pub crypto_algorithms: Vec<CryptoAlgorithmContribution>,
+    /// 图标贡献 — icon-pack 类型插件提供
+    #[serde(default)]
+    pub icons: Vec<IconContribution>,
 }
 
 /// 字体贡献
@@ -244,6 +255,16 @@ pub struct FontFile {
 pub struct ParserContribution {
     pub protocol_id: String,
     pub name: String,
+}
+
+/// 图标贡献 — icon-pack 插件中每个图标的定义
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IconContribution {
+    /// 图标名称（在命名空间内唯一）
+    pub name: String,
+    /// 内联 SVG 字符串
+    pub svg: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -380,6 +401,9 @@ struct RemotePluginEntry {
     /// 多语言翻译
     #[serde(default)]
     i18n: HashMap<String, PluginI18nEntry>,
+    /// 图标命名空间 — 仅 icon-pack 类型
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon_namespace: Option<String>,
 }
 
 impl RemotePluginEntry {
@@ -402,6 +426,7 @@ impl RemotePluginEntry {
             i18n: self.i18n,
             has_update: false,
             latest_version: None,
+            icon_namespace: self.icon_namespace,
         }
     }
 }
@@ -651,25 +676,29 @@ impl PluginManager {
         let registry = self.registry.read().await;
         let remote_cache = self.remote_cache.read().await;
 
-        let mut all_plugins: HashMap<String, PluginManifest> = HashMap::new();
+        // 使用 Vec + 去重来保留 registry.json 的原始顺序
+        let mut all_plugins: Vec<PluginManifest> = Vec::new();
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-        // 1. 先添加远程仓库的插件（以远程版本信息为基准）
+        // 1. 先添加远程仓库的插件（按 registry.json 中的顺序）
         if let Some(remote_plugins) = remote_cache.as_ref() {
             for p in remote_plugins {
-                all_plugins.insert(p.id.clone(), p.clone());
+                if seen.insert(p.id.clone()) {
+                    all_plugins.push(p.clone());
+                }
             }
         }
 
-        // 2. 对于仅本地安装但远程不存在的插件，补充添加
+        // 2. 对于仅本地安装但远程不存在的插件，追加到末尾
         for (id, rp) in registry.iter() {
-            if rp.manifest.source != "native" {
-                all_plugins.entry(id.clone()).or_insert(rp.manifest.clone());
+            if rp.manifest.source != "native" && seen.insert(id.clone()) {
+                all_plugins.push(rp.manifest.clone());
             }
         }
 
         // 3. 标记安装状态 + 版本升级检测
-        all_plugins
-            .into_values()
+        let result: Vec<PluginManifest> = all_plugins
+            .into_iter()
             .map(|mut m| {
                 let is_installed = registry.get(&m.id)
                     .map(|rp| rp.manifest.source != "native")
@@ -691,7 +720,10 @@ impl PluginManager {
                 }
                 m
             })
-            .collect()
+            .collect();
+
+        // 4. 倒序排列：registry.json 中越靠后（=越新上架）的排在前面
+        result.into_iter().rev().collect()
     }
 
     /// 后台异步刷新远程注册表（非阻塞，超时短）
@@ -709,13 +741,18 @@ impl PluginManager {
             let url = self.registry_url.read().await.clone();
             match client.get(&url).send().await {
                 Ok(resp) if resp.status().is_success() => {
-                    if let Ok(registry) = resp.json::<RemoteRegistry>().await {
-                        let manifests: Vec<PluginManifest> = registry
-                            .plugins.into_iter().map(|e| e.into_manifest()).collect();
-                        let count = manifests.len();
-                        *self.remote_cache.write().await = Some(manifests);
-                        *self.last_refresh.lock().await = Some(Instant::now());
-                        log::info!("后台刷新远程注册表成功，共 {} 个插件", count);
+                    match resp.json::<RemoteRegistry>().await {
+                        Ok(registry) => {
+                            let manifests: Vec<PluginManifest> = registry
+                                .plugins.into_iter().map(|e| e.into_manifest()).collect();
+                            let count = manifests.len();
+                            *self.remote_cache.write().await = Some(manifests);
+                            *self.last_refresh.lock().await = Some(Instant::now());
+                            log::info!("后台刷新远程注册表成功，共 {} 个插件", count);
+                        }
+                        Err(e) => {
+                            log::warn!("后台刷新远程注册表 JSON 解析失败: {}", e);
+                        }
                     }
                 }
                 _ => {
@@ -732,13 +769,18 @@ impl PluginManager {
             let url = self.registry_url.read().await.clone();
             match client.get(&url).send().await {
                 Ok(resp) if resp.status().is_success() => {
-                    if let Ok(registry) = resp.json::<RemoteRegistry>().await {
-                        let manifests: Vec<PluginManifest> = registry
-                            .plugins.into_iter().map(|e| e.into_manifest()).collect();
-                        let count = manifests.len();
-                        *self.remote_cache.write().await = Some(manifests);
-                        *self.last_refresh.lock().await = Some(Instant::now());
-                        log::info!("首次快速加载远程注册表成功，共 {} 个插件", count);
+                    match resp.json::<RemoteRegistry>().await {
+                        Ok(registry) => {
+                            let manifests: Vec<PluginManifest> = registry
+                                .plugins.into_iter().map(|e| e.into_manifest()).collect();
+                            let count = manifests.len();
+                            *self.remote_cache.write().await = Some(manifests);
+                            *self.last_refresh.lock().await = Some(Instant::now());
+                            log::info!("首次快速加载远程注册表成功，共 {} 个插件", count);
+                        }
+                        Err(e) => {
+                            log::warn!("首次加载远程注册表 JSON 解析失败: {}", e);
+                        }
                     }
                 }
                 _ => {
@@ -788,6 +830,31 @@ impl PluginManager {
             }
             self.registry.write().await.remove(plugin_id);
             log::info!("已清理旧版本插件: {}", plugin_id);
+        }
+
+        // icon-pack 命名空间冲突检查
+        {
+            let cache = self.remote_cache.read().await;
+            if let Some(ps) = cache.as_ref() {
+                if let Some(target) = ps.iter().find(|p| p.id == plugin_id) {
+                    if target.plugin_type == PluginType::IconPack {
+                        if let Some(ref ns) = target.icon_namespace {
+                            let reg = self.registry.read().await;
+                            for (existing_id, rp) in reg.iter() {
+                                if existing_id != plugin_id
+                                    && rp.manifest.plugin_type == PluginType::IconPack
+                                    && rp.manifest.icon_namespace.as_deref() == Some(ns.as_str())
+                                {
+                                    return Err(format!(
+                                        "图标命名空间 '{}' 已被插件 '{}' 占用",
+                                        ns, existing_id
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Try remote

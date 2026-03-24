@@ -3,9 +3,9 @@
  *
  * 完全替代 Monaco 原生右键菜单 + 处理非 Monaco 区域。
  * - Cut / Copy / Paste（仅 Monaco 内）
- * - 🪄 Mock 数据生成 → hover → 子菜单
- * - 🔐 加密 / 编码   → hover → 子菜单
- * - 🔓 解密 / 解码   → hover → 子菜单
+ * - Mock 数据生成   → hover → 子菜单
+ * - 加密 / 编码     → hover → 子菜单
+ * - 解密 / 解码     → hover → 子菜单
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -297,7 +297,7 @@ export function CryptoContextMenu() {
     try {
       const result = await runCrypto(pluginId, algorithm.algorithmId, mode, input, paramsJson);
       if (!result.success) {
-        setResultDialog({ output: `❌ ${result.error || '未知错误'}`, algorithmName: algorithm.name });
+        setResultDialog({ output: `[Error] ${result.error || '未知错误'}`, algorithmName: algorithm.name });
         return;
       }
       if (mode === 'encrypt') {
@@ -313,7 +313,7 @@ export function CryptoContextMenu() {
         setResultDialog({ output: result.output, algorithmName: algorithm.name });
       }
     } catch (err: any) {
-      setResultDialog({ output: `❌ ${err?.message || err}`, algorithmName: algorithm.name });
+      setResultDialog({ output: `[Error] ${err?.message || err}`, algorithmName: algorithm.name });
     } finally {
       setLoading(false);
     }
@@ -331,7 +331,7 @@ export function CryptoContextMenu() {
         paramsJson,
       );
       if (!result.success) {
-        setResultDialog({ output: `❌ ${result.error || '未知错误'}`, algorithmName: pendingAction.algorithm.name });
+        setResultDialog({ output: `[Error] ${result.error || '未知错误'}`, algorithmName: pendingAction.algorithm.name });
       } else if (pendingAction.mode === 'encrypt') {
         const ed = pendingAction.monacoEditor;
         const sel = pendingAction.monacoSelection;
@@ -345,7 +345,7 @@ export function CryptoContextMenu() {
         setResultDialog({ output: result.output, algorithmName: pendingAction.algorithm.name });
       }
     } catch (err: any) {
-      setResultDialog({ output: `❌ ${err?.message || err}`, algorithmName: pendingAction.algorithm.name });
+      setResultDialog({ output: `[Error] ${err?.message || err}`, algorithmName: pendingAction.algorithm.name });
     } finally {
       setLoading(false);
       setPendingAction(null);
@@ -379,7 +379,7 @@ export function CryptoContextMenu() {
           {/* 🪄 Mock 数据生成 — hover 子菜单 */}
           {generators.length > 0 && (
             <HoverSubmenu
-              label="🪄 Mock 数据"
+              label="Mock 数据"
               hoverKey="mock"
               hoveredSub={hoveredSub}
               onHover={setHoveredSub}
@@ -396,10 +396,10 @@ export function CryptoContextMenu() {
             </HoverSubmenu>
           )}
 
-          {/* 🔐 加密 / 编码 — hover 子菜单 */}
+          {/* 加密 / 编码 — hover 子菜单 */}
           {hasEncrypt && selectedText && (
             <HoverSubmenu
-              label="🔐 加密 / 编码"
+              label="加密 / 编码"
               hoverKey="encrypt"
               hoveredSub={hoveredSub}
               onHover={setHoveredSub}
@@ -413,10 +413,10 @@ export function CryptoContextMenu() {
             </HoverSubmenu>
           )}
 
-          {/* 🔓 解密 / 解码 — hover 子菜单 */}
+          {/* 解密 / 解码 — hover 子菜单 */}
           {hasDecrypt && selectedText && (
             <HoverSubmenu
-              label="🔓 解密 / 解码"
+              label="解密 / 解码"
               hoverKey="decrypt"
               hoveredSub={hoveredSub}
               onHover={setHoveredSub}
@@ -561,7 +561,7 @@ function CryptoSubItems({
               >
                 <span>{item.algorithm.name}</span>
                 {item.algorithm.params && item.algorithm.params.length > 0 && (
-                  <span className="text-text-disabled" style={{ fontSize: 'var(--fs-xxs)' }}>⚙</span>
+                  <span className="text-text-disabled" style={{ fontSize: 'var(--fs-xxs)' }}>params</span>
                 )}
               </button>
             ))}

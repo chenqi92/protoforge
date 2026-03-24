@@ -865,6 +865,33 @@ pub async fn udp_close(
 }
 
 // ═══════════════════════════════════════════
+//  TCP/UDP 活跃连接查询
+// ═══════════════════════════════════════════
+
+use crate::tcp_client::{ActiveTcpConnection, ActiveTcpServer, ActiveUdpSocket};
+
+#[tauri::command]
+pub async fn tcp_list_connections(
+    connections: State<'_, TcpConnections>,
+) -> Result<Vec<ActiveTcpConnection>, String> {
+    Ok(crate::tcp_client::list_active_connections(&connections).await)
+}
+
+#[tauri::command]
+pub async fn tcp_list_servers(
+    servers: State<'_, TcpServers>,
+) -> Result<Vec<ActiveTcpServer>, String> {
+    Ok(crate::tcp_client::list_active_servers(&servers).await)
+}
+
+#[tauri::command]
+pub async fn udp_list_sockets(
+    sockets: State<'_, UdpSockets>,
+) -> Result<Vec<ActiveUdpSocket>, String> {
+    Ok(crate::tcp_client::list_active_sockets(&sockets).await)
+}
+
+// ═══════════════════════════════════════════
 //  Load Test
 // ═══════════════════════════════════════════
 

@@ -5,7 +5,8 @@ export type PluginType =
   | 'data-generator'
   | 'export-format'
   | 'sidebar-panel'
-  | 'crypto-tool';
+  | 'crypto-tool'
+  | 'icon-pack';
 
 /** 插件可翻译字段 */
 export interface PluginI18nEntry {
@@ -34,6 +35,8 @@ export interface PluginManifest {
   hasUpdate?: boolean;
   /** 远程仓库最新版本号 */
   latestVersion?: string;
+  /** 图标命名空间 — 仅 icon-pack 类型插件需要 */
+  iconNamespace?: string;
 }
 
 /** 插件扩展点贡献声明 (类似 VS Code contributes) */
@@ -46,11 +49,21 @@ export interface PluginContributes {
   exportFormats?: ExportFormatContribution[];
   fonts?: FontContribution[];
   cryptoAlgorithms?: CryptoAlgorithm[];
+  /** 图标贡献 — icon-pack 类型插件提供 */
+  icons?: IconContribution[];
 }
 
 export interface ParserContribution {
   protocolId: string;
   name: string;
+}
+
+/** 图标贡献 — icon-pack 类型插件中每个图标的定义 */
+export interface IconContribution {
+  /** 图标名称（在命名空间内唯一），如 "wechat-pay" */
+  name: string;
+  /** 内联 SVG 字符串，如 "<svg>...</svg>" */
+  svg: string;
 }
 
 export interface RequestHookContribution {

@@ -23,7 +23,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
     setTimeout(() => setCopied(false), 2000);
   }, [output]);
 
-  const isError = output.startsWith('❌');
+  const isError = output.startsWith('[Error]');
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -58,7 +58,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
             )}
             style={{ fontSize: 'var(--fs-sm)' }}
           >
-            {isError ? output.replace('❌ ', '') : output}
+            {isError ? output.replace('[Error] ', '') : output}
           </pre>
         </div>
 

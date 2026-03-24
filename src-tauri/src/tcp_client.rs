@@ -288,6 +288,7 @@ pub(crate) struct ServerClientHandle {
 pub(crate) struct TcpServerHandle {
     abort_handle: tokio::task::AbortHandle,
     clients: Arc<Mutex<HashMap<String, ServerClientHandle>>>,
+    pub(crate) bind_addr: String,
 }
 
 pub struct TcpServers {
@@ -311,10 +312,24 @@ pub async fn tcp_server_start(
 ) -> Result<(), String> {
     // 先停止已有同 id 服务器
     tcp_server_stop(servers, &server_id).await.ok();
-    // 等待系统释放端口（abort 是异步的，旧 listener 可能延迟释放）
-    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
 
     let addr = format!("{}:{}", host, port);
+
+    // 清理所有占用相同地址的旧服务器（处理刷新后 ID 不一致的情况）
+    {
+        let svrs = servers.servers.lock().await;
+        let stale_ids: Vec<String> = svrs.iter()
+            .filter(|(_, h)| h.bind_addr == addr)
+            .map(|(id, _)| id.clone())
+            .collect();
+        drop(svrs);
+        for stale_id in stale_ids {
+            log::info!("清理占用 {} 的旧服务器: {}", addr, stale_id);
+            tcp_server_stop(servers, &stale_id).await.ok();
+        }
+    }
+    // 等待系统释放端口（abort 是异步的，旧 listener 可能延迟释放）
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     let listener = TcpListener::bind(&addr)
         .await
         .map_err(|e| format!("TCP 服务器启动失败: {}", e))?;
@@ -324,7 +339,7 @@ pub async fn tcp_server_start(
         TcpEvent {
             connection_id: server_id.clone(),
             event_type: "started".into(),
-            data: Some(addr),
+            data: Some(addr.clone()),
             raw_hex: None,
             remote_addr: None,
             client_id: None,
@@ -484,6 +499,7 @@ pub async fn tcp_server_start(
     let handle = TcpServerHandle {
         abort_handle: task.abort_handle(),
         clients,
+        bind_addr: addr.clone(),
     };
     servers.servers.lock().await.insert(server_id, handle);
 
@@ -574,6 +590,7 @@ pub async fn tcp_server_stop(servers: &TcpServers, server_id: &str) -> Result<()
 pub(crate) struct UdpHandle {
     sender: mpsc::Sender<(Vec<u8>, String)>, // (data, target_addr)
     abort_handle: tokio::task::AbortHandle,
+    pub(crate) bind_addr: String,
 }
 
 pub struct UdpSockets {
@@ -596,6 +613,21 @@ pub async fn udp_bind(
 ) -> Result<(), String> {
     udp_close(sockets, &socket_id).await.ok();
 
+    // 清理占用相同地址的旧 socket（处理刷新后 ID 不一致的情况）
+    {
+        let conns = sockets.sockets.lock().await;
+        let stale_ids: Vec<String> = conns.iter()
+            .filter(|(_, h)| h.bind_addr == local_addr)
+            .map(|(id, _)| id.clone())
+            .collect();
+        drop(conns);
+        for stale_id in stale_ids {
+            log::info!("清理占用 {} 的旧 UDP socket: {}", local_addr, stale_id);
+            udp_close(sockets, &stale_id).await.ok();
+        }
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
     let socket = UdpSocket::bind(&local_addr)
         .await
         .map_err(|e| format!("UDP 绑定失败: {}", e))?;
@@ -607,7 +639,7 @@ pub async fn udp_bind(
         TcpEvent {
             connection_id: socket_id.clone(),
             event_type: "bound".into(),
-            data: Some(local_addr),
+            data: Some(local_addr.clone()),
             raw_hex: None,
             remote_addr: None,
             client_id: None,
@@ -680,6 +712,7 @@ pub async fn udp_bind(
     let handle = UdpHandle {
         sender: tx,
         abort_handle: task.abort_handle(),
+        bind_addr: local_addr.clone(),
     };
     sockets.sockets.lock().await.insert(socket_id, handle);
 
@@ -711,4 +744,60 @@ pub async fn udp_close(sockets: &UdpSockets, socket_id: &str) -> Result<(), Stri
         handle.abort_handle.abort();
     }
     Ok(())
+}
+
+// ═══════════════════════════════════════════
+//  活跃连接查询 API（前端刷新后状态恢复）
+// ═══════════════════════════════════════════
+
+/// 活跃 TCP 客户端连接信息
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActiveTcpConnection {
+    pub connection_id: String,
+}
+
+/// 活跃 TCP 服务端信息
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActiveTcpServer {
+    pub server_id: String,
+    pub client_ids: Vec<String>,
+    pub client_addrs: Vec<String>,
+}
+
+/// 活跃 UDP Socket 信息
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActiveUdpSocket {
+    pub socket_id: String,
+}
+
+/// 查询后端所有活跃的 TCP 客户端连接
+pub async fn list_active_connections(connections: &TcpConnections) -> Vec<ActiveTcpConnection> {
+    let conns = connections.connections.lock().await;
+    conns.keys().map(|id| ActiveTcpConnection { connection_id: id.clone() }).collect()
+}
+
+/// 查询后端所有活跃的 TCP 服务端
+pub async fn list_active_servers(servers: &TcpServers) -> Vec<ActiveTcpServer> {
+    let svrs = servers.servers.lock().await;
+    let mut result = Vec::new();
+    for (id, handle) in svrs.iter() {
+        let clients = handle.clients.lock().await;
+        let client_ids: Vec<String> = clients.keys().cloned().collect();
+        let client_addrs: Vec<String> = clients.values().map(|c| c.remote_addr.clone()).collect();
+        result.push(ActiveTcpServer {
+            server_id: id.clone(),
+            client_ids,
+            client_addrs,
+        });
+    }
+    result
+}
+
+/// 查询后端所有活跃的 UDP Socket
+pub async fn list_active_sockets(sockets: &UdpSockets) -> Vec<ActiveUdpSocket> {
+    let conns = sockets.sockets.lock().await;
+    conns.keys().map(|id| ActiveUdpSocket { socket_id: id.clone() }).collect()
 }

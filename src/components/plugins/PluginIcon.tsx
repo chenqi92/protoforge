@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import * as pluginService from "@/services/pluginService";
+import { useIconRegistry } from "@/stores/iconRegistry";
 import dynamicIconImports from "lucide-react/dynamicIconImports";
 import type { LucideProps } from "lucide-react";
 
@@ -10,7 +11,7 @@ const iconCache = new Map<string, string | null>();
 // Lucide 图标组件缓存
 const lucideComponentCache = new Map<string, React.LazyExoticComponent<React.ComponentType<LucideProps>>>();
 
-/** 判断 icon 值是否为合法的 lucide 图标名称（非 emoji） */
+/** 判断 icon 值是否为合法的 lucide 图标名称 */
 function isLucideIconName(icon: string): icon is keyof typeof dynamicIconImports {
   return /^[a-z][a-z0-9-]*$/.test(icon) && icon in dynamicIconImports;
 }
@@ -26,6 +27,7 @@ function getLucideIcon(name: keyof typeof dynamicIconImports) {
 
 interface PluginIconProps {
   pluginId: string;
+  /** 图标引用: "ns:name" | "lucide-name" | 任意文本 */
   fallbackEmoji: string;
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -49,11 +51,18 @@ const lucideIconSizeClasses = {
   lg: "w-7 h-7",
 };
 
+const registrySvgSizeClasses = {
+  sm: 16,
+  md: 24,
+  lg: 28,
+};
+
 export function PluginIcon({ pluginId, fallbackEmoji, className, size = "md" }: PluginIconProps) {
   const [iconUrl, setIconUrl] = useState<string | null>(
     iconCache.has(pluginId) ? iconCache.get(pluginId)! : null
   );
   const [loaded, setLoaded] = useState(iconCache.has(pluginId));
+  const resolveIcon = useIconRegistry((s) => s.resolveIcon);
 
   useEffect(() => {
     if (iconCache.has(pluginId)) {
@@ -77,14 +86,29 @@ export function PluginIcon({ pluginId, fallbackEmoji, className, size = "md" }: 
     return () => { cancelled = true; };
   }, [pluginId]);
 
-  // 渲染内容：三级 fallback
+  // 渲染内容：四级 fallback
   const renderContent = () => {
     // 1. 优先使用插件目录中的 SVG/PNG 文件
     if (loaded && iconUrl) {
       return <img src={iconUrl} alt="" className={cn("object-contain", imgSizeClasses[size])} />;
     }
 
-    // 2. 如果 icon 字段是 lucide 图标名称，渲染 lucide 图标
+    // 2. 图标注册表查询（"ns:name" 格式）
+    if (loaded && fallbackEmoji.includes(':')) {
+      const svg = resolveIcon(fallbackEmoji);
+      if (svg) {
+        const px = registrySvgSizeClasses[size];
+        return (
+          <span
+            className="inline-flex items-center justify-center text-text-secondary"
+            style={{ width: px, height: px }}
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
+        );
+      }
+    }
+
+    // 3. lucide 动态加载
     if (loaded && isLucideIconName(fallbackEmoji)) {
       const LucideIcon = getLucideIcon(fallbackEmoji);
       return (
@@ -94,8 +118,18 @@ export function PluginIcon({ pluginId, fallbackEmoji, className, size = "md" }: 
       );
     }
 
-    // 3. 兜底：渲染 emoji
-    return <span>{fallbackEmoji}</span>;
+    // 4. 首字母灰色头像兜底
+    if (loaded) {
+      const letter = fallbackEmoji.replace(/^[^:]*:/, '').charAt(0).toUpperCase() || '?';
+      return (
+        <span className="text-text-disabled font-semibold" style={{ fontSize: size === 'sm' ? 12 : size === 'md' ? 16 : 20 }}>
+          {letter}
+        </span>
+      );
+    }
+
+    // 尚未加载完成
+    return <span className={cn("block rounded bg-border-default/20 animate-pulse", lucideIconSizeClasses[size])} />;
   };
 
   return (

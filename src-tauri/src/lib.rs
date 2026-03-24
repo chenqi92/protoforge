@@ -248,6 +248,10 @@ pub fn run() {
             commands::udp_bind,
             commands::udp_send_to,
             commands::udp_close,
+            // TCP/UDP 活跃连接查询
+            commands::tcp_list_connections,
+            commands::tcp_list_servers,
+            commands::udp_list_sockets,
             // Load Test
             commands::start_load_test,
             commands::stop_load_test,

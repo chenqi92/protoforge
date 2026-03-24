@@ -580,9 +580,9 @@
     "installCaCert": "一键安装到系统",
     "installCaCertHint": "需要管理员权限",
     "exportCaCert": "手动导出证书",
-    "caNotTrustedTitle": "⚠️ HTTPS 抓包需要先安装 CA 证书",
+    "caNotTrustedTitle": "HTTPS 抓包需要先安装 CA 证书",
     "caNotTrustedDesc": "检测到系统中未安装 ProtoForge CA 证书。如果不安装，HTTPS 网站将无法正常抓取（浏览器会拒绝代理证书）。点击一键安装即可自动完成配置。",
-    "caTrustedTitle": "✅ CA 证书已安装",
+    "caTrustedTitle": "CA 证书已安装",
     "caTrustedDesc": "ProtoForge CA 证书已安装到系统信任库，HTTPS 流量可以正常抓取。",
     "testingProxy": "正在测试代理连通性…"
   },
@@ -770,8 +770,8 @@
     "pluginId": "插件 ID",
     "entryFile": "入口文件",
     "source": "来源",
-    "sourceRemote": "🌐 远程仓库",
-    "sourceLocal": "📦 本地",
+    "sourceRemote": "远程仓库",
+    "sourceLocal": "本地",
     "remote": "远程",
     "uiPanel": "界面扩展",
     "about": "插件介绍",
@@ -786,7 +786,9 @@
     "updatePlugin": "升级插件",
     "updateAvailable": "有新版本",
     "cryptoTool": "加密工具",
-    "cryptoToolDesc": "加密解密、编码哈希工具"
+    "cryptoToolDesc": "加密解密、编码哈希工具",
+    "iconPack": "图标包",
+    "iconPackDesc": "自定义图标库，其他插件可引用"
   },
   "parser": {
     "tabLabel": "协议解析",

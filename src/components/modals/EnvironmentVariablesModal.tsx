@@ -291,12 +291,12 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                 {/* Hint for env-level */}
                 {!isGlobal && (
                   <div className="px-4 py-1.5 text-[var(--fs-3xs)] text-text-disabled bg-amber-500/3 border-b border-border-subtle/30">
-                    💡 环境变量会覆盖同名的全局变量（优先级更高）
+                    环境变量会覆盖同名的全局变量（优先级更高）
                   </div>
                 )}
                 {isGlobal && (
                   <div className="px-4 py-1.5 text-[var(--fs-3xs)] text-text-disabled bg-blue-500/3 border-b border-border-subtle/30">
-                    🌐 全局变量在所有环境中生效，环境变量可覆盖同名全局变量
+                    全局变量在所有环境中生效，环境变量可覆盖同名全局变量
                   </div>
                 )}
 

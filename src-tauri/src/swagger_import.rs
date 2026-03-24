@@ -676,7 +676,7 @@ fn extract_response_example(responses_val: Option<&serde_json::Value>, doc: &ser
             // 从 schema 生成
             if let Some(schema) = json_content.get("schema") {
                 let example = generate_example_json(schema, doc);
-                if example != "null" && example != "{}" {
+                if example != "null" {
                     return example;
                 }
             }
@@ -686,7 +686,7 @@ fn extract_response_example(responses_val: Option<&serde_json::Value>, doc: &ser
     // Swagger 2.0: responses.200.schema
     if let Some(schema) = resp.get("schema") {
         let example = generate_example_json(schema, doc);
-        if example != "null" && example != "{}" {
+        if example != "null" {
             return example;
         }
     }

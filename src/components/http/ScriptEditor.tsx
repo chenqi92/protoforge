@@ -35,7 +35,7 @@ const BASE_SNIPPETS: Record<string, { label: string; code: string }[]> = {
 // 加密解密插件代码片段
 const CRYPTO_SNIPPETS: { label: string; code: string }[] = [
   {
-    label: '🔐 Base64 编码',
+    label: 'Base64 编码',
     code: `// Base64 编码
 var result = encrypt("base64", "要编码的字符串", {});
 if (result.success) {
@@ -44,7 +44,7 @@ if (result.success) {
 `,
   },
   {
-    label: '🔓 Base64 解码',
+    label: 'Base64 解码',
     code: `// Base64 解码
 var result = decrypt("base64", "aGVsbG8gd29ybGQ=", {});
 if (result.success) {
@@ -53,7 +53,7 @@ if (result.success) {
 `,
   },
   {
-    label: '🔐 MD5 哈希',
+    label: 'MD5 哈希',
     code: `// MD5 哈希
 var result = encrypt("md5", "要哈希的字符串", {});
 if (result.success) {
@@ -62,7 +62,7 @@ if (result.success) {
 `,
   },
   {
-    label: '🔐 SHA-256 哈希',
+    label: 'SHA-256 哈希',
     code: `// SHA-256 哈希
 var result = encrypt("sha256", "要哈希的字符串", {});
 if (result.success) {
@@ -71,7 +71,7 @@ if (result.success) {
 `,
   },
   {
-    label: '🔐 AES-CBC 加密',
+    label: 'AES-CBC 加密',
     code: `// AES-CBC 加密（密钥需 16/24/32 字节，IV 需 16 字节）
 var result = encrypt("aes-cbc", "要加密的明文", {
   key: "1234567890123456",
@@ -85,7 +85,7 @@ if (result.success) {
 `,
   },
   {
-    label: '🔓 AES-CBC 解密',
+    label: 'AES-CBC 解密',
     code: `// AES-CBC 解密
 var result = decrypt("aes-cbc", pm.environment.get("encrypted"), {
   key: "1234567890123456",
@@ -99,7 +99,7 @@ if (result.success) {
 `,
   },
   {
-    label: '🔐 URL 编码',
+    label: 'URL 编码',
     code: `// URL 编码
 var result = encrypt("url-encode", "需要编码的内容&key=value", {});
 if (result.success) {
@@ -108,7 +108,7 @@ if (result.success) {
 `,
   },
   {
-    label: '🔐 请求签名（MD5）',
+    label: '请求签名（MD5）',
     code: `// 使用 MD5 对请求参数签名
 var timestamp = Date.now().toString();
 var secret = "your-api-secret";

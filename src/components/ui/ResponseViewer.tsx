@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive } from 'lucide-react';
+import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive, Filter, ScanSearch, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { CodeEditor } from '@/components/common/CodeEditor';
@@ -15,6 +15,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { RendererContribution } from '@/types/plugin';
 import { PluginRendererView } from '@/components/ui/PluginRendererView';
 import { ProtocolParserPanel } from '@/components/plugins/ProtocolParserPanel';
+import { ResolvedIcon } from '@/components/common/ResolvedIcon';
 
 export type ViewMode = 'json' | 'raw' | 'preview' | 'hex' | 'base64';
 
@@ -131,7 +132,11 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   const [wordWrap, setWordWrap] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [isRegexMode, setIsRegexMode] = useState(false);
+  const [regexError, setRegexError] = useState<string | null>(null);
   const [stickyScroll, setStickyScroll] = useState(true);
+  const [jsonFilterKeys, setJsonFilterKeys] = useState<Set<string>>(new Set());
+  const [showKeyFilter, setShowKeyFilter] = useState(false);
 
   // 插件渲染器匹配
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
@@ -247,14 +252,73 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   }, [body, isBinary]);
 
   const searchCount = useMemo(() => {
-    if (!searchText) return 0;
+    if (!searchText) { setRegexError(null); return 0; }
     const target =
       activeTab === 'json' ? prettyBody :
       activeTab === 'raw' ? body :
       body;
-    const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    return (target.match(regex) || []).length;
-  }, [searchText, prettyBody, body, activeTab]);
+    try {
+      const regex = isRegexMode
+        ? new RegExp(searchText, 'gi')
+        : new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      setRegexError(null);
+      return (target.match(regex) || []).length;
+    } catch (e) {
+      setRegexError(String(e).replace(/^SyntaxError: /, ''));
+      return 0;
+    }
+  }, [searchText, prettyBody, body, activeTab, isRegexMode]);
+
+  // 提取 JSON 中可用的 keys
+  const availableJsonKeys = useMemo<string[]>(() => {
+    if (!jsonData) return [];
+    const keys = new Set<string>();
+    if (Array.isArray(jsonData)) {
+      // 数组：提取每个对象元素的 keys
+      for (const item of jsonData) {
+        if (item && typeof item === 'object' && !Array.isArray(item)) {
+          for (const key of Object.keys(item)) keys.add(key);
+        }
+      }
+    } else if (typeof jsonData === 'object' && jsonData !== null) {
+      // 对象：提取顶层 keys
+      for (const key of Object.keys(jsonData)) keys.add(key);
+    }
+    return Array.from(keys).sort();
+  }, [jsonData]);
+
+  // 根据 key 过滤后的 JSON 展示内容
+  const filteredPrettyBody = useMemo(() => {
+    if (jsonFilterKeys.size === 0 || !jsonData) return prettyBody;
+    const filterObj = (obj: any): any => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) {
+        return obj.map(item => filterObj(item));
+      }
+      const filtered: Record<string, any> = {};
+      for (const key of jsonFilterKeys) {
+        if (key in obj) filtered[key] = obj[key];
+      }
+      return filtered;
+    };
+    try {
+      return JSON.stringify(filterObj(jsonData), null, 2);
+    } catch {
+      return prettyBody;
+    }
+  }, [jsonData, jsonFilterKeys, prettyBody]);
+
+  // 当 JSON 数据变化时，清除不再存在的 key 过滤
+  useEffect(() => {
+    if (jsonFilterKeys.size > 0 && availableJsonKeys.length > 0) {
+      const validKeys = new Set(availableJsonKeys);
+      const newFilterKeys = new Set([...jsonFilterKeys].filter(k => validKeys.has(k)));
+      if (newFilterKeys.size !== jsonFilterKeys.size) {
+        setJsonFilterKeys(newFilterKeys);
+      }
+    }
+  }, [availableJsonKeys]);
+
 
   const modeLabels: Record<ViewMode, string> = {
     json: 'JSON',
@@ -301,7 +365,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                   activeTab === `plugin:${idx}` && 'is-active'
                 )}
               >
-                <span>{pt.renderer.icon}</span>
+                <ResolvedIcon icon={pt.renderer.icon} size={14} />
                 <span>{pt.renderer.name}</span>
               </button>
             ))}
@@ -314,7 +378,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                   activeTab === 'protocol-parser' && 'is-active'
                 )}
               >
-                <span>🔍</span>
+                <ScanSearch className="w-3.5 h-3.5" />
                 <span>{t('parser.tabLabel', '协议解析')}</span>
               </button>
             )}
@@ -371,21 +435,95 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
         </div>
       )}
 
-      {/* Search Bar */}
+      {/* Search Bar + Key Filter — only when search is open */}
       {showSearch && (
-        <div className="flex items-center gap-2 border-b border-border-default bg-bg-secondary/24 px-3 py-1.5 shrink-0">
-          <Search className="w-3 h-3 text-text-disabled shrink-0" />
-          <input
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder={t('response.searchPlaceholder')}
-            className="flex-1 h-6 bg-transparent outline-none text-text-primary placeholder:text-text-tertiary" style={{ fontSize: 'var(--fs-sm)' }}
-            autoFocus
-          />
-          {searchText && (
-            <span className="text-text-disabled tabular-nums shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
-              {t('response.matchCount', { count: searchCount })}
-            </span>
+        <div className="border-b border-border-default bg-bg-secondary/24 shrink-0">
+          {/* Search row */}
+          <div className="flex items-center gap-2 px-3 py-1.5">
+            <Search className="w-3 h-3 text-text-disabled shrink-0" />
+            <input
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder={isRegexMode ? t('response.regexPlaceholder', { defaultValue: '正则表达式...' }) : t('response.searchPlaceholder')}
+              className={cn('flex-1 h-6 bg-transparent outline-none text-text-primary placeholder:text-text-tertiary', regexError && 'text-red-500')} style={{ fontSize: 'var(--fs-sm)' }}
+              autoFocus
+            />
+            {/* Regex toggle */}
+            <button
+              onClick={() => setIsRegexMode(!isRegexMode)}
+              className={cn(
+                'h-5 px-1.5 rounded text-[10px] font-bold font-mono transition-all shrink-0 leading-none',
+                isRegexMode ? 'text-accent bg-accent/12 ring-1 ring-inset ring-accent/25' : 'text-text-disabled hover:text-text-tertiary hover:bg-bg-hover'
+              )}
+              title={t('response.regexMode', { defaultValue: '正则模式' })}
+            >
+              .*
+            </button>
+            {/* Key filter toggle — JSON mode only */}
+            {activeBuiltinMode === 'json' && availableJsonKeys.length > 0 && (
+              <button
+                onClick={() => {
+                  if (showKeyFilter) {
+                    // Collapsing: also clear all selected keys
+                    setShowKeyFilter(false);
+                    setJsonFilterKeys(new Set());
+                  } else {
+                    setShowKeyFilter(true);
+                  }
+                }}
+                className={cn(
+                  'h-5 flex items-center gap-1 px-1.5 rounded text-[10px] font-medium transition-all shrink-0',
+                  showKeyFilter || jsonFilterKeys.size > 0
+                    ? 'text-accent bg-accent/12 ring-1 ring-inset ring-accent/25'
+                    : 'text-text-disabled hover:text-text-tertiary hover:bg-bg-hover'
+                )}
+                title={t('response.filterByKey', { defaultValue: 'Key 过滤' })}
+              >
+                <Filter className="w-2.5 h-2.5" />
+                {jsonFilterKeys.size > 0 ? jsonFilterKeys.size : ''}
+              </button>
+            )}
+            {searchText && !regexError && (
+              <span className="text-text-disabled tabular-nums shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
+                {t('response.matchCount', { count: searchCount })}
+              </span>
+            )}
+            {regexError && (
+              <span className="text-red-400 truncate max-w-[160px] shrink-0" style={{ fontSize: 'var(--fs-xxs)' }} title={regexError}>
+                {t('response.regexInvalid', { defaultValue: '无效正则' })}
+              </span>
+            )}
+          </div>
+
+          {/* Key chips row — inline below search */}
+          {showKeyFilter && activeBuiltinMode === 'json' && availableJsonKeys.length > 0 && (
+            <div className="flex items-center gap-1 px-3 pb-1.5 overflow-x-auto scrollbar-hide">
+              {availableJsonKeys.map(key => {
+                const isActive = jsonFilterKeys.has(key);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setJsonFilterKeys(prev => {
+                        const next = new Set(prev);
+                        if (next.has(key)) next.delete(key);
+                        else next.add(key);
+                        return next;
+                      });
+                    }}
+                    className={cn(
+                      'inline-flex items-center gap-1 h-[22px] px-2 rounded-[6px] text-[11px] font-mono whitespace-nowrap transition-all shrink-0 border',
+                      isActive
+                        ? 'bg-accent/10 text-accent border-accent/25 shadow-[0_0_0_1px_rgba(59,130,246,0.06)]'
+                        : 'bg-bg-primary/80 text-text-tertiary border-border-default/60 hover:bg-bg-hover hover:text-text-secondary hover:border-border-default'
+                    )}
+                  >
+                    {isActive && <Check className="w-2.5 h-2.5" />}
+                    {key}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
@@ -400,9 +538,18 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                   {t('response.invalidJsonPrettyFallback')}
                 </div>
               ) : null}
+              {jsonFilterKeys.size > 0 && (
+                <div className="flex items-center gap-1.5 rounded-[8px] bg-accent/6 border border-accent/15 px-2.5 py-1 shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
+                  <Filter className="w-2.5 h-2.5 text-accent/60" />
+                  <span className="text-accent/80">
+                    {t('response.filterActive', { count: jsonFilterKeys.size, defaultValue: `已过滤 ${jsonFilterKeys.size} 个 Key` })}
+                  </span>
+                  <span className="text-accent/50 font-mono truncate">{[...jsonFilterKeys].join(', ')}</span>
+                </div>
+              )}
               <div className="flex-1 min-h-0">
                 <ReadonlyCodeBlock
-                  value={prettyBody}
+                  value={jsonFilterKeys.size > 0 ? filteredPrettyBody : prettyBody}
                   language={jsonData !== null ? 'json' : isXml ? 'xml' : 'plaintext'}
                   stickyScroll={stickyScroll}
                 />
@@ -428,7 +575,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                   style={{ fontSize: 'var(--fs-sm)' }}
                 >
                   {searchText ? (
-                    <HighlightedText text={rawDisplayBody} search={searchText} />
+                    <HighlightedText text={rawDisplayBody} search={searchText} isRegex={isRegexMode} />
                   ) : (
                     rawDisplayBody
                   )}
@@ -717,7 +864,7 @@ function BinaryFileCard({ contentType, fileSize, body, responseHeaders }: {
         <div className="flex-1 min-h-0 flex items-center justify-center">
           <div className="flex flex-col items-center gap-5">
             <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-violet-500/10">
-              <span className="text-3xl">🎵</span>
+              <Music className="w-8 h-8 text-violet-500" />
             </div>
             <span className="font-semibold text-text-primary" style={{ fontSize: 'var(--fs-base)' }}>
               {fileName || fileTypeLabel}
@@ -818,23 +965,29 @@ function detectMimeFromBase64(b64: string, fallback: string): string {
 }
 
 /* ── Highlighted text with search matches ── */
-function HighlightedText({ text, search }: { text: string; search: string }) {
+function HighlightedText({ text, search, isRegex = false }: { text: string; search: string; isRegex?: boolean }) {
   if (!search) return <>{text}</>;
 
-  const regex = new RegExp(`(${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  const parts = text.split(regex);
+  try {
+    const regex = isRegex
+      ? new RegExp(`(${search})`, 'gi')
+      : new RegExp(`(${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
 
-  return (
-    <>
-      {parts.map((part, i) =>
-        regex.test(part) ? (
-          <mark key={i} className="bg-amber-300/50 text-inherit rounded-sm px-px">{part}</mark>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
-  );
+    return (
+      <>
+        {parts.map((part, i) =>
+          regex.test(part) ? (
+            <mark key={i} className="bg-amber-300/50 text-inherit rounded-sm px-px">{part}</mark>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </>
+    );
+  } catch {
+    return <>{text}</>;
+  }
 }
 
 /* ── Inline mini-viewer for WebSocket/TCP messages ── */

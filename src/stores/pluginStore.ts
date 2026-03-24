@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { PluginManifest, PluginType, ProtocolParser } from '@/types/plugin';
 import * as pluginService from '@/services/pluginService';
+import { useIconRegistry } from '@/stores/iconRegistry';
 
 interface PluginStore {
   installedPlugins: PluginManifest[];
@@ -52,6 +53,13 @@ export const usePluginStore = create<PluginStore>((set, get) => ({
         loading: false,
         initialized: true,
       });
+      // 初始化所有已安装的图标包
+      const iconReg = useIconRegistry.getState();
+      for (const p of installed) {
+        if (p.pluginType === 'icon-pack' && p.iconNamespace && p.contributes?.icons?.length) {
+          iconReg.registerPack(p.iconNamespace, p.contributes.icons);
+        }
+      }
     } catch (e) {
       console.error('Failed to initialize plugin store:', e);
       set({ loading: false, initialized: true });
@@ -126,6 +134,10 @@ export const usePluginStore = create<PluginStore>((set, get) => ({
       // Refresh protocol parsers after install
       const parsers = await pluginService.getProtocolParsers();
       set({ protocolParsers: parsers });
+      // 注册图标包
+      if (manifest.pluginType === 'icon-pack' && manifest.iconNamespace && manifest.contributes?.icons?.length) {
+        useIconRegistry.getState().registerPack(manifest.iconNamespace, manifest.contributes.icons);
+      }
     } catch (e) {
       console.error('Failed to install plugin:', e);
       throw e;
@@ -144,6 +156,11 @@ export const usePluginStore = create<PluginStore>((set, get) => ({
       // Refresh protocol parsers after uninstall
       const parsers = await pluginService.getProtocolParsers();
       set({ protocolParsers: parsers });
+      // 取消注册图标包
+      const uninstalled = get().availablePlugins.find((p) => p.id === pluginId);
+      if (uninstalled?.pluginType === 'icon-pack' && uninstalled.iconNamespace) {
+        useIconRegistry.getState().unregisterPack(uninstalled.iconNamespace);
+      }
     } catch (e) {
       console.error('Failed to uninstall plugin:', e);
       throw e;

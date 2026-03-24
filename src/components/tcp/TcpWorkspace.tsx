@@ -28,14 +28,9 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
   const sessionKey = useRef(sessionId ?? crypto.randomUUID()).current;
   const activeMode = MODES.find((item) => item.value === mode) || MODES[0];
 
-  useEffect(() => {
-    return () => {
-      void svc.tcpDisconnect(`tcp-client:${sessionKey}`).catch(() => {});
-      void svc.tcpServerStop(`tcp-server:${sessionKey}`).catch(() => {});
-      void svc.udpClose(`udp-client:${sessionKey}`).catch(() => {});
-      void svc.udpClose(`udp-server:${sessionKey}`).catch(() => {});
-    };
-  }, [sessionKey]);
+  // 注意：不再在组件卸载时自动清理后端连接。
+  // 各 Panel 在挂载时会查询后端活跃状态并恢复 UI，
+  // 连接的关闭由用户主动操作（点击“停止监听”/“断开连接”）触发。
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-transparent p-3">
@@ -199,6 +194,16 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
   const [port, setPort] = useState(8080);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // 挂载时查询后端是否已有匹配的活跃 TCP 客户端连接
+  useEffect(() => {
+    svc.tcpListConnections().then((list) => {
+      if (list.some((c) => c.connectionId === connectionId)) {
+        setConnected(true);
+        state.systemMessage(`[RESTORE] ${t('tcp.system.connectedTo')} (recovered)`);
+      }
+    }).catch(() => {});
+  }, [connectionId]);
+
   // Event listener
   useEffect(() => {
     let disposed = false;
@@ -210,7 +215,7 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
           case "connected":
             setConnected(true);
             setConnecting(false);
-            state.systemMessage(`✓ ${t('tcp.system.connectedTo')} ${event.data}`);
+            state.systemMessage(`[OK] ${t('tcp.system.connectedTo')} ${event.data}`);
             break;
           case "data":
             state.addMessage({
@@ -222,12 +227,12 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
           case "disconnected":
             setConnected(false);
             setConnecting(false);
-            state.systemMessage(`✗ ${t('tcp.system.disconnected')}`);
+            state.systemMessage(`[CLOSED] ${t('tcp.system.disconnected')}`);
             break;
           case "error":
             setConnected(false);
             setConnecting(false);
-            state.systemMessage(`⚠ ${t('tcp.system.error')}: ${event.data}`);
+            state.systemMessage(`[WARN] ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
       });
@@ -262,7 +267,7 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
         await svc.tcpConnect(connectionId, host, port);
       } catch (err: unknown) {
         setConnecting(false);
-        state.systemMessage(`⚠ ${t('tcp.system.connectFailed')}: ${err instanceof Error ? err.message : String(err)}`);
+        state.systemMessage(`[WARN] ${t('tcp.system.connectFailed')}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
@@ -284,7 +289,7 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
       state.addToHistory(state.message, state.sendFormat);
       if (!state.timerEnabled) state.setMessage("");
     } catch (err: unknown) {
-      state.systemMessage(`⚠ ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
+      state.systemMessage(`[WARN] ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -359,6 +364,23 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const selectedClient = selectedClientId ? clients.find((client) => client.id === selectedClientId) ?? null : null;
 
+  // 挂载时查询后端是否已有匹配的活跃 TCP 服务端
+  useEffect(() => {
+    svc.tcpListServers().then((list) => {
+      const server = list.find((s) => s.serverId === serverId);
+      if (server) {
+        setRunning(true);
+        const restoredClients: TcpServerClient[] = server.clientIds.map((cid, i) => ({
+          id: cid,
+          remoteAddr: server.clientAddrs[i] || 'unknown',
+          connectedAt: new Date().toISOString(),
+        }));
+        setClients(restoredClients);
+        state.systemMessage(`[RESTORE] ${t('tcp.system.serverStarted')} (recovered, ${server.clientIds.length} clients)`);
+      }
+    }).catch(() => {});
+  }, [serverId]);
+
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | null = null;
@@ -369,12 +391,12 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
           case "started":
             setRunning(true);
             setStarting(false);
-            state.systemMessage(`✓ ${t('tcp.system.serverStarted')} ${event.data}`);
+            state.systemMessage(`[OK] ${t('tcp.system.serverStarted')} ${event.data}`);
             break;
           case "client-connected":
             if (event.clientId && event.remoteAddr) {
               setClients((prev) => [...prev, { id: event.clientId!, remoteAddr: event.remoteAddr!, connectedAt: event.timestamp }]);
-              state.systemMessage(`🔗 ${t('tcp.system.clientConnected')}: ${event.remoteAddr}`);
+              state.systemMessage(`[+] ${t('tcp.system.clientConnected')}: ${event.remoteAddr}`);
             }
             break;
           case "client-data":
@@ -388,11 +410,11 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
           case "client-disconnected":
             if (event.clientId) {
               setClients((prev) => prev.filter((c) => c.id !== event.clientId));
-              state.systemMessage(`🔌 ${t('tcp.system.clientDisconnected')}: ${event.clientId.slice(0, 8)}`);
+              state.systemMessage(`[-] ${t('tcp.system.clientDisconnected')}: ${event.clientId.slice(0, 8)}`);
             }
             break;
           case "error":
-            state.systemMessage(`⚠ ${t('tcp.system.error')}: ${event.data}`);
+            state.systemMessage(`[WARN] ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
       });
@@ -421,14 +443,14 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
       await svc.tcpServerStop(serverId);
       setRunning(false);
       setClients([]);
-      state.systemMessage(`✗ ${t('tcp.system.serverStopped')}`);
+      state.systemMessage(`[CLOSED] ${t('tcp.system.serverStopped')}`);
     } else {
       setStarting(true);
       try {
         await svc.tcpServerStart(serverId, host, port);
       } catch (err: unknown) {
         setStarting(false);
-        state.systemMessage(`⚠ ${t('tcp.system.startFailed')}: ${err instanceof Error ? err.message : String(err)}`);
+        state.systemMessage(`[WARN] ${t('tcp.system.startFailed')}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
@@ -457,7 +479,7 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
       state.addToHistory(state.message, state.sendFormat);
       if (!state.timerEnabled) state.setMessage("");
     } catch (err: unknown) {
-      state.systemMessage(`⚠ ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
+      state.systemMessage(`[WARN] ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -535,6 +557,16 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
   const [targetAddr, setTargetAddr] = useState("127.0.0.1:9000");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // 挂载时查询后端是否已有匹配的活跃 UDP socket
+  useEffect(() => {
+    svc.udpListSockets().then((list) => {
+      if (list.some((s) => s.socketId === socketId)) {
+        setBound(true);
+        state.systemMessage(`[RESTORE] ${t('tcp.system.bound')} (recovered)`);
+      }
+    }).catch(() => {});
+  }, [socketId]);
+
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | null = null;
@@ -545,7 +577,7 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
           case "bound":
             setBound(true);
             setBinding(false);
-            state.systemMessage(`✓ ${t('tcp.system.bound')} ${event.data}`);
+            state.systemMessage(`[OK] ${t('tcp.system.bound')} ${event.data}`);
             break;
           case "data":
             state.addMessage({
@@ -558,7 +590,7 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
           case "error":
             setBound(false);
             setBinding(false);
-            state.systemMessage(`⚠ ${t('tcp.system.error')}: ${event.data}`);
+            state.systemMessage(`[WARN] ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
       });
@@ -586,14 +618,14 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
     if (bound) {
       await svc.udpClose(socketId);
       setBound(false);
-      state.systemMessage(`✗ ${t('tcp.system.udpClosed')}`);
+      state.systemMessage(`[CLOSED] ${t('tcp.system.udpClosed')}`);
     } else {
       setBinding(true);
       try {
         await svc.udpBind(socketId, `${host}:${port}`);
       } catch (err: unknown) {
         setBinding(false);
-        state.systemMessage(`⚠ ${t('tcp.system.bindFailed')}: ${err instanceof Error ? err.message : String(err)}`);
+        state.systemMessage(`[WARN] ${t('tcp.system.bindFailed')}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
@@ -612,7 +644,7 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
       state.addToHistory(state.message, state.sendFormat);
       if (!state.timerEnabled) state.setMessage("");
     } catch (err: unknown) {
-      state.systemMessage(`⚠ ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
+      state.systemMessage(`[WARN] ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -694,6 +726,16 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
   const [replyAddr, setReplyAddr] = useState("");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // 挂载时查询后端是否已有匹配的活跃 UDP socket
+  useEffect(() => {
+    svc.udpListSockets().then((list) => {
+      if (list.some((s) => s.socketId === socketId)) {
+        setBound(true);
+        state.systemMessage(`[RESTORE] ${t('tcp.system.udpServerBound')} (recovered)`);
+      }
+    }).catch(() => {});
+  }, [socketId]);
+
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | null = null;
@@ -704,7 +746,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
           case "bound":
             setBound(true);
             setBinding(false);
-            state.systemMessage(`✓ ${t('tcp.system.udpServerBound')} ${event.data}`);
+            state.systemMessage(`[OK] ${t('tcp.system.udpServerBound')} ${event.data}`);
             break;
           case "data":
             state.addMessage({
@@ -721,7 +763,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
           case "error":
             setBound(false);
             setBinding(false);
-            state.systemMessage(`⚠ ${t('tcp.system.error')}: ${event.data}`);
+            state.systemMessage(`[WARN] ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
       });
@@ -749,14 +791,14 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
     if (bound) {
       await svc.udpClose(socketId);
       setBound(false);
-      state.systemMessage(`✗ ${t('tcp.system.udpServerClosed')}`);
+      state.systemMessage(`[CLOSED] ${t('tcp.system.udpServerClosed')}`);
     } else {
       setBinding(true);
       try {
         await svc.udpBind(socketId, `${host}:${port}`);
       } catch (err: unknown) {
         setBinding(false);
-        state.systemMessage(`⚠ ${t('tcp.system.bindFailed')}: ${err instanceof Error ? err.message : String(err)}`);
+        state.systemMessage(`[WARN] ${t('tcp.system.bindFailed')}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   };
@@ -775,7 +817,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
       state.addToHistory(state.message, state.sendFormat);
       if (!state.timerEnabled) state.setMessage("");
     } catch (err: unknown) {
-      state.systemMessage(`⚠ ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
+      state.systemMessage(`[WARN] ${t('tcp.system.sendFailed')}: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
