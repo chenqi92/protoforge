@@ -35,7 +35,7 @@ fn prevent_default() -> tauri::plugin::TauriPlugin<tauri::Wry> {
         .build()
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(all(not(debug_assertions), target_os = "windows"))]
 fn prevent_default() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     use tauri_plugin_prevent_default::PlatformOptions;
     tauri_plugin_prevent_default::Builder::new()
@@ -44,6 +44,13 @@ fn prevent_default() -> tauri::plugin::TauriPlugin<tauri::Wry> {
                 .default_context_menus(false)
                 .browser_accelerator_keys(false)
         )
+        .build()
+}
+
+#[cfg(all(not(debug_assertions), not(target_os = "windows")))]
+fn prevent_default() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    tauri_plugin_prevent_default::Builder::new()
+        .with_flags(tauri_plugin_prevent_default::Flags::all())
         .build()
 }
 
