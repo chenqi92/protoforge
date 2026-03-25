@@ -204,7 +204,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 overflow-auto px-2 py-1.5">
+          <div className="flex-1 overflow-auto px-2 py-1.5" data-contextmenu-zone="sidebar">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeView}

@@ -1,5 +1,5 @@
 // ProtoForge Update Store — 集中管理应用更新状态
-// 供 StatusBar、SettingsModal、UpdateChecker 共享
+// 供 StatusBar、SettingsModal 共享
 // 策略：优先使用 Tauri updater，失败时 fallback 到 GitHub API 比对版本号
 
 import { create } from 'zustand';
@@ -23,7 +23,6 @@ interface UpdateStore {
   updateInfo: UpdateInfo | null;
   progress: number;
   error: string | null;
-  dismissed: boolean;
   lastCheckTime: number | null;
 
   // Actions
@@ -31,8 +30,6 @@ interface UpdateStore {
   checkForUpdate: () => Promise<void>;
   installUpdate: () => Promise<void>;
   restartApp: () => Promise<void>;
-  dismiss: () => void;
-  resetDismiss: () => void;
 }
 
 const GITHUB_REPO = 'chenqi92/protoforge';
@@ -56,7 +53,6 @@ export const useUpdateStore = create<UpdateStore>()((set, get) => ({
   updateInfo: null,
   progress: 0,
   error: null,
-  dismissed: false,
   lastCheckTime: null,
 
   initVersion: async () => {
@@ -73,7 +69,7 @@ export const useUpdateStore = create<UpdateStore>()((set, get) => ({
     const { status, currentVersion } = get();
     if (status === 'checking' || status === 'downloading') return;
 
-    set({ status: 'checking', error: null, dismissed: false });
+    set({ status: 'checking', error: null });
 
     // ── 策略 1: Tauri 原生 updater ──
     try {
@@ -205,6 +201,4 @@ export const useUpdateStore = create<UpdateStore>()((set, get) => ({
     }
   },
 
-  dismiss: () => set({ dismissed: true }),
-  resetDismiss: () => set({ dismissed: false }),
 }));

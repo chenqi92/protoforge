@@ -77,6 +77,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
   const sseListRef = useRef<HTMLDivElement>(null);
   const syncingFromRef = useRef<'url' | 'params' | null>(null);
   const initializedTabsRef = useRef<Set<string>>(new Set());
+  const requestIdRef = useRef(0);
 
   // 初次加载 tab 时：双向同步 URL ↔ queryParams（学习 Postman 行为）
   // 1) URL 含 ?query 但 params 为空 → 解析 URL 填充 params
@@ -321,6 +322,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
       return;
     }
     if (!config.url.trim()) return;
+    const currentRequestId = ++requestIdRef.current;
     setLoading(tabId, true);
     setError(tabId, null);
     setScriptResults({ pre: null, post: null });
@@ -330,12 +332,16 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
       if (hasScripts) {
         const { sendRequestWithScripts } = await import("@/services/httpService");
         const result = await sendRequestWithScripts(config);
+        // 请求已被取消，丢弃响应
+        if (requestIdRef.current !== currentRequestId) return;
         finalResponse = result.response;
         setHttpResponse(tabId, result.response);
         setScriptResults({ pre: result.preScriptResult, post: result.postScriptResult });
       } else {
         const { sendHttpRequest } = await import("@/services/httpService");
         const res = await sendHttpRequest(config);
+        // 请求已被取消，丢弃响应
+        if (requestIdRef.current !== currentRequestId) return;
         finalResponse = res;
         setHttpResponse(tabId, res);
       }
@@ -348,23 +354,28 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
         setTimeout(() => void handleSseConnect(), 0);
       }
     } catch (err: any) {
+      // 请求已被取消，忽略错误
+      if (requestIdRef.current !== currentRequestId) return;
       setError(tabId, err.message || String(err));
     } finally {
-      setLoading(tabId, false);
-      // 记录到历史
-      useHistoryStore.getState().addEntry({
-        id: crypto.randomUUID(),
-        method: config.method,
-        url: config.url,
-        status: finalResponse?.status ?? null,
-        durationMs: finalResponse?.durationMs ?? null,
-        bodySize: finalResponse?.bodySize ?? null,
-        requestConfig: JSON.stringify(config),
-        responseSummary: null,
-        createdAt: new Date().toISOString(),
-      });
-      // 记录到插件统计面板
+      // 仅当此请求仍是活跃请求时才更新 UI 状态
+      if (requestIdRef.current === currentRequestId) {
+        setLoading(tabId, false);
+      }
+      // 记录到历史（即使被取消也记录，因为请求已实际发出）
       if (finalResponse) {
+        useHistoryStore.getState().addEntry({
+          id: crypto.randomUUID(),
+          method: config.method,
+          url: config.url,
+          status: finalResponse.status,
+          durationMs: finalResponse.durationMs ?? null,
+          bodySize: finalResponse.bodySize ?? null,
+          requestConfig: JSON.stringify(config),
+          responseSummary: null,
+          createdAt: new Date().toISOString(),
+        });
+        // 记录到插件统计面板
         recordRequestStat({
           method: config.method,
           url: config.url,
@@ -376,6 +387,12 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
       }
     }
   }, [tabId, config, setLoading, setHttpResponse, setError, handleSseConnect, handleSseDisconnect, isSseConnected, isSseMode, updateHttpConfig]);
+
+  const handleCancel = useCallback(() => {
+    requestIdRef.current++;
+    setLoading(tabId, false);
+    setError(tabId, null);
+  }, [tabId, setLoading, setError]);
 
   const handleCopy = useCallback(() => {
     if (response?.body) {
@@ -653,32 +670,39 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               <ExportPluginDropdown config={config} />
 
             </div>
-            <button
-              onClick={handleSend}
-              disabled={(isSseMode ? sseStatus === "connecting" : loading) || !config.url.trim()}
-              data-send-button
-              className={cn(
-                "wb-primary-btn min-w-[88px] bg-accent",
-                isSseMode
-                  ? sseStatus === "connected"
-                    ? "bg-red-500 hover:bg-red-600"
-                    : sseStatus === "connecting"
-                      ? "animate-pulse opacity-90 shadow-[0_0_12px_rgba(59,130,246,0.45)] cursor-wait"
-                      : "hover:bg-accent-hover"
-                  : loading
-                    ? "animate-pulse opacity-90 shadow-[0_0_12px_rgba(59,130,246,0.45)] cursor-wait"
+            {!isSseMode && loading ? (
+              <button
+                onClick={handleCancel}
+                data-cancel-button
+                className="wb-primary-btn min-w-[88px] bg-red-500 hover:bg-red-600 active:scale-[0.97] transition-all"
+              >
+                <X className="w-3.5 h-3.5" />
+                {t('http.cancel', '取消')}
+              </button>
+            ) : (
+              <button
+                onClick={handleSend}
+                disabled={(isSseMode ? sseStatus === "connecting" : false) || !config.url.trim()}
+                data-send-button
+                className={cn(
+                  "wb-primary-btn min-w-[88px] bg-accent",
+                  isSseMode
+                    ? sseStatus === "connected"
+                      ? "bg-red-500 hover:bg-red-600"
+                      : sseStatus === "connecting"
+                        ? "animate-pulse opacity-90 shadow-[0_0_12px_rgba(59,130,246,0.45)] cursor-wait"
+                        : "hover:bg-accent-hover"
                     : "hover:bg-accent-hover"
-              )}
-            >
-              {isSseMode ? (
-                sseStatus === "connected" ? <Square className="w-3 h-3 fill-white" /> : sseStatus === "connecting" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-white" />
-              ) : loading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Play className="w-3 h-3 fill-white" />
-              )}
-              {isSseMode ? (sseStatus === "connected" ? t('sse.disconnect') : sseStatus === "connecting" ? t('sse.connecting') : t('sse.connect')) : loading ? t('http.sending') : t('http.send')}
-            </button>
+                )}
+              >
+                {isSseMode ? (
+                  sseStatus === "connected" ? <Square className="w-3 h-3 fill-white" /> : sseStatus === "connecting" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-white" />
+                ) : (
+                  <Play className="w-3 h-3 fill-white" />
+                )}
+                {isSseMode ? (sseStatus === "connected" ? t('sse.disconnect') : sseStatus === "connecting" ? t('sse.connecting') : t('sse.connect')) : t('http.send')}
+              </button>
+            )}
           </>
         )}
       />

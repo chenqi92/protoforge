@@ -141,7 +141,7 @@ function createCaptureSessionStore(sessionId: string) {
   }));
 }
 
-function getCaptureStore(sessionId: string): CaptureStoreApi {
+export function getCaptureStore(sessionId: string): CaptureStoreApi {
   let store = captureStores.get(sessionId);
 
   if (!store) {

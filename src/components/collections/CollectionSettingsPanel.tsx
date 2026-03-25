@@ -122,7 +122,7 @@ function OverviewTab({ collection }: { collection: Collection }) {
   }, [name, description, collection.id, collections]);
 
   return (
-    <div className="max-w-lg space-y-5">
+    <div className="max-w-2xl space-y-5">
       <div>
         <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">{t('collectionSettings.name')}</label>
         <input
@@ -349,7 +349,7 @@ function AuthTab({ collection }: { collection: Collection }) {
   ] as const;
 
   return (
-    <div className="max-w-lg space-y-5">
+    <div className="max-w-2xl space-y-5">
       <div>
         <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">{t('collectionSettings.authType')}</label>
         <div className="flex gap-1.5">

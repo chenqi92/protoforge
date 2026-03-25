@@ -552,6 +552,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                   value={jsonFilterKeys.size > 0 ? filteredPrettyBody : prettyBody}
                   language={jsonData !== null ? 'json' : isXml ? 'xml' : 'plaintext'}
                   stickyScroll={stickyScroll}
+                  minHeightClassName=""
                 />
               </div>
             </div>

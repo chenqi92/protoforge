@@ -531,7 +531,12 @@ fn extract_parameters_v3(params_val: Option<&serde_json::Value>, doc: &serde_jso
             let name = param.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let location = param.get("in").and_then(|v| v.as_str()).unwrap_or("query").to_string();
             let required = param.get("required").and_then(|v| v.as_bool()).unwrap_or(location == "path");
-            let desc = param.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let desc = param.get("description")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .or_else(|| param.get("schema")
+                    .and_then(|s| s.get("description").and_then(|v| v.as_str())))
+                .unwrap_or("").to_string();
 
             let schema = param.get("schema").unwrap_or(&serde_json::Value::Null);
             let param_type = schema.get("type").and_then(|v| v.as_str()).unwrap_or("string").to_string();
@@ -560,7 +565,13 @@ fn extract_parameters_v2(params_val: Option<&serde_json::Value>, doc: &serde_jso
             let name = param.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let location = param.get("in").and_then(|v| v.as_str()).unwrap_or("query").to_string();
             let required = param.get("required").and_then(|v| v.as_bool()).unwrap_or(location == "path");
-            let desc = param.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let desc = param.get("description")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .or_else(|| param.get("schema")
+                    .map(|s| resolve_ref(s, doc))
+                    .and_then(|s| s.get("description").and_then(|v| v.as_str())))
+                .unwrap_or("").to_string();
             let param_type = param.get("type").and_then(|v| v.as_str()).unwrap_or("string").to_string();
 
             let default_value = if location == "body" {
@@ -751,13 +762,58 @@ fn generate_example_value(schema: &serde_json::Value, doc: &serde_json::Value, d
         return example.clone();
     }
 
-    let type_str = schema.get("type").and_then(|v| v.as_str()).unwrap_or("object");
+    // ── 处理组合关键字 allOf / oneOf / anyOf ──
+    // allOf: 合并所有子 schema 的属性（Spring Boot 通用包装类常用）
+    if let Some(all_of) = schema.get("allOf").and_then(|v| v.as_array()) {
+        let mut merged = serde_json::Map::new();
+        for sub in all_of {
+            let sub_val = generate_example_value(sub, doc, depth + 1);
+            if let serde_json::Value::Object(obj) = sub_val {
+                merged.extend(obj);
+            }
+        }
+        // 同时处理 allOf 同级的 properties（有些生成器把 allOf 和 properties 混用）
+        if let Some(props) = schema.get("properties").and_then(|v| v.as_object()) {
+            for (key, prop_schema) in props {
+                merged.insert(key.clone(), generate_example_value(prop_schema, doc, depth + 1));
+            }
+        }
+        if !merged.is_empty() {
+            return serde_json::Value::Object(merged);
+        }
+    }
+
+    // oneOf / anyOf: 取第一个子 schema 生成示例
+    for combo_key in &["oneOf", "anyOf"] {
+        if let Some(variants) = schema.get(*combo_key).and_then(|v| v.as_array()) {
+            if let Some(first) = variants.first() {
+                return generate_example_value(first, doc, depth + 1);
+            }
+        }
+    }
+
+    // ── 智能推断 type ──
+    let type_str = schema.get("type").and_then(|v| v.as_str()).unwrap_or_else(|| {
+        if schema.get("properties").is_some() { "object" }
+        else if schema.get("items").is_some() { "array" }
+        else if schema.get("enum").is_some() { "string" }
+        else { "object" }
+    });
+
     match type_str {
         "object" => {
             let mut obj = serde_json::Map::new();
             if let Some(props) = schema.get("properties").and_then(|v| v.as_object()) {
                 for (key, prop_schema) in props {
                     obj.insert(key.clone(), generate_example_value(prop_schema, doc, depth + 1));
+                }
+            }
+            // 处理 additionalProperties（Map 类型）
+            if obj.is_empty() {
+                if let Some(add_props) = schema.get("additionalProperties") {
+                    if add_props.is_object() && !add_props.get("$ref").is_some() {
+                        obj.insert("key".to_string(), generate_example_value(add_props, doc, depth + 1));
+                    }
                 }
             }
             serde_json::Value::Object(obj)

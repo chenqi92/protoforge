@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
-import { useCaptureStore, destroyCaptureStore } from "@/stores/captureStore";
+import { useCaptureStore, getCaptureStore, destroyCaptureStore } from "@/stores/captureStore";
 import type { CapturedEntry } from "@/types/capture";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { invoke } from "@tauri-apps/api/core";
@@ -63,10 +63,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
   const setFilter = useCaptureStore(sessionId, (s) => s.setFilter);
   const setSelectedEntry = useCaptureStore(sessionId, (s) => s.setSelectedEntry);
   const setDetailTab = useCaptureStore(sessionId, (s) => s.setDetailTab);
-  const refreshStatus = useCaptureStore(sessionId, (s) => s.refreshStatus);
-  const loadEntries = useCaptureStore(sessionId, (s) => s.loadEntries);
   const exportCaCert = useCaptureStore(sessionId, (s) => s.exportCaCert);
-  const initListener = useCaptureStore(sessionId, (s) => s.initListener);
   const storeError = useCaptureStore(sessionId, (s) => s.error);
 
   const [portInput, setPortInput] = useState(String(port));
@@ -94,14 +91,16 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
 
   // 初始化事件监听
   useEffect(() => {
-    refreshStatus();
-    loadEntries();
-    const unlistenPromise = initListener();
+    const store = getCaptureStore(sessionId);
+    const { refreshStatus: refresh, loadEntries: load, initListener: init } = store.getState();
+    refresh();
+    load();
+    const unlistenPromise = init();
     return () => {
       unlistenPromise.then((fn) => fn());
       destroyCaptureStore(sessionId);
     };
-  }, [initListener, loadEntries, refreshStatus, sessionId]);
+  }, [sessionId]);
 
   useEffect(() => {
     setPortInput(String(port));
@@ -123,10 +122,10 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     if (!running) return;
     const interval = setInterval(() => {
-      loadEntries();
+      getCaptureStore(sessionId).getState().loadEntries();
     }, 2000);
     return () => clearInterval(interval);
-  }, [running, loadEntries]);
+  }, [running, sessionId]);
 
   const handleToggleCapture = useCallback(async () => {
     if (running) {

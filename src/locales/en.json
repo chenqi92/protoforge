@@ -466,7 +466,9 @@
       "directTargetHint": "The payload will be sent to the current connection or target address.",
       "replyHint": "The payload will be sent back to the current source address.",
       "broadcast": "Broadcast",
-      "reply": "Reply"
+      "reply": "Reply",
+      "rightClickEdit": "Right-click to edit",
+      "sendOptions": "Send Options"
     },
     "messageLog": {
       "title": "Message Log",
@@ -1012,6 +1014,7 @@
     "available": "Update Available",
     "downloading": "Downloading update…",
     "ready": "Update Ready",
+    "readyToRestart": "Ready to restart",
     "upToDate": "Up to date",
     "upToDateDesc": "You are on the latest version. No update needed.",
     "failed": "Update check failed",
@@ -1020,8 +1023,14 @@
     "progress": "Download progress",
     "restart": "Restart Now",
     "retry": "Retry",
-    "dismiss": "Got it",
     "clickToCheck": "Click to check for updates",
-    "clickToUpdate": "New version v{{version}} available, click to update"
+    "clickToUpdate": "New version v{{version}} available, click to update",
+    "confirmTitle": "Update Available",
+    "confirmDesc": "A new version v{{version}} is available. Update now?",
+    "currentVersion": "Current",
+    "latestVersion": "Latest",
+    "newAvailable": "New version",
+    "goDownload": "Go to Download",
+    "downloadAndInstall": "Update Now"
   }
 }

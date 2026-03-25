@@ -25,7 +25,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { usePluginStore } from "@/stores/pluginStore";
 import { closeWindowByLabel, listOpenToolWindowSessions, openToolWindow } from "@/lib/windowManager";
 import { CommandPalette } from "@/components/ui/CommandPalette";
-import { UpdateChecker } from "@/components/settings/UpdateChecker";
+
 import { CryptoContextMenu } from "@/components/plugins/CryptoContextMenu";
 
 import { WindowScaffold } from "@/components/layout/WindowScaffold";
@@ -831,7 +831,7 @@ function App() {
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <EnvironmentVariablesModal open={envModalOpen} onClose={() => setEnvModalOpen(false)} />
       <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
-      <UpdateChecker />
+
       <CryptoContextMenu />
 
     </>

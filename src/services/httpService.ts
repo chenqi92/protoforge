@@ -129,9 +129,16 @@ export function buildRequestPayload(config: HttpRequestConfig) {
       break;
   }
 
+  // 剥离 URL 中已有的 query string，避免与 queryParams 重复
+  // （URL 和参数面板是双向同步的，参数已在 queryParams 对象中，
+  //  如果 URL 也含 ?key=value，Rust 后端 append_pair 会导致参数翻倍）
+  const rawUrl = normalizeUrl(config.url);
+  const qIndex = rawUrl.indexOf('?');
+  const cleanUrl = qIndex >= 0 ? rawUrl.slice(0, qIndex) : rawUrl;
+
   return {
     method: config.method,
-    url: normalizeUrl(config.url),
+    url: cleanUrl,
     headers,
     queryParams,
     body,

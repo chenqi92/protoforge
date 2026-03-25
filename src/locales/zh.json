@@ -467,7 +467,9 @@
       "directTargetHint": "消息会发送到当前连接或目标地址。",
       "replyHint": "消息会回复到当前来源地址。",
       "broadcast": "广播",
-      "reply": "回复"
+      "reply": "回复",
+      "rightClickEdit": "右键编辑",
+      "sendOptions": "发送选项"
     },
     "messageLog": {
       "title": "消息日志",
@@ -1023,21 +1025,28 @@
     "restore": "恢复到工作区"
   },
   "update": {
-    "checking": "正在检查更新…",
+    "checking": "检查更新中…",
     "checkingDesc": "正在连接 GitHub Release 获取最新版本信息…",
     "available": "发现新版本",
     "downloading": "正在下载更新…",
     "ready": "更新已就绪",
+    "readyToRestart": "更新就绪，点击重启",
     "upToDate": "已是最新版本",
     "upToDateDesc": "您正在使用最新版本，无需更新。",
-    "failed": "检查更新失败",
+    "failed": "更新检查失败",
     "install": "下载安装",
-    "later": "稍后",
+    "later": "稍后再说",
     "progress": "下载进度",
     "restart": "立即重启",
     "retry": "重试",
-    "dismiss": "知道了",
     "clickToCheck": "点击检查更新",
-    "clickToUpdate": "发现新版本 v{{version}}，点击查看"
+    "clickToUpdate": "发现新版本 v{{version}}，点击查看",
+    "confirmTitle": "发现新版本",
+    "confirmDesc": "检测到新版本 v{{version}}，是否立即更新？",
+    "currentVersion": "当前版本",
+    "latestVersion": "最新版本",
+    "newAvailable": "有新版本",
+    "goDownload": "前往下载",
+    "downloadAndInstall": "立即更新"
   }
 }

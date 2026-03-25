@@ -1,5 +1,5 @@
-// TCP/UDP 工作区 — 完全重新设计
-// 四模式 Tab + 左右分栏布局
+// TCP/UDP 工作区 — 上下分栏布局
+// 上方消息日志（主区域） + 下方紧凑发送栏
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Server, Radio, Square, Monitor } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -27,10 +27,6 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
   const [mode, setMode] = useState<SocketMode>("tcp-client");
   const sessionKey = useRef(sessionId ?? crypto.randomUUID()).current;
   const activeMode = MODES.find((item) => item.value === mode) || MODES[0];
-
-  // 注意：不再在组件卸载时自动清理后端连接。
-  // 各 Panel 在挂载时会查询后端活跃状态并恢复 UI，
-  // 连接的关闭由用户主动操作（点击“停止监听”/“断开连接”）触发。
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-transparent p-3">
@@ -70,15 +66,6 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
           <UdpServerPanel sessionKey={sessionKey} />
         </div>
       </div>
-    </div>
-  );
-}
-
-function WorkspaceSplit({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="wb-workbench-grid h-full min-h-0 flex-1">
-      <div className="wb-workbench-sidebar">{sidebar}</div>
-      <div className="wb-workbench-main">{children}</div>
     </div>
   );
 }
@@ -181,7 +168,7 @@ function useSocketState() {
 }
 
 // ═══════════════════════════════════════════
-//  TCP Client Panel
+//  TCP Client Panel — 上下分栏
 // ═══════════════════════════════════════════
 
 function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
@@ -194,7 +181,6 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
   const [port, setPort] = useState(8080);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 挂载时查询后端是否已有匹配的活跃 TCP 客户端连接
   useEffect(() => {
     svc.tcpListConnections().then((list) => {
       if (list.some((c) => c.connectionId === connectionId)) {
@@ -204,7 +190,6 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
     }).catch(() => {});
   }, [connectionId]);
 
-  // Event listener
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | null = null;
@@ -236,20 +221,13 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
             break;
         }
       });
-      if (disposed) {
-        listener();
-        return;
-      }
+      if (disposed) { listener(); return; }
       unlisten = listener;
     };
     setup();
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
+    return () => { disposed = true; unlisten?.(); };
   }, [connectionId, state.addMessage, state.systemMessage, t]);
 
-  // Timer
   useEffect(() => {
     if (state.timerEnabled && connected && state.message.trim()) {
       timerRef.current = setInterval(() => handleSend(), state.timerInterval);
@@ -304,51 +282,44 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
         />
       </div>
 
-      <WorkspaceSplit
-        sidebar={(
-          <div className="flex min-h-0 flex-1 flex-col">
-            <SendPanel
-              message={state.message} setMessage={state.setMessage}
-              sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
-              connected={connected} onSend={handleSend}
-              sendHistory={state.sendHistory}
-              onClearHistory={() => state.setSendHistory([])}
-              onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
-              quickCommands={state.quickCommands}
-              onSaveQuickCommand={state.saveQuickCommand}
-              onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
-              onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
-              sendTargetLabel={connected ? `${host}:${port}` : undefined}
-              sendTargetHint={connected ? t("tcp.sendPanel.directTargetHint") : undefined}
-              timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
-              onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
-              onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-              appendNewline={state.appendNewline}
-              onAppendNewlineChange={state.setAppendNewline}
-              embedded
-            />
-          </div>
-        )}
-      >
-        <div className="flex min-h-0 flex-1 flex-col">
-          <MessageLog
-            messages={state.messages}
-            onClear={() => { state.setMessages([]); state.resetStats(); }}
-            displayFormat={state.displayFormat}
-            setDisplayFormat={state.setDisplayFormat}
-            connected={connected}
-            statusText={connected ? `${host}:${port} ${t('tcp.system.connected')}` : connecting ? t('tcp.system.connecting') : t('tcp.system.waitingConnection')}
-            stats={state.stats}
-            embedded
-          />
-        </div>
-      </WorkspaceSplit>
+      <div className="wb-workbench-stack min-h-0 flex-1">
+        <MessageLog
+          messages={state.messages}
+          onClear={() => { state.setMessages([]); state.resetStats(); }}
+          displayFormat={state.displayFormat}
+          setDisplayFormat={state.setDisplayFormat}
+          connected={connected}
+          statusText={connected ? `${host}:${port} ${t('tcp.system.connected')}` : connecting ? t('tcp.system.connecting') : t('tcp.system.waitingConnection')}
+          stats={state.stats}
+          embedded
+        />
+        <SendPanel
+          message={state.message} setMessage={state.setMessage}
+          sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
+          connected={connected} onSend={handleSend}
+          sendHistory={state.sendHistory}
+          onClearHistory={() => state.setSendHistory([])}
+          onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
+          quickCommands={state.quickCommands}
+          onSaveQuickCommand={state.saveQuickCommand}
+          onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
+          onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+          sendTargetLabel={connected ? `${host}:${port}` : undefined}
+          sendTargetHint={connected ? t("tcp.sendPanel.directTargetHint") : undefined}
+          timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
+          onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
+          onTimerIntervalChange={(v) => state.setTimerInterval(v)}
+          appendNewline={state.appendNewline}
+          onAppendNewlineChange={state.setAppendNewline}
+          embedded
+        />
+      </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-//  TCP Server Panel
+//  TCP Server Panel — 上下分栏 + ClientList
 // ═══════════════════════════════════════════
 
 function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
@@ -364,7 +335,6 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const selectedClient = selectedClientId ? clients.find((client) => client.id === selectedClientId) ?? null : null;
 
-  // 挂载时查询后端是否已有匹配的活跃 TCP 服务端
   useEffect(() => {
     svc.tcpListServers().then((list) => {
       const server = list.find((s) => s.serverId === serverId);
@@ -418,17 +388,11 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
             break;
         }
       });
-      if (disposed) {
-        listener();
-        return;
-      }
+      if (disposed) { listener(); return; }
       unlisten = listener;
     };
     setup();
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
+    return () => { disposed = true; unlisten?.(); };
   }, [serverId, state.addMessage, state.systemMessage, t]);
 
   useEffect(() => {
@@ -485,65 +449,63 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 pb-3">
+      <div className="shrink-0 space-y-2 pb-3">
         <ConnectionBar
           mode="tcp-server" host={host} port={port}
           connected={running} connecting={starting}
           onHostChange={setHost} onPortChange={setPort}
           onToggle={handleToggle}
         />
-      </div>
-
-      <WorkspaceSplit
-        sidebar={(
-          <div className="flex h-full min-h-0 flex-1 flex-col">
-            <ClientList clients={clients} selectedClientId={selectedClientId} onSelectClient={setSelectedClientId} embedded />
-            {clients.length > 0 ? <div className="wb-pane-divider" /> : null}
-            <div className="min-h-0 flex-1">
-            <SendPanel
-              message={state.message} setMessage={state.setMessage}
-              sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
-              connected={running} onSend={handleSend}
-              sendLabel={selectedClientId ? t('tcp.send') : t('tcp.system.broadcast')}
-              sendHistory={state.sendHistory}
-              onClearHistory={() => state.setSendHistory([])}
-              onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
-              quickCommands={state.quickCommands}
-              onSaveQuickCommand={state.saveQuickCommand}
-              onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
-              onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
-              sendTargetLabel={selectedClient ? `${t("tcp.clientList.unicast")} · ${selectedClient.remoteAddr}` : t("tcp.sendPanel.broadcastAllClients")}
-              sendTargetHint={selectedClient ? t("tcp.sendPanel.unicastHint") : t("tcp.sendPanel.broadcastHint")}
-              timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
-              onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
-              onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-              appendNewline={state.appendNewline}
-              onAppendNewlineChange={state.setAppendNewline}
-              embedded
-            />
-            </div>
-          </div>
-        )}
-      >
-        <div className="flex min-h-0 flex-1 flex-col">
-          <MessageLog
-            messages={state.messages}
-            onClear={() => { state.setMessages([]); state.resetStats(); }}
-            displayFormat={state.displayFormat}
-            setDisplayFormat={state.setDisplayFormat}
-            connected={running}
-            statusText={running ? `${host}:${port} ${t('tcp.system.listening')} · ${t('tcp.clientList.connections', { count: clients.length })}` : starting ? t('tcp.system.startingServer') : t('tcp.system.waitingServer')}
-            stats={state.stats}
+        {/* ClientList 紧跟在连接栏下方 */}
+        {clients.length > 0 && (
+          <ClientList
+            clients={clients}
+            selectedClientId={selectedClientId}
+            onSelectClient={setSelectedClientId}
             embedded
           />
-        </div>
-      </WorkspaceSplit>
+        )}
+      </div>
+
+      <div className="wb-workbench-stack min-h-0 flex-1">
+        <MessageLog
+          messages={state.messages}
+          onClear={() => { state.setMessages([]); state.resetStats(); }}
+          displayFormat={state.displayFormat}
+          setDisplayFormat={state.setDisplayFormat}
+          connected={running}
+          statusText={running ? `${host}:${port} ${t('tcp.system.listening')} · ${t('tcp.clientList.connections', { count: clients.length })}` : starting ? t('tcp.system.startingServer') : t('tcp.system.waitingServer')}
+          stats={state.stats}
+          embedded
+        />
+        <SendPanel
+          message={state.message} setMessage={state.setMessage}
+          sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
+          connected={running} onSend={handleSend}
+          sendLabel={selectedClientId ? t('tcp.send') : t('tcp.system.broadcast')}
+          sendHistory={state.sendHistory}
+          onClearHistory={() => state.setSendHistory([])}
+          onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
+          quickCommands={state.quickCommands}
+          onSaveQuickCommand={state.saveQuickCommand}
+          onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
+          onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+          sendTargetLabel={selectedClient ? `${t("tcp.clientList.unicast")} · ${selectedClient.remoteAddr}` : t("tcp.sendPanel.broadcastAllClients")}
+          sendTargetHint={selectedClient ? t("tcp.sendPanel.unicastHint") : t("tcp.sendPanel.broadcastHint")}
+          timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
+          onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
+          onTimerIntervalChange={(v) => state.setTimerInterval(v)}
+          appendNewline={state.appendNewline}
+          onAppendNewlineChange={state.setAppendNewline}
+          embedded
+        />
+      </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-//  UDP Client Panel
+//  UDP Client Panel — 上下分栏
 // ═══════════════════════════════════════════
 
 function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
@@ -557,7 +519,6 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
   const [targetAddr, setTargetAddr] = useState("127.0.0.1:9000");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 挂载时查询后端是否已有匹配的活跃 UDP socket
   useEffect(() => {
     svc.udpListSockets().then((list) => {
       if (list.some((s) => s.socketId === socketId)) {
@@ -594,17 +555,11 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
             break;
         }
       });
-      if (disposed) {
-        listener();
-        return;
-      }
+      if (disposed) { listener(); return; }
       unlisten = listener;
     };
     setup();
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
+    return () => { disposed = true; unlisten?.(); };
   }, [socketId, state.addMessage, state.systemMessage, t]);
 
   useEffect(() => {
@@ -650,14 +605,13 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 space-y-3 pb-3">
+      <div className="shrink-0 space-y-2 pb-3">
         <ConnectionBar
           mode="udp-client" host={host} port={port}
           connected={bound} connecting={binding}
           onHostChange={setHost} onPortChange={setPort}
           onToggle={handleBind}
         />
-        {/* Target address */}
         {bound && (
           <AddressField
             label={t('tcp.targetAddress')}
@@ -668,51 +622,44 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
         )}
       </div>
 
-      <WorkspaceSplit
-        sidebar={(
-          <div className="flex min-h-0 flex-1 flex-col">
-            <SendPanel
-              message={state.message} setMessage={state.setMessage}
-              sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
-              connected={bound} onSend={handleSend}
-              sendHistory={state.sendHistory}
-              onClearHistory={() => state.setSendHistory([])}
-              onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
-              quickCommands={state.quickCommands}
-              onSaveQuickCommand={state.saveQuickCommand}
-              onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
-              onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
-              sendTargetLabel={bound ? targetAddr : undefined}
-              sendTargetHint={bound ? t("tcp.sendPanel.directTargetHint") : undefined}
-              timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
-              onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
-              onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-              appendNewline={state.appendNewline}
-              onAppendNewlineChange={state.setAppendNewline}
-              embedded
-            />
-          </div>
-        )}
-      >
-        <div className="flex min-h-0 flex-1 flex-col">
-          <MessageLog
-            messages={state.messages}
-            onClear={() => { state.setMessages([]); state.resetStats(); }}
-            displayFormat={state.displayFormat}
-            setDisplayFormat={state.setDisplayFormat}
-            connected={bound}
-            statusText={bound ? `${host}:${port} ${t('tcp.system.bound')} · ${t('tcp.targetAddress')} ${targetAddr}` : binding ? t('tcp.system.bindingUdp') : t('tcp.system.waitingUdp')}
-            stats={state.stats}
-            embedded
-          />
-        </div>
-      </WorkspaceSplit>
+      <div className="wb-workbench-stack min-h-0 flex-1">
+        <MessageLog
+          messages={state.messages}
+          onClear={() => { state.setMessages([]); state.resetStats(); }}
+          displayFormat={state.displayFormat}
+          setDisplayFormat={state.setDisplayFormat}
+          connected={bound}
+          statusText={bound ? `${host}:${port} ${t('tcp.system.bound')} · ${t('tcp.targetAddress')} ${targetAddr}` : binding ? t('tcp.system.bindingUdp') : t('tcp.system.waitingUdp')}
+          stats={state.stats}
+          embedded
+        />
+        <SendPanel
+          message={state.message} setMessage={state.setMessage}
+          sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
+          connected={bound} onSend={handleSend}
+          sendHistory={state.sendHistory}
+          onClearHistory={() => state.setSendHistory([])}
+          onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
+          quickCommands={state.quickCommands}
+          onSaveQuickCommand={state.saveQuickCommand}
+          onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
+          onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+          sendTargetLabel={bound ? targetAddr : undefined}
+          sendTargetHint={bound ? t("tcp.sendPanel.directTargetHint") : undefined}
+          timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
+          onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
+          onTimerIntervalChange={(v) => state.setTimerInterval(v)}
+          appendNewline={state.appendNewline}
+          onAppendNewlineChange={state.setAppendNewline}
+          embedded
+        />
+      </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-//  UDP Server Panel
+//  UDP Server Panel — 上下分栏
 // ═══════════════════════════════════════════
 
 function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
@@ -726,7 +673,6 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
   const [replyAddr, setReplyAddr] = useState("");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 挂载时查询后端是否已有匹配的活跃 UDP socket
   useEffect(() => {
     svc.udpListSockets().then((list) => {
       if (list.some((s) => s.socketId === socketId)) {
@@ -755,7 +701,6 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
               encoding: "utf8", timestamp: event.timestamp,
               size: event.size || 0, remoteAddr: event.remoteAddr,
             });
-            // 自动设置回复地址
             if (event.remoteAddr) {
               setReplyAddr((current) => current || event.remoteAddr || "");
             }
@@ -767,17 +712,11 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
             break;
         }
       });
-      if (disposed) {
-        listener();
-        return;
-      }
+      if (disposed) { listener(); return; }
       unlisten = listener;
     };
     setup();
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
+    return () => { disposed = true; unlisten?.(); };
   }, [socketId, state.addMessage, state.systemMessage, t]);
 
   useEffect(() => {
@@ -823,7 +762,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 space-y-3 pb-3">
+      <div className="shrink-0 space-y-2 pb-3">
         <ConnectionBar
           mode="udp-server" host={host} port={port}
           connected={bound} connecting={binding}
@@ -840,46 +779,39 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
         )}
       </div>
 
-      <WorkspaceSplit
-        sidebar={(
-          <div className="flex min-h-0 flex-1 flex-col">
-            <SendPanel
-              message={state.message} setMessage={state.setMessage}
-              sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
-              connected={bound && !!replyAddr} onSend={handleSend}
-              sendLabel={t('tcp.reply')}
-              sendHistory={state.sendHistory}
-              onClearHistory={() => state.setSendHistory([])}
-              onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
-              quickCommands={state.quickCommands}
-              onSaveQuickCommand={state.saveQuickCommand}
-              onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
-              onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
-              sendTargetLabel={replyAddr || t("tcp.system.waitingSource")}
-              sendTargetHint={replyAddr ? t("tcp.sendPanel.replyHint") : t("tcp.replyAddrPlaceholder")}
-              timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
-              onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
-              onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-              appendNewline={state.appendNewline}
-              onAppendNewlineChange={state.setAppendNewline}
-              embedded
-            />
-          </div>
-        )}
-      >
-        <div className="flex min-h-0 flex-1 flex-col">
-          <MessageLog
-            messages={state.messages}
-            onClear={() => { state.setMessages([]); state.resetStats(); }}
-            displayFormat={state.displayFormat}
-            setDisplayFormat={state.setDisplayFormat}
-            connected={bound}
-            statusText={bound ? `${host}:${port} ${t('tcp.system.listening')} · ${t('tcp.replyAddress')} ${replyAddr || t('tcp.system.waitingSource')}` : binding ? t('tcp.system.bindingUdpServer') : t('tcp.system.waitingUdpServer')}
-            stats={state.stats}
-            embedded
-          />
-        </div>
-      </WorkspaceSplit>
+      <div className="wb-workbench-stack min-h-0 flex-1">
+        <MessageLog
+          messages={state.messages}
+          onClear={() => { state.setMessages([]); state.resetStats(); }}
+          displayFormat={state.displayFormat}
+          setDisplayFormat={state.setDisplayFormat}
+          connected={bound}
+          statusText={bound ? `${host}:${port} ${t('tcp.system.listening')} · ${t('tcp.replyAddress')} ${replyAddr || t('tcp.system.waitingSource')}` : binding ? t('tcp.system.bindingUdpServer') : t('tcp.system.waitingUdpServer')}
+          stats={state.stats}
+          embedded
+        />
+        <SendPanel
+          message={state.message} setMessage={state.setMessage}
+          sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
+          connected={bound && !!replyAddr} onSend={handleSend}
+          sendLabel={t('tcp.reply')}
+          sendHistory={state.sendHistory}
+          onClearHistory={() => state.setSendHistory([])}
+          onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
+          quickCommands={state.quickCommands}
+          onSaveQuickCommand={state.saveQuickCommand}
+          onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
+          onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+          sendTargetLabel={replyAddr || t("tcp.system.waitingSource")}
+          sendTargetHint={replyAddr ? t("tcp.sendPanel.replyHint") : t("tcp.replyAddrPlaceholder")}
+          timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
+          onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
+          onTimerIntervalChange={(v) => state.setTimerInterval(v)}
+          appendNewline={state.appendNewline}
+          onAppendNewlineChange={state.setAppendNewline}
+          embedded
+        />
+      </div>
     </div>
   );
 }

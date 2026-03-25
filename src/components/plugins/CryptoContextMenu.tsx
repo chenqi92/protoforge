@@ -142,6 +142,11 @@ export function CryptoContextMenu() {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const target = e.target as Element;
+
+      // 如果右键目标在声明了 data-contextmenu-zone 的区域内，
+      // 说明该区域有自己的右键菜单（如 Sidebar），不拦截
+      if (target.closest('[data-contextmenu-zone]')) return;
+
       const monacoEditor = getMonacoEditor(target);
 
       let text = '';
