@@ -844,28 +844,32 @@ function App() {
         bodyClassName="p-0"
       >
       <div className="h-full">
-          <PanelGroup orientation="horizontal">
-            <Panel className="min-w-0 overflow-hidden">
-              {renderContent()}
-            </Panel>
-            <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/60 transition-colors hover:bg-text-disabled" />
-            <Panel
-              id="right-sidebar"
-              defaultSize={rightSidebarDefaultSize}
-              minSize="14%"
-              maxSize="40%"
-              collapsible
-              collapsedSize="44px"
-              panelRef={rightSidebarPanelRef}
-              onResize={handleRightSidebarResize}
-              className="relative flex h-full shrink-0 flex-col"
-            >
-              <RightSidebar
-                panelCollapsed={rightSidebarCollapsed}
-                onTogglePanel={handleRightSidebarToggle}
-              />
-            </Panel>
-          </PanelGroup>
+          {activeWorkbench === "home" ? (
+            renderContent()
+          ) : (
+            <PanelGroup orientation="horizontal">
+              <Panel className="min-w-0 overflow-hidden">
+                {renderContent()}
+              </Panel>
+              <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/60 transition-colors hover:bg-text-disabled" />
+              <Panel
+                id="right-sidebar"
+                defaultSize={rightSidebarDefaultSize}
+                minSize="14%"
+                maxSize="40%"
+                collapsible
+                collapsedSize="44px"
+                panelRef={rightSidebarPanelRef}
+                onResize={handleRightSidebarResize}
+                className="relative flex h-full shrink-0 flex-col"
+              >
+                <RightSidebar
+                  panelCollapsed={rightSidebarCollapsed}
+                  onTogglePanel={handleRightSidebarToggle}
+                />
+              </Panel>
+            </PanelGroup>
+          )}
         </div>
       </WindowScaffold>
 

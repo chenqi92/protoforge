@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useActivityLogStore, type ActivityLogEntry, type LogSource } from '@/stores/activityLogStore';
+import { usePluginStore } from '@/stores/pluginStore';
 import { ProtocolParserPanel } from '@/components/plugins/ProtocolParserPanel';
 
 type RightSidebarView = 'logs' | 'parser';
@@ -28,10 +29,11 @@ interface RightSidebarProps {
   onTogglePanel: () => void;
 }
 
-const navItems: { id: RightSidebarView; icon: typeof ScrollText; labelKey: string }[] = [
+const baseNavItems: { id: RightSidebarView; icon: typeof ScrollText; labelKey: string }[] = [
   { id: 'logs', icon: ScrollText, labelKey: 'rightSidebar.logs' },
-  { id: 'parser', icon: FileCode2, labelKey: 'rightSidebar.parser' },
 ];
+
+const parserNavItem = { id: 'parser' as RightSidebarView, icon: FileCode2, labelKey: 'rightSidebar.parser' };
 
 const sourceIcons: Record<LogSource, typeof Globe> = {
   http: Globe,
@@ -55,6 +57,22 @@ export function RightSidebar({ panelCollapsed, onTogglePanel }: RightSidebarProp
   const { t } = useTranslation();
   const [activeView, setActiveView] = useState<RightSidebarView>('logs');
   const [parserInitialData, setParserInitialData] = useState<string | undefined>(undefined);
+
+  // 仅在安装了 protocol-parser 插件时才显示 Parser Tab
+  const installedPlugins = usePluginStore((s) => s.installedPlugins);
+  const hasParserPlugin = installedPlugins.some((p) => p.pluginType === 'protocol-parser');
+  const navItems = useMemo(() => {
+    const items = [...baseNavItems];
+    if (hasParserPlugin) items.push(parserNavItem);
+    return items;
+  }, [hasParserPlugin]);
+
+  // 如果卸载了所有解析插件，自动切回 logs 视图
+  useEffect(() => {
+    if (!hasParserPlugin && activeView === 'parser') {
+      setActiveView('logs');
+    }
+  }, [hasParserPlugin, activeView]);
 
   // 监听来自 MessageLog / 其它模块的解析请求事件
   useEffect(() => {

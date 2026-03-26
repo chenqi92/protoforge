@@ -21,6 +21,8 @@ export interface PluginManifest {
   description: string;
   author: string;
   pluginType: PluginType;
+  /** 面板位置声明: left=左侧, right=右侧, both=两侧. 未设置时按 pluginType 推断 */
+  panelPosition?: 'left' | 'right' | 'both';
   icon: string;
   entrypoint: string;
   protocolIds: string[];
