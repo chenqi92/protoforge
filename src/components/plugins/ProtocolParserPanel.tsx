@@ -9,7 +9,7 @@
  * 通过 pluginService.parseData 调用后端插件沙箱执行解析
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Search, FileCode2, Loader2, AlertCircle, Copy, Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +34,8 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [groupFilter, setGroupFilter] = useState<string | null>(null);
+  const [fieldSearch, setFieldSearch] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   // 获取所有已安装的 protocol-parser 插件
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
@@ -60,6 +62,39 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
     }
   }, [compact, initialData, selectedPluginId]);
 
+  // ── 报文头自动协议识别 ──
+  const detectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const detectProtocol = useCallback((input: string) => {
+    if (!input.trim() || parserPlugins.length <= 1) return;
+    const trimmed = input.trim();
+    for (const plugin of parserPlugins) {
+      const nameL = plugin.name.toLowerCase();
+      // HJ212: 以 ## 开头，后跟4位数字长度
+      if (/^##\d{4}/.test(trimmed) && (nameL.includes('hj212') || nameL.includes('hj 212'))) {
+        setSelectedPluginId(plugin.id);
+        return;
+      }
+      // SL651: 以 7E7E 开头 (hex)
+      if (/^7[Ee]7[Ee]/i.test(trimmed) && (nameL.includes('sl651') || nameL.includes('sl 651'))) {
+        setSelectedPluginId(plugin.id);
+        return;
+      }
+      // Modbus: 以冒号开头(ASCII) 或短hex帧
+      if (/^:/.test(trimmed) && nameL.includes('modbus')) {
+        setSelectedPluginId(plugin.id);
+        return;
+      }
+    }
+  }, [parserPlugins]);
+
+  useEffect(() => {
+    if (detectTimeoutRef.current) clearTimeout(detectTimeoutRef.current);
+    if (rawInput.trim()) {
+      detectTimeoutRef.current = setTimeout(() => detectProtocol(rawInput), 300);
+    }
+    return () => { if (detectTimeoutRef.current) clearTimeout(detectTimeoutRef.current); };
+  }, [rawInput, detectProtocol]);
+
   const handleParse = useCallback(async () => {
     if (!selectedPluginId || !rawInput.trim()) return;
     setLoading(true);
@@ -67,6 +102,16 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
     try {
       const res = await pluginService.parseData(selectedPluginId, rawInput.trim());
       setResult(res);
+      // Auto-expand all groups by default
+      if (res?.fields) {
+        const groups = new Set<string>();
+        res.fields.forEach(f => {
+          if (f.group) groups.add(Array.isArray(f.group) ? f.group.join('/') : f.group);
+        });
+        const initialExpanded: Record<string, boolean> = {};
+        groups.forEach(g => initialExpanded[g] = true);
+        setExpandedGroups(initialExpanded);
+      }
     } catch (e) {
       setResult({
         success: false,
@@ -92,16 +137,102 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
     if (!result?.fields) return [];
     const set = new Set<string>();
     for (const f of result.fields) {
-      if (f.group) set.add(f.group);
+      if (f.group) set.add(Array.isArray(f.group) ? f.group.join('/') : f.group);
     }
     return Array.from(set);
   }, [result?.fields]);
 
+  const keyFields = useMemo(() => {
+    return result?.fields?.filter(f => f.isKeyInfo) || [];
+  }, [result?.fields]);
+
   const filteredFields = useMemo(() => {
     if (!result?.fields) return [];
-    if (!groupFilter) return result.fields;
-    return result.fields.filter((f) => f.group === groupFilter);
-  }, [result?.fields, groupFilter]);
+    let list = result.fields;
+    if (groupFilter) {
+      list = list.filter((f) => {
+        const g = Array.isArray(f.group) ? f.group.join('/') : f.group;
+        return g === groupFilter;
+      });
+    }
+    if (fieldSearch) {
+      const q = fieldSearch.toLowerCase();
+      list = list.filter((f) => 
+        f.key.toLowerCase().includes(q) || 
+        f.label?.toLowerCase().includes(q) ||
+        String(f.value).toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [result?.fields, groupFilter, fieldSearch]);
+
+  const toggleGroup = (g: string) => {
+    setExpandedGroups(prev => ({ ...prev, [g]: !prev[g] }));
+  };
+
+  const renderFieldValue = (field: import('@/types/plugin').ParsedField) => {
+    const valStr = String(field.value);
+    const colorMap: Record<string, string> = {
+      emerald: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500', 
+      blue: 'bg-blue-500', purple: 'bg-purple-500', slate: 'bg-slate-500'
+    };
+    const textMap: Record<string, string> = {
+      emerald: 'text-emerald-600 dark:text-emerald-400', 
+      amber: 'text-amber-600 dark:text-amber-400', 
+      red: 'text-red-600 dark:text-red-400', 
+      blue: 'text-blue-600 dark:text-blue-400',
+      purple: 'text-purple-600 dark:text-purple-400', 
+      slate: 'text-slate-600 dark:text-slate-400'
+    };
+    const bgMap: Record<string, string> = {
+      emerald: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20',
+      amber: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200 dark:border-amber-500/20',
+      red: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border-red-200 dark:border-red-500/20',
+      blue: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
+      purple: 'bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 border-purple-200 dark:border-purple-500/20',
+      slate: 'bg-slate-50 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400 border-slate-200 dark:border-slate-500/20'
+    };
+
+    switch (field.uiType) {
+      case 'status-dot':
+        return (
+          <div className="flex items-center gap-1.5 font-medium">
+            <span className={cn("w-2 h-2 rounded-full", field.color ? colorMap[field.color] || colorMap.slate : "bg-text-tertiary")} />
+            <span className={field.color ? textMap[field.color] : "text-text-primary"}>{valStr}</span>
+          </div>
+        );
+      case 'badge':
+        return (
+          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-[6px] border text-[var(--fs-xs)] font-medium", field.color ? bgMap[field.color] || bgMap.slate : bgMap.slate)}>
+            {valStr}
+          </span>
+        );
+      case 'code':
+      case 'json':
+        return (
+          <pre className="p-2 rounded-[6px] bg-bg-secondary/50 border border-border-default/40 font-mono text-[var(--fs-xs)] text-text-secondary whitespace-pre-wrap word-break">
+            {typeof field.value === 'object' ? JSON.stringify(field.value, null, 2) : valStr}
+          </pre>
+        );
+      case 'bit-map':
+        return (
+          <div className="flex flex-wrap gap-1">
+            {String(valStr).split(',').map((bit, i) => (
+              <span key={i} className="inline-block px-1.5 py-0.5 rounded bg-bg-secondary/60 text-[var(--fs-3xs)] font-mono text-text-secondary border border-border-default/40">
+                {bit.trim()}
+              </span>
+            ))}
+          </div>
+        );
+      case 'progress':
+      default:
+        return (
+          <span className={cn(field.color && textMap[field.color])}>
+            {typeof field.value === 'object' ? JSON.stringify(field.value) : valStr}
+          </span>
+        );
+    }
+  };
 
   if (parserPlugins.length === 0) {
     return (
@@ -195,69 +326,179 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
               </button>
             </div>
 
-            {/* 分组过滤 */}
-            {groups.length > 1 && (
-              <div className="flex items-center gap-1 flex-wrap">
-                <button
-                  onClick={() => setGroupFilter(null)}
-                  className={cn(
-                    'rounded-[8px] px-2.5 py-1 text-[var(--fs-xxs)] font-medium transition-colors',
-                    groupFilter === null
-                      ? 'bg-accent/10 text-accent'
-                      : 'text-text-tertiary hover:bg-bg-hover'
-                  )}
-                >
-                  {t('parser.allGroups', '全部')} ({result.fields.length})
-                </button>
-                {groups.map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => setGroupFilter(g)}
-                    className={cn(
-                      'rounded-[8px] px-2.5 py-1 text-[var(--fs-xxs)] font-medium transition-colors',
-                      groupFilter === g
-                        ? 'bg-accent/10 text-accent'
-                        : 'text-text-tertiary hover:bg-bg-hover'
-                    )}
-                  >
-                    {g} ({result.fields.filter((f) => f.group === g).length})
-                  </button>
+            {/* 顶层重点卡片区 */}
+            {keyFields.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-4">
+                {keyFields.map((field, i) => (
+                  <div key={`key-${i}`} className="p-2.5 rounded-[10px] bg-bg-secondary/40 border border-border-default/60 flex flex-col justify-between overflow-hidden">
+                    <span className="text-[var(--fs-xs)] text-text-tertiary truncate mb-1" title={field.label || field.key}>{field.label || field.key}</span>
+                    <div className="text-[var(--fs-sm)] font-semibold truncate text-text-primary" title={String(field.value)}>
+                      {renderFieldValue(field)}
+                      {field.unit && <span className="ml-1 text-[var(--fs-xs)] text-text-disabled font-normal">{field.unit}</span>}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
 
-            {/* 字段表格 */}
-            <div className="rounded-[10px] border border-border-default/70 overflow-hidden">
-              <table className="w-full border-collapse" style={{ fontSize: 'var(--fs-sm)' }}>
-                <thead>
-                  <tr className="bg-bg-secondary/40">
-                    <th className="text-left px-3 py-2 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary border-b border-border-default/60 w-[40%]">
-                      {t('parser.field', '字段')}
-                    </th>
-                    <th className="text-left px-3 py-2 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary border-b border-border-default/60">
-                      {t('parser.value', '值')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredFields.map((field, i) => (
-                    <tr key={`${field.key}-${i}`} className="hover:bg-bg-hover/30 transition-colors">
-                      <td className="px-3 py-1.5 border-b border-border-default/40">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-text-primary">{field.label || field.key}</span>
-                          {field.group && groups.length > 1 && (
-                            <span className="rounded bg-bg-secondary/60 px-1.5 py-0.5 text-[var(--fs-3xs)] text-text-disabled">{field.group}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-1.5 border-b border-border-default/40 font-mono text-text-secondary">
-                        <span className="selectable">{field.value}</span>
-                        {field.unit && <span className="ml-1 text-text-disabled">{field.unit}</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* 搜索与分组过滤 */}
+            <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled" />
+                <input
+                  type="text"
+                  value={fieldSearch}
+                  onChange={(e) => setFieldSearch(e.target.value)}
+                  placeholder={t('parser.searchFields', '搜索字段名称或值...')}
+                  className="w-full h-[30px] pl-8 pr-3 rounded-[8px] bg-bg-secondary/40 border border-border-default/60 text-[var(--fs-xs)] text-text-primary outline-none focus:border-accent transition-colors placeholder:text-text-tertiary"
+                />
+              </div>
+
+              {groups.length > 1 && (
+                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none pb-1 shrink-0">
+                  <button
+                    onClick={() => setGroupFilter(null)}
+                    className={cn(
+                      'shrink-0 rounded-[8px] px-2.5 py-1 text-[var(--fs-xxs)] font-medium transition-colors',
+                      groupFilter === null
+                        ? 'bg-accent/10 text-accent'
+                        : 'text-text-tertiary hover:bg-bg-hover'
+                    )}
+                  >
+                    {t('parser.allGroups', '全部')} ({result.fields.length})
+                  </button>
+                  {groups.map((g) => {
+                    const count = result.fields.filter(f => {
+                       const fg = Array.isArray(f.group) ? f.group.join('/') : f.group;
+                       return fg === g;
+                    }).length;
+                    return (
+                      <button
+                        key={g}
+                        onClick={() => setGroupFilter(g)}
+                        className={cn(
+                          'shrink-0 rounded-[8px] px-2.5 py-1 text-[var(--fs-xxs)] font-medium transition-colors',
+                          groupFilter === g
+                            ? 'bg-accent/10 text-accent'
+                            : 'text-text-tertiary hover:bg-bg-hover'
+                        )}
+                      >
+                        {g} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 字段渲染 (手风琴/列表) */}
+            <div className="space-y-2">
+              {groups.map(g => {
+                const groupFields = filteredFields.filter(f => {
+                   const fg = Array.isArray(f.group) ? f.group.join('/') : f.group;
+                   return fg === g;
+                });
+                
+                if (groupFields.length === 0) return null;
+
+                const isExpanded = expandedGroups[g] !== false;
+
+                return (
+                  <div key={g || 'default'} className="rounded-[10px] border border-border-default/60 overflow-hidden bg-bg-primary">
+                    <div 
+                      className="flex items-center justify-between px-3 py-2 bg-bg-secondary/30 cursor-pointer hover:bg-bg-secondary/50 transition-colors select-none"
+                      onClick={() => toggleGroup(g)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ChevronDown className={cn("w-3.5 h-3.5 text-text-disabled transition-transform", !isExpanded && "-rotate-90")} />
+                        <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">{g || t('parser.ungrouped', '未编号')}</span>
+                        <span className="text-[var(--fs-3xs)] text-text-tertiary px-1.5 py-0.5 rounded bg-bg-secondary/60">{groupFields.length}</span>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <table className="w-full border-collapse" style={{ fontSize: 'var(--fs-sm)' }}>
+                        <tbody>
+                          {groupFields.map((field, i) => (
+                            <tr key={`${field.key}-${i}`} className={cn(
+                              "hover:bg-bg-hover/30 transition-colors border-t border-border-default/40 first:border-0 group",
+                              i % 2 === 1 && "bg-bg-secondary/20"
+                            )}>
+                              <td className="px-3 py-2 w-[40%] align-top">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="font-medium text-text-primary" title={field.key}>{field.label || field.key}</span>
+                                  {field.label && field.label !== field.key && (
+                                    <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">{field.key}</span>
+                                  )}
+                                  {field.tooltip && (
+                                    <span className="text-[var(--fs-3xs)] text-text-tertiary">{field.tooltip}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 break-all">
+                                <div className="flex items-baseline gap-1.5">
+                                  {renderFieldValue(field)}
+                                  {field.unit && <span className="text-text-disabled text-[var(--fs-xs)] shrink-0">{field.unit}</span>}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                );
+              })}
+              
+              {/* 无分组字段渲染 */}
+              {filteredFields.filter(f => !f.group).length > 0 && (() => {
+                const ungroupedFields = filteredFields.filter(f => !f.group);
+                if (ungroupedFields.length === 0) return null;
+                const isExpanded = expandedGroups['__ungrouped'] !== false;
+                return (
+                  <div className="rounded-[10px] border border-border-default/60 overflow-hidden bg-bg-primary">
+                    <div 
+                      className="flex items-center justify-between px-3 py-2 bg-bg-secondary/30 cursor-pointer hover:bg-bg-secondary/50 transition-colors select-none"
+                      onClick={() => toggleGroup('__ungrouped')}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ChevronDown className={cn("w-3.5 h-3.5 text-text-disabled transition-transform", !isExpanded && "-rotate-90")} />
+                        <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">{t('parser.ungrouped', '未编组')}</span>
+                        <span className="text-[var(--fs-3xs)] text-text-tertiary px-1.5 py-0.5 rounded bg-bg-secondary/60">{ungroupedFields.length}</span>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <table className="w-full border-collapse" style={{ fontSize: 'var(--fs-sm)' }}>
+                         <tbody>
+                          {ungroupedFields.map((field, i) => (
+                            <tr key={`${field.key}-${i}`} className={cn(
+                              "hover:bg-bg-hover/30 transition-colors border-t border-border-default/40 first:border-0 group",
+                              i % 2 === 1 && "bg-bg-secondary/20"
+                            )}>
+                              <td className="px-3 py-2 w-[40%] align-top">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="font-medium text-text-primary" title={field.key}>{field.label || field.key}</span>
+                                  {field.label && field.label !== field.key && (
+                                    <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">{field.key}</span>
+                                  )}
+                                  {field.tooltip && (
+                                    <span className="text-[var(--fs-3xs)] text-text-tertiary">{field.tooltip}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 break-all">
+                                <div className="flex items-baseline gap-1.5">
+                                  {renderFieldValue(field)}
+                                  {field.unit && <span className="text-text-disabled text-[var(--fs-xs)] shrink-0">{field.unit}</span>}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Hex 原始数据 */}

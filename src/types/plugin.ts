@@ -105,9 +105,14 @@ export interface ProtocolParser {
 export interface ParsedField {
   key: string;
   label: string;
-  value: string;
+  value: any;
   unit?: string;
   group?: string;
+  /** UI specific properties for declarative rendering */
+  uiType?: 'text' | 'status-dot' | 'progress' | 'bit-map' | 'code' | 'json' | 'badge';
+  color?: 'emerald' | 'amber' | 'red' | 'blue' | 'purple' | 'slate';
+  isKeyInfo?: boolean;
+  tooltip?: string;
 }
 
 export interface ParseResult {

@@ -29,6 +29,7 @@ import { CommandPalette } from "@/components/ui/CommandPalette";
 import { CryptoContextMenu } from "@/components/plugins/CryptoContextMenu";
 
 import { WindowScaffold } from "@/components/layout/WindowScaffold";
+import { RightSidebar } from "@/components/layout/RightSidebar";
 import { subscribeDockToolRequests } from "@/lib/toolDocking";
 import { cn } from "@/lib/utils";
 import type { HttpRequestMode } from "@/types/http";
@@ -405,8 +406,11 @@ function ToolWorkbenchPanel({
 
 function App() {
   const sidebarPanelRef = usePanelRef();
+  const rightSidebarPanelRef = usePanelRef();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(true);
   const sidebarDefaultSize = `${Math.max(useSettingsStore.getState().settings.sidebarWidth, 14)}%`;
+  const rightSidebarDefaultSize = `${Math.max(useSettingsStore.getState().settings.rightSidebarWidth, 14)}%`;
   const [pluginModalOpen, setPluginModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [envModalOpen, setEnvModalOpen] = useState(false);
@@ -625,15 +629,32 @@ function App() {
     const ref = sidebarPanelRef.current;
     if (!ref) return;
     if (sidebarCollapsed) {
-      // 展开：先退出 collapsed 状态，再 resize 到已保存的宽度
       ref.expand();
       const width = useSettingsStore.getState().settings.sidebarWidth;
-      // 必须传字符串，数字会被解释为像素而非百分比
       ref.resize(`${Math.max(width, 14)}%`);
     } else {
       ref.collapse();
     }
   }, [sidebarPanelRef, sidebarCollapsed]);
+
+  const handleRightSidebarResize = useCallback((size: { asPercentage: number; inPixels: number }) => {
+    setRightSidebarCollapsed(size.inPixels <= 52);
+    if (size.asPercentage > 5) {
+      useSettingsStore.getState().update('rightSidebarWidth', Math.round(size.asPercentage));
+    }
+  }, []);
+
+  const handleRightSidebarToggle = useCallback(() => {
+    const ref = rightSidebarPanelRef.current;
+    if (!ref) return;
+    if (rightSidebarCollapsed) {
+      ref.expand();
+      const width = useSettingsStore.getState().settings.rightSidebarWidth;
+      ref.resize(`${Math.max(width, 14)}%`);
+    } else {
+      ref.collapse();
+    }
+  }, [rightSidebarPanelRef, rightSidebarCollapsed]);
 
   const handleWelcomeAction = useCallback((action: WelcomeAction) => {
     switch (action) {
@@ -822,8 +843,29 @@ function App() {
         )}
         bodyClassName="p-0"
       >
-        <div className="h-full">
-          {renderContent()}
+      <div className="h-full">
+          <PanelGroup orientation="horizontal">
+            <Panel className="min-w-0 overflow-hidden">
+              {renderContent()}
+            </Panel>
+            <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/60 transition-colors hover:bg-text-disabled" />
+            <Panel
+              id="right-sidebar"
+              defaultSize={rightSidebarDefaultSize}
+              minSize="14%"
+              maxSize="40%"
+              collapsible
+              collapsedSize="44px"
+              panelRef={rightSidebarPanelRef}
+              onResize={handleRightSidebarResize}
+              className="relative flex h-full shrink-0 flex-col"
+            >
+              <RightSidebar
+                panelCollapsed={rightSidebarCollapsed}
+                onTogglePanel={handleRightSidebarToggle}
+              />
+            </Panel>
+          </PanelGroup>
         </div>
       </WindowScaffold>
 

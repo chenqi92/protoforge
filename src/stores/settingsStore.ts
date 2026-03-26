@@ -57,6 +57,7 @@ export interface AppSettings {
 
   // ── 窗口状态记忆 ──
   sidebarWidth: number;    // percentage
+  rightSidebarWidth: number; // percentage
   windowWidth: number;
   windowHeight: number;
 
@@ -94,6 +95,7 @@ const defaultSettings: AppSettings = {
   autoSaveInterval: 0,
 
   sidebarWidth: 44,
+  rightSidebarWidth: 22,
   windowWidth: 1280,
   windowHeight: 800,
 

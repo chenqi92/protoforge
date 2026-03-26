@@ -384,6 +384,13 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
           timestamp: Date.now(),
           size: finalResponse.bodySize,
         });
+        // 记录到全局活动日志
+        const { useActivityLogStore: logStore } = await import("@/stores/activityLogStore");
+        logStore.getState().addEntry({
+          source: 'http',
+          direction: 'sent',
+          summary: `${config.method} ${config.url} - ${finalResponse.status} (${finalResponse.durationMs}ms)`,
+        });
       }
     }
   }, [tabId, config, setLoading, setHttpResponse, setError, handleSseConnect, handleSseDisconnect, isSseConnected, isSseMode, updateHttpConfig]);

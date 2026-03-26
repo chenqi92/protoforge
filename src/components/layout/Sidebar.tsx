@@ -5,7 +5,7 @@ import {
   FolderOpen, Clock, Search, Plus,
   ChevronRight, Download, Settings, Globe,
   MoreHorizontal, Folder, Zap, Edit3, Trash2, ExternalLink, Copy, FolderPlus,
-  ChevronsUpDown, BarChart3, FileCode2,
+  ChevronsUpDown, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -22,9 +22,8 @@ import { generateCurlFromItem } from "@/lib/curlGenerator";
 import { resolveVariableTemplate } from "@/lib/requestVariables";
 import { usePluginStore } from "@/stores/pluginStore";
 import { RequestStatsPanel } from "@/components/plugins/RequestStatsPanel";
-import { ProtocolParserPanel } from "@/components/plugins/ProtocolParserPanel";
 
-type SidebarView = "collections" | "history" | "environments" | "stats" | "parser";
+type SidebarView = "collections" | "history" | "environments" | "stats";
 
 interface SidebarProps {
   panelCollapsed: boolean;
@@ -40,7 +39,7 @@ const navItems: { id: SidebarView; icon: typeof FolderOpen; labelKey: string }[]
 
 // Dynamic nav item for installed sidebar-panel plugins
 const statsNavItem = { id: "stats" as SidebarView, icon: BarChart3, labelKey: 'plugin.statsPanel' };
-const parserNavItem = { id: "parser" as SidebarView, icon: FileCode2, labelKey: 'plugin.protocolParser' };
+
 
 export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: SidebarProps) {
   const { t } = useTranslation();
@@ -68,14 +67,12 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
   // Check if sidebar-panel plugin is installed
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
   const hasSidebarPanelPlugin = installedPlugins.some((p) => p.pluginType === 'sidebar-panel');
-  const hasParserPlugin = installedPlugins.some((p) => p.pluginType === 'protocol-parser');
 
   const allNavItems = useMemo(() => {
     const items = [...navItems];
     if (hasSidebarPanelPlugin) items.push(statsNavItem);
-    if (hasParserPlugin) items.push(parserNavItem);
     return items;
-  }, [hasSidebarPanelPlugin, hasParserPlugin]);
+  }, [hasSidebarPanelPlugin]);
 
   const handleNavClick = (view: SidebarView) => {
     if (panelCollapsed) {
@@ -217,7 +214,6 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                 {activeView === "history" && <HistoryView search={search} />}
                 {activeView === "environments" && <EnvironmentsView onOpenEnvModal={onOpenEnvModal} />}
                 {activeView === "stats" && <RequestStatsPanel />}
-                {activeView === "parser" && <ProtocolParserPanel />}
               </motion.div>
             </AnimatePresence>
           </div>

@@ -9,12 +9,13 @@ import { SendPanel } from "./SendPanel";
 import { MessageLog } from "./MessageLog";
 import { ClientList } from "./ClientList";
 import * as svc from "@/services/tcpService";
+import { useActivityLogStore } from "@/stores/activityLogStore";
 import type {
   SocketMode, DataFormat, TcpMessage, TcpEvent,
   TcpServerClient, ConnectionStats, SendHistoryItem, QuickCommand,
 } from "@/types/tcp";
 
-// ── Mode Tab 配置 ──
+// -- Mode Tab --
 const MODES: { value: SocketMode; labelKey: string; hintKey: string; icon: React.ReactNode }[] = [
   { value: "tcp-client", labelKey: "tcp.modes.tcpClient", hintKey: "tcp.modes.tcpClientHint", icon: <Monitor className="w-3.5 h-3.5" /> },
   { value: "tcp-server", labelKey: "tcp.modes.tcpServer", hintKey: "tcp.modes.tcpServerHint", icon: <Server className="w-3.5 h-3.5" /> },
@@ -120,8 +121,18 @@ function useSocketState() {
     });
     if (msg.direction === "sent") {
       setStats((s) => ({ ...s, sentBytes: s.sentBytes + msg.size, sentCount: s.sentCount + 1 }));
+      useActivityLogStore.getState().addEntry({
+        source: 'tcp', direction: 'sent',
+        summary: msg.data.length > 120 ? msg.data.slice(0, 120) + '...' : msg.data,
+        rawData: msg.data,
+      });
     } else if (msg.direction === "received") {
       setStats((s) => ({ ...s, receivedBytes: s.receivedBytes + msg.size, receivedCount: s.receivedCount + 1 }));
+      useActivityLogStore.getState().addEntry({
+        source: 'tcp', direction: 'received',
+        summary: msg.data.length > 120 ? msg.data.slice(0, 120) + '...' : msg.data,
+        rawData: msg.data,
+      });
     }
   }, []);
 

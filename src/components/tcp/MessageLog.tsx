@@ -1,11 +1,9 @@
 import { useState, useRef } from "react";
-import { createPortal } from "react-dom";
-import { Trash2, Search, Copy, Check, ArrowUpRight, ArrowDownLeft, PlugZap, FileCode2, X } from "lucide-react";
+import { Trash2, Search, Copy, Check, ArrowUpRight, ArrowDownLeft, PlugZap, FileCode2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { convertFormat } from "@/services/tcpService";
 import { usePluginStore } from "@/stores/pluginStore";
-import { ProtocolParserPanel } from "@/components/plugins/ProtocolParserPanel";
 import type { ConnectionStats, TcpMessage, DataFormat } from "@/types/tcp";
 
 interface MessageLogProps {
@@ -53,13 +51,16 @@ export function MessageLog({
   const containerRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [parserTarget, setParserTarget] = useState<TcpMessage | null>(null);
   const hasParserPlugin = usePluginStore((s) => s.installedPlugins.some((p) => p.pluginType === 'protocol-parser'));
 
   const handleCopy = async (text: string, id: string) => {
     await navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const handleParseMessage = (data: string) => {
+    window.dispatchEvent(new CustomEvent('parse-protocol', { detail: { data } }));
   };
 
   const filteredMessages = filter
@@ -135,8 +136,6 @@ export function MessageLog({
               placeholder={t('tcp.messageLog.search')}
             />
           </div>
-
-
 
           {messages.length > 0 ? (
             <button
@@ -243,7 +242,7 @@ export function MessageLog({
                   <div className="hidden shrink-0 items-center gap-2 text-[var(--fs-xxs)] text-text-disabled lg:flex">
                     {m.remoteAddr ? (
                       <span className="truncate rounded-[8px] bg-bg-secondary/72 px-2 py-0.5">
-                        {m.direction === "received" ? "← " : "→ "}{m.remoteAddr}
+                        {m.direction === "received" ? "\u2190 " : "\u2192 "}{m.remoteAddr}
                       </span>
                     ) : null}
                     {m.clientId ? (
@@ -264,9 +263,9 @@ export function MessageLog({
                     </button>
                     {hasParserPlugin && m.direction === 'received' && (
                       <button
-                        onClick={() => setParserTarget(m)}
+                        onClick={() => handleParseMessage(m.data)}
                         className="rounded-[10px] p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-blue-500 group-hover:opacity-100"
-                        title={t('parser.parse', '解析')}
+                        title={t('parser.parse', '\u89e3\u6790')}
                       >
                         <FileCode2 className="h-3.5 w-3.5" />
                       </button>
@@ -278,28 +277,6 @@ export function MessageLog({
           </div>
         )}
       </div>
-
-      {/* 协议解析弹窗 */}
-      {parserTarget && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={() => setParserTarget(null)}>
-          <div
-            className="w-[560px] max-h-[80vh] rounded-[14px] border border-border-default bg-bg-primary shadow-2xl overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border-default/60 shrink-0">
-              <div className="flex items-center gap-2">
-                <FileCode2 className="w-4 h-4 text-accent" />
-                <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('parser.parseMessage', '解析报文')}</span>
-              </div>
-              <button onClick={() => setParserTarget(null)} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-text-primary transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <ProtocolParserPanel initialData={parserTarget.data} className="flex-1 min-h-0" />
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   );
 }
