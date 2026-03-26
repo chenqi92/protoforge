@@ -124,6 +124,45 @@ export interface ParseResult {
   fields: ParsedField[];
   rawHex?: string;
   error?: string;
+  /** 插件自控布局声明 — 未提供时前端使用默认分组渲染 */
+  layout?: LayoutConfig;
+}
+
+/** 插件自控布局配置 */
+export interface LayoutConfig {
+  sections: LayoutSection[];
+}
+
+export interface LayoutSection {
+  title: string;
+  /** 渲染风格: table=键值表, register=登记表, grid=卡片网格, key-value=紧凑键值 */
+  style: 'table' | 'register' | 'grid' | 'key-value';
+  /** 左边框色彩 */
+  color?: string;
+  /** 是否默认折叠 */
+  collapsed?: boolean;
+  /** table/key-value/grid: 直接引用字段 key 列表 */
+  fieldKeys?: string[];
+  /** register: 列标题 */
+  columns?: string[];
+  /** register: 结构化行 */
+  rows?: RegisterRow[];
+}
+
+export interface RegisterRow {
+  /** 行标签 (如因子名称) */
+  label: string;
+  /** 行色彩提示 */
+  color?: string;
+  /** 单元格 */
+  cells: RegisterCell[];
+}
+
+export interface RegisterCell {
+  /** 引用 ParsedField.key */
+  key: string;
+  /** 列跨度 */
+  span?: number;
 }
 
 /** 字体贡献 — 插件可携带字体文件 */

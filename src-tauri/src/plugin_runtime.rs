@@ -102,11 +102,23 @@ pub struct ProtocolParser {
 pub struct ParsedField {
     pub key: String,
     pub label: String,
-    pub value: String,
+    pub value: serde_json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    /// UI 渲染类型提示: text | badge | status-dot | code | json | bit-map
+    #[serde(skip_serializing_if = "Option::is_none", rename = "uiType")]
+    pub ui_type: Option<String>,
+    /// 色彩语义: emerald | amber | red | blue | purple | slate
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    /// 是否提取到顶部摘要卡片
+    #[serde(default, rename = "isKeyInfo")]
+    pub is_key_info: bool,
+    /// 悬停提示
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tooltip: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,6 +132,9 @@ pub struct ParseResult {
     pub raw_hex: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// 插件自控布局声明 — 透传给前端，Rust 不处理
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout: Option<serde_json::Value>,
 }
 
 /// 插件渲染器输出结果

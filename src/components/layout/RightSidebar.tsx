@@ -118,7 +118,7 @@ export function RightSidebar({ panelCollapsed, onTogglePanel }: RightSidebarProp
       )}
 
       {/* ── Icon Rail (右边缘) ── */}
-      <div className="w-11 h-full flex flex-col items-center pt-2 pb-3 bg-transparent border-l border-border-default/60 shrink-0">
+      <div className="w-12 h-full flex flex-col items-center pt-2 pb-3 bg-transparent border-l border-border-default/60 shrink-0">
         {navItems.map(({ id, icon: Icon, labelKey }) => {
           const label = t(labelKey, id === 'logs' ? '活动日志' : '协议解析');
           const isActive = activeView === id && !panelCollapsed;

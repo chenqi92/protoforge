@@ -858,7 +858,7 @@ function App() {
                 minSize="14%"
                 maxSize="40%"
                 collapsible
-                collapsedSize="44px"
+                collapsedSize="48px"
                 panelRef={rightSidebarPanelRef}
                 onResize={handleRightSidebarResize}
                 className="relative flex h-full shrink-0 flex-col"
