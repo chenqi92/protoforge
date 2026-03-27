@@ -1,7 +1,7 @@
 // TCP/UDP 工作区 — 上下分栏布局
 // 上方消息日志（主区域） + 下方紧凑发送栏
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Server, Radio, Square, Monitor, History, X } from "lucide-react";
+import { Server, Radio, Square, Monitor, History, X, Usb, Cpu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { ConnectionBar } from "./ConnectionBar";
@@ -9,6 +9,8 @@ import { SendPanel } from "./SendPanel";
 import { MessageLog } from "./MessageLog";
 import { ClientList } from "./ClientList";
 import { StatsBar } from "./StatsBar";
+import { SerialPanel } from "./SerialPanel";
+import { ModbusPanel } from "./ModbusPanel";
 import * as svc from "@/services/tcpService";
 import { useActivityLogStore } from "@/stores/activityLogStore";
 import type {
@@ -92,6 +94,8 @@ const MODES: { value: SocketMode; labelKey: string; hintKey: string; icon: React
   { value: "tcp-server", labelKey: "tcp.modes.tcpServer", hintKey: "tcp.modes.tcpServerHint", icon: <Server className="w-3.5 h-3.5" /> },
   { value: "udp-client", labelKey: "tcp.modes.udpClient", hintKey: "tcp.modes.udpClientHint", icon: <Radio className="w-3.5 h-3.5" /> },
   { value: "udp-server", labelKey: "tcp.modes.udpServer", hintKey: "tcp.modes.udpServerHint", icon: <Square className="w-3.5 h-3.5" /> },
+  { value: "serial",     labelKey: "tcp.modes.serial",    hintKey: "tcp.modes.serialHint",    icon: <Usb className="w-3.5 h-3.5" /> },
+  { value: "modbus",     labelKey: "tcp.modes.modbus",    hintKey: "tcp.modes.modbusHint",    icon: <Cpu className="w-3.5 h-3.5" /> },
 ];
 
 export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
@@ -120,7 +124,15 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
         </div>
 
         <div className="wb-tool-strip-actions">
-          <span className="wb-tool-chip">{mode.startsWith("tcp") ? t('tcp.connectionOriented') : t('tcp.connectionless')}</span>
+          <span className="wb-tool-chip">
+            {mode.startsWith("tcp")
+              ? t('tcp.connectionOriented')
+              : mode.startsWith("udp")
+                ? t('tcp.connectionless')
+                : mode === "serial"
+                  ? t('tcp.serialPort', '串口通信')
+                  : t('tcp.modbusBus', 'Modbus 总线')}
+          </span>
         </div>
       </div>
 
@@ -136,6 +148,12 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
         </div>
         <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "udp-server" && "hidden")}>
           <UdpServerPanel sessionKey={sessionKey} />
+        </div>
+        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "serial" && "hidden")}>
+          <SerialPanel sessionKey={sessionKey} />
+        </div>
+        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "modbus" && "hidden")}>
+          <ModbusPanel sessionKey={sessionKey} />
         </div>
       </div>
     </div>

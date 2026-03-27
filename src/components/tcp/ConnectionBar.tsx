@@ -1,5 +1,5 @@
 // 连接配置栏组件 — TCP/UDP 通用
-import { Network, Server, Radio, Plug, X, Square } from "lucide-react";
+import { Network, Server, Radio, Plug, X, Square, Usb, Cpu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { SocketMode } from "@/types/tcp";
@@ -39,6 +39,19 @@ const modeConfig: Record<SocketMode, { label: string; icon: React.ReactNode; bad
     icon: <Square className="w-3.5 h-3.5" />,
     badge: "bg-teal-500",
     gradient: "from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700",
+  },
+  // serial / modbus use dedicated panel components, not ConnectionBar — stubs required for TS exhaustiveness
+  "serial": {
+    label: "Serial",
+    icon: <Usb className="w-3.5 h-3.5" />,
+    badge: "bg-amber-500",
+    gradient: "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600",
+  },
+  "modbus": {
+    label: "Modbus",
+    icon: <Cpu className="w-3.5 h-3.5" />,
+    badge: "bg-violet-500",
+    gradient: "from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700",
   },
 };
 

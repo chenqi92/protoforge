@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 import {
   ScrollText, FileCode2, Search, Trash2,
   ArrowDownRight, ArrowUpRight, Globe, Network,
-  Radio, Wifi,
+  Radio, Wifi, Usb, Cpu,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -41,6 +41,8 @@ const sourceIcons: Record<LogSource, typeof Globe> = {
   udp: Network,
   ws: Wifi,
   mqtt: Radio,
+  serial: Usb,
+  modbus: Cpu,
   system: ScrollText,
 };
 
@@ -50,6 +52,8 @@ const sourceColors: Record<LogSource, string> = {
   udp: 'text-violet-500',
   ws: 'text-amber-500',
   mqtt: 'text-cyan-500',
+  serial: 'text-amber-500',
+  modbus: 'text-violet-500',
   system: 'text-text-tertiary',
 };
 

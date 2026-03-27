@@ -7,7 +7,7 @@
 
 import { create } from 'zustand';
 
-export type LogSource = 'http' | 'tcp' | 'udp' | 'ws' | 'mqtt' | 'system';
+export type LogSource = 'http' | 'tcp' | 'udp' | 'ws' | 'mqtt' | 'serial' | 'modbus' | 'system';
 export type LogDirection = 'sent' | 'received' | 'info';
 
 export interface ActivityLogEntry {
