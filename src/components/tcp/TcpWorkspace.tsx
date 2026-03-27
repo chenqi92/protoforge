@@ -49,8 +49,7 @@ function useRecentConns(mode: SocketMode) {
   return { recent, save, remove };
 }
 
-function RecentConnections({
-  mode, recent, onLoad, onRemove,
+function RecentConnections({recent, onLoad, onRemove,
 }: {
   mode: SocketMode;
   recent: RecentConn[];
@@ -293,6 +292,7 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
           case "connected":
             setConnected(true);
             setConnecting(false);
+            setConnectedSince(new Date().toISOString());
             state.systemMessage(`[OK] ${t('tcp.system.connectedTo')} ${event.data}`);
             break;
           case "data":
@@ -305,11 +305,25 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
           case "disconnected":
             setConnected(false);
             setConnecting(false);
+            setConnectedSince(undefined);
             state.systemMessage(`[CLOSED] ${t('tcp.system.disconnected')}`);
+            if (autoReconnectRef.current) {
+              state.systemMessage(`[INFO] 2s 后自动重连...`);
+              setTimeout(async () => {
+                if (!autoReconnectRef.current) return;
+                try {
+                  setConnecting(true);
+                  await svc.tcpConnect(connectionId, hostRef.current, portRef.current);
+                } catch {
+                  setConnecting(false);
+                }
+              }, 2000);
+            }
             break;
           case "error":
             setConnected(false);
             setConnecting(false);
+            setConnectedSince(undefined);
             state.systemMessage(`[WARN] ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
@@ -332,8 +346,10 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
     if (connected) {
       await svc.tcpDisconnect(connectionId);
       setConnected(false);
+      setConnectedSince(undefined);
     } else {
       setConnecting(true);
+      saveRecent(host, port);
       try {
         await svc.tcpConnect(connectionId, host, port);
       } catch (err: unknown) {
@@ -366,13 +382,34 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 pb-3">
+      <div className="shrink-0 space-y-2 pb-3">
         <ConnectionBar
           mode="tcp-client" host={host} port={port}
           connected={connected} connecting={connecting}
           onHostChange={setHost} onPortChange={setPort}
           onToggle={handleConnect}
         />
+        <div className="flex items-center justify-between gap-3 px-0.5">
+          <RecentConnections
+            mode="tcp-client"
+            recent={recent}
+            onLoad={(h, p) => { setHost(h); setPort(p); }}
+            onRemove={removeRecent}
+          />
+          <button
+            onClick={() => setAutoReconnect((v) => !v)}
+            className={cn(
+              "shrink-0 flex items-center gap-1.5 h-[22px] px-2 rounded-[6px] border text-[var(--fs-xxs)] font-medium transition-all",
+              autoReconnect
+                ? "border-accent/40 bg-accent-soft text-accent"
+                : "border-border-default/60 bg-bg-secondary/40 text-text-tertiary hover:border-accent/30 hover:text-text-secondary"
+            )}
+            title={autoReconnect ? "关闭自动重连" : "开启自动重连"}
+          >
+            <span className={cn("w-1.5 h-1.5 rounded-full transition-colors", autoReconnect ? "bg-accent" : "bg-text-disabled")} />
+            {t('tcp.autoReconnect', '自动重连')}
+          </button>
+        </div>
       </div>
 
       <div className="wb-workbench-stack min-h-0 flex-1">
@@ -407,6 +444,13 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
           embedded
         />
       </div>
+      <StatsBar
+        stats={state.stats}
+        connected={connected}
+        statusText={connected ? `${host}:${port}` : connecting ? t('tcp.system.connecting') : t('tcp.system.idle', '空闲')}
+        connectedSince={connectedSince}
+        autoReconnect={autoReconnect && !connected}
+      />
     </div>
   );
 }
@@ -425,8 +469,10 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
   const [port, setPort] = useState(9000);
   const [clients, setClients] = useState<TcpServerClient[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [connectedSince, setConnectedSince] = useState<string | undefined>();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const selectedClient = selectedClientId ? clients.find((client) => client.id === selectedClientId) ?? null : null;
+  const { recent, save: saveRecent, remove: removeRecent } = useRecentConns("tcp-server");
 
   useEffect(() => {
     svc.tcpListServers().then((list) => {
@@ -454,6 +500,7 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
           case "started":
             setRunning(true);
             setStarting(false);
+            setConnectedSince(new Date().toISOString());
             state.systemMessage(`[OK] ${t('tcp.system.serverStarted')} ${event.data}`);
             break;
           case "client-connected":
@@ -500,9 +547,11 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
       await svc.tcpServerStop(serverId);
       setRunning(false);
       setClients([]);
+      setConnectedSince(undefined);
       state.systemMessage(`[CLOSED] ${t('tcp.system.serverStopped')}`);
     } else {
       setStarting(true);
+      saveRecent(host, port);
       try {
         await svc.tcpServerStart(serverId, host, port);
       } catch (err: unknown) {
@@ -549,7 +598,11 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
           onHostChange={setHost} onPortChange={setPort}
           onToggle={handleToggle}
         />
-        {/* ClientList 紧跟在连接栏下方 */}
+        <RecentConnections
+          mode="tcp-server" recent={recent}
+          onLoad={(h, p) => { setHost(h); setPort(p); }}
+          onRemove={removeRecent}
+        />
         {clients.length > 0 && (
           <ClientList
             clients={clients}
@@ -593,6 +646,12 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
           embedded
         />
       </div>
+      <StatsBar
+        stats={state.stats}
+        connected={running}
+        statusText={running ? `${host}:${port} · ${clients.length} ${t('tcp.clientList.clients', '客户端')}` : starting ? t('tcp.system.startingServer') : t('tcp.system.idle', '空闲')}
+        connectedSince={connectedSince}
+      />
     </div>
   );
 }
@@ -610,7 +669,9 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
   const [host, setHost] = useState("0.0.0.0");
   const [port, setPort] = useState(9001);
   const [targetAddr, setTargetAddr] = useState("127.0.0.1:9000");
+  const [connectedSince, setConnectedSince] = useState<string | undefined>();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { recent, save: saveRecent, remove: removeRecent } = useRecentConns("udp-client");
 
   useEffect(() => {
     svc.udpListSockets().then((list) => {
@@ -631,6 +692,7 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
           case "bound":
             setBound(true);
             setBinding(false);
+            setConnectedSince(new Date().toISOString());
             state.systemMessage(`[OK] ${t('tcp.system.bound')} ${event.data}`);
             break;
           case "data":
@@ -644,6 +706,7 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
           case "error":
             setBound(false);
             setBinding(false);
+            setConnectedSince(undefined);
             state.systemMessage(`[WARN] ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
@@ -666,9 +729,11 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
     if (bound) {
       await svc.udpClose(socketId);
       setBound(false);
+      setConnectedSince(undefined);
       state.systemMessage(`[CLOSED] ${t('tcp.system.udpClosed')}`);
     } else {
       setBinding(true);
+      saveRecent(host, port);
       try {
         await svc.udpBind(socketId, `${host}:${port}`);
       } catch (err: unknown) {
@@ -705,6 +770,14 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
           onHostChange={setHost} onPortChange={setPort}
           onToggle={handleBind}
         />
+        <div className="px-0.5">
+          <RecentConnections
+            mode="udp-client"
+            recent={recent}
+            onLoad={(h, p) => { setHost(h); setPort(p); }}
+            onRemove={removeRecent}
+          />
+        </div>
         {bound && (
           <AddressField
             label={t('tcp.targetAddress')}
@@ -747,6 +820,12 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
           embedded
         />
       </div>
+      <StatsBar
+        stats={state.stats}
+        connected={bound}
+        statusText={bound ? `${host}:${port}` : binding ? t('tcp.system.bindingUdp') : t('tcp.system.idle', '空闲')}
+        connectedSince={connectedSince}
+      />
     </div>
   );
 }
@@ -764,7 +843,9 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
   const [host, setHost] = useState("0.0.0.0");
   const [port, setPort] = useState(9002);
   const [replyAddr, setReplyAddr] = useState("");
+  const [connectedSince, setConnectedSince] = useState<string | undefined>();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { recent, save: saveRecent, remove: removeRecent } = useRecentConns("udp-server");
 
   useEffect(() => {
     svc.udpListSockets().then((list) => {
@@ -785,6 +866,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
           case "bound":
             setBound(true);
             setBinding(false);
+            setConnectedSince(new Date().toISOString());
             state.systemMessage(`[OK] ${t('tcp.system.udpServerBound')} ${event.data}`);
             break;
           case "data":
@@ -801,6 +883,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
           case "error":
             setBound(false);
             setBinding(false);
+            setConnectedSince(undefined);
             state.systemMessage(`[WARN] ${t('tcp.system.error')}: ${event.data}`);
             break;
         }
@@ -823,9 +906,11 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
     if (bound) {
       await svc.udpClose(socketId);
       setBound(false);
+      setConnectedSince(undefined);
       state.systemMessage(`[CLOSED] ${t('tcp.system.udpServerClosed')}`);
     } else {
       setBinding(true);
+      saveRecent(host, port);
       try {
         await svc.udpBind(socketId, `${host}:${port}`);
       } catch (err: unknown) {
@@ -862,6 +947,14 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
           onHostChange={setHost} onPortChange={setPort}
           onToggle={handleBind}
         />
+        <div className="px-0.5">
+          <RecentConnections
+            mode="udp-server"
+            recent={recent}
+            onLoad={(h, p) => { setHost(h); setPort(p); }}
+            onRemove={removeRecent}
+          />
+        </div>
         {bound && (
           <AddressField
             label={t('tcp.replyAddress')}
@@ -905,6 +998,12 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
           embedded
         />
       </div>
+      <StatsBar
+        stats={state.stats}
+        connected={bound}
+        statusText={bound ? `${host}:${port}` : binding ? t('tcp.system.bindingUdpServer') : t('tcp.system.idle', '空闲')}
+        connectedSince={connectedSince}
+      />
     </div>
   );
 }
