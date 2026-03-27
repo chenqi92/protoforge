@@ -28,12 +28,15 @@ const safeStorage: StateStorage = {
   },
 };
 
+export type AccentColor = 'indigo' | 'cyan' | 'emerald' | 'violet';
+
 export interface AppSettings {
   // ── 通用 ──
   theme: 'light' | 'dark' | 'system';
   language: 'zh-CN' | 'en';
   fontSize: 12 | 13 | 14 | 15 | 16;
   fontFamily: string; // 内置字体 ID 或插件贡献的 fontId
+  accentColor: AccentColor;
 
   // ── 请求默认值 ──
   defaultTimeoutMs: number;
@@ -76,6 +79,7 @@ const defaultSettings: AppSettings = {
   language: 'zh-CN',
   fontSize: 13,
   fontFamily: 'inter',
+  accentColor: 'indigo',
 
   defaultTimeoutMs: 30000,
   followRedirects: true,

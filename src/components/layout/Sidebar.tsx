@@ -100,7 +100,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
   return (
     <div className="h-full flex">
       {/* ── Icon Rail ── */}
-      <div className="w-12 h-full flex flex-col items-center pt-2 pb-3 bg-transparent border-r border-border-default/60 shrink-0">
+      <div className="w-[52px] h-full flex flex-col items-center py-3 gap-1 bg-bg-sidebar border-r border-border-sidebar shrink-0">
         {allNavItems.map(({ id, icon: Icon, labelKey }) => {
           const label = t(labelKey);
           const isActive = activeView === id && !panelCollapsed;
@@ -109,21 +109,21 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
               key={id}
               onClick={() => handleNavClick(id)}
               className={cn(
-                "relative mb-0.5 flex h-[30px] w-[30px] items-center justify-center rounded-[8px] transition-all duration-150",
+                "relative flex h-[34px] w-[34px] items-center justify-center rounded-[8px] transition-all duration-150",
                 isActive
                   ? "text-accent bg-accent-soft"
-                  : "text-text-tertiary hover:bg-bg-hover hover:text-text-secondary"
+                  : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
               )}
               title={label}
             >
               {isActive && (
                 <motion.div
                   layoutId="sidebar-active-indicator"
-                  className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-accent rounded-r-full"
+                  className="absolute inset-0 rounded-[8px] bg-accent-soft"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-              <Icon className={cn("w-4 h-4", isActive && "drop-shadow-sm")} strokeWidth={isActive ? 2.2 : 1.8} />
+              <Icon className={cn("relative w-[18px] h-[18px]", isActive && "drop-shadow-sm")} strokeWidth={isActive ? 2.2 : 1.8} />
             </button>
           );
         })}
@@ -133,23 +133,21 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
 
       {/* ── Detail Panel ── */}
       {!panelCollapsed && (
-        <div className="flex-1 h-full flex flex-col bg-transparent overflow-hidden min-w-0">
+        <div className="flex-1 h-full flex flex-col bg-bg-sidebar overflow-hidden min-w-0">
           {/* Panel Header */}
-          <div className="shrink-0 border-b border-border-subtle/70 bg-transparent px-3 py-2.5">
-            <div className={cn("flex items-center justify-between", activeView === "collections" ? "mb-2" : "mb-2")}>
+          <div className="shrink-0 border-b border-border-sidebar px-3 pt-3 pb-2.5">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex min-w-0 items-center gap-2">
-                {activeView !== "collections" ? (
-                  <span className="truncate text-[var(--fs-sm)] font-semibold text-text-primary">
-                    {t(navItems.find(n => n.id === activeView)?.labelKey || '')}
-                  </span>
-                ) : null}
+                <span className="truncate text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-tertiary">
+                  {t(allNavItems.find(n => n.id === activeView)?.labelKey || '')}
+                </span>
               </div>
               <div className="flex items-center gap-0.5 shrink-0">
                 {activeView === "collections" && (
                   <>
                     <button
                       onClick={handleNewCollection}
-                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
+                      className="flex h-[26px] items-center gap-1 rounded-[6px] px-2 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft/80 active:scale-[0.97]"
                       title={t('sidebar.new')}
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -195,7 +193,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`${t('common.search')}${t(navItems.find(n => n.id === activeView)?.labelKey || '')}...`}
-                className="h-[30px] w-full rounded-[10px] border border-border-default/80 bg-bg-secondary/42 pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]"
+                className="h-[30px] w-full rounded-[7px] border border-border-sidebar bg-bg-inset pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all shadow-inset placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
               />
             </div>
           </div>
@@ -724,7 +722,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
                 setDragCollectionId(null);
               }}
               className={cn(
-                "w-full flex items-center gap-1.5 px-2 py-[4px] rounded-md text-[length:var(--fs-sidebar)] font-medium text-text-secondary hover:bg-bg-hover transition-colors group",
+                "w-full flex items-center gap-1.5 px-2 py-[5px] rounded-[6px] text-[length:var(--fs-sidebar)] font-semibold text-text-primary hover:bg-bg-hover transition-colors group",
                 isColDropTarget && "ring-1 ring-accent bg-accent/5"
               )}
             >
@@ -886,13 +884,13 @@ function RequestItemWithTooltip({
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
         className={cn(
-          "w-full flex items-center gap-2 pr-2 py-[3px] rounded-md text-[length:var(--fs-sidebar)] text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors group/item",
+          "w-full flex items-center gap-2 pr-2 py-[4px] rounded-[6px] text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group/item",
           dragItemId === item.id && "opacity-40"
         )}
         style={{ paddingLeft: `${12 + depth * 14}px` }}
       >
         <span className={cn(
-          "text-[9px] font-semibold px-[3px] py-[0.5px] rounded shrink-0 min-w-[26px] text-center leading-tight",
+          "text-[var(--fs-xxs)] font-bold px-[4px] py-[1px] rounded-[3px] shrink-0 min-w-[28px] text-center leading-tight tracking-wide",
           color.text, color.bg
         )}>
           {method}
@@ -908,11 +906,11 @@ function RequestItemWithTooltip({
               e.stopPropagation();
             }}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 min-w-0 text-[length:var(--fs-sidebar-sm)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-mono"
+            className="flex-1 min-w-0 text-[length:var(--fs-sidebar)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0"
             autoFocus
           />
         ) : (
-          <span className="truncate font-mono text-[length:var(--fs-sidebar-sm)]">{item.name}</span>
+          <span className="truncate text-[length:var(--fs-sidebar)]">{item.name}</span>
         )}
       </button>
       {showTooltip && createPortal(
@@ -956,12 +954,12 @@ function RequestItemWithTooltip({
                   <span className="h-[7px] w-[7px] rounded-full bg-[#febc2e] opacity-60" />
                   <span className="h-[7px] w-[7px] rounded-full bg-[#28c840] opacity-60" />
                 </div>
-                <span className="text-[10px] font-semibold ml-1.5" style={{ color: 'var(--shell-accent)' }}>cURL</span>
+                <span className="text-[var(--fs-xxs)] font-semibold ml-1.5" style={{ color: 'var(--shell-accent)' }}>cURL</span>
               </div>
               <button
                 onClick={handleCopy}
                 className={cn(
-                  "flex items-center gap-1 px-1.5 py-[2px] rounded text-[10px] font-medium transition-colors",
+                  "flex items-center gap-1 px-1.5 py-[2px] rounded text-[var(--fs-xxs)] font-medium transition-colors",
                   copied ? "text-emerald-500" : "hover:opacity-80"
                 )}
                 style={{ color: copied ? undefined : 'var(--shell-copy)' }}

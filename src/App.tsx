@@ -232,7 +232,7 @@ function ToolWorkbenchPanel({
     <div className="flex h-full flex-col overflow-hidden">
       <div ref={sessionBarRef} className="flex h-11 shrink-0 items-center gap-3 border-b border-border-default/65 bg-bg-primary/38 px-3">
         <div className="flex shrink-0 items-center gap-2 pr-1">
-          <div className="flex h-7 items-center gap-2 rounded-[10px] border border-border-default/70 bg-bg-primary/85 px-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
+          <div className="flex h-7 items-center gap-2 rounded-[10px] border border-border-default/70 bg-bg-primary/85 px-2.5 shadow-xs">
             <Icon className={cn("h-3.5 w-3.5 shrink-0", meta.accentClassName)} />
             <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t(meta.shortTitleKey)}</div>
           </div>
@@ -487,6 +487,17 @@ function App() {
   const reorderTabs = useAppStore((s) => s.reorderTabs);
   const closeCollectionPanel = useAppStore((s) => s.closeCollectionPanel);
 
+  // 右侧面板默认折叠：首次切换到非 home 视图时折叠（此时 Panel 才真正挂载）
+  const rightSidebarInitialized = useRef(false);
+  useEffect(() => {
+    if (activeWorkbench !== "home" && !rightSidebarInitialized.current) {
+      rightSidebarInitialized.current = true;
+      requestAnimationFrame(() => {
+        rightSidebarPanelRef.current?.collapse();
+      });
+    }
+  }, [activeWorkbench, rightSidebarPanelRef]);
+
   const refreshDetachedTools = useCallback(async () => {
     const toolKeys: ToolWorkbench[] = ["tcpudp", "capture", "loadtest"];
     const states = await Promise.all(
@@ -711,7 +722,7 @@ function App() {
                 onOpenEnvModal={() => setEnvModalOpen(true)}
               />
             </Panel>
-            <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/60 transition-colors hover:bg-text-disabled" />
+            <PanelResizeHandle className="relative w-[3px] shrink-0 cursor-col-resize bg-bg-app transition-colors hover:bg-accent/30" />
 
             <Panel className="flex flex-col overflow-hidden bg-transparent">
               <TabBar
@@ -851,7 +862,7 @@ function App() {
               <Panel className="min-w-0 overflow-hidden">
                 {renderContent()}
               </Panel>
-              <PanelResizeHandle className="relative w-[1px] shrink-0 cursor-col-resize bg-border-default/60 transition-colors hover:bg-text-disabled" />
+              <PanelResizeHandle className="relative w-[3px] shrink-0 cursor-col-resize bg-bg-app transition-colors hover:bg-accent/30" />
               <Panel
                 id="right-sidebar"
                 defaultSize={rightSidebarDefaultSize}

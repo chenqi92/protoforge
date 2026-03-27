@@ -165,6 +165,11 @@ export function useSettingsEffect() {
     document.documentElement.style.setProperty('--font-sans', inter.family);
   }, [settings.fontFamily, pluginFonts]);
 
+  // ── 主题色 ──
+  useEffect(() => {
+    document.documentElement.dataset.accent = settings.accentColor;
+  }, [settings.accentColor]);
+
   // ── 初始化时恢复保存的主题 ──
   useEffect(() => {
     setMode(settings.theme);

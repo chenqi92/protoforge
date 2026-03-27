@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Code, Copy, Check, Eraser, BookOpen, ChevronDown } from 'lucide-react';
 import { CodeEditor } from '@/components/common/CodeEditor';
@@ -125,8 +126,10 @@ if (result.success) {
 export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
   const { t } = useTranslation();
   const editorRef = useRef<any>(null);
+  const snippetBtnRef = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useState(false);
   const [showSnippets, setShowSnippets] = useState(false);
+  const [snippetPos, setSnippetPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
 
   // 检查是否安装了 crypto 插件
   const hasCryptoPlugin = usePluginStore((s) =>
@@ -180,20 +183,30 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
 
         <div className="flex-1" />
 
-        {/* Snippet Dropdown */}
-        <div className="relative">
+        {/* Snippet Dropdown — portal to escape overflow:hidden panel */}
+        <div>
           <button
-            onClick={() => setShowSnippets(!showSnippets)}
+            ref={snippetBtnRef}
+            onClick={() => {
+              if (!showSnippets && snippetBtnRef.current) {
+                const rect = snippetBtnRef.current.getBoundingClientRect();
+                setSnippetPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+              }
+              setShowSnippets((v) => !v);
+            }}
             className="h-7 px-2.5 rounded-md flex items-center gap-1 text-[var(--fs-xs)] font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
           >
             <BookOpen className="w-3 h-3" />
             {t('http.script.snippets')}
             <ChevronDown className="w-3 h-3" />
           </button>
-          {showSnippets && (
+          {showSnippets && createPortal(
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowSnippets(false)} />
-              <div className="absolute right-0 top-8 z-50 w-64 max-h-[400px] overflow-y-auto bg-bg-primary border border-border-default rounded-lg shadow-xl py-1 animate-in fade-in slide-in-from-top-1">
+              <div className="fixed inset-0 z-[200]" onClick={() => setShowSnippets(false)} />
+              <div
+                className="fixed z-[201] w-64 max-h-[280px] overflow-y-auto bg-bg-primary border border-border-default rounded-[var(--radius-md)] shadow-panel py-1"
+                style={{ top: snippetPos.top, right: snippetPos.right }}
+              >
                 {snippets.map((s, i) => (
                   <button
                     key={i}
@@ -204,7 +217,8 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
                   </button>
                 ))}
               </div>
-            </>
+            </>,
+            document.body
           )}
         </div>
 

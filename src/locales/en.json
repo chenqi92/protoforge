@@ -674,6 +674,8 @@
       "themeLight": "Light",
       "themeDark": "Dark",
       "themeSystem": "System",
+      "accentColor": "Accent Color",
+      "accentColorDesc": "Choose the accent color for the application.",
       "fontSize": "Font Size",
       "fontSizeDesc": "Adjust the default font size for the editor and interface.",
       "fontFamily": "Font Family",

@@ -415,7 +415,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
                 </div>
                 <span className="wb-tool-chip">{running ? t('capture.listening', { port: portInput }) : t('capture.awaitingStart')}</span>
               </div>
-              <div className="flex items-center h-8 bg-bg-secondary/36 border-b border-border-subtle text-[var(--fs-xs)] font-semibold text-text-disabled uppercase tracking-wider select-none shrink-0 px-3">
+              <div className="flex items-center h-8 bg-bg-secondary/60 border-b border-border-default/50 text-[10px] font-semibold text-text-tertiary uppercase tracking-[0.06em] select-none shrink-0 px-3">
                 <span className="w-[60px] shrink-0">{t('capture.method')}</span>
                 <span className="flex-1 min-w-0">URL</span>
                 <span className="w-[60px] shrink-0 text-center">{t('capture.status')}</span>
@@ -545,16 +545,16 @@ function RequestRow({
     <div
       onClick={onClick}
       className={cn(
-        "flex items-center h-[34px] px-3 text-[var(--fs-xs)] cursor-pointer transition-colors border-b border-border-subtle/50",
+        "flex items-center h-[34px] px-3 text-[var(--fs-xs)] cursor-pointer transition-colors border-b border-border-subtle/40",
         isSelected
-          ? "bg-accent/5 text-text-primary"
+          ? "bg-accent-soft text-text-primary"
           : entry.completed
-          ? "hover:bg-bg-hover text-text-secondary"
+          ? "hover:bg-bg-hover/60 text-text-secondary"
           : "text-text-disabled animate-pulse"
       )}
     >
       <span className="w-[60px] shrink-0">
-        <span className={cn("text-[var(--fs-xxs)] font-bold px-1.5 py-[2px] rounded-[8px]", mc.text, mc.bg)}>
+        <span className={cn("text-[10px] font-bold px-[4px] py-[1px] rounded-[3px] tracking-wide", mc.text, mc.bg)}>
           {entry.method}
         </span>
       </span>
@@ -599,7 +599,7 @@ function DetailPanel({
       {/* 顶部状态栏 */}
       <div className={cn("shrink-0 flex items-center justify-between", embedded ? "wb-pane-header" : "wb-panel-header")}>
         <div className="flex items-center gap-2 text-[var(--fs-xs)]">
-          <span className={cn("font-mono font-bold px-1.5 py-[1px] rounded-[6px]",
+          <span className={cn("font-mono text-[10px] font-bold px-[4px] py-[1px] rounded-[3px] tracking-wide",
             methodColors[entry.method]?.text || "text-text-tertiary",
             methodColors[entry.method]?.bg || "bg-gray-500/10"
           )}>
@@ -627,7 +627,7 @@ function DetailPanel({
       {/* 左右分栏：Request | Response */}
       <div className="flex-1 flex min-h-0">
         {/* Request 面板 */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-border-subtle">
+        <div className="flex-1 flex flex-col min-w-0 border-r border-border-default/50">
           <BurpTabStrip label="Request" activeTab={reqTab} onChange={setReqTab} color="text-orange-500" />
           <div className="flex-1 overflow-auto">
             {reqTab === "raw" && <RawView type="request" entry={entry} />}
@@ -668,7 +668,7 @@ function BurpTabStrip({
   ];
 
   return (
-    <div className="shrink-0 flex items-center gap-0.5 border-b border-border-subtle px-2 h-8 bg-bg-secondary/30">
+    <div className="shrink-0 flex items-center gap-0.5 border-b border-border-default/50 px-2 h-8 bg-bg-secondary/40">
       <span className={cn("text-[var(--fs-xs)] font-bold mr-2", color)}>{label}</span>
       {tabs.map((tab) => (
         <button
@@ -767,8 +767,8 @@ function HeadersTableView({ headers }: { headers: [string, string][] }) {
           key={`${key}-${i}`}
           className={cn(
             "flex text-[var(--fs-xxs)] font-mono px-3 py-1.5 select-text cursor-text",
-            i > 0 && "border-t border-border-subtle/50",
-            i % 2 === 0 ? "bg-transparent" : "bg-bg-secondary/20"
+            i > 0 && "border-t border-border-subtle/40",
+            i % 2 === 0 ? "bg-transparent" : "bg-bg-secondary/30"
           )}
           style={{ userSelect: "text", WebkitUserSelect: "text" }}
         >

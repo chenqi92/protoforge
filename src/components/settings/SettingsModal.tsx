@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
+import { useSettingsStore, type AppSettings, type AccentColor } from "@/stores/settingsStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { usePluginStore } from "@/stores/pluginStore";
 import { useUpdateStore } from "@/stores/updateStore";
@@ -176,7 +176,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       className={cn(
                         "group flex w-full items-center gap-3 rounded-[18px] px-3.5 py-3 text-left transition-all",
                         isActive
-                          ? "bg-bg-primary/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-border-default"
+                          ? "bg-bg-primary/86 shadow-xs ring-1 ring-border-default"
                           : "text-text-tertiary hover:bg-bg-primary/68 hover:text-text-primary"
                       )}
                     >
@@ -219,7 +219,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             <section className="flex min-w-0 min-h-0 flex-col bg-bg-primary/36">
               <div className="flex-1 overflow-y-auto p-5">
-                <div className="overflow-hidden rounded-[22px] border border-border-default/75 bg-bg-primary/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <div className="overflow-hidden rounded-[22px] border border-border-default/75 bg-bg-primary/88 shadow-panel">
                   <div className="flex items-center gap-3 border-b border-border-default/70 px-6 py-4">
                     <div
                       className={cn(
@@ -312,7 +312,7 @@ function SegmentedControl<T extends string>({
             className={cn(
               "flex h-8 items-center gap-1.5 rounded-[11px] px-3 text-[var(--fs-sm)] font-medium transition-all",
               isActive
-                ? "bg-bg-primary text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_1px_2px_rgba(15,23,42,0.06)]"
+                ? "bg-bg-primary text-text-primary shadow-xs"
                 : "text-text-tertiary hover:bg-bg-hover/80 hover:text-text-primary"
             )}
           >
@@ -321,6 +321,44 @@ function SegmentedControl<T extends string>({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+const ACCENT_COLORS: { value: AccentColor; color: string; label: string }[] = [
+  { value: 'indigo', color: '#5b6af0', label: 'Indigo' },
+  { value: 'cyan', color: '#06b6d4', label: 'Cyan' },
+  { value: 'emerald', color: '#10b981', label: 'Emerald' },
+  { value: 'violet', color: '#7c3aed', label: 'Violet' },
+];
+
+function AccentColorPicker({ value, onChange }: { value: AccentColor; onChange: (v: AccentColor) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      {ACCENT_COLORS.map((item) => (
+        <button
+          key={item.value}
+          type="button"
+          title={item.label}
+          onClick={() => onChange(item.value)}
+          className={cn(
+            "relative h-7 w-7 rounded-full transition-all",
+            value === item.value
+              ? "ring-2 ring-offset-2 ring-offset-bg-primary"
+              : "hover:scale-110"
+          )}
+          style={{
+            backgroundColor: item.color,
+            '--tw-ring-color': value === item.value ? item.color : undefined,
+          } as React.CSSProperties}
+        >
+          {value === item.value && (
+            <svg className="absolute inset-0 m-auto h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </button>
+      ))}
     </div>
   );
 }
@@ -374,6 +412,10 @@ function GeneralSection({
             { value: "system", label: t('settings.general.themeSystem'), icon: Monitor },
           ]}
         />
+      </SettingRow>
+
+      <SettingRow label={t('settings.general.accentColor')} desc={t('settings.general.accentColorDesc')}>
+        <AccentColorPicker value={settings.accentColor} onChange={(v) => update("accentColor", v)} />
       </SettingRow>
 
       <SettingRow label={t('settings.general.fontSize')} desc={t('settings.general.fontSizeDesc')}>

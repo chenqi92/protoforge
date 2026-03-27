@@ -50,7 +50,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
   const connectingLabel = isServer ? t('tcp.starting') : t('tcp.connecting');
 
   return (
-    <div className="flex min-h-[38px] items-center gap-2 rounded-[11px] border border-border-default/75 bg-bg-primary/78 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)] transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
       <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-3 text-[var(--fs-xs)] font-semibold text-white shadow-sm", cfg.badge)}>
         {cfg.icon}
         {cfg.label}

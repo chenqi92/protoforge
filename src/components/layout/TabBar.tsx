@@ -162,7 +162,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   return (
     <div
       ref={tabBarRef}
-      className="no-drag flex h-[var(--tabbar-height)] shrink-0 items-center border-b border-border-default/65 bg-transparent px-1.5"
+      className="no-drag flex h-[var(--tabbar-height)] shrink-0 items-center border-b border-border-default/50 bg-bg-secondary/30 px-2"
     >
       <div ref={scrollRef} className="flex flex-1 items-center gap-1 overflow-x-auto py-0.5 scrollbar-hide">
         <AnimatePresence mode="sync">
@@ -409,12 +409,12 @@ function TabItem({
           "group relative flex h-8 min-w-[112px] max-w-[228px] shrink-0 items-center gap-1.5 rounded-[9px] px-2 no-drag",
           "cursor-pointer transition-all duration-[var(--transition-fast)]",
           isActive
-            ? "z-10 bg-accent/10 font-medium text-text-primary"
-            : "bg-transparent text-text-tertiary hover:bg-bg-hover hover:text-text-secondary",
+            ? "z-10 bg-bg-primary font-medium text-text-primary shadow-xs border border-border-default/50"
+            : "bg-transparent text-text-tertiary hover:bg-bg-hover/60 hover:text-text-secondary",
           isDragOver && "ring-2 ring-accent/50"
         )}
       >
-        <span className={cn("shrink-0 rounded-[4px] px-1 py-0.5 text-[var(--fs-xxs)] font-bold leading-none", badgeColor)}>
+        <span className={cn("shrink-0 rounded-[4px] px-1.5 py-[3px] text-[var(--fs-xxs)] font-bold leading-none", badgeColor)}>
           {tab.protocol === "http"
             ? tab.requestMode && tab.requestMode !== "rest"
               ? modeLabels[tab.requestMode]

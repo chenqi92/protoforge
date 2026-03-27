@@ -1,19 +1,91 @@
 // TCP/UDP 工作区 — 上下分栏布局
 // 上方消息日志（主区域） + 下方紧凑发送栏
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Server, Radio, Square, Monitor } from "lucide-react";
+import { Server, Radio, Square, Monitor, History, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { ConnectionBar } from "./ConnectionBar";
 import { SendPanel } from "./SendPanel";
 import { MessageLog } from "./MessageLog";
 import { ClientList } from "./ClientList";
+import { StatsBar } from "./StatsBar";
 import * as svc from "@/services/tcpService";
 import { useActivityLogStore } from "@/stores/activityLogStore";
 import type {
   SocketMode, DataFormat, TcpMessage, TcpEvent,
   TcpServerClient, ConnectionStats, SendHistoryItem, QuickCommand,
 } from "@/types/tcp";
+
+// ═══════════════════════════════════════════
+//  Recent Connections — localStorage 存储
+// ═══════════════════════════════════════════
+
+type RecentConn = { host: string; port: number };
+
+function rcKey(mode: SocketMode) {
+  return `pf:recent-conn:${mode}`;
+}
+
+function saveRecentConn(mode: SocketMode, host: string, port: number) {
+  const list: RecentConn[] = JSON.parse(localStorage.getItem(rcKey(mode)) || "[]");
+  const deduped = list.filter((r) => !(r.host === host && r.port === port));
+  localStorage.setItem(rcKey(mode), JSON.stringify([{ host, port }, ...deduped].slice(0, 8)));
+}
+
+function useRecentConns(mode: SocketMode) {
+  const [recent, setRecent] = useState<RecentConn[]>(() =>
+    JSON.parse(localStorage.getItem(rcKey(mode)) || "[]")
+  );
+  const save = useCallback((host: string, port: number) => {
+    saveRecentConn(mode, host, port);
+    setRecent(JSON.parse(localStorage.getItem(rcKey(mode)) || "[]"));
+  }, [mode]);
+  const remove = useCallback((host: string, port: number) => {
+    const list: RecentConn[] = JSON.parse(localStorage.getItem(rcKey(mode)) || "[]");
+    const updated = list.filter((r) => !(r.host === host && r.port === port));
+    localStorage.setItem(rcKey(mode), JSON.stringify(updated));
+    setRecent(updated);
+  }, [mode]);
+  return { recent, save, remove };
+}
+
+function RecentConnections({
+  mode, recent, onLoad, onRemove,
+}: {
+  mode: SocketMode;
+  recent: RecentConn[];
+  onLoad: (host: string, port: number) => void;
+  onRemove: (host: string, port: number) => void;
+}) {
+  const { t } = useTranslation();
+  if (recent.length === 0) return null;
+  return (
+    <div className="flex items-center gap-2 flex-wrap px-0.5">
+      <div className="flex items-center gap-1 text-text-disabled shrink-0">
+        <History className="w-3 h-3" />
+        <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide">{t('tcp.recentConnections', '最近')}</span>
+      </div>
+      <div className="flex items-center gap-1 flex-wrap min-w-0">
+        {recent.map((r, i) => (
+          <div key={i} className="group flex items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
+            <button
+              onClick={() => onLoad(r.host, r.port)}
+              className="h-[22px] px-2 text-[var(--fs-xxs)] font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors"
+            >
+              {r.host}:{r.port}
+            </button>
+            <button
+              onClick={() => onRemove(r.host, r.port)}
+              className="hidden group-hover:flex h-[22px] w-5 items-center justify-center text-text-disabled hover:text-text-secondary hover:bg-bg-hover transition-colors"
+            >
+              <X className="w-2.5 h-2.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // -- Mode Tab --
 const MODES: { value: SocketMode; labelKey: string; hintKey: string; icon: React.ReactNode }[] = [
@@ -83,7 +155,7 @@ function AddressField({
   placeholder: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-[11px] border border-border-default/75 bg-bg-primary/78 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.68)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary px-3 py-2">
       <span className="shrink-0 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{label}</span>
       <input
         value={value}
@@ -190,7 +262,17 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
   const [connecting, setConnecting] = useState(false);
   const [host, setHost] = useState("127.0.0.1");
   const [port, setPort] = useState(8080);
+  const [connectedSince, setConnectedSince] = useState<string | undefined>();
+  const [autoReconnect, setAutoReconnect] = useState(false);
+  const autoReconnectRef = useRef(false);
+  const hostRef = useRef(host);
+  const portRef = useRef(port);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { recent, save: saveRecent, remove: removeRecent } = useRecentConns("tcp-client");
+
+  useEffect(() => { autoReconnectRef.current = autoReconnect; }, [autoReconnect]);
+  useEffect(() => { hostRef.current = host; }, [host]);
+  useEffect(() => { portRef.current = port; }, [port]);
 
   useEffect(() => {
     svc.tcpListConnections().then((list) => {

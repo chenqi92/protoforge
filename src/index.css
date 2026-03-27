@@ -5,38 +5,42 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ===== ProtoForge Design System v4 — Modern Light (Default) + Dark ===== */
+/* ===== ProtoForge Design System v5 — Refined Light (Default) + Dark ===== */
 @theme {
-  /* ---- Light Theme (default) ---- */
-  --color-bg-app: #f4f6fb; /* Slightly gray/blue application background */
-  --color-bg-primary: #ffffff; /* pure white surface for floating panels */
-  --color-bg-secondary: #f9fafb; /* slightly off white */
-  --color-bg-tertiary: #f3f4f6;
+  /* ---- Light Theme (default) — warmer neutrals, less blue-gray ---- */
+  --color-bg-app: #f0f1f5;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f7f8fa;
+  --color-bg-tertiary: #eff0f3;
   --color-bg-surface: #ffffff;
   --color-bg-elevated: #ffffff;
-  --color-bg-hover: #f1f5f9;
-  --color-bg-active: #e2e8f0;
-  --color-bg-input: #f8fafc;
+  --color-bg-hover: #f0f1f5;
+  --color-bg-active: #e5e7ec;
+  --color-bg-input: #f8f9fb;
+  --color-bg-sidebar: #f5f6f8;
+  --color-bg-inset: #ecedf1;
 
-  --color-border-default: #e2e8f0;
-  --color-border-subtle: #f1f5f9;
-  --color-border-strong: #cbd5e1;
-  --color-border-focus: #3b82f6; /* Blue aesthetic */
+  --color-border-default: #e3e5ea;
+  --color-border-subtle: #eff0f4;
+  --color-border-strong: #cdd0d8;
+  --color-border-focus: var(--color-accent);
+  --color-border-sidebar: #e0e2e7;
 
   --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-tertiary: #94a3b8;
+  --color-text-secondary: #4b5563;
+  --color-text-tertiary: #9ca3af;
   --color-text-disabled: #cbd5e1;
 
-  --color-accent: #3b82f6;
-  --color-accent-hover: #2563eb;
-  --color-accent-soft: rgba(59, 130, 246, 0.1);
-  --color-accent-muted: rgba(59, 130, 246, 0.2);
+  /* Accent colors — overridden by data-accent attribute */
+  --color-accent: #5b6af0;
+  --color-accent-hover: #4f5de6;
+  --color-accent-soft: rgba(91, 106, 240, 0.08);
+  --color-accent-muted: rgba(91, 106, 240, 0.15);
 
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
-  --color-info: #3b82f6;
+  --color-info: #5b6af0;
 
   --color-method-get: #10b981;
   --color-method-post: #f59e0b;
@@ -51,11 +55,12 @@
   --tabbar-height: 38px;
   --statusbar-height: 28px;
 
-  --radius-xs: 8px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  /* Radius — standardized 5-tier scale */
+  --radius-xs: 5px;
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
 
   /* Button height tiers */
   --btn-height-xs: 24px;
@@ -63,11 +68,15 @@
   --btn-height-md: 32px;
   --btn-height-lg: 36px;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  /* Shadow — layered depth system */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
   --shadow-soft: 0 8px 30px rgba(0,0,0,0.04);
-  --shadow-glow: 0 0 15px rgba(59, 130, 246, 0.3);
+  --shadow-glow: 0 0 15px rgba(91, 106, 240, 0.3);
+  --shadow-panel: 0 0 0 1px rgba(0,0,0,0.03), 0 2px 8px -2px rgba(0,0,0,0.06);
+  --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.04);
 
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -76,22 +85,53 @@
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
+/* ===== Accent Color Schemes ===== */
+:root[data-accent="indigo"], :root:not([data-accent]) {
+  --color-accent: #5b6af0;
+  --color-accent-hover: #4f5de6;
+  --color-accent-soft: rgba(91, 106, 240, 0.08);
+  --color-accent-muted: rgba(91, 106, 240, 0.15);
+}
+:root[data-accent="cyan"] {
+  --color-accent: #06b6d4;
+  --color-accent-hover: #0891b2;
+  --color-accent-soft: rgba(6, 182, 212, 0.08);
+  --color-accent-muted: rgba(6, 182, 212, 0.15);
+}
+:root[data-accent="emerald"] {
+  --color-accent: #10b981;
+  --color-accent-hover: #059669;
+  --color-accent-soft: rgba(16, 185, 129, 0.08);
+  --color-accent-muted: rgba(16, 185, 129, 0.15);
+  /* Adjust GET method color to teal to avoid conflict */
+  --color-method-get: #0d9488;
+}
+:root[data-accent="violet"] {
+  --color-accent: #7c3aed;
+  --color-accent-hover: #6d28d9;
+  --color-accent-soft: rgba(124, 58, 237, 0.08);
+  --color-accent-muted: rgba(124, 58, 237, 0.15);
+}
+
 /* ===== Dark Theme ===== */
 .dark {
-  --color-bg-app: #09090b;
-  --color-bg-primary: #121214; 
-  --color-bg-secondary: #18181b;
+  --color-bg-app: #0c0c0e;
+  --color-bg-primary: #141416;
+  --color-bg-secondary: #1a1a1e;
   --color-bg-tertiary: #27272a;
-  --color-bg-surface: #121214;
-  --color-bg-elevated: #18181b;
+  --color-bg-surface: #141416;
+  --color-bg-elevated: #1a1a1e;
   --color-bg-hover: #27272a;
   --color-bg-active: #3f3f46;
-  --color-bg-input: #18181b;
+  --color-bg-input: #1a1a1e;
+  --color-bg-sidebar: #111113;
+  --color-bg-inset: #0f0f11;
 
-  --color-border-default: #27272a;
-  --color-border-subtle: #18181b;
+  --color-border-default: #252529;
+  --color-border-subtle: #1a1a1e;
   --color-border-strong: #3f3f46;
-  --color-border-focus: #3b82f6;
+  --color-border-focus: var(--color-accent);
+  --color-border-sidebar: #222226;
 
   --color-text-primary: #f8fafc;
   --color-text-secondary: #a1a1aa;
@@ -99,17 +139,19 @@
   --color-text-disabled: #52525b;
 
   --shadow-soft: 0 8px 30px rgba(0,0,0,0.3);
+  --shadow-panel: 0 0 0 1px rgba(0,0,0,0.2), 0 2px 8px -2px rgba(0,0,0,0.3);
+  --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* ── shadcn dark theme variables mapped to ProtoForge tokens ── */
 .dark {
-  --background: #09090b;
+  --background: #0c0c0e;
   --foreground: #f8fafc;
-  --card: #121214;
+  --card: #141416;
   --card-foreground: #f8fafc;
-  --popover: #18181b;
+  --popover: #1a1a1e;
   --popover-foreground: #f8fafc;
-  --primary: #3b82f6;
+  --primary: var(--color-accent);
   --primary-foreground: #ffffff;
   --secondary: #27272a;
   --secondary-foreground: #a1a1aa;
@@ -117,22 +159,22 @@
   --muted-foreground: #71717a;
   --accent-foreground: #f8fafc;
   --destructive: #ef4444;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #3b82f6;
-  --chart-1: #3b82f6;
+  --border: #252529;
+  --input: #252529;
+  --ring: var(--color-accent);
+  --chart-1: var(--color-accent);
   --chart-2: #10b981;
   --chart-3: #f59e0b;
   --chart-4: #8b5cf6;
   --chart-5: #ef4444;
-  --sidebar: #18181b;
+  --sidebar: #111113;
   --sidebar-foreground: #f8fafc;
-  --sidebar-primary: #3b82f6;
+  --sidebar-primary: var(--color-accent);
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #27272a;
   --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: #27272a;
-  --sidebar-ring: #3b82f6;
+  --sidebar-border: #222226;
+  --sidebar-ring: var(--color-accent);
 }
 
 /* ===== Global Styles ===== */
@@ -207,7 +249,7 @@
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: linear-gradient(135deg, var(--color-accent), #8b5cf6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -222,12 +264,11 @@
   .input-field {
     background: var(--color-bg-input);
     border: 1px solid var(--color-border-default);
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     min-height: 34px;
     padding: 0 12px;
     color: var(--color-text-primary);
     outline: none;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
   }
   .input-field:focus {
@@ -241,12 +282,10 @@
     cursor: not-allowed;
   }
 
-  .dark .input-field {
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  }
+  /* dark input-field — no special shadow needed */
 
   .btn-primary {
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
     color: white;
     font-weight: 500;
     border: none;
@@ -266,19 +305,19 @@
     box-shadow: var(--shadow-sm);
   }
 
-  /* Load test config inputs */
+  /* Load test config inputs — unified with wb-field-sm (28px) */
   .cfg-input {
-    height: 30px;
+    height: 28px;
     padding: 0 10px;
     font-size: var(--fs-xs);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-family: var(--font-mono);
     background: var(--color-bg-input);
     border: 1px solid var(--color-border-default);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     outline: none;
     text-align: center;
     color: var(--color-text-primary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: none;
     transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
   }
   .cfg-input:focus {
@@ -291,16 +330,16 @@
   }
 
   .cfg-select {
-    height: 30px;
+    height: 28px;
     padding: 0 10px;
     font-size: var(--fs-xs);
     background: var(--color-bg-input);
     border: 1px solid var(--color-border-default);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     outline: none;
     color: var(--color-text-primary);
     cursor: pointer;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: none;
     transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -323,7 +362,7 @@
     border: 1px solid var(--color-border-default);
     border-radius: 15px;
     background: var(--color-bg-primary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: none;
   }
 
   .wb-tool-strip-main,
@@ -353,7 +392,7 @@
     font-size: var(--fs-xs);
     font-weight: 500;
     white-space: nowrap;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: none;
   }
 
   .wb-tool-segment {
@@ -364,7 +403,7 @@
     border: 1px solid var(--color-border-default);
     border-radius: 13px;
     background: var(--color-bg-secondary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: none;
   }
 
   .wb-tool-segment button {
@@ -389,7 +428,7 @@
   .wb-tool-segment .is-active {
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 1px 2px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--shadow-xs);
   }
 
   .wb-tool-field {
@@ -402,7 +441,7 @@
     border: 1px solid var(--color-border-default);
     border-radius: 10px;
     background: var(--color-bg-input);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: none;
   }
 
   .wb-tool-field span {
@@ -511,13 +550,11 @@
     min-height: 38px;
     padding: 7px 10px;
     border-bottom: 1px solid var(--color-border-default);
-    background: color-mix(in srgb, var(--color-bg-secondary) 42%, transparent);
+    background: var(--color-bg-secondary);
     flex-wrap: wrap;
   }
 
-  .dark .wb-pane-header {
-    background: color-mix(in srgb, var(--color-bg-secondary) 54%, transparent);
-  }
+  /* dark .wb-pane-header uses same bg-secondary token — no override needed */
 
   .wb-pane-divider {
     height: 1px;
@@ -527,11 +564,11 @@
 
   .wb-send-bar-wrap {
     border-top: 1px solid var(--color-border-default);
-    background: color-mix(in srgb, var(--color-bg-secondary) 42%, transparent);
+    background: var(--color-bg-secondary);
   }
 
   .dark .wb-send-bar-wrap {
-    background: color-mix(in srgb, var(--color-bg-secondary) 54%, transparent);
+    background: var(--color-bg-secondary);
   }
 
   .wb-send-bar-input {
@@ -586,7 +623,7 @@
     border: 1px solid var(--color-border-default);
     border-radius: 10px;
     background: var(--color-bg-input);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: none;
   }
 
   .wb-target-field-label {
@@ -832,7 +869,7 @@
     border: 1px solid var(--color-border-default);
     border-radius: 10px;
     background: var(--color-bg-primary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: none;
   }
 
   .wb-inline-field span {
@@ -887,9 +924,9 @@
     min-height: 38px;
     padding: 2px;
     border: 1px solid var(--color-border-default);
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     background: var(--color-bg-primary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
   .dark .wb-bar,
@@ -1072,13 +1109,12 @@
   }
 
   .wb-panel {
-    border-radius: 16px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    border-radius: var(--radius-lg);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
   .wb-subpanel {
-    border-radius: 13px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.68);
+    border-radius: var(--radius-md);
   }
 
   .wb-panel-header {
@@ -1152,7 +1188,7 @@
 
   .wb-tab-active {
     color: var(--color-text-primary);
-    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+    background: var(--color-accent-soft);
     box-shadow: none;
   }
 
@@ -1261,7 +1297,7 @@
 
   .http-response-tab.is-active {
     color: var(--color-text-primary);
-    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+    background: var(--color-accent-soft);
     box-shadow: none;
   }
 
@@ -1296,7 +1332,7 @@
 
   .response-viewer-tab.is-active {
     color: var(--color-text-primary);
-    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+    background: var(--color-accent-soft);
     box-shadow: none;
   }
 
@@ -1444,7 +1480,7 @@
   }
 
   .editor-table-input {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-family: var(--font-mono);
   }
 
   .editor-table-input::placeholder,
@@ -1577,7 +1613,7 @@
     border-radius: 12px;
     background: color-mix(in srgb, var(--color-bg-primary) 96%, transparent);
     padding: 8px 12px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: none;
   }
 
   .dark .response-summary-card {
@@ -1614,7 +1650,7 @@
     border: 1px solid color-mix(in srgb, var(--color-border-default) 92%, transparent);
     border-radius: 14px;
     background: color-mix(in srgb, var(--color-bg-primary) 95%, transparent);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    box-shadow: none;
   }
 
   .dark .response-table-frame {
@@ -1650,7 +1686,7 @@
   }
 
   .response-table tbody tr:nth-child(even) {
-    background: color-mix(in srgb, var(--color-bg-secondary) 42%, transparent);
+    background: var(--color-bg-secondary);
   }
 
   .response-table tbody tr:hover {
@@ -1727,7 +1763,7 @@
   .wb-segment-active {
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 1px 2px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--shadow-xs);
   }
 
   .wb-textarea {
@@ -1950,7 +1986,7 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
-  /* NOTE: --color-accent is defined in ProtoForge @theme above (#3b82f6) */
+  /* NOTE: --color-accent is defined in ProtoForge @theme above (default: indigo #5b6af0) */
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -1968,37 +2004,37 @@
 
 /* ── shadcn light theme variables mapped to ProtoForge tokens ── */
 :root {
-  --background: #f4f6fb;
+  --background: #f0f1f5;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #3b82f6;
+  --primary: var(--color-accent);
   --primary-foreground: #ffffff;
-  --secondary: #f3f4f6;
-  --secondary-foreground: #475569;
-  --muted: #f1f5f9;
-  --muted-foreground: #94a3b8;
+  --secondary: #eff0f3;
+  --secondary-foreground: #4b5563;
+  --muted: #f0f1f5;
+  --muted-foreground: #9ca3af;
   --accent-foreground: #0f172a;
   --destructive: #ef4444;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #3b82f6;
+  --border: #e3e5ea;
+  --input: #e3e5ea;
+  --ring: var(--color-accent);
   --radius: 0.5rem;
-  --chart-1: #3b82f6;
+  --chart-1: var(--color-accent);
   --chart-2: #10b981;
   --chart-3: #f59e0b;
   --chart-4: #8b5cf6;
   --chart-5: #ef4444;
-  --sidebar: #f9fafb;
+  --sidebar: #f5f6f8;
   --sidebar-foreground: #0f172a;
-  --sidebar-primary: #3b82f6;
+  --sidebar-primary: var(--color-accent);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1f5f9;
+  --sidebar-accent: #f0f1f5;
   --sidebar-accent-foreground: #0f172a;
-  --sidebar-border: #e2e8f0;
-  --sidebar-ring: #3b82f6;
+  --sidebar-border: #e0e2e7;
+  --sidebar-ring: var(--color-accent);
 }
 
 /* ── Request Preview Tooltip ── */

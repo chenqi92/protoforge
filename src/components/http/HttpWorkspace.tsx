@@ -530,8 +530,8 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
         ? "graphql"
         : "default";
 
-  const requestDefaultSize = requestLayoutMode === "compact" ? 28 : requestLayoutMode === "table-body" ? 44 : requestLayoutMode === "graphql" ? 55 : 42;
-  const responseDefaultSize = requestLayoutMode === "compact" ? 72 : requestLayoutMode === "table-body" ? 56 : requestLayoutMode === "graphql" ? 45 : 58;
+  const requestDefaultSize = requestLayoutMode === "compact" ? 28 : requestLayoutMode === "table-body" ? 50 : requestLayoutMode === "graphql" ? 55 : 50;
+  const responseDefaultSize = requestLayoutMode === "compact" ? 72 : requestLayoutMode === "table-body" ? 50 : requestLayoutMode === "graphql" ? 45 : 50;
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
@@ -858,7 +858,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                   
                   <div className="flex-1 min-w-0 p-5 overflow-y-auto">
                     <div className="max-w-2xl">
-                      {config.authType === "none" && <p className="text-[var(--fs-base)] text-text-disabled mt-2">{t('http.noAuth')}</p>}
+                      {config.authType === "none" && <p className="text-[var(--fs-sm)] text-text-disabled mt-2">{t('http.noAuth')}</p>}
                     {config.authType === "bearer" && (
                       <div className="space-y-2">
                         <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
@@ -868,7 +868,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                             onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
                             type={showSecrets['bearer'] ? 'text' : 'password'}
                             placeholder="ey..."
-                            className="wb-field w-full font-mono text-[var(--fs-base)] pr-9"
+                            className="wb-field w-full font-mono pr-9"
                           />
                           <button type="button" onClick={() => toggleSecret('bearer')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                             {showSecrets['bearer'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -880,12 +880,12 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                       <div className="space-y-3">
                         <div className="space-y-1.5">
                           <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Username</label>
-                          <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full text-[var(--fs-base)]" />
+                          <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full" />
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Password</label>
                           <div className="relative">
-                            <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full text-[var(--fs-base)] pr-9" />
+                            <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full pr-9" />
                             <button type="button" onClick={() => toggleSecret('basicPwd')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                               {showSecrets['basicPwd'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
@@ -907,12 +907,12 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Key</label>
-                          <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono text-[var(--fs-base)]" />
+                          <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono" />
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Value</label>
                           <div className="relative">
-                            <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono text-[var(--fs-base)] pr-9" />
+                            <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono pr-9" />
                             <button type="button" onClick={() => toggleSecret('apiKey')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                               {showSecrets['apiKey'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>

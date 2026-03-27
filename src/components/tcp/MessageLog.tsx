@@ -148,11 +148,11 @@ export function MessageLog({
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 overflow-auto bg-bg-primary/34">
+      <div ref={containerRef} className="flex-1 overflow-auto bg-bg-primary/50">
         {filteredMessages.length === 0 ? (
           isFiltering ? (
             <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default/70 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default/70 bg-bg-secondary">
                 <Search className="h-6 w-6 opacity-35" />
               </div>
               <p className="text-[var(--fs-md)] font-semibold text-text-secondary">{t('tcp.messageLog.noMatch')}</p>

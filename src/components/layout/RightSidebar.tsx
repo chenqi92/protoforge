@@ -106,7 +106,7 @@ export function RightSidebar({ panelCollapsed, onTogglePanel }: RightSidebarProp
     <div className="h-full flex">
       {/* ── Detail Panel ── */}
       {!panelCollapsed && (
-        <div className="flex-1 h-full flex flex-col bg-transparent overflow-hidden min-w-0">
+        <div className="flex-1 h-full flex flex-col bg-bg-sidebar overflow-hidden min-w-0">
           {activeView === 'logs' && <ActivityLogsView />}
           {activeView === 'parser' && (
             <ProtocolParserPanel
@@ -118,7 +118,7 @@ export function RightSidebar({ panelCollapsed, onTogglePanel }: RightSidebarProp
       )}
 
       {/* ── Icon Rail (右边缘) ── */}
-      <div className="w-12 h-full flex flex-col items-center pt-2 pb-3 bg-transparent border-l border-border-default/60 shrink-0">
+      <div className="w-[52px] h-full flex flex-col items-center py-3 gap-1 bg-bg-sidebar border-l border-border-sidebar shrink-0">
         {navItems.map(({ id, icon: Icon, labelKey }) => {
           const label = t(labelKey, id === 'logs' ? '活动日志' : '协议解析');
           const isActive = activeView === id && !panelCollapsed;
@@ -127,21 +127,21 @@ export function RightSidebar({ panelCollapsed, onTogglePanel }: RightSidebarProp
               key={id}
               onClick={() => handleNavClick(id)}
               className={cn(
-                'relative mb-0.5 flex h-[30px] w-[30px] items-center justify-center rounded-[8px] transition-all duration-150',
+                'relative flex h-[34px] w-[34px] items-center justify-center rounded-[8px] transition-all duration-150',
                 isActive
                   ? 'text-accent bg-accent-soft'
-                  : 'text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
+                  : 'text-text-tertiary hover:bg-bg-hover hover:text-text-primary'
               )}
               title={label}
             >
               {isActive && (
                 <motion.div
                   layoutId="right-sidebar-active-indicator"
-                  className="absolute right-0 top-1.5 bottom-1.5 w-0.5 bg-accent rounded-l-full"
+                  className="absolute inset-0 rounded-[8px] bg-accent-soft"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
-              <Icon className={cn('w-4 h-4', isActive && 'drop-shadow-sm')} strokeWidth={isActive ? 2.2 : 1.8} />
+              <Icon className={cn('relative w-[18px] h-[18px]', isActive && 'drop-shadow-sm')} strokeWidth={isActive ? 2.2 : 1.8} />
             </button>
           );
         })}
@@ -201,9 +201,9 @@ function ActivityLogsView() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 border-b border-border-subtle/70 bg-transparent px-3 py-2.5">
+      <div className="shrink-0 border-b border-border-sidebar px-3 pt-3 pb-2.5">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[var(--fs-sm)] font-semibold text-text-primary">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-text-tertiary">
             {t('rightSidebar.logs', '活动日志')}
           </span>
           <div className="flex items-center gap-1">
@@ -228,10 +228,10 @@ function ActivityLogsView() {
             onChange={(e) => handleFilterChange(e.target.value)}
             placeholder={t('rightSidebar.regexSearch', '正则搜索日志...')}
             className={cn(
-              'h-[30px] w-full rounded-[10px] border bg-bg-secondary/42 pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]',
+              'h-[30px] w-full rounded-[7px] border bg-bg-inset pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all shadow-inset placeholder:text-text-tertiary focus:shadow-[0_0_0_2px_var(--color-accent-soft)]',
               regexError
                 ? 'border-red-400 focus:border-red-400'
-                : 'border-border-default/80 focus:border-accent'
+                : 'border-border-sidebar focus:border-accent'
             )}
           />
           {regexError && (
@@ -270,7 +270,7 @@ function ActivityLogsView() {
             return (
               <div
                 key={entry.id}
-                className="flex items-start gap-2 px-2 py-[6px] rounded-[8px] hover:bg-bg-hover/50 transition-colors group cursor-default"
+                className="flex items-start gap-2 px-2 py-[7px] rounded-[6px] hover:bg-bg-hover/50 transition-colors group cursor-default"
               >
                 <div className="flex items-center gap-1 mt-0.5 shrink-0">
                   <SourceIcon className={cn('w-3.5 h-3.5', sourceColors[entry.source])} />

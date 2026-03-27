@@ -1,5 +1,6 @@
-// 底部统计栏组件
-import { ArrowUp, ArrowDown, Clock } from "lucide-react";
+// 底部统计栏组件 — 含实时连接时长
+import { useEffect, useState } from "react";
+import { ArrowUp, ArrowDown, Clock, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConnectionStats } from "@/types/tcp";
 
@@ -7,7 +8,10 @@ interface StatsBarProps {
   stats: ConnectionStats;
   connected: boolean;
   statusText: string;
-  connectedAt?: string;
+  /** ISO 时间戳，连接建立时间 */
+  connectedSince?: string;
+  /** 自动重连是否开启 */
+  autoReconnect?: boolean;
 }
 
 function formatBytes(bytes: number): string {
@@ -17,9 +21,30 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1048576).toFixed(2)} MB`;
 }
 
-export function StatsBar({ stats, connected, statusText, connectedAt }: StatsBarProps) {
+function formatDuration(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  if (h > 0) return `${h}:${String(m % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  return `${m}:${String(s % 60).padStart(2, "0")}`;
+}
+
+export function StatsBar({ stats, connected, statusText, connectedSince, autoReconnect }: StatsBarProps) {
+  const [duration, setDuration] = useState("");
+
+  useEffect(() => {
+    if (!connectedSince) { setDuration(""); return; }
+    const update = () => {
+      const ms = Date.now() - new Date(connectedSince).getTime();
+      setDuration(formatDuration(Math.max(0, ms)));
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [connectedSince]);
+
   return (
-    <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/60 border-t border-border-default text-[var(--fs-xs)] font-medium shrink-0 select-none">
+    <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/50 border-t border-border-default/50 text-[var(--fs-xs)] font-medium shrink-0 select-none">
       {/* Connection Status */}
       <div className="flex items-center gap-1.5">
         <div className={cn(
@@ -29,6 +54,12 @@ export function StatsBar({ stats, connected, statusText, connectedAt }: StatsBar
         <span className={cn("transition-colors", connected ? "text-emerald-600 dark:text-emerald-400" : "text-text-tertiary")}>
           {statusText}
         </span>
+        {autoReconnect && !connected && (
+          <span className="flex items-center gap-0.5 text-amber-500">
+            <RefreshCw className="w-2.5 h-2.5" />
+            <span className="text-[var(--fs-xxs)]">自动重连</span>
+          </span>
+        )}
       </div>
 
       <div className="w-[1px] h-3 bg-border-default" />
@@ -47,13 +78,13 @@ export function StatsBar({ stats, connected, statusText, connectedAt }: StatsBar
         <span className="opacity-50">({stats.receivedCount})</span>
       </div>
 
-      {/* Duration */}
-      {connectedAt && (
+      {/* Live Duration */}
+      {duration && (
         <>
           <div className="w-[1px] h-3 bg-border-default" />
           <div className="flex items-center gap-1 text-text-disabled">
             <Clock className="w-3 h-3" />
-            <span>{connectedAt}</span>
+            <span className="tabular-nums">{duration}</span>
           </div>
         </>
       )}

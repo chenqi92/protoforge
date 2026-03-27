@@ -236,7 +236,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
         <div className="wb-tool-strip">
           <div className="wb-tool-strip-main flex-1 flex-nowrap">
             <div className="wb-target-bar">
-              <div className="wb-target-chip bg-gradient-to-r from-rose-500 to-pink-500">
+              <div className="wb-target-chip bg-accent">
                 <span className="wb-target-chip-icon">
                   <Flame className="h-3.5 w-3.5" />
                 </span>
@@ -264,7 +264,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                 "wb-primary-btn",
                 running
                   ? "bg-red-500 hover:bg-red-600"
-                  : "bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600"
+                  : "bg-accent hover:bg-accent-hover"
               )}
             >
               {running ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
@@ -280,7 +280,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
               className="flex items-center gap-2 group"
             >
               <div className="flex items-center gap-2 text-[var(--fs-sm)] font-semibold text-text-primary">
-                <Settings2 className="h-3.5 w-3.5 text-rose-500" />
+                <Settings2 className="h-3.5 w-3.5 text-accent" />
                 {t('loadtest.configTitle')}
               </div>
               {showConfig ? <ChevronUp className="w-3.5 h-3.5 text-text-tertiary" /> : <ChevronDown className="w-3.5 h-3.5 text-text-tertiary" />}
@@ -296,10 +296,10 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
               </button>
               {(summary || snapshots.length > 0) && (
                 <>
-                  <button onClick={handleExportJson} className="wb-ghost-btn hover:text-rose-600 hover:bg-rose-500/5" title={t('loadtest.exportJson')}>
+                  <button onClick={handleExportJson} className="wb-ghost-btn hover:text-accent hover:bg-accent-soft" title={t('loadtest.exportJson')}>
                     <Download className="w-3 h-3" />JSON
                   </button>
-                  <button onClick={handleExportCsv} className="wb-ghost-btn hover:text-rose-600 hover:bg-rose-500/5" title={t('loadtest.exportCsv')}>
+                  <button onClick={handleExportCsv} className="wb-ghost-btn hover:text-accent hover:bg-accent-soft" title={t('loadtest.exportCsv')}>
                     <Download className="w-3 h-3" />CSV
                   </button>
                 </>
@@ -357,7 +357,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
             <ControlBlock label={t('loadtest.rateLimit')} icon={<Gauge className="h-3 w-3" />}>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-[var(--fs-xs)] text-text-secondary">
-                  <input type="checkbox" checked={rpsEnabled} onChange={(e) => setRpsEnabled(e.target.checked)} disabled={running} className="h-3.5 w-3.5 accent-rose-500" />
+                  <input type="checkbox" checked={rpsEnabled} onChange={(e) => setRpsEnabled(e.target.checked)} disabled={running} className="h-3.5 w-3.5 accent-[var(--color-accent)]" />
                   {t('loadtest.enableRpsLimit')}
                 </label>
                 {rpsEnabled ? (
@@ -417,7 +417,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                       disabled={running}
                       placeholder={bodyMode === "json" ? '{"key": "value"}' : "raw body content"}
                       rows={8}
-                      className="w-full resize-y rounded-[10px] border border-border-default bg-bg-input px-3 py-2 text-[var(--fs-sm)] font-mono outline-none focus:border-rose-500 disabled:opacity-60"
+                      className="w-full resize-y rounded-[10px] border border-border-default bg-bg-input px-3 py-2 text-[var(--fs-sm)] font-mono outline-none focus:border-accent disabled:opacity-60"
                     />
                   ) : (
                     <div className="flex min-h-[178px] items-center justify-center rounded-[10px] border border-dashed border-border-default/80 bg-bg-secondary/20 px-4 text-center text-[var(--fs-xs)] text-text-disabled">
@@ -460,7 +460,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
             <div className="flex items-center gap-2 mb-1">
               <div className="flex-1 h-2 bg-bg-secondary rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-rose-500 to-pink-500 rounded-full transition-all duration-700 ease-out"
+                  className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
                   style={{ width: `${progress.pct}%` }}
                 />
               </div>
@@ -535,28 +535,28 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
         {!running && !summary && snapshots.length === 0 && !error && (
           <div className="wb-panel flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-16 text-text-disabled">
             <div className="w-20 h-20 rounded-full bg-bg-secondary flex items-center justify-center mb-5 border border-border-default shadow-sm">
-              <Flame className="w-10 h-10 opacity-20 text-rose-500" />
+              <Flame className="w-10 h-10 opacity-20 text-accent" />
             </div>
             <p className="text-[var(--fs-xl)] font-semibold text-text-secondary">{t('loadtest.emptyTitle')}</p>
             <p className="text-[var(--fs-base)] mt-1.5 text-text-tertiary">{t('loadtest.emptyDesc')}</p>
             <div className="mt-6 grid w-full max-w-3xl gap-4 text-left sm:grid-cols-3">
               <div className="border-t border-border-default/70 pt-3">
                 <div className="flex items-center gap-2 text-[var(--fs-xs)] font-semibold text-text-secondary">
-                  <Flame className="h-3.5 w-3.5 text-rose-500" />
+                  <Flame className="h-3.5 w-3.5 text-accent" />
                   {t('loadtest.emptyTarget')}
                 </div>
                 <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('loadtest.emptyTargetDesc')}</div>
               </div>
               <div className="border-t border-border-default/70 pt-3">
                 <div className="flex items-center gap-2 text-[var(--fs-xs)] font-semibold text-text-secondary">
-                  <Zap className="h-3.5 w-3.5 text-rose-500" />
+                  <Zap className="h-3.5 w-3.5 text-accent" />
                   {t('loadtest.emptyConcurrency')}
                 </div>
                 <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('loadtest.emptyConcurrencyDesc')}</div>
               </div>
               <div className="border-t border-border-default/70 pt-3">
                 <div className="flex items-center gap-2 text-[var(--fs-xs)] font-semibold text-text-secondary">
-                  <BarChart3 className="h-3.5 w-3.5 text-rose-500" />
+                  <BarChart3 className="h-3.5 w-3.5 text-accent" />
                   {t('loadtest.emptyResult')}
                 </div>
                 <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('loadtest.emptyResultDesc')}</div>

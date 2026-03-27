@@ -65,7 +65,7 @@ export function CodeEditor({
         minimap: { enabled: false },
         contextmenu: false,
         fontSize: editorFontSize,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() || 'monospace',
         wordWrap: 'on',
         scrollBeyondLastLine: false,
         readOnly,

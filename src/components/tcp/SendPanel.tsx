@@ -161,7 +161,7 @@ export function SendPanel({
                 key={cmd.id}
                 onClick={() => onLoadQuickCommand(cmd)}
                 onContextMenu={(e) => { e.preventDefault(); openEditQuickCommand(cmd); }}
-                className="group inline-flex items-center gap-1 shrink-0 rounded-[8px] border border-border-default/70 bg-bg-secondary/50 px-2 py-1 text-[var(--fs-xxs)] font-medium text-text-secondary transition-all hover:border-accent/40 hover:bg-accent/5 hover:text-text-primary"
+                className="group inline-flex items-center gap-1 shrink-0 rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 py-1 text-[var(--fs-xxs)] font-medium text-text-secondary transition-all hover:border-accent/40 hover:bg-accent-soft hover:text-text-primary"
                 title={`${cmd.name} (${cmd.format.toUpperCase()}) - ${t('tcp.sendPanel.rightClickEdit')}`}
               >
                 <CornerDownLeft className="h-2.5 w-2.5 shrink-0 text-text-disabled group-hover:text-accent" />
@@ -217,8 +217,8 @@ export function SendPanel({
             disabled={!connected}
             rows={1}
             className={cn(
-              "wb-send-bar-input w-full resize-none rounded-[10px] border border-border-default bg-bg-input/85 px-3 py-1.5 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled",
-              "focus:border-accent focus:ring-2 focus:ring-accent/20",
+              "wb-send-bar-input w-full resize-none rounded-[var(--radius-sm)] border border-border-default bg-bg-input px-3 py-1.5 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled",
+              "focus:border-accent focus:ring-2 focus:ring-accent-muted",
               "disabled:cursor-not-allowed disabled:opacity-45"
             )}
             style={{ minHeight: "36px", maxHeight: "136px" }}
@@ -257,7 +257,7 @@ export function SendPanel({
               {showHistory && (
                 <div
                   ref={historyRef}
-                  className="absolute bottom-full right-0 mb-2 w-[320px] rounded-[12px] border border-border-default bg-bg-primary shadow-lg overflow-hidden z-30"
+                  className="absolute bottom-full right-0 mb-2 w-[320px] rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-lg overflow-hidden z-30"
                 >
                   <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60">
                     <span className="text-[var(--fs-xxs)] font-semibold text-text-secondary">

@@ -163,9 +163,9 @@ export function StatusBar({
 
   return (
     <>
-      <div className="flex h-[var(--statusbar-height)] shrink-0 items-center justify-between border-t border-border-default/70 bg-bg-primary/72 px-4 text-[var(--fs-xs)] text-text-tertiary backdrop-blur-sm select-none">
+      <div className="flex h-[var(--statusbar-height)] shrink-0 items-center justify-between border-t border-border-default/50 bg-bg-secondary px-4 text-[var(--fs-xs)] text-text-tertiary select-none">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full border border-border-default/60 bg-bg-secondary/85 px-2.5 py-1 font-medium">
+          <div className="flex items-center gap-1.5 font-medium text-text-secondary">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
             <span className="text-text-secondary tracking-wider">{moduleLabel}</span>
           </div>

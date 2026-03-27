@@ -51,13 +51,13 @@ export function TitleBar({
   return (
     <div
       {...frameGestures}
-      className="relative flex h-[var(--titlebar-height)] shrink-0 items-center gap-3 border-b border-border-default/70 bg-bg-primary/80 px-3 backdrop-blur-md select-none"
+      className="relative flex h-[var(--titlebar-height)] shrink-0 items-center gap-3 border-b border-border-default/50 bg-bg-primary/85 px-3 backdrop-blur-xl shadow-xs select-none"
     >
       <div className="w-[70px] shrink-0" />
 
       <div className="flex min-w-0 flex-1 justify-center px-2">
         <div
-          className="flex items-center gap-1 rounded-[16px] border border-border-default/70 bg-bg-secondary/82 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] no-drag"
+          className="flex items-center gap-0.5 rounded-[10px] border border-border-default/70 bg-bg-secondary/82 p-[3px] no-drag"
         >
           {workbenches.map((workbench) => {
             const Icon = workbench.icon;
@@ -69,9 +69,9 @@ export function TitleBar({
                 key={workbench.id}
                 onClick={() => onSelectWorkbench(workbench.id)}
                 className={cn(
-                  "flex h-8 items-center gap-2 rounded-[12px] px-3 text-[var(--fs-sm)] font-medium transition-all",
+                  "flex h-8 items-center gap-2 rounded-[8px] px-3 text-[var(--fs-sm)] font-medium transition-all",
                   isActive
-                    ? "bg-bg-primary text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+                    ? "bg-bg-primary text-text-primary shadow-sm"
                     : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",
                 )}
                 title={label}
@@ -85,11 +85,11 @@ export function TitleBar({
       </div>
 
       <div className="flex items-center gap-2 no-drag">
-        <div className="flex items-center gap-1 rounded-[16px] border border-border-default/70 bg-bg-secondary/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="flex items-center gap-1 rounded-[10px] border border-border-default/70 bg-bg-secondary/80 p-[3px]">
           <Tooltip content={t('titleBar.plugins')}>
             <button
               onClick={onOpenPlugins}
-              className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-violet-500"
+              className="flex h-8 w-8 items-center justify-center rounded-[8px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-violet-500"
             >
               <Puzzle className="h-[15px] w-[15px]" />
             </button>
@@ -97,14 +97,14 @@ export function TitleBar({
           <Tooltip content={t('titleBar.settings')}>
             <button
               onClick={onOpenSettings}
-              className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+              className="flex h-8 w-8 items-center justify-center rounded-[8px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
             >
               <Settings className="h-[15px] w-[15px]" />
             </button>
           </Tooltip>
         </div>
 
-        <div className="flex items-center gap-1 rounded-[16px] border border-border-default/70 bg-bg-secondary/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="flex items-center gap-1 rounded-[10px] border border-border-default/70 bg-bg-secondary/80 p-[3px]">
           <button
             onClick={() => {
               toggle();
@@ -112,7 +112,7 @@ export function TitleBar({
               const nextIndex = (nextModes.indexOf(mode) + 1) % nextModes.length;
               useSettingsStore.getState().update("theme", nextModes[nextIndex]);
             }}
-            className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+            className="flex h-8 w-8 items-center justify-center rounded-[8px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
             title={mode === "system" ? t('titleBar.themeSystem') : mode === "dark" ? t('titleBar.themeDark') : t('titleBar.themeLight')}
           >
             {mode === "system" ? (

@@ -675,6 +675,8 @@
       "themeLight": "浅色",
       "themeDark": "深色",
       "themeSystem": "跟随系统",
+      "accentColor": "主题色",
+      "accentColorDesc": "选择应用的主题强调色。",
       "fontSize": "界面字号",
       "fontSizeDesc": "调整编辑器和界面的默认字体大小。",
       "fontFamily": "字体",
