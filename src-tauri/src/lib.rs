@@ -16,6 +16,7 @@ mod wasm_runtime;
 mod builtin_parsers;
 mod plugins;
 mod workflow_engine;
+mod video_streaming;
 
 use tauri::Manager;
 #[cfg(target_os = "macos")]
@@ -136,6 +137,7 @@ pub fn run() {
             app.manage(LoadTestState::new());
             app.manage(ProxyState::new());
             app.manage(workflow_engine::WorkflowState::new());
+            app.manage(video_streaming::VideoStreamState::new());
 
             // SSE / MQTT 连接管理
             app.manage(sse_client::new_connections());
@@ -307,6 +309,18 @@ pub fn run() {
             commands::workflow_delete,
             commands::workflow_run,
             commands::workflow_cancel,
+            // Video Streaming
+            commands::vs_connect,
+            commands::vs_disconnect,
+            commands::vs_probe,
+            commands::vs_player_load,
+            commands::vs_player_control,
+            commands::vs_player_set_volume,
+            commands::vs_rtsp_command,
+            commands::vs_hls_parse_playlist,
+            commands::vs_gb_register,
+            commands::vs_gb_query_catalog,
+            commands::vs_gb_ptz,
             // macOS Rounded Corners
             plugins::mac_rounded_corners::enable_rounded_corners,
         ])

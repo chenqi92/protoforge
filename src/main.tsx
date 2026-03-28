@@ -27,6 +27,11 @@ async function renderApp() {
       Component = TcpUdpWindow;
       break;
     }
+    case "videostream": {
+      const { VideoStreamWindow } = await import("./windows/VideoStreamWindow");
+      Component = VideoStreamWindow;
+      break;
+    }
     default: {
       const { default: App } = await import("./App");
       Component = App;

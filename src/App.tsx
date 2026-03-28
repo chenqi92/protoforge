@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Gauge, List, Network, Plus, Radio, X } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Gauge, List, MonitorPlay, Network, Plus, Radio, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -15,6 +15,7 @@ import { WsWorkspace } from "@/components/ws/WsWorkspace";
 import { MqttWorkspace } from "@/components/mqtt/MqttWorkspace";
 import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
 import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
+import { VideoStreamWorkspace } from "@/components/videostream/VideoStreamWorkspace";
 import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
 import { PluginModal } from "@/components/plugins/PluginModal";
 import { SettingsModal } from "@/components/settings/SettingsModal";
@@ -70,6 +71,15 @@ const toolWorkbenchMeta: Record<ToolWorkbench, {
     accentClassName: "text-rose-600",
     accentBorderClassName: "border-rose-500",
     accentDotClassName: "bg-rose-500",
+  },
+  videostream: {
+    titleKey: "toolWorkbench.videostream.title",
+    shortTitleKey: "toolWorkbench.videostream.shortTitle",
+    descKey: "toolWorkbench.videostream.description",
+    icon: MonitorPlay,
+    accentClassName: "text-purple-600",
+    accentBorderClassName: "border-purple-500",
+    accentDotClassName: "bg-purple-500",
   },
 };
 
@@ -425,6 +435,7 @@ function App() {
     tcpudp: [],
     capture: [],
     loadtest: [],
+    videostream: [],
   });
 
   useKeyboardShortcuts();
@@ -505,7 +516,7 @@ function App() {
   }, [activeWorkbench, rightSidebarPanelRef]);
 
   const refreshDetachedTools = useCallback(async () => {
-    const toolKeys: ToolWorkbench[] = ["tcpudp", "capture", "loadtest"];
+    const toolKeys: ToolWorkbench[] = ["tcpudp", "capture", "loadtest", "videostream"];
     const states = await Promise.all(
       toolKeys.map(async (tool) => [tool, await listOpenToolWindowSessions(tool)] as const)
     );
@@ -514,6 +525,7 @@ function App() {
       tcpudp: states.find(([tool]) => tool === "tcpudp")?.[1] ?? [],
       capture: states.find(([tool]) => tool === "capture")?.[1] ?? [],
       loadtest: states.find(([tool]) => tool === "loadtest")?.[1] ?? [],
+      videostream: states.find(([tool]) => tool === "videostream")?.[1] ?? [],
     });
   }, []);
 
@@ -821,6 +833,28 @@ function App() {
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.loadtest ? "block" : "hidden")}
               >
                 <LoadTestWorkspace sessionId={session.id} />
+              </div>
+            ))}
+          </ToolWorkbenchPanel>
+        </div>
+
+        <div className={cn("h-full", activeWorkbench === "videostream" ? "block" : "hidden")}>
+          <ToolWorkbenchPanel
+            tool="videostream"
+            sessions={toolSessions.videostream}
+            activeSessionId={activeToolSessionIds.videostream}
+            detachedSessionIds={detachedToolSessions.videostream}
+            onAddSession={addToolSession}
+            onSelectSession={setActiveToolSession}
+            onCloseSession={closeToolSession}
+            onPopout={handlePopoutWorkbench}
+          >
+            {toolSessions.videostream.map((session) => (
+              <div
+                key={session.id}
+                className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.videostream ? "block" : "hidden")}
+              >
+                <VideoStreamWorkspace sessionId={session.id} />
               </div>
             ))}
           </ToolWorkbenchPanel>

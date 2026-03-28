@@ -12,7 +12,8 @@
     "settings": "Settings",
     "themeSystem": "System Theme",
     "themeDark": "Dark Mode",
-    "themeLight": "Light Mode"
+    "themeLight": "Light Mode",
+    "videostream": "Video Stream"
   },
   "statusBar": {
     "requests": "API Debug Workbench",
@@ -25,7 +26,8 @@
     "tcpudp": "Protocol Debug",
     "capture": "Traffic Capture",
     "loadtest": "Load Test",
-    "ready": "READY"
+    "ready": "READY",
+    "videostream": "Video Stream"
   },
   "sidebar": {
     "collections": "Collections",
@@ -91,6 +93,11 @@
       "title": "HTTP Load Test Engine",
       "shortTitle": "Load Test",
       "description": "High-concurrency HTTP load testing engine with configurable concurrency, duration, and RPS limiting. Real-time visualization of throughput, latency distribution, and error rates for API performance evaluation."
+    },
+    "videostream": {
+      "title": "Video Stream Workbench",
+      "shortTitle": "Video",
+      "description": "Video stream debugging with RTSP, RTMP, HTTP-FLV, HLS, WebRTC, GB28181, SRT protocol analysis"
     },
     "allInstances": "All Instances",
     "newInstance": "New Instance",
@@ -410,6 +417,16 @@
     "targetAddrPlaceholder": "Target IP:Port (e.g. 127.0.0.1:9000)",
     "replyAddress": "Reply Address",
     "replyAddrPlaceholder": "Auto-filled after receiving data, or enter IP:Port manually",
+    "sidebar": {
+      "connection": "Connection",
+      "connectionDesc": "Configure the target address, port, and auto-reconnect strategy.",
+      "serverConnectionDesc": "Configure the listen address and port, and manage recent server presets.",
+      "udpClientDesc": "Bind a local address first, then keep a default target address for quick packet sends.",
+      "udpServerDesc": "Listen for inbound traffic and maintain the current reply address for fast responses.",
+      "serialConnectionDesc": "Pick a serial port, tune baud/data bits, and manage recent serial presets.",
+      "serialSignalDesc": "Monitor CTS/DSR/RI/CD and toggle DTR/RTS directly.",
+      "clientDesc": "Choose a unicast target, or switch back to broadcast mode for all online clients."
+    },
     "system": {
       "connectedTo": "Connected to",
       "connected": "Connected",
@@ -453,14 +470,19 @@
       "timedSend": "Timed Send",
       "hexPlaceholder": "Enter hex data, e.g. 48 65 6C 6C 6F",
       "base64Placeholder": "Enter Base64 encoded data",
+      "gbkPlaceholder": "Enter GBK text content; it will be encoded as GBK before sending",
+      "jsonPlaceholder": "Enter JSON content; it will be sent as-is",
       "textPlaceholder": "Enter data, Enter to send, Shift+Enter for newline",
       "bytes": "bytes",
       "quickCommands": "Quick Commands",
       "sendHistory": "Send History",
-      "description": "Send data in ASCII / HEX / Base64 encoding formats",
+      "description": "Send data in Text / HEX / Base64 / GBK / JSON formats",
       "formatAscii": "ASCII",
-      "formatHex": "HEX",
+      "formatText": "Text (UTF-8)",
+      "formatHex": "HEX / Binary",
       "formatBase64": "Base64",
+      "formatGbk": "GBK",
+      "formatJson": "JSON",
       "scheduledSend": "Scheduled Send",
       "interval": "Interval",
       "ms": "ms",
@@ -489,9 +511,14 @@
     },
     "messageLog": {
       "title": "Message Log",
+      "auto": "Auto",
+      "text": "Text",
       "ascii": "ASCII",
       "hex": "HEX",
       "base64": "Base64",
+      "gbk": "GBK",
+      "json": "JSON Pretty",
+      "displayFormat": "Display",
       "search": "Search messages...",
       "scrollToBottom": "Bottom",
       "clear": "Clear",
@@ -520,8 +547,18 @@
       "step3DisconnectedDesc": "Once connected, sent/received data, size statistics, and source addresses appear here in real-time.",
       "sent": "Sent",
       "received": "Received",
+      "system": "System",
       "bytes": "{{count}} bytes",
       "client": "Client"
+    },
+    "messageDetail": {
+      "title": "Message Detail",
+      "emptyTitle": "Select a frame to inspect",
+      "emptyDesc": "This panel shows the decoded payload, raw hex, timestamp, and source metadata to help inspect packets frame by frame.",
+      "payload": "Decoded Payload",
+      "rawHex": "Raw HEX",
+      "copyPayload": "Copy payload",
+      "copyRawHex": "Copy raw HEX"
     },
     "clientList": {
       "title": "Clients",
@@ -1211,5 +1248,36 @@
   },
   "rightSidebar": {
     "toolbox": "Toolbox"
+  },
+  "videostream": {
+    "modes": {
+      "rtsp": "RTSP",
+      "rtspHint": "Real Time Streaming Protocol — Camera/Surveillance",
+      "rtmp": "RTMP",
+      "rtmpHint": "Real Time Messaging — Live streaming",
+      "httpFlv": "HTTP-FLV",
+      "httpFlvHint": "HTTP long-connection stream — Low latency",
+      "hls": "HLS",
+      "hlsHint": "HTTP Live Streaming — Large-scale VOD/Live",
+      "webrtc": "WebRTC",
+      "webrtcHint": "Peer-to-peer realtime — Conferencing",
+      "gb28181": "GB28181",
+      "gb28181Hint": "National standard surveillance protocol",
+      "srt": "SRT",
+      "srtHint": "Secure Reliable Transport — Broadcast"
+    },
+    "player": {
+      "idle": "Waiting for playback...",
+      "rendering": "Video rendering area"
+    },
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "connecting": "Connecting...",
+    "protocolConfig": "Protocol Config",
+    "protocolLog": "Protocol Messages",
+    "messages": "msgs",
+    "noMessages": "No protocol messages",
+    "noMessagesHint": "Protocol messages will appear here after connecting",
+    "configPlaceholder": "Protocol configuration area"
   }
 }

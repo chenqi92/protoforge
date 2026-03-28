@@ -1810,3 +1810,186 @@ pub async fn workflow_cancel(
         Err(format!("流程执行 {} 不存在或已完成", execution_id))
     }
 }
+
+// ═══════════════════════════════════════════
+//  Video Streaming Commands
+// ═══════════════════════════════════════════
+
+use crate::video_streaming::{VideoStreamState, state::{StreamEvent, StreamInfo}};
+
+#[tauri::command]
+pub async fn vs_connect(
+    session_id: String,
+    protocol: String,
+    config: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    use tauri::Emitter as _;
+
+    let mut sessions = state.sessions.lock().await;
+
+    // Remove existing session if any
+    if let Some(old) = sessions.remove(&session_id) {
+        if let Some(tx) = old.shutdown_tx {
+            let _ = tx.send(());
+        }
+    }
+
+    let session = crate::video_streaming::state::StreamSession {
+        session_id: session_id.clone(),
+        protocol: protocol.clone(),
+        config: config.clone(),
+        connected: true,
+        shutdown_tx: None,
+    };
+    sessions.insert(session_id.clone(), session);
+
+    // Emit connected event
+    let event = StreamEvent {
+        session_id: session_id.clone(),
+        event_type: "connected".to_string(),
+        data: Some(format!("{} stream ready", protocol.to_uppercase())),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+    let _ = app.emit("videostream-event", &event);
+
+    log::info!("Video stream connected: {} protocol={}", session_id, protocol);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_disconnect(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    use tauri::Emitter as _;
+
+    let mut sessions = state.sessions.lock().await;
+    if let Some(old) = sessions.remove(&session_id) {
+        if let Some(tx) = old.shutdown_tx {
+            let _ = tx.send(());
+        }
+    }
+
+    let event = StreamEvent {
+        session_id: session_id.clone(),
+        event_type: "disconnected".to_string(),
+        data: None,
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+    let _ = app.emit("videostream-event", &event);
+
+    log::info!("Video stream disconnected: {}", session_id);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_probe(url: String) -> Result<StreamInfo, String> {
+    // Placeholder — will integrate ffprobe later
+    log::info!("Probing stream: {}", url);
+    Ok(StreamInfo {
+        codec: "H.264".to_string(),
+        width: 1920,
+        height: 1080,
+        fps: 25.0,
+        bitrate: 4096,
+        audio_codec: Some("AAC".to_string()),
+        sample_rate: Some(44100),
+        channels: Some(2),
+    })
+}
+
+#[tauri::command]
+pub async fn vs_player_load(
+    session_id: String,
+    url: String,
+) -> Result<(), String> {
+    // Placeholder — will integrate libmpv later
+    log::info!("Player load: session={} url={}", session_id, url);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_player_control(
+    session_id: String,
+    action: String,
+) -> Result<(), String> {
+    log::info!("Player control: session={} action={}", session_id, action);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_player_set_volume(
+    session_id: String,
+    volume: f64,
+) -> Result<(), String> {
+    log::info!("Player volume: session={} vol={}", session_id, volume);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_rtsp_command(
+    session_id: String,
+    method: String,
+    app: AppHandle,
+) -> Result<String, String> {
+    use tauri::Emitter as _;
+
+    log::info!("RTSP command: session={} method={}", session_id, method);
+
+    // Emit a protocol message for the command
+    let msg = crate::video_streaming::state::ProtocolMessage {
+        id: uuid::Uuid::new_v4().to_string(),
+        direction: "sent".to_string(),
+        protocol: "rtsp".to_string(),
+        summary: format!("{} rtsp://...", method.to_uppercase()),
+        detail: format!("{} rtsp://stream RTSP/1.0\r\nCSeq: 1\r\n\r\n", method.to_uppercase()),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        size: None,
+    };
+    let _ = app.emit("videostream-protocol-msg", &msg);
+
+    Ok(format!("RTSP/1.0 200 OK\r\nCSeq: 1\r\n\r\n"))
+}
+
+#[tauri::command]
+pub async fn vs_hls_parse_playlist(
+    session_id: String,
+    url: String,
+) -> Result<serde_json::Value, String> {
+    log::info!("HLS parse playlist: session={} url={}", session_id, url);
+    // Placeholder
+    Ok(serde_json::json!({
+        "type": "master",
+        "variants": []
+    }))
+}
+
+#[tauri::command]
+pub async fn vs_gb_register(
+    session_id: String,
+    config: String,
+) -> Result<(), String> {
+    log::info!("GB28181 register: session={} config={}", session_id, config);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_gb_query_catalog(
+    session_id: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    log::info!("GB28181 query catalog: session={}", session_id);
+    Ok(vec![])
+}
+
+#[tauri::command]
+pub async fn vs_gb_ptz(
+    session_id: String,
+    command: String,
+    speed: f64,
+) -> Result<(), String> {
+    log::info!("GB28181 PTZ: session={} cmd={} speed={}", session_id, command, speed);
+    Ok(())
+}

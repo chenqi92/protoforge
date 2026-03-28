@@ -12,7 +12,8 @@
     "settings": "设置",
     "themeSystem": "跟随系统",
     "themeDark": "深色模式",
-    "themeLight": "浅色模式"
+    "themeLight": "浅色模式",
+    "videostream": "视频流"
   },
   "statusBar": {
     "requests": "接口调试工作台",
@@ -25,7 +26,8 @@
     "tcpudp": "协议调试",
     "capture": "流量捕获",
     "loadtest": "性能测试",
-    "ready": "就绪"
+    "ready": "就绪",
+    "videostream": "视频流调试"
   },
   "sidebar": {
     "collections": "集合",
@@ -91,6 +93,11 @@
       "title": "HTTP 性能测试引擎",
       "shortTitle": "压测",
       "description": "高并发 HTTP 性能测试引擎，支持自定义并发数、持续时间、RPS 限速，实时展示吞吐量、延迟分布和错误率，适用于接口性能评估。"
+    },
+    "videostream": {
+      "title": "视频流调试工作台",
+      "shortTitle": "视频流",
+      "description": "支持 RTSP、RTMP、HTTP-FLV、HLS、WebRTC、GB28181、SRT 协议的视频流拉取与深度协议分析"
     },
     "allInstances": "所有实例",
     "newInstance": "新建实例",
@@ -411,6 +418,16 @@
     "targetAddrPlaceholder": "目标 IP:端口 (如 127.0.0.1:9000)",
     "replyAddress": "回复地址",
     "replyAddrPlaceholder": "接收到数据后自动填充，或手动输入 IP:端口",
+    "sidebar": {
+      "connection": "连接设置",
+      "connectionDesc": "配置目标地址、端口和自动重连策略。",
+      "serverConnectionDesc": "配置监听地址与端口，并管理最近使用的服务端配置。",
+      "udpClientDesc": "先绑定本地地址，再配置默认目标地址用于快速发包。",
+      "udpServerDesc": "监听入站数据并维护当前回复地址，便于快速回包。",
+      "serialConnectionDesc": "选择串口、配置波特率与数据位，并管理最近的串口配置。",
+      "serialSignalDesc": "查看 CTS/DSR/RI/CD 状态，并直接切换 DTR/RTS。",
+      "clientDesc": "选择单播目标，或切回广播模式向所有在线客户端发送。"
+    },
     "system": {
       "connectedTo": "已连接到",
       "connected": "已连接",
@@ -454,14 +471,19 @@
       "timedSend": "定时发送",
       "hexPlaceholder": "输入十六进制数据，如 48 65 6C 6C 6F",
       "base64Placeholder": "输入 Base64 编码数据",
+      "gbkPlaceholder": "输入 GBK 文本内容，发送时会按 GBK 编码",
+      "jsonPlaceholder": "输入 JSON 内容，发送时保持原样",
       "textPlaceholder": "输入发送内容，Enter 发送，Shift+Enter 换行",
       "bytes": "字节",
       "quickCommands": "快捷指令",
       "sendHistory": "发送历史",
-      "description": "支持 ASCII / HEX / Base64 三种编码格式发送数据",
+      "description": "支持 Text / HEX / Base64 / GBK / JSON 多种发送格式",
       "formatAscii": "ASCII",
-      "formatHex": "HEX",
+      "formatText": "Text (UTF-8)",
+      "formatHex": "HEX / Binary",
       "formatBase64": "Base64",
+      "formatGbk": "GBK",
+      "formatJson": "JSON",
       "scheduledSend": "定时发送",
       "interval": "间隔",
       "ms": "ms",
@@ -490,9 +512,14 @@
     },
     "messageLog": {
       "title": "消息日志",
+      "auto": "自动",
+      "text": "文本",
       "ascii": "ASCII",
       "hex": "HEX",
       "base64": "Base64",
+      "gbk": "GBK",
+      "json": "JSON 美化",
+      "displayFormat": "显示",
       "search": "搜索消息...",
       "scrollToBottom": "底部",
       "clear": "清空",
@@ -519,10 +546,20 @@
       "step3Disconnected": "开始查看收发",
       "step3ConnectedDesc": "收到的数据会按时间顺序排列；右上角可以搜索消息、切换显示格式并清空日志。",
       "step3DisconnectedDesc": "连接建立后，这里会实时显示发送与接收的数据、大小统计以及来源地址。",
-      "sent": "已发送",
-      "received": "已接收",
+      "sent": "发送",
+      "received": "接收",
+      "system": "系统",
       "bytes": "{{count}} 字节",
       "client": "客户端"
+    },
+    "messageDetail": {
+      "title": "消息详情",
+      "emptyTitle": "选中一条消息查看详情",
+      "emptyDesc": "这里会展示完整载荷、原始十六进制、时间戳以及来源地址，便于逐帧分析协议数据。",
+      "payload": "解码内容",
+      "rawHex": "原始 HEX",
+      "copyPayload": "复制当前内容",
+      "copyRawHex": "复制原始 HEX"
     },
     "clientList": {
       "title": "客户端",
@@ -1227,5 +1264,36 @@
   },
   "rightSidebar": {
     "toolbox": "工具箱"
+  },
+  "videostream": {
+    "modes": {
+      "rtsp": "RTSP",
+      "rtspHint": "实时流传输协议 — 摄像头/监控拉流",
+      "rtmp": "RTMP",
+      "rtmpHint": "实时消息传输 — 直播推拉流",
+      "httpFlv": "HTTP-FLV",
+      "httpFlvHint": "HTTP 长连接流 — Web 低延迟直播",
+      "hls": "HLS",
+      "hlsHint": "HTTP 分片流 — 大规模点播/直播",
+      "webrtc": "WebRTC",
+      "webrtcHint": "点对点实时通信 — 视频会议",
+      "gb28181": "GB28181",
+      "gb28181Hint": "国标视频监控 — 公安/交通联网",
+      "srt": "SRT",
+      "srtHint": "安全可靠传输 — 广播级远程传输"
+    },
+    "player": {
+      "idle": "等待播放...",
+      "rendering": "视频渲染区域"
+    },
+    "connect": "连接",
+    "disconnect": "断开",
+    "connecting": "连接中...",
+    "protocolConfig": "协议配置",
+    "protocolLog": "协议报文",
+    "messages": "条",
+    "noMessages": "暂无协议报文",
+    "noMessagesHint": "连接流后将在此显示协议交互日志",
+    "configPlaceholder": "协议配置区域"
   }
 }
