@@ -17,6 +17,7 @@ import { SrtPanel } from "./SrtPanel";
 import { OnvifPanel } from "./OnvifPanel";
 
 const MODES: { value: VideoProtocol; labelKey: string; hintKey: string; icon: React.ReactNode }[] = [
+  { value: "onvif",    labelKey: "videostream.modes.onvif",   hintKey: "videostream.modes.onvifHint",   icon: <Aperture className="w-3.5 h-3.5" /> },
   { value: "rtsp",     labelKey: "videostream.modes.rtsp",    hintKey: "videostream.modes.rtspHint",    icon: <Camera className="w-3.5 h-3.5" /> },
   { value: "rtmp",     labelKey: "videostream.modes.rtmp",    hintKey: "videostream.modes.rtmpHint",    icon: <Radio className="w-3.5 h-3.5" /> },
   { value: "http-flv", labelKey: "videostream.modes.httpFlv", hintKey: "videostream.modes.httpFlvHint", icon: <Film className="w-3.5 h-3.5" /> },
@@ -24,7 +25,6 @@ const MODES: { value: VideoProtocol; labelKey: string; hintKey: string; icon: Re
   { value: "webrtc",   labelKey: "videostream.modes.webrtc",  hintKey: "videostream.modes.webrtcHint",  icon: <Webcam className="w-3.5 h-3.5" /> },
   { value: "gb28181",  labelKey: "videostream.modes.gb28181", hintKey: "videostream.modes.gb28181Hint", icon: <Shield className="w-3.5 h-3.5" /> },
   { value: "srt",      labelKey: "videostream.modes.srt",     hintKey: "videostream.modes.srtHint",     icon: <Zap className="w-3.5 h-3.5" /> },
-  { value: "onvif",    labelKey: "videostream.modes.onvif",   hintKey: "videostream.modes.onvifHint",   icon: <Aperture className="w-3.5 h-3.5" /> },
 ];
 
 const MODE_COLORS: Record<VideoProtocol, string> = {
@@ -47,7 +47,7 @@ function saveRecentStream(url: string, protocol: VideoProtocol) {
 
 export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<VideoProtocol>("rtsp");
+  const [mode, setMode] = useState<VideoProtocol>("onvif");
   const sessionKey = useRef(sessionId ?? crypto.randomUUID()).current;
   const activeMode = MODES.find((m) => m.value === mode) || MODES[0];
 
