@@ -80,6 +80,9 @@ pub struct PluginManifest {
     /// 远程仓库中的最新版本号（有更新时填充）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub latest_version: Option<String>,
+    /// 面板位置声明: "left" / "right" / "both"。未设置时按 pluginType 推断
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub panel_position: Option<String>,
     /// 图标命名空间 — 仅 icon-pack 类型插件使用
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon_namespace: Option<String>,
@@ -416,6 +419,9 @@ struct RemotePluginEntry {
     /// 多语言翻译
     #[serde(default)]
     i18n: HashMap<String, PluginI18nEntry>,
+    /// 面板位置
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    panel_position: Option<String>,
     /// 图标命名空间 — 仅 icon-pack 类型
     #[serde(default, skip_serializing_if = "Option::is_none")]
     icon_namespace: Option<String>,
@@ -441,6 +447,7 @@ impl RemotePluginEntry {
             i18n: self.i18n,
             has_update: false,
             latest_version: None,
+            panel_position: self.panel_position,
             icon_namespace: self.icon_namespace,
         }
     }
