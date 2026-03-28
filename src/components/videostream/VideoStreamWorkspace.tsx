@@ -5,6 +5,13 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { VideoProtocol, StreamInfo, StreamStats, ProtocolMessage } from "@/types/videostream";
 import * as vsSvc from "@/services/videoStreamService";
+import { RtspPanel } from "./RtspPanel";
+import { RtmpPanel } from "./RtmpPanel";
+import { HttpFlvPanel } from "./HttpFlvPanel";
+import { HlsPanel } from "./HlsPanel";
+import { WebRtcPanel } from "./WebRtcPanel";
+import { Gb28181Panel } from "./Gb28181Panel";
+import { SrtPanel } from "./SrtPanel";
 
 const MODES: { value: VideoProtocol; labelKey: string; hintKey: string; icon: React.ReactNode }[] = [
   { value: "rtsp",     labelKey: "videostream.modes.rtsp",    hintKey: "videostream.modes.rtspHint",    icon: <Camera className="w-3.5 h-3.5" /> },
@@ -282,10 +289,55 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                 </span>
               </div>
               <div className="p-3">
-                {/* Placeholder for protocol-specific config */}
-                <div className="text-[var(--fs-xs)] text-text-disabled text-center py-8">
-                  {t('videostream.configPlaceholder', `${mode.toUpperCase()} 协议配置区域`)}
-                </div>
+                {mode === 'rtsp' && (
+                  <RtspPanel
+                    sessionKey={sessionKey}
+                    connected={connected}
+                    streamUrl={streamUrl}
+                    onStreamUrlChange={setStreamUrl}
+                  />
+                )}
+                {mode === 'rtmp' && (
+                  <RtmpPanel
+                    sessionKey={sessionKey}
+                    connected={connected}
+                    streamUrl={streamUrl}
+                    onStreamUrlChange={setStreamUrl}
+                  />
+                )}
+                {mode === 'http-flv' && (
+                  <HttpFlvPanel
+                    sessionKey={sessionKey}
+                    connected={connected}
+                  />
+                )}
+                {mode === 'hls' && (
+                  <HlsPanel
+                    sessionKey={sessionKey}
+                    connected={connected}
+                    streamUrl={streamUrl}
+                  />
+                )}
+                {mode === 'webrtc' && (
+                  <WebRtcPanel
+                    sessionKey={sessionKey}
+                    connected={connected}
+                  />
+                )}
+                {mode === 'gb28181' && (
+                  <Gb28181Panel
+                    sessionKey={sessionKey}
+                    connected={connected}
+                    streamUrl={streamUrl}
+                    onStreamUrlChange={setStreamUrl}
+                  />
+                )}
+                {mode === 'srt' && (
+                  <SrtPanel
+                    sessionKey={sessionKey}
+                    connected={connected}
+                  />
+                )}
               </div>
             </div>
 
