@@ -1284,6 +1284,7 @@
     "messageDetail": "Message Detail",
     "connected": "Connected",
     "idle": "Idle",
+    "exportMessages": "Export Messages",
     "rtsp": {
       "transport": "Transport",
       "auth": "Authentication",

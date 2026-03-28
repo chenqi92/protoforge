@@ -2,7 +2,7 @@
 // 布局：Tabs+URL 固定顶部 → 可拖拽分栏（上：视频+配置 | 下：协议报文）
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
-import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, Play, Pause, Square, Volume2, GripHorizontal } from "lucide-react";
+import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, Play, Pause, Square, Volume2, GripHorizontal, History, X, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { VideoProtocol, StreamInfo, StreamStats, ProtocolMessage } from "@/types/videostream";
@@ -32,6 +32,19 @@ const MODE_COLORS: Record<VideoProtocol, string> = {
   hls: 'bg-emerald-500', webrtc: 'bg-indigo-500', gb28181: 'bg-cyan-600', srt: 'bg-violet-500', onvif: 'bg-teal-500',
 };
 
+type RecentStream = { url: string; protocol: VideoProtocol; label?: string };
+
+function rsKey() { return 'pf:recent-streams'; }
+
+function loadRecentStreams(): RecentStream[] {
+  try { return JSON.parse(localStorage.getItem(rsKey()) || '[]'); } catch { return []; }
+}
+
+function saveRecentStream(url: string, protocol: VideoProtocol) {
+  const list = loadRecentStreams().filter(r => !(r.url === url && r.protocol === protocol));
+  localStorage.setItem(rsKey(), JSON.stringify([{ url, protocol }, ...list].slice(0, 12)));
+}
+
 export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<VideoProtocol>("rtsp");
@@ -39,6 +52,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const activeMode = MODES.find((m) => m.value === mode) || MODES[0];
 
   // ── State ──
+  const [recentStreams, setRecentStreams] = useState<RecentStream[]>(loadRecentStreams);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [streamUrl, setStreamUrl] = useState("");
@@ -79,7 +93,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
 
   const handleConnect = useCallback(async () => {
     if (connected) { await vsSvc.disconnectStream(sessionKey).catch(() => {}); setConnected(false); setPlaying(false); }
-    else { if (!streamUrl.trim()) return; setConnecting(true); try { await vsSvc.connectStream(sessionKey, mode, { url: streamUrl }); } catch { setConnecting(false); } }
+    else { if (!streamUrl.trim()) return; setConnecting(true); saveRecentStream(streamUrl, mode); setRecentStreams(loadRecentStreams()); try { await vsSvc.connectStream(sessionKey, mode, { url: streamUrl }); } catch { setConnecting(false); } }
   }, [connected, sessionKey, mode, streamUrl]);
 
   const handlePlay = useCallback(async () => { if (!connected) return; try { await vsSvc.playerLoad(sessionKey, streamUrl); setPlaying(true); } catch { /* */ } }, [connected, sessionKey, streamUrl]);
@@ -145,6 +159,41 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
           </button>
         </div>
       </div>
+
+      {/* ── Recent Streams ── */}
+      {recentStreams.length > 0 && (
+        <div className="shrink-0 flex items-center gap-2 flex-wrap px-0.5 pt-1.5">
+          <div className="flex items-center gap-1 text-text-disabled shrink-0">
+            <History className="w-3 h-3" />
+            <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide">
+              {t('tcp.recentConnections', '最近')}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 flex-wrap min-w-0">
+            {recentStreams.slice(0, 8).map((r, i) => (
+              <div key={i} className="group flex items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
+                <button
+                  onClick={() => { setStreamUrl(r.url); setMode(r.protocol); }}
+                  className="h-[22px] px-2 text-[var(--fs-xxs)] font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors flex items-center gap-1"
+                >
+                  <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", MODE_COLORS[r.protocol]?.replace('bg-', 'bg-') || 'bg-text-disabled')} />
+                  <span className="truncate max-w-[180px]">{r.url}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const updated = loadRecentStreams().filter((_, j) => j !== i);
+                    localStorage.setItem(rsKey(), JSON.stringify(updated));
+                    setRecentStreams(updated);
+                  }}
+                  className="hidden group-hover:flex h-[22px] w-5 items-center justify-center text-text-disabled hover:text-text-secondary hover:bg-bg-hover transition-colors"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Resizable: vertical split (top: video+config, bottom: protocol log) ── */}
       <div className="flex-1 min-h-0 pt-3">
@@ -245,6 +294,22 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                     <span className="text-text-disabled">{stats.packetsReceived} pkts</span>
                     {stats.packetsLost > 0 && <span className="text-red-400">{stats.packetsLost} lost</span>}
                   </div>
+                )}
+                {protocolMessages.length > 0 && (
+                  <button onClick={() => {
+                    const blob = new Blob([JSON.stringify(protocolMessages, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `protocol-messages-${mode}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                    className="text-[var(--fs-3xs)] text-text-disabled hover:text-accent transition-colors"
+                    title={t('videostream.exportMessages', '导出报文')}
+                  >
+                    <Download className="w-3 h-3" />
+                  </button>
                 )}
                 {protocolMessages.length > 0 && (
                   <button onClick={() => { setProtocolMessages([]); setSelectedMsgId(null); }}

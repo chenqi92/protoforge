@@ -1300,6 +1300,7 @@
     "messageDetail": "报文详情",
     "connected": "已连接",
     "idle": "空闲",
+    "exportMessages": "导出报文",
     "rtsp": {
       "transport": "传输方式",
       "auth": "认证",
