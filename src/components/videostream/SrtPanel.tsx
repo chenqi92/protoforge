@@ -1,21 +1,24 @@
 // SRT 协议配置面板
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Lock } from "lucide-react";
+import * as vsSvc from "@/services/videoStreamService";
 
 interface SrtPanelProps {
   sessionKey: string;
   connected: boolean;
 }
 
-export function SrtPanel({ connected }: SrtPanelProps) {
+export function SrtPanel({ sessionKey, connected }: SrtPanelProps) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'caller' | 'listener' | 'rendezvous'>('caller');
   const [passphrase, setPassphrase] = useState('');
   const [latency, setLatency] = useState(120);
   const [streamId, setStreamId] = useState('');
   const [showEncryption, setShowEncryption] = useState(false);
+  const [srtConnecting, setSrtConnecting] = useState(false);
+  const [srtConnected, setSrtConnected] = useState(false);
 
   // Stats (will be populated by backend events)
   const [srtStats] = useState({
@@ -27,8 +30,24 @@ export function SrtPanel({ connected }: SrtPanelProps) {
     recvRate: 0,
   });
 
+  const handleSrtConnect = useCallback(async () => {
+    setSrtConnecting(true);
+    try {
+      await vsSvc.srtConnect(sessionKey, { mode, passphrase, latency, streamId });
+      setSrtConnected(true);
+    } catch { /* */ }
+    setSrtConnecting(false);
+  }, [sessionKey, mode, passphrase, latency, streamId]);
+
+  const handleSrtDisconnect = useCallback(async () => {
+    try {
+      await vsSvc.srtDisconnect(sessionKey);
+      setSrtConnected(false);
+    } catch { /* */ }
+  }, [sessionKey]);
+
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
       {/* Connection Mode */}
       <div className="space-y-1.5">
         <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
@@ -102,6 +121,23 @@ export function SrtPanel({ connected }: SrtPanelProps) {
           </div>
         )}
       </div>
+
+      {/* SRT Connect/Disconnect */}
+      {connected && (
+        <div className="space-y-1.5">
+          {!srtConnected ? (
+            <button onClick={handleSrtConnect} disabled={srtConnecting}
+              className="h-7 w-full rounded-[6px] border border-border-default/60 bg-accent/10 text-[var(--fs-xxs)] font-semibold text-accent hover:bg-accent/20 transition-colors disabled:opacity-50">
+              {srtConnecting ? 'SRT 连接中...' : 'SRT 连接'}
+            </button>
+          ) : (
+            <button onClick={handleSrtDisconnect}
+              className="h-7 w-full rounded-[6px] border border-red-500/40 bg-red-500/10 text-[var(--fs-xxs)] font-semibold text-red-400 hover:bg-red-500/20 transition-colors">
+              SRT 断开
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Connection Stats */}
       {connected && (

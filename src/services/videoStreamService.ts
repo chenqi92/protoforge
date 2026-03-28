@@ -95,6 +95,52 @@ export async function onvifSetPreset(sessionId: string, presetName: string): Pro
   return invoke('vs_onvif_set_preset', { sessionId, presetName });
 }
 
+// ── RTMP 专用 ──
+
+export async function rtmpHandshake(sessionId: string): Promise<void> {
+  return invoke('vs_rtmp_handshake', { sessionId });
+}
+
+export async function rtmpConnectApp(sessionId: string): Promise<void> {
+  return invoke('vs_rtmp_connect_app', { sessionId });
+}
+
+export async function rtmpPlay(sessionId: string, streamKey: string): Promise<void> {
+  return invoke('vs_rtmp_play', { sessionId, streamKey });
+}
+
+// ── SRT 专用 ──
+
+export async function srtConnect(sessionId: string, config: object): Promise<void> {
+  return invoke('vs_srt_connect', { sessionId, config: JSON.stringify(config) });
+}
+
+export async function srtDisconnect(sessionId: string): Promise<void> {
+  return invoke('vs_srt_disconnect', { sessionId });
+}
+
+export async function srtStats(sessionId: string): Promise<object> {
+  return invoke('vs_srt_stats', { sessionId });
+}
+
+// ── WebRTC 专用 ──
+
+export async function webrtcCreateOffer(sessionId: string, config: object): Promise<string> {
+  return invoke('vs_webrtc_create_offer', { sessionId, config: JSON.stringify(config) });
+}
+
+export async function webrtcSetAnswer(sessionId: string, sdp: string): Promise<void> {
+  return invoke('vs_webrtc_set_answer', { sessionId, sdp });
+}
+
+export async function webrtcAddIce(sessionId: string, candidate: string): Promise<void> {
+  return invoke('vs_webrtc_add_ice', { sessionId, candidate });
+}
+
+export async function webrtcClose(sessionId: string): Promise<void> {
+  return invoke('vs_webrtc_close', { sessionId });
+}
+
 // ── 事件监听 ──
 
 export async function onStreamEvent(cb: (e: StreamEvent) => void): Promise<UnlistenFn> {

@@ -28,8 +28,8 @@
 
   --color-text-primary: #0f172a;
   --color-text-secondary: #4b5563;
-  --color-text-tertiary: #9ca3af;
-  --color-text-disabled: #cbd5e1;
+  --color-text-tertiary: #8591a3;
+  --color-text-disabled: #b4bfce;
 
   /* Accent colors — overridden by data-accent attribute */
   --color-accent: #5b6af0;
@@ -357,12 +357,14 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    min-width: 0;
     min-height: 40px;
     padding: 4px;
     border: 1px solid var(--color-border-default);
     border-radius: 15px;
     background: var(--color-bg-primary);
     box-shadow: none;
+    overflow: hidden;
   }
 
   .wb-tool-strip-main,
@@ -469,7 +471,7 @@
   }
 
   .wb-tool-inline-note {
-    color: var(--color-text-disabled);
+    color: var(--color-text-tertiary);
     font-size: var(--fs-xs);
     white-space: nowrap;
   }

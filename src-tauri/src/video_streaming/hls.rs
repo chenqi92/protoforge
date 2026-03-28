@@ -179,7 +179,7 @@ fn parse_attributes(s: &str) -> Vec<(String, String)> {
 
 /// 从 URL 获取并解析 m3u8 播放列表
 pub async fn fetch_and_parse_playlist(
-    session_id: &str,
+    _session_id: &str,
     url: &str,
     app: &AppHandle,
 ) -> Result<HlsPlaylistInfo, String> {

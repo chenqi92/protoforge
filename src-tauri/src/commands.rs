@@ -1825,7 +1825,6 @@ pub async fn vs_connect(
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    use tauri::Emitter as _;
 
     let mut sessions = state.sessions.lock().await;
 
@@ -1888,7 +1887,6 @@ pub async fn vs_disconnect(
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    use tauri::Emitter as _;
 
     let mut sessions = state.sessions.lock().await;
     if let Some(old) = sessions.remove(&session_id) {
@@ -2002,17 +2000,42 @@ pub async fn vs_hls_parse_playlist(
 pub async fn vs_gb_register(
     session_id: String,
     config: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
 ) -> Result<(), String> {
-    log::info!("GB28181 register: session={} config={}", session_id, config);
+    log::info!("GB28181 register: session={}", session_id);
+
+    let cfg: serde_json::Value = serde_json::from_str(&config)
+        .map_err(|e| format!("Invalid config JSON: {}", e))?;
+    let sip_server = cfg.get("sipServerIp").and_then(|v| v.as_str()).unwrap_or("192.168.1.100");
+    let sip_port = cfg.get("sipServerPort").and_then(|v| v.as_u64()).unwrap_or(5060) as u16;
+    let sip_domain = cfg.get("sipDomain").and_then(|v| v.as_str()).unwrap_or("3402000000");
+    let device_id = cfg.get("deviceId").and_then(|v| v.as_str()).unwrap_or("34020000001320000001");
+    let local_port = cfg.get("localPort").and_then(|v| v.as_u64()).unwrap_or(5080) as u16;
+    let transport = cfg.get("transport").and_then(|v| v.as_str()).unwrap_or("udp");
+
+    let session = crate::video_streaming::gb28181::register(
+        &session_id, sip_server, sip_port, sip_domain, device_id, local_port, transport, &app,
+    ).await?;
+
+    state.gb_sessions.lock().await.insert(session_id, session);
+
     Ok(())
 }
 
 #[tauri::command]
 pub async fn vs_gb_query_catalog(
     session_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
 ) -> Result<Vec<serde_json::Value>, String> {
     log::info!("GB28181 query catalog: session={}", session_id);
-    Ok(vec![])
+
+    let sessions = state.gb_sessions.lock().await;
+    let session = sessions.get(&session_id)
+        .ok_or_else(|| "GB28181 not registered".to_string())?;
+
+    crate::video_streaming::gb28181::query_catalog(session, &session_id, &app).await
 }
 
 #[tauri::command]
@@ -2020,73 +2043,350 @@ pub async fn vs_gb_ptz(
     session_id: String,
     command: String,
     speed: f64,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
 ) -> Result<(), String> {
     log::info!("GB28181 PTZ: session={} cmd={} speed={}", session_id, command, speed);
-    Ok(())
+
+    let sessions = state.gb_sessions.lock().await;
+    let session = sessions.get(&session_id)
+        .ok_or_else(|| "GB28181 not registered".to_string())?;
+
+    crate::video_streaming::gb28181::ptz_control(session, &session_id, &command, speed, &app).await
 }
 
 // ── ONVIF Commands ──
 
 #[tauri::command]
-pub async fn vs_onvif_discover() -> Result<Vec<serde_json::Value>, String> {
+pub async fn vs_onvif_discover(app: AppHandle) -> Result<Vec<serde_json::Value>, String> {
     log::info!("ONVIF WS-Discovery scan");
-    // Placeholder — will integrate onvif-rs later
-    Ok(vec![])
+    crate::video_streaming::onvif::discover(&app).await
 }
 
 #[tauri::command]
 pub async fn vs_onvif_device_info(
     session_id: String,
     config: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
 ) -> Result<serde_json::Value, String> {
-    log::info!("ONVIF get device info: session={} config={}", session_id, config);
-    Ok(serde_json::json!({
-        "manufacturer": "Unknown",
-        "model": "Unknown",
-        "firmwareVersion": "1.0.0",
-        "serialNumber": "000000",
-        "hardwareId": "HW-001"
-    }))
+    log::info!("ONVIF get device info: session={}", session_id);
+
+    let cfg: serde_json::Value = serde_json::from_str(&config)
+        .map_err(|e| format!("Invalid config JSON: {}", e))?;
+    let host = cfg.get("host").and_then(|v| v.as_str()).unwrap_or("192.168.1.100");
+    let port = cfg.get("port").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
+    let username = cfg.get("username").and_then(|v| v.as_str()).unwrap_or("");
+    let password = cfg.get("password").and_then(|v| v.as_str()).unwrap_or("");
+
+    let (info, session) = crate::video_streaming::onvif::get_device_info(
+        &session_id, host, port, username, password, &app,
+    ).await?;
+
+    // Cache session for subsequent calls
+    state.onvif_sessions.lock().await.insert(session_id, session);
+
+    Ok(info)
 }
 
 #[tauri::command]
-pub async fn vs_onvif_get_profiles(session_id: String) -> Result<Vec<serde_json::Value>, String> {
+pub async fn vs_onvif_get_profiles(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<Vec<serde_json::Value>, String> {
     log::info!("ONVIF get profiles: session={}", session_id);
-    Ok(vec![])
+
+    let sessions = state.onvif_sessions.lock().await;
+    let session = sessions.get(&session_id)
+        .ok_or_else(|| "ONVIF session not found — get device info first".to_string())?;
+
+    crate::video_streaming::onvif::get_profiles(session, &session_id, &app).await
 }
 
 #[tauri::command]
-pub async fn vs_onvif_get_stream_uri(session_id: String, profile_token: String) -> Result<String, String> {
+pub async fn vs_onvif_get_stream_uri(
+    session_id: String,
+    profile_token: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<String, String> {
     log::info!("ONVIF get stream URI: session={} profile={}", session_id, profile_token);
-    Ok(String::new())
+
+    let sessions = state.onvif_sessions.lock().await;
+    let session = sessions.get(&session_id)
+        .ok_or_else(|| "ONVIF session not found".to_string())?;
+
+    crate::video_streaming::onvif::get_stream_uri(session, &session_id, &profile_token, &app).await
 }
 
 #[tauri::command]
-pub async fn vs_onvif_ptz_move(session_id: String, direction: String, speed: f64) -> Result<(), String> {
+pub async fn vs_onvif_ptz_move(
+    session_id: String,
+    direction: String,
+    speed: f64,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
     log::info!("ONVIF PTZ move: session={} dir={} speed={}", session_id, direction, speed);
-    Ok(())
+
+    let sessions = state.onvif_sessions.lock().await;
+    let session = sessions.get(&session_id)
+        .ok_or_else(|| "ONVIF session not found".to_string())?;
+
+    // Use first profile token (PTZ commands need it)
+    let profile_token = "Profile_1"; // Default — ideally pass from frontend
+    crate::video_streaming::onvif::ptz_continuous_move(session, &session_id, profile_token, &direction, speed, &app).await
 }
 
 #[tauri::command]
-pub async fn vs_onvif_ptz_stop(session_id: String) -> Result<(), String> {
+pub async fn vs_onvif_ptz_stop(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
     log::info!("ONVIF PTZ stop: session={}", session_id);
-    Ok(())
+
+    let sessions = state.onvif_sessions.lock().await;
+    let session = sessions.get(&session_id)
+        .ok_or_else(|| "ONVIF session not found".to_string())?;
+
+    let profile_token = "Profile_1";
+    crate::video_streaming::onvif::ptz_stop(session, &session_id, profile_token, &app).await
 }
 
 #[tauri::command]
-pub async fn vs_onvif_get_presets(session_id: String) -> Result<Vec<serde_json::Value>, String> {
+pub async fn vs_onvif_get_presets(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<Vec<serde_json::Value>, String> {
     log::info!("ONVIF get presets: session={}", session_id);
-    Ok(vec![])
+
+    let sessions = state.onvif_sessions.lock().await;
+    let session = sessions.get(&session_id)
+        .ok_or_else(|| "ONVIF session not found".to_string())?;
+
+    let profile_token = "Profile_1";
+    crate::video_streaming::onvif::get_presets(session, &session_id, profile_token, &app).await
 }
 
 #[tauri::command]
-pub async fn vs_onvif_goto_preset(session_id: String, preset_token: String) -> Result<(), String> {
+pub async fn vs_onvif_goto_preset(
+    session_id: String,
+    preset_token: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
     log::info!("ONVIF goto preset: session={} preset={}", session_id, preset_token);
+
+    let sessions = state.onvif_sessions.lock().await;
+    let session = sessions.get(&session_id)
+        .ok_or_else(|| "ONVIF session not found".to_string())?;
+
+    let profile_token = "Profile_1";
+    crate::video_streaming::onvif::goto_preset(session, &session_id, profile_token, &preset_token, &app).await
+}
+
+#[tauri::command]
+pub async fn vs_onvif_set_preset(
+    session_id: String,
+    preset_name: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<String, String> {
+    log::info!("ONVIF set preset: session={} name={}", session_id, preset_name);
+
+    let sessions = state.onvif_sessions.lock().await;
+    let session = sessions.get(&session_id)
+        .ok_or_else(|| "ONVIF session not found".to_string())?;
+
+    let profile_token = "Profile_1";
+    crate::video_streaming::onvif::set_preset(session, &session_id, profile_token, &preset_name, &app).await
+}
+
+// ── RTMP Commands ──
+
+#[tauri::command]
+pub async fn vs_rtmp_handshake(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    log::info!("RTMP handshake: session={}", session_id);
+
+    // Get URL from session config
+    let sessions = state.sessions.lock().await;
+    let url = if let Some(session) = sessions.get(&session_id) {
+        let cfg: serde_json::Value = serde_json::from_str(&session.config).unwrap_or_default();
+        cfg.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string()
+    } else {
+        return Err("Session not found".to_string());
+    };
+    drop(sessions);
+
+    if url.is_empty() {
+        return Err("No RTMP URL configured".to_string());
+    }
+
+    let stream = crate::video_streaming::rtmp::handshake(&session_id, &url, &app).await?;
+
+    // Store the TCP stream for subsequent commands
+    let rtmp_session = crate::video_streaming::state::RtmpSession {
+        stream: Some(stream),
+        url: url.clone(),
+        handshake_done: true,
+        connected: false,
+        shutdown_tx: None,
+    };
+    state.rtmp_sessions.lock().await.insert(session_id, rtmp_session);
+
     Ok(())
 }
 
 #[tauri::command]
-pub async fn vs_onvif_set_preset(session_id: String, preset_name: String) -> Result<String, String> {
-    log::info!("ONVIF set preset: session={} name={}", session_id, preset_name);
-    Ok("preset-1".to_string())
+pub async fn vs_rtmp_connect_app(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    log::info!("RTMP connect app: session={}", session_id);
+
+    let mut sessions = state.rtmp_sessions.lock().await;
+    let rtmp = sessions.get_mut(&session_id)
+        .ok_or_else(|| "RTMP session not found — handshake first".to_string())?;
+
+    let stream = rtmp.stream.as_mut()
+        .ok_or_else(|| "RTMP TCP stream not available".to_string())?;
+
+    crate::video_streaming::rtmp::connect_app(stream, &session_id, &rtmp.url.clone(), &app).await?;
+    rtmp.connected = true;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_rtmp_play(
+    session_id: String,
+    stream_key: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    log::info!("RTMP play: session={} key={}", session_id, stream_key);
+
+    let mut sessions = state.rtmp_sessions.lock().await;
+    let rtmp = sessions.get_mut(&session_id)
+        .ok_or_else(|| "RTMP session not found".to_string())?;
+
+    let stream = rtmp.stream.as_mut()
+        .ok_or_else(|| "RTMP TCP stream not available".to_string())?;
+
+    crate::video_streaming::rtmp::play(stream, &session_id, &stream_key, &app).await
+}
+
+// ── SRT Commands ──
+
+#[tauri::command]
+pub async fn vs_srt_connect(
+    session_id: String,
+    config: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    log::info!("SRT connect: session={}", session_id);
+
+    crate::video_streaming::srt::connect(&session_id, &config, &state, &app).await
+}
+
+#[tauri::command]
+pub async fn vs_srt_disconnect(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+) -> Result<(), String> {
+    log::info!("SRT disconnect: session={}", session_id);
+
+    let mut sessions = state.srt_sessions.lock().await;
+    if let Some(session) = sessions.remove(&session_id) {
+        if let Some(tx) = session.shutdown_tx {
+            let _ = tx.send(());
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_srt_stats(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+) -> Result<serde_json::Value, String> {
+    log::info!("SRT stats: session={}", session_id);
+
+    let sessions = state.srt_sessions.lock().await;
+    if sessions.contains_key(&session_id) {
+        Ok(serde_json::json!({
+            "connected": true,
+            "rtt": 0,
+            "bandwidth": 0,
+            "retransmitRate": 0.0,
+            "dropRate": 0.0,
+            "sendRate": 0,
+            "recvRate": 0,
+        }))
+    } else {
+        Err("SRT session not found".to_string())
+    }
+}
+
+// ── WebRTC Commands ──
+
+#[tauri::command]
+pub async fn vs_webrtc_create_offer(
+    session_id: String,
+    config: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<String, String> {
+    log::info!("WebRTC create offer: session={}", session_id);
+
+    crate::video_streaming::webrtc::create_offer(&session_id, &config, &state, &app).await
+}
+
+#[tauri::command]
+pub async fn vs_webrtc_set_answer(
+    session_id: String,
+    sdp: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    log::info!("WebRTC set answer: session={}", session_id);
+
+    crate::video_streaming::webrtc::set_answer(&session_id, &sdp, &state, &app).await
+}
+
+#[tauri::command]
+pub async fn vs_webrtc_add_ice(
+    session_id: String,
+    candidate: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    log::info!("WebRTC add ICE: session={}", session_id);
+
+    crate::video_streaming::webrtc::add_ice_candidate(&session_id, &candidate, &state, &app).await
+}
+
+#[tauri::command]
+pub async fn vs_webrtc_close(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+) -> Result<(), String> {
+    log::info!("WebRTC close: session={}", session_id);
+
+    let mut sessions = state.webrtc_sessions.lock().await;
+    if let Some(session) = sessions.remove(&session_id) {
+        if let Some(tx) = session.shutdown_tx {
+            let _ = tx.send(());
+        }
+    }
+    Ok(())
 }

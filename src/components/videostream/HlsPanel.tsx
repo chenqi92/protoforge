@@ -35,7 +35,7 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
   void connected;
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
       {/* Parse button */}
       <div className="space-y-1.5">
         <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">

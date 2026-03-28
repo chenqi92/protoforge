@@ -331,6 +331,19 @@ pub fn run() {
             commands::vs_onvif_get_presets,
             commands::vs_onvif_goto_preset,
             commands::vs_onvif_set_preset,
+            // RTMP
+            commands::vs_rtmp_handshake,
+            commands::vs_rtmp_connect_app,
+            commands::vs_rtmp_play,
+            // SRT
+            commands::vs_srt_connect,
+            commands::vs_srt_disconnect,
+            commands::vs_srt_stats,
+            // WebRTC
+            commands::vs_webrtc_create_offer,
+            commands::vs_webrtc_set_answer,
+            commands::vs_webrtc_add_ice,
+            commands::vs_webrtc_close,
             // macOS Rounded Corners
             plugins::mac_rounded_corners::enable_rounded_corners,
         ])

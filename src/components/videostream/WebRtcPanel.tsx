@@ -1,15 +1,16 @@
 // WebRTC 协议配置面板
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2 } from "lucide-react";
+import * as vsSvc from "@/services/videoStreamService";
 
 interface WebRtcPanelProps {
   sessionKey: string;
   connected: boolean;
 }
 
-export function WebRtcPanel({ connected }: WebRtcPanelProps) {
+export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'offer' | 'answer'>('offer');
   const [stunServers, setStunServers] = useState(['stun:stun.l.google.com:19302']);
@@ -19,7 +20,24 @@ export function WebRtcPanel({ connected }: WebRtcPanelProps) {
   const [turnPass, setTurnPass] = useState('');
   const [localSdp, setLocalSdp] = useState('');
   const [remoteSdp, setRemoteSdp] = useState('');
-  const [iceCandidates] = useState<{ type: string; address: string; port: number; protocol: string; state: string }[]>([]);
+  const [iceCandidates, setIceCandidates] = useState<{ type: string; address: string; port: number; protocol: string; state: string }[]>([]);
+  const [creating, setCreating] = useState(false);
+
+  // Listen for ICE candidate events
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    vsSvc.onStreamEvent((e) => {
+      if (e.sessionId === sessionKey && e.eventType === 'protocol-data' && e.data) {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.type === 'ice-candidate' && data.candidate) {
+            setIceCandidates(prev => [...prev, data.candidate]);
+          }
+        } catch { /* */ }
+      }
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, [sessionKey]);
 
   const addStun = () => {
     if (newStun.trim()) {
@@ -28,8 +46,30 @@ export function WebRtcPanel({ connected }: WebRtcPanelProps) {
     }
   };
 
+  const handleCreateOffer = useCallback(async () => {
+    setCreating(true);
+    setIceCandidates([]);
+    try {
+      const turnServers = turnUrl ? [{ url: turnUrl, username: turnUser, credential: turnPass }] : [];
+      const sdp = await vsSvc.webrtcCreateOffer(sessionKey, {
+        stunServers,
+        turnServers,
+        mode,
+      });
+      setLocalSdp(sdp);
+    } catch { /* */ }
+    setCreating(false);
+  }, [sessionKey, stunServers, turnUrl, turnUser, turnPass, mode]);
+
+  const handleSetAnswer = useCallback(async () => {
+    if (!remoteSdp.trim()) return;
+    try {
+      await vsSvc.webrtcSetAnswer(sessionKey, remoteSdp);
+    } catch { /* */ }
+  }, [sessionKey, remoteSdp]);
+
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
       {/* Mode: Offer vs Answer */}
       <div className="space-y-1.5">
         <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
@@ -56,17 +96,17 @@ export function WebRtcPanel({ connected }: WebRtcPanelProps) {
         </label>
         <div className="space-y-1">
           {stunServers.map((s, i) => (
-            <div key={i} className="flex items-center gap-1">
-              <span className="flex-1 text-[var(--fs-xxs)] font-mono text-text-secondary truncate px-2 py-1 rounded bg-bg-secondary/30">{s}</span>
+            <div key={i} className="flex min-w-0 items-center gap-1">
+              <span className="min-w-0 flex-1 truncate rounded bg-bg-secondary/30 px-2 py-1 text-[var(--fs-xxs)] font-mono text-text-secondary">{s}</span>
               <button onClick={() => setStunServers(prev => prev.filter((_, j) => j !== i))} className="text-text-disabled hover:text-red-500 p-0.5">
                 <Trash2 className="w-3 h-3" />
               </button>
             </div>
           ))}
-          <div className="flex gap-1">
+          <div className="flex min-w-0 gap-1">
             <input value={newStun} onChange={(e) => setNewStun(e.target.value)} placeholder="stun:host:port"
               onKeyDown={(e) => e.key === 'Enter' && addStun()}
-              className="h-6 flex-1 rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none focus:border-accent"
+              className="h-6 min-w-0 flex-1 rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none focus:border-accent"
             />
             <button onClick={addStun} className="h-6 w-6 flex items-center justify-center rounded-[4px] bg-accent/10 text-accent hover:bg-accent/20"><Plus className="w-3 h-3" /></button>
           </div>
@@ -90,6 +130,20 @@ export function WebRtcPanel({ connected }: WebRtcPanelProps) {
           />
         </div>
       </div>
+
+      {/* Actions */}
+      {connected && (
+        <div className="flex gap-2">
+          <button onClick={handleCreateOffer} disabled={creating}
+            className="h-7 flex-1 rounded-[6px] border border-border-default/60 bg-accent/10 text-[var(--fs-xxs)] font-semibold text-accent hover:bg-accent/20 transition-colors disabled:opacity-50">
+            {creating ? '生成中...' : mode === 'offer' ? 'Create Offer' : 'Create Answer'}
+          </button>
+          <button onClick={handleSetAnswer} disabled={!remoteSdp.trim()}
+            className="h-7 flex-1 rounded-[6px] border border-border-default/60 bg-accent/10 text-[var(--fs-xxs)] font-semibold text-accent hover:bg-accent/20 transition-colors disabled:opacity-50">
+            Set Remote SDP
+          </button>
+        </div>
+      )}
 
       {/* SDP Editor */}
       <div className="space-y-1.5">
@@ -122,12 +176,12 @@ export function WebRtcPanel({ connected }: WebRtcPanelProps) {
             </div>
           ) : (
             iceCandidates.map((c, i) => (
-              <div key={i} className="flex items-center gap-2 px-2 py-1 text-[var(--fs-xxs)] font-mono">
+              <div key={i} className="flex min-w-0 items-center gap-2 px-2 py-1 text-[var(--fs-xxs)] font-mono">
                 <span className={cn("px-1 rounded text-[var(--fs-3xs)] font-bold",
                   c.type === 'host' ? 'bg-blue-500/10 text-blue-500' : c.type === 'srflx' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
                 )}>{c.type}</span>
-                <span className="text-text-primary">{c.address}:{c.port}</span>
-                <span className="text-text-disabled">{c.protocol}</span>
+                <span className="min-w-0 flex-1 truncate text-text-primary">{c.address}:{c.port}</span>
+                <span className="shrink-0 text-text-disabled">{c.protocol}</span>
               </div>
             ))
           )}

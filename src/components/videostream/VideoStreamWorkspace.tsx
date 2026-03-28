@@ -117,7 +117,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-transparent p-3">
+    <div className="flex h-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden bg-transparent p-3">
       {/* ── Fixed: Mode Tabs ── */}
       <div className="wb-tool-strip shrink-0">
         <div className="wb-tool-strip-main">
@@ -196,14 +196,14 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
       )}
 
       {/* ── Resizable: vertical split (top: video+config, bottom: protocol log) ── */}
-      <div className="flex-1 min-h-0 pt-3">
+      <div className="flex-1 min-h-0 min-w-0 overflow-hidden pt-3">
         <PanelGroup orientation="vertical">
           {/* ═══ Top Panel: Video Player + Protocol Config ═══ */}
           <Panel id="vs-top" defaultSize="55%" minSize="25%">
             <PanelGroup orientation="horizontal">
               {/* Video Player */}
               <Panel id="vs-player" defaultSize="60%" minSize="30%">
-                <div className="h-full rounded-[var(--radius-md)] border border-border-default/75 bg-black overflow-hidden flex flex-col">
+                <div className="h-full min-w-0 rounded-[var(--radius-md)] border border-border-default/75 bg-black overflow-hidden flex flex-col">
                   <div className="flex-1 flex items-center justify-center">
                     {!playing ? (
                       <div className="flex flex-col items-center gap-2 text-white/30">
@@ -247,15 +247,17 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
 
               {/* Protocol Config */}
               <Panel id="vs-config" defaultSize="40%" minSize="20%">
-                <div className="h-full rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden flex flex-col">
+                <div className="h-full min-w-0 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden flex flex-col">
                   <div className="shrink-0 px-3 py-2 border-b border-border-default/60 bg-bg-secondary/30 flex items-center justify-between">
                     <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
                       {t('videostream.protocolConfig', '协议配置')}
                     </span>
                     <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">{mode.toUpperCase()}</span>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-3">
-                    {renderProtocolConfig()}
+                  <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-3">
+                    <div className="min-w-0 overflow-x-hidden">
+                      {renderProtocolConfig()}
+                    </div>
                   </div>
                 </div>
               </Panel>
@@ -319,9 +321,9 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
               </div>
 
               {/* Log content with optional detail split */}
-              <div className="flex flex-1 min-h-0 overflow-hidden">
+              <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
                 {/* Message List */}
-                <div className={cn("overflow-y-auto", selectedMsg ? "w-1/2 border-r border-border-default/30" : "flex-1")}>
+                <div className={cn("min-w-0 overflow-y-auto overflow-x-hidden", selectedMsg ? "w-1/2 border-r border-border-default/30" : "flex-1")}>
                   {protocolMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-text-disabled">
                       <MonitorPlay className="w-6 h-6 text-text-disabled/40" />
@@ -357,7 +359,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
 
                 {/* Detail pane */}
                 {selectedMsg && (
-                  <div className="w-1/2 flex flex-col overflow-hidden">
+                  <div className="flex w-1/2 min-w-0 flex-col overflow-hidden">
                     <div className="shrink-0 px-3 py-1 border-b border-border-default/40 bg-bg-secondary/20 flex items-center justify-between">
                       <span className="text-[var(--fs-xxs)] font-semibold text-text-secondary">{t('videostream.messageDetail', '报文详情')}</span>
                       <button onClick={() => setSelectedMsgId(null)} className="text-[var(--fs-xxs)] text-text-disabled hover:text-text-secondary p-1">✕</button>

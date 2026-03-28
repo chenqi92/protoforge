@@ -1,7 +1,7 @@
 //! RTSP 客户端实现
 //! 支持 DESCRIBE/SETUP/PLAY/PAUSE/TEARDOWN 命令，SDP 解析，RTP/RTCP 统计
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::AtomicU32;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use serde::{Deserialize, Serialize};
@@ -10,6 +10,7 @@ use tauri::{AppHandle, Emitter};
 use super::state::{ProtocolMessage, StreamEvent};
 
 /// RTSP 会话状态
+#[allow(dead_code)]
 pub struct RtspSession {
     pub stream: Option<TcpStream>,
     pub cseq: AtomicU32,

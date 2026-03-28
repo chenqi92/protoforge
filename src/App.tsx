@@ -240,7 +240,7 @@ function ToolWorkbenchPanel({
   });
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full min-w-0 flex-col overflow-hidden">
       <div ref={sessionBarRef} className="flex h-11 shrink-0 items-center gap-3 border-b border-border-default/65 bg-bg-primary/38 px-3">
         <div className="flex shrink-0 items-center gap-2 pr-1">
           <div className="flex h-7 items-center gap-2 rounded-[10px] border border-border-default/70 bg-bg-primary/85 px-2.5 shadow-xs">
@@ -401,7 +401,7 @@ function ToolWorkbenchPanel({
         </>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         {visibleSessions.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-text-tertiary">
             <ArrowUpRight className="h-8 w-8 text-text-disabled" />
@@ -715,13 +715,13 @@ function App() {
 
   const renderContent = () => {
     return (
-      <div className="h-full">
+      <div className="h-full min-w-0 overflow-hidden">
         {/* Home 视图 — 全屏渲染 WelcomePage，无侧边栏 */}
-        <div className={cn("h-full", activeWorkbench === "home" ? "block" : "hidden")}>
+        <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "home" ? "block" : "hidden")}>
           <WelcomePage onAction={handleWelcomeAction} />
         </div>
 
-        <div className={cn("h-full", activeWorkbench === "requests" ? "block" : "hidden")}>
+        <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "requests" ? "block" : "hidden")}>
           <PanelGroup orientation="horizontal">
             <Panel
               id="sidebar"
@@ -772,7 +772,7 @@ function App() {
           </PanelGroup>
         </div>
 
-        <div className={cn("h-full", activeWorkbench === "tcpudp" ? "block" : "hidden")}>
+        <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "tcpudp" ? "block" : "hidden")}>
           <ToolWorkbenchPanel
             tool="tcpudp"
             sessions={toolSessions.tcpudp}
@@ -794,7 +794,7 @@ function App() {
           </ToolWorkbenchPanel>
         </div>
 
-        <div className={cn("h-full", activeWorkbench === "capture" ? "block" : "hidden")}>
+        <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "capture" ? "block" : "hidden")}>
           <ToolWorkbenchPanel
             tool="capture"
             sessions={toolSessions.capture}
@@ -816,7 +816,7 @@ function App() {
           </ToolWorkbenchPanel>
         </div>
 
-        <div className={cn("h-full", activeWorkbench === "loadtest" ? "block" : "hidden")}>
+        <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "loadtest" ? "block" : "hidden")}>
           <ToolWorkbenchPanel
             tool="loadtest"
             sessions={toolSessions.loadtest}
@@ -838,7 +838,7 @@ function App() {
           </ToolWorkbenchPanel>
         </div>
 
-        <div className={cn("h-full", activeWorkbench === "videostream" ? "block" : "hidden")}>
+        <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "videostream" ? "block" : "hidden")}>
           <ToolWorkbenchPanel
             tool="videostream"
             sessions={toolSessions.videostream}
@@ -894,7 +894,7 @@ function App() {
         )}
         bodyClassName="p-0"
       >
-      <div className="h-full">
+      <div className="h-full min-w-0 overflow-hidden">
           {activeWorkbench === "home" ? (
             renderContent()
           ) : (
