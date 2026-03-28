@@ -15,18 +15,18 @@ interface FeatureItem {
 }
 
 const requestFeatures: FeatureItem[] = [
-  { action: "http", icon: Send, labelKey: "welcome.httpRequest", descKey: "welcome.httpRequestDesc", color: "from-blue-500/10 to-transparent border-blue-500/20", iconColor: "text-blue-500 bg-blue-500/10" },
-  { action: "graphql", icon: Braces, labelKey: "welcome.graphql", descKey: "welcome.graphqlDesc", color: "from-fuchsia-500/10 to-transparent border-fuchsia-500/20", iconColor: "text-fuchsia-500 bg-fuchsia-500/10" },
-  { action: "ws", icon: Zap, labelKey: "welcome.websocket", descKey: "welcome.websocketDesc", color: "from-amber-500/10 to-transparent border-amber-500/20", iconColor: "text-amber-500 bg-amber-500/10" },
-  { action: "sse", icon: Waves, labelKey: "welcome.sse", descKey: "welcome.sseDesc", color: "from-orange-500/10 to-transparent border-orange-500/20", iconColor: "text-orange-500 bg-orange-500/10" },
-  { action: "mqtt", icon: Radio, labelKey: "welcome.mqtt", descKey: "welcome.mqttDesc", color: "from-purple-500/10 to-transparent border-purple-500/20", iconColor: "text-purple-500 bg-purple-500/10" },
+  { action: "http", icon: Send, labelKey: "welcome.httpRequest", descKey: "welcome.httpRequestDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-blue-500 bg-blue-500/10" },
+  { action: "graphql", icon: Braces, labelKey: "welcome.graphql", descKey: "welcome.graphqlDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-fuchsia-500 bg-fuchsia-500/10" },
+  { action: "ws", icon: Zap, labelKey: "welcome.websocket", descKey: "welcome.websocketDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-amber-500 bg-amber-500/10" },
+  { action: "sse", icon: Waves, labelKey: "welcome.sse", descKey: "welcome.sseDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-orange-500 bg-orange-500/10" },
+  { action: "mqtt", icon: Radio, labelKey: "welcome.mqtt", descKey: "welcome.mqttDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-purple-500 bg-purple-500/10" },
 ];
 
 const toolFeatures: FeatureItem[] = [
-  { action: "tcpudp", icon: Network, labelKey: "welcome.tcpudp", descKey: "welcome.tcpudpDesc", color: "from-indigo-500/10 to-transparent border-indigo-500/20", iconColor: "text-indigo-500 bg-indigo-500/10" },
-  { action: "capture", icon: Eye, labelKey: "welcome.capture", descKey: "welcome.captureDesc", color: "from-cyan-500/10 to-transparent border-cyan-500/20", iconColor: "text-cyan-500 bg-cyan-500/10" },
-  { action: "loadtest", icon: Radio, labelKey: "welcome.loadtest", descKey: "welcome.loadtestDesc", color: "from-rose-500/10 to-transparent border-rose-500/20", iconColor: "text-rose-500 bg-rose-500/10" },
-  { action: "plugins", icon: Puzzle, labelKey: "welcome.pluginSystem", descKey: "welcome.pluginSystemDesc", color: "from-violet-500/10 to-transparent border-violet-500/20", iconColor: "text-violet-500 bg-violet-500/10" },
+  { action: "tcpudp", icon: Network, labelKey: "welcome.tcpudp", descKey: "welcome.tcpudpDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-indigo-500 bg-indigo-500/10" },
+  { action: "capture", icon: Eye, labelKey: "welcome.capture", descKey: "welcome.captureDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-cyan-500 bg-cyan-500/10" },
+  { action: "loadtest", icon: Radio, labelKey: "welcome.loadtest", descKey: "welcome.loadtestDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-rose-500 bg-rose-500/10" },
+  { action: "plugins", icon: Puzzle, labelKey: "welcome.pluginSystem", descKey: "welcome.pluginSystemDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-violet-500 bg-violet-500/10" },
 ];
 
 interface WelcomePageProps {
@@ -44,7 +44,7 @@ function FeatureCard({ item, index, onAction }: { item: FeatureItem; index: numb
       transition={{ delay: 0.08 + index * 0.04, duration: 0.32, ease: "easeOut" }}
       onClick={() => onAction?.(item.action)}
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border-default/60 bg-gradient-to-br p-4 text-left transition-all duration-300",
+        "group relative overflow-hidden rounded-2xl border border-border-default/60 p-4 text-left transition-all duration-300",
         "hover:border-border-strong/70 hover:shadow-[0_8px_28px_rgba(15,23,42,0.06)] active:scale-[0.985]",
         item.color
       )}

@@ -34,9 +34,9 @@ interface PluginIconProps {
 }
 
 const sizeClasses = {
-  sm: "h-8 w-8 rounded-[10px] text-lg",
-  md: "h-11 w-11 rounded-[14px] text-2xl",
-  lg: "h-14 w-14 rounded-[18px] text-3xl",
+  sm: "h-8 w-8 rounded-[var(--radius-md)] text-[var(--fs-lg)]",
+  md: "h-11 w-11 rounded-[var(--radius-lg)] text-2xl",
+  lg: "h-14 w-14 rounded-[var(--radius-xl)] text-3xl",
 };
 
 const imgSizeClasses = {

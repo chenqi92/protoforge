@@ -79,19 +79,19 @@ function ModbusConnectionBar({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <div className="col-span-2 flex items-center gap-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/35 p-1">
-          <div className="flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[8px] bg-violet-500 px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm">
+        <div className="col-span-2 flex items-center gap-2 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/35 p-1">
+          <div className="flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] bg-accent px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm">
             <Cpu className="h-3.5 w-3.5" />
             <span>Modbus</span>
           </div>
-          <div className="flex flex-1 items-center rounded-[8px] border border-border-default/60 bg-bg-primary p-0.5">
+          <div className="flex flex-1 items-center rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-primary p-0.5">
             {(["tcp", "rtu"] as ModbusTransport[]).map((tp) => (
               <button
                 key={tp}
                 onClick={() => !connected && onTransportChange(tp)}
                 disabled={connected}
                 className={cn(
-                  "h-7 flex-1 rounded-[6px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-all",
+                  "h-7 flex-1 rounded-[var(--radius-sm)] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-all",
                   transport === tp
                     ? "bg-violet-500/12 text-violet-600 shadow-xs dark:text-violet-300"
                     : "text-text-tertiary hover:text-text-secondary disabled:opacity-50"
@@ -134,7 +134,7 @@ function ModbusConnectionBar({
               <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
                 {t("serial.modbus.transport", "传输")}
               </span>
-              <div className="flex h-10 items-center rounded-[10px] border border-border-default/60 bg-bg-secondary/35 px-3 text-[var(--fs-xs)] font-medium text-text-secondary">
+              <div className="flex h-10 items-center rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/35 px-3 text-[var(--fs-xs)] font-medium text-text-secondary">
                 TCP · 502
               </div>
             </div>
@@ -165,7 +165,7 @@ function ModbusConnectionBar({
                 <button
                   onClick={onRefreshPorts}
                   disabled={connected || loadingPorts}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-border-default/60 bg-bg-secondary/35 text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-40"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/35 text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-50"
                   title={t('serial.refresh', '刷新串口列表')}
                 >
                   <RefreshCw className={cn("h-3.5 w-3.5", loadingPorts && "animate-spin")} />
@@ -194,7 +194,7 @@ function ModbusConnectionBar({
               <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
                 {t("serial.modbus.transport", "传输")}
               </span>
-              <div className="flex h-10 items-center rounded-[10px] border border-border-default/60 bg-bg-secondary/35 px-3 text-[var(--fs-xs)] font-medium text-text-secondary">
+              <div className="flex h-10 items-center rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/35 px-3 text-[var(--fs-xs)] font-medium text-text-secondary">
                 RTU · {serialConfig.dataBits}{serialConfig.parity === "none" ? "N" : serialConfig.parity === "even" ? "E" : "O"}{serialConfig.stopBits}
               </div>
             </div>
@@ -208,10 +208,10 @@ function ModbusConnectionBar({
         className={cn(
           "wb-primary-btn h-10 w-full justify-center px-3",
           connected
-            ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
+            ? "bg-error hover:bg-error/90 hover:shadow-md"
             : connecting
-              ? "bg-violet-500 cursor-wait opacity-70"
-              : "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 hover:shadow-md"
+              ? "bg-warning cursor-wait opacity-70"
+              : "bg-accent hover:bg-accent-hover hover:shadow-md"
         )}
       >
         {connected ? <X className="h-3.5 w-3.5" /> : <Plug className="h-3.5 w-3.5" />}
@@ -351,20 +351,20 @@ function ModbusFunctionPanel({
                   : "100 200 300"
             }
             rows={3}
-            className="min-h-[88px] w-full resize-none rounded-[12px] border border-border-default/60 bg-bg-secondary/30 px-3 py-2 text-[var(--fs-sm)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted disabled:opacity-60"
+            className="min-h-[88px] w-full resize-none rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/30 px-3 py-2 text-[var(--fs-sm)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted disabled:opacity-60"
           />
         </label>
       ) : null}
 
-      <div className="space-y-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2.5">
+      <div className="space-y-2 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2.5">
         <button
           onClick={onPollingToggle}
           disabled={!connected}
           className={cn(
-            "flex h-8 w-full items-center justify-center gap-1.5 rounded-[8px] border text-[var(--fs-xs)] font-semibold transition-colors",
+            "flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border text-[var(--fs-xs)] font-semibold transition-colors",
             pollingEnabled && connected
               ? "border-amber-500/40 bg-amber-500/12 text-amber-500"
-              : "border-border-default/60 text-text-disabled hover:text-text-secondary disabled:opacity-40"
+              : "border-border-default/60 text-text-disabled hover:text-text-secondary disabled:opacity-50"
           )}
           title={t('serial.modbus.pollingToggle', '轮询')}
         >
@@ -398,7 +398,7 @@ function ModbusFunctionPanel({
         className={cn(
           "wb-primary-btn h-10 w-full justify-center",
           connected && !executing
-            ? "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 hover:shadow-md"
+            ? "bg-accent hover:bg-accent-hover hover:shadow-md"
             : "cursor-not-allowed opacity-50"
         )}
       >
@@ -599,7 +599,7 @@ function ModbusResponseTable({
               <select
                 value={dataType}
                 onChange={(e) => onDataTypeChange(e.target.value as ModbusDataType)}
-                className="h-6 appearance-none rounded-[4px] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-5 text-[var(--fs-xxs)] font-mono text-text-secondary outline-none cursor-pointer"
+                className="h-6 appearance-none rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-5 text-[var(--fs-xxs)] font-mono text-text-secondary outline-none cursor-pointer"
               >
                 {DATA_TYPE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -731,7 +731,7 @@ function ModbusTransactionLog({
         <div
           key={tx.id}
           className={cn(
-            "mx-1 rounded-[6px] border px-3 py-2 text-[var(--fs-xs)] font-mono",
+            "mx-1 rounded-[var(--radius-sm)] border px-3 py-2 text-[var(--fs-xs)] font-mono",
             tx.success
               ? "border-emerald-500/20 bg-emerald-500/5"
               : "border-red-500/20 bg-red-500/5"
@@ -1053,7 +1053,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                   onClick={() => setShowScan((v) => !v)}
                   disabled={!connected}
                   className={cn(
-                    "wb-tool-chip cursor-pointer transition-colors disabled:opacity-40",
+                    "wb-tool-chip cursor-pointer transition-colors disabled:opacity-50",
                     showScan && "border-accent/40 bg-accent-soft text-accent"
                   )}
                   title={t('serial.modbus.unitScan', '单元地址扫描')}
@@ -1091,7 +1091,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                 action={
                   <button
                     onClick={() => { setShowScan(false); scanAbortRef.current = true; }}
-                    className="rounded-[6px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                    className="rounded-[var(--radius-sm)] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -1136,8 +1136,8 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                     className={cn(
                       "wb-primary-btn h-10 w-full justify-center",
                       scanning
-                        ? "bg-red-500 hover:bg-red-600"
-                        : "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+                        ? "bg-error hover:bg-error/90"
+                        : "bg-accent hover:bg-accent-hover"
                     )}
                   >
                     {scanning ? (
@@ -1157,7 +1157,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                           <div
                             key={r.unitId}
                             className={cn(
-                              "flex items-center gap-2 rounded-[8px] px-2.5 py-2 text-[var(--fs-xxs)] font-mono",
+                              "flex items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-[var(--fs-xxs)] font-mono",
                               r.ok ? "bg-emerald-500/5 text-emerald-600" : "bg-bg-secondary/20 text-text-disabled"
                             )}
                           >
@@ -1226,7 +1226,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
             >
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                  <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
                     <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                       {t('tcp.sidebar.connection', '连接设置')}
                     </div>
@@ -1234,7 +1234,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                       {statusText}
                     </div>
                   </div>
-                  <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                  <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
                     <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                       {t('serial.modbus.transport', '传输方式')}
                     </div>
@@ -1242,7 +1242,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                       {transport.toUpperCase()}
                     </div>
                   </div>
-                  <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                  <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
                     <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                       {t('serial.modbus.transactions', '事务')}
                     </div>
@@ -1250,7 +1250,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                       {transactions.length}
                     </div>
                   </div>
-                  <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                  <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
                     <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                       {t('serial.modbus.successRate', '成功')}
                     </div>
@@ -1261,7 +1261,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                 </div>
 
                 {lastTransaction ? (
-                  <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2.5">
+                  <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2.5">
                     <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                       {t('serial.modbus.lastTransaction', '最近请求')}
                     </div>

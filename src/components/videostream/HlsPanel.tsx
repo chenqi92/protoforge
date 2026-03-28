@@ -45,7 +45,7 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
           <button
             onClick={parsePlaylist}
             disabled={!streamUrl.trim() || loading}
-            className="wb-primary-btn flex-1 px-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-40"
+            className="wb-primary-btn flex-1 px-3 bg-accent hover:bg-accent-hover disabled:opacity-50"
           >
             {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ListVideo className="w-3.5 h-3.5" />}
             {t('videostream.hls.parse', '解析 m3u8')}
@@ -53,7 +53,7 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
           <button
             onClick={() => setAutoRefresh(v => !v)}
             className={cn(
-              "h-7 px-2 rounded-[6px] border text-[var(--fs-xxs)] font-medium transition-colors",
+              "h-7 px-2 rounded-[var(--radius-sm)] border text-[var(--fs-xxs)] font-medium transition-colors",
               autoRefresh
                 ? "border-accent/40 bg-accent-soft text-accent"
                 : "border-border-default/60 text-text-tertiary hover:text-text-secondary"
@@ -67,7 +67,7 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
       {/* Playlist Info */}
       {playlist && (
         <div className="space-y-3">
-          <div className="rounded-[6px] border border-border-default/60 bg-bg-secondary/30 p-2 space-y-1 text-[var(--fs-xxs)] font-mono">
+          <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-2 space-y-1 text-[var(--fs-xxs)] font-mono">
             <div className="flex justify-between"><span className="text-text-disabled">Type</span><span className="text-text-primary">{playlist.type === 'master' ? 'Master Playlist' : 'Media Playlist'}</span></div>
             {playlist.version && <div className="flex justify-between"><span className="text-text-disabled">Version</span><span className="text-text-primary">{playlist.version}</span></div>}
             {playlist.targetDuration && <div className="flex justify-between"><span className="text-text-disabled">Target Duration</span><span className="text-text-primary">{playlist.targetDuration}s</span></div>}
@@ -85,7 +85,7 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
                   <button
                     key={i}
                     onClick={() => setExpandedVariant(expandedVariant === i ? null : i)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-[4px] bg-bg-secondary/30 hover:bg-bg-hover/50 text-left transition-colors"
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-[var(--radius-xs)] bg-bg-secondary/30 hover:bg-bg-hover/50 text-left transition-colors"
                   >
                     <ChevronRight className={cn("w-3 h-3 text-text-disabled transition-transform", expandedVariant === i && "rotate-90")} />
                     <span className="text-[var(--fs-xxs)] font-mono text-accent font-medium">{Math.round(v.bandwidth / 1000)}kbps</span>
@@ -103,7 +103,7 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
               <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
                 {t('videostream.hls.segments', '分片列表')} ({playlist.segments.length})
               </label>
-              <div className="max-h-[160px] overflow-y-auto space-y-0.5 rounded-[6px] border border-border-default/60 bg-bg-secondary/30 p-1">
+              <div className="max-h-[160px] overflow-y-auto space-y-0.5 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
                 {playlist.segments.map((seg, i) => (
                   <div key={i} className="flex items-center gap-2 px-2 py-1 text-[var(--fs-xxs)] font-mono">
                     <span className="text-text-disabled w-6 shrink-0">#{seg.sequence}</span>

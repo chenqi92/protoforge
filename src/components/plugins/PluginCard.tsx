@@ -44,7 +44,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start gap-3 mb-3">
-          <div className="w-10 h-10 rounded-lg bg-bg-secondary border border-border-default flex items-center justify-center text-xl shrink-0 shadow-sm">
+          <div className="w-10 h-10 rounded-lg bg-bg-secondary border border-border-default flex items-center justify-center text-[var(--fs-xl)] shrink-0 shadow-sm">
             {plugin.icon}
           </div>
           <div className="min-w-0 flex-1">
@@ -91,7 +91,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
             "w-full h-8 rounded-lg flex items-center justify-center gap-1.5 text-[var(--fs-sm)] font-semibold transition-all active:scale-[0.98] disabled:cursor-wait",
             plugin.installed
               ? "text-red-500 border border-red-200 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/10"
-              : "text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-sm hover:shadow-md"
+              : "text-white bg-accent hover:bg-accent-hover shadow-sm hover:shadow-md"
           )}
         >
           {loading ? (

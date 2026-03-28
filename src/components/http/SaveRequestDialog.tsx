@@ -92,14 +92,14 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[74vh] w-[520px] max-w-[92vw] flex-col overflow-hidden rounded-[24px] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
+      <div className="flex max-h-[74vh] w-[520px] max-w-[92vw] flex-col overflow-hidden rounded-[var(--radius-xl)] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border-default/75 bg-bg-primary/78 px-5 py-4">
           <h2 className="text-[var(--fs-lg)] font-semibold text-text-primary flex items-center gap-2">
             <Save className="w-4 h-4 text-accent" />
             {t('saveDialog.title')}
           </h2>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary">
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -145,7 +145,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
               </div>
             )}
 
-            <div className="max-h-[220px] overflow-y-auto rounded-[16px] border border-border-default/80 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
+            <div className="max-h-[220px] overflow-y-auto rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
               {collections.length === 0 ? (
                 <div className="p-4 text-center text-[var(--fs-sm)] text-text-disabled">{t('saveDialog.noCollections')}</div>
               ) : (
@@ -194,14 +194,14 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border-default/75 bg-bg-primary/78 px-5 py-3">
           <button
             onClick={onClose}
-            className="h-8 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
+            className="h-8 rounded-[var(--radius-md)] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
           >
             {t('saveDialog.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!selectedCollectionId || !name.trim() || saving}
-            className="flex h-8 items-center gap-1.5 rounded-[12px] bg-accent px-5 text-[var(--fs-sm)] font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] bg-accent px-5 text-[var(--fs-sm)] font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? t('saveDialog.saving') : t('saveDialog.save')}
           </button>

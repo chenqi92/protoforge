@@ -513,7 +513,7 @@ function HoverSubmenu({
     >
       <button className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-text-primary hover:bg-bg-hover transition-colors">
         <span className="flex-1">{label}</span>
-        <span className="text-text-tertiary text-xs">▸</span>
+        <span className="text-text-tertiary text-[var(--fs-xs)]">▸</span>
       </button>
       {hoveredSub === hoverKey && (
         <div

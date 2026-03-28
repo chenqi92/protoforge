@@ -148,7 +148,7 @@ export function RequestStatsPanel() {
       {/* Empty state */}
       {stats.total === 0 && (
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] border border-border-subtle bg-bg-hover shadow-sm">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[var(--radius-lg)] border border-border-subtle bg-bg-hover shadow-sm">
             <Activity className="w-6 h-6 text-text-tertiary" />
           </div>
           <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">暂无请求数据</p>

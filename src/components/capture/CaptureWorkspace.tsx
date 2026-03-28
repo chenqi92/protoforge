@@ -204,7 +204,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
                 : "text-text-tertiary"
             )}
           >
-          <span className={cn("h-2 w-2 rounded-[3px]", running ? "bg-emerald-500" : "bg-text-disabled")} />
+          <span className={cn("h-2 w-2 rounded-[var(--radius-xs)]", running ? "bg-emerald-500" : "bg-text-disabled")} />
             {running ? t('capture.proxyRunning') : t('capture.proxyStopped')}
           </span>
 
@@ -275,7 +275,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
             onClick={handleToggleCapture}
             className={cn(
               "wb-primary-btn",
-              running ? "bg-red-500 hover:bg-red-600" : "bg-accent hover:bg-accent-hover"
+              running ? "bg-error hover:bg-error/90" : "bg-accent hover:bg-accent-hover"
             )}
           >
             {running ? <Square className="h-3.5 w-3.5" fill="currentColor" /> : <Play className="h-3.5 w-3.5" fill="currentColor" />}
@@ -293,7 +293,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 rounded-[10px] border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-[var(--fs-xs)] text-red-600 flex items-center gap-2">
+            <div className="mt-2 rounded-[var(--radius-md)] border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-[var(--fs-xs)] text-red-600 flex items-center gap-2">
               <X className="w-3.5 h-3.5 shrink-0" />
               <span className="min-w-0 break-all">{storeError}</span>
             </div>
@@ -311,7 +311,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
             className="overflow-hidden"
           >
             <div className={cn(
-              "mt-3 rounded-[10px] border px-4 py-3 text-[var(--fs-xs)]",
+              "mt-3 rounded-[var(--radius-md)] border px-4 py-3 text-[var(--fs-xs)]",
               caTrusted
                 ? "border-emerald-500/20 bg-emerald-500/5"
                 : "border-orange-500/30 bg-gradient-to-r from-orange-500/10 to-amber-500/10"
@@ -554,7 +554,7 @@ function RequestRow({
       )}
     >
       <span className="w-[60px] shrink-0">
-        <span className={cn("text-[10px] font-bold px-[4px] py-[1px] rounded-[3px] tracking-wide", mc.text, mc.bg)}>
+        <span className={cn("text-[10px] font-bold px-[4px] py-[1px] rounded-[var(--radius-xs)] tracking-wide", mc.text, mc.bg)}>
           {entry.method}
         </span>
       </span>
@@ -599,7 +599,7 @@ function DetailPanel({
       {/* 顶部状态栏 */}
       <div className={cn("shrink-0 flex items-center justify-between", embedded ? "wb-pane-header" : "wb-panel-header")}>
         <div className="flex items-center gap-2 text-[var(--fs-xs)]">
-          <span className={cn("font-mono text-[10px] font-bold px-[4px] py-[1px] rounded-[3px] tracking-wide",
+          <span className={cn("font-mono text-[10px] font-bold px-[4px] py-[1px] rounded-[var(--radius-xs)] tracking-wide",
             methodColors[entry.method]?.text || "text-text-tertiary",
             methodColors[entry.method]?.bg || "bg-gray-500/10"
           )}>
@@ -618,7 +618,7 @@ function DetailPanel({
         </div>
         <button
           onClick={onClose}
-          className="mr-1 flex h-7 w-7 items-center justify-center rounded-[8px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          className="mr-1 flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
         >
           <X className="w-3 h-3" />
         </button>

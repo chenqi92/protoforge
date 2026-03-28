@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { FlvTag } from "@/types/videostream";
 
 interface HttpFlvPanelProps {
@@ -29,7 +30,7 @@ export function HttpFlvPanel({ sessionKey, connected }: HttpFlvPanelProps) {
         <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
           FLV Header
         </label>
-        <div className="rounded-[6px] border border-border-default/60 bg-bg-secondary/30 p-2 text-[var(--fs-xxs)] font-mono space-y-0.5">
+        <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-2 text-[var(--fs-xxs)] font-mono space-y-0.5">
           {connected ? (
             <>
               <div className="flex justify-between"><span className="text-text-disabled">Signature</span><span className="text-text-primary">FLV</span></div>
@@ -48,20 +49,17 @@ export function HttpFlvPanel({ sessionKey, connected }: HttpFlvPanelProps) {
         <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.flv.tagFilter', 'Tag 过滤')}
         </label>
-        <div className="flex h-6 items-center rounded-[4px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
-          {(['all', 'video', 'audio', 'script'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={cn(
-                "h-full flex-1 text-[var(--fs-3xs)] font-semibold uppercase tracking-wide transition-colors",
-                filter === f ? "bg-accent text-white" : "text-text-tertiary hover:text-text-secondary"
-              )}
-            >
-              {f === 'all' ? t('videostream.flv.all', '全部') : f}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'all', label: t('videostream.flv.all', '全部') },
+            { value: 'video', label: 'VIDEO' },
+            { value: 'audio', label: 'AUDIO' },
+            { value: 'script', label: 'SCRIPT' },
+          ]}
+          size="sm"
+        />
       </div>
 
       {/* Tag List */}
@@ -72,7 +70,7 @@ export function HttpFlvPanel({ sessionKey, connected }: HttpFlvPanelProps) {
           </label>
           <span className="text-[var(--fs-3xs)] text-text-disabled">{filtered.length} tags</span>
         </div>
-        <div className="max-h-[200px] overflow-y-auto rounded-[6px] border border-border-default/60 bg-bg-secondary/30">
+        <div className="max-h-[200px] overflow-y-auto rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30">
           {filtered.length === 0 ? (
             <div className="text-[var(--fs-xs)] text-text-disabled text-center py-6">
               {connected ? t('videostream.flv.waitingTags', '等待 FLV Tag...') : t('videostream.flv.connectFirst', '连接后解析')}

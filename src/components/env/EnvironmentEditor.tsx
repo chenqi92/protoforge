@@ -203,7 +203,7 @@ export function EnvironmentEditor() {
                     <button
                       onClick={handleSaveVariables}
                       disabled={!dirty}
-                      className="h-7 px-3 bg-accent text-white rounded-md text-[var(--fs-xs)] font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="h-7 px-3 bg-accent text-white rounded-md text-[var(--fs-xs)] font-medium hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {t('env.save')}
                     </button>
@@ -251,7 +251,7 @@ export function EnvironmentEditor() {
                           {v.isSecret === 1 ? <Lock className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                         </button>
                         <div className="w-8 flex justify-center">
-                          <button onClick={() => removeVar(i)} className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all text-lg">×</button>
+                          <button onClick={() => removeVar(i)} className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all text-[var(--fs-lg)]">×</button>
                         </div>
                       </div>
                     ))}
@@ -319,7 +319,7 @@ export function EnvironmentEditor() {
                     className={cn("input-field flex-1 font-mono text-[var(--fs-base)] py-1.5", !v.enabled && "opacity-40")}
                   />
                   <div className="w-8 flex justify-center">
-                    <button onClick={() => setGlobalEditing((prev) => prev.filter((_, j) => j !== i))} className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all text-lg">×</button>
+                    <button onClick={() => setGlobalEditing((prev) => prev.filter((_, j) => j !== i))} className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all text-[var(--fs-lg)]">×</button>
                   </div>
                 </div>
               ))}

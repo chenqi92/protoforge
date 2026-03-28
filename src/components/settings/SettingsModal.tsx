@@ -121,7 +121,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       }}
     >
       <DialogContent
-        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[920px]"
+        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden rounded-[var(--radius-xl)] border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[920px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
@@ -129,7 +129,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         <div className="flex h-full min-h-0 flex-1 flex-col">
           <div className="flex shrink-0 items-center justify-between border-b border-border-default/75 px-6 py-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-xl)] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
                 <Settings className="h-5 w-5 text-white" />
               </div>
 
@@ -144,7 +144,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-[14px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-lg)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="h-4 w-4" />
                 <span className="sr-only">{t('settings.close')}</span>
@@ -174,7 +174,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       key={item.id}
                       onClick={() => setSection(item.id)}
                       className={cn(
-                        "group flex w-full items-center gap-3 rounded-[18px] px-3.5 py-3 text-left transition-all",
+                        "group flex w-full items-center gap-3 rounded-[var(--radius-xl)] px-3.5 py-3 text-left transition-all",
                         isActive
                           ? "bg-bg-primary/86 shadow-xs ring-1 ring-border-default"
                           : "text-text-tertiary hover:bg-bg-primary/68 hover:text-text-primary"
@@ -182,7 +182,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     >
                       <div
                         className={cn(
-                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] transition-colors",
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-lg)] transition-colors",
                           isActive ? item.accentClassName : "bg-bg-secondary/80 text-text-disabled"
                         )}
                       >
@@ -209,7 +209,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               <div className="shrink-0 border-t border-border-default/70 px-3 py-3">
                 <button
                   onClick={handleReset}
-                  className="flex w-full items-center gap-2 rounded-[16px] border border-border-default/75 bg-bg-primary/72 px-3.5 py-3 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
+                  className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] border border-border-default/75 bg-bg-primary/72 px-3.5 py-3 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
                 >
                   <RotateCcw className="h-4 w-4" />
                   {t('settings.resetDefaults')}
@@ -219,11 +219,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             <section className="flex min-w-0 min-h-0 flex-col bg-bg-primary/36">
               <div className="flex-1 overflow-y-auto p-5">
-                <div className="overflow-hidden rounded-[22px] border border-border-default/75 bg-bg-primary/88 shadow-panel">
+                <div className="overflow-hidden rounded-[var(--radius-xl)] border border-border-default/75 bg-bg-primary/88 shadow-panel">
                   <div className="flex items-center gap-3 border-b border-border-default/70 px-6 py-4">
                     <div
                       className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px]",
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)]",
                         currentSection.accentClassName
                       )}
                     >
@@ -299,7 +299,7 @@ function SegmentedControl<T extends string>({
   options: Array<{ value: T; label: string; icon?: LucideIcon }>;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-[14px] border border-border-default/75 bg-bg-secondary/60 p-1">
+    <div className="flex items-center gap-1 rounded-[var(--radius-lg)] border border-border-default/75 bg-bg-secondary/60 p-1">
       {options.map((option) => {
         const Icon = option.icon;
         const isActive = option.value === value;
@@ -310,7 +310,7 @@ function SegmentedControl<T extends string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex h-8 items-center gap-1.5 rounded-[11px] px-3 text-[var(--fs-sm)] font-medium transition-all",
+              "flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] px-3 text-[var(--fs-sm)] font-medium transition-all",
               isActive
                 ? "bg-bg-primary text-text-primary shadow-xs"
                 : "text-text-tertiary hover:bg-bg-hover/80 hover:text-text-primary"
@@ -517,7 +517,7 @@ function UpdateSettingRow() {
         {isReady ? (
           <button
             onClick={restartApp}
-            className="h-8 px-4 text-[var(--fs-sm)] font-semibold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors"
+            className="h-8 px-4 text-[var(--fs-sm)] font-semibold text-white bg-success hover:bg-success/90 rounded-lg transition-colors"
           >
             {t('update.restart')}
           </button>

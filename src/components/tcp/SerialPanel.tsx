@@ -156,7 +156,7 @@ function SerialConnectionBar({
     <div className="flex flex-col gap-2">
       {/* Row 1: port selector + open/close */}
       <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
-        <div className="flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-3 text-[var(--fs-xs)] font-semibold text-white shadow-sm bg-amber-500">
+        <div className="flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-3 text-[var(--fs-xs)] font-semibold text-white shadow-sm bg-accent">
           <Usb className="w-3.5 h-3.5" />
           <span>Serial</span>
         </div>
@@ -181,7 +181,7 @@ function SerialConnectionBar({
         <button
           onClick={onRefreshPorts}
           disabled={open || loadingPorts}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-text-tertiary hover:bg-bg-hover hover:text-text-primary disabled:opacity-40 transition-colors"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-text-tertiary hover:bg-bg-hover hover:text-text-primary disabled:opacity-50 transition-colors"
           title={t('serial.refresh', '刷新串口列表')}
         >
           <RefreshCw className={cn("w-3.5 h-3.5", loadingPorts && "animate-spin")} />
@@ -193,10 +193,10 @@ function SerialConnectionBar({
           className={cn(
             "wb-primary-btn min-w-[80px] px-3",
             open
-              ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
+              ? "bg-error hover:bg-error/90 hover:shadow-md"
               : opening
-                ? "bg-amber-500 cursor-wait opacity-70"
-                : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 hover:shadow-md"
+                ? "bg-warning cursor-wait opacity-70"
+                : "bg-accent hover:bg-accent-hover hover:shadow-md"
           )}
         >
           {open ? <X className="w-3.5 h-3.5" /> : <Usb className="w-3.5 h-3.5" />}
@@ -325,7 +325,7 @@ function RecentSerialConfigs({
         {recent.map((r, i) => (
           <div
             key={i}
-            className="group flex items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40"
+            className="group flex items-center rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40"
           >
             <button
               onClick={() => onLoad(r)}
@@ -573,7 +573,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string; compact?: bool
                     <button
                       onClick={handleToggleDtr}
                       className={cn(
-                        "h-[22px] px-2 rounded-[4px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide border transition-colors",
+                        "h-[22px] px-2 rounded-[var(--radius-xs)] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide border transition-colors",
                         dtr
                           ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
                           : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
@@ -585,7 +585,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string; compact?: bool
                     <button
                       onClick={handleToggleRts}
                       className={cn(
-                        "h-[22px] px-2 rounded-[4px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide border transition-colors",
+                        "h-[22px] px-2 rounded-[var(--radius-xs)] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide border transition-colors",
                         rts
                           ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
                           : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
@@ -598,7 +598,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string; compact?: bool
 
                   <div className="grid grid-cols-2 gap-2">
                     {(['cts', 'dsr', 'ri', 'cd'] as const).map((sig) => (
-                      <div key={sig} className="flex items-center gap-2 rounded-[8px] border border-border-default/60 bg-bg-secondary/35 px-2.5 py-2">
+                      <div key={sig} className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/35 px-2.5 py-2">
                         <div className={cn(
                           "w-1.5 h-1.5 rounded-full transition-colors",
                           signals[sig] ? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.6)]" : "bg-border-default/60"

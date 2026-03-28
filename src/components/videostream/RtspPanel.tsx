@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ChevronDown, Lock, Unlock } from "lucide-react";
 import * as vsSvc from "@/services/videoStreamService";
 
@@ -61,22 +62,15 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
         <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.rtsp.transport', '传输方式')}
         </label>
-        <div className="flex h-7 items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
-          {(['tcp', 'udp'] as const).map((tp) => (
-            <button
-              key={tp}
-              onClick={() => setTransport(tp)}
-              disabled={connected}
-              className={cn(
-                "h-full flex-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-colors",
-                transport === tp ? "bg-accent text-white" : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover",
-                connected && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              {tp.toUpperCase()}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={transport}
+          onChange={setTransport}
+          options={[
+            { value: 'tcp', label: 'TCP' },
+            { value: 'udp', label: 'UDP' },
+          ]}
+          disabled={connected}
+        />
       </div>
 
       {/* Authentication */}
@@ -89,7 +83,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
             value={authMethod}
             onChange={(e) => setAuthMethod(e.target.value as 'none' | 'basic' | 'digest')}
             disabled={connected}
-            className="h-7 w-full appearance-none rounded-[6px] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-6 text-[var(--fs-xs)] text-text-primary outline-none cursor-pointer disabled:opacity-50"
+            className="h-7 w-full appearance-none rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-6 text-[var(--fs-xs)] text-text-primary outline-none cursor-pointer disabled:opacity-50"
           >
             <option value="none">{t('videostream.rtsp.authNone', '无')}</option>
             <option value="basic">Basic</option>
@@ -104,7 +98,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
               onChange={(e) => setUsername(e.target.value)}
               placeholder={t('videostream.rtsp.username', '用户名')}
               disabled={connected}
-              className="h-7 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+              className="wb-field-sm w-full font-mono disabled:opacity-50"
             />
             <div className="relative">
               <input
@@ -113,7 +107,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('videostream.rtsp.password', '密码')}
                 disabled={connected}
-                className="h-7 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 pr-7 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+                className="h-7 w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 pr-7 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
               />
               <button
                 onClick={() => setShowPassword(v => !v)}
@@ -138,11 +132,11 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
               onClick={() => sendCommand(method)}
               disabled={!connected || executing === method}
               className={cn(
-                "h-7 px-2.5 rounded-[6px] text-[var(--fs-xxs)] font-semibold transition-colors",
+                "h-7 px-2.5 rounded-[var(--radius-sm)] text-[var(--fs-xxs)] font-semibold transition-colors",
                 method === 'TEARDOWN'
                   ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
                   : "bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20",
-                "disabled:opacity-30 disabled:cursor-not-allowed"
+                "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
             >
               {executing === method ? '...' : method}
@@ -167,7 +161,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
           </div>
           <div className="max-h-[120px] overflow-y-auto space-y-0.5">
             {rtspResponses.map((r, i) => (
-              <div key={i} className="flex items-center gap-2 px-2 py-1 rounded-[4px] bg-bg-secondary/30 text-[var(--fs-xxs)] font-mono">
+              <div key={i} className="flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] bg-bg-secondary/30 text-[var(--fs-xxs)] font-mono">
                 <span className="text-text-disabled">{r.time}</span>
                 <span className="text-accent font-semibold">{r.method}</span>
                 <span className={cn("flex-1 truncate", r.status.startsWith('200') ? 'text-emerald-500' : 'text-red-400')}>
@@ -193,7 +187,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
               {t('videostream.rtsp.hide', '收起')}
             </button>
           </div>
-          <pre className="max-h-[200px] overflow-auto rounded-[6px] border border-border-default/60 bg-bg-secondary/40 p-2 text-[var(--fs-xxs)] font-mono text-text-secondary whitespace-pre-wrap break-all">
+          <pre className="max-h-[200px] overflow-auto rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 p-2 text-[var(--fs-xxs)] font-mono text-text-secondary whitespace-pre-wrap break-all">
             {sdpContent}
           </pre>
         </div>

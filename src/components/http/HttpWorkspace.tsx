@@ -617,14 +617,14 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               <button
                 onClick={() => setShowMethods(!showMethods)}
                 className={cn(
-                  "wb-request-method border-0 bg-gradient-to-r shadow-sm",
-                  config.method === "GET" && "from-emerald-500 to-teal-500",
-                  config.method === "POST" && "from-amber-500 to-orange-500",
-                  config.method === "PUT" && "from-blue-500 to-cyan-500",
-                  config.method === "DELETE" && "from-red-500 to-rose-500",
-                  config.method === "PATCH" && "from-violet-500 to-fuchsia-500",
-                  config.method === "HEAD" && "from-cyan-500 to-sky-500",
-                  config.method === "OPTIONS" && "from-slate-500 to-slate-600"
+                  "wb-request-method border-0 shadow-sm",
+                  config.method === "GET" && "bg-emerald-500",
+                  config.method === "POST" && "bg-amber-500",
+                  config.method === "PUT" && "bg-blue-500",
+                  config.method === "DELETE" && "bg-red-500",
+                  config.method === "PATCH" && "bg-violet-500",
+                  config.method === "HEAD" && "bg-cyan-500",
+                  config.method === "OPTIONS" && "bg-slate-500"
                 )}
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
@@ -634,13 +634,13 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               {showMethods && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowMethods(false)} />
-                  <div className="absolute left-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden rounded-[14px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+                  <div className="absolute left-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden rounded-[var(--radius-lg)] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl">
                     {METHODS.map((m) => (
                       <button
                         key={m}
                         onClick={() => { updateHttpConfig(tabId, { method: m }); setShowMethods(false); }}
                         className={cn(
-                          "flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-[var(--fs-sm)] font-semibold transition-colors hover:bg-bg-hover",
+                          "flex w-full items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-2 text-[var(--fs-sm)] font-semibold transition-colors hover:bg-bg-hover",
                           config.method === m && "bg-bg-hover"
                         )}
                       >
@@ -701,11 +701,11 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               />
             </div>
             {urlSuggestions.length > 0 && urlFocused && urlRectRef.current && createPortal(
-              <div className="fixed z-[9999] max-h-[220px] overflow-y-auto rounded-[16px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_20px_48px_rgba(15,23,42,0.14)]"
+              <div className="fixed z-[9999] max-h-[220px] overflow-y-auto rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_20px_48px_rgba(15,23,42,0.14)]"
                 style={{ top: (urlRectRef.current.bottom + 2), left: urlRectRef.current.left, width: urlRectRef.current.width }}>
                 {urlSuggestions.map((u, i) => (
                   <button key={u} onMouseDown={(e) => { e.preventDefault(); updateHttpConfig(tabId, { url: u }); setUrlFocused(false); }}
-                    className={cn("w-full rounded-[12px] px-3 py-2 text-left text-[var(--fs-sm)] font-mono truncate transition-colors",
+                    className={cn("w-full rounded-[var(--radius-md)] px-3 py-2 text-left text-[var(--fs-sm)] font-mono truncate transition-colors",
                       i === urlHighlight ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover")}>
                     {u}
                   </button>
@@ -744,7 +744,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               <button
                 onClick={handleCancel}
                 data-cancel-button
-                className="wb-primary-btn min-w-[88px] bg-red-500 hover:bg-red-600 active:scale-[0.97] transition-all"
+                className="wb-primary-btn min-w-[88px] bg-error hover:bg-error/90 active:scale-[0.97] transition-all"
               >
                 <X className="w-3.5 h-3.5" />
                 {t('http.cancel', '取消')}
@@ -758,7 +758,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                   "wb-primary-btn min-w-[88px] bg-accent",
                   isSseMode
                     ? sseStatus === "connected"
-                      ? "bg-red-500 hover:bg-red-600"
+                      ? "bg-error hover:bg-error/90"
                       : sseStatus === "connecting"
                         ? "animate-pulse opacity-90 shadow-[0_0_12px_rgba(59,130,246,0.45)] cursor-wait"
                         : "hover:bg-accent-hover"
@@ -846,7 +846,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                       />
                     ) : config.bodyType === "none" ? <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[var(--fs-base)]">{t('http.noBody')}</div> : null}
                     {!isGraphqlMode && config.bodyType === "json" && (
-                      <div className="w-full h-full border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
+                      <div className="w-full h-full border border-border-default/75 rounded-[var(--radius-lg)] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                         <CodeEditor
                           value={config.jsonBody || ''}
                           onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
@@ -875,7 +875,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           <option value="application/javascript">JavaScript</option>
                           <option value="text/css">CSS</option>
                         </select>
-                        <div className="w-full flex-1 border border-border-default/75 rounded-[14px] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
+                        <div className="w-full flex-1 border border-border-default/75 rounded-[var(--radius-lg)] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                           <CodeEditor
                             value={config.rawBody || ''}
                             onChange={(v) => updateHttpConfig(tabId, { rawBody: v })}
@@ -1177,7 +1177,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                       <div className="flex min-h-full flex-col gap-3">
                         {/* 上方：总耗时 + 请求概要 */}
                         <div className="grid gap-3 xl:grid-cols-[minmax(220px,0.7fr)_minmax(0,1.3fr)]">
-                          <div className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                          <div className="rounded-[var(--radius-xl)] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                             <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.totalTime')}</div>
                             <div className="mt-3 text-[var(--fs-6xl)] font-semibold tracking-tight text-text-primary">{Number(response.durationMs).toFixed(2)} ms</div>
                             <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1197,7 +1197,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           </div>
 
                           {/* 瀑布流时间线 */}
-                          <div className="rounded-[16px] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                          <div className="rounded-[var(--radius-xl)] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                             <div className="flex items-center justify-between gap-3 mb-4">
                               <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.waterfall', { defaultValue: '请求瀑布流' })}</div>
                               <div className="text-[var(--fs-xs)] font-mono text-text-tertiary">{Number(response.durationMs).toFixed(2)} ms</div>
@@ -1265,7 +1265,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
 
                         {/* 各阶段说明卡片 */}
                         <div className="grid gap-3 md:grid-cols-3">
-                          <div className="rounded-[14px] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
+                          <div className="rounded-[var(--radius-lg)] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
                               <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.connectTime')}</span>
@@ -1274,7 +1274,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                               {t('http.connectTimeDesc', { defaultValue: 'TCP 连接建立耗时，包括 DNS 解析和 TLS 握手。' })}
                             </p>
                           </div>
-                          <div className="rounded-[14px] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
+                          <div className="rounded-[var(--radius-lg)] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                               <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.ttfb')}</span>
@@ -1283,7 +1283,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                               {t('http.ttfbDesc', { defaultValue: '从请求发出到接收到第一个字节的等待时间，反映服务器处理速度。' })}
                             </p>
                           </div>
-                          <div className="rounded-[14px] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
+                          <div className="rounded-[var(--radius-lg)] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
                               <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.download')}</span>
@@ -1392,7 +1392,7 @@ function HttpRequestErrorPanel({
             {t('http.requestFailedDesc')}
           </p>
 
-          <div className="mt-5 w-full overflow-hidden rounded-[16px] border border-border-default/80 bg-bg-secondary/30 text-left">
+          <div className="mt-5 w-full overflow-hidden rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-secondary/30 text-left">
             <div className="border-b border-border-default/80 px-4 py-2 text-[var(--fs-xs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">
               {t('http.errorDetails')}
             </div>
@@ -2456,7 +2456,7 @@ function VariableHoverPopover({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        "fixed z-[10000] rounded-[16px] border border-border-default/85 bg-bg-primary/98 shadow-[0_18px_46px_rgba(15,23,42,0.14)] backdrop-blur-xl",
+        "fixed z-[10000] rounded-[var(--radius-xl)] border border-border-default/85 bg-bg-primary/98 shadow-[0_18px_46px_rgba(15,23,42,0.14)] backdrop-blur-xl",
         compact ? "w-[296px]" : "w-[340px]"
       )}
       style={{ top: rect.bottom + 10, left: Math.min(window.innerWidth - (compact ? 308 : 352), Math.max(12, rect.left - 8)) }}
@@ -2493,7 +2493,7 @@ function VariableHoverPopover({
               </button>
             )}
           </div>
-          <div className="rounded-[12px] border border-border-subtle/75 bg-bg-secondary/55 px-3 py-2 font-mono text-[var(--fs-sm)] leading-6 text-text-primary">
+          <div className="rounded-[var(--radius-md)] border border-border-subtle/75 bg-bg-secondary/55 px-3 py-2 font-mono text-[var(--fs-sm)] leading-6 text-text-primary">
             {displayValue}
           </div>
         </div>
@@ -2523,7 +2523,7 @@ function VariableHoverPopover({
                     setSaving(false);
                   }
                 }}
-                className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[10px] bg-accent px-3 text-[var(--fs-xs)] font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-wait disabled:opacity-70"
+                className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[var(--radius-md)] bg-accent px-3 text-[var(--fs-xs)] font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-wait disabled:opacity-70"
                 disabled={saving}
               >
                 {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
@@ -2532,11 +2532,11 @@ function VariableHoverPopover({
             </div>
           </div>
         ) : !collectionId ? (
-          <div className="rounded-[12px] bg-bg-secondary/45 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary">
+          <div className="rounded-[var(--radius-md)] bg-bg-secondary/45 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary">
             {t('http.variableNoCollection')}
           </div>
         ) : preview.source === "dynamic" ? (
-          <div className="rounded-[12px] bg-bg-secondary/45 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary">
+          <div className="rounded-[var(--radius-md)] bg-bg-secondary/45 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary">
             {t('http.variableDynamicReadonly')}
           </div>
         ) : null}
@@ -2905,9 +2905,9 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
             className={cn(
               "px-4 py-2 text-[var(--fs-sm)] font-semibold rounded-lg transition-all flex items-center gap-2",
               loading
-                ? "bg-amber-400 text-white cursor-wait"
+                ? "bg-warning cursor-wait opacity-70 text-white"
                 : canFetchToken
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-sm"
+                  ? "bg-accent hover:bg-accent-hover text-white shadow-sm"
                   : "bg-bg-tertiary text-text-disabled cursor-not-allowed"
             )}
           >
@@ -3075,7 +3075,7 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
       {open && pos && createPortal(
         <div
           ref={panelRef}
-          className="fixed z-[10000] min-w-[320px] max-w-[480px] rounded-[12px] border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden"
+          className="fixed z-[10000] min-w-[320px] max-w-[480px] rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden"
           style={{ top: pos.top, right: pos.right }}
         >
           {!result ? (
@@ -3088,7 +3088,7 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
                   key={`${item.pluginId}:${item.format.formatId}`}
                   onClick={() => handleExport(item.pluginId)}
                   disabled={loading}
-                  className="w-full flex items-center gap-2 rounded-[8px] px-3 py-2 text-left text-[var(--fs-sm)] text-text-primary hover:bg-bg-hover transition-colors"
+                  className="w-full flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-left text-[var(--fs-sm)] text-text-primary hover:bg-bg-hover transition-colors"
                 >
                   <FileOutput className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
                   <span className="font-medium">{item.format.name}</span>
@@ -3169,7 +3169,7 @@ function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (data: str
         ref={btnRef}
         onClick={handleOpen}
         className={cn(
-          "shrink-0 rounded-[8px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-purple-500",
+          "shrink-0 rounded-[var(--radius-sm)] text-text-disabled transition-colors hover:bg-bg-hover hover:text-purple-500",
           showLabel ? "flex items-center gap-1 px-2 py-1 text-[var(--fs-xs)]" : "p-1"
         )}
         title={t('http.mockGenerator', '数据生成')}
@@ -3182,7 +3182,7 @@ function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (data: str
       {open && createPortal(
         <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)}>
           <div
-            className="absolute min-w-[180px] rounded-[10px] border border-border-default bg-bg-primary shadow-lg shadow-black/8 overflow-hidden"
+            className="absolute min-w-[180px] rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-lg shadow-black/8 overflow-hidden"
             style={pos ? { top: pos.top, left: pos.left } : undefined}
             onClick={(e) => e.stopPropagation()}
           >
@@ -3192,7 +3192,7 @@ function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (data: str
                   key={`${item.pluginId}:${item.generator.generatorId}`}
                   onClick={() => handleGenerate(item.pluginId, item.generator.generatorId)}
                   disabled={loading}
-                  className="w-full flex items-center gap-1.5 rounded-[7px] px-2.5 py-1.5 text-left text-[var(--fs-xs)] text-text-primary hover:bg-bg-hover transition-colors"
+                  className="w-full flex items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-left text-[var(--fs-xs)] text-text-primary hover:bg-bg-hover transition-colors"
                 >
                   <Wand2 className="w-3 h-3 text-purple-500/60 shrink-0" />
                   <span className="font-medium truncate">{item.generator.name}</span>

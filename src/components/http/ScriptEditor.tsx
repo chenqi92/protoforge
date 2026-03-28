@@ -231,7 +231,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
         <button
           onClick={handleCopy}
           disabled={!value}
-          className="h-7 px-2 rounded-md flex items-center gap-1 text-[var(--fs-xs)] text-text-tertiary hover:bg-bg-hover disabled:opacity-40 transition-colors"
+          className="h-7 px-2 rounded-md flex items-center gap-1 text-[var(--fs-xs)] text-text-tertiary hover:bg-bg-hover disabled:opacity-50 transition-colors"
           title={t('http.script.copyScript')}
         >
           {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
@@ -240,7 +240,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
         <button
           onClick={handleClear}
           disabled={!value}
-          className="h-7 px-2 rounded-md flex items-center gap-1 text-[var(--fs-xs)] text-text-tertiary hover:bg-bg-hover disabled:opacity-40 transition-colors"
+          className="h-7 px-2 rounded-md flex items-center gap-1 text-[var(--fs-xs)] text-text-tertiary hover:bg-bg-hover disabled:opacity-50 transition-colors"
           title={t('http.script.clear')}
         >
           <Eraser className="w-3 h-3" />

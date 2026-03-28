@@ -44,8 +44,8 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
   const Icon = isEncrypt ? Lock : Unlock;
   const iconColor = isEncrypt ? 'text-amber-500' : 'text-emerald-500';
   const btnColor = isEncrypt
-    ? 'bg-amber-500 hover:bg-amber-600'
-    : 'bg-emerald-500 hover:bg-emerald-600';
+    ? 'bg-warning hover:bg-warning/90'
+    : 'bg-success hover:bg-success/90';
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm">

@@ -38,7 +38,7 @@ export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPane
   if (!collection) {
     return (
       <div className="h-full flex items-center justify-center text-text-disabled">
-        <p className="text-sm">{t('collectionSettings.notFound')}</p>
+        <p className="text-[var(--fs-sm)]">{t('collectionSettings.notFound')}</p>
       </div>
     );
   }

@@ -111,7 +111,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
               key={id}
               onClick={() => handleNavClick(id)}
               className={cn(
-                "relative flex h-[34px] w-[34px] items-center justify-center rounded-[8px] transition-all duration-150",
+                "relative flex h-[34px] w-[34px] items-center justify-center rounded-[var(--radius-sm)] transition-all duration-150",
                 isActive
                   ? "text-accent bg-accent-soft"
                   : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
@@ -121,7 +121,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
               {isActive && (
                 <motion.div
                   layoutId="sidebar-active-indicator"
-                  className="absolute inset-0 rounded-[8px] bg-accent-soft"
+                  className="absolute inset-0 rounded-[var(--radius-sm)] bg-accent-soft"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
@@ -149,7 +149,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                   <>
                     <button
                       onClick={handleNewCollection}
-                      className="flex h-[26px] items-center gap-1 rounded-[6px] px-2 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft/80 active:scale-[0.97]"
+                      className="flex h-[26px] items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft/80 active:scale-[0.97]"
                       title={t('sidebar.new')}
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -157,7 +157,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                     </button>
                     <button
                       onClick={handleImport}
-                      className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                      className="flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
                       title={t('sidebar.import')}
                     >
                       <Download className="w-3 h-3" />
@@ -168,7 +168,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                 {activeView === "environments" && (
                   <button
                     onClick={handleNewEnvironment}
-                    className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
+                    className="flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
                     title={t('sidebar.addEnv')}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -178,7 +178,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                 {activeView === "history" && hasHistoryItems && (
                   <button
                     onClick={() => useHistoryStore.getState().clearAll()}
-                    className="flex h-7 items-center gap-1 rounded-[8px] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
+                    className="flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
                     title={t('sidebar.clearAll', '清空历史')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -195,7 +195,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`${t('common.search')}${t(navItems.find(n => n.id === activeView)?.labelKey || '')}...`}
-                className="h-[30px] w-full rounded-[7px] border border-border-sidebar bg-bg-inset pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all shadow-inset placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
+                className="h-[30px] w-full rounded-[var(--radius-sm)] border border-border-sidebar bg-bg-inset pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all shadow-inset placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
               />
             </div>
           </div>
@@ -690,7 +690,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
     <div className="py-0.5">
       {filteredCollections.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] border border-border-subtle bg-bg-hover shadow-sm">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[var(--radius-lg)] border border-border-subtle bg-bg-hover shadow-sm">
             <FolderOpen className="w-6 h-6 text-text-tertiary" />
           </div>
           <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">{search ? t('sidebar.noMatch') : t('sidebar.noCollections')}</p>
@@ -724,7 +724,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
                 setDragCollectionId(null);
               }}
               className={cn(
-                "w-full flex items-center gap-1.5 px-2 py-[5px] rounded-[6px] text-[length:var(--fs-sidebar)] font-semibold text-text-primary hover:bg-bg-hover transition-colors group",
+                "w-full flex items-center gap-1.5 px-2 py-[5px] rounded-[var(--radius-sm)] text-[length:var(--fs-sidebar)] font-semibold text-text-primary hover:bg-bg-hover transition-colors group",
                 isColDropTarget && "ring-1 ring-accent bg-accent/5"
               )}
             >
@@ -886,13 +886,13 @@ function RequestItemWithTooltip({
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
         className={cn(
-          "w-full flex items-center gap-2 pr-2 py-[4px] rounded-[6px] text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group/item",
+          "w-full flex items-center gap-2 pr-2 py-[4px] rounded-[var(--radius-sm)] text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group/item",
           dragItemId === item.id && "opacity-40"
         )}
         style={{ paddingLeft: `${12 + depth * 14}px` }}
       >
         <span className={cn(
-          "text-[var(--fs-xxs)] font-bold px-[4px] py-[1px] rounded-[3px] shrink-0 min-w-[28px] text-center leading-tight tracking-wide",
+          "text-[var(--fs-xxs)] font-bold px-[4px] py-[1px] rounded-[var(--radius-xs)] shrink-0 min-w-[28px] text-center leading-tight tracking-wide",
           color.text, color.bg
         )}>
           {method}
@@ -1131,7 +1131,7 @@ function HistoryView({ search }: { search: string }) {
       ))}
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[14px] border border-border-subtle bg-bg-hover shadow-sm">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[var(--radius-lg)] border border-border-subtle bg-bg-hover shadow-sm">
             <Clock className="w-6 h-6 text-text-tertiary" />
           </div>
           <p className="text-[var(--fs-sm)] font-medium text-text-secondary">{search ? t('sidebar.noHistoryMatch') : t('sidebar.noHistory')}</p>
@@ -1176,13 +1176,13 @@ function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
               )}
             >
               <div className={cn(
-                "w-[6px] h-[6px] rounded-[3px] shrink-0",
+                "w-[6px] h-[6px] rounded-[var(--radius-xs)] shrink-0",
                 isActive ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" : "bg-border-strong"
               )} />
               <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-emerald-600" : "text-text-disabled")} />
               <span className={cn("truncate flex-1 text-left", isActive && "font-medium")}>{env.name}</span>
               {isActive && (
-                <span className="rounded-[8px] bg-emerald-500/10 px-1.5 py-0.5 text-[var(--fs-3xs)] font-semibold text-emerald-600 shrink-0">{t('sidebar.active')}</span>
+                <span className="rounded-[var(--radius-sm)] bg-emerald-500/10 px-1.5 py-0.5 text-[var(--fs-3xs)] font-semibold text-emerald-600 shrink-0">{t('sidebar.active')}</span>
               )}
             </button>
           </div>

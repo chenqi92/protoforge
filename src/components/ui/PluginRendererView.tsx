@@ -169,7 +169,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
               <button
                 onClick={() => setActiveSheet(Math.max(0, activeSheet - 1))}
                 disabled={activeSheet === 0}
-                className="h-5 w-5 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-30 transition-colors"
+                className="h-5 w-5 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-50 transition-colors"
               >
                 <ChevronLeft className="h-3 w-3" />
               </button>
@@ -177,7 +177,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
               <button
                 onClick={() => setActiveSheet(Math.min(sheets.length - 1, activeSheet + 1))}
                 disabled={activeSheet === sheets.length - 1}
-                className="h-5 w-5 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-30 transition-colors"
+                className="h-5 w-5 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-50 transition-colors"
               >
                 <ChevronRight className="h-3 w-3" />
               </button>

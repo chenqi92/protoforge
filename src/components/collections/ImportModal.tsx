@@ -79,7 +79,7 @@ const METHOD_COLORS: Record<string, { text: string; bg: string }> = {
 };
 
 const inputClassName =
-  'h-9 rounded-[12px] border border-border-default/80 bg-bg-secondary/60 px-3 text-[var(--fs-sm)] text-text-primary outline-none transition-all focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]';
+  'h-9 rounded-[var(--radius-md)] border border-border-default/80 bg-bg-secondary/60 px-3 text-[var(--fs-sm)] text-text-primary outline-none transition-all focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]';
 
 export function ImportModal({ open, onClose }: ImportModalProps) {
   const { t } = useTranslation();
@@ -98,7 +98,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
       }}
     >
       <DialogContent
-        className="w-[1080px] max-w-[96vw] h-[88vh] gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[1080px]"
+        className="w-[1080px] max-w-[96vw] h-[88vh] gap-0 overflow-hidden rounded-[var(--radius-xl)] border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[1080px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('import.title')}</DialogTitle>
@@ -106,7 +106,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
         <div className="flex h-full overflow-hidden flex-col">
           <div className="flex shrink-0 items-start justify-between border-b border-border-default/75 px-6 py-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-xl)] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
                 <Download className="h-5 w-5 text-white" />
               </div>
 
@@ -124,7 +124,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               </span>
               <button
                 onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-[14px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-lg)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="h-4 w-4" />
                 <span className="sr-only">{t('import.close')}</span>
@@ -153,7 +153,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                       key={item.id}
                       onClick={() => setActiveSource(item.id)}
                       className={cn(
-                        'group flex w-full items-center gap-3 rounded-[18px] px-3.5 py-3 text-left transition-all',
+                        'group flex w-full items-center gap-3 rounded-[var(--radius-xl)] px-3.5 py-3 text-left transition-all',
                         isActive
                           ? 'bg-bg-primary/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-border-default'
                           : 'text-text-tertiary hover:bg-bg-primary/68 hover:text-text-primary'
@@ -161,7 +161,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                     >
                       <div
                         className={cn(
-                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] transition-colors',
+                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-lg)] transition-colors',
                           isActive ? item.accentClassName : 'bg-bg-secondary/80 text-text-disabled'
                         )}
                       >
@@ -214,7 +214,7 @@ function PanelCard({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-[24px] border border-border-default/75 bg-bg-primary/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
+        'overflow-hidden rounded-[var(--radius-xl)] border border-border-default/75 bg-bg-primary/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
         className
       )}
     >
@@ -231,7 +231,7 @@ function AlertMessage({
   className?: string;
 }) {
   return (
-    <div className={cn('flex items-start gap-2 rounded-[16px] border border-red-500/15 bg-red-500/5 px-3 py-3', className)}>
+    <div className={cn('flex items-start gap-2 rounded-[var(--radius-xl)] border border-red-500/15 bg-red-500/5 px-3 py-3', className)}>
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
       <p className="break-all whitespace-pre-wrap text-[var(--fs-xs)] leading-5 text-red-600">{error}</p>
     </div>
@@ -249,7 +249,7 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-8 py-14 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-bg-secondary/75 text-text-disabled">
+      <div className="flex h-14 w-14 items-center justify-center rounded-[var(--radius-xl)] bg-bg-secondary/75 text-text-disabled">
         <Icon className="h-6 w-6 opacity-70" />
       </div>
       <p className="mt-4 text-[var(--fs-base)] font-semibold text-text-secondary">{title}</p>
@@ -342,7 +342,7 @@ function ImportModeToggle({
       <button
         onClick={() => setMode('create')}
         className={cn(
-          'flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all',
+          'flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all',
           mode === 'create'
             ? 'bg-accent/10 text-accent ring-1 ring-inset ring-accent/20'
             : 'text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
@@ -354,7 +354,7 @@ function ImportModeToggle({
       <button
         onClick={() => setMode('merge')}
         className={cn(
-          'flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all',
+          'flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all',
           mode === 'merge'
             ? 'bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/20'
             : 'text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
@@ -437,7 +437,7 @@ function FileImportView({
             <div className="flex items-start gap-4">
               <div
                 className={cn(
-                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px]',
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-lg)]',
                   accentClassName
                 )}
               >
@@ -477,7 +477,7 @@ function FileImportView({
         >
           <div
             className={cn(
-              'flex h-20 w-20 items-center justify-center rounded-[24px] border-2 border-dashed transition-all',
+              'flex h-20 w-20 items-center justify-center rounded-[var(--radius-xl)] border-2 border-dashed transition-all',
               loading
                 ? 'border-accent/40 bg-accent/8 text-accent'
                 : success
@@ -896,7 +896,7 @@ function SwaggerImportView({
             <div className="flex items-start gap-4">
               <div
                 className={cn(
-                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px]',
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-lg)]',
                   accentClassName
                 )}
               >
@@ -965,7 +965,7 @@ function SwaggerImportView({
                       onClick={() => void handleFetch()}
                       disabled={loading || !url.trim()}
                       className={cn(
-                        'flex h-9 shrink-0 items-center gap-1.5 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium transition-all',
+                        'flex h-9 shrink-0 items-center gap-1.5 rounded-[var(--radius-md)] px-4 text-[var(--fs-sm)] font-medium transition-all',
                         loading || !url.trim()
                           ? 'cursor-not-allowed bg-bg-hover text-text-disabled'
                           : 'bg-accent text-white hover:bg-accent-hover active:scale-[0.98]'
@@ -988,7 +988,7 @@ function SwaggerImportView({
                 </div>
 
                 {mergedBaseUrl ? (
-                  <div className="rounded-[16px] border border-border-default/70 bg-bg-secondary/40 px-4 py-3">
+                  <div className="rounded-[var(--radius-xl)] border border-border-default/70 bg-bg-secondary/40 px-4 py-3">
                     <p className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('import.parseResult')}</p>
                     <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                       Base URL: <span className="font-mono text-text-secondary">{mergedBaseUrl}</span>
@@ -1039,7 +1039,7 @@ function SwaggerImportView({
                           onClick={() => void toggleGroupSelection(group.url)}
                           disabled={isLoading}
                           className={cn(
-                            'flex items-center gap-1.5 rounded-[12px] border px-3 py-1.5 text-[var(--fs-xs)] transition-all',
+                            'flex items-center gap-1.5 rounded-[var(--radius-md)] border px-3 py-1.5 text-[var(--fs-xs)] transition-all',
                             isSelected
                               ? 'border-accent/30 bg-accent/10 text-accent'
                               : 'border-border-default bg-bg-secondary/50 text-text-tertiary hover:bg-bg-hover hover:text-text-secondary',
@@ -1110,7 +1110,7 @@ function SwaggerImportView({
 
                   <button
                     onClick={selectAllEndpoints}
-                    className="flex h-9 items-center gap-1.5 rounded-[12px] px-3 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                    className="flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] px-3 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
                   >
                     {selectedIds.size === mergedEndpoints.length ? (
                       <MinusSquare className="h-3.5 w-3.5" />
@@ -1130,7 +1130,7 @@ function SwaggerImportView({
                       const expanded = expandedTags.has(tag);
 
                       return (
-                        <div key={tag} className="mb-2 overflow-hidden rounded-[18px] border border-border-default/65 bg-bg-secondary/24">
+                        <div key={tag} className="mb-2 overflow-hidden rounded-[var(--radius-xl)] border border-border-default/65 bg-bg-secondary/24">
                           <div className="flex items-center gap-2 px-3 py-2.5">
                             <button
                               onClick={() => toggleTag(tag)}
@@ -1149,7 +1149,7 @@ function SwaggerImportView({
 
                             <button
                               onClick={() => toggleAllInTag(tag)}
-                              className="flex h-7 w-7 items-center justify-center rounded-[10px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent"
+                              className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-md)] text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent"
                             >
                               {allSelectedInTag ? (
                                 <CheckSquare className="h-3.5 w-3.5 text-accent" />
@@ -1181,7 +1181,7 @@ function SwaggerImportView({
                                         key={id}
                                         onClick={() => toggleEndpoint(id)}
                                         className={cn(
-                                          'flex w-full items-center gap-2 rounded-[14px] px-3 py-2 text-left transition-all',
+                                          'flex w-full items-center gap-2 rounded-[var(--radius-lg)] px-3 py-2 text-left transition-all',
                                           isSelected
                                             ? 'bg-accent-soft/18 hover:bg-accent-soft/24'
                                             : 'hover:bg-bg-hover/80'
@@ -1195,7 +1195,7 @@ function SwaggerImportView({
 
                                         <span
                                           className={cn(
-                                            'min-w-[44px] shrink-0 rounded-[8px] px-2 py-1 text-center text-[var(--fs-xxs)] font-bold',
+                                            'min-w-[44px] shrink-0 rounded-[var(--radius-sm)] px-2 py-1 text-center text-[var(--fs-xxs)] font-bold',
                                             methodStyle.text,
                                             methodStyle.bg
                                           )}
@@ -1238,7 +1238,7 @@ function SwaggerImportView({
                   <div className="flex items-center justify-end gap-2">
                     <button
                       onClick={onClose}
-                      className="h-9 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
+                      className="h-9 rounded-[var(--radius-md)] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
                     >
                       {t('import.cancel')}
                     </button>
@@ -1246,7 +1246,7 @@ function SwaggerImportView({
                       onClick={() => void handleImport()}
                       disabled={importing || selectedIds.size === 0}
                       className={cn(
-                        'flex h-9 items-center gap-1.5 rounded-[12px] px-4 text-[var(--fs-sm)] font-medium transition-all',
+                        'flex h-9 items-center gap-1.5 rounded-[var(--radius-md)] px-4 text-[var(--fs-sm)] font-medium transition-all',
                         importing || selectedIds.size === 0
                           ? 'cursor-not-allowed bg-bg-hover text-text-disabled'
                           : 'bg-accent text-white hover:bg-accent-hover active:scale-[0.98]'

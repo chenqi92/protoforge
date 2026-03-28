@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ChevronRight, ChevronDown, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ZoomIn, ZoomOut, RotateCcw, Video } from "lucide-react";
 import * as vsSvc from "@/services/videoStreamService";
 
@@ -59,51 +60,54 @@ export function Gb28181Panel({ sessionKey, onStreamUrlChange }: Gb28181PanelProp
           <div className="space-y-0.5">
             <span className="text-[var(--fs-3xs)] text-text-disabled">SIP IP</span>
             <input value={sipServerIp} onChange={(e) => setSipServerIp(e.target.value)} disabled={registered}
-              className="h-6 w-full rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+              className="h-6 w-full rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
             />
           </div>
           <div className="space-y-0.5">
             <span className="text-[var(--fs-3xs)] text-text-disabled">Port</span>
             <input type="number" value={sipServerPort} onChange={(e) => setSipServerPort(Number(e.target.value))} disabled={registered}
-              className="h-6 w-full rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+              className="h-6 w-full rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
             />
           </div>
         </div>
         <div className="space-y-0.5">
           <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.domain', 'SIP 域')}</span>
           <input value={sipDomain} onChange={(e) => setSipDomain(e.target.value)} disabled={registered}
-            className="h-6 w-full rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+            className="h-6 w-full rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
           />
         </div>
         <div className="space-y-0.5">
           <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.deviceId', '设备编码')}</span>
           <input value={deviceId} onChange={(e) => { setDeviceId(e.target.value); onStreamUrlChange(e.target.value); }} disabled={registered}
-            className="h-6 w-full rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+            className="h-6 w-full rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
           />
         </div>
         <div className="grid grid-cols-2 gap-1.5">
           <div className="space-y-0.5">
             <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.localPort', '本地端口')}</span>
             <input type="number" value={localPort} onChange={(e) => setLocalPort(Number(e.target.value))} disabled={registered}
-              className="h-6 w-full rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+              className="h-6 w-full rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
             />
           </div>
           <div className="space-y-0.5">
             <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.transport', '传输')}</span>
-            <div className="flex h-6 items-center rounded-[4px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
-              {(['udp', 'tcp'] as const).map((tp) => (
-                <button key={tp} onClick={() => setSipTransport(tp)} disabled={registered}
-                  className={cn("h-full flex-1 text-[var(--fs-3xs)] font-semibold uppercase", sipTransport === tp ? "bg-accent text-white" : "text-text-tertiary")}
-                >{tp}</button>
-              ))}
-            </div>
+            <SegmentedControl
+              value={sipTransport}
+              onChange={setSipTransport}
+              options={[
+                { value: 'udp', label: 'UDP' },
+                { value: 'tcp', label: 'TCP' },
+              ]}
+              disabled={registered}
+              size="sm"
+            />
           </div>
         </div>
         <button
           onClick={registered ? () => setRegistered(false) : handleRegister}
           disabled={registering}
           className={cn("wb-primary-btn w-full px-3",
-            registered ? "bg-red-500 hover:bg-red-600" : "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700"
+            registered ? "bg-error hover:bg-error/90" : "bg-accent hover:bg-accent-hover"
           )}
         >
           {registered ? t('videostream.gb.unregister', '注销') : registering ? t('videostream.gb.registering', '注册中...') : t('videostream.gb.register', 'SIP 注册')}
@@ -127,7 +131,7 @@ export function Gb28181Panel({ sessionKey, onStreamUrlChange }: Gb28181PanelProp
             </button>
           </div>
           {expandedCatalog && (
-            <div className="max-h-[120px] overflow-y-auto rounded-[6px] border border-border-default/60 bg-bg-secondary/30 p-1">
+            <div className="max-h-[120px] overflow-y-auto rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
               {catalogItems.length === 0 ? (
                 <div className="text-[var(--fs-xs)] text-text-disabled text-center py-4">
                   {t('videostream.gb.noCatalog', '点击"查询"获取设备目录')}
@@ -158,30 +162,30 @@ export function Gb28181Panel({ sessionKey, onStreamUrlChange }: Gb28181PanelProp
           {/* Direction pad */}
           <div className="flex flex-col items-center gap-1">
             <button onMouseDown={() => handlePtz('up')} onMouseUp={() => handlePtz('stop')}
-              className="h-8 w-8 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ArrowUp className="w-4 h-4" /></button>
             <div className="flex gap-1">
               <button onMouseDown={() => handlePtz('left')} onMouseUp={() => handlePtz('stop')}
-                className="h-8 w-8 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+                className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowLeft className="w-4 h-4" /></button>
               <button onClick={() => handlePtz('stop')}
                 className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors"
               ><RotateCcw className="w-3.5 h-3.5" /></button>
               <button onMouseDown={() => handlePtz('right')} onMouseUp={() => handlePtz('stop')}
-                className="h-8 w-8 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+                className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowRight className="w-4 h-4" /></button>
             </div>
             <button onMouseDown={() => handlePtz('down')} onMouseUp={() => handlePtz('stop')}
-              className="h-8 w-8 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ArrowDown className="w-4 h-4" /></button>
           </div>
           {/* Zoom */}
           <div className="flex items-center justify-center gap-2">
             <button onMouseDown={() => handlePtz('zoom_in')} onMouseUp={() => handlePtz('stop')}
-              className="h-7 w-7 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-7 w-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ZoomIn className="w-3.5 h-3.5" /></button>
             <button onMouseDown={() => handlePtz('zoom_out')} onMouseUp={() => handlePtz('stop')}
-              className="h-7 w-7 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-7 w-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ZoomOut className="w-3.5 h-3.5" /></button>
             <div className="flex items-center gap-1.5 ml-2">
               <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.speed', '速度')}</span>

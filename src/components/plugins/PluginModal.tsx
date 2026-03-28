@@ -163,7 +163,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { setSelectedPlugin(null); onClose(); } }}>
       <DialogContent
-        className="w-[1080px] max-w-[96vw] min-h-[680px] max-h-[88vh] gap-0 overflow-hidden rounded-[28px] border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[1080px]"
+        className="w-[1080px] max-w-[96vw] min-h-[680px] max-h-[88vh] gap-0 overflow-hidden rounded-[var(--radius-xl)] border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[1080px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('plugin.centerTitle')}</DialogTitle>
@@ -172,7 +172,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
           {/* Header */}
           <div className="flex shrink-0 items-start justify-between border-b border-border-default/75 px-6 py-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#7c3aed,#a855f7)] shadow-[0_12px_28px_rgba(124,58,237,0.24)]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-xl)] bg-[linear-gradient(135deg,#7c3aed,#a855f7)] shadow-[0_12px_28px_rgba(124,58,237,0.24)]">
                 <Puzzle className="h-5 w-5 text-white" />
               </div>
               <div className="min-w-0">
@@ -185,11 +185,11 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
 
             <div className="flex items-center gap-2">
               {/* Tab switcher */}
-              <div className="flex items-center gap-0.5 rounded-[12px] border border-border-default/75 bg-bg-secondary/55 p-0.5">
+              <div className="flex items-center gap-0.5 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-secondary/55 p-0.5">
                 <button
                   onClick={() => { setTab("store"); setSelectedPlugin(null); }}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all",
+                    "flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all",
                     tab === "store"
                       ? "bg-bg-primary text-text-primary shadow-sm"
                       : "text-text-tertiary hover:text-text-secondary"
@@ -205,7 +205,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                 <button
                   onClick={() => { setTab("installed"); setSelectedPlugin(null); }}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all",
+                    "flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-[var(--fs-xs)] font-medium transition-all",
                     tab === "installed"
                       ? "bg-bg-primary text-text-primary shadow-sm"
                       : "text-text-tertiary hover:text-text-secondary"
@@ -222,7 +222,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
 
               <button
                 onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-[14px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-lg)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -250,14 +250,14 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       key={cat.id}
                       onClick={() => { setActiveCategory(cat.id); setSelectedPlugin(null); }}
                       className={cn(
-                        "group flex w-full items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-left transition-all",
+                        "group flex w-full items-center gap-2.5 rounded-[var(--radius-lg)] px-3 py-2.5 text-left transition-all",
                         isActive
                           ? "bg-bg-primary/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-border-default"
                           : "text-text-tertiary hover:bg-bg-primary/68 hover:text-text-primary"
                       )}
                     >
                       <div className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] transition-colors",
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-md)] transition-colors",
                         isActive ? cat.accentClassName : "bg-bg-secondary/80 text-text-disabled"
                       )}>
                         <Icon className="h-3.5 w-3.5" />
@@ -289,7 +289,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
               </div>
 
               {/* Info card */}
-              <div className="mt-3 rounded-[16px] border border-border-default/75 bg-bg-primary/78 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className="mt-3 rounded-[var(--radius-xl)] border border-border-default/75 bg-bg-primary/78 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <p className="text-[var(--fs-xs)] font-semibold text-text-primary">{t('plugin.aboutSystem')}</p>
                 <ul className="mt-2 space-y-1.5 text-[var(--fs-xxs)] leading-4 text-text-tertiary">
                   <li>{t('plugin.aboutTip1')}</li>
@@ -305,7 +305,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
               <div className="shrink-0 border-b border-border-default/70 px-5 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px]", currentCategory.accentClassName)}>
+                    <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-lg)]", currentCategory.accentClassName)}>
                       <CurrentIcon className="h-4 w-4" />
                     </div>
                     <div>
@@ -322,14 +322,14 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder={t('plugin.searchPlaceholder')}
-                        className="h-8 w-[200px] rounded-[12px] border border-border-default/80 bg-bg-primary/78 pl-8 pr-3 text-[var(--fs-sm)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-violet-400 focus:shadow-[0_0_0_2px_rgba(124,58,237,0.08)]"
+                        className="h-8 w-[200px] rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary/78 pl-8 pr-3 text-[var(--fs-sm)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-violet-400 focus:shadow-[0_0_0_2px_rgba(124,58,237,0.08)]"
                       />
                     </div>
                     {/* Refresh */}
                     <button
                       onClick={handleRefresh}
                       disabled={loading}
-                      className="flex h-8 w-8 items-center justify-center rounded-[12px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                      className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
                       title={t('plugin.refreshRegistry')}
                     >
                       <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
@@ -352,7 +352,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                     </div>
                   ) : filteredPlugins.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-text-disabled">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-bg-secondary/75 text-text-disabled mb-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-[var(--radius-xl)] bg-bg-secondary/75 text-text-disabled mb-4">
                         <Package className="h-6 w-6 opacity-50" />
                       </div>
                       <p className="text-[var(--fs-base)] font-semibold text-text-secondary">
@@ -445,7 +445,7 @@ function PluginCard({
     <div
       onClick={onSelect}
       className={cn(
-        "group cursor-pointer rounded-[18px] border p-3.5 transition-all hover:-translate-y-[1px]",
+        "group cursor-pointer rounded-[var(--radius-xl)] border p-3.5 transition-all hover:-translate-y-[1px]",
         selected
           ? "border-violet-300 dark:border-violet-500/30 bg-bg-primary/92 shadow-[0_4px_16px_rgba(124,58,237,0.08)]"
           : "border-border-default/70 bg-bg-primary/78 hover:border-border-default hover:shadow-[0_4px_16px_rgba(15,23,42,0.06)]",
@@ -497,12 +497,12 @@ function PluginCard({
           onClick={handleAction}
           disabled={loading}
           className={cn(
-            "mt-0.5 flex h-7 shrink-0 items-center gap-1 rounded-[10px] px-2.5 text-[var(--fs-xs)] font-semibold transition-all active:scale-[0.97]",
+            "mt-0.5 flex h-7 shrink-0 items-center gap-1 rounded-[var(--radius-md)] px-2.5 text-[var(--fs-xs)] font-semibold transition-all active:scale-[0.97]",
             plugin.hasUpdate
-              ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm hover:from-amber-600 hover:to-orange-600"
+              ? "bg-warning hover:bg-warning/90 text-white shadow-sm"
               : plugin.installed
                 ? "text-text-tertiary border border-border-default hover:text-red-500 hover:border-red-200 dark:hover:border-red-500/30"
-                : "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm hover:from-violet-600 hover:to-purple-600"
+                : "bg-accent hover:bg-accent-hover text-white shadow-sm"
           )}
         >
           {loading ? (
@@ -578,7 +578,7 @@ function PluginDetail({
             </div>
           </div>
 
-          <button onClick={onClose} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] text-text-tertiary transition-colors hover:bg-bg-hover">
+          <button onClick={onClose} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-text-tertiary transition-colors hover:bg-bg-hover">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -590,10 +590,10 @@ function PluginDetail({
           className={cn(
             "w-full h-9 mt-4 rounded-xl flex items-center justify-center gap-2 text-[var(--fs-base)] font-bold transition-all active:scale-[0.98]",
             plugin.hasUpdate
-              ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm hover:from-amber-600 hover:to-orange-600"
+              ? "bg-warning hover:bg-warning/90 text-white shadow-sm"
               : plugin.installed
                 ? "text-red-500 border-2 border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10"
-                : "bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm hover:from-violet-600 hover:to-purple-600"
+                : "bg-accent hover:bg-accent-hover text-white shadow-sm"
           )}
         >
           {loading ? (

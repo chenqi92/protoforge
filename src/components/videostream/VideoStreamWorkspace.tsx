@@ -141,7 +141,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
       {/* ── Fixed: URL Bar ── */}
       <div className="shrink-0 pt-3">
         <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
-          <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm", MODE_COLORS[mode])}>
+          <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm", MODE_COLORS[mode])}>
             {activeMode.icon}
             <span>{mode === 'http-flv' ? 'FLV' : mode === 'gb28181' ? 'GB' : mode.toUpperCase()}</span>
           </div>
@@ -153,7 +153,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
             onKeyDown={(e) => e.key === 'Enter' && !connected && handleConnect()}
           />
           <button onClick={handleConnect} disabled={connecting || (!streamUrl.trim() && !connected)}
-            className={cn("wb-primary-btn min-w-[80px] px-3", connected ? "bg-red-500 hover:bg-red-600" : connecting ? "bg-amber-500 cursor-wait opacity-70" : "bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 hover:shadow-md")}
+            className={cn("wb-primary-btn min-w-[80px] px-3", connected ? "bg-error hover:bg-error/90" : connecting ? "bg-warning cursor-wait opacity-70" : "bg-accent hover:bg-accent-hover hover:shadow-md")}
           >
             {connected ? t('videostream.disconnect', '断开') : connecting ? t('videostream.connecting', '连接中...') : t('videostream.connect', '连接')}
           </button>
@@ -171,7 +171,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
           </div>
           <div className="flex items-center gap-1 flex-wrap min-w-0">
             {recentStreams.slice(0, 8).map((r, i) => (
-              <div key={i} className="group flex items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
+              <div key={i} className="group flex items-center rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
                 <button
                   onClick={() => { setStreamUrl(r.url); setMode(r.protocol); }}
                   className="h-[22px] px-2 text-[var(--fs-xxs)] font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors flex items-center gap-1"
@@ -220,10 +220,10 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                   {/* Controls */}
                   <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-t from-black/80 to-black/30">
                     <button onClick={playing ? handlePause : handlePlay} disabled={!connected}
-                      className="flex h-6 w-6 items-center justify-center rounded-[5px] text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-colors"
+                      className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-50 transition-colors"
                     >{playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}</button>
                     <button onClick={handleStop} disabled={!playing}
-                      className="flex h-6 w-6 items-center justify-center rounded-[5px] text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-30 transition-colors"
+                      className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-50 transition-colors"
                     ><Square className="w-3 h-3" /></button>
                     <Volume2 className="w-3 h-3 text-white/40 ml-1" />
                     <input type="range" min={0} max={100} defaultValue={80}

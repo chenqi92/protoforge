@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Plus, Trash2 } from "lucide-react";
 import * as vsSvc from "@/services/videoStreamService";
 
@@ -75,18 +76,15 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
         <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.webrtc.role', '角色')}
         </label>
-        <div className="flex h-7 items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
-          {(['offer', 'answer'] as const).map((m) => (
-            <button key={m} onClick={() => setMode(m)} disabled={connected}
-              className={cn(
-                "h-full flex-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-colors",
-                mode === m ? "bg-accent text-white" : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
-              )}
-            >
-              {m === 'offer' ? 'Offerer' : 'Answerer'}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'offer', label: 'Offerer' },
+            { value: 'answer', label: 'Answerer' },
+          ]}
+          disabled={connected}
+        />
       </div>
 
       {/* STUN Servers */}
@@ -106,9 +104,9 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
           <div className="flex min-w-0 gap-1">
             <input value={newStun} onChange={(e) => setNewStun(e.target.value)} placeholder="stun:host:port"
               onKeyDown={(e) => e.key === 'Enter' && addStun()}
-              className="h-6 min-w-0 flex-1 rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none focus:border-accent"
+              className="wb-field-xs min-w-0 flex-1 font-mono"
             />
-            <button onClick={addStun} className="h-6 w-6 flex items-center justify-center rounded-[4px] bg-accent/10 text-accent hover:bg-accent/20"><Plus className="w-3 h-3" /></button>
+            <button onClick={addStun} className="h-6 w-6 flex items-center justify-center rounded-[var(--radius-xs)] bg-accent/10 text-accent hover:bg-accent/20"><Plus className="w-3 h-3" /></button>
           </div>
         </div>
       </div>
@@ -119,14 +117,14 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
           TURN {t('videostream.webrtc.servers', '服务器')}
         </label>
         <input value={turnUrl} onChange={(e) => setTurnUrl(e.target.value)} placeholder="turn:host:port" disabled={connected}
-          className="h-7 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+          className="wb-field-sm w-full font-mono disabled:opacity-50"
         />
         <div className="grid grid-cols-2 gap-1.5">
           <input value={turnUser} onChange={(e) => setTurnUser(e.target.value)} placeholder={t('videostream.rtsp.username', '用户名')} disabled={connected}
-            className="h-6 rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+            className="wb-field-xs font-mono disabled:opacity-50"
           />
           <input type="password" value={turnPass} onChange={(e) => setTurnPass(e.target.value)} placeholder={t('videostream.rtsp.password', '密码')} disabled={connected}
-            className="h-6 rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+            className="wb-field-xs font-mono disabled:opacity-50"
           />
         </div>
       </div>
@@ -134,11 +132,11 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
       {/* Actions */}
       <div className="flex gap-2">
           <button onClick={handleCreateOffer} disabled={creating}
-            className="h-7 flex-1 rounded-[6px] border border-border-default/60 bg-accent/10 text-[var(--fs-xxs)] font-semibold text-accent hover:bg-accent/20 transition-colors disabled:opacity-50">
+            className="btn-ghost-action flex-1">
             {creating ? '生成中...' : mode === 'offer' ? 'Create Offer' : 'Create Answer'}
           </button>
           <button onClick={handleSetAnswer} disabled={!remoteSdp.trim()}
-            className="h-7 flex-1 rounded-[6px] border border-border-default/60 bg-accent/10 text-[var(--fs-xxs)] font-semibold text-accent hover:bg-accent/20 transition-colors disabled:opacity-50">
+            className="btn-ghost-action flex-1">
             Set Remote SDP
           </button>
       </div>
@@ -149,7 +147,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
           {mode === 'offer' ? 'Local SDP (Offer)' : 'Local SDP (Answer)'}
         </label>
         <textarea value={localSdp} onChange={(e) => setLocalSdp(e.target.value)} rows={4} placeholder="v=0\no=- ..."
-          className="w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 py-1.5 text-[var(--fs-xxs)] font-mono text-text-secondary outline-none focus:border-accent resize-none"
+          className="w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 py-1.5 text-[var(--fs-xxs)] font-mono text-text-secondary outline-none focus:border-accent resize-none"
         />
       </div>
 
@@ -158,7 +156,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
           Remote SDP
         </label>
         <textarea value={remoteSdp} onChange={(e) => setRemoteSdp(e.target.value)} rows={4} placeholder="v=0\no=- ..."
-          className="w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 py-1.5 text-[var(--fs-xxs)] font-mono text-text-secondary outline-none focus:border-accent resize-none"
+          className="w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 py-1.5 text-[var(--fs-xxs)] font-mono text-text-secondary outline-none focus:border-accent resize-none"
         />
       </div>
 
@@ -167,7 +165,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
         <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
           ICE Candidates ({iceCandidates.length})
         </label>
-        <div className="max-h-[120px] overflow-y-auto rounded-[6px] border border-border-default/60 bg-bg-secondary/30 p-1">
+        <div className="max-h-[120px] overflow-y-auto rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
           {iceCandidates.length === 0 ? (
             <div className="text-[var(--fs-xs)] text-text-disabled text-center py-4">
               {t('videostream.webrtc.connectFirst', '点击 Create Offer 开始 ICE 收集')}

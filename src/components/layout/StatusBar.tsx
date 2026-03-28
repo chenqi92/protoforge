@@ -110,7 +110,7 @@ export function StatusBar({
           <span className="text-accent font-medium">{progress}%</span>
           <div className="w-16 h-1.5 bg-bg-input rounded-full overflow-hidden">
             <motion.div
-              className="h-full bg-gradient-to-r from-violet-500 to-purple-500 rounded-full"
+              className="h-full bg-accent rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.3 }}
@@ -234,7 +234,7 @@ export function StatusBar({
               className="fixed left-1/2 top-1/2 z-[201] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border-default/80 bg-bg-elevated shadow-[0_24px_64px_rgba(0,0,0,0.2)] backdrop-blur-xl overflow-hidden"
             >
               {/* 顶部渐变条 */}
-              <div className="h-1 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500" />
+              <div className="h-1 bg-accent" />
 
               <div className="p-6 space-y-5">
                 {/* 标题 */}
@@ -287,7 +287,7 @@ export function StatusBar({
                   </button>
                   <button
                     onClick={handleConfirmUpdate}
-                    className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl text-[var(--fs-sm)] font-semibold bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm hover:from-violet-600 hover:to-purple-600 transition-all active:scale-[0.97]"
+                    className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl text-[var(--fs-sm)] font-semibold bg-accent hover:bg-accent-hover text-white shadow-sm transition-all active:scale-[0.97]"
                   >
                     {updateInfo.isFallback ? (
                       <><ExternalLink className="w-3.5 h-3.5" /> {t('update.goDownload')}</>

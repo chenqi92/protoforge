@@ -62,6 +62,13 @@
   --radius-lg: 14px;
   --radius-xl: 18px;
 
+  /* Semantic radius aliases */
+  --radius-btn: var(--radius-sm);
+  --radius-field: var(--radius-sm);
+  --radius-panel: var(--radius-lg);
+  --radius-card: var(--radius-md);
+  --radius-chip: var(--radius-xs);
+
   /* Button height tiers */
   --btn-height-xs: 24px;
   --btn-height-sm: 28px;
@@ -431,6 +438,20 @@
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
     box-shadow: var(--shadow-xs);
+  }
+
+  .wb-tool-segment-sm {
+    padding: 2px;
+  }
+  .wb-tool-segment-sm button {
+    height: 24px;
+    padding: 0 8px;
+    font-size: var(--fs-xxs);
+  }
+
+  .wb-tool-segment button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   .wb-tool-field {
@@ -1088,11 +1109,11 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    height: 32px;
+    height: var(--btn-height-md);
     min-width: 82px;
     padding: 0 13px;
     border: none;
-    border-radius: 11px;
+    border-radius: var(--radius-btn);
     color: #ffffff;
     font-size: var(--fs-sm);
     font-weight: 600;
@@ -1117,6 +1138,100 @@
     opacity: 0.45;
     cursor: not-allowed;
     box-shadow: none;
+  }
+
+  /* ── Semantic Action Buttons ── */
+  /* Use these instead of bg-gradient-to-r or hardcoded colors */
+
+  .btn-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: var(--btn-height-md);
+    min-width: 80px;
+    padding: 0 14px;
+    border: none;
+    border-radius: var(--radius-btn);
+    background: var(--color-accent);
+    color: #ffffff;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-action:hover {
+    background: var(--color-accent-hover);
+    box-shadow: var(--shadow-md);
+  }
+  .btn-action:active { transform: scale(0.98); }
+  .btn-action:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; pointer-events: none; }
+
+  .btn-action-sm {
+    height: var(--btn-height-sm);
+    min-width: 64px;
+    padding: 0 10px;
+    font-size: var(--fs-xxs);
+  }
+
+  .btn-action-xs {
+    height: var(--btn-height-xs);
+    min-width: 48px;
+    padding: 0 8px;
+    font-size: var(--fs-xxs);
+  }
+
+  .btn-danger {
+    background: var(--color-error);
+  }
+  .btn-danger:hover {
+    background: #dc2626;
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn-warning {
+    background: var(--color-warning);
+  }
+  .btn-warning:hover {
+    background: #d97706;
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn-success {
+    background: var(--color-success);
+  }
+  .btn-success:hover {
+    background: #059669;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Ghost action button — outlined accent style */
+  .btn-ghost-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: var(--btn-height-sm);
+    padding: 0 10px;
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-btn);
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+    font-size: var(--fs-xxs);
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+  }
+  .btn-ghost-action:hover {
+    background: var(--color-accent-muted);
+    border-color: var(--color-accent);
+  }
+  .btn-ghost-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   .wb-panel,

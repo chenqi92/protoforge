@@ -46,7 +46,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
     <div ref={containerRef} className={cn("overflow-visible", !embedded && "wb-panel")}>
       <div className={cn(embedded ? "wb-pane-header" : "wb-panel-header", compact && "px-3 py-2")}>
         <div className="flex items-center gap-2">
-          <div className={cn("flex items-center justify-center rounded-[10px] bg-accent/8 text-accent", compact ? "h-7 w-7" : "h-8 w-8")}>
+          <div className={cn("flex items-center justify-center rounded-[var(--radius-md)] bg-accent/8 text-accent", compact ? "h-7 w-7" : "h-8 w-8")}>
             <Users className="h-4 w-4" />
           </div>
           <div>
@@ -64,7 +64,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
         <button
           onClick={() => setOpen(!open)}
           className={cn(
-            "flex w-full items-center justify-between gap-2 rounded-[10px] border px-3 text-left transition-all",
+            "flex w-full items-center justify-between gap-2 rounded-[var(--radius-md)] border px-3 text-left transition-all",
             compact ? "py-2" : "py-2.5",
             isBroadcast
               ? "border-accent/30 bg-accent/5 hover:bg-accent/8"
@@ -78,7 +78,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
                 <span className={cn("truncate font-medium text-accent", compact ? "text-[var(--fs-xs)]" : "text-[var(--fs-sm)]")}>
                   {t('tcp.clientList.broadcastAll')}
                 </span>
-                <span className="shrink-0 rounded-[7px] bg-accent/10 px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold text-accent">
+                <span className="shrink-0 rounded-[var(--radius-sm)] bg-accent/10 px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold text-accent">
                   {clients.length}
                 </span>
               </>
@@ -96,7 +96,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
 
         {/* 下拉面板 */}
         {open && (
-          <div className="absolute left-3 right-3 top-full z-20 mt-1 overflow-hidden rounded-[12px] border border-border-default bg-bg-primary shadow-lg">
+          <div className="absolute left-3 right-3 top-full z-20 mt-1 overflow-hidden rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-lg">
             <div className="max-h-[220px] overflow-y-auto py-1">
               {/* 全部广播选项 */}
               <button
@@ -110,7 +110,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
                 <span className="flex-1 text-[var(--fs-sm)] font-medium">
                   {t('tcp.clientList.broadcastAll')}
                 </span>
-                <span className="rounded-[7px] bg-accent/10 px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold text-accent">
+                <span className="rounded-[var(--radius-sm)] bg-accent/10 px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold text-accent">
                   {clients.length}
                 </span>
               </button>

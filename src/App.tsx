@@ -19,6 +19,7 @@ import { VideoStreamWorkspace } from "@/components/videostream/VideoStreamWorksp
 import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
 import { PluginModal } from "@/components/plugins/PluginModal";
 import { SettingsModal } from "@/components/settings/SettingsModal";
+import { DesignSystemPage } from "@/components/dev/DesignSystemPage";
 import EnvironmentVariablesModal from "@/components/modals/EnvironmentVariablesModal";
 import { CollectionSettingsPanel } from "@/components/collections/CollectionSettingsPanel";
 import { useAppStore, type RequestProtocol, type ToolSession, type ToolWorkbench, type WorkbenchView } from "@/stores/appStore";
@@ -429,6 +430,7 @@ function App() {
   const rightSidebarDefaultSize = `${Math.max(useSettingsStore.getState().settings.rightSidebarWidth, 14)}%`;
   const [pluginModalOpen, setPluginModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [designSystemOpen, setDesignSystemOpen] = useState(false);
   const [envModalOpen, setEnvModalOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [detachedToolSessions, setDetachedToolSessions] = useState<Record<ToolWorkbench, string[]>>({
@@ -457,13 +459,16 @@ function App() {
   useEffect(() => {
     const openPlugins = () => setPluginModalOpen(true);
     const openSettings = () => setSettingsOpen(true);
+    const openDesignSystem = () => setDesignSystemOpen(true);
 
     window.addEventListener("open-plugin-modal", openPlugins);
     window.addEventListener("open-settings-modal", openSettings);
+    window.addEventListener("open-design-system", openDesignSystem);
 
     return () => {
       window.removeEventListener("open-plugin-modal", openPlugins);
       window.removeEventListener("open-settings-modal", openSettings);
+      window.removeEventListener("open-design-system", openDesignSystem);
     };
   }, []);
 
@@ -912,7 +917,7 @@ function App() {
                 collapsedSize="48px"
                 panelRef={rightSidebarPanelRef}
                 onResize={handleRightSidebarResize}
-                className="relative flex h-full shrink-0 flex-col"
+                className="relative flex h-full shrink-0 flex-col overflow-hidden"
               >
                 <RightSidebar
                   panelCollapsed={rightSidebarCollapsed}
@@ -926,6 +931,17 @@ function App() {
 
       <PluginModal open={pluginModalOpen} onClose={() => setPluginModalOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {/* Design System Page — dev overlay */}
+      {designSystemOpen && (
+        <div className="fixed inset-0 z-[9999] bg-bg-app overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-border-default bg-bg-primary shrink-0">
+            <span className="text-[var(--fs-sm)] font-semibold text-text-primary">Design System</span>
+            <button onClick={() => setDesignSystemOpen(false)} className="wb-icon-btn"><X className="w-4 h-4" /></button>
+          </div>
+          <DesignSystemPage />
+        </div>
+      )}
       <EnvironmentVariablesModal open={envModalOpen} onClose={() => setEnvModalOpen(false)} />
       <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
 

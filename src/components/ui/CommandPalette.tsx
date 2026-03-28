@@ -2,7 +2,7 @@
 // 全局搜索：集合/请求/环境/历史
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, FileText, Globe, X, Network, Gauge, Radio, Puzzle, Settings, Braces, Waves } from 'lucide-react';
+import { Search, FileText, Globe, X, Network, Gauge, Radio, Puzzle, Settings, Braces, Waves, Palette } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
@@ -67,6 +67,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
       { type: 'action', label: t('commandPalette.openLoadtest'), icon: Gauge, action: () => { openToolTab('loadtest'); onClose(); } },
       { type: 'action', label: t('commandPalette.openPlugins'), icon: Puzzle, action: () => { window.dispatchEvent(new CustomEvent('open-plugin-modal')); onClose(); } },
       { type: 'action', label: t('commandPalette.openSettings'), icon: Settings, action: () => { window.dispatchEvent(new CustomEvent('open-settings-modal')); onClose(); } },
+      { type: 'action', label: 'Design System', description: 'Dev', icon: Palette, action: () => { window.dispatchEvent(new CustomEvent('open-design-system')); onClose(); } },
     );
 
     // Filter by query
@@ -100,7 +101,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[999]" onClick={onClose} />
-      <div className="fixed left-1/2 top-[15%] z-[1000] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden rounded-[24px] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
+      <div className="fixed left-1/2 top-[15%] z-[1000] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden rounded-[var(--radius-xl)] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
         {/* Search Input */}
         <div className="flex items-center gap-3 border-b border-border-default/75 bg-bg-primary/78 px-5 py-3">
           <Search className="w-4 h-4 text-text-disabled shrink-0" />
@@ -112,7 +113,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
             placeholder={t('commandPalette.placeholder')}
             className="h-10 flex-1 bg-transparent text-[var(--fs-md)] text-text-primary outline-none placeholder:text-text-disabled"
           />
-          <button onClick={onClose} className="rounded-[12px] p-1.5 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
+          <button onClick={onClose} className="rounded-[var(--radius-md)] p-1.5 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -132,7 +133,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
                   onClick={item.action}
                   onMouseEnter={() => setSelectedIdx(i)}
                   className={cn(
-                    "mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-[14px] px-4 py-3 text-left transition-colors",
+                    "mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-[var(--radius-lg)] px-4 py-3 text-left transition-colors",
                     i === selectedIdx ? "bg-bg-primary/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]" : "hover:bg-bg-hover/70"
                   )}
                 >

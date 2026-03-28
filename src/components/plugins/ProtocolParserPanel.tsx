@@ -28,7 +28,7 @@ class SectionErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="flex items-center gap-2 px-3 py-2 text-[var(--fs-xs)] text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 rounded-[8px]">
+        <div className="flex items-center gap-2 px-3 py-2 text-[var(--fs-xs)] text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 rounded-[var(--radius-sm)]">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span>Section render error: {this.state.error?.message}</span>
         </div>
@@ -190,14 +190,14 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <select value={selectedPluginId || ''} onChange={(e) => setSelectedPluginId(e.target.value)}
-                className="h-[32px] w-full appearance-none rounded-[10px] border border-border-default/80 bg-bg-secondary/42 pl-3 pr-8 text-text-primary outline-none transition-all focus:border-accent"
+                className="h-[32px] w-full appearance-none rounded-[var(--radius-md)] border border-border-default/80 bg-bg-secondary/42 pl-3 pr-8 text-text-primary outline-none transition-all focus:border-accent"
                 style={{ fontSize: 'var(--fs-sm)' }}>
                 {parserPlugins.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
               </select>
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled pointer-events-none" />
             </div>
             <button onClick={handleParse} disabled={loading || !rawInput.trim()}
-              className="flex items-center gap-1.5 h-[32px] px-4 rounded-[10px] bg-accent text-white font-medium transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              className="flex items-center gap-1.5 h-[32px] px-4 rounded-[var(--radius-md)] bg-accent text-white font-medium transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               style={{ fontSize: 'var(--fs-sm)' }}>
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
               {t('parser.parse', '解析')}
@@ -205,7 +205,7 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
           </div>
           <textarea value={rawInput} onChange={(e) => setRawInput(e.target.value)}
             placeholder={t('parser.inputPlaceholder', '粘贴原始报文数据...')}
-            className="h-[80px] w-full resize-none rounded-[10px] border border-border-default/80 bg-bg-secondary/42 px-3 py-2 font-mono text-text-primary outline-none placeholder:text-text-tertiary transition-all focus:border-accent"
+            className="h-[80px] w-full resize-none rounded-[var(--radius-md)] border border-border-default/80 bg-bg-secondary/42 px-3 py-2 font-mono text-text-primary outline-none placeholder:text-text-tertiary transition-all focus:border-accent"
             style={{ fontSize: 'var(--fs-xs)' }} />
         </div>
       )}
@@ -230,10 +230,10 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
         {!loading && result?.success && (
           <div className="p-2.5 space-y-2">
             {/* Summary Header */}
-            <div className="rounded-[8px] border border-border-default/50 overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-accent/8 to-transparent border-l-[3px] border-l-accent">
+            <div className="rounded-[var(--radius-sm)] border border-border-default/50 overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 bg-accent-soft border-l-[3px] border-l-accent">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="rounded-[5px] bg-accent/12 px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold text-accent tracking-wide uppercase shrink-0">
+                  <span className="rounded-[var(--radius-xs)] bg-accent/12 px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold text-accent tracking-wide uppercase shrink-0">
                     {result.protocolName}
                   </span>
                   <span className="text-text-secondary truncate text-[var(--fs-xs)]">{result.summary}</span>
@@ -250,7 +250,7 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
             {keyFields.length > 0 && (
               <div className="grid grid-cols-2 gap-1.5">
                 {keyFields.map((field, i) => (
-                  <div key={`ki-${i}`} className="relative rounded-[7px] border border-border-default/50 bg-bg-primary overflow-hidden">
+                  <div key={`ki-${i}`} className="relative rounded-[var(--radius-sm)] border border-border-default/50 bg-bg-primary overflow-hidden">
                     <div className={cn("h-[2px]",
                       field.color === 'emerald' ? 'bg-emerald-500' : field.color === 'red' ? 'bg-red-500' :
                       field.color === 'blue' ? 'bg-blue-500' : field.color === 'amber' ? 'bg-amber-500' :
@@ -271,7 +271,7 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-disabled" />
                 <input type="text" value={fieldSearch} onChange={(e) => setFieldSearch(e.target.value)}
                   placeholder={t('parser.searchFields', '搜索字段...')}
-                  className="w-full h-[26px] pl-7 pr-3 rounded-[7px] bg-bg-secondary/40 border border-border-default/50 text-[var(--fs-3xs)] text-text-primary outline-none focus:border-accent transition-colors placeholder:text-text-tertiary" />
+                  className="w-full h-[26px] pl-7 pr-3 rounded-[var(--radius-sm)] bg-bg-secondary/40 border border-border-default/50 text-[var(--fs-3xs)] text-text-primary outline-none focus:border-accent transition-colors placeholder:text-text-tertiary" />
               </div>
             )}
 
@@ -295,7 +295,7 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
 
             {/* Raw Hex */}
             {result.rawHex && (
-              <div className="rounded-[8px] border border-border-default/50 border-l-[3px] border-l-slate-400 overflow-hidden">
+              <div className="rounded-[var(--radius-sm)] border border-border-default/50 border-l-[3px] border-l-slate-400 overflow-hidden">
                 <div className="px-3 py-1 bg-slate-500/5 text-[var(--fs-3xs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">Raw Hex</div>
                 <pre className="selectable p-2 font-mono text-[var(--fs-3xs)] text-text-tertiary leading-4 whitespace-pre-wrap break-all">{result.rawHex}</pre>
               </div>
@@ -375,7 +375,7 @@ function SectionRenderer({ section, fieldMap, search, collapsed, onToggle }: {
   const count = section.style === 'register' && section.rows ? section.rows.length : sectionFields.length;
 
   return (
-    <div className={cn("rounded-[8px] border border-border-default/50 overflow-hidden border-l-[3px]", getBorderColor(section.color))}>
+    <div className={cn("rounded-[var(--radius-sm)] border border-border-default/50 overflow-hidden border-l-[3px]", getBorderColor(section.color))}>
       {/* Section Header */}
       <div
         className={cn("flex items-center justify-between px-2.5 py-1.5 cursor-pointer select-none transition-colors", getBgTint(section.color), "hover:brightness-[0.97]")}
@@ -490,7 +490,7 @@ function CellValue({ field }: { field: ParsedField }) {
   }
   if (field.uiType === 'badge') {
     return (
-      <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded-[5px] border text-[var(--fs-3xs)] font-medium", field.color ? BADGE_BG[field.color] || BADGE_BG.slate : BADGE_BG.slate)}>
+      <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded-[var(--radius-xs)] border text-[var(--fs-3xs)] font-medium", field.color ? BADGE_BG[field.color] || BADGE_BG.slate : BADGE_BG.slate)}>
         {valStr}
       </span>
     );
@@ -520,7 +520,7 @@ function GridView({ fields, search }: { fields: ParsedField[]; search: string })
       {filtered.map((f, i) => {
         const cleanLabel = (f.label || f.key).replace(/^[\p{Emoji}\u200d\uFE0F]+\s*/u, '');
         return (
-          <div key={`${f.key}-${i}`} className="rounded-[6px] border border-border-default/30 px-2 py-1.5 bg-bg-primary hover:border-border-default/60 transition-colors">
+          <div key={`${f.key}-${i}`} className="rounded-[var(--radius-sm)] border border-border-default/30 px-2 py-1.5 bg-bg-primary hover:border-border-default/60 transition-colors">
             <div className="text-[var(--fs-3xs)] text-text-tertiary truncate">{cleanLabel}</div>
             <div className="flex items-baseline gap-1">
               <span className="text-[var(--fs-xs)] font-semibold text-text-primary"><FieldValue field={f} /></span>
@@ -598,7 +598,7 @@ function DefaultGroupRenderer({ fields, search, collapsedSections, toggleSection
 
         return (
           <SectionErrorBoundary key={g}>
-            <div className={cn("rounded-[8px] border border-border-default/50 overflow-hidden border-l-[3px]", getBorderColor(color))}>
+            <div className={cn("rounded-[var(--radius-sm)] border border-border-default/50 overflow-hidden border-l-[3px]", getBorderColor(color))}>
               <div className={cn("flex items-center justify-between px-2.5 py-1.5 cursor-pointer select-none transition-colors", getBgTint(color), "hover:brightness-[0.97]")}
                 onClick={() => toggleSection(g)}>
                 <div className="flex items-center gap-1.5">
@@ -632,14 +632,14 @@ function FieldValue({ field }: { field: ParsedField }) {
       );
     case 'badge':
       return (
-        <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded-[5px] border text-[var(--fs-3xs)] font-medium", field.color ? BADGE_BG[field.color] || BADGE_BG.slate : BADGE_BG.slate)}>
+        <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded-[var(--radius-xs)] border text-[var(--fs-3xs)] font-medium", field.color ? BADGE_BG[field.color] || BADGE_BG.slate : BADGE_BG.slate)}>
           {valStr}
         </span>
       );
     case 'code':
     case 'json':
       return (
-        <pre className="p-1.5 rounded-[5px] bg-bg-secondary/50 border border-border-default/40 font-mono text-[var(--fs-3xs)] text-text-secondary whitespace-pre-wrap break-all">
+        <pre className="p-1.5 rounded-[var(--radius-xs)] bg-bg-secondary/50 border border-border-default/40 font-mono text-[var(--fs-3xs)] text-text-secondary whitespace-pre-wrap break-all">
           {typeof field.value === 'object' ? JSON.stringify(field.value, null, 2) : valStr}
         </pre>
       );

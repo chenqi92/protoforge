@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Lock } from "lucide-react";
 import * as vsSvc from "@/services/videoStreamService";
 
@@ -57,9 +58,9 @@ export function SrtPanel({ sessionKey, connected: _connected }: SrtPanelProps) {
         </label>
         <div className="grid grid-cols-[1fr_80px] gap-1.5">
           <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="127.0.0.1" disabled={srtConnected}
-            className="h-7 rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50" />
+            className="wb-field-sm font-mono disabled:opacity-50" />
           <input type="number" value={port} onChange={(e) => setPort(Number(e.target.value))} placeholder="9000" disabled={srtConnected}
-            className="h-7 rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50" />
+            className="wb-field-sm font-mono disabled:opacity-50" />
         </div>
       </div>
 
@@ -68,18 +69,16 @@ export function SrtPanel({ sessionKey, connected: _connected }: SrtPanelProps) {
         <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.srt.mode', '连接模式')}
         </label>
-        <div className="flex h-7 items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
-          {(['caller', 'listener', 'rendezvous'] as const).map((m) => (
-            <button key={m} onClick={() => setMode(m)} disabled={srtConnected}
-              className={cn(
-                "h-full flex-1 text-[var(--fs-3xs)] font-semibold uppercase tracking-wide transition-colors",
-                mode === m ? "bg-accent text-white" : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
-              )}
-            >
-              {m === 'caller' ? 'Caller' : m === 'listener' ? 'Listener' : 'Rendezvous'}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'caller', label: 'Caller' },
+            { value: 'listener', label: 'Listener' },
+            { value: 'rendezvous', label: 'Rendezvous' },
+          ]}
+          disabled={srtConnected}
+        />
         <p className="text-[var(--fs-3xs)] text-text-disabled">
           {mode === 'caller' ? t('videostream.srt.callerDesc', 'Caller 主动连接到远端 Listener')
             : mode === 'listener' ? t('videostream.srt.listenerDesc', 'Listener 监听端口等待连接')
@@ -93,7 +92,7 @@ export function SrtPanel({ sessionKey, connected: _connected }: SrtPanelProps) {
           Stream ID
         </label>
         <input value={streamId} onChange={(e) => setStreamId(e.target.value)} placeholder="#!::r=live/stream1" disabled={srtConnected}
-          className="h-7 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+          className="wb-field-sm w-full font-mono disabled:opacity-50"
         />
       </div>
 
@@ -128,7 +127,7 @@ export function SrtPanel({ sessionKey, connected: _connected }: SrtPanelProps) {
         {showEncryption && (
           <div className="space-y-1.5 pl-1">
             <input value={passphrase} onChange={(e) => setPassphrase(e.target.value)} placeholder={t('videostream.srt.passphrase', '加密口令 (可选)')} disabled={srtConnected}
-              className="h-7 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+              className="wb-field-sm w-full font-mono disabled:opacity-50"
             />
             <p className="text-[var(--fs-3xs)] text-text-disabled">
               {t('videostream.srt.encryptionHint', 'AES-128/192/256 加密，口令长度 10-79 字符')}
@@ -141,12 +140,12 @@ export function SrtPanel({ sessionKey, connected: _connected }: SrtPanelProps) {
       <div className="space-y-1.5">
         {!srtConnected ? (
           <button onClick={handleSrtConnect} disabled={srtConnecting}
-            className="h-7 w-full rounded-[6px] border border-border-default/60 bg-accent/10 text-[var(--fs-xxs)] font-semibold text-accent hover:bg-accent/20 transition-colors disabled:opacity-50">
+            className="btn-ghost-action w-full">
             {srtConnecting ? 'SRT 连接中...' : 'SRT 连接'}
           </button>
         ) : (
           <button onClick={handleSrtDisconnect}
-            className="h-7 w-full rounded-[6px] border border-red-500/40 bg-red-500/10 text-[var(--fs-xxs)] font-semibold text-red-400 hover:bg-red-500/20 transition-colors">
+            className="btn-action btn-danger btn-action-sm w-full">
             SRT 断开
           </button>
         )}
@@ -158,7 +157,7 @@ export function SrtPanel({ sessionKey, connected: _connected }: SrtPanelProps) {
           <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('videostream.srt.stats', '连接统计')}
           </label>
-          <div className="rounded-[6px] border border-border-default/60 bg-bg-secondary/30 p-2 grid grid-cols-2 gap-y-1.5 gap-x-3 text-[var(--fs-xxs)] font-mono">
+          <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-2 grid grid-cols-2 gap-y-1.5 gap-x-3 text-[var(--fs-xxs)] font-mono">
             <div className="flex justify-between"><span className="text-text-disabled">RTT</span><span className="text-text-primary">{srtStats.rtt}ms</span></div>
             <div className="flex justify-between"><span className="text-text-disabled">Bandwidth</span><span className="text-text-primary">{srtStats.bandwidth}Mbps</span></div>
             <div className="flex justify-between"><span className="text-text-disabled">Retransmit</span><span className="text-text-primary">{srtStats.retransmitRate}%</span></div>

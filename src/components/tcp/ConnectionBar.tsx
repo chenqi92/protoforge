@@ -22,28 +22,28 @@ const modeConfig: Record<SocketMode, { label: string; compactLabel: string; icon
     compactLabel: "TCP",
     icon: <Network className="w-3.5 h-3.5" />,
     badge: "bg-blue-500",
-    gradient: "from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700",
+    gradient: "bg-accent hover:bg-accent-hover",
   },
   "tcp-server": {
     label: "TCP Server",
     compactLabel: "Server",
     icon: <Server className="w-3.5 h-3.5" />,
     badge: "bg-indigo-500",
-    gradient: "from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700",
+    gradient: "bg-accent hover:bg-accent-hover",
   },
   "udp-client": {
     label: "UDP",
     compactLabel: "UDP",
     icon: <Radio className="w-3.5 h-3.5" />,
     badge: "bg-cyan-500",
-    gradient: "from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600",
+    gradient: "bg-accent hover:bg-accent-hover",
   },
   "udp-server": {
     label: "UDP Server",
     compactLabel: "Server",
     icon: <Square className="w-3.5 h-3.5" />,
     badge: "bg-teal-500",
-    gradient: "from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700",
+    gradient: "bg-accent hover:bg-accent-hover",
   },
   // serial / modbus use dedicated panel components, not ConnectionBar — stubs required for TS exhaustiveness
   "serial": {
@@ -51,14 +51,14 @@ const modeConfig: Record<SocketMode, { label: string; compactLabel: string; icon
     compactLabel: "Serial",
     icon: <Usb className="w-3.5 h-3.5" />,
     badge: "bg-amber-500",
-    gradient: "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600",
+    gradient: "bg-accent hover:bg-accent-hover",
   },
   "modbus": {
     label: "Modbus",
     compactLabel: "Modbus",
     icon: <Cpu className="w-3.5 h-3.5" />,
     badge: "bg-violet-500",
-    gradient: "from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700",
+    gradient: "bg-accent hover:bg-accent-hover",
   },
   // modbus-slave uses ModbusSlavePanel directly, stub required for TS exhaustiveness
   "modbus-slave": {
@@ -66,7 +66,7 @@ const modeConfig: Record<SocketMode, { label: string; compactLabel: string; icon
     compactLabel: "Slave",
     icon: <Cpu className="w-3.5 h-3.5" />,
     badge: "bg-violet-600",
-    gradient: "from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800",
+    gradient: "bg-accent hover:bg-accent-hover",
   },
 };
 
@@ -80,8 +80,8 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
   if (compact) {
     return (
       <div className="space-y-2.5">
-        <div className="flex items-center gap-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/35 p-1">
-          <div className={cn("flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm", cfg.badge)}>
+        <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/35 p-1">
+          <div className={cn("flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm", cfg.badge)}>
             {cfg.icon}
             <span>{cfg.compactLabel}</span>
           </div>
@@ -91,10 +91,10 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
             className={cn(
               "wb-primary-btn ml-auto h-8 min-w-[78px] justify-center px-2.5 text-[var(--fs-xxs)]",
               connected
-                ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
+                ? "bg-error hover:bg-error/90 hover:shadow-md"
                 : connecting
-                  ? `${cfg.badge} cursor-wait opacity-70`
-                  : `bg-gradient-to-r ${cfg.gradient} hover:shadow-md`
+                  ? "bg-warning cursor-wait opacity-70"
+                  : `${cfg.gradient} hover:shadow-md`
             )}
           >
             {connected ? <X className="h-3 w-3" /> : <Plug className="h-3 w-3" />}
@@ -125,7 +125,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
 
   return (
     <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
-      <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-3 text-[var(--fs-xs)] font-semibold text-white shadow-sm", cfg.badge)}>
+      <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-3 text-[var(--fs-xs)] font-semibold text-white shadow-sm", cfg.badge)}>
         {cfg.icon}
         {cfg.label}
       </div>
@@ -155,10 +155,10 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
         className={cn(
           "wb-primary-btn min-w-[88px] px-3",
           connected
-            ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
+            ? "bg-error hover:bg-error/90 hover:shadow-md"
             : connecting
-              ? `${cfg.badge} cursor-wait opacity-70`
-              : `bg-gradient-to-r ${cfg.gradient} hover:shadow-md`
+              ? "bg-warning cursor-wait opacity-70"
+              : `${cfg.gradient} hover:shadow-md`
         )}
       >
         {connected ? <X className="w-3.5 h-3.5" /> : <Plug className="w-3.5 h-3.5" />}

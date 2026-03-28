@@ -103,7 +103,7 @@ export function MessageLog({
             <span className="truncate text-[var(--fs-sm)] font-semibold text-text-primary">
               {statusText || t('tcp.messageLog.title')}
             </span>
-            <span className="rounded-[8px] bg-bg-primary/75 px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-tertiary">
+            <span className="rounded-[var(--radius-sm)] bg-bg-primary/75 px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-tertiary">
               {filteredMessages.length}/{messages.length}
             </span>
           </div>
@@ -123,7 +123,7 @@ export function MessageLog({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <label className="flex items-center gap-2 rounded-[10px] border border-border-default bg-bg-input px-2.5 py-1.5 text-[var(--fs-xs)] text-text-tertiary">
+          <label className="flex items-center gap-2 rounded-[var(--radius-md)] border border-border-default bg-bg-input px-2.5 py-1.5 text-[var(--fs-xs)] text-text-tertiary">
             <span className="shrink-0 font-semibold uppercase tracking-wide">
               {t('tcp.messageLog.displayFormat', '显示')}
             </span>
@@ -179,13 +179,13 @@ export function MessageLog({
                 <p className="text-[var(--fs-lg)] font-semibold text-text-secondary">{emptyTitle}</p>
                 <p className="mt-2 text-[var(--fs-sm)] leading-6 text-text-tertiary">{emptyDesc}</p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                  <span className="rounded-[var(--radius-sm)] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
                     {displayFormat === "auto" ? t("tcp.messageLog.auto", "AUTO") : displayFormat.toUpperCase()}
                   </span>
                   {typeof connected === "boolean" ? (
                     <span
                       className={cn(
-                        "rounded-[9px] border px-2.5 py-1 text-[var(--fs-xxs)] font-semibold",
+                        "rounded-[var(--radius-sm)] border px-2.5 py-1 text-[var(--fs-xxs)] font-semibold",
                         connected
                           ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
                           : "border-border-default/70 bg-bg-secondary/78 text-text-tertiary"
@@ -196,10 +196,10 @@ export function MessageLog({
                   ) : null}
                   {stats && hasTraffic ? (
                     <>
-                      <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
+                      <span className="rounded-[var(--radius-sm)] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
                         {formatSize(stats.sentBytes)} / {stats.sentCount} TX
                       </span>
-                      <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
+                      <span className="rounded-[var(--radius-sm)] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
                         {formatSize(stats.receivedBytes)} / {stats.receivedCount} RX
                       </span>
                     </>
@@ -230,11 +230,11 @@ export function MessageLog({
                 >
                   <div className="shrink-0">
                     {m.direction === "sent" ? (
-                      <span className="rounded-[8px] bg-blue-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-blue-600">TX</span>
+                      <span className="rounded-[var(--radius-sm)] bg-blue-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-blue-600">TX</span>
                     ) : m.direction === "received" ? (
-                      <span className="rounded-[8px] bg-emerald-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-emerald-600">RX</span>
+                      <span className="rounded-[var(--radius-sm)] bg-emerald-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-emerald-600">RX</span>
                     ) : (
-                      <span className="rounded-[8px] bg-amber-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-amber-600">SYS</span>
+                      <span className="rounded-[var(--radius-sm)] bg-amber-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-amber-600">SYS</span>
                     )}
                   </div>
 
@@ -255,12 +255,12 @@ export function MessageLog({
 
                   <div className="hidden shrink-0 items-center gap-2 text-[var(--fs-xxs)] text-text-disabled lg:flex">
                     {m.remoteAddr ? (
-                      <span className="truncate rounded-[8px] bg-bg-secondary/72 px-2 py-0.5">
+                      <span className="truncate rounded-[var(--radius-sm)] bg-bg-secondary/72 px-2 py-0.5">
                         {m.direction === "received" ? "\u2190 " : "\u2192 "}{m.remoteAddr}
                       </span>
                     ) : null}
                     {m.clientId ? (
-                      <span className="truncate rounded-[8px] bg-bg-secondary/72 px-2 py-0.5">
+                      <span className="truncate rounded-[var(--radius-sm)] bg-bg-secondary/72 px-2 py-0.5">
                         {t('tcp.messageLog.client')}: {m.clientId.slice(0, 8)}
                       </span>
                     ) : null}
@@ -271,14 +271,14 @@ export function MessageLog({
                     {m.size > 0 ? <span className="text-[var(--fs-xxs)] text-text-disabled lg:hidden">{formatSize(m.size)}</span> : null}
                     <button
                       onClick={() => handleCopy(displayData, m.id)}
-                      className="rounded-[10px] p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-accent group-hover:opacity-100"
+                      className="rounded-[var(--radius-md)] p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-accent group-hover:opacity-100"
                     >
                       {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                     {hasParserPlugin && m.direction === 'received' && (
                       <button
                         onClick={() => handleParseMessage(m.data)}
-                        className="rounded-[10px] p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-blue-500 group-hover:opacity-100"
+                        className="rounded-[var(--radius-md)] p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-blue-500 group-hover:opacity-100"
                         title={t('parser.parse', '\u89e3\u6790')}
                       >
                         <FileCode2 className="h-3.5 w-3.5" />

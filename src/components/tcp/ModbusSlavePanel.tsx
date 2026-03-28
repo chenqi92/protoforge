@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import * as mbSvc from "@/services/modbusService";
 import * as svcSerial from "@/services/serialService";
 import { registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
@@ -89,28 +90,22 @@ function SlaveConnectionBar({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <div className="col-span-2 flex items-center gap-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/35 p-1">
-          <div className="flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[8px] bg-violet-600 px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm">
+        <div className="col-span-2 flex items-center gap-2 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/35 p-1">
+          <div className="flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] bg-violet-600 px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm">
             <Cpu className="h-3.5 w-3.5" />
             <span>Slave</span>
           </div>
-          <div className="flex flex-1 items-center rounded-[8px] border border-border-default/60 bg-bg-primary p-0.5">
-            {(["tcp", "rtu"] as ModbusTransport[]).map((tp) => (
-              <button
-                key={tp}
-                onClick={() => !running && onTransportChange(tp)}
-                disabled={running}
-                className={cn(
-                  "h-7 flex-1 rounded-[6px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-all",
-                  transport === tp
-                    ? "bg-violet-500/12 text-violet-600 shadow-xs dark:text-violet-300"
-                    : "text-text-tertiary hover:text-text-secondary disabled:opacity-50"
-                )}
-              >
-                {tp.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            value={transport}
+            onChange={onTransportChange}
+            disabled={running}
+            size="sm"
+            className="flex-1"
+            options={[
+              { value: 'tcp' as ModbusTransport, label: 'Modbus TCP' },
+              { value: 'rtu' as ModbusTransport, label: 'Modbus RTU' },
+            ]}
+          />
         </div>
 
         {transport === "tcp" ? (
@@ -167,7 +162,7 @@ function SlaveConnectionBar({
                 <button
                   onClick={onRefreshPorts}
                   disabled={running || loadingPorts}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-border-default/60 bg-bg-secondary/35 text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-40"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/35 text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-50"
                   title={t('serial.refresh')}
                 >
                   <RefreshCw className={cn("h-3.5 w-3.5", loadingPorts && "animate-spin")} />
@@ -213,7 +208,7 @@ function SlaveConnectionBar({
           <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('serial.modbus.transport', '传输')}
           </span>
-          <div className="flex h-10 items-center rounded-[10px] border border-border-default/60 bg-bg-secondary/35 px-3 text-[var(--fs-xs)] font-medium text-text-secondary">
+          <div className="flex h-10 items-center rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/35 px-3 text-[var(--fs-xs)] font-medium text-text-secondary">
             {transport === "tcp"
               ? "TCP Server"
               : `RTU · ${serialConfig.dataBits}${serialConfig.parity === "none" ? "N" : serialConfig.parity === "even" ? "E" : "O"}${serialConfig.stopBits}`}
@@ -227,10 +222,10 @@ function SlaveConnectionBar({
         className={cn(
           "wb-primary-btn h-10 w-full justify-center px-3",
           running
-            ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
+            ? "bg-error hover:bg-error/90 hover:shadow-md"
             : starting
-              ? "bg-violet-600 cursor-wait opacity-70"
-              : "bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800 hover:shadow-md"
+              ? "bg-warning cursor-wait opacity-70"
+              : "bg-accent hover:bg-accent-hover hover:shadow-md"
         )}
       >
         {running ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
@@ -555,7 +550,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                   if (e.key === 'Enter') commitEdit(addr, editingVal);
                   if (e.key === 'Escape') setEditingAddr(null);
                 }}
-                className="h-5 w-[68px] rounded-[4px] border border-accent/60 bg-accent-soft px-1 text-center text-[var(--fs-xxs)] font-mono text-text-primary outline-none"
+                className="h-5 w-[68px] rounded-[var(--radius-xs)] border border-accent/60 bg-accent-soft px-1 text-center text-[var(--fs-xxs)] font-mono text-text-primary outline-none"
               />
             ) : (
               <span
@@ -598,7 +593,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
             <button
               onClick={() => toggleBool(addr, activeTab)}
               className={cn(
-                "h-5 min-w-[44px] rounded-[4px] border px-2 text-[var(--fs-3xs)] font-semibold transition-all",
+                "h-5 min-w-[44px] rounded-[var(--radius-xs)] border px-2 text-[var(--fs-3xs)] font-semibold transition-all",
                 val
                   ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
                   : "border-border-default/60 bg-bg-secondary/60 text-text-tertiary"
@@ -608,7 +603,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
             </button>
           ) : (
             <span className={cn(
-              "inline-flex h-5 items-center rounded-[4px] px-2 text-[var(--fs-3xs)] font-semibold",
+              "inline-flex h-5 items-center rounded-[var(--radius-xs)] px-2 text-[var(--fs-3xs)] font-semibold",
               val
                 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 : "text-text-disabled"
@@ -666,7 +661,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                       key={key}
                       onClick={() => { setActiveTab(key); setEditingAddr(null); }}
                       className={cn(
-                        "rounded-[10px] border px-3 py-2 text-left text-[var(--fs-xs)] font-semibold transition-all",
+                        "rounded-[var(--radius-md)] border px-3 py-2 text-left text-[var(--fs-xs)] font-semibold transition-all",
                         activeTab === key
                           ? "border-violet-400/50 bg-violet-500/10 text-violet-600 dark:text-violet-300"
                           : "border-border-default/60 bg-bg-secondary/20 text-text-secondary hover:bg-bg-hover"
@@ -677,7 +672,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                   ))}
                 </div>
 
-                <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2.5">
+                <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2.5">
                   <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                     {t('serial.modbusslave.addressRange', '地址范围')}
                   </div>
@@ -688,7 +683,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                     <button
                       onClick={() => setPage((p) => Math.max(0, p - 1))}
                       disabled={page === 0}
-                      className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-border-default/60 bg-bg-primary text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
+                      className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-primary text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-50"
                     >
                       <ChevronLeft className="h-3.5 w-3.5" />
                     </button>
@@ -698,7 +693,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                     <button
                       onClick={() => setPage((p) => Math.min(maxPage, p + 1))}
                       disabled={page === maxPage}
-                      className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-border-default/60 bg-bg-primary text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
+                      className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-primary text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-50"
                     >
                       <ChevronRight className="h-3.5 w-3.5" />
                     </button>
@@ -719,7 +714,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                       <button
                         key={action}
                         onClick={() => handleBulkFill(action)}
-                        className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2 text-[var(--fs-xs)] font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                        className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2 text-[var(--fs-xs)] font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
                       >
                         {label}
                       </button>
@@ -735,7 +730,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
               compact={compact}
             >
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
                   <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                     {t('serial.modbusslave.statusLabel', '状态')}
                   </div>
@@ -743,7 +738,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                     {running ? t('serial.modbusslave.started', '从站已启动') : t('serial.modbusslave.stopped', '从站已停止')}
                   </div>
                 </div>
-                <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
                   <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                     {t('serial.modbusslave.unitId', '从站地址')}
                   </div>
@@ -751,7 +746,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                     {unitId}
                   </div>
                 </div>
-                <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
                   <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                     {t('serial.modbusslave.requestLog', '请求日志')}
                   </div>
@@ -759,7 +754,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                     {requestCount}
                   </div>
                 </div>
-                <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
                   <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                     {t(activeTabMeta.labelKey)}
                   </div>
@@ -768,7 +763,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                   </div>
                 </div>
                 {uptime ? (
-                  <div className="col-span-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                  <div className="col-span-2 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
                     <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
                       Uptime
                     </div>
@@ -855,7 +850,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                     </span>
                     <button
                       onClick={() => { setRequestLog([]); setRequestCount(0); }}
-                      className="flex h-5 w-5 items-center justify-center rounded-[4px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                      className="flex h-5 w-5 items-center justify-center rounded-[var(--radius-xs)] text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
                       title="清空日志"
                     >
                       <Trash2 className="h-3 w-3" />

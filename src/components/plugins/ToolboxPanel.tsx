@@ -149,7 +149,7 @@ function CrcCalculator() {
             {t('toolbox.crc.inputLabel', '输入')}
           </span>
           {/* 模式切换 */}
-          <div className="flex h-6 items-center rounded-[4px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
+          <div className="flex h-6 items-center rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
             {(['hex', 'ascii'] as InputMode[]).map((m) => (
               <button
                 key={m}
@@ -171,7 +171,7 @@ function CrcCalculator() {
           onChange={(e) => setInput(e.target.value)}
           placeholder={inputMode === 'hex' ? 'FF 01 02 03 ...' : 'Hello World'}
           rows={3}
-          className="w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted resize-none placeholder:text-text-disabled"
+          className="w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted resize-none placeholder:text-text-disabled"
         />
 
         <div className="flex items-center gap-2">
@@ -182,7 +182,7 @@ function CrcCalculator() {
             <select
               value={algorithm}
               onChange={(e) => setAlgorithm(e.target.value as CrcAlgorithm)}
-              className="h-7 w-full appearance-none rounded-[6px] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-6 text-[var(--fs-xs)] font-mono text-text-primary outline-none cursor-pointer"
+              className="h-7 w-full appearance-none rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-6 text-[var(--fs-xs)] font-mono text-text-primary outline-none cursor-pointer"
             >
               {(Object.keys(algoLabels) as CrcAlgorithm[]).map((a) => (
                 <option key={a} value={a}>{algoLabels[a]}</option>
@@ -192,7 +192,7 @@ function CrcCalculator() {
           </div>
           <button
             onClick={handleCalculate}
-            className="wb-primary-btn px-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+            className="wb-primary-btn px-3 bg-accent hover:bg-accent-hover"
           >
             {t('toolbox.crc.calculate', '计算')}
           </button>
@@ -200,13 +200,13 @@ function CrcCalculator() {
       </div>
 
       {error && (
-        <div className="rounded-[6px] border border-red-500/30 bg-red-500/5 px-3 py-2 text-[var(--fs-xs)] text-red-400">
+        <div className="rounded-[var(--radius-sm)] border border-red-500/30 bg-red-500/5 px-3 py-2 text-[var(--fs-xs)] text-red-400">
           {error}
         </div>
       )}
 
       {result && (
-        <div className="rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 space-y-1.5">
+        <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 space-y-1.5">
           <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled mb-1">
             {t('toolbox.crc.result', '计算结果')} — {algoLabels[algorithm]} ({result.bits} {t('toolbox.crc.bits', '位')})
           </div>
@@ -353,7 +353,7 @@ function NumberConverter() {
               onChange={(e) => onChange(e.target.value)}
               placeholder={placeholder}
               className={cn(
-                "h-7 w-full rounded-[6px] border bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:ring-1 focus:ring-accent-muted transition-colors",
+                "h-7 w-full rounded-[var(--radius-sm)] border bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:ring-1 focus:ring-accent-muted transition-colors",
                 activeField === key ? "border-accent" : "border-border-default/60 focus:border-accent"
               )}
             />
@@ -367,11 +367,11 @@ function NumberConverter() {
 
       {!error && hexVal && (
         <div className="grid grid-cols-2 gap-2 text-[var(--fs-xxs)] font-mono">
-          <div className="rounded-[6px] border border-border-default/50 bg-bg-secondary/30 px-2 py-1.5">
+          <div className="rounded-[var(--radius-sm)] border border-border-default/50 bg-bg-secondary/30 px-2 py-1.5">
             <div className="text-text-disabled mb-0.5">{t('toolbox.converter.bytes_be', '字节 (大端)')}</div>
             <div className="text-text-secondary">{formatBytes(u32, true)}</div>
           </div>
-          <div className="rounded-[6px] border border-border-default/50 bg-bg-secondary/30 px-2 py-1.5">
+          <div className="rounded-[var(--radius-sm)] border border-border-default/50 bg-bg-secondary/30 px-2 py-1.5">
             <div className="text-text-disabled mb-0.5">{t('toolbox.converter.bytes_le', '字节 (小端)')}</div>
             <div className="text-text-secondary">{formatBytes(u32, false)}</div>
           </div>
@@ -450,12 +450,12 @@ function ByteTools() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="FF 01 02 03 ..."
-            className="h-7 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted"
+            className="h-7 w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted"
           />
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex h-7 items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
+          <div className="flex h-7 items-center rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
             {ops.map((op) => (
               <button
                 key={op.key}
@@ -478,13 +478,13 @@ function ByteTools() {
                 value={mask}
                 onChange={(e) => setMask(e.target.value)}
                 placeholder="FF"
-                className="h-7 w-[80px] rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted"
+                className="h-7 w-[80px] rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted"
               />
             </div>
           )}
           <button
             onClick={handleApply}
-            className="wb-primary-btn px-3 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700"
+            className="wb-primary-btn px-3 bg-accent hover:bg-accent-hover"
           >
             {t('toolbox.byteTools.result', '执行')}
           </button>
@@ -492,13 +492,13 @@ function ByteTools() {
       </div>
 
       {error && (
-        <div className="rounded-[6px] border border-red-500/30 bg-red-500/5 px-3 py-2 text-[var(--fs-xs)] text-red-400">
+        <div className="rounded-[var(--radius-sm)] border border-red-500/30 bg-red-500/5 px-3 py-2 text-[var(--fs-xs)] text-red-400">
           {error}
         </div>
       )}
 
       {result && (
-        <div className="rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 space-y-1.5">
+        <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 space-y-1.5">
           <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('toolbox.byteTools.result', '结果')}
           </div>
@@ -527,7 +527,7 @@ function SidebarSection({ title, icon, defaultOpen = true, children }: {
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-bg-hover transition-colors text-left group"
       >
-        <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-accent/10 text-accent shrink-0">
+        <span className="flex h-5 w-5 items-center justify-center rounded-[var(--radius-xs)] bg-accent/10 text-accent shrink-0">
           {icon}
         </span>
         <span className="flex-1 text-[length:var(--fs-sidebar)] font-semibold text-text-primary">{title}</span>

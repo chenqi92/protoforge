@@ -115,11 +115,11 @@ export function SseWorkspace() {
         )}
         actions={
           isConnected ? (
-            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[88px] bg-red-500 hover:bg-red-600">
+            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[88px] bg-error hover:bg-error/90">
               <Square className="w-3 h-3 fill-white" /> {t('sse.disconnect')}
             </button>
           ) : (
-            <button onClick={handleConnect} disabled={!url.trim()} className="wb-primary-btn min-w-[88px] bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-40">
+            <button onClick={handleConnect} disabled={!url.trim()} className="wb-primary-btn min-w-[88px] bg-accent hover:bg-accent-hover disabled:opacity-50">
               <Play className="w-3 h-3 fill-white" /> {t('sse.connect')}
             </button>
           )
@@ -137,7 +137,7 @@ export function SseWorkspace() {
                 status === 'error' ? "text-red-500" :
                 "text-text-tertiary"
               )}>
-                <span className={cn("w-2 h-2 rounded-[3px]",
+                <span className={cn("w-2 h-2 rounded-[var(--radius-xs)]",
                   status === 'connected' ? "bg-emerald-500 animate-pulse" :
                   status === 'connecting' ? "bg-amber-500 animate-pulse" :
                   status === 'error' ? "bg-red-500" :
@@ -157,7 +157,7 @@ export function SseWorkspace() {
           <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/10">
             {events.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default/70 bg-bg-primary/78">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-border-default/70 bg-bg-primary/78">
                   <Waves className="h-8 w-8 opacity-20 text-orange-500" />
                 </div>
                 <p className="text-[var(--fs-base)] font-medium">{t('sse.emptyTitle')}</p>
@@ -169,7 +169,7 @@ export function SseWorkspace() {
                   <div key={i} className="px-4 py-3 transition-colors hover:bg-bg-hover/35">
                     <div className="mb-1.5 flex items-center gap-2">
                       <span className="text-[var(--fs-xxs)] font-mono text-text-disabled">{new Date(evt.timestamp).toLocaleTimeString()}</span>
-                      <span className="rounded-[8px] bg-orange-500/10 px-1.5 py-0.5 text-[var(--fs-xxs)] font-bold text-orange-600">{evt.eventType}</span>
+                      <span className="rounded-[var(--radius-sm)] bg-orange-500/10 px-1.5 py-0.5 text-[var(--fs-xxs)] font-bold text-orange-600">{evt.eventType}</span>
                       {evt.id && <span className="text-[var(--fs-xxs)] text-text-disabled">id: {evt.id}</span>}
                     </div>
                     <pre className="whitespace-pre-wrap break-all text-[var(--fs-sm)] font-mono text-text-secondary">{evt.data}</pre>

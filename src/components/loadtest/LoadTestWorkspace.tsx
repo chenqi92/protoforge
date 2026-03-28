@@ -263,7 +263,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
               className={cn(
                 "wb-primary-btn",
                 running
-                  ? "bg-red-500 hover:bg-red-600"
+                  ? "bg-error hover:bg-error/90"
                   : "bg-accent hover:bg-accent-hover"
               )}
             >
@@ -396,7 +396,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                     <div key={i} className="mb-2 flex items-center gap-2">
                       <input value={h.key} onChange={(e) => { const n = [...headers]; n[i].key = e.target.value; setHeaders(n); }} disabled={running} placeholder="Header Key" className="cfg-input flex-1 text-left" />
                       <input value={h.value} onChange={(e) => { const n = [...headers]; n[i].value = e.target.value; setHeaders(n); }} disabled={running} placeholder="Header Value" className="cfg-input flex-1 text-left" />
-                      <button onClick={() => setHeaders(headers.filter((_, j) => j !== i))} disabled={running || headers.length <= 1} className="wb-icon-btn shrink-0 hover:text-red-500 disabled:opacity-30"><Trash2 className="w-3 h-3" /></button>
+                      <button onClick={() => setHeaders(headers.filter((_, j) => j !== i))} disabled={running || headers.length <= 1} className="wb-icon-btn shrink-0 hover:text-red-500 disabled:opacity-50"><Trash2 className="w-3 h-3" /></button>
                     </div>
                   ))}
                   <button onClick={() => setHeaders([...headers, { key: "", value: "" }])} disabled={running} className="wb-ghost-btn"><Plus className="w-3 h-3" />{t('loadtest.addHeader')}</button>
@@ -417,10 +417,10 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                       disabled={running}
                       placeholder={bodyMode === "json" ? '{"key": "value"}' : "raw body content"}
                       rows={8}
-                      className="w-full resize-y rounded-[10px] border border-border-default bg-bg-input px-3 py-2 text-[var(--fs-sm)] font-mono outline-none focus:border-accent disabled:opacity-60"
+                      className="w-full resize-y rounded-[var(--radius-md)] border border-border-default bg-bg-input px-3 py-2 text-[var(--fs-sm)] font-mono outline-none focus:border-accent disabled:opacity-60"
                     />
                   ) : (
-                    <div className="flex min-h-[178px] items-center justify-center rounded-[10px] border border-dashed border-border-default/80 bg-bg-secondary/20 px-4 text-center text-[var(--fs-xs)] text-text-disabled">
+                    <div className="flex min-h-[178px] items-center justify-center rounded-[var(--radius-md)] border border-dashed border-border-default/80 bg-bg-secondary/20 px-4 text-center text-[var(--fs-xs)] text-text-disabled">
                       {t('loadtest.bodyEmptyHint')}
                     </div>
                   )}
@@ -442,7 +442,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                       <input type="password" value={basicPass} onChange={(e) => setBasicPass(e.target.value)} disabled={running} placeholder={t('loadtest.passwordPlaceholder')} className="cfg-input w-full text-left" />
                     </div>
                   ) : (
-                    <div className="flex min-h-[178px] items-center justify-center rounded-[10px] border border-dashed border-border-default/80 bg-bg-secondary/20 px-4 text-center text-[var(--fs-xs)] text-text-disabled">
+                    <div className="flex min-h-[178px] items-center justify-center rounded-[var(--radius-md)] border border-dashed border-border-default/80 bg-bg-secondary/20 px-4 text-center text-[var(--fs-xs)] text-text-disabled">
                       {t('loadtest.authEmptyHint')}
                     </div>
                   )}
@@ -473,7 +473,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
       {/* ── Main Content ── */}
       <div className="flex flex-col pt-3 pb-6 mt-3">
         {error && (
-          <div className="mb-3 flex items-center gap-2 rounded-[10px] border border-red-200 bg-red-50 px-4 py-2.5 text-[var(--fs-base)] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+          <div className="mb-3 flex items-center gap-2 rounded-[var(--radius-md)] border border-red-200 bg-red-50 px-4 py-2.5 text-[var(--fs-base)] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
             <AlertTriangle className="w-4 h-4 shrink-0" />{error}
           </div>
         )}
@@ -583,7 +583,7 @@ function ControlBlock({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("rounded-[10px] border border-border-default/65 bg-bg-secondary/24 p-3", className)}>
+    <div className={cn("rounded-[var(--radius-md)] border border-border-default/65 bg-bg-secondary/24 p-3", className)}>
       <div className="mb-2 flex items-center gap-1.5 text-[var(--fs-xs)] font-semibold text-text-secondary">
         {icon ? <span className="text-text-tertiary">{icon}</span> : null}
         <span>{label}</span>
@@ -595,7 +595,7 @@ function ControlBlock({
 
 function AdvancedSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[10px] border border-border-default/65 bg-bg-secondary/24 p-3">
+    <div className="rounded-[var(--radius-md)] border border-border-default/65 bg-bg-secondary/24 p-3">
       <div className="mb-2 text-[var(--fs-xs)] font-semibold uppercase tracking-wider text-text-tertiary">{title}</div>
       {children}
     </div>
@@ -610,20 +610,20 @@ function formatBytes(bytes: number): string {
 
 function MetricCard({ label, value, icon, color, sub }: { label: string; value: string; icon: React.ReactNode; color: string; sub: string }) {
   const cm: Record<string, { bg: string; text: string; iconBg: string }> = {
-    rose:    { bg: "from-rose-500/5 to-pink-500/5",       text: "text-rose-600",    iconBg: "bg-rose-500/10" },
-    blue:    { bg: "from-blue-500/5 to-indigo-500/5",     text: "text-blue-600",    iconBg: "bg-blue-500/10" },
-    emerald: { bg: "from-emerald-500/5 to-green-500/5",   text: "text-emerald-600", iconBg: "bg-emerald-500/10" },
-    red:     { bg: "from-red-500/5 to-orange-500/5",      text: "text-red-600",     iconBg: "bg-red-500/10" },
-    violet:  { bg: "from-violet-500/5 to-purple-500/5",   text: "text-violet-600",  iconBg: "bg-violet-500/10" },
-    cyan:    { bg: "from-cyan-500/5 to-teal-500/5",       text: "text-cyan-600",    iconBg: "bg-cyan-500/10" },
-    amber:   { bg: "from-amber-500/5 to-yellow-500/5",    text: "text-amber-600",   iconBg: "bg-amber-500/10" },
+    rose:    { bg: "bg-rose-500/5",       text: "text-rose-600",    iconBg: "bg-rose-500/10" },
+    blue:    { bg: "bg-blue-500/5",      text: "text-blue-600",    iconBg: "bg-blue-500/10" },
+    emerald: { bg: "bg-emerald-500/5",   text: "text-emerald-600", iconBg: "bg-emerald-500/10" },
+    red:     { bg: "bg-red-500/5",       text: "text-red-600",     iconBg: "bg-red-500/10" },
+    violet:  { bg: "bg-violet-500/5",    text: "text-violet-600",  iconBg: "bg-violet-500/10" },
+    cyan:    { bg: "bg-cyan-500/5",      text: "text-cyan-600",    iconBg: "bg-cyan-500/10" },
+    amber:   { bg: "bg-amber-500/5",     text: "text-amber-600",   iconBg: "bg-amber-500/10" },
   };
   const c = cm[color] || cm.rose;
   return (
-    <div className={cn("rounded-[10px] border border-border-default/70 bg-gradient-to-br p-4", c.bg)}>
+    <div className={cn("rounded-[var(--radius-md)] border border-border-default/70 p-4", c.bg)}>
       <div className="mb-2 flex items-center justify-between border-b border-border-default/60 pb-2">
         <span className="text-[var(--fs-xs)] font-medium text-text-tertiary uppercase tracking-wide">{label}</span>
-        <div className={cn("flex h-7 w-7 items-center justify-center rounded-[8px]", c.iconBg, c.text)}>{icon}</div>
+        <div className={cn("flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)]", c.iconBg, c.text)}>{icon}</div>
       </div>
       <div className={cn("text-[var(--fs-5xl)] font-bold tabular-nums", c.text)}>{value}</div>
       <div className="text-[var(--fs-xs)] text-text-disabled mt-1">{sub}</div>

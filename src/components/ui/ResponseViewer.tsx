@@ -83,13 +83,13 @@ function HexView({ data }: { data: string }) {
   return (
     <div className="selectable overflow-x-auto font-mono leading-[18px]" style={{ fontSize: 'var(--fs-xs)' }}>
       <div className="min-w-[620px]">
-        <div className="mb-2 grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[10px] border border-border-default/70 bg-bg-secondary/30 px-2 py-2 font-semibold uppercase tracking-[0.08em] text-text-tertiary" style={{ fontSize: 'var(--fs-xxs)' }}>
+        <div className="mb-2 grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[var(--radius-md)] border border-border-default/70 bg-bg-secondary/30 px-2 py-2 font-semibold uppercase tracking-[0.08em] text-text-tertiary" style={{ fontSize: 'var(--fs-xxs)' }}>
           <span>Offset</span>
           <span>Hex</span>
           <span>ASCII</span>
         </div>
         {lines.map((line, i) => (
-          <div key={i} className="grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[8px] px-2 py-1 hover:bg-bg-hover/30">
+          <div key={i} className="grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[var(--radius-sm)] px-2 py-1 hover:bg-bg-hover/30">
             <span className="shrink-0 text-text-disabled">{line.offset}</span>
             <span className="min-w-0 text-[#0284c7]">{line.hex}</span>
             <span className="shrink-0 text-text-tertiary">{line.ascii}</span>
@@ -117,7 +117,7 @@ export function ReadonlyCodeBlock({
   stickyScroll?: boolean;
 }) {
   return (
-    <div className={cn("flex flex-col overflow-hidden rounded-[12px] border border-border-default/70 bg-bg-primary h-full", minHeightClassName)}>
+    <div className={cn("flex flex-col overflow-hidden rounded-[var(--radius-md)] border border-border-default/70 bg-bg-primary h-full", minHeightClassName)}>
       <div className="flex-1 min-h-0">
         <CodeEditor value={value} language={language} readOnly height="100%" stickyScroll={stickyScroll} />
       </div>
@@ -512,7 +512,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                       });
                     }}
                     className={cn(
-                      'inline-flex items-center gap-1 h-[22px] px-2 rounded-[6px] text-[11px] font-mono whitespace-nowrap transition-all shrink-0 border',
+                      'inline-flex items-center gap-1 h-[22px] px-2 rounded-[var(--radius-sm)] text-[11px] font-mono whitespace-nowrap transition-all shrink-0 border',
                       isActive
                         ? 'bg-accent/10 text-accent border-accent/25 shadow-[0_0_0_1px_rgba(59,130,246,0.06)]'
                         : 'bg-bg-primary/80 text-text-tertiary border-border-default/60 hover:bg-bg-hover hover:text-text-secondary hover:border-border-default'
@@ -534,12 +534,12 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
           {activeBuiltinMode === 'json' && (
             <div className="flex flex-col h-full gap-2">
               {jsonData === null ? (
-                <div className="rounded-[10px] border border-amber-300/60 bg-amber-500/8 px-3 py-2 text-amber-700 dark:text-amber-300 shrink-0" style={{ fontSize: 'var(--fs-xs)' }}>
+                <div className="rounded-[var(--radius-md)] border border-amber-300/60 bg-amber-500/8 px-3 py-2 text-amber-700 dark:text-amber-300 shrink-0" style={{ fontSize: 'var(--fs-xs)' }}>
                   {t('response.invalidJsonPrettyFallback')}
                 </div>
               ) : null}
               {jsonFilterKeys.size > 0 && (
-                <div className="flex items-center gap-1.5 rounded-[8px] bg-accent/6 border border-accent/15 px-2.5 py-1 shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
+                <div className="flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-accent/6 border border-accent/15 px-2.5 py-1 shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
                   <Filter className="w-2.5 h-2.5 text-accent/60" />
                   <span className="text-accent/80">
                     {t('response.filterActive', { count: jsonFilterKeys.size, defaultValue: `已过滤 ${jsonFilterKeys.size} 个 Key` })}
@@ -593,7 +593,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
             <iframe
               srcDoc={body}
               sandbox="allow-same-origin"
-              className="min-h-[420px] w-full rounded-[12px] border border-border-default bg-white"
+              className="min-h-[420px] w-full rounded-[var(--radius-md)] border border-border-default bg-white"
               title="HTML Preview"
             />
           )}
@@ -655,7 +655,7 @@ function Base64View({ body, isBinary, wordWrap, searchText }: {
 
   return (
     <div className={cn("max-w-full", !wordWrap && "overflow-x-auto")}>
-      <div className="flex items-center gap-2 mb-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/30 px-3 py-1.5" style={{ fontSize: 'var(--fs-xs)' }}>
+      <div className="flex items-center gap-2 mb-2 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/30 px-3 py-1.5" style={{ fontSize: 'var(--fs-xs)' }}>
         <span className="font-medium text-text-secondary">Base64</span>
         <span className="text-text-disabled">·</span>
         <span className="text-text-tertiary tabular-nums">{sizeLabel}</span>
@@ -898,7 +898,7 @@ function BinaryFileCard({ contentType, fileSize, body, responseHeaders }: {
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 min-h-0 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-5 rounded-[20px] border border-border-default/60 bg-bg-secondary/40 px-12 py-10 shadow-sm">
+        <div className="flex flex-col items-center gap-5 rounded-[var(--radius-xl)] border border-border-default/60 bg-bg-secondary/40 px-12 py-10 shadow-sm">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10">
             <FileBox className="h-8 w-8 text-accent" />
           </div>

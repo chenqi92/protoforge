@@ -71,7 +71,7 @@ function RecentConnections({recent, onLoad, onRemove,
       </div>
       <div className="flex items-center gap-1 flex-wrap min-w-0">
         {recent.map((r, i) => (
-          <div key={i} className="group flex items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
+          <div key={i} className="group flex items-center rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
             <button
               onClick={() => onLoad(r.host, r.port)}
               className="h-[22px] px-2 text-[var(--fs-xxs)] font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors"
@@ -577,7 +577,7 @@ function TcpClientPanel({ sessionKey, compact = false }: { sessionKey: string; c
                     <button
                       onClick={() => setAutoReconnect((v) => !v)}
                       className={cn(
-                        "shrink-0 flex items-center gap-1.5 h-[22px] px-2 rounded-[6px] border text-[var(--fs-xxs)] font-medium transition-all",
+                        "shrink-0 flex items-center gap-1.5 h-[22px] px-2 rounded-[var(--radius-sm)] border text-[var(--fs-xxs)] font-medium transition-all",
                         autoReconnect
                           ? "border-accent/40 bg-accent-soft text-accent"
                           : "border-border-default/60 bg-bg-secondary/40 text-text-tertiary hover:border-accent/30 hover:text-text-secondary"

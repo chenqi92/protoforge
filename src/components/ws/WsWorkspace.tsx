@@ -380,7 +380,7 @@ export function WsWorkspace() {
               disabled={connecting}
               className={cn(
                 "wb-primary-btn min-w-[88px]",
-                connected ? "bg-red-500 hover:bg-red-600 border-red-600 dark:border-red-500" : connecting ? "bg-amber-400 cursor-wait" : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                connected ? "bg-error hover:bg-error/90" : connecting ? "bg-warning cursor-wait opacity-70" : "bg-accent hover:bg-accent-hover"
               )}
             >
               {connected ? <X className="w-4 h-4" /> : <Plug className="w-4 h-4" />}
@@ -415,7 +415,7 @@ export function WsWorkspace() {
                     <select
                       value={sendMode}
                       onChange={(e) => setSendMode(e.target.value as "json" | "text" | "binary")}
-                      className="pointer-events-auto wb-native-select text-[var(--fs-xs)] font-semibold text-text-tertiary uppercase tracking-wider h-7 px-2 focus:ring-0 cursor-pointer bg-bg-primary/90 backdrop-blur-md border border-border-default/50 hover:bg-bg-hover transition-colors rounded-[8px]"
+                      className="pointer-events-auto wb-native-select text-[var(--fs-xs)] font-semibold text-text-tertiary uppercase tracking-wider h-7 px-2 focus:ring-0 cursor-pointer bg-bg-primary/90 backdrop-blur-md border border-border-default/50 hover:bg-bg-hover transition-colors rounded-[var(--radius-sm)]"
                     >
                       <option value="text">TEXT</option>
                       <option value="json">JSON</option>
@@ -424,7 +424,7 @@ export function WsWorkspace() {
                     <button
                       onClick={handleSend}
                       disabled={!connected || !message.trim()}
-                      className="pointer-events-auto inline-flex items-center justify-center gap-1.5 h-7 px-3.5 rounded-[9px] bg-amber-500 text-white text-[var(--fs-xs)] font-bold tracking-wide shadow-sm hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+                      className="pointer-events-auto inline-flex items-center justify-center gap-1.5 h-7 px-3.5 rounded-[var(--radius-sm)] bg-accent text-white text-[var(--fs-xs)] font-bold tracking-wide shadow-sm hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" /> {t('ws.send')}
                     </button>
@@ -455,7 +455,7 @@ export function WsWorkspace() {
               {configTab === "settings" && (
                 <div className="p-4 space-y-5 overflow-auto h-full">
                   <div className="space-y-3 max-w-xl">
-                    <label className="flex items-center gap-3 p-3 rounded-[10px] border border-border-default/50 bg-bg-secondary/20 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
+                    <label className="flex items-center gap-3 p-3 rounded-[var(--radius-md)] border border-border-default/50 bg-bg-secondary/20 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
                       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 text-amber-600">
                         <Loader2 className="w-4 h-4" />
                       </div>
@@ -466,7 +466,7 @@ export function WsWorkspace() {
                       <input type="checkbox" checked={autoReconnect} onChange={() => setAutoReconnect(!autoReconnect)} className="w-4 h-4 accent-amber-500 rounded border-border-default" />
                     </label>
 
-                    <div className="rounded-[10px] border border-border-default/50 bg-bg-secondary/20 overflow-hidden">
+                    <div className="rounded-[var(--radius-md)] border border-border-default/50 bg-bg-secondary/20 overflow-hidden">
                       <label className="flex items-center gap-3 p-3 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/10 text-blue-600">
                           <Zap className="w-4 h-4" />
@@ -544,7 +544,7 @@ export function WsWorkspace() {
             >
               {filteredMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center px-6 text-text-disabled">
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[14px] border border-border-default bg-bg-secondary shadow-sm">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-border-default bg-bg-secondary shadow-sm">
                     <Zap className="w-8 h-8 opacity-20 text-amber-500" />
                   </div>
                   <p className="text-[var(--fs-md)] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>

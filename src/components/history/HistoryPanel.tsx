@@ -61,8 +61,8 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-text-disabled">
         <Clock className="w-10 h-10 mb-3 opacity-30" />
-        <p className="text-sm">{t('sidebar.noHistory')}</p>
-        <p className="text-xs mt-1">{t('sidebar.noHistoryHint')}</p>
+        <p className="text-[var(--fs-sm)]">{t('sidebar.noHistory')}</p>
+        <p className="text-[var(--fs-xs)] mt-1">{t('sidebar.noHistoryHint')}</p>
       </div>
     );
   }
@@ -77,7 +77,7 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('history.searchPlaceholder')}
-            className="flex-1 bg-transparent text-xs text-text-primary placeholder:text-text-disabled focus:outline-none"
+            className="flex-1 bg-transparent text-[var(--fs-xs)] text-text-primary placeholder:text-text-disabled focus:outline-none"
           />
         </div>
         <button
@@ -115,7 +115,7 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
                     <span className={cn('text-[var(--fs-xxs)] font-bold w-10 shrink-0', getMethodColor(item.method as any))}>
                       {item.method}
                     </span>
-                    <span className="flex-1 text-xs text-text-secondary truncate font-mono">
+                    <span className="flex-1 text-[var(--fs-xs)] text-text-secondary truncate font-mono">
                       {item.url}
                     </span>
                     {item.status && (

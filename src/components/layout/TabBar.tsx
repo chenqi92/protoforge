@@ -231,7 +231,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
         <>
           <div className="fixed inset-0 z-[220]" onClick={() => setShowTabMenu(false)} />
           <div
-            className="fixed z-[221] w-[240px] overflow-hidden rounded-[12px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+            className="fixed z-[221] w-[240px] overflow-hidden rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
             style={{ top: tabMenuPos.top, left: tabMenuPos.left }}
           >
             <div className="px-2.5 pb-0.5 pt-1.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.14em] text-text-disabled">
@@ -254,13 +254,13 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
                       setShowTabMenu(false);
                     }}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-[10px] px-2.5 py-[7px] text-left transition-colors hover:bg-bg-hover/70",
+                      "flex w-full items-center gap-2 rounded-[var(--radius-md)] px-2.5 py-[7px] text-left transition-colors hover:bg-bg-hover/70",
                       isActive && "bg-bg-hover/45"
                     )}
                   >
                     <span
                       className={cn(
-                        "rounded-[5px] px-1.5 py-[1px] text-[var(--fs-xxs)] font-bold leading-none",
+                        "rounded-[var(--radius-xs)] px-1.5 py-[1px] text-[var(--fs-xxs)] font-bold leading-none",
                         tab.protocol === "http"
                           ? tab.requestMode && tab.requestMode !== "rest"
                             ? modeBadgeColors[tab.requestMode]
@@ -406,7 +406,7 @@ function TabItem({
         onDrop={onDrop}
         onDragEnd={onDragEnd}
         className={cn(
-          "group relative flex h-8 min-w-[112px] max-w-[228px] shrink-0 items-center gap-1.5 rounded-[9px] px-2 no-drag",
+          "group relative flex h-8 min-w-[112px] max-w-[228px] shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 no-drag",
           "cursor-pointer transition-all duration-[var(--transition-fast)]",
           isActive
             ? "z-10 bg-bg-primary font-medium text-text-primary shadow-xs border border-border-default/50"
@@ -414,7 +414,7 @@ function TabItem({
           isDragOver && "ring-2 ring-accent/50"
         )}
       >
-        <span className={cn("shrink-0 rounded-[4px] px-1.5 py-[3px] text-[var(--fs-xxs)] font-bold leading-none", badgeColor)}>
+        <span className={cn("shrink-0 rounded-[var(--radius-xs)] px-1.5 py-[3px] text-[var(--fs-xxs)] font-bold leading-none", badgeColor)}>
           {tab.protocol === "http"
             ? tab.requestMode && tab.requestMode !== "rest"
               ? modeLabels[tab.requestMode]
@@ -456,7 +456,7 @@ function TabItem({
             onClose();
           }}
           className={cn(
-            "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] transition-colors",
+            "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[var(--radius-xs)] transition-colors",
             isActive
               ? "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
               : "text-text-disabled opacity-0 hover:text-text-primary group-hover:opacity-100"

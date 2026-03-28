@@ -98,7 +98,7 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
             <span className={cn(
-              "rounded-[8px] px-2 py-0.5 text-[var(--fs-3xs)] font-bold uppercase",
+              "rounded-[var(--radius-sm)] px-2 py-0.5 text-[var(--fs-3xs)] font-bold uppercase",
               message.direction === "sent"
                 ? "bg-blue-500/10 text-blue-600"
                 : message.direction === "received"
@@ -148,7 +148,7 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
             <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
               {t("tcp.messageDetail.payload", "解码内容")}
             </span>
-            <span className="rounded-[8px] bg-bg-primary/70 px-2 py-0.5 text-[var(--fs-3xs)] font-semibold uppercase tracking-wide text-text-tertiary">
+            <span className="rounded-[var(--radius-sm)] bg-bg-primary/70 px-2 py-0.5 text-[var(--fs-3xs)] font-semibold uppercase tracking-wide text-text-tertiary">
               {displayFormat === "auto" ? t("tcp.messageLog.auto", "Auto") : displayFormat.toUpperCase()}
             </span>
           </div>

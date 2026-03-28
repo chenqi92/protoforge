@@ -121,7 +121,7 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
             {progress.index}/{progress.total}
           </div>
         ) : (
-          <button onClick={handleRun} disabled={selectedIds.length === 0} className="h-7 px-4 rounded-md text-[var(--fs-sm)] font-semibold text-white bg-accent hover:bg-accent-hover disabled:opacity-40 flex items-center gap-1">
+          <button onClick={handleRun} disabled={selectedIds.length === 0} className="h-7 px-4 rounded-md text-[var(--fs-sm)] font-semibold text-white bg-accent hover:bg-accent-hover disabled:opacity-50 flex items-center gap-1">
             <Play className="w-3 h-3 fill-white" /> {t('runner.run')}
           </button>
         )}

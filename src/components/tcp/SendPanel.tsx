@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { measurePayloadSize } from "@/services/tcpService";
 import type { DataFormat, SendHistoryItem, QuickCommand, LineEnding } from "@/types/tcp";
 
@@ -206,7 +207,7 @@ export function SendPanel({
                     </span>
                     <button
                       onClick={() => { onClearHistory(); setShowHistory(false); }}
-                      className="rounded-[8px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"
+                      className="rounded-[var(--radius-sm)] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -218,7 +219,7 @@ export function SendPanel({
                         onClick={() => { onLoadHistory(item); setShowHistory(false); }}
                         className="group flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-bg-hover"
                       >
-                        <span className="shrink-0 rounded-[7px] bg-bg-primary px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold uppercase text-text-disabled">
+                        <span className="shrink-0 rounded-[var(--radius-sm)] bg-bg-primary px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold uppercase text-text-disabled">
                           {formatLabel(item.format)}
                         </span>
                         <span className="flex-1 truncate font-mono text-[var(--fs-xs)] text-text-secondary">{item.data}</span>
@@ -272,7 +273,7 @@ export function SendPanel({
           </div>
 
           {sendTargetLabel ? (
-            <div className={cn("rounded-[10px] border border-border-default/60 bg-bg-secondary/35", compact ? "px-2.5 py-1.5" : "px-3 py-2")}>
+            <div className={cn("rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/35", compact ? "px-2.5 py-1.5" : "px-3 py-2")}>
               <div className="text-[var(--fs-3xs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">
                 {t("tcp.sendPanel.currentTarget")}
               </div>
@@ -293,7 +294,7 @@ export function SendPanel({
               <div className="flex items-center gap-1">
                 <button
                   onClick={openNewQuickCommand}
-                  className="rounded-[8px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent"
+                  className="rounded-[var(--radius-sm)] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent"
                   title={t("tcp.sendPanel.addCommand")}
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -301,7 +302,7 @@ export function SendPanel({
                 {quickCommands.length > 0 ? (
                   <button
                     onClick={() => setShowQuickCmds((v) => !v)}
-                    className="rounded-[8px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                    className="rounded-[var(--radius-sm)] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
                     title={showQuickCmds ? t("common.collapse", "收起") : t("common.expand", "展开")}
                   >
                     <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !showQuickCmds && "-rotate-90")} />
@@ -313,7 +314,7 @@ export function SendPanel({
             {quickCommands.length === 0 ? (
               <button
                 onClick={openNewQuickCommand}
-                className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-border-default/70 bg-bg-secondary/20 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary transition-colors hover:border-accent/35 hover:bg-accent-soft hover:text-accent"
+                className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-dashed border-border-default/70 bg-bg-secondary/20 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary transition-colors hover:border-accent/35 hover:bg-accent-soft hover:text-accent"
               >
                 <Plus className="h-3.5 w-3.5" />
                 {t("tcp.sendPanel.addCommand")}
@@ -325,7 +326,7 @@ export function SendPanel({
                     key={cmd.id}
                     onClick={() => onLoadQuickCommand(cmd)}
                     onContextMenu={(e) => { e.preventDefault(); openEditQuickCommand(cmd); }}
-                    className="group inline-flex items-center gap-1 rounded-[8px] border border-border-default/60 bg-bg-secondary/35 px-2 py-1 text-[var(--fs-xxs)] font-medium text-text-secondary transition-all hover:border-accent/35 hover:bg-accent-soft hover:text-text-primary"
+                    className="group inline-flex items-center gap-1 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/35 px-2 py-1 text-[var(--fs-xxs)] font-medium text-text-secondary transition-all hover:border-accent/35 hover:bg-accent-soft hover:text-text-primary"
                     title={`${cmd.name} (${formatLabel(cmd.format)}) - ${t('tcp.sendPanel.rightClickEdit')}`}
                   >
                     <CornerDownLeft className="h-2.5 w-2.5 shrink-0 text-text-disabled group-hover:text-accent" />
@@ -354,15 +355,15 @@ export function SendPanel({
               disabled={!connected}
               rows={compact ? 4 : 5}
               className={cn(
-                "wb-send-bar-input w-full resize-y rounded-[12px] border border-border-default bg-bg-input px-3 py-2 font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled",
+                "wb-send-bar-input w-full resize-y rounded-[var(--radius-md)] border border-border-default bg-bg-input px-3 py-2 font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled",
                 compact ? "min-h-[112px] text-[var(--fs-xs)]" : "min-h-[132px] text-[var(--fs-sm)]",
                 "focus:border-accent focus:ring-2 focus:ring-accent-muted",
-                "disabled:cursor-not-allowed disabled:opacity-45"
+                "disabled:cursor-not-allowed disabled:opacity-50"
               )}
             />
           </div>
 
-          <div className={cn("space-y-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/20", compact ? "px-2.5 py-2" : "px-3 py-2.5")}>
+          <div className={cn("space-y-2 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/20", compact ? "px-2.5 py-2" : "px-3 py-2.5")}>
             <label className="flex items-center gap-2 text-[var(--fs-xs)] text-text-secondary">
               <input
                 type="checkbox"
@@ -410,7 +411,7 @@ export function SendPanel({
         {showCommandEditor ? createPortal(
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={closeQuickCommandEditor}>
             <div
-              className="w-[420px] overflow-hidden rounded-[14px] border border-border-default bg-bg-primary shadow-2xl"
+              className="w-[420px] overflow-hidden rounded-[var(--radius-lg)] border border-border-default bg-bg-primary shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-border-default/60 px-4 py-3">
@@ -463,7 +464,7 @@ export function SendPanel({
                   <textarea
                     value={commandData}
                     onChange={(e) => setCommandData(e.target.value)}
-                    className="min-h-[120px] w-full resize-none rounded-[12px] border border-border-default bg-bg-input/85 p-3 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    className="min-h-[120px] w-full resize-none rounded-[var(--radius-md)] border border-border-default bg-bg-input/85 p-3 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:ring-2 focus:ring-accent/20"
                     placeholder={t("tcp.sendPanel.placeholder")}
                   />
                 </div>
@@ -515,7 +516,7 @@ export function SendPanel({
                 key={cmd.id}
                 onClick={() => onLoadQuickCommand(cmd)}
                 onContextMenu={(e) => { e.preventDefault(); openEditQuickCommand(cmd); }}
-                className="group inline-flex items-center gap-1 shrink-0 rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 py-1 text-[var(--fs-xxs)] font-medium text-text-secondary transition-all hover:border-accent/40 hover:bg-accent-soft hover:text-text-primary"
+                className="group inline-flex items-center gap-1 shrink-0 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 py-1 text-[var(--fs-xxs)] font-medium text-text-secondary transition-all hover:border-accent/40 hover:bg-accent-soft hover:text-text-primary"
                 title={`${cmd.name} (${formatLabel(cmd.format)}) - ${t('tcp.sendPanel.rightClickEdit')}`}
               >
                 <CornerDownLeft className="h-2.5 w-2.5 shrink-0 text-text-disabled group-hover:text-accent" />
@@ -525,14 +526,14 @@ export function SendPanel({
           </div>
           <button
             onClick={openNewQuickCommand}
-            className="rounded-[8px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent shrink-0"
+            className="rounded-[var(--radius-sm)] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent shrink-0"
             title={t("tcp.sendPanel.addCommand")}
           >
             <Plus className="h-3 w-3" />
           </button>
           <button
             onClick={() => setShowQuickCmds(false)}
-            className="rounded-[8px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary shrink-0"
+            className="rounded-[var(--radius-sm)] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary shrink-0"
           >
             <ChevronDown className="h-3 w-3" />
           </button>
@@ -542,7 +543,7 @@ export function SendPanel({
       {/* == Main Send Row == */}
       <div className="flex items-end gap-2 px-3 py-2">
         {/* Format selector */}
-        <label className="flex h-[36px] shrink-0 items-center gap-2 rounded-[10px] border border-border-default bg-bg-primary px-3 text-[var(--fs-xs)] text-text-tertiary">
+        <label className="flex h-[36px] shrink-0 items-center gap-2 rounded-[var(--radius-md)] border border-border-default bg-bg-primary px-3 text-[var(--fs-xs)] text-text-tertiary">
           <span className="font-semibold uppercase tracking-wide">
             {t("tcp.sendPanel.sendFormat")}
           </span>
@@ -572,7 +573,7 @@ export function SendPanel({
             className={cn(
               "wb-send-bar-input w-full resize-none rounded-[var(--radius-sm)] border border-border-default bg-bg-input px-3 py-1.5 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled",
               "focus:border-accent focus:ring-2 focus:ring-accent-muted",
-              "disabled:cursor-not-allowed disabled:opacity-45"
+              "disabled:cursor-not-allowed disabled:opacity-50"
             )}
             style={{ minHeight: "36px", maxHeight: "136px" }}
           />
@@ -618,7 +619,7 @@ export function SendPanel({
                     </span>
                     <button
                       onClick={() => { onClearHistory(); setShowHistory(false); }}
-                      className="rounded-[8px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"
+                      className="rounded-[var(--radius-sm)] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -630,7 +631,7 @@ export function SendPanel({
                         onClick={() => { onLoadHistory(item); setShowHistory(false); }}
                         className="group flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-bg-hover"
                       >
-                        <span className="shrink-0 rounded-[7px] bg-bg-primary px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold uppercase text-text-disabled">
+                        <span className="shrink-0 rounded-[var(--radius-sm)] bg-bg-primary px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold uppercase text-text-disabled">
                           {formatLabel(item.format)}
                         </span>
                         <span className="flex-1 truncate font-mono text-[var(--fs-xs)] text-text-secondary">{item.data}</span>
@@ -662,12 +663,12 @@ export function SendPanel({
             {showOptions && (
               <div
                 ref={optionsRef}
-                className="absolute bottom-full right-0 mb-2 w-[240px] rounded-[12px] border border-border-default bg-bg-primary shadow-lg overflow-hidden z-30"
+                className="absolute bottom-full right-0 mb-2 w-[240px] rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-lg overflow-hidden z-30"
               >
                 <div className="p-3 space-y-3">
                   {/* Send target info */}
                   {sendTargetLabel && (
-                    <div className="rounded-[8px] border border-border-default/60 bg-bg-secondary/30 px-2.5 py-2">
+                    <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 px-2.5 py-2">
                       <div className="text-[var(--fs-3xs)] font-semibold uppercase tracking-wider text-text-disabled">
                         {t("tcp.sendPanel.currentTarget")}
                       </div>
@@ -683,22 +684,17 @@ export function SendPanel({
                     <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
                       {t('tcp.sendPanel.lineEnding', '行结尾')}
                     </div>
-                    <div className="flex h-7 items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
-                      {(['none', 'lf', 'cr', 'crlf'] as LineEnding[]).map((le) => (
-                        <button
-                          key={le}
-                          onClick={() => onLineEndingChange(le)}
-                          className={cn(
-                            "h-full flex-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-colors border-r border-border-default/40 last:border-r-0",
-                            lineEnding === le
-                              ? "bg-accent text-white"
-                              : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
-                          )}
-                        >
-                          {le === 'none' ? t('tcp.sendPanel.lineEndingNone', '无') : le.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
+                    <SegmentedControl
+                      value={lineEnding}
+                      onChange={onLineEndingChange}
+                      size="sm"
+                      options={[
+                        { value: 'none' as LineEnding, label: t('tcp.sendPanel.lineEndingNone', '无') },
+                        { value: 'lf' as LineEnding, label: 'LF' },
+                        { value: 'cr' as LineEnding, label: 'CR' },
+                        { value: 'crlf' as LineEnding, label: 'CRLF' },
+                      ]}
+                    />
                   </div>
 
                   {/* Timer */}
@@ -720,7 +716,7 @@ export function SendPanel({
                           type="number"
                           value={timerInterval}
                           onChange={(e) => onTimerIntervalChange(Math.max(100, parseInt(e.target.value) || 1000))}
-                          className="h-7 w-[76px] rounded-[9px] border border-border-default bg-bg-input px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent"
+                          className="h-7 w-[76px] rounded-[var(--radius-sm)] border border-border-default bg-bg-input px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent"
                           min={100}
                           step={100}
                         />
@@ -753,7 +749,7 @@ export function SendPanel({
       {showCommandEditor ? createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={closeQuickCommandEditor}>
           <div
-            className="w-[420px] rounded-[14px] border border-border-default bg-bg-primary shadow-2xl overflow-hidden"
+            className="w-[420px] rounded-[var(--radius-lg)] border border-border-default bg-bg-primary shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border-default/60">
@@ -806,7 +802,7 @@ export function SendPanel({
                 <textarea
                   value={commandData}
                   onChange={(e) => setCommandData(e.target.value)}
-                  className="min-h-[120px] w-full resize-none rounded-[12px] border border-border-default bg-bg-input/85 p-3 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  className="min-h-[120px] w-full resize-none rounded-[var(--radius-md)] border border-border-default bg-bg-input/85 p-3 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:ring-2 focus:ring-accent/20"
                   placeholder={t("tcp.sendPanel.placeholder")}
                 />
               </div>
