@@ -1,9 +1,9 @@
 import type { HttpRequestConfig } from "@/types/http";
-import type { Collection } from "@/types/collections";
+import type { Collection, CollectionItem, EnvVariable, GlobalVariable } from "@/types/collections";
 import { useAppStore } from "@/stores/appStore";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { useEnvStore } from "@/stores/envStore";
-import { updateCollection } from "@/services/collectionService";
+import { updateCollection, updateCollectionItem } from "@/services/collectionService";
 
 export interface CollectionVariableEntry {
   key: string;
@@ -12,7 +12,7 @@ export interface CollectionVariableEntry {
   isSecret?: boolean;
 }
 
-export type VariableSource = "collection" | "environment" | "global" | "dynamic" | "missing";
+export type VariableSource = "collection" | "folder" | "environment" | "global" | "dynamic" | "missing";
 
 export interface VariablePreview {
   key: string;
@@ -22,6 +22,13 @@ export interface VariablePreview {
   enabled: boolean;
   isSecret: boolean;
   editable: boolean;
+}
+
+export interface ScopedVariableMaps {
+  globalVars?: Record<string, string>;
+  collectionVars?: Record<string, string>;
+  folderVars?: Record<string, string>;
+  envVars?: Record<string, string>;
 }
 
 export const VARIABLE_PATTERN = /\{\{\s*([\w.$-]+)\s*\}\}/g;
@@ -95,6 +102,11 @@ function findCollection(collectionId?: string | null): Collection | undefined {
   return useCollectionStore.getState().collections.find((collection) => collection.id === collectionId);
 }
 
+function findCollectionItem(collectionId?: string | null, itemId?: string | null): CollectionItem | undefined {
+  if (!collectionId || !itemId) return undefined;
+  return (useCollectionStore.getState().items[collectionId] || []).find((item) => item.id === itemId);
+}
+
 export function getCollectionVariableEntries(collectionId?: string | null): CollectionVariableEntry[] {
   return parseCollectionVariableEntries(findCollection(collectionId)?.variables);
 }
@@ -103,6 +115,79 @@ export function getCollectionVariableMap(collectionId?: string | null): Record<s
   return Object.fromEntries(
     getCollectionVariableEntries(collectionId)
       .filter((entry) => entry.enabled && entry.key.trim())
+      .map((entry) => [entry.key.trim(), entry.value])
+  );
+}
+
+function getCollectionItemVariableEntries(collectionId?: string | null, itemId?: string | null): CollectionVariableEntry[] {
+  return parseCollectionVariableEntries(findCollectionItem(collectionId, itemId)?.variables);
+}
+
+export function getFolderAncestorItems(collectionId?: string | null, itemId?: string | null): CollectionItem[] {
+  if (!collectionId || !itemId) return [];
+
+  const items = useCollectionStore.getState().items[collectionId] || [];
+  const itemMap = new Map(items.map((item) => [item.id, item]));
+  const currentItem = itemMap.get(itemId);
+  if (!currentItem) return [];
+
+  const ancestors: CollectionItem[] = [];
+  const visited = new Set<string>();
+  let parentId = currentItem.parentId;
+
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId);
+    const parent = itemMap.get(parentId);
+    if (!parent) break;
+    if (parent.itemType === "folder") {
+      ancestors.push(parent);
+    }
+    parentId = parent.parentId;
+  }
+
+  return ancestors.reverse();
+}
+
+export function getFolderVariableMap(collectionId?: string | null, itemId?: string | null): Record<string, string> {
+  return getFolderAncestorItems(collectionId, itemId).reduce<Record<string, string>>((acc, folder) => {
+    getCollectionItemVariableEntries(collectionId, folder.id)
+      .filter((entry) => entry.enabled && entry.key.trim())
+      .forEach((entry) => {
+        acc[entry.key.trim()] = entry.value;
+      });
+    return acc;
+  }, {});
+}
+
+function getImmediateParentFolderItem(collectionId?: string | null, itemId?: string | null): CollectionItem | undefined {
+  const currentItem = findCollectionItem(collectionId, itemId);
+  if (!currentItem?.parentId) return undefined;
+
+  const parentItem = findCollectionItem(collectionId, currentItem.parentId);
+  if (!parentItem || parentItem.itemType !== "folder") {
+    return undefined;
+  }
+
+  return parentItem;
+}
+
+export function getGlobalVariableMap(): Record<string, string> {
+  return Object.fromEntries(
+    useEnvStore.getState().globalVariables
+      .filter((entry) => entry.enabled === 1 && entry.key.trim())
+      .map((entry) => [entry.key.trim(), entry.value])
+  );
+}
+
+export function getActiveEnvironmentVariableMap(): Record<string, string> {
+  const state = useEnvStore.getState();
+  if (!state.activeEnvId) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    (state.variables[state.activeEnvId] || [])
+      .filter((entry) => entry.enabled === 1 && entry.key.trim())
       .map((entry) => [entry.key.trim(), entry.value])
   );
 }
@@ -116,11 +201,39 @@ export function getLinkedCollectionIdForRequestConfig(config: HttpRequestConfig)
   return idMatch?.linkedCollectionId ?? null;
 }
 
-export function buildScopedVariableSnapshot(collectionId?: string | null, includeDynamic = false): Record<string, string> {
-  const envVars = useEnvStore.getState().getResolvedVariables();
+export function getLinkedCollectionItemIdForRequestConfig(config: HttpRequestConfig): string | null {
+  const tabs = useAppStore.getState().tabs;
+  const exactMatch = tabs.find((tab) => tab.httpConfig === config);
+  if (exactMatch?.linkedCollectionItemId) return exactMatch.linkedCollectionItemId;
+
+  const idMatch = tabs.find((tab) => tab.httpConfig?.id === config.id);
+  return idMatch?.linkedCollectionItemId ?? null;
+}
+
+export function buildScopedVariableSnapshot(
+  collectionId?: string | null,
+  itemId?: string | null,
+  includeDynamic = false
+): Record<string, string> {
+  const scoped = buildScopedVariableSnapshotFromMaps({
+    globalVars: getGlobalVariableMap(),
+    collectionVars: getCollectionVariableMap(collectionId),
+    folderVars: getFolderVariableMap(collectionId, itemId),
+    envVars: getActiveEnvironmentVariableMap(),
+  }, includeDynamic);
+
+  return scoped;
+}
+
+export function buildScopedVariableSnapshotFromMaps(
+  maps: ScopedVariableMaps,
+  includeDynamic = false
+): Record<string, string> {
   const scoped = {
-    ...envVars,
-    ...getCollectionVariableMap(collectionId),
+    ...(maps.globalVars || {}),
+    ...(maps.collectionVars || {}),
+    ...(maps.folderVars || {}),
+    ...(maps.envVars || {}),
   };
 
   if (!includeDynamic) {
@@ -131,10 +244,7 @@ export function buildScopedVariableSnapshot(collectionId?: string | null, includ
     Object.entries(getDynamicVariableResolvers()).map(([key, resolver]) => [key, resolver()])
   );
 
-  return {
-    ...scoped,
-    ...dynamicVars,
-  };
+  return { ...scoped, ...dynamicVars };
 }
 
 interface VariableLookupResult {
@@ -144,17 +254,7 @@ interface VariableLookupResult {
   enabled: boolean;
 }
 
-function lookupVariable(key: string, collectionId?: string | null): VariableLookupResult {
-  const collectionEntry = getCollectionVariableEntries(collectionId).find((entry) => entry.enabled && entry.key.trim() === key);
-  if (collectionEntry) {
-    return {
-      source: "collection",
-      rawValue: collectionEntry.value,
-      isSecret: Boolean(collectionEntry.isSecret),
-      enabled: true,
-    };
-  }
-
+function lookupVariable(key: string, collectionId?: string | null, itemId?: string | null): VariableLookupResult {
   const envState = useEnvStore.getState();
   if (envState.activeEnvId) {
     const envEntry = (envState.variables[envState.activeEnvId] || []).find((entry) => entry.enabled === 1 && entry.key.trim() === key);
@@ -166,6 +266,29 @@ function lookupVariable(key: string, collectionId?: string | null): VariableLook
         enabled: true,
       };
     }
+  }
+
+  const folderChain = getFolderAncestorItems(collectionId, itemId).slice().reverse();
+  for (const folder of folderChain) {
+    const folderEntry = getCollectionItemVariableEntries(collectionId, folder.id).find((entry) => entry.enabled && entry.key.trim() === key);
+    if (folderEntry) {
+      return {
+        source: "folder",
+        rawValue: folderEntry.value,
+        isSecret: Boolean(folderEntry.isSecret),
+        enabled: true,
+      };
+    }
+  }
+
+  const collectionEntry = getCollectionVariableEntries(collectionId).find((entry) => entry.enabled && entry.key.trim() === key);
+  if (collectionEntry) {
+    return {
+      source: "collection",
+      rawValue: collectionEntry.value,
+      isSecret: Boolean(collectionEntry.isSecret),
+      enabled: true,
+    };
   }
 
   const globalEntry = envState.globalVariables.find((entry) => entry.enabled === 1 && entry.key.trim() === key);
@@ -196,10 +319,34 @@ function lookupVariable(key: string, collectionId?: string | null): VariableLook
   };
 }
 
-function resolveVariableValue(key: string, collectionId?: string | null, visited = new Set<string>()): string | null {
+function resolveVariableValueFromSnapshot(
+  key: string,
+  snapshot: Record<string, string>,
+  visited = new Set<string>()
+): string | null {
+  if (visited.has(key)) return null;
+  const current = snapshot[key];
+  if (typeof current !== "string") return null;
+
+  const nextVisited = new Set(visited);
+  nextVisited.add(key);
+  return current.replace(VARIABLE_PATTERN, (match, nestedKey) => {
+    const nested = nestedKey?.trim();
+    if (!nested) return match;
+    const resolved = resolveVariableValueFromSnapshot(nested, snapshot, nextVisited);
+    return resolved ?? match;
+  });
+}
+
+function resolveVariableValue(
+  key: string,
+  collectionId?: string | null,
+  itemId?: string | null,
+  visited = new Set<string>()
+): string | null {
   if (visited.has(key)) return null;
 
-  const lookup = lookupVariable(key, collectionId);
+  const lookup = lookupVariable(key, collectionId, itemId);
   if (lookup.source === "missing") return null;
   if (lookup.source === "dynamic") return lookup.rawValue;
 
@@ -208,23 +355,30 @@ function resolveVariableValue(key: string, collectionId?: string | null, visited
   return lookup.rawValue.replace(VARIABLE_PATTERN, (match, nestedKey) => {
     const nested = nestedKey?.trim();
     if (!nested) return match;
-    const resolved = resolveVariableValue(nested, collectionId, nextVisited);
+    const resolved = resolveVariableValue(nested, collectionId, itemId, nextVisited);
     return resolved ?? match;
   });
 }
 
-export function resolveVariableTemplate(input: string, collectionId?: string | null): string {
+export function resolveVariableTemplate(
+  input: string,
+  collectionId?: string | null,
+  itemId?: string | null,
+  scopeSnapshot?: Record<string, string>
+): string {
   return input.replace(VARIABLE_PATTERN, (match, key) => {
     const normalizedKey = key?.trim();
     if (!normalizedKey) return match;
-    const resolved = resolveVariableValue(normalizedKey, collectionId);
+    const resolved = scopeSnapshot
+      ? resolveVariableValueFromSnapshot(normalizedKey, scopeSnapshot)
+      : resolveVariableValue(normalizedKey, collectionId, itemId);
     return resolved ?? match;
   });
 }
 
-export function getVariablePreview(key: string, collectionId?: string | null): VariablePreview {
-  const lookup = lookupVariable(key, collectionId);
-  const value = lookup.source === "missing" ? "" : resolveVariableValue(key, collectionId) ?? lookup.rawValue;
+export function getVariablePreview(key: string, collectionId?: string | null, itemId?: string | null): VariablePreview {
+  const lookup = lookupVariable(key, collectionId, itemId);
+  const value = lookup.source === "missing" ? "" : resolveVariableValue(key, collectionId, itemId) ?? lookup.rawValue;
 
   return {
     key,
@@ -237,42 +391,47 @@ export function getVariablePreview(key: string, collectionId?: string | null): V
   };
 }
 
-export function resolveRequestConfigVariables(config: HttpRequestConfig, collectionId?: string | null): HttpRequestConfig {
+export function resolveRequestConfigVariables(
+  config: HttpRequestConfig,
+  collectionId?: string | null,
+  itemId?: string | null,
+  scopeSnapshot?: Record<string, string>
+): HttpRequestConfig {
   return {
     ...config,
-    url: resolveVariableTemplate(config.url, collectionId),
-    rawBody: resolveVariableTemplate(config.rawBody, collectionId),
-    jsonBody: resolveVariableTemplate(config.jsonBody, collectionId),
-    graphqlQuery: resolveVariableTemplate(config.graphqlQuery, collectionId),
-    graphqlVariables: resolveVariableTemplate(config.graphqlVariables, collectionId),
-    bearerToken: resolveVariableTemplate(config.bearerToken, collectionId),
-    basicUsername: resolveVariableTemplate(config.basicUsername, collectionId),
-    basicPassword: resolveVariableTemplate(config.basicPassword, collectionId),
-    apiKeyName: resolveVariableTemplate(config.apiKeyName, collectionId),
-    apiKeyValue: resolveVariableTemplate(config.apiKeyValue, collectionId),
+    url: resolveVariableTemplate(config.url, collectionId, itemId, scopeSnapshot),
+    rawBody: resolveVariableTemplate(config.rawBody, collectionId, itemId, scopeSnapshot),
+    jsonBody: resolveVariableTemplate(config.jsonBody, collectionId, itemId, scopeSnapshot),
+    graphqlQuery: resolveVariableTemplate(config.graphqlQuery, collectionId, itemId, scopeSnapshot),
+    graphqlVariables: resolveVariableTemplate(config.graphqlVariables, collectionId, itemId, scopeSnapshot),
+    bearerToken: resolveVariableTemplate(config.bearerToken, collectionId, itemId, scopeSnapshot),
+    basicUsername: resolveVariableTemplate(config.basicUsername, collectionId, itemId, scopeSnapshot),
+    basicPassword: resolveVariableTemplate(config.basicPassword, collectionId, itemId, scopeSnapshot),
+    apiKeyName: resolveVariableTemplate(config.apiKeyName, collectionId, itemId, scopeSnapshot),
+    apiKeyValue: resolveVariableTemplate(config.apiKeyValue, collectionId, itemId, scopeSnapshot),
     oauth2Config: {
       ...config.oauth2Config,
-      accessToken: resolveVariableTemplate(config.oauth2Config.accessToken, collectionId),
+      accessToken: resolveVariableTemplate(config.oauth2Config.accessToken, collectionId, itemId, scopeSnapshot),
     },
     headers: config.headers.map((header) => ({
       ...header,
-      key: resolveVariableTemplate(header.key, collectionId),
-      value: resolveVariableTemplate(header.value, collectionId),
+      key: resolveVariableTemplate(header.key, collectionId, itemId, scopeSnapshot),
+      value: resolveVariableTemplate(header.value, collectionId, itemId, scopeSnapshot),
     })),
     queryParams: config.queryParams.map((param) => ({
       ...param,
-      key: resolveVariableTemplate(param.key, collectionId),
-      value: resolveVariableTemplate(param.value, collectionId),
+      key: resolveVariableTemplate(param.key, collectionId, itemId, scopeSnapshot),
+      value: resolveVariableTemplate(param.value, collectionId, itemId, scopeSnapshot),
     })),
     formFields: config.formFields.map((field) => ({
       ...field,
-      key: resolveVariableTemplate(field.key, collectionId),
-      value: resolveVariableTemplate(field.value, collectionId),
+      key: resolveVariableTemplate(field.key, collectionId, itemId, scopeSnapshot),
+      value: resolveVariableTemplate(field.value, collectionId, itemId, scopeSnapshot),
     })),
     formDataFields: config.formDataFields.map((field) => ({
       ...field,
-      key: resolveVariableTemplate(field.key, collectionId),
-      value: field.fieldType === "text" ? resolveVariableTemplate(field.value, collectionId) : field.value,
+      key: resolveVariableTemplate(field.key, collectionId, itemId, scopeSnapshot),
+      value: field.fieldType === "text" ? resolveVariableTemplate(field.value, collectionId, itemId, scopeSnapshot) : field.value,
       filePaths: field.filePaths,
       fileNames: field.fileNames,
     })),
@@ -304,6 +463,38 @@ export async function saveCollectionVariables(collectionId: string, entries: Col
   }));
 }
 
+export async function saveCollectionItemVariables(
+  collectionId: string,
+  itemId: string,
+  entries: CollectionVariableEntry[]
+): Promise<void> {
+  const item = findCollectionItem(collectionId, itemId);
+  if (!item) return;
+
+  const normalized = entries
+    .map((entry) => ({
+      key: entry.key.trim(),
+      value: entry.value,
+      enabled: entry.enabled !== false,
+      isSecret: Boolean(entry.isSecret),
+    }))
+    .filter((entry) => entry.key);
+
+  const updated: CollectionItem = {
+    ...item,
+    variables: serializeCollectionVariableEntries(normalized),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await updateCollectionItem(updated);
+  useCollectionStore.setState((state) => ({
+    items: {
+      ...state.items,
+      [collectionId]: (state.items[collectionId] || []).map((entry) => entry.id === itemId ? updated : entry),
+    },
+  }));
+}
+
 export async function upsertCollectionVariable(collectionId: string, key: string, value: string): Promise<void> {
   const entries = getCollectionVariableEntries(collectionId);
   const normalizedKey = key.trim();
@@ -327,4 +518,156 @@ export async function upsertCollectionVariable(collectionId: string, key: string
   }
 
   await saveCollectionVariables(collectionId, nextEntries);
+}
+
+function mergeCollectionVariableEntries(
+  entries: CollectionVariableEntry[],
+  updates: Record<string, string>
+): CollectionVariableEntry[] {
+  const nextEntries = [...entries];
+
+  Object.entries(updates).forEach(([key, value]) => {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) return;
+
+    const existingIndex = nextEntries.findIndex((entry) => entry.key.trim() === normalizedKey);
+    if (existingIndex >= 0) {
+      nextEntries[existingIndex] = {
+        ...nextEntries[existingIndex],
+        key: normalizedKey,
+        value,
+        enabled: true,
+      };
+      return;
+    }
+
+    nextEntries.push({
+      key: normalizedKey,
+      value,
+      enabled: true,
+      isSecret: false,
+    });
+  });
+
+  return nextEntries;
+}
+
+function mergeEnvironmentVariableEntries(
+  entries: EnvVariable[],
+  updates: Record<string, string>,
+  environmentId: string
+): EnvVariable[] {
+  const nextEntries = [...entries];
+  let nextSortOrder = nextEntries.reduce((max, entry) => Math.max(max, entry.sortOrder), -1) + 1;
+
+  Object.entries(updates).forEach(([key, value]) => {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) return;
+
+    const existingIndex = nextEntries.findIndex((entry) => entry.key.trim() === normalizedKey);
+    if (existingIndex >= 0) {
+      nextEntries[existingIndex] = {
+        ...nextEntries[existingIndex],
+        key: normalizedKey,
+        value,
+        enabled: 1,
+      };
+      return;
+    }
+
+    nextEntries.push({
+      id: crypto.randomUUID(),
+      environmentId,
+      key: normalizedKey,
+      value,
+      enabled: 1,
+      isSecret: 0,
+      sortOrder: nextSortOrder++,
+    });
+  });
+
+  return nextEntries;
+}
+
+function mergeGlobalVariableEntries(
+  entries: GlobalVariable[],
+  updates: Record<string, string>
+): GlobalVariable[] {
+  const nextEntries = [...entries];
+
+  Object.entries(updates).forEach(([key, value]) => {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) return;
+
+    const existingIndex = nextEntries.findIndex((entry) => entry.key.trim() === normalizedKey);
+    if (existingIndex >= 0) {
+      nextEntries[existingIndex] = {
+        ...nextEntries[existingIndex],
+        key: normalizedKey,
+        value,
+        enabled: 1,
+      };
+      return;
+    }
+
+    nextEntries.push({
+      id: crypto.randomUUID(),
+      key: normalizedKey,
+      value,
+      enabled: 1,
+    });
+  });
+
+  return nextEntries;
+}
+
+export interface ScriptVariableScopeUpdates {
+  envUpdates?: Record<string, string>;
+  folderUpdates?: Record<string, string>;
+  collectionUpdates?: Record<string, string>;
+  globalUpdates?: Record<string, string>;
+}
+
+export async function persistScriptVariableUpdates(
+  collectionId: string | null | undefined,
+  itemId: string | null | undefined,
+  updates: ScriptVariableScopeUpdates
+): Promise<void> {
+  const envUpdates = updates.envUpdates || {};
+  const folderUpdates = updates.folderUpdates || {};
+  const collectionUpdates = updates.collectionUpdates || {};
+  const globalUpdates = updates.globalUpdates || {};
+
+  if (collectionId && Object.keys(collectionUpdates).length > 0) {
+    const entries = getCollectionVariableEntries(collectionId);
+    await saveCollectionVariables(collectionId, mergeCollectionVariableEntries(entries, collectionUpdates));
+  }
+
+  if (collectionId && itemId && Object.keys(folderUpdates).length > 0) {
+    const parentFolder = getImmediateParentFolderItem(collectionId, itemId);
+    if (parentFolder) {
+      const entries = getCollectionItemVariableEntries(collectionId, parentFolder.id);
+      await saveCollectionItemVariables(collectionId, parentFolder.id, mergeCollectionVariableEntries(entries, folderUpdates));
+    }
+  }
+
+  const envStore = useEnvStore.getState();
+  if (envStore.activeEnvId && Object.keys(envUpdates).length > 0) {
+    if (!envStore.variables[envStore.activeEnvId]) {
+      await envStore.fetchVariables(envStore.activeEnvId);
+    }
+
+    const nextEntries = mergeEnvironmentVariableEntries(
+      useEnvStore.getState().variables[envStore.activeEnvId] || [],
+      envUpdates,
+      envStore.activeEnvId
+    );
+    await useEnvStore.getState().saveVariables(envStore.activeEnvId, nextEntries);
+  }
+
+  if (Object.keys(globalUpdates).length > 0) {
+    await envStore.fetchGlobalVariables();
+    const nextEntries = mergeGlobalVariableEntries(useEnvStore.getState().globalVariables, globalUpdates);
+    await useEnvStore.getState().saveGlobalVars(nextEntries);
+  }
 }

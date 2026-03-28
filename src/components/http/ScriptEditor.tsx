@@ -17,19 +17,23 @@ interface ScriptEditorProps {
 const BASE_SNIPPETS: Record<string, { label: string; code: string }[]> = {
   pre: [
     { label: '设置环境变量', code: '// pm.environment.set("key", "value");\n' },
+    { label: '设置目录变量', code: '// pm.folderVariables.set("token", "value");\n' },
+    { label: '设置集合变量', code: '// pm.collectionVariables.set("token", "value");\n' },
     { label: '生成 UUID', code: '// const uuid = crypto.randomUUID();\n// pm.environment.set("requestId", uuid);\n' },
-    { label: '时间戳', code: '// pm.environment.set("timestamp", Date.now().toString());\n' },
+    { label: '时间戳', code: '// const ts = Date.now().toString();\n// pm.environment.set("timestamp", ts);\n// pm.request.headers.set("X-Timestamp", ts);\n' },
     { label: '随机数', code: '// pm.environment.set("random", Math.floor(Math.random() * 10000).toString());\n' },
     { label: 'Base64 编码', code: '// const encoded = btoa("username:password");\n// pm.environment.set("auth", encoded);\n' },
-    { label: 'Bearer Token 签名', code: '// 自定义 Token 生成逻辑\n// const token = generateToken(secret, payload);\n// pm.request.headers.add({ key: "Authorization", value: `Bearer ${token}` });\n' },
+    { label: '当前请求加 Header', code: '// pm.request.headers.set("Authorization", "Bearer " + pm.variables.get("token"));\n' },
+    { label: 'Bearer Token 签名', code: '// 自定义 Token 生成逻辑\n// const token = generateToken(secret, payload);\n// pm.collectionVariables.set("token", token);\n// pm.request.headers.set("Authorization", "Bearer " + token);\n' },
   ],
   post: [
-    { label: '断言状态码', code: '// pm.test("Status is 200", () => {\n//   pm.expect(pm.response.code).to.equal(200);\n// });\n' },
-    { label: '断言响应体包含', code: '// pm.test("Body contains key", () => {\n//   const json = pm.response.json();\n//   pm.expect(json).to.have.property("data");\n// });\n' },
+    { label: '断言状态码', code: '// pm.test("Status is 200", () => {\n//   if (pm.response.code !== 200) {\n//     throw new Error("Unexpected status: " + pm.response.code);\n//   }\n// });\n' },
+    { label: '断言响应体包含', code: '// pm.test("Body contains key", () => {\n//   const json = pm.response.json();\n//   if (!json || !json.data) {\n//     throw new Error("Missing data field");\n//   }\n// });\n' },
     { label: '提取并保存变量', code: '// const json = pm.response.json();\n// pm.environment.set("token", json.data.token);\n' },
-    { label: '断言响应时间', code: '// pm.test("Response time < 500ms", () => {\n//   pm.expect(pm.response.responseTime).to.be.below(500);\n// });\n' },
-    { label: '遍历数组断言', code: '// const items = pm.response.json().data;\n// pm.test("All items have id", () => {\n//   items.forEach(item => pm.expect(item).to.have.property("id"));\n// });\n' },
-    { label: '链式请求设置', code: '// const json = pm.response.json();\n// pm.environment.set("nextPageUrl", json.links?.next);\n// pm.setNextRequest("Get Next Page");\n' },
+    { label: '提取到集合变量', code: '// const json = pm.response.json();\n// pm.collectionVariables.set("token", json.data.token);\n' },
+    { label: '断言响应时间', code: '// pm.test("Response time < 500ms", () => {\n//   if (pm.response.responseTime >= 500) {\n//     throw new Error("Response too slow: " + pm.response.responseTime);\n//   }\n// });\n' },
+    { label: '遍历数组断言', code: '// const items = pm.response.json().data || [];\n// pm.test("All items have id", () => {\n//   items.forEach((item) => {\n//     if (!item.id) throw new Error("Item missing id");\n//   });\n// });\n' },
+    { label: '保存下一页地址', code: '// const json = pm.response.json();\n// pm.environment.set("nextPageUrl", json.links?.next || "");\n' },
   ],
 };
 

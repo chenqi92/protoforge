@@ -1,20 +1,26 @@
 // ProtoForge HTTP Service — Tauri IPC wrapper
 
 import { invoke } from '@tauri-apps/api/core';
-import type { HttpRequestConfig, HttpResponse, HttpResponseWithScripts, FormDataField, CookieInfo } from '@/types/http';
+import type { HttpRequestConfig, HttpResponse, HttpResponseWithScripts, FormDataField, CookieInfo, ScriptRequestPatch, ScriptResult } from '@/types/http';
 import { useSettingsStore } from '@/stores/settingsStore';
 import {
-  buildScopedVariableSnapshot,
+  getActiveEnvironmentVariableMap,
+  buildScopedVariableSnapshotFromMaps,
+  getCollectionVariableMap,
+  getFolderVariableMap,
+  getGlobalVariableMap,
   getLinkedCollectionIdForRequestConfig,
+  getLinkedCollectionItemIdForRequestConfig,
   resolveRequestConfigVariables,
 } from '@/lib/requestVariables';
 import { ensureAutoHeaders } from '@/types/http';
 import { usePluginStore } from '@/stores/pluginStore';
 import * as pluginService from '@/services/pluginService';
 
-function resolveConfigVariables(config: HttpRequestConfig): HttpRequestConfig {
+function resolveConfigVariables(config: HttpRequestConfig, scopeSnapshot?: Record<string, string>): HttpRequestConfig {
   const collectionId = getLinkedCollectionIdForRequestConfig(config);
-  const resolved = resolveRequestConfigVariables(config, collectionId);
+  const itemId = getLinkedCollectionItemIdForRequestConfig(config);
+  const resolved = resolveRequestConfigVariables(config, collectionId, itemId, scopeSnapshot);
   resolved.headers = ensureAutoHeaders(resolved.headers);
   return resolved;
 }
@@ -30,6 +36,85 @@ function normalizeUrl(url: string): string {
 
 export function resolveHttpConfig(config: HttpRequestConfig): HttpRequestConfig {
   return resolveConfigVariables(config);
+}
+
+function buildScriptRequestContext(payload: ReturnType<typeof buildRequestPayload>) {
+  let body: string | null = null;
+  if (payload.body) {
+    switch (payload.body.type) {
+      case 'raw':
+        body = payload.body.content ?? null;
+        break;
+      case 'json':
+        body = payload.body.data ?? null;
+        break;
+      case 'formUrlencoded':
+        body = new URLSearchParams((payload.body as { fields: Record<string, string> }).fields).toString();
+        break;
+      case 'formData':
+        body = JSON.stringify((payload.body as { fields: Array<{ key: string; value: string; fieldType: string }> }).fields);
+        break;
+      case 'binary':
+        body = payload.body.filePath ?? null;
+        break;
+      default:
+        body = null;
+    }
+  }
+
+  return {
+    method: payload.method,
+    url: payload.url,
+    headers: payload.headers,
+    queryParams: payload.queryParams,
+    body,
+  };
+}
+
+function removeHeaderCaseInsensitive(headers: Record<string, string>, key: string) {
+  Object.keys(headers).forEach((existing) => {
+    if (existing.toLowerCase() === key.toLowerCase()) {
+      delete headers[existing];
+    }
+  });
+}
+
+function applyScriptRequestPatch(
+  payload: ReturnType<typeof buildRequestPayload>,
+  patch?: ScriptRequestPatch | null,
+): ReturnType<typeof buildRequestPayload> {
+  if (!patch) return payload;
+
+  const next = {
+    ...payload,
+    headers: { ...payload.headers },
+    queryParams: { ...payload.queryParams },
+  };
+
+  for (const key of patch.removedHeaders || []) {
+    removeHeaderCaseInsensitive(next.headers, key);
+  }
+  for (const [key, value] of Object.entries(patch.headers || {})) {
+    removeHeaderCaseInsensitive(next.headers, key);
+    next.headers[key] = value;
+  }
+
+  for (const key of patch.removedQueryParams || []) {
+    delete next.queryParams[key];
+  }
+  Object.entries(patch.queryParams || {}).forEach(([key, value]) => {
+    next.queryParams[key] = value;
+  });
+
+  return next;
+}
+
+function mergeScriptScopeMap(
+  base: Record<string, string>,
+  updates?: Record<string, string>,
+): Record<string, string> {
+  if (!updates || Object.keys(updates).length === 0) return base;
+  return { ...base, ...updates };
 }
 
 export function buildRequestPayload(config: HttpRequestConfig) {
@@ -258,26 +343,75 @@ export async function sendHttpRequest(config: HttpRequestConfig): Promise<HttpRe
 
 /** Send request with pre/post script execution */
 export async function sendRequestWithScripts(config: HttpRequestConfig): Promise<HttpResponseWithScripts> {
-  const resolved = resolveConfigVariables(config);
-  const payload = buildRequestPayload(resolved);
-  const hookedPayload = await applyRequestHooks(payload);
-  const finalPayload = buildFinalPayload(hookedPayload);
   const collectionId = getLinkedCollectionIdForRequestConfig(config);
-  const envVars = buildScopedVariableSnapshot(collectionId, true);
+  const itemId = getLinkedCollectionItemIdForRequestConfig(config);
+  const envVars = getActiveEnvironmentVariableMap();
+  const folderVars = getFolderVariableMap(collectionId, itemId);
+  const collectionVars = getCollectionVariableMap(collectionId);
+  const globalVars = getGlobalVariableMap();
+  const initialResolved = resolveConfigVariables(config);
+  const initialPayload = buildRequestPayload(initialResolved);
 
-  const resp = await invoke<HttpResponseWithScripts>('send_request_with_scripts', {
-    request: {
-      ...finalPayload,
-      preScript: config.preScript || null,
-      postScript: config.postScript || null,
+  let preScriptResult: ScriptResult | null = null;
+  let postScriptResult: ScriptResult | null = null;
+
+  if (config.preScript?.trim()) {
+    preScriptResult = await invoke<ScriptResult>('run_pre_request_script', {
+      script: config.preScript,
       envVars: Object.keys(envVars).length > 0 ? envVars : null,
-    },
-  });
+      folderVars: Object.keys(folderVars).length > 0 ? folderVars : null,
+      collectionVars: Object.keys(collectionVars).length > 0 ? collectionVars : null,
+      globalVars: Object.keys(globalVars).length > 0 ? globalVars : null,
+      request: buildScriptRequestContext(initialPayload),
+    });
 
-  if (resp && resp.response && resp.response.cookies && Array.isArray(resp.response.cookies)) {
-    resp.response.cookies = processAndFilterCookies(resolved.url, resp.response.cookies);
+    if (!preScriptResult.success) {
+      throw new Error(preScriptResult.error || '前置脚本执行失败');
+    }
   }
-  return resp;
+
+  const mergedScopes = {
+    envVars: mergeScriptScopeMap(envVars, preScriptResult?.envUpdates),
+    folderVars: mergeScriptScopeMap(folderVars, preScriptResult?.folderUpdates),
+    collectionVars: mergeScriptScopeMap(collectionVars, preScriptResult?.collectionUpdates),
+    globalVars: mergeScriptScopeMap(globalVars, preScriptResult?.globalUpdates),
+  };
+  const mergedSnapshot = buildScopedVariableSnapshotFromMaps(mergedScopes, true);
+
+  const resolved = resolveConfigVariables(config, mergedSnapshot);
+  const payload = buildRequestPayload(resolved);
+  const patchedPayload = applyScriptRequestPatch(payload, preScriptResult?.requestPatch);
+  const hookedPayload = await applyRequestHooks(patchedPayload);
+  const finalPayload = buildFinalPayload(hookedPayload);
+
+  const response = await invoke<HttpResponse>('send_request', { request: finalPayload });
+
+  if (config.postScript?.trim()) {
+    postScriptResult = await invoke<ScriptResult>('run_post_response_script', {
+      script: config.postScript,
+      envVars: Object.keys(mergedScopes.envVars).length > 0 ? mergedScopes.envVars : null,
+      folderVars: Object.keys(mergedScopes.folderVars).length > 0 ? mergedScopes.folderVars : null,
+      collectionVars: Object.keys(mergedScopes.collectionVars).length > 0 ? mergedScopes.collectionVars : null,
+      globalVars: Object.keys(mergedScopes.globalVars).length > 0 ? mergedScopes.globalVars : null,
+      response: {
+        status: response.status,
+        statusText: response.statusText,
+        body: response.body,
+        headers: response.headers,
+        durationMs: response.durationMs,
+      },
+    });
+  }
+
+  if (response && response.cookies && Array.isArray(response.cookies)) {
+    response.cookies = processAndFilterCookies(resolved.url, response.cookies);
+  }
+
+  return {
+    response,
+    preScriptResult,
+    postScriptResult,
+  };
 }
 
 // ── File picker helper ──

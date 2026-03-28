@@ -3,7 +3,7 @@ import type { CollectionItem } from '@/types/collections';
 import { resolveVariableTemplate } from '@/lib/requestVariables';
 
 export function generateCurlFromItem(item: CollectionItem, collectionId?: string | null): string {
-  const resolve = (s: string) => collectionId ? resolveVariableTemplate(s, collectionId) : s;
+  const resolve = (s: string) => collectionId ? resolveVariableTemplate(s, collectionId, item.id) : s;
   const parts: string[] = ['curl'];
   const method = (item.method || 'GET').toUpperCase();
 

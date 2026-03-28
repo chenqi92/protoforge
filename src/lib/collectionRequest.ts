@@ -103,6 +103,7 @@ export function buildCollectionItemFromHttpConfig(params: {
     collectionId,
     parentId,
     itemType: "request",
+    variables: "[]",
     sortOrder,
     createdAt,
     updatedAt,

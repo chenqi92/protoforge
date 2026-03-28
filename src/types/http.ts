@@ -115,10 +115,21 @@ export interface HttpResponse {
 /** Script execution result (from Boa engine) */
 export interface ScriptResult {
   envUpdates: Record<string, string>;
+  folderUpdates: Record<string, string>;
+  collectionUpdates: Record<string, string>;
+  globalUpdates: Record<string, string>;
+  requestPatch?: ScriptRequestPatch | null;
   testResults: TestResult[];
   logs: string[];
   success: boolean;
   error: string | null;
+}
+
+export interface ScriptRequestPatch {
+  headers: Record<string, string>;
+  removedHeaders: string[];
+  queryParams: Record<string, string>;
+  removedQueryParams: string[];
 }
 
 export interface TestResult {

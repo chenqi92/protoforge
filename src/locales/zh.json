@@ -165,6 +165,7 @@
     "variableCount": "{{count}} 个变量",
     "variablePreview": "变量预览",
     "variableSourceCollection": "当前合集",
+    "variableSourceFolder": "父级目录",
     "variableSourceEnvironment": "当前环境",
     "variableSourceGlobal": "全局变量",
     "variableSourceDynamic": "动态变量",

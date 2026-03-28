@@ -100,6 +100,7 @@ export const useCollectionStore = create<CollectionStore>((set, get) => ({
       collectionId,
       parentId,
       itemType,
+      variables: '[]',
       name,
       sortOrder: 0,
       method: method || (itemType === 'request' ? 'GET' : null),

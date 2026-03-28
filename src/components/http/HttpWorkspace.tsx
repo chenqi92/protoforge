@@ -23,7 +23,7 @@ import { ResponseViewer } from "@/components/ui/ResponseViewer";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
 import { buildCollectionItemFromHttpConfig, getCollectionRequestSignatureFromConfig, getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
-import { extractVariableKeys, getVariablePreview, upsertCollectionVariable } from "@/lib/requestVariables";
+import { extractVariableKeys, getVariablePreview, persistScriptVariableUpdates, upsertCollectionVariable } from "@/lib/requestVariables";
 import { recordRequestStat } from "@/components/plugins/RequestStatsPanel";
 import { buildRequestPayload, resolveHttpConfig } from "@/services/httpService";
 
@@ -39,6 +39,55 @@ const methodDotColor: Record<string, string> = {
   GET: "bg-emerald-500", POST: "bg-amber-500", PUT: "bg-blue-500",
   DELETE: "bg-red-500", PATCH: "bg-violet-500", HEAD: "bg-cyan-500", OPTIONS: "bg-gray-400",
 };
+
+function mergeScriptScopeUpdates(
+  ...updates: Array<Record<string, string> | null | undefined>
+): Record<string, string> {
+  return updates.reduce<Record<string, string>>((acc, item) => {
+    if (!item) return acc;
+    return { ...acc, ...item };
+  }, {});
+}
+
+function decodeQueryComponent(raw: string): string {
+  try {
+    return decodeURIComponent(raw.replace(/\+/g, " "));
+  } catch {
+    return raw;
+  }
+}
+
+function parseQueryStringToParams(query: string): KeyValue[] {
+  if (!query) return [];
+
+  return query
+    .split("&")
+    .filter((segment) => segment.length > 0)
+    .map((segment) => {
+      const equalsIndex = segment.indexOf("=");
+      const rawKey = equalsIndex >= 0 ? segment.slice(0, equalsIndex) : segment;
+      const rawValue = equalsIndex >= 0 ? segment.slice(equalsIndex + 1) : "";
+      return {
+        key: decodeQueryComponent(rawKey),
+        value: decodeQueryComponent(rawValue),
+        enabled: true,
+      };
+    });
+}
+
+function buildRawQueryString(params: KeyValue[]): string {
+  return params
+    .filter((param) => param.key.trim() && param.enabled)
+    .map((param) => `${param.key}=${param.value}`)
+    .join("&");
+}
+
+function joinUrlWithParams(url: string, params: KeyValue[]): string {
+  const qIndex = url.indexOf("?");
+  const baseUrl = qIndex >= 0 ? url.slice(0, qIndex) : url;
+  const query = buildRawQueryString(params);
+  return query ? `${baseUrl}?${query}` : baseUrl;
+}
 
 interface SseEvent {
   id: string | null;
@@ -79,9 +128,9 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
   const initializedTabsRef = useRef<Set<string>>(new Set());
   const requestIdRef = useRef(0);
 
-  // 初次加载 tab 时：双向同步 URL ↔ queryParams（学习 Postman 行为）
+  // 初次加载 tab 时：双向同步 URL ↔ queryParams
   // 1) URL 含 ?query 但 params 为空 → 解析 URL 填充 params
-  // 2) params 有值但 URL 无 ?query → 拼接 params 回 URL
+  // 2) params 有值 → 以 params 为准回写规范化 URL，避免模板变量被编码
   useEffect(() => {
     const httpConfig = activeTab?.httpConfig;
     if (!httpConfig || !tabId) return;
@@ -93,24 +142,24 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
     const hasUrlQuery = qIndex >= 0 && url.slice(qIndex + 1).length > 0;
     const enabledParams = (httpConfig.queryParams || []).filter(p => p.key.trim() && p.enabled);
     const hasRealParams = enabledParams.length > 0;
+    const parsedUrlParams = hasUrlQuery ? parseQueryStringToParams(url.slice(qIndex + 1)) : [];
 
     if (hasUrlQuery && !hasRealParams) {
       // Case 1: URL 有 query string，但 params 表格为空 → 解析 URL 填充 params
-      const queryStr = url.slice(qIndex + 1);
-      const parsed = new URLSearchParams(queryStr);
-      const newParams: KeyValue[] = [];
-      parsed.forEach((v, k) => {
-        newParams.push({ key: k, value: v, enabled: true });
-      });
-      if (newParams.length > 0) {
-        newParams.push({ key: '', value: '', enabled: true });
-        updateHttpConfig(tabId, { queryParams: newParams });
+      if (parsedUrlParams.length > 0) {
+        const nextParams = [...parsedUrlParams, { key: '', value: '', enabled: true }];
+        updateHttpConfig(tabId, {
+          queryParams: nextParams,
+          url: joinUrlWithParams(url, parsedUrlParams),
+        });
       }
-    } else if (hasRealParams && !hasUrlQuery) {
-      // Case 2: params 表格有值，但 URL 没有 query string → 拼接 params 回 URL
-      const baseUrl = qIndex >= 0 ? url.slice(0, qIndex) : url;
-      const qs = enabledParams.map(p => `${p.key}=${p.value}`).join('&');
-      updateHttpConfig(tabId, { url: `${baseUrl}?${qs}` });
+    } else if (hasRealParams) {
+      // Case 2: params 表格已有值时，始终以 params 为准规范化 URL，
+      // 避免 {{token}} 之类模板变量被意外保存为 %7B%7Btoken%7D%7D。
+      const normalizedUrl = joinUrlWithParams(url, enabledParams);
+      if (normalizedUrl !== url) {
+        updateHttpConfig(tabId, { url: normalizedUrl });
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabId]);
@@ -334,6 +383,24 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
         const result = await sendRequestWithScripts(config);
         // 请求已被取消，丢弃响应
         if (requestIdRef.current !== currentRequestId) return;
+        await persistScriptVariableUpdates(activeTab.linkedCollectionId, activeTab.linkedCollectionItemId, {
+          envUpdates: mergeScriptScopeUpdates(
+            result.preScriptResult?.envUpdates,
+            result.postScriptResult?.envUpdates
+          ),
+          folderUpdates: mergeScriptScopeUpdates(
+            result.preScriptResult?.folderUpdates,
+            result.postScriptResult?.folderUpdates
+          ),
+          collectionUpdates: mergeScriptScopeUpdates(
+            result.preScriptResult?.collectionUpdates,
+            result.postScriptResult?.collectionUpdates
+          ),
+          globalUpdates: mergeScriptScopeUpdates(
+            result.preScriptResult?.globalUpdates,
+            result.postScriptResult?.globalUpdates
+          ),
+        });
         finalResponse = result.response;
         setHttpResponse(tabId, result.response);
         setScriptResults({ pre: result.preScriptResult, post: result.postScriptResult });
@@ -393,7 +460,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
         });
       }
     }
-  }, [tabId, config, setLoading, setHttpResponse, setError, handleSseConnect, handleSseDisconnect, isSseConnected, isSseMode, updateHttpConfig]);
+  }, [activeTab.linkedCollectionId, tabId, config, setLoading, setHttpResponse, setError, handleSseConnect, handleSseDisconnect, isSseConnected, isSseMode, updateHttpConfig]);
 
   const handleCancel = useCallback(() => {
     requestIdRef.current++;
@@ -602,12 +669,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                     // 解析 URL 中的查询参数
                     const qIndex = newUrl.indexOf('?');
                     if (qIndex >= 0) {
-                      const queryStr = newUrl.slice(qIndex + 1);
-                      const parsed = new URLSearchParams(queryStr);
-                      const newParams: KeyValue[] = [];
-                      parsed.forEach((v, k) => {
-                        newParams.push({ key: k, value: v, enabled: true });
-                      });
+                      const newParams = parseQueryStringToParams(newUrl.slice(qIndex + 1));
                       // 保留一行空行供继续输入
                       newParams.push({ key: '', value: '', enabled: true });
                       updateHttpConfig(tabId, { url: newUrl, queryParams: newParams });
@@ -633,6 +695,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                 placeholder={t('http.urlPlaceholder')}
                 data-url-input
                 collectionId={activeTab.linkedCollectionId}
+                itemId={activeTab.linkedCollectionItemId}
                 className="wb-request-input"
                 overlayClassName="wb-request-input"
               />
@@ -747,19 +810,12 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                 syncingFromRef.current = 'params';
                 try {
                   // 从参数表格同步回 URL
-                  const enabledParams = v.filter(p => p.key.trim() && p.enabled);
-                  const baseUrl = config.url.split('?')[0];
-                  if (enabledParams.length > 0) {
-                    const qs = enabledParams.map(p => `${p.key}=${p.value}`).join('&');
-                    updateHttpConfig(tabId, { queryParams: v, url: `${baseUrl}?${qs}` });
-                  } else {
-                    updateHttpConfig(tabId, { queryParams: v, url: baseUrl });
-                  }
+                  updateHttpConfig(tabId, { queryParams: v, url: joinUrlWithParams(config.url, v) });
                 } finally {
                   syncingFromRef.current = null;
                 }
-              }} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
-              {reqTab === "headers" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={headers} showMockGenerator onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} /></div>}
+              }} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} itemId={activeTab.linkedCollectionItemId} /></div>}
+              {reqTab === "headers" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={headers} showMockGenerator onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} itemId={activeTab.linkedCollectionItemId} /></div>}
             
               {reqTab === "body" && (
                 <div className="p-4 flex flex-col flex-1 min-h-0">
@@ -828,7 +884,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                         </div>
                       </div>
                     )}
-                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="flex-1 min-h-0 flex flex-col"><KVEditor items={formFields} showMockGenerator onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" collectionId={activeTab.linkedCollectionId} /></div>}
+                    {!isGraphqlMode && config.bodyType === "formUrlencoded" && <div className="flex-1 min-h-0 flex flex-col"><KVEditor items={formFields} showMockGenerator onChange={(v) => updateHttpConfig(tabId, { formFields: v })} kp="Field Name" vp="Value" collectionId={activeTab.linkedCollectionId} itemId={activeTab.linkedCollectionItemId} /></div>}
                     {!isGraphqlMode && config.bodyType === "formData" && <div className="flex-1 min-h-0 flex flex-col"><FormDataEditor fields={formDataFields} onChange={(v) => updateHttpConfig(tabId, { formDataFields: v })} /></div>}
                     {!isGraphqlMode && config.bodyType === "binary" && <BinaryPicker filePath={config.binaryFilePath} fileName={config.binaryFileName} onChange={(path, name) => updateHttpConfig(tabId, { binaryFilePath: path, binaryFileName: name })} />}
                   </div>
@@ -1824,7 +1880,7 @@ function normalizeFormDataRows(fields: FormDataField[]) {
 }
 
 /* ── KV Editor (table-based, for params, headers, form-urlencoded) ── */
-export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, showMockGenerator, collectionId }: {
+export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, showMockGenerator, collectionId, itemId }: {
   items: KeyValue[];
   onChange: (v: KeyValue[]) => void;
   kp: string;
@@ -1833,6 +1889,7 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
   showAutoToggle?: boolean;
   showMockGenerator?: boolean;
   collectionId?: string | null;
+  itemId?: string | null;
 }) {
   const { t } = useTranslation();
   const [showAuto, setShowAuto] = useState(false);
@@ -1914,7 +1971,7 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
             onBlur={() => setTimeout(() => { setActiveKeySuggest(null); setHighlightIdx(-1); }, 150)}
             onKeyDown={e => handleKeyDown(e, keySugs, k => selectKeySuggestion(i, k), () => setActiveKeySuggest(null))}
             placeholder={kp} disabled={!item.enabled} suggestions={keySugs} highlightIdx={highlightIdx}
-            onSelectSuggestion={k => selectKeySuggestion(i, k)} className={cellInput} collectionId={collectionId} />
+            onSelectSuggestion={k => selectKeySuggestion(i, k)} className={cellInput} collectionId={collectionId} itemId={itemId} />
         </td>
         <td>
           <div className="flex items-center gap-0">
@@ -1923,7 +1980,7 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
               onBlur={() => setTimeout(() => { setActiveValueSuggest(null); setHighlightIdx(-1); }, 150)}
               onKeyDown={e => handleKeyDown(e, valSugs, v => selectValueSuggestion(i, v), () => setActiveValueSuggest(null))}
               placeholder={vp} disabled={!item.enabled} suggestions={valSugs} highlightIdx={highlightIdx}
-              onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cn(cellInput, "flex-1 min-w-0")} collectionId={collectionId} />
+              onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cn(cellInput, "flex-1 min-w-0")} collectionId={collectionId} itemId={itemId} />
             {showMockGenerator && <InlineMockButton onInsert={(v: string) => update(i, "value", v)} />}
           </div>
         </td>
@@ -2007,11 +2064,12 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
 }
 
 /* ── TableCellInput: borderless input with portal suggestion dropdown ── */
-function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placeholder, disabled, suggestions, highlightIdx, onSelectSuggestion, className: cls, collectionId }: {
+function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placeholder, disabled, suggestions, highlightIdx, onSelectSuggestion, className: cls, collectionId, itemId }: {
   value: string; onChange: (v: string) => void; onFocus: () => void; onBlur: () => void;
   onKeyDown: (e: React.KeyboardEvent) => void; placeholder: string; disabled: boolean;
   suggestions?: string[]; highlightIdx?: number; onSelectSuggestion?: (v: string) => void; className?: string;
   collectionId?: string | null;
+  itemId?: string | null;
 }) {
   const { t } = useTranslation();
   const ref = useRef<HTMLInputElement>(null);
@@ -2031,6 +2089,7 @@ function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placehold
         placeholder={placeholder}
         disabled={disabled}
         collectionId={collectionId}
+        itemId={itemId}
         className={cn(cls, disabled && "editor-table-muted")}
         overlayClassName={cn(cls, disabled && "editor-table-muted")}
         compactPopover
@@ -2091,6 +2150,7 @@ function VariableInlineInput({
   inputRef,
   value,
   collectionId,
+  itemId,
   className,
   overlayClassName: _overlayClassName,
   compactPopover,
@@ -2104,6 +2164,7 @@ function VariableInlineInput({
 }: React.InputHTMLAttributes<HTMLInputElement> & {
   inputRef?: React.RefObject<HTMLInputElement | null>;
   collectionId?: string | null;
+  itemId?: string | null;
   overlayClassName?: string;
   compactPopover?: boolean;
 }) {
@@ -2116,8 +2177,8 @@ function VariableInlineInput({
   const variableKeys = useMemo(() => extractVariableKeys(strValue), [strValue]);
   const segments = useMemo(() => splitVariableSegments(strValue), [strValue]);
   const previews = useMemo(
-    () => new Map(variableKeys.map((key) => [key, getVariablePreview(key, collectionId)])),
-    [collectionId, collections, envVars, globalVars, activeEnvId, variableKeys]
+    () => new Map(variableKeys.map((key) => [key, getVariablePreview(key, collectionId, itemId)])),
+    [collectionId, itemId, collections, envVars, globalVars, activeEnvId, variableKeys]
   );
   const divRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<number | null>(null);
@@ -2375,6 +2436,7 @@ function VariableHoverPopover({
 
   const sourceLabelMap: Record<string, string> = {
     collection: t('http.variableSourceCollection'),
+    folder: t('http.variableSourceFolder'),
     environment: t('http.variableSourceEnvironment'),
     global: t('http.variableSourceGlobal'),
     dynamic: t('http.variableSourceDynamic'),

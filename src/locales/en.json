@@ -160,6 +160,7 @@
     "variableCount": "{{count}} vars",
     "variablePreview": "Variable Preview",
     "variableSourceCollection": "Collection",
+    "variableSourceFolder": "Folder",
     "variableSourceEnvironment": "Environment",
     "variableSourceGlobal": "Global",
     "variableSourceDynamic": "Dynamic",

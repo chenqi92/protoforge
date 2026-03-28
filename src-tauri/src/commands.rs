@@ -6,6 +6,7 @@ use crate::collections::{
     self, Collection, CollectionItem, HistoryEntry,
     Environment, EnvVariable, GlobalVariable,
 };
+use crate::script_engine::{self, ScriptRequestContext, ScriptResponse, ScriptResult};
 use crate::ws_client::WsConnections;
 use crate::tcp_client::{TcpConnections, TcpServers, UdpSockets};
 use crate::load_test::{LoadTestConfig, LoadTestState};
@@ -14,6 +15,7 @@ use crate::mqtt_client::{self, MqttConnections, MqttConnectRequest};
 use crate::wasm_runtime::WasmPluginRuntime;
 use sqlx::SqlitePool;
 use tauri::{Manager, State, AppHandle};
+use std::collections::HashMap;
 
 // ═══════════════════════════════════════════
 //  HTTP
@@ -27,6 +29,44 @@ pub async fn send_request(request: HttpRequest) -> Result<HttpResponse, String> 
 #[tauri::command]
 pub async fn send_request_with_scripts(request: HttpRequestWithScripts) -> Result<HttpResponseWithScripts, String> {
     http_client::execute_request_with_scripts(request).await
+}
+
+#[tauri::command]
+pub fn run_pre_request_script(
+    script: String,
+    env_vars: Option<HashMap<String, String>>,
+    folder_vars: Option<HashMap<String, String>>,
+    collection_vars: Option<HashMap<String, String>>,
+    global_vars: Option<HashMap<String, String>>,
+    request: Option<ScriptRequestContext>,
+) -> Result<ScriptResult, String> {
+    Ok(script_engine::run_pre_request_script_with_scopes(
+        &script,
+        &env_vars.unwrap_or_default(),
+        &folder_vars.unwrap_or_default(),
+        &collection_vars.unwrap_or_default(),
+        &global_vars.unwrap_or_default(),
+        request.as_ref(),
+    ))
+}
+
+#[tauri::command]
+pub fn run_post_response_script(
+    script: String,
+    env_vars: Option<HashMap<String, String>>,
+    folder_vars: Option<HashMap<String, String>>,
+    collection_vars: Option<HashMap<String, String>>,
+    global_vars: Option<HashMap<String, String>>,
+    response: ScriptResponse,
+) -> Result<ScriptResult, String> {
+    Ok(script_engine::run_post_script_with_all_scopes(
+        &script,
+        &env_vars.unwrap_or_default(),
+        &folder_vars.unwrap_or_default(),
+        &collection_vars.unwrap_or_default(),
+        &global_vars.unwrap_or_default(),
+        &response,
+    ))
 }
 
 /// 将二进制响应 body (base64) 另存为本地文件

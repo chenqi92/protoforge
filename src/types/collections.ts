@@ -18,6 +18,7 @@ export interface CollectionItem {
   collectionId: string;
   parentId: string | null;
   itemType: 'request' | 'folder';
+  variables: string;
   name: string;
   sortOrder: number;
   method: string | null;

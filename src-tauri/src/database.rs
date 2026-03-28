@@ -47,6 +47,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         (1, "initial_schema", include_str!("../migrations/001_initial_schema.sql")),
         (2, "add_response_example", include_str!("../migrations/002_add_response_example.sql")),
         (3, "workflow_schema", include_str!("../migrations/003_workflow_schema.sql")),
+        (4, "add_item_variables", include_str!("../migrations/004_add_item_variables.sql")),
     ];
 
     for (version, name, sql) in migrations {
@@ -185,4 +186,3 @@ CREATE INDEX IF NOT EXISTS idx_items ON items(id)";
         assert!(stmts[2].contains("CREATE INDEX"));
     }
 }
-

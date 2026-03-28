@@ -180,6 +180,8 @@ pub fn run() {
             // HTTP
             commands::send_request,
             commands::send_request_with_scripts,
+            commands::run_pre_request_script,
+            commands::run_post_response_script,
             commands::save_response_body,
             // OAuth 2.0
             commands::fetch_oauth2_token,

@@ -28,6 +28,7 @@ pub struct CollectionItem {
     pub collection_id: String,
     pub parent_id: Option<String>,
     pub item_type: String,       // "request" | "folder"
+    pub variables: String,
     pub name: String,
     pub sort_order: i64,
     pub method: Option<String>,
@@ -201,13 +202,13 @@ pub async fn list_collection_items(pool: &SqlitePool, collection_id: &str) -> Re
 
 pub async fn create_collection_item(pool: &SqlitePool, item: CollectionItem) -> Result<CollectionItem, String> {
     sqlx::query(
-        "INSERT INTO collection_items (id, collection_id, parent_id, item_type, name, sort_order,
+        "INSERT INTO collection_items (id, collection_id, parent_id, item_type, variables, name, sort_order,
          method, url, headers, query_params, body_type, body_content, auth_type, auth_config,
          pre_script, post_script, response_example, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .bind(&item.id).bind(&item.collection_id).bind(&item.parent_id)
-    .bind(&item.item_type).bind(&item.name).bind(item.sort_order)
+    .bind(&item.item_type).bind(&item.variables).bind(&item.name).bind(item.sort_order)
     .bind(&item.method).bind(&item.url).bind(&item.headers).bind(&item.query_params)
     .bind(&item.body_type).bind(&item.body_content).bind(&item.auth_type).bind(&item.auth_config)
     .bind(&item.pre_script).bind(&item.post_script).bind(&item.response_example)
@@ -218,12 +219,12 @@ pub async fn create_collection_item(pool: &SqlitePool, item: CollectionItem) -> 
 
 pub async fn update_collection_item(pool: &SqlitePool, item: CollectionItem) -> Result<(), String> {
     sqlx::query(
-        "UPDATE collection_items SET name=?, sort_order=?, method=?, url=?, headers=?, query_params=?,
+        "UPDATE collection_items SET name=?, sort_order=?, variables=?, method=?, url=?, headers=?, query_params=?,
          body_type=?, body_content=?, auth_type=?, auth_config=?, pre_script=?, post_script=?,
          response_example=?, updated_at=?
          WHERE id=?"
     )
-    .bind(&item.name).bind(item.sort_order).bind(&item.method).bind(&item.url)
+    .bind(&item.name).bind(item.sort_order).bind(&item.variables).bind(&item.method).bind(&item.url)
     .bind(&item.headers).bind(&item.query_params).bind(&item.body_type).bind(&item.body_content)
     .bind(&item.auth_type).bind(&item.auth_config).bind(&item.pre_script).bind(&item.post_script)
     .bind(&item.response_example).bind(&item.updated_at).bind(&item.id)

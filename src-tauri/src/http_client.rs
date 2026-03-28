@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use base64::Engine as _;
 use std::collections::HashMap;
 use std::time::Instant;
-use crate::script_engine::{self, ScriptResult, ScriptResponse};
+use crate::script_engine::{self, ScriptRequestContext, ScriptRequestPatch, ScriptResult, ScriptResponse};
 
 /// 请求配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,6 +33,9 @@ pub struct HttpRequestWithScripts {
     pub pre_script: Option<String>,
     pub post_script: Option<String>,
     pub env_vars: Option<HashMap<String, String>>,
+    pub folder_vars: Option<HashMap<String, String>>,
+    pub collection_vars: Option<HashMap<String, String>>,
+    pub global_vars: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,6 +149,52 @@ pub struct HttpResponseWithScripts {
     pub post_script_result: Option<ScriptResult>,
 }
 
+fn build_script_request_context(request: &HttpRequest) -> ScriptRequestContext {
+    let body = request.body.as_ref().and_then(|body| match body {
+        RequestBody::None => None,
+        RequestBody::Raw { content, .. } => Some(content.clone()),
+        RequestBody::Json { data } => Some(data.clone()),
+        RequestBody::FormUrlencoded { fields } => Some(
+            url::form_urlencoded::Serializer::new(String::new())
+                .extend_pairs(fields.iter())
+                .finish(),
+        ),
+        RequestBody::FormData { fields } => serde_json::to_string(fields).ok(),
+        RequestBody::Binary { file_path } => Some(file_path.clone()),
+    });
+
+    ScriptRequestContext {
+        method: request.method.clone(),
+        url: request.url.clone(),
+        headers: request.headers.clone(),
+        query_params: request.query_params.clone(),
+        body,
+    }
+}
+
+fn remove_header_case_insensitive(headers: &mut HashMap<String, String>, key: &str) {
+    if let Some(existing) = headers.keys().find(|candidate| candidate.eq_ignore_ascii_case(key)).cloned() {
+        headers.remove(&existing);
+    }
+}
+
+fn apply_request_patch(request: &mut HttpRequest, patch: &ScriptRequestPatch) {
+    for key in &patch.removed_headers {
+        remove_header_case_insensitive(&mut request.headers, key);
+    }
+    for (key, value) in &patch.headers {
+        remove_header_case_insensitive(&mut request.headers, key);
+        request.headers.insert(key.clone(), value.clone());
+    }
+
+    for key in &patch.removed_query_params {
+        request.query_params.remove(key);
+    }
+    for (key, value) in &patch.query_params {
+        request.query_params.insert(key.clone(), value.clone());
+    }
+}
+
 /// 执行 HTTP 请求
 /// SECURITY NOTE: 作为桌面端 API 调试工具，接受用户指定的任意 URL 是核心功能 (by-design)。
 /// 不对内网地址 (127.0.0.1, 10.x.x.x 等) 做限制，因为这正是用户的使用场景。
@@ -222,14 +271,24 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
     if let Some(ref auth) = req.auth {
         match auth {
             AuthConfig::Bearer { token } => {
-                header_map.insert(
-                    reqwest::header::AUTHORIZATION,
-                    HeaderValue::from_str(&format!("Bearer {}", token))
-                        .unwrap_or_else(|_| HeaderValue::from_static("")),
-                );
+                if !header_map.contains_key(reqwest::header::AUTHORIZATION) {
+                    header_map.insert(
+                        reqwest::header::AUTHORIZATION,
+                        HeaderValue::from_str(&format!("Bearer {}", token))
+                            .unwrap_or_else(|_| HeaderValue::from_static("")),
+                    );
+                }
             }
             AuthConfig::Basic { username, password } => {
-                request_builder = request_builder.basic_auth(username, Some(password));
+                if !header_map.contains_key(reqwest::header::AUTHORIZATION) {
+                    let encoded = base64::engine::general_purpose::STANDARD
+                        .encode(format!("{}:{}", username, password));
+                    header_map.insert(
+                        reqwest::header::AUTHORIZATION,
+                        HeaderValue::from_str(&format!("Basic {}", encoded))
+                            .unwrap_or_else(|_| HeaderValue::from_static("")),
+                    );
+                }
             }
             AuthConfig::ApiKey { key, value, add_to } => {
                 if add_to == "header" {
@@ -237,7 +296,9 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
                         HeaderName::from_bytes(key.as_bytes()),
                         HeaderValue::from_str(value),
                     ) {
-                        header_map.insert(name, val);
+                        if !header_map.contains_key(&name) {
+                            header_map.insert(name, val);
+                        }
                     }
                 }
             }
@@ -398,12 +459,28 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
 pub async fn execute_request_with_scripts(
     req: HttpRequestWithScripts,
 ) -> Result<HttpResponseWithScripts, String> {
+    let mut request = req.request;
     let env_vars = req.env_vars.unwrap_or_default();
+    let folder_vars = req.folder_vars.unwrap_or_default();
+    let collection_vars = req.collection_vars.unwrap_or_default();
+    let global_vars = req.global_vars.unwrap_or_default();
 
     // 1. 执行前置脚本
     let pre_script_result = if let Some(ref script) = req.pre_script {
         if !script.trim().is_empty() {
-            Some(script_engine::run_pre_script(script, &env_vars))
+            let request_ctx = build_script_request_context(&request);
+            let result = script_engine::run_pre_request_script_with_scopes(
+                script,
+                &env_vars,
+                &folder_vars,
+                &collection_vars,
+                &global_vars,
+                Some(&request_ctx),
+            );
+            if let Some(ref patch) = result.request_patch {
+                apply_request_patch(&mut request, patch);
+            }
+            Some(result)
         } else {
             None
         }
@@ -419,7 +496,7 @@ pub async fn execute_request_with_scripts(
     }
 
     // 2. 执行 HTTP 请求
-    let response = execute_request(req.request).await?;
+    let response = execute_request(request).await?;
 
     // 3. 执行后置脚本
     let post_script_result = if let Some(ref script) = req.post_script {
@@ -431,14 +508,33 @@ pub async fn execute_request_with_scripts(
                 headers: response.headers.clone(),
                 duration_ms: response.duration_ms,
             };
-            // 合并前置脚本更新的环境变量
-            let mut merged_env = env_vars;
+            // 合并前置脚本更新的作用域变量，供后置脚本继续读取
+            let mut merged_env = env_vars.clone();
+            let mut merged_folder = folder_vars.clone();
+            let mut merged_collection = collection_vars.clone();
+            let mut merged_global = global_vars.clone();
             if let Some(ref pre) = pre_script_result {
                 for (k, v) in &pre.env_updates {
                     merged_env.insert(k.clone(), v.clone());
                 }
+                for (k, v) in &pre.folder_updates {
+                    merged_folder.insert(k.clone(), v.clone());
+                }
+                for (k, v) in &pre.collection_updates {
+                    merged_collection.insert(k.clone(), v.clone());
+                }
+                for (k, v) in &pre.global_updates {
+                    merged_global.insert(k.clone(), v.clone());
+                }
             }
-            Some(script_engine::run_post_script(script, &merged_env, &script_resp))
+            Some(script_engine::run_post_script_with_all_scopes(
+                script,
+                &merged_env,
+                &merged_folder,
+                &merged_collection,
+                &merged_global,
+                &script_resp,
+            ))
         } else {
             None
         }
@@ -731,4 +827,3 @@ mod tests {
         assert_eq!(mime_from_path("C:\\Users\\data.csv"), "text/csv");
     }
 }
-
