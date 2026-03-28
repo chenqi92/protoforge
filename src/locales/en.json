@@ -1278,6 +1278,74 @@
     "messages": "msgs",
     "noMessages": "No protocol messages",
     "noMessagesHint": "Protocol messages will appear here after connecting",
-    "configPlaceholder": "Protocol configuration area"
+    "configPlaceholder": "Protocol configuration area",
+    "messageDetail": "Message Detail",
+    "connected": "Connected",
+    "idle": "Idle",
+    "rtsp": {
+      "transport": "Transport",
+      "auth": "Authentication",
+      "authNone": "None",
+      "username": "Username",
+      "password": "Password",
+      "commands": "RTSP Commands",
+      "history": "Command History",
+      "hide": "Collapse"
+    },
+    "rtmp": {
+      "mode": "Mode",
+      "pull": "Pull",
+      "push": "Push",
+      "streamKey": "Stream Key",
+      "handshake": "Handshake Analysis",
+      "metadata": "Metadata (onMetaData)",
+      "waitingMetadata": "Waiting for metadata...",
+      "connectFirst": "Connect to view"
+    },
+    "flv": {
+      "tagFilter": "Tag Filter",
+      "all": "All",
+      "waitingTags": "Waiting for FLV tags...",
+      "connectFirst": "Connect to parse"
+    },
+    "hls": {
+      "playlist": "Playlist",
+      "parse": "Parse m3u8",
+      "autoRefresh": "Auto Refresh",
+      "variants": "Variants",
+      "segments": "Segments"
+    },
+    "webrtc": {
+      "role": "Role",
+      "servers": "Servers",
+      "gatheringIce": "Gathering ICE candidates...",
+      "connectFirst": "Connect to start ICE negotiation"
+    },
+    "gb": {
+      "serverConfig": "Server Config",
+      "domain": "SIP Domain",
+      "deviceId": "Device ID",
+      "localPort": "Local Port",
+      "transport": "Transport",
+      "register": "SIP Register",
+      "unregister": "Unregister",
+      "registering": "Registering...",
+      "catalog": "Device Catalog",
+      "query": "Query",
+      "noCatalog": "Click Query to get device catalog",
+      "control": "Control",
+      "speed": "Speed"
+    },
+    "srt": {
+      "mode": "Connection Mode",
+      "callerDesc": "Caller actively connects to remote Listener",
+      "listenerDesc": "Listener waits for incoming connections",
+      "rendezvousDesc": "Rendezvous establishes connection simultaneously",
+      "latency": "Latency",
+      "encryption": "Encryption",
+      "passphrase": "Passphrase (optional)",
+      "encryptionHint": "AES-128/192/256 encryption, passphrase 10-79 chars",
+      "stats": "Connection Stats"
+    }
   }
 }

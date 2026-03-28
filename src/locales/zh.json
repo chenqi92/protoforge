@@ -1294,6 +1294,74 @@
     "messages": "条",
     "noMessages": "暂无协议报文",
     "noMessagesHint": "连接流后将在此显示协议交互日志",
-    "configPlaceholder": "协议配置区域"
+    "configPlaceholder": "协议配置区域",
+    "messageDetail": "报文详情",
+    "connected": "已连接",
+    "idle": "空闲",
+    "rtsp": {
+      "transport": "传输方式",
+      "auth": "认证",
+      "authNone": "无",
+      "username": "用户名",
+      "password": "密码",
+      "commands": "RTSP 命令",
+      "history": "命令历史",
+      "hide": "收起"
+    },
+    "rtmp": {
+      "mode": "模式",
+      "pull": "拉流",
+      "push": "推流",
+      "streamKey": "推流密钥",
+      "handshake": "握手分析",
+      "metadata": "元数据 (onMetaData)",
+      "waitingMetadata": "等待元数据...",
+      "connectFirst": "连接后显示"
+    },
+    "flv": {
+      "tagFilter": "Tag 过滤",
+      "all": "全部",
+      "waitingTags": "等待 FLV Tag...",
+      "connectFirst": "连接后解析"
+    },
+    "hls": {
+      "playlist": "播放列表",
+      "parse": "解析 m3u8",
+      "autoRefresh": "自动刷新",
+      "variants": "码率档位",
+      "segments": "分片列表"
+    },
+    "webrtc": {
+      "role": "角色",
+      "servers": "服务器",
+      "gatheringIce": "正在收集 ICE 候选...",
+      "connectFirst": "连接后开始 ICE 协商"
+    },
+    "gb": {
+      "serverConfig": "服务器配置",
+      "domain": "SIP 域",
+      "deviceId": "设备编码",
+      "localPort": "本地端口",
+      "transport": "传输",
+      "register": "SIP 注册",
+      "unregister": "注销",
+      "registering": "注册中...",
+      "catalog": "设备目录",
+      "query": "查询",
+      "noCatalog": "点击\"查询\"获取设备目录",
+      "control": "控制",
+      "speed": "速度"
+    },
+    "srt": {
+      "mode": "连接模式",
+      "callerDesc": "Caller 主动连接到远端 Listener",
+      "listenerDesc": "Listener 监听端口等待连接",
+      "rendezvousDesc": "Rendezvous 双向同时建立连接",
+      "latency": "延迟",
+      "encryption": "加密设置",
+      "passphrase": "加密口令 (可选)",
+      "encryptionHint": "AES-128/192/256 加密，口令长度 10-79 字符",
+      "stats": "连接统计"
+    }
   }
 }
