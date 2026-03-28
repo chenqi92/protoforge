@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Cpu, Plug, X, RefreshCw, Trash2,
-  ChevronDown, ArrowRight, CheckCircle2, AlertCircle,
+  ChevronDown, ArrowRight, CheckCircle2, AlertCircle, Loader2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -204,19 +204,24 @@ interface ModbusFunctionPanelProps {
   startAddress: number;
   quantity: number;
   valuesText: string;
+  pollingEnabled: boolean;
+  pollingInterval: number;
   onUnitIdChange: (v: number) => void;
   onFunctionCodeChange: (v: ModbusFunctionCode) => void;
   onStartAddressChange: (v: number) => void;
   onQuantityChange: (v: number) => void;
   onValuesTextChange: (v: string) => void;
   onExecute: () => void;
+  onPollingToggle: () => void;
+  onPollingIntervalChange: (v: number) => void;
 }
 
 function ModbusFunctionPanel({
   connected, executing,
   unitId, functionCode, startAddress, quantity, valuesText,
+  pollingEnabled, pollingInterval,
   onUnitIdChange, onFunctionCodeChange, onStartAddressChange, onQuantityChange, onValuesTextChange,
-  onExecute,
+  onExecute, onPollingToggle, onPollingIntervalChange,
 }: ModbusFunctionPanelProps) {
   const { t } = useTranslation();
   const fcDef = MODBUS_FUNCTION_CODES.find((f) => f.code === functionCode)!;
@@ -302,6 +307,39 @@ function ModbusFunctionPanel({
 
         <div className="flex-1" />
 
+        {/* Polling controls */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={onPollingToggle}
+            disabled={!connected}
+            className={cn(
+              "h-7 px-2.5 rounded-[6px] border text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-colors flex items-center gap-1.5",
+              pollingEnabled && connected
+                ? "bg-amber-500/15 border-amber-500/40 text-amber-500"
+                : "border-border-default/60 text-text-disabled hover:text-text-secondary disabled:opacity-40"
+            )}
+            title={t('serial.modbus.pollingToggle', '轮询')}
+          >
+            {pollingEnabled && connected
+              ? <Loader2 className="w-3 h-3 animate-spin" />
+              : <RefreshCw className="w-3 h-3" />}
+            {t('serial.modbus.polling', '轮询')}
+          </button>
+          {pollingEnabled && (
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                min={100}
+                max={60000}
+                value={pollingInterval}
+                onChange={(e) => onPollingIntervalChange(Math.max(100, parseInt(e.target.value) || 1000))}
+                className="h-7 w-[70px] rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted"
+              />
+              <span className="text-[var(--fs-xxs)] text-text-disabled">ms</span>
+            </div>
+          )}
+        </div>
+
         {/* Execute button */}
         <button
           onClick={onExecute}
@@ -358,13 +396,111 @@ function ModbusFunctionPanel({
 }
 
 // ═══════════════════════════════════════════
+//  Modbus 异常码解码
+// ═══════════════════════════════════════════
+
+const MODBUS_EXCEPTION_CODES: Record<number, string> = {
+  1: '非法功能码',
+  2: '非法数据地址',
+  3: '非法数据值',
+  4: '从站设备故障',
+  5: '确认(ACK)',
+  6: '从站设备忙',
+  8: '存储奇偶错误',
+  10: '网关路径不可用',
+  11: '网关目标无响应',
+};
+
+function parseModbusException(errMsg: string): string | null {
+  const match = errMsg.match(/exception\s+(?:code\s+)?(?:0x)?([0-9a-fA-F]+)/i)
+    || errMsg.match(/error\s+(?:code\s+)?(?:0x)?([0-9a-fA-F]+)/i)
+    || errMsg.match(/(?:code|exception)[:\s]+(?:0x)?([0-9a-fA-F]+)/i);
+  if (match) {
+    const code = parseInt(match[1], 16) || parseInt(match[1], 10);
+    return MODBUS_EXCEPTION_CODES[code] ?? null;
+  }
+  // Try scanning for bare numbers 1-11
+  for (const [code, desc] of Object.entries(MODBUS_EXCEPTION_CODES)) {
+    if (errMsg.includes(`(${code})`) || errMsg.includes(` ${code} `) || errMsg.endsWith(` ${code}`)) {
+      return desc;
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════
+//  数据类型解析工具
+// ═══════════════════════════════════════════
+
+type ModbusDataType = 'uint16' | 'int16' | 'uint32-be' | 'uint32-le' | 'int32-be' | 'int32-le' | 'float32-be' | 'float32-le';
+
+function decodeRegisters(registers: number[], dataType: ModbusDataType): string[] {
+  const results: string[] = new Array(registers.length).fill('—');
+  switch (dataType) {
+    case 'uint16':
+      registers.forEach((v, i) => { results[i] = String(v); });
+      break;
+    case 'int16':
+      registers.forEach((v, i) => { results[i] = String(v > 32767 ? v - 65536 : v); });
+      break;
+    case 'uint32-be':
+    case 'int32-be': {
+      for (let i = 0; i + 1 < registers.length; i += 2) {
+        const val32 = ((registers[i] << 16) | registers[i + 1]) >>> 0;
+        const decoded = dataType === 'int32-be' ? (val32 > 0x7FFFFFFF ? val32 - 0x100000000 : val32) : val32;
+        results[i] = String(decoded);
+        results[i + 1] = '↑';
+      }
+      break;
+    }
+    case 'uint32-le':
+    case 'int32-le': {
+      for (let i = 0; i + 1 < registers.length; i += 2) {
+        const val32 = ((registers[i + 1] << 16) | registers[i]) >>> 0;
+        const decoded = dataType === 'int32-le' ? (val32 > 0x7FFFFFFF ? val32 - 0x100000000 : val32) : val32;
+        results[i] = String(decoded);
+        results[i + 1] = '↑';
+      }
+      break;
+    }
+    case 'float32-be': {
+      for (let i = 0; i + 1 < registers.length; i += 2) {
+        const buf = new ArrayBuffer(4);
+        const view = new DataView(buf);
+        view.setUint16(0, registers[i], false);
+        view.setUint16(2, registers[i + 1], false);
+        results[i] = view.getFloat32(0, false).toPrecision(7);
+        results[i + 1] = '↑';
+      }
+      break;
+    }
+    case 'float32-le': {
+      for (let i = 0; i + 1 < registers.length; i += 2) {
+        const buf = new ArrayBuffer(4);
+        const view = new DataView(buf);
+        view.setUint16(0, registers[i + 1], false);
+        view.setUint16(2, registers[i], false);
+        results[i] = view.getFloat32(0, false).toPrecision(7);
+        results[i + 1] = '↑';
+      }
+      break;
+    }
+  }
+  return results;
+}
+
+// ═══════════════════════════════════════════
 //  响应寄存器表格
 // ═══════════════════════════════════════════
 
 function ModbusResponseTable({
   transaction,
+  dataType,
+  onDataTypeChange,
 }: {
   transaction: ModbusTransaction | undefined;
+  dataType: ModbusDataType;
+  onDataTypeChange: (dt: ModbusDataType) => void;
 }) {
   const { t } = useTranslation();
   if (!transaction) return null;
@@ -378,6 +514,25 @@ function ModbusResponseTable({
     resp.coils.forEach((v, i) => rows.push({ address: transaction.startAddress + i, value: v ? 1 : 0 }));
   }
 
+  const decodedValues = (!isCoil && resp?.registers)
+    ? decodeRegisters(resp.registers, dataType)
+    : [];
+
+  const exceptionHint = !transaction.success && transaction.error
+    ? parseModbusException(transaction.error)
+    : null;
+
+  const DATA_TYPE_OPTIONS: { value: ModbusDataType; label: string }[] = [
+    { value: 'uint16', label: 'UINT16' },
+    { value: 'int16', label: 'INT16' },
+    { value: 'uint32-be', label: 'UINT32 BE' },
+    { value: 'uint32-le', label: 'UINT32 LE' },
+    { value: 'int32-be', label: 'INT32 BE' },
+    { value: 'int32-le', label: 'INT32 LE' },
+    { value: 'float32-be', label: 'FLOAT32 BE' },
+    { value: 'float32-le', label: 'FLOAT32 LE' },
+  ];
+
   return (
     <div className="shrink-0 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60 bg-bg-secondary/30">
@@ -385,6 +540,20 @@ function ModbusResponseTable({
           {t('serial.modbus.responseRegisters', '响应寄存器')}
         </span>
         <div className="flex items-center gap-2">
+          {!isCoil && rows.length > 0 && (
+            <div className="relative">
+              <select
+                value={dataType}
+                onChange={(e) => onDataTypeChange(e.target.value as ModbusDataType)}
+                className="h-6 appearance-none rounded-[4px] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-5 text-[var(--fs-xxs)] font-mono text-text-secondary outline-none cursor-pointer"
+              >
+                {DATA_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-0.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-disabled" />
+            </div>
+          )}
           {transaction.success ? (
             <span className="flex items-center gap-1 text-[var(--fs-xxs)] text-emerald-500">
               <CheckCircle2 className="w-3 h-3" />
@@ -398,6 +567,13 @@ function ModbusResponseTable({
           )}
         </div>
       </div>
+
+      {exceptionHint && (
+        <div className="px-3 py-1.5 border-b border-red-500/20 bg-red-500/5 flex items-center gap-2 text-[var(--fs-xxs)]">
+          <AlertCircle className="w-3 h-3 text-red-400 shrink-0" />
+          <span className="text-red-400 font-medium">{t('serial.modbus.exceptionDesc', 'Modbus 异常')}: {exceptionHint}</span>
+        </div>
+      )}
 
       {rows.length > 0 ? (
         <div className="overflow-x-auto max-h-[200px] overflow-y-auto">
@@ -423,6 +599,11 @@ function ModbusResponseTable({
                     Binary
                   </th>
                 )}
+                {!isCoil && decodedValues.length > 0 && (
+                  <th className="px-3 py-1.5 text-left font-semibold text-text-disabled w-[110px]">
+                    {t('serial.modbus.parsedValue', '解析值')}
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -443,6 +624,11 @@ function ModbusResponseTable({
                   {!isCoil && (
                     <td className="px-3 py-1.5 text-text-tertiary tabular-nums">
                       {row.value.toString(2).padStart(16, "0")}
+                    </td>
+                  )}
+                  {!isCoil && decodedValues.length > 0 && (
+                    <td className={cn("px-3 py-1.5 tabular-nums", decodedValues[i] === '↑' ? "text-border-default/60" : "text-accent font-medium")}>
+                      {decodedValues[i]}
                     </td>
                   )}
                 </tr>
@@ -569,6 +755,14 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
   const [valuesText, setValuesText] = useState("");
   const [executing, setExecuting] = useState(false);
 
+  // ── 轮询 ──
+  const [pollingEnabled, setPollingEnabled] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState(1000);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── 数据类型解析 ──
+  const [dataType, setDataType] = useState<ModbusDataType>('uint16');
+
   // ── 结果 ──
   const [transactions, setTransactions] = useState<ModbusTransaction[]>([]);
   const [lastTransaction, setLastTransaction] = useState<ModbusTransaction | undefined>();
@@ -613,6 +807,26 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
     setup();
     return () => { disposed = true; unlisten?.(); };
   }, [connId]);
+
+  // ── 轮询 useEffect ──
+  useEffect(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    if (pollingEnabled && connected) {
+      pollingRef.current = setInterval(() => {
+        handleExecute();
+      }, pollingInterval);
+    }
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pollingEnabled, connected, pollingInterval]);
 
   // ── 连接 / 断开 ──
   const handleToggleConnection = async () => {
@@ -755,6 +969,7 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
         unitId={unitId} functionCode={functionCode}
         startAddress={startAddress} quantity={quantity}
         valuesText={valuesText}
+        pollingEnabled={pollingEnabled} pollingInterval={pollingInterval}
         onUnitIdChange={setUnitId}
         onFunctionCodeChange={(fc) => {
           setFunctionCode(fc);
@@ -766,10 +981,16 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
         onQuantityChange={setQuantity}
         onValuesTextChange={setValuesText}
         onExecute={handleExecute}
+        onPollingToggle={() => setPollingEnabled((v) => !v)}
+        onPollingIntervalChange={setPollingInterval}
       />
 
       {/* 最近响应寄存器表格 */}
-      <ModbusResponseTable transaction={lastTransaction} />
+      <ModbusResponseTable
+        transaction={lastTransaction}
+        dataType={dataType}
+        onDataTypeChange={setDataType}
+      />
 
       {/* 事务日志 */}
       <div className="flex min-h-0 flex-1 flex-col rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden">

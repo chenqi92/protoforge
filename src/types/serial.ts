@@ -38,7 +38,14 @@ export interface SerialPortInfo {
 
 // ── 串口事件（后端推送） ──
 
-export type SerialEventType = 'opened' | 'data' | 'closed' | 'error';
+export type SerialEventType = 'opened' | 'data' | 'closed' | 'error' | 'signals';
+
+export interface SerialSignals {
+  cts: boolean;
+  dsr: boolean;
+  ri: boolean;
+  cd: boolean;
+}
 
 export interface SerialEvent {
   portId: string;
@@ -47,6 +54,7 @@ export interface SerialEvent {
   rawHex?: string;
   size?: number;
   timestamp: string;
+  signals?: SerialSignals;
 }
 
 // ── 最近使用的串口配置 ──

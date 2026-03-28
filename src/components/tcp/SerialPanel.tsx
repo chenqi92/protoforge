@@ -11,11 +11,20 @@ import { asciiToHex } from "@/services/tcpService";
 import { useActivityLogStore } from "@/stores/activityLogStore";
 import type { TcpMessage, DataFormat, ConnectionStats, SendHistoryItem, QuickCommand } from "@/types/tcp";
 import type {
-  SerialPortInfo, SerialPortConfig, SerialEvent, RecentSerialConfig,
+  SerialPortInfo, SerialPortConfig, SerialEvent, RecentSerialConfig, SerialSignals,
 } from "@/types/serial";
 import {
   BAUD_RATES, DATA_BITS_OPTIONS, STOP_BITS_OPTIONS, DEFAULT_SERIAL_CONFIG,
 } from "@/types/serial";
+
+// ── 行结尾类型 ──
+type LineEnding = 'none' | 'lf' | 'cr' | 'crlf';
+const LINE_ENDING_MAP: Record<LineEnding, string> = {
+  none: '',
+  lf: '\n',
+  cr: '\r',
+  crlf: '\r\n',
+};
 
 // ═══════════════════════════════════════════
 //  最近串口配置 — localStorage
@@ -47,6 +56,7 @@ function useSerialState() {
   const [sendHistory, setSendHistory] = useState<SendHistoryItem[]>([]);
   const [quickCommands, setQuickCommands] = useState<QuickCommand[]>([]);
   const [appendNewline, setAppendNewline] = useState(false);
+  const [lineEnding, setLineEnding] = useState<LineEnding>('none');
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [timerInterval, setTimerInterval] = useState(1000);
   const [stats, setStats] = useState<ConnectionStats>({ sentBytes: 0, receivedBytes: 0, sentCount: 0, receivedCount: 0 });
@@ -105,7 +115,8 @@ function useSerialState() {
     messages, setMessages, message, setMessage,
     sendFormat, setSendFormat, displayFormat, setDisplayFormat,
     sendHistory, setSendHistory, quickCommands, setQuickCommands,
-    appendNewline, setAppendNewline, timerEnabled, setTimerEnabled,
+    appendNewline, setAppendNewline, lineEnding, setLineEnding,
+    timerEnabled, setTimerEnabled,
     timerInterval, setTimerInterval, stats, setStats,
     addMessage, addToHistory, systemMessage, resetStats, saveQuickCommand,
   };
@@ -347,6 +358,13 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
   const [recentConfigs, setRecentConfigs] = useState<RecentSerialConfig[]>(loadRecentConfigs);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ── DTR/RTS 信号控制 ──
+  const [dtr, setDtr] = useState(false);
+  const [rts, setRts] = useState(false);
+
+  // ── CTS/DSR/RI/CD 信号状态 ──
+  const [signals, setSignals] = useState<SerialSignals>({ cts: false, dsr: false, ri: false, cd: false });
+
   // ── 初始化：枚举串口 ──
   const refreshPorts = useCallback(async () => {
     setLoadingPorts(true);
@@ -378,6 +396,9 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
             setOpen(true);
             setOpening(false);
             setConnectedSince(new Date().toISOString());
+            setDtr(false);
+            setRts(false);
+            setSignals({ cts: false, dsr: false, ri: false, cd: false });
             state.systemMessage(`[OK] ${t('serial.system.opened', '串口已打开')} ${portName}`);
             break;
           case "data":
@@ -398,6 +419,11 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
             setOpening(false);
             setConnectedSince(undefined);
             state.systemMessage(`[WARN] ${t('serial.system.error', '错误')}: ${event.data}`);
+            break;
+          case "signals":
+            if (event.signals) {
+              setSignals(event.signals);
+            }
             break;
         }
       });
@@ -437,10 +463,24 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
     }
   };
 
+  // ── DTR/RTS 切换 ──
+  const handleToggleDtr = async () => {
+    const newVal = !dtr;
+    setDtr(newVal);
+    await svc.serialSetDtr(portId, newVal).catch(() => {});
+  };
+
+  const handleToggleRts = async () => {
+    const newVal = !rts;
+    setRts(newVal);
+    await svc.serialSetRts(portId, newVal).catch(() => {});
+  };
+
   // ── 发送数据 ──
   const handleSend = async () => {
     if (!open || !state.message.trim()) return;
-    const data = state.appendNewline ? state.message + "\n" : state.message;
+    const suffix = LINE_ENDING_MAP[state.lineEnding];
+    const data = suffix ? state.message + suffix : state.message;
     try {
       await svc.serialSend(portId, data, state.sendFormat);
       const size = new TextEncoder().encode(data).length;
@@ -498,6 +538,84 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
             onRemove={handleRemoveRecent}
           />
         </div>
+
+        {/* 信号控制栏 + 行结尾选择器 (仅在端口打开时显示) */}
+        {open && (
+          <div className="flex items-center gap-3 flex-wrap px-0.5">
+            {/* DTR/RTS 控制 */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
+                {t('serial.signals', '信号')}
+              </span>
+              <button
+                onClick={handleToggleDtr}
+                className={cn(
+                  "h-[22px] px-2 rounded-[4px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide border transition-colors",
+                  dtr
+                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
+                    : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
+                )}
+                title="Data Terminal Ready"
+              >
+                DTR
+              </button>
+              <button
+                onClick={handleToggleRts}
+                className={cn(
+                  "h-[22px] px-2 rounded-[4px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide border transition-colors",
+                  rts
+                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
+                    : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
+                )}
+                title="Request To Send"
+              >
+                RTS
+              </button>
+            </div>
+
+            <div className="h-3.5 w-px bg-border-default/50 shrink-0" />
+
+            {/* CTS/DSR/RI/CD 状态 */}
+            <div className="flex items-center gap-2">
+              {(['cts', 'dsr', 'ri', 'cd'] as const).map((sig) => (
+                <div key={sig} className="flex items-center gap-1">
+                  <div className={cn(
+                    "w-1.5 h-1.5 rounded-full transition-colors",
+                    signals[sig] ? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.6)]" : "bg-border-default/60"
+                  )} />
+                  <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide text-text-disabled">
+                    {sig.toUpperCase()}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="h-3.5 w-px bg-border-default/50 shrink-0" />
+
+            {/* 行结尾选择器 */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
+                {t('serial.lineEnding', '行结尾')}
+              </span>
+              <div className="flex h-[22px] items-center rounded-[4px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
+                {(['none', 'lf', 'cr', 'crlf'] as LineEnding[]).map((le) => (
+                  <button
+                    key={le}
+                    onClick={() => state.setLineEnding(le)}
+                    className={cn(
+                      "h-full px-2 text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-colors",
+                      state.lineEnding === le
+                        ? "bg-accent text-white"
+                        : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
+                    )}
+                  >
+                    {le === 'none' ? t('serial.leNone', '无') : le.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="wb-workbench-stack min-h-0 flex-1">

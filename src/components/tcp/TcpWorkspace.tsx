@@ -1,7 +1,7 @@
 // TCP/UDP 工作区 — 上下分栏布局
 // 上方消息日志（主区域） + 下方紧凑发送栏
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Server, Radio, Square, Monitor, History, X, Usb, Cpu } from "lucide-react";
+import { Server, Radio, Square, Monitor, History, X, Usb, Cpu, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { ConnectionBar } from "./ConnectionBar";
@@ -11,6 +11,7 @@ import { ClientList } from "./ClientList";
 import { StatsBar } from "./StatsBar";
 import { SerialPanel } from "./SerialPanel";
 import { ModbusPanel } from "./ModbusPanel";
+import { ToolboxPanel } from "./ToolboxPanel";
 import * as svc from "@/services/tcpService";
 import { useActivityLogStore } from "@/stores/activityLogStore";
 import type {
@@ -96,6 +97,7 @@ const MODES: { value: SocketMode; labelKey: string; hintKey: string; icon: React
   { value: "udp-server", labelKey: "tcp.modes.udpServer", hintKey: "tcp.modes.udpServerHint", icon: <Square className="w-3.5 h-3.5" /> },
   { value: "serial",     labelKey: "tcp.modes.serial",    hintKey: "tcp.modes.serialHint",    icon: <Usb className="w-3.5 h-3.5" /> },
   { value: "modbus",     labelKey: "tcp.modes.modbus",    hintKey: "tcp.modes.modbusHint",    icon: <Cpu className="w-3.5 h-3.5" /> },
+  { value: "toolbox",    labelKey: "tcp.modes.toolbox",   hintKey: "tcp.modes.toolboxHint",   icon: <Wrench className="w-3.5 h-3.5" /> },
 ];
 
 export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
@@ -131,7 +133,9 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
                 ? t('tcp.connectionless')
                 : mode === "serial"
                   ? t('tcp.serialPort', '串口通信')
-                  : t('tcp.modbusBus', 'Modbus 总线')}
+                  : mode === "modbus"
+                    ? t('tcp.modbusBus', 'Modbus 总线')
+                    : t('tcp.toolbox', '调试工具箱')}
           </span>
         </div>
       </div>
@@ -154,6 +158,9 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
         </div>
         <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "modbus" && "hidden")}>
           <ModbusPanel sessionKey={sessionKey} />
+        </div>
+        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "toolbox" && "hidden")}>
+          <ToolboxPanel />
         </div>
       </div>
     </div>

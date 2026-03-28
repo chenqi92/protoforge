@@ -382,12 +382,15 @@
       "serial": "串口",
       "serialHint": "物理串口通信，支持波特率、数据位、奇偶校验等参数配置，适用于嵌入式设备调试",
       "modbus": "Modbus",
-      "modbusHint": "Modbus 工业协议调试，支持 TCP 和 RTU 两种传输方式，涵盖全部常用功能码"
+      "modbusHint": "Modbus 工业协议调试，支持 TCP 和 RTU 两种传输方式，涵盖全部常用功能码",
+      "toolbox": "工具箱",
+      "toolboxHint": "CRC 计算、数值进制转换、字节操作等协议调试辅助工具"
     },
     "connectionOriented": "面向连接",
     "connectionless": "无连接报文",
     "serialPort": "串口通信",
     "modbusBus": "Modbus 总线",
+    "toolbox": "调试工具箱",
     "connect": "连接",
     "disconnect": "断开",
     "listen": "监听",
@@ -554,6 +557,9 @@
     "close": "关闭",
     "opening": "打开中...",
     "recentConfigs": "最近",
+    "signals": "信号",
+    "lineEnding": "行结尾",
+    "leNone": "无",
     "system": {
       "opened": "串口已打开",
       "closed": "串口已关闭",
@@ -599,7 +605,11 @@
       "disconnected": "未连接",
       "connecting": "连接中...",
       "connectFailed": "连接失败",
-      "executeFailed": "执行失败"
+      "executeFailed": "执行失败",
+      "polling": "轮询",
+      "pollingToggle": "轮询开关",
+      "parsedValue": "解析值",
+      "exceptionDesc": "Modbus 异常"
     }
   },
   "capture": {
@@ -1126,5 +1136,51 @@
     "newAvailable": "有新版本",
     "goDownload": "前往下载",
     "downloadAndInstall": "立即更新"
+  },
+  "toolbox": {
+    "crc": {
+      "title": "CRC / 校验计算",
+      "inputLabel": "输入数据",
+      "inputModeSep": "/",
+      "inputHex": "HEX",
+      "inputAscii": "ASCII",
+      "algorithm": "算法",
+      "calculate": "计算",
+      "result": "计算结果",
+      "algoList": {
+        "crc8": "CRC-8",
+        "crc16modbus": "CRC-16/Modbus",
+        "crc16ccitt": "CRC-16/CCITT",
+        "crc32": "CRC-32",
+        "sum8": "累加和 8-bit",
+        "sum16": "累加和 16-bit",
+        "xor": "XOR 校验"
+      },
+      "decimal": "十进制",
+      "hex": "十六进制",
+      "binary": "二进制",
+      "bits": "位"
+    },
+    "converter": {
+      "title": "数值转换",
+      "decimal": "十进制",
+      "hex": "十六进制",
+      "binary": "二进制",
+      "float32": "Float32",
+      "bytes_be": "字节 (大端)",
+      "bytes_le": "字节 (小端)",
+      "signed": "有符号",
+      "unsigned": "无符号",
+      "invalidInput": "无效输入"
+    },
+    "byteTools": {
+      "title": "字节操作",
+      "inputLabel": "HEX 输入",
+      "swapEndian": "字节序翻转",
+      "invertBits": "按位取反",
+      "andMask": "AND 掩码",
+      "orMask": "OR 掩码",
+      "result": "结果"
+    }
   }
 }

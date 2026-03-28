@@ -25,6 +25,16 @@ export async function serialSend(portId: string, data: string, encoding: string 
   return invoke('serial_send', { portId, data, encoding });
 }
 
+// ── 信号控制 ──
+
+export async function serialSetDtr(portId: string, value: boolean): Promise<void> {
+  return invoke('serial_set_dtr', { portId, value });
+}
+
+export async function serialSetRts(portId: string, value: boolean): Promise<void> {
+  return invoke('serial_set_rts', { portId, value });
+}
+
 // ── 事件监听 ──
 
 export function onSerialEvent(callback: (event: SerialEvent) => void): Promise<UnlistenFn> {

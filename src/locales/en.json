@@ -381,12 +381,15 @@
       "serial": "Serial",
       "serialHint": "Physical serial port communication with configurable baud rate, data bits, parity, and flow control",
       "modbus": "Modbus",
-      "modbusHint": "Modbus industrial protocol debugging supporting TCP and RTU transports with full function code coverage"
+      "modbusHint": "Modbus industrial protocol debugging supporting TCP and RTU transports with full function code coverage",
+      "toolbox": "Toolbox",
+      "toolboxHint": "CRC calculator, number base converter, and byte manipulation tools for protocol debugging"
     },
     "connectionOriented": "Connection-Oriented",
     "connectionless": "Connectionless Datagram",
     "serialPort": "Serial Port",
     "modbusBus": "Modbus Bus",
+    "toolbox": "Debug Toolbox",
     "connect": "Connect",
     "disconnect": "Disconnect",
     "listen": "Listen",
@@ -553,6 +556,9 @@
     "close": "Close",
     "opening": "Opening...",
     "recentConfigs": "Recent",
+    "signals": "Signals",
+    "lineEnding": "Line Ending",
+    "leNone": "None",
     "system": {
       "opened": "Port opened",
       "closed": "Port closed",
@@ -598,7 +604,11 @@
       "disconnected": "Not connected",
       "connecting": "Connecting...",
       "connectFailed": "Connection failed",
-      "executeFailed": "Execution failed"
+      "executeFailed": "Execution failed",
+      "polling": "Poll",
+      "pollingToggle": "Polling Toggle",
+      "parsedValue": "Parsed",
+      "exceptionDesc": "Modbus Exception"
     }
   },
   "capture": {
@@ -1110,5 +1120,51 @@
     "newAvailable": "New version",
     "goDownload": "Go to Download",
     "downloadAndInstall": "Update Now"
+  },
+  "toolbox": {
+    "crc": {
+      "title": "CRC / Checksum Calculator",
+      "inputLabel": "Input Data",
+      "inputModeSep": "/",
+      "inputHex": "HEX",
+      "inputAscii": "ASCII",
+      "algorithm": "Algorithm",
+      "calculate": "Calculate",
+      "result": "Result",
+      "algoList": {
+        "crc8": "CRC-8",
+        "crc16modbus": "CRC-16/Modbus",
+        "crc16ccitt": "CRC-16/CCITT",
+        "crc32": "CRC-32",
+        "sum8": "Checksum 8-bit",
+        "sum16": "Checksum 16-bit",
+        "xor": "XOR Check"
+      },
+      "decimal": "Decimal",
+      "hex": "Hex",
+      "binary": "Binary",
+      "bits": "bits"
+    },
+    "converter": {
+      "title": "Number Converter",
+      "decimal": "Decimal",
+      "hex": "Hex",
+      "binary": "Binary",
+      "float32": "Float32",
+      "bytes_be": "Bytes (Big-Endian)",
+      "bytes_le": "Bytes (Little-Endian)",
+      "signed": "Signed",
+      "unsigned": "Unsigned",
+      "invalidInput": "Invalid input"
+    },
+    "byteTools": {
+      "title": "Byte Tools",
+      "inputLabel": "HEX Input",
+      "swapEndian": "Swap Endian",
+      "invertBits": "Invert Bits",
+      "andMask": "AND Mask",
+      "orMask": "OR Mask",
+      "result": "Result"
+    }
   }
 }
