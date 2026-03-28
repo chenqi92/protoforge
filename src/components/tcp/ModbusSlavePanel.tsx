@@ -294,45 +294,56 @@ export function ModbusSlavePanel({ sessionKey }: { sessionKey: string }) {
 
   // ── Subscribe to slave events ──
   useEffect(() => {
+    let disposed = false;
     let unlisten: (() => void) | null = null;
-    mbSvc.onModbusSlaveEvent((ev) => {
-      if (ev.connId !== connId) return;
-      if (ev.eventType === 'started') {
-        setRunning(true);
-        setStarting(false);
-        setStartedAt(new Date());
-      } else if (ev.eventType === 'stopped') {
-        setRunning(false);
-        setStartedAt(null);
-      } else if (ev.eventType === 'request') {
-        setRequestCount((c) => c + 1);
-        setRequestLog((prev) => [...prev.slice(-499), ev]);
-        // Auto scroll
-        setTimeout(() => logEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-        // If it's a write, update local register state
-        if (ev.functionCode !== undefined && ev.values !== undefined && ev.startAddress !== undefined) {
-          const fc = ev.functionCode;
-          if (fc === 5 || fc === 15) {
-            // coil write
-            setCoils((prev) => {
-              const next = new Map(prev);
-              ev.values!.forEach((v, i) => next.set(ev.startAddress! + i, v !== 0));
-              return next;
-            });
-          } else if (fc === 6 || fc === 16) {
-            // holding register write
-            setHoldingRegs((prev) => {
-              const next = new Map(prev);
-              ev.values!.forEach((v, i) => next.set(ev.startAddress! + i, v));
-              return next;
-            });
+    const setup = async () => {
+      const fn = await mbSvc.onModbusSlaveEvent((ev) => {
+        if (ev.connId !== connId) return;
+        if (ev.eventType === 'started') {
+          setRunning(true);
+          setStarting(false);
+          setStartedAt(new Date());
+        } else if (ev.eventType === 'stopped') {
+          setRunning(false);
+          setStartedAt(null);
+        } else if (ev.eventType === 'request') {
+          setRequestCount((c) => c + 1);
+          setRequestLog((prev) => [...prev.slice(-499), ev]);
+          // Auto scroll
+          setTimeout(() => logEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+          // If it's a write, update local register state
+          if (ev.functionCode !== undefined && ev.values !== undefined && ev.startAddress !== undefined) {
+            const fc = ev.functionCode;
+            if (fc === 5 || fc === 15) {
+              // coil write
+              setCoils((prev) => {
+                const next = new Map(prev);
+                ev.values!.forEach((v, i) => next.set(ev.startAddress! + i, v !== 0));
+                return next;
+              });
+            } else if (fc === 6 || fc === 16) {
+              // holding register write
+              setHoldingRegs((prev) => {
+                const next = new Map(prev);
+                ev.values!.forEach((v, i) => next.set(ev.startAddress! + i, v));
+                return next;
+              });
+            }
           }
+        } else if (ev.eventType === 'error') {
+          setRequestLog((prev) => [...prev.slice(-499), ev]);
         }
-      } else if (ev.eventType === 'error') {
-        setRequestLog((prev) => [...prev.slice(-499), ev]);
-      }
-    }).then((fn) => { unlisten = fn; });
-    return () => { unlisten?.(); };
+      });
+      if (disposed) { fn(); return; }
+      unlisten = fn;
+    };
+    setup();
+    return () => {
+      disposed = true;
+      unlisten?.();
+      mbSvc.modbusSlaveStopTcp(connId).catch(() => {});
+      mbSvc.modbusSlaveStopRtu(connId).catch(() => {});
+    };
   }, [connId]);
 
   // ── Auto-scroll log ──

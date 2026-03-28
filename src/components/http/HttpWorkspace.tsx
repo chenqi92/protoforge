@@ -844,7 +844,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           key={at}
                           onClick={() => updateHttpConfig(tabId, { authType: at })}
                           className={cn(
-                            "flex items-center w-full px-3 py-2 rounded-md text-left text-[var(--fs-sm)] transition-colors",
+                            "flex items-center w-full px-3 py-2 rounded-md text-left text-[var(--fs-xs)] transition-colors",
                             config.authType === at
                               ? "bg-accent/10 text-text-primary font-medium"
                               : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
@@ -858,17 +858,17 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                   
                   <div className="flex-1 min-w-0 p-5 overflow-y-auto">
                     <div className="max-w-2xl">
-                      {config.authType === "none" && <p className="text-[var(--fs-sm)] text-text-disabled mt-2">{t('http.noAuth')}</p>}
+                      {config.authType === "none" && <p className="text-[var(--fs-xs)] text-text-disabled mt-2">{t('http.noAuth')}</p>}
                     {config.authType === "bearer" && (
                       <div className="space-y-2">
-                        <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
+                        <label className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
                         <div className="relative">
                           <input
                             value={config.bearerToken}
                             onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
                             type={showSecrets['bearer'] ? 'text' : 'password'}
                             placeholder="ey..."
-                            className="wb-field w-full font-mono pr-9"
+                            className="wb-field w-full font-mono text-[var(--fs-xs)] pr-9"
                           />
                           <button type="button" onClick={() => toggleSecret('bearer')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                             {showSecrets['bearer'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -879,13 +879,13 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                     {config.authType === "basic" && (
                       <div className="space-y-3">
                         <div className="space-y-1.5">
-                          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Username</label>
-                          <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full" />
+                          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Username</label>
+                          <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full text-[var(--fs-xs)]" />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Password</label>
+                          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Password</label>
                           <div className="relative">
-                            <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full pr-9" />
+                            <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full text-[var(--fs-xs)] pr-9" />
                             <button type="button" onClick={() => toggleSecret('basicPwd')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                               {showSecrets['basicPwd'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
@@ -896,7 +896,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                     {config.authType === "apiKey" && (
                       <div className="space-y-3">
                         <div className="space-y-1.5">
-                          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('http.addTo')}</label>
+                          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('http.addTo')}</label>
                           <div className="wb-segmented w-fit">
                             {(["header", "query"] as const).map((a) => (
                               <button key={a} onClick={() => updateHttpConfig(tabId, { apiKeyAddTo: a })} className={cn("wb-segment", config.apiKeyAddTo === a && "wb-segment-active")}>
@@ -906,13 +906,13 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           </div>
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Key</label>
-                          <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono" />
+                          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Key</label>
+                          <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono text-[var(--fs-xs)]" />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Value</label>
+                          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Value</label>
                           <div className="relative">
-                            <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono pr-9" />
+                            <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono text-[var(--fs-xs)] pr-9" />
                             <button type="button" onClick={() => toggleSecret('apiKey')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                               {showSecrets['apiKey'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
@@ -2778,7 +2778,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('http.authType')}</label>
+        <label className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('http.authType')}</label>
         <div className="wb-segmented w-fit">
           {(["client_credentials", "authorization_code", "password"] as const).map((gt) => (
             <button
@@ -2792,46 +2792,46 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
         </div>
       </div>
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Access Token URL</label>
-        <input value={config.accessTokenUrl} onChange={(e) => onChange({ accessTokenUrl: e.target.value })} placeholder="https://auth.example.com/oauth/token" className="wb-field w-full font-mono text-[var(--fs-base)]" />
+        <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Access Token URL</label>
+        <input value={config.accessTokenUrl} onChange={(e) => onChange({ accessTokenUrl: e.target.value })} placeholder="https://auth.example.com/oauth/token" className="wb-field w-full font-mono text-[var(--fs-xs)]" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Client ID</label>
-          <input value={config.clientId} onChange={(e) => onChange({ clientId: e.target.value })} className="wb-field w-full font-mono text-[var(--fs-base)]" />
+          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Client ID</label>
+          <input value={config.clientId} onChange={(e) => onChange({ clientId: e.target.value })} className="wb-field w-full font-mono text-[var(--fs-xs)]" />
         </div>
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Client Secret</label>
-          <input value={config.clientSecret} onChange={(e) => onChange({ clientSecret: e.target.value })} type="password" className="wb-field w-full font-mono text-[var(--fs-base)]" />
+          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Client Secret</label>
+          <input value={config.clientSecret} onChange={(e) => onChange({ clientSecret: e.target.value })} type="password" className="wb-field w-full font-mono text-[var(--fs-xs)]" />
         </div>
       </div>
       {config.grantType === "authorization_code" && (
         <>
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Auth URL</label>
-            <input value={config.authUrl} onChange={(e) => onChange({ authUrl: e.target.value })} placeholder="https://auth.example.com/authorize" className="wb-field w-full font-mono text-[var(--fs-base)]" />
+            <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Auth URL</label>
+            <input value={config.authUrl} onChange={(e) => onChange({ authUrl: e.target.value })} placeholder="https://auth.example.com/authorize" className="wb-field w-full font-mono text-[var(--fs-xs)]" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Redirect URI</label>
-            <input value={config.redirectUri} onChange={(e) => onChange({ redirectUri: e.target.value })} className="wb-field w-full font-mono text-[var(--fs-base)]" />
+            <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Redirect URI</label>
+            <input value={config.redirectUri} onChange={(e) => onChange({ redirectUri: e.target.value })} className="wb-field w-full font-mono text-[var(--fs-xs)]" />
           </div>
         </>
       )}
       {config.grantType === "password" && (
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Username</label>
-            <input value={config.username} onChange={(e) => onChange({ username: e.target.value })} className="wb-field w-full text-[var(--fs-base)]" />
+            <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Username</label>
+            <input value={config.username} onChange={(e) => onChange({ username: e.target.value })} className="wb-field w-full text-[var(--fs-xs)]" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Password</label>
-            <input value={config.password} onChange={(e) => onChange({ password: e.target.value })} type="password" className="wb-field w-full text-[var(--fs-base)]" />
+            <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Password</label>
+            <input value={config.password} onChange={(e) => onChange({ password: e.target.value })} type="password" className="wb-field w-full text-[var(--fs-xs)]" />
           </div>
         </div>
       )}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Scope</label>
-        <input value={config.scope} onChange={(e) => onChange({ scope: e.target.value })} placeholder="read write" className="wb-field w-full font-mono text-[var(--fs-base)]" />
+        <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Scope</label>
+        <input value={config.scope} onChange={(e) => onChange({ scope: e.target.value })} placeholder="read write" className="wb-field w-full font-mono text-[var(--fs-xs)]" />
       </div>
 
       {/* Get Token + Access Token */}
@@ -2865,19 +2865,19 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
           )}
         </div>
         {authorizing && (
-          <div className="mb-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-[var(--fs-sm)] text-blue-600 dark:text-blue-400 flex items-center gap-2">
+          <div className="mb-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-[var(--fs-xs)] text-blue-600 dark:text-blue-400 flex items-center gap-2">
             <svg className="w-4 h-4 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" strokeLinecap="round" strokeLinejoin="round"/></svg>
             {t('http.oauth2.authorizingHint')}
           </div>
         )}
         {error && (
-          <div className="mb-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-[var(--fs-sm)] text-red-600 dark:text-red-400 break-all">
+          <div className="mb-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-[var(--fs-xs)] text-red-600 dark:text-red-400 break-all">
             {error}
           </div>
         )}
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">Access Token</label>
-          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder={t('http.oauth2.accessTokenPlaceholder')} className="wb-field w-full font-mono text-[var(--fs-sm)]" />
+          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Access Token</label>
+          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder={t('http.oauth2.accessTokenPlaceholder')} className="wb-field w-full font-mono text-[var(--fs-xs)]" />
         </div>
       </div>
     </div>
@@ -3144,4 +3144,3 @@ function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (data: str
     </>
   );
 }
-

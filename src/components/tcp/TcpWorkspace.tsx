@@ -115,6 +115,8 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
   const [mode, setMode] = useState<SocketMode>("tcp-client");
   const [splitView, setSplitView] = useState(false);
   const sessionKey = useRef(sessionId ?? crypto.randomUUID()).current;
+  const secondaryEverShownRef = useRef(false);
+  const lastSplittableModeRef = useRef<SocketMode | null>(null);
   const activeMode = MODES.find((item) => item.value === mode) || MODES[0];
   const canSplit = mode in SPLIT_PAIR;
 
@@ -199,35 +201,66 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
           </div>
         </div>
 
-        {/* Divider + secondary split panel */}
-        {splitView && canSplit && (
-          <>
-            <div className="w-px bg-border-default/40 shrink-0" />
-            <div className="flex min-h-0 flex-1 flex-col border-l border-border-default/40 overflow-hidden">
-              {/* Split panel header */}
-              <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-bg-secondary/50 border-b border-border-default/40 text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wide">
-                {MODES.find((m) => m.value === SPLIT_PAIR[mode])?.icon}
-                {t(MODES.find((m) => m.value === SPLIT_PAIR[mode])?.labelKey ?? '')}
-              </div>
-              {/* Secondary panel content */}
-              {(() => {
-                const secondMode = SPLIT_PAIR[mode]!;
-                const splitKey = `${sessionKey}-split`;
-                return (
-                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
-                    {secondMode === "tcp-client" && <TcpClientPanel sessionKey={splitKey} />}
-                    {secondMode === "tcp-server" && <TcpServerPanel sessionKey={splitKey} />}
-                    {secondMode === "udp-client" && <UdpClientPanel sessionKey={splitKey} />}
-                    {secondMode === "udp-server" && <UdpServerPanel sessionKey={splitKey} />}
-                    {secondMode === "serial" && <SerialPanel sessionKey={splitKey} />}
-                    {secondMode === "modbus" && <ModbusPanel sessionKey={splitKey} />}
-                    {secondMode === "modbus-slave" && <ModbusSlavePanel sessionKey={splitKey} />}
+        {/*
+          Secondary split panel — once mounted, never unmount (CSS hidden when inactive)
+          This preserves connection state when split view is toggled off
+        */}
+        {(() => {
+          const splitActive = splitView && canSplit;
+          // Track the last splittable mode to preserve which secondary panel was active
+          if (splitActive) {
+            secondaryEverShownRef.current = true;
+            lastSplittableModeRef.current = mode;
+          }
+          if (!secondaryEverShownRef.current) return null;
+
+          // Use the last known splittable mode for rendering the secondary panels
+          // This avoids re-rendering when we switch to a non-splittable mode
+          const renderMode = splitActive ? mode : (lastSplittableModeRef.current ?? mode);
+          const secondMode = SPLIT_PAIR[renderMode];
+          const splitKey = `${sessionKey}-split`;
+          const headerMode = MODES.find((m) => m.value === secondMode);
+
+          return (
+            <>
+              <div className={cn("w-px bg-border-default/40 shrink-0", !splitActive && "hidden")} />
+              <div className={cn(
+                "flex min-h-0 flex-1 flex-col border-l border-border-default/40 overflow-hidden",
+                !splitActive && "hidden"
+              )}>
+                {/* Split panel header */}
+                <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-bg-secondary/50 border-b border-border-default/40 text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wide">
+                  {headerMode?.icon}
+                  {t(headerMode?.labelKey ?? '')}
+                </div>
+                {/* Secondary panels — always mounted, CSS hidden when not the active secondary */}
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
+                  <div className={cn("flex min-h-0 flex-1 flex-col", secondMode !== "tcp-client" && "hidden")}>
+                    <TcpClientPanel sessionKey={splitKey} />
                   </div>
-                );
-              })()}
-            </div>
-          </>
-        )}
+                  <div className={cn("flex min-h-0 flex-1 flex-col", secondMode !== "tcp-server" && "hidden")}>
+                    <TcpServerPanel sessionKey={splitKey} />
+                  </div>
+                  <div className={cn("flex min-h-0 flex-1 flex-col", secondMode !== "udp-client" && "hidden")}>
+                    <UdpClientPanel sessionKey={splitKey} />
+                  </div>
+                  <div className={cn("flex min-h-0 flex-1 flex-col", secondMode !== "udp-server" && "hidden")}>
+                    <UdpServerPanel sessionKey={splitKey} />
+                  </div>
+                  <div className={cn("flex min-h-0 flex-1 flex-col", secondMode !== "serial" && "hidden")}>
+                    <SerialPanel sessionKey={splitKey} />
+                  </div>
+                  <div className={cn("flex min-h-0 flex-1 flex-col", secondMode !== "modbus" && "hidden")}>
+                    <ModbusPanel sessionKey={splitKey} />
+                  </div>
+                  <div className={cn("flex min-h-0 flex-1 flex-col", secondMode !== "modbus-slave" && "hidden")}>
+                    <ModbusSlavePanel sessionKey={splitKey} />
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </div>
     </div>
   );
@@ -423,7 +456,11 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
       unlisten = listener;
     };
     setup();
-    return () => { disposed = true; unlisten?.(); };
+    return () => {
+      disposed = true;
+      unlisten?.();
+      svc.tcpDisconnect(connectionId).catch(() => {});
+    };
   }, [connectionId, state.addMessage, state.systemMessage, t]);
 
   useEffect(() => {
@@ -623,7 +660,11 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
       unlisten = listener;
     };
     setup();
-    return () => { disposed = true; unlisten?.(); };
+    return () => {
+      disposed = true;
+      unlisten?.();
+      svc.tcpServerStop(serverId).catch(() => {});
+    };
   }, [serverId, state.addMessage, state.systemMessage, t]);
 
   useEffect(() => {
@@ -806,7 +847,11 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
       unlisten = listener;
     };
     setup();
-    return () => { disposed = true; unlisten?.(); };
+    return () => {
+      disposed = true;
+      unlisten?.();
+      svc.udpClose(socketId).catch(() => {});
+    };
   }, [socketId, state.addMessage, state.systemMessage, t]);
 
   useEffect(() => {
@@ -983,7 +1028,11 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
       unlisten = listener;
     };
     setup();
-    return () => { disposed = true; unlisten?.(); };
+    return () => {
+      disposed = true;
+      unlisten?.();
+      svc.udpClose(socketId).catch(() => {});
+    };
   }, [socketId, state.addMessage, state.systemMessage, t]);
 
   useEffect(() => {

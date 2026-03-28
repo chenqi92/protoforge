@@ -805,7 +805,12 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
       unlisten = listener;
     };
     setup();
-    return () => { disposed = true; unlisten?.(); };
+    return () => {
+      disposed = true;
+      unlisten?.();
+      mbSvc.modbusTcpDisconnect(connId).catch(() => {});
+      mbSvc.modbusRtuClose(connId).catch(() => {});
+    };
   }, [connId]);
 
   // ── 轮询 useEffect ──

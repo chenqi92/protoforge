@@ -431,7 +431,11 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
       unlisten = listener;
     };
     setup();
-    return () => { disposed = true; unlisten?.(); };
+    return () => {
+      disposed = true;
+      unlisten?.();
+      svc.serialClose(portId).catch(() => {});
+    };
   }, [portId, state.addMessage, state.systemMessage, portName, t]);
 
   // ── 定时发送 ──

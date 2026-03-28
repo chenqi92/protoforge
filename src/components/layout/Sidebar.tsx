@@ -629,11 +629,11 @@ function CollectionsView({ search, expanded, setExpanded }: {
                     e.stopPropagation();
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex-1 min-w-0 text-[length:var(--fs-sidebar-sm)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
+                  className="flex-1 min-w-0 text-[length:var(--fs-sidebar)] bg-transparent border-b border-accent outline-none text-text-primary px-0.5 py-0 font-medium"
                   autoFocus
                 />
               ) : (
-                <span className="truncate text-[length:var(--fs-sidebar-sm)] font-medium">{item.name}</span>
+                <span className="truncate text-[length:var(--fs-sidebar)] font-medium">{item.name}</span>
               )}
               {childCount > 0 && (
                 <span className="text-[var(--fs-3xs)] text-text-disabled ml-auto tabular-nums">{childCount}</span>
@@ -1202,4 +1202,3 @@ function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
     </div>
   );
 }
-
