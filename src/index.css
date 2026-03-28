@@ -485,9 +485,16 @@
 
   .wb-workbench-grid {
     display: grid;
+    width: 100%;
+    max-width: 100%;
     height: 100%;
     min-height: 0;
-    grid-template-columns: clamp(320px, 28vw, 420px) minmax(0, 1fr);
+    min-width: 0;
+    grid-template-columns: clamp(360px, 31vw, 460px) minmax(0, 1fr);
+  }
+
+  .wb-workbench-grid--compact {
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
   }
 
   .wb-workbench-stack {
@@ -521,18 +528,20 @@
     height: 8px;
     flex-shrink: 0;
     cursor: row-resize;
-    background: var(--color-bg-primary);
+    margin-top: -8px;
+    background: transparent;
+    z-index: 2;
     transition: background-color var(--transition-fast);
   }
 
   .wb-workbench-divider::after {
     content: "";
     position: absolute;
-    left: 12px;
-    right: 12px;
-    top: 50%;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
     height: 1px;
-    transform: translateY(-50%);
     background: var(--color-border-default);
     transition: background-color var(--transition-fast);
   }
@@ -540,6 +549,13 @@
   .wb-workbench-divider:hover::after,
   .wb-workbench-divider:active::after {
     background: var(--color-accent);
+  }
+
+  .wb-workbench-divider--flush::after {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
   }
 
   .wb-pane-header {

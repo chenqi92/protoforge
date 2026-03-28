@@ -21,7 +21,7 @@ export async function serialClose(portId: string): Promise<void> {
 
 // ── 数据发送 ──
 
-export async function serialSend(portId: string, data: string, encoding: string = 'ascii'): Promise<void> {
+export async function serialSend(portId: string, data: string, encoding: string = 'utf8'): Promise<void> {
   return invoke('serial_send', { portId, data, encoding });
 }
 

@@ -13,29 +13,34 @@ interface ConnectionBarProps {
   onHostChange: (v: string) => void;
   onPortChange: (v: number) => void;
   onToggle: () => void;
+  compact?: boolean;
 }
 
-const modeConfig: Record<SocketMode, { label: string; icon: React.ReactNode; badge: string; gradient: string }> = {
+const modeConfig: Record<SocketMode, { label: string; compactLabel: string; icon: React.ReactNode; badge: string; gradient: string }> = {
   "tcp-client": {
     label: "TCP",
+    compactLabel: "TCP",
     icon: <Network className="w-3.5 h-3.5" />,
     badge: "bg-blue-500",
     gradient: "from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700",
   },
   "tcp-server": {
     label: "TCP Server",
+    compactLabel: "Server",
     icon: <Server className="w-3.5 h-3.5" />,
     badge: "bg-indigo-500",
     gradient: "from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700",
   },
   "udp-client": {
     label: "UDP",
+    compactLabel: "UDP",
     icon: <Radio className="w-3.5 h-3.5" />,
     badge: "bg-cyan-500",
     gradient: "from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600",
   },
   "udp-server": {
     label: "UDP Server",
+    compactLabel: "Server",
     icon: <Square className="w-3.5 h-3.5" />,
     badge: "bg-teal-500",
     gradient: "from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700",
@@ -43,12 +48,14 @@ const modeConfig: Record<SocketMode, { label: string; icon: React.ReactNode; bad
   // serial / modbus use dedicated panel components, not ConnectionBar — stubs required for TS exhaustiveness
   "serial": {
     label: "Serial",
+    compactLabel: "Serial",
     icon: <Usb className="w-3.5 h-3.5" />,
     badge: "bg-amber-500",
     gradient: "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600",
   },
   "modbus": {
     label: "Modbus",
+    compactLabel: "Modbus",
     icon: <Cpu className="w-3.5 h-3.5" />,
     badge: "bg-violet-500",
     gradient: "from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700",
@@ -56,18 +63,65 @@ const modeConfig: Record<SocketMode, { label: string; icon: React.ReactNode; bad
   // modbus-slave uses ModbusSlavePanel directly, stub required for TS exhaustiveness
   "modbus-slave": {
     label: "Modbus Slave",
+    compactLabel: "Slave",
     icon: <Cpu className="w-3.5 h-3.5" />,
     badge: "bg-violet-600",
     gradient: "from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800",
   },
 };
 
-export function ConnectionBar({ mode, host, port, connected, connecting, onHostChange, onPortChange, onToggle }: ConnectionBarProps) {
+export function ConnectionBar({ mode, host, port, connected, connecting, onHostChange, onPortChange, onToggle, compact = false }: ConnectionBarProps) {
   const { t } = useTranslation();
   const cfg = modeConfig[mode];
   const isServer = mode === "tcp-server" || mode === "udp-server";
   const activeLabel = isServer ? (connected ? t('tcp.stopListening') : t('tcp.listen')) : (connected ? t('tcp.disconnect') : t('tcp.connect'));
   const connectingLabel = isServer ? t('tcp.starting') : t('tcp.connecting');
+
+  if (compact) {
+    return (
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/35 p-1">
+          <div className={cn("flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm", cfg.badge)}>
+            {cfg.icon}
+            <span>{cfg.compactLabel}</span>
+          </div>
+          <button
+            onClick={onToggle}
+            disabled={connecting}
+            className={cn(
+              "wb-primary-btn ml-auto h-8 min-w-[78px] justify-center px-2.5 text-[var(--fs-xxs)]",
+              connected
+                ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
+                : connecting
+                  ? `${cfg.badge} cursor-wait opacity-70`
+                  : `bg-gradient-to-r ${cfg.gradient} hover:shadow-md`
+            )}
+          >
+            {connected ? <X className="h-3 w-3" /> : <Plug className="h-3 w-3" />}
+            {connecting ? connectingLabel : activeLabel}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-[minmax(0,1fr)_84px] gap-2">
+          <input
+            value={host}
+            onChange={(e) => onHostChange(e.target.value)}
+            placeholder={isServer ? "0.0.0.0" : t('tcp.hostPlaceholder')}
+            disabled={connected}
+            className="wb-field w-full font-mono"
+          />
+          <input
+            value={port}
+            onChange={(e) => onPortChange(parseInt(e.target.value) || 0)}
+            placeholder={t('tcp.portPlaceholder')}
+            type="number"
+            disabled={connected}
+            className="wb-field w-full text-center font-mono"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">

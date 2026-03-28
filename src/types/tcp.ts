@@ -3,7 +3,7 @@
 // ── 基础类型 ──
 
 export type SocketMode = 'tcp-client' | 'tcp-server' | 'udp-client' | 'udp-server' | 'serial' | 'modbus' | 'modbus-slave';
-export type DataFormat = 'ascii' | 'hex' | 'base64';
+export type DataFormat = 'auto' | 'text' | 'hex' | 'base64' | 'gbk' | 'json';
 
 export type LineEnding = 'none' | 'lf' | 'cr' | 'crlf';
 
@@ -13,7 +13,7 @@ export const LINE_ENDING_MAP: Record<LineEnding, string> = {
   cr: '\r',
   crlf: '\r\n',
 };
-export type DataEncoding = 'utf8' | 'hex' | 'base64';
+export type DataEncoding = 'utf8' | 'hex' | 'base64' | 'gbk';
 
 // ── 消息 ──
 

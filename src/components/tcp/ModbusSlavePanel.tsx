@@ -1,5 +1,6 @@
 // Modbus 从站 (Slave) 面板 — 模拟 Modbus 设备，自动响应主站请求
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import {
   Cpu, RefreshCw, ChevronDown, ChevronLeft, ChevronRight,
   Trash2, Play, Square,
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils";
 import * as mbSvc from "@/services/modbusService";
 import * as svcSerial from "@/services/serialService";
 import { registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
+import { ProtocolSidebarSection } from "./ProtocolWorkbench";
 import type {
   SerialPortInfo, SerialPortConfig, ModbusTransport, ModbusSlaveEvent,
 } from "@/types/serial";
@@ -85,119 +87,145 @@ function SlaveConnectionBar({
   const { t } = useTranslation();
 
   return (
-    <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
-      {/* Badge */}
-      <div className="flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm bg-violet-600">
-        <Cpu className="w-3.5 h-3.5" />
-        <span>Slave</span>
-      </div>
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="col-span-2 flex items-center gap-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/35 p-1">
+          <div className="flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[8px] bg-violet-600 px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm">
+            <Cpu className="h-3.5 w-3.5" />
+            <span>Slave</span>
+          </div>
+          <div className="flex flex-1 items-center rounded-[8px] border border-border-default/60 bg-bg-primary p-0.5">
+            {(["tcp", "rtu"] as ModbusTransport[]).map((tp) => (
+              <button
+                key={tp}
+                onClick={() => !running && onTransportChange(tp)}
+                disabled={running}
+                className={cn(
+                  "h-7 flex-1 rounded-[6px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-all",
+                  transport === tp
+                    ? "bg-violet-500/12 text-violet-600 shadow-xs dark:text-violet-300"
+                    : "text-text-tertiary hover:text-text-secondary disabled:opacity-50"
+                )}
+              >
+                {tp.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {/* Transport toggle */}
-      <div className="flex h-7 items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/60 p-0.5 shrink-0">
-        {(["tcp", "rtu"] as ModbusTransport[]).map((tp) => (
-          <button
-            key={tp}
-            onClick={() => !running && onTransportChange(tp)}
-            disabled={running}
-            className={cn(
-              "h-6 px-2.5 rounded-[4px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-all",
-              transport === tp
-                ? "bg-bg-primary text-text-primary shadow-xs"
-                : "text-text-tertiary hover:text-text-secondary disabled:opacity-50"
-            )}
-          >
-            {tp.toUpperCase()}
-          </button>
-        ))}
-      </div>
+        {transport === "tcp" ? (
+          <>
+            <label className="col-span-2 space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                Host
+              </span>
+              <input
+                value={host}
+                onChange={(e) => onHostChange(e.target.value)}
+                placeholder="0.0.0.0"
+                disabled={running}
+                className="wb-field w-full"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                Port
+              </span>
+              <input
+                value={port}
+                onChange={(e) => onPortChange(parseInt(e.target.value) || 0)}
+                placeholder="502"
+                type="number"
+                disabled={running}
+                className="wb-field w-full"
+              />
+            </label>
+          </>
+        ) : (
+          <>
+            <label className="col-span-2 space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                {t('serial.selectPort')}
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <select
+                    value={portName}
+                    onChange={(e) => onPortNameChange(e.target.value)}
+                    disabled={running}
+                    className="wb-field wb-native-select w-full appearance-none pr-8"
+                  >
+                    <option value="">{t('serial.selectPort')}</option>
+                    {serialPorts.map((p) => (
+                      <option key={p.portName} value={p.portName}>
+                        {p.portName}{p.description ? ` — ${p.description}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-disabled" />
+                </div>
+                <button
+                  onClick={onRefreshPorts}
+                  disabled={running || loadingPorts}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-border-default/60 bg-bg-secondary/35 text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-40"
+                  title={t('serial.refresh')}
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", loadingPorts && "animate-spin")} />
+                </button>
+              </div>
+            </label>
+            <label className="space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                Baud
+              </span>
+              <div className="relative">
+                <select
+                  value={String(serialConfig.baudRate)}
+                  onChange={(e) => onSerialConfigChange({ baudRate: Number(e.target.value) as SerialPortConfig["baudRate"] })}
+                  disabled={running}
+                  className="wb-field wb-native-select w-full appearance-none pr-8"
+                >
+                  {BAUD_RATES.map((r) => (
+                    <option key={r} value={String(r)}>{r}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-disabled" />
+              </div>
+            </label>
+          </>
+        )}
 
-      {/* Connection inputs */}
-      {transport === "tcp" ? (
-        <>
+        <label className="space-y-1">
+          <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            {t('serial.modbusslave.unitId', '从站地址')}
+          </span>
           <input
-            value={host}
-            onChange={(e) => onHostChange(e.target.value)}
-            placeholder="0.0.0.0"
-            disabled={running}
-            className="h-7 min-w-0 flex-1 bg-transparent px-2 text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
-          />
-          <div className="h-5 w-px shrink-0 bg-border-default/70" />
-          <input
-            value={port}
-            onChange={(e) => onPortChange(parseInt(e.target.value) || 0)}
-            placeholder="502"
             type="number"
+            min={1}
+            max={247}
+            value={unitId}
+            onChange={(e) => onUnitIdChange(Math.max(1, Math.min(247, parseInt(e.target.value) || 1)))}
             disabled={running}
-            className="h-7 w-[70px] bg-transparent px-2 text-center text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
+            className="wb-field w-full"
           />
-        </>
-      ) : (
-        <>
-          <div className="relative flex-1 min-w-0">
-            <select
-              value={portName}
-              onChange={(e) => onPortNameChange(e.target.value)}
-              disabled={running}
-              className="h-7 w-full appearance-none bg-transparent pl-2 pr-6 text-[var(--fs-sm)] font-mono text-text-primary outline-none disabled:opacity-60 cursor-pointer"
-            >
-              <option value="">{t('serial.selectPort')}</option>
-              {serialPorts.map((p) => (
-                <option key={p.portName} value={p.portName}>
-                  {p.portName}{p.description ? ` — ${p.description}` : ""}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled" />
+        </label>
+        <div className="space-y-1">
+          <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            {t('serial.modbus.transport', '传输')}
+          </span>
+          <div className="flex h-10 items-center rounded-[10px] border border-border-default/60 bg-bg-secondary/35 px-3 text-[var(--fs-xs)] font-medium text-text-secondary">
+            {transport === "tcp"
+              ? "TCP Server"
+              : `RTU · ${serialConfig.dataBits}${serialConfig.parity === "none" ? "N" : serialConfig.parity === "even" ? "E" : "O"}${serialConfig.stopBits}`}
           </div>
-          <button
-            onClick={onRefreshPorts}
-            disabled={running || loadingPorts}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-text-tertiary hover:bg-bg-hover hover:text-text-primary disabled:opacity-40 transition-colors"
-            title={t('serial.refresh')}
-          >
-            <RefreshCw className={cn("w-3.5 h-3.5", loadingPorts && "animate-spin")} />
-          </button>
-          <div className="h-5 w-px shrink-0 bg-border-default/70" />
-          <div className="relative">
-            <select
-              value={String(serialConfig.baudRate)}
-              onChange={(e) => onSerialConfigChange({ baudRate: Number(e.target.value) as SerialPortConfig["baudRate"] })}
-              disabled={running}
-              className="h-7 w-[86px] appearance-none bg-transparent pl-2 pr-5 text-[var(--fs-xs)] font-mono text-text-secondary outline-none disabled:opacity-60 cursor-pointer"
-            >
-              {BAUD_RATES.map((r) => (
-                <option key={r} value={String(r)}>{r}</option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-0.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-disabled" />
-          </div>
-        </>
-      )}
-
-      <div className="h-5 w-px shrink-0 bg-border-default/70" />
-
-      {/* Unit ID */}
-      <div className="flex h-7 items-center gap-1 shrink-0">
-        <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide text-text-tertiary whitespace-nowrap">
-          {t('serial.modbusslave.unitId', '从站地址')}
-        </span>
-        <input
-          type="number"
-          min={1}
-          max={247}
-          value={unitId}
-          onChange={(e) => onUnitIdChange(Math.max(1, Math.min(247, parseInt(e.target.value) || 1)))}
-          disabled={running}
-          className="h-6 w-12 rounded-[4px] border border-border-default/60 bg-bg-secondary/60 px-1 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none disabled:opacity-60"
-        />
+        </div>
       </div>
 
-      {/* Start/Stop button */}
       <button
         onClick={onToggle}
         disabled={starting || (!running && transport === "tcp" && !host) || (!running && transport === "rtu" && !portName)}
         className={cn(
-          "wb-primary-btn min-w-[80px] px-3",
+          "wb-primary-btn h-10 w-full justify-center px-3",
           running
             ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
             : starting
@@ -205,7 +233,7 @@ function SlaveConnectionBar({
               : "bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800 hover:shadow-md"
         )}
       >
-        {running ? <Square className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+        {running ? <Square className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
         {starting
           ? t('serial.modbusslave.slaveStarting', '启动中...')
           : running
@@ -220,7 +248,7 @@ function SlaveConnectionBar({
 //  Main ModbusSlavePanel
 // ═══════════════════════════════════════════
 
-export function ModbusSlavePanel({ sessionKey }: { sessionKey: string }) {
+export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: string; compact?: boolean }) {
   const { t } = useTranslation();
 
   // ── Connection state ──
@@ -488,310 +516,406 @@ export function ModbusSlavePanel({ sessionKey }: { sessionKey: string }) {
     { key: 'discrete', labelKey: 'serial.modbusslave.discreteInputs' },
     { key: 'input',    labelKey: 'serial.modbusslave.inputRegs' },
   ];
+  const activeTabMeta = TABS.find((tab) => tab.key === activeTab)!;
+  const columnSize = compact ? addresses.length : Math.ceil(addresses.length / 2);
+  const addressColumns = Array.from({ length: Math.ceil(addresses.length / columnSize) }, (_, index) =>
+    addresses.slice(index * columnSize, (index + 1) * columnSize)
+  );
+
+  const renderRegisterRow = (addr: number) => {
+    const prefix = addrPrefix(activeTab);
+    const addrDisplay = `${prefix}${(addr + 1).toString().padStart(4, '0')}`;
+    const val = activeTab === 'holding' ? getHolding(addr) : getInput(addr);
+    const isEditable = activeTab === 'holding';
+    const isEditing = editingAddr === addr;
+
+    return (
+      <tr
+        key={addr}
+        className={cn(
+          "border-b border-border-default/20 transition-colors hover:bg-bg-hover/30",
+          !isEditable && "opacity-70"
+        )}
+      >
+        <td className="px-2.5 py-0.5 font-mono text-[var(--fs-3xs)] text-text-tertiary">
+          {addrDisplay}
+        </td>
+        <td className="px-2.5 py-0.5">
+          {isEditable ? (
+            isEditing ? (
+              <input
+                autoFocus
+                type="number"
+                min={0}
+                max={65535}
+                value={editingVal}
+                onChange={(e) => setEditingVal(e.target.value)}
+                onBlur={() => commitEdit(addr, editingVal)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitEdit(addr, editingVal);
+                  if (e.key === 'Escape') setEditingAddr(null);
+                }}
+                className="h-5 w-[68px] rounded-[4px] border border-accent/60 bg-accent-soft px-1 text-center text-[var(--fs-xxs)] font-mono text-text-primary outline-none"
+              />
+            ) : (
+              <span
+                onClick={() => { setEditingAddr(addr); setEditingVal(String(val)); }}
+                className="cursor-text select-none font-mono text-[var(--fs-xxs)] text-text-primary transition-colors hover:text-accent"
+              >
+                {val}
+              </span>
+            )
+          ) : (
+            <span className="font-mono text-[var(--fs-xxs)] text-text-secondary">{val}</span>
+          )}
+        </td>
+        <td className="w-[72px] px-2.5 py-0.5 font-mono text-[var(--fs-3xs)] text-text-tertiary">
+          0x{val.toString(16).toUpperCase().padStart(4, '0')}
+        </td>
+        <td className="w-[118px] px-2.5 py-0.5 font-mono text-[var(--fs-3xs)] tracking-[0.12em] text-text-disabled">
+          {val.toString(2).padStart(16, '0').replace(/(.{4})/g, '$1 ').trim()}
+        </td>
+      </tr>
+    );
+  };
+
+  const renderBoolRow = (addr: number) => {
+    const prefix = addrPrefix(activeTab);
+    const addrDisplay = `${prefix}${(addr + 1).toString().padStart(4, '0')}`;
+    const isEditable = activeTab === 'coil' || activeTab === 'discrete';
+    const val = activeTab === 'coil' ? getCoil(addr) : getDiscrete(addr);
+
+    return (
+      <tr
+        key={addr}
+        className="border-b border-border-default/20 transition-colors hover:bg-bg-hover/30"
+      >
+        <td className="px-2.5 py-0.5 font-mono text-[var(--fs-3xs)] text-text-tertiary">
+          {addrDisplay}
+        </td>
+        <td className="px-2.5 py-0.5">
+          {isEditable ? (
+            <button
+              onClick={() => toggleBool(addr, activeTab)}
+              className={cn(
+                "h-5 min-w-[44px] rounded-[4px] border px-2 text-[var(--fs-3xs)] font-semibold transition-all",
+                val
+                  ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                  : "border-border-default/60 bg-bg-secondary/60 text-text-tertiary"
+              )}
+            >
+              {val ? 'ON' : 'OFF'}
+            </button>
+          ) : (
+            <span className={cn(
+              "inline-flex h-5 items-center rounded-[4px] px-2 text-[var(--fs-3xs)] font-semibold",
+              val
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "text-text-disabled"
+            )}>
+              {val ? 'ON' : 'OFF'}
+            </span>
+          )}
+        </td>
+      </tr>
+    );
+  };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-      {/* ── Connection bar ── */}
-      <SlaveConnectionBar
-        transport={transport}
-        onTransportChange={setTransport}
-        host={host}
-        port={port}
-        onHostChange={setHost}
-        onPortChange={setPort}
-        portName={portName}
-        serialConfig={serialConfig}
-        serialPorts={serialPorts}
-        loadingPorts={loadingPorts}
-        onPortNameChange={setPortName}
-        onSerialConfigChange={(c) => setSerialConfig((prev) => ({ ...prev, ...c }))}
-        onRefreshPorts={refreshPorts}
-        unitId={unitId}
-        onUnitIdChange={setUnitId}
-        running={running}
-        starting={starting}
-        onToggle={handleToggle}
-      />
-
-      {/* ── Register bank ── */}
-      <div className="flex min-h-0 flex-1 flex-col rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden" style={{ minHeight: 0, maxHeight: '55%' }}>
-        {/* Toolbar */}
-        <div className="flex shrink-0 items-center gap-2 border-b border-border-default/40 px-3 py-1.5 bg-bg-secondary/40 flex-wrap">
-          {/* Tab buttons */}
-          <div className="flex items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/60 p-0.5">
-            {TABS.map(({ key, labelKey }) => (
-              <button
-                key={key}
-                onClick={() => { setActiveTab(key); setEditingAddr(null); }}
-                className={cn(
-                  "h-6 px-2.5 rounded-[4px] text-[var(--fs-xxs)] font-semibold transition-all whitespace-nowrap",
-                  activeTab === key
-                    ? "bg-bg-primary text-text-primary shadow-xs"
-                    : "text-text-tertiary hover:text-text-secondary"
-                )}
-              >
-                {t(labelKey)}
-              </button>
-            ))}
-          </div>
-
-          <div className="w-px h-4 bg-border-default/50 shrink-0" />
-
-          {/* Address range + page nav */}
-          <div className="flex items-center gap-1.5 text-[var(--fs-xxs)] text-text-tertiary font-mono">
-            <span>{t('serial.modbusslave.addressRange', '地址范围')}:</span>
-            <span className="font-semibold text-text-secondary">
-              {pageStart.toString(16).padStart(4, '0').toUpperCase()}
-              {' – '}
-              {Math.min(pageEnd, MAX_ADDR).toString(16).padStart(4, '0').toUpperCase()}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="flex h-6 w-6 items-center justify-center rounded-[4px] text-text-tertiary hover:bg-bg-hover hover:text-text-primary disabled:opacity-30 transition-colors"
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+      <div className={cn("grid min-h-0 flex-1 gap-3", compact ? "xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)]" : "xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)]")}>
+        <div className={cn("min-h-0 overflow-auto", compact ? "pr-0" : "pr-1")}>
+          <div className={cn(compact ? "space-y-2.5" : "space-y-3")}>
+            <ProtocolSidebarSection
+              title={t('serial.modbusslave.sidebarTitle', '从站配置')}
+              description={t('serial.modbusslave.sidebarDesc', '先配置 TCP/RTU 与从站地址，再启动从站模拟设备。')}
+              compact={compact}
+              showDescriptionInCompact={compact}
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <span className="w-12 text-center text-[var(--fs-xxs)] text-text-disabled">
-              {page + 1}/{maxPage + 1}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(maxPage, p + 1))}
-              disabled={page === maxPage}
-              className="flex h-6 w-6 items-center justify-center rounded-[4px] text-text-tertiary hover:bg-bg-hover hover:text-text-primary disabled:opacity-30 transition-colors"
+              <SlaveConnectionBar
+                transport={transport}
+                onTransportChange={setTransport}
+                host={host}
+                port={port}
+                onHostChange={setHost}
+                onPortChange={setPort}
+                portName={portName}
+                serialConfig={serialConfig}
+                serialPorts={serialPorts}
+                loadingPorts={loadingPorts}
+                onPortNameChange={setPortName}
+                onSerialConfigChange={(c) => setSerialConfig((prev) => ({ ...prev, ...c }))}
+                onRefreshPorts={refreshPorts}
+                unitId={unitId}
+                onUnitIdChange={setUnitId}
+                running={running}
+                starting={starting}
+                onToggle={handleToggle}
+              />
+            </ProtocolSidebarSection>
+
+            <ProtocolSidebarSection
+              title={t('serial.modbusslave.browserTitle', '寄存器浏览')}
+              description={t('serial.modbusslave.browserDesc', '切换寄存器区、翻页并批量写入当前页的数据。')}
+              compact={compact}
             >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="ml-auto" />
-
-          {/* Bulk fill dropdown */}
-          <div className="relative group">
-            <button className="flex h-6 items-center gap-1 px-2 rounded-[4px] border border-border-default/60 bg-bg-secondary/60 text-[var(--fs-xxs)] font-medium text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors">
-              {t('serial.modbusslave.fillAll', '批量填充')}
-              <ChevronDown className="w-3 h-3" />
-            </button>
-            <div className="absolute right-0 top-full mt-1 z-10 hidden group-hover:block min-w-[120px] rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-lg py-1">
-              {([
-                ['zero', t('serial.modbusslave.fillZero', '全部清零')],
-                ['one',  t('serial.modbusslave.fillOne',  '全部置1')],
-                ['increment', t('serial.modbusslave.fillIncrement', '递增填充')],
-                ['random', t('serial.modbusslave.fillRandom', '随机填充')],
-              ] as const).map(([action, label]) => (
-                <button
-                  key={action}
-                  onClick={() => handleBulkFill(action)}
-                  className="block w-full px-3 py-1 text-left text-[var(--fs-xs)] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Register table */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          <table className="w-full text-[var(--fs-xs)]">
-            <thead className="sticky top-0 bg-bg-secondary/80 backdrop-blur-sm z-[1]">
-              <tr className="border-b border-border-default/40">
-                <th className="w-[90px] px-3 py-1.5 text-left font-semibold text-text-tertiary uppercase tracking-wide text-[var(--fs-xxs)]">
-                  {t('serial.modbusslave.address', '地址')}
-                </th>
-                {isRegTab ? (
-                  <>
-                    <th className="px-3 py-1.5 text-left font-semibold text-text-tertiary uppercase tracking-wide text-[var(--fs-xxs)]">
-                      {t('serial.modbusslave.value', '十进制值')}
-                    </th>
-                    <th className="w-[80px] px-3 py-1.5 text-left font-semibold text-text-tertiary uppercase tracking-wide text-[var(--fs-xxs)]">
-                      十六进制
-                    </th>
-                    <th className="w-[140px] px-3 py-1.5 text-left font-semibold text-text-tertiary uppercase tracking-wide text-[var(--fs-xxs)]">
-                      二进制
-                    </th>
-                  </>
-                ) : (
-                  <th className="px-3 py-1.5 text-left font-semibold text-text-tertiary uppercase tracking-wide text-[var(--fs-xxs)]">
-                    {t('serial.modbusslave.status', '状态')}
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {addresses.map((addr) => {
-                const prefix = addrPrefix(activeTab);
-                const addrDisplay = `${prefix}${(addr + 1).toString().padStart(4, '0')}`;
-                const isEditable = activeTab === 'holding' || activeTab === 'coil' || activeTab === 'discrete';
-
-                if (isRegTab) {
-                  const val = activeTab === 'holding' ? getHolding(addr) : getInput(addr);
-                  const isEditing = editingAddr === addr;
-                  return (
-                    <tr
-                      key={addr}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {TABS.map(({ key, labelKey }) => (
+                    <button
+                      key={key}
+                      onClick={() => { setActiveTab(key); setEditingAddr(null); }}
                       className={cn(
-                        "border-b border-border-default/20 hover:bg-bg-hover/30 transition-colors",
-                        !isEditable && "opacity-70"
+                        "rounded-[10px] border px-3 py-2 text-left text-[var(--fs-xs)] font-semibold transition-all",
+                        activeTab === key
+                          ? "border-violet-400/50 bg-violet-500/10 text-violet-600 dark:text-violet-300"
+                          : "border-border-default/60 bg-bg-secondary/20 text-text-secondary hover:bg-bg-hover"
                       )}
                     >
-                      <td className="px-3 py-1 font-mono text-text-tertiary text-[var(--fs-xxs)]">
-                        {addrDisplay}
-                      </td>
-                      <td className="px-3 py-1">
-                        {isEditable ? (
-                          isEditing ? (
-                            <input
-                              autoFocus
-                              type="number"
-                              min={0}
-                              max={65535}
-                              value={editingVal}
-                              onChange={(e) => setEditingVal(e.target.value)}
-                              onBlur={() => commitEdit(addr, editingVal)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') commitEdit(addr, editingVal);
-                                if (e.key === 'Escape') setEditingAddr(null);
-                              }}
-                              className="w-20 h-6 rounded-[4px] border border-accent/60 bg-accent-soft px-1 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none"
-                            />
-                          ) : (
-                            <span
-                              onClick={() => { setEditingAddr(addr); setEditingVal(String(val)); }}
-                              className="cursor-text font-mono text-text-primary hover:text-accent transition-colors select-none"
-                            >
-                              {val}
-                            </span>
-                          )
-                        ) : (
-                          <span className="font-mono text-text-secondary">{val}</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-1 font-mono text-text-tertiary text-[var(--fs-xxs)]">
-                        0x{val.toString(16).toUpperCase().padStart(4, '0')}
-                      </td>
-                      <td className="px-3 py-1 font-mono text-text-disabled text-[var(--fs-xxs)] tracking-wider">
-                        {val.toString(2).padStart(16, '0').replace(/(.{4})/g, '$1 ').trim()}
-                      </td>
-                    </tr>
-                  );
-                } else {
-                  const val = activeTab === 'coil' ? getCoil(addr) : getDiscrete(addr);
-                  return (
-                    <tr
-                      key={addr}
-                      className="border-b border-border-default/20 hover:bg-bg-hover/30 transition-colors"
-                    >
-                      <td className="px-3 py-1 font-mono text-text-tertiary text-[var(--fs-xxs)]">
-                        {addrDisplay}
-                      </td>
-                      <td className="px-3 py-1">
-                        {isEditable ? (
-                          <button
-                            onClick={() => toggleBool(addr, activeTab)}
-                            className={cn(
-                              "h-6 min-w-[52px] px-2.5 rounded-[4px] text-[var(--fs-xxs)] font-semibold transition-all",
-                              val
-                                ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
-                                : "bg-bg-secondary/60 text-text-tertiary border border-border-default/60"
-                            )}
-                          >
-                            {val ? 'ON' : 'OFF'}
-                          </button>
-                        ) : (
-                          <span className={cn(
-                            "inline-flex h-6 items-center px-2.5 rounded-[4px] text-[var(--fs-xxs)] font-semibold",
-                            val
-                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                              : "text-text-disabled"
-                          )}>
-                            {val ? 'ON' : 'OFF'}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                }
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                      {t(labelKey)}
+                    </button>
+                  ))}
+                </div>
 
-      {/* ── Request log ── */}
-      <div className="flex min-h-0 flex-1 flex-col rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden">
-        {/* Log header */}
-        <div className="flex shrink-0 items-center justify-between px-3 py-1.5 border-b border-border-default/40 bg-bg-secondary/40">
-          <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide text-text-tertiary">
-            {t('serial.modbusslave.requestLog', '请求日志')}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-[var(--fs-xxs)] text-text-disabled">
-              {requestCount} {requestCount === 1 ? 'req' : 'reqs'}
-            </span>
-            <button
-              onClick={() => { setRequestLog([]); setRequestCount(0); }}
-              className="flex h-5 w-5 items-center justify-center rounded-[4px] text-text-disabled hover:text-text-secondary hover:bg-bg-hover transition-colors"
-              title="清空日志"
+                <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2.5">
+                  <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                    {t('serial.modbusslave.addressRange', '地址范围')}
+                  </div>
+                  <div className="mt-1 font-mono text-[var(--fs-xs)] font-semibold text-text-secondary">
+                    {pageStart.toString(16).padStart(4, '0').toUpperCase()} - {Math.min(pageEnd, MAX_ADDR).toString(16).padStart(4, '0').toUpperCase()}
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      disabled={page === 0}
+                      className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-border-default/60 bg-bg-primary text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="flex-1 text-center text-[var(--fs-xxs)] text-text-disabled">
+                      {page + 1}/{maxPage + 1}
+                    </div>
+                    <button
+                      onClick={() => setPage((p) => Math.min(maxPage, p + 1))}
+                      disabled={page === maxPage}
+                      className="flex h-8 w-8 items-center justify-center rounded-[8px] border border-border-default/60 bg-bg-primary text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-30"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                    {t('serial.modbusslave.fillAll', '批量填充')}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      ['zero', t('serial.modbusslave.fillZero', '全部清零')],
+                      ['one',  t('serial.modbusslave.fillOne',  '全部置1')],
+                      ['increment', t('serial.modbusslave.fillIncrement', '递增填充')],
+                      ['random', t('serial.modbusslave.fillRandom', '随机填充')],
+                    ] as const).map(([action, label]) => (
+                      <button
+                        key={action}
+                        onClick={() => handleBulkFill(action)}
+                        className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2 text-[var(--fs-xs)] font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </ProtocolSidebarSection>
+
+            <ProtocolSidebarSection
+              title={t('serial.modbusslave.sessionTitle', '会话状态')}
+              description={t('serial.modbusslave.statusDesc', '随时查看当前从站状态、活跃寄存器区与请求数量。')}
+              compact={compact}
             >
-              <Trash2 className="w-3 h-3" />
-            </button>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                  <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                    {t('serial.modbusslave.statusLabel', '状态')}
+                  </div>
+                  <div className={cn("mt-1 text-[var(--fs-xs)] font-semibold", running ? "text-emerald-600 dark:text-emerald-400" : "text-text-secondary")}>
+                    {running ? t('serial.modbusslave.started', '从站已启动') : t('serial.modbusslave.stopped', '从站已停止')}
+                  </div>
+                </div>
+                <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                  <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                    {t('serial.modbusslave.unitId', '从站地址')}
+                  </div>
+                  <div className="mt-1 text-[var(--fs-xs)] font-semibold text-text-secondary">
+                    {unitId}
+                  </div>
+                </div>
+                <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                  <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                    {t('serial.modbusslave.requestLog', '请求日志')}
+                  </div>
+                  <div className="mt-1 text-[var(--fs-xs)] font-semibold text-text-secondary">
+                    {requestCount}
+                  </div>
+                </div>
+                <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                  <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                    {t(activeTabMeta.labelKey)}
+                  </div>
+                  <div className="mt-1 text-[var(--fs-xs)] font-semibold text-text-secondary">
+                    {addrPrefix(activeTab)} · {pageStart.toString(16).padStart(4, '0').toUpperCase()}
+                  </div>
+                </div>
+                {uptime ? (
+                  <div className="col-span-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                    <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                      Uptime
+                    </div>
+                    <div className="mt-1 text-[var(--fs-xs)] font-semibold text-text-secondary">{uptime}</div>
+                  </div>
+                ) : null}
+              </div>
+            </ProtocolSidebarSection>
           </div>
         </div>
 
-        {/* Log entries */}
-        <div className="flex-1 overflow-y-auto min-h-0 font-mono text-[var(--fs-xxs)]">
-          {requestLog.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center py-8 text-text-disabled">
-              {t('serial.modbusslave.noRequests', '暂无请求记录，从站已就绪')}
-            </div>
-          ) : (
-            <div className="py-1">
-              {requestLog.map((ev, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-0.5 hover:bg-bg-hover/30 transition-colors",
-                    ev.eventType === 'error' && "bg-red-500/5 text-red-500"
-                  )}
-                >
-                  <span className="shrink-0 text-text-disabled w-[100px]">
-                    {new Date(ev.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        <div className="min-h-0 h-full overflow-hidden">
+          <PanelGroup orientation="vertical">
+            <Panel defaultSize={56} minSize={34}>
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-t-[var(--radius-md)] border border-b-0 border-border-default/75 bg-bg-primary">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-default/40 bg-bg-secondary/40 px-3 py-1.5">
+                  <div>
+                    <div className="text-[var(--fs-xxs)] font-semibold text-text-secondary">
+                      {t(activeTabMeta.labelKey)}
+                    </div>
+                    <div className="mt-0.5 text-[var(--fs-3xs)] text-text-tertiary">
+                      {t('serial.modbusslave.addressRange', '地址范围')}: {pageStart.toString(16).padStart(4, '0').toUpperCase()} - {Math.min(pageEnd, MAX_ADDR).toString(16).padStart(4, '0').toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="text-[var(--fs-3xs)] text-text-disabled">
+                    {running ? (transport === "tcp" ? `${host}:${port}` : portName || "RTU") : t('serial.modbusslave.stopped', '从站已停止')}
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  <div className={cn("grid min-h-full", compact ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2")}>
+                    {addressColumns.map((column, columnIndex) => (
+                      <div
+                        key={columnIndex}
+                        className={cn("min-w-0", columnIndex > 0 && !compact && "border-l border-border-default/20")}
+                      >
+                        <table className="w-full text-[var(--fs-xxs)]">
+                          <thead className="sticky top-0 z-[1] bg-bg-secondary/80 backdrop-blur-sm">
+                            <tr className="border-b border-border-default/40">
+                              <th className="w-[82px] px-2.5 py-1 text-left text-[var(--fs-3xs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                                {t('serial.modbusslave.address', '地址')}
+                              </th>
+                              {isRegTab ? (
+                                <>
+                                  <th className="px-2.5 py-1 text-left text-[var(--fs-3xs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                                    {t('serial.modbusslave.value', '十进制值')}
+                                  </th>
+                                  <th className="w-[72px] px-2.5 py-1 text-left text-[var(--fs-3xs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                                    十六进制
+                                  </th>
+                                  <th className="w-[118px] px-2.5 py-1 text-left text-[var(--fs-3xs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                                    二进制
+                                  </th>
+                                </>
+                              ) : (
+                                <th className="px-2.5 py-1 text-left text-[var(--fs-3xs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                                  {t('serial.modbusslave.status', '状态')}
+                                </th>
+                              )}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {column.map((addr) => (isRegTab ? renderRegisterRow(addr) : renderBoolRow(addr)))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Panel>
+
+            <PanelResizeHandle className="wb-workbench-divider wb-workbench-divider--flush" />
+
+            <Panel defaultSize={44} minSize={18}>
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-b-[var(--radius-md)] border border-t-0 border-border-default/75 bg-bg-primary">
+                <div className="flex shrink-0 items-center justify-between border-b border-border-default/40 bg-bg-secondary/40 px-3 py-1.5">
+                  <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide text-text-tertiary">
+                    {t('serial.modbusslave.requestLog', '请求日志')}
                   </span>
-                  {ev.eventType === 'error' ? (
-                    <span className="text-red-500">{ev.rawHex}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[var(--fs-xxs)] text-text-disabled">
+                      {requestCount} {requestCount === 1 ? 'req' : 'reqs'}
+                    </span>
+                    <button
+                      onClick={() => { setRequestLog([]); setRequestCount(0); }}
+                      className="flex h-5 w-5 items-center justify-center rounded-[4px] text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                      title="清空日志"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto font-mono text-[var(--fs-xxs)]">
+                  {requestLog.length === 0 ? (
+                    <div className="flex flex-1 items-center justify-center py-8 text-text-disabled">
+                      {t('serial.modbusslave.noRequests', '暂无请求记录，从站已就绪')}
+                    </div>
                   ) : (
-                    <>
-                      <span className="shrink-0 text-violet-500 font-semibold w-[180px]">
-                        {fcLabel(ev.functionCode)}
-                      </span>
-                      {ev.clientAddr && (
-                        <span className="shrink-0 text-text-tertiary w-[130px]">{ev.clientAddr}</span>
-                      )}
-                      {ev.startAddress !== undefined && (
-                        <span className="text-text-secondary">
-                          addr {ev.startAddress}
-                          {ev.quantity !== undefined && ev.quantity > 1 ? `+${ev.quantity}` : ''}
-                        </span>
-                      )}
-                      {ev.rawHex && (
-                        <span className="ml-auto text-text-disabled truncate max-w-[200px]">{ev.rawHex}</span>
-                      )}
-                    </>
+                    <div className="py-1">
+                      {requestLog.map((ev, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-0.5 transition-colors hover:bg-bg-hover/30",
+                            ev.eventType === 'error' && "bg-red-500/5 text-red-500"
+                          )}
+                        >
+                          <span className="w-[100px] shrink-0 text-text-disabled">
+                            {new Date(ev.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                          {ev.eventType === 'error' ? (
+                            <span className="text-red-500">{ev.rawHex}</span>
+                          ) : (
+                            <>
+                              <span className="w-[180px] shrink-0 font-semibold text-violet-500">
+                                {fcLabel(ev.functionCode)}
+                              </span>
+                              {ev.clientAddr ? (
+                                <span className="w-[130px] shrink-0 text-text-tertiary">{ev.clientAddr}</span>
+                              ) : null}
+                              {ev.startAddress !== undefined ? (
+                                <span className="text-text-secondary">
+                                  addr {ev.startAddress}
+                                  {ev.quantity !== undefined && ev.quantity > 1 ? `+${ev.quantity}` : ''}
+                                </span>
+                              ) : null}
+                              {ev.rawHex ? (
+                                <span className="ml-auto max-w-[200px] truncate text-text-disabled">{ev.rawHex}</span>
+                              ) : null}
+                            </>
+                          )}
+                        </div>
+                      ))}
+                      <div ref={logEndRef} />
+                    </div>
                   )}
                 </div>
-              ))}
-              <div ref={logEndRef} />
-            </div>
-          )}
+              </div>
+            </Panel>
+          </PanelGroup>
         </div>
       </div>
 
-      {/* ── Stats bar ── */}
-      <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/60 border-t border-border-default text-[var(--fs-xs)] font-medium shrink-0 select-none rounded-b-[var(--radius-md)]">
+      {!compact ? (
+        <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/60 border-t border-border-default text-[var(--fs-xs)] font-medium shrink-0 select-none rounded-b-[var(--radius-md)]">
         <div className="flex items-center gap-1.5">
           <div className={cn(
             "w-1.5 h-1.5 rounded-full transition-colors",
@@ -813,7 +937,8 @@ export function ModbusSlavePanel({ sessionKey }: { sessionKey: string }) {
             <span className="text-text-disabled">{uptime}</span>
           </>
         )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

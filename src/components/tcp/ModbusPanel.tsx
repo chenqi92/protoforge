@@ -1,5 +1,6 @@
 // Modbus 调试面板 — 支持 TCP 和 RTU 两种传输方式
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import {
   Cpu, Plug, X, RefreshCw, Trash2,
   ChevronDown, ArrowRight, CheckCircle2, AlertCircle, Loader2, Search,
@@ -10,6 +11,7 @@ import * as mbSvc from "@/services/modbusService";
 import * as svcSerial from "@/services/serialService";
 import { registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
 import { useActivityLogStore } from "@/stores/activityLogStore";
+import { ProtocolSidebarSection } from "./ProtocolWorkbench";
 import type { SerialPortInfo, SerialPortConfig, ModbusTransport, ModbusFunctionCode, ModbusTransaction, ModbusResponse } from "@/types/serial";
 import { MODBUS_FUNCTION_CODES, DEFAULT_SERIAL_CONFIG, BAUD_RATES } from "@/types/serial";
 
@@ -75,120 +77,150 @@ function ModbusConnectionBar({
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Row 1: transport selector + connection inputs + toggle */}
-      <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
-        {/* Badge */}
-        <div className="flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm bg-violet-500">
-          <Cpu className="w-3.5 h-3.5" />
-          <span>Modbus</span>
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="col-span-2 flex items-center gap-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/35 p-1">
+          <div className="flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[8px] bg-violet-500 px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm">
+            <Cpu className="h-3.5 w-3.5" />
+            <span>Modbus</span>
+          </div>
+          <div className="flex flex-1 items-center rounded-[8px] border border-border-default/60 bg-bg-primary p-0.5">
+            {(["tcp", "rtu"] as ModbusTransport[]).map((tp) => (
+              <button
+                key={tp}
+                onClick={() => !connected && onTransportChange(tp)}
+                disabled={connected}
+                className={cn(
+                  "h-7 flex-1 rounded-[6px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-all",
+                  transport === tp
+                    ? "bg-violet-500/12 text-violet-600 shadow-xs dark:text-violet-300"
+                    : "text-text-tertiary hover:text-text-secondary disabled:opacity-50"
+                )}
+              >
+                {tp.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Transport toggle */}
-        <div className="flex h-7 items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/60 p-0.5 shrink-0">
-          {(["tcp", "rtu"] as ModbusTransport[]).map((tp) => (
-            <button
-              key={tp}
-              onClick={() => !connected && onTransportChange(tp)}
-              disabled={connected}
-              className={cn(
-                "h-6 px-2.5 rounded-[4px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-all",
-                transport === tp
-                  ? "bg-bg-primary text-text-primary shadow-xs"
-                  : "text-text-tertiary hover:text-text-secondary disabled:opacity-50"
-              )}
-            >
-              {tp.toUpperCase()}
-            </button>
-          ))}
-        </div>
-
-        {/* Connection inputs */}
         {transport === "tcp" ? (
           <>
-            <input
-              value={host}
-              onChange={(e) => onHostChange(e.target.value)}
-              placeholder={t('tcp.hostPlaceholder', '主机地址')}
-              disabled={connected}
-              className="h-7 min-w-0 flex-1 bg-transparent px-2 text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
-            />
-            <div className="h-5 w-px shrink-0 bg-border-default/70" />
-            <input
-              value={port}
-              onChange={(e) => onPortChange(parseInt(e.target.value) || 0)}
-              placeholder="502"
-              type="number"
-              disabled={connected}
-              className="h-7 w-[70px] bg-transparent px-2 text-center text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
-            />
+            <label className="col-span-2 space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                {t('tcp.hostPlaceholder', '主机地址')}
+              </span>
+              <input
+                value={host}
+                onChange={(e) => onHostChange(e.target.value)}
+                placeholder={t('tcp.hostPlaceholder', '主机地址')}
+                disabled={connected}
+                className="wb-field w-full"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                Port
+              </span>
+              <input
+                value={port}
+                onChange={(e) => onPortChange(parseInt(e.target.value) || 0)}
+                placeholder="502"
+                type="number"
+                disabled={connected}
+                className="wb-field w-full"
+              />
+            </label>
+            <div className="space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                {t("serial.modbus.transport", "传输")}
+              </span>
+              <div className="flex h-10 items-center rounded-[10px] border border-border-default/60 bg-bg-secondary/35 px-3 text-[var(--fs-xs)] font-medium text-text-secondary">
+                TCP · 502
+              </div>
+            </div>
           </>
         ) : (
           <>
-            {/* RTU: port dropdown */}
-            <div className="relative flex-1 min-w-0">
-              <select
-                value={portName}
-                onChange={(e) => onPortNameChange(e.target.value)}
-                disabled={connected}
-                className="h-7 w-full appearance-none bg-transparent pl-2 pr-6 text-[var(--fs-sm)] font-mono text-text-primary outline-none disabled:opacity-60 cursor-pointer"
-              >
-                <option value="">{t('serial.selectPort', '选择串口')}</option>
-                {serialPorts.map((p) => (
-                  <option key={p.portName} value={p.portName}>
-                    {p.portName}{p.description ? ` — ${p.description}` : ""}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled" />
-            </div>
-            <button
-              onClick={onRefreshPorts}
-              disabled={connected || loadingPorts}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-text-tertiary hover:bg-bg-hover hover:text-text-primary disabled:opacity-40 transition-colors"
-              title={t('serial.refresh', '刷新串口列表')}
-            >
-              <RefreshCw className={cn("w-3.5 h-3.5", loadingPorts && "animate-spin")} />
-            </button>
-            <div className="h-5 w-px shrink-0 bg-border-default/70" />
-            {/* Baud rate quick select for RTU */}
-            <div className="relative">
-              <select
-                value={String(serialConfig.baudRate)}
-                onChange={(e) => onSerialConfigChange({ baudRate: Number(e.target.value) as SerialPortConfig["baudRate"] })}
-                disabled={connected}
-                className="h-7 w-[86px] appearance-none bg-transparent pl-2 pr-5 text-[var(--fs-xs)] font-mono text-text-secondary outline-none disabled:opacity-60 cursor-pointer"
-              >
-                {BAUD_RATES.map((r) => (
-                  <option key={r} value={String(r)}>{r}</option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-0.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-disabled" />
+            <label className="col-span-2 space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                {t('serial.selectPort', '选择串口')}
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <select
+                    value={portName}
+                    onChange={(e) => onPortNameChange(e.target.value)}
+                    disabled={connected}
+                    className="wb-field wb-native-select w-full appearance-none pr-8"
+                  >
+                    <option value="">{t('serial.selectPort', '选择串口')}</option>
+                    {serialPorts.map((p) => (
+                      <option key={p.portName} value={p.portName}>
+                        {p.portName}{p.description ? ` — ${p.description}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-disabled" />
+                </div>
+                <button
+                  onClick={onRefreshPorts}
+                  disabled={connected || loadingPorts}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-border-default/60 bg-bg-secondary/35 text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-40"
+                  title={t('serial.refresh', '刷新串口列表')}
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", loadingPorts && "animate-spin")} />
+                </button>
+              </div>
+            </label>
+            <label className="space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                Baud
+              </span>
+              <div className="relative">
+                <select
+                  value={String(serialConfig.baudRate)}
+                  onChange={(e) => onSerialConfigChange({ baudRate: Number(e.target.value) as SerialPortConfig["baudRate"] })}
+                  disabled={connected}
+                  className="wb-field wb-native-select w-full appearance-none pr-8"
+                >
+                  {BAUD_RATES.map((r) => (
+                    <option key={r} value={String(r)}>{r}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-disabled" />
+              </div>
+            </label>
+            <div className="space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                {t("serial.modbus.transport", "传输")}
+              </span>
+              <div className="flex h-10 items-center rounded-[10px] border border-border-default/60 bg-bg-secondary/35 px-3 text-[var(--fs-xs)] font-medium text-text-secondary">
+                RTU · {serialConfig.dataBits}{serialConfig.parity === "none" ? "N" : serialConfig.parity === "even" ? "E" : "O"}{serialConfig.stopBits}
+              </div>
             </div>
           </>
         )}
-
-        {/* Connect button */}
-        <button
-          onClick={onToggle}
-          disabled={connecting || (!connected && transport === "tcp" && !host) || (!connected && transport === "rtu" && !portName)}
-          className={cn(
-            "wb-primary-btn min-w-[80px] px-3",
-            connected
-              ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
-              : connecting
-                ? "bg-violet-500 cursor-wait opacity-70"
-                : "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 hover:shadow-md"
-          )}
-        >
-          {connected ? <X className="w-3.5 h-3.5" /> : <Plug className="w-3.5 h-3.5" />}
-          {connected
-            ? t('tcp.disconnect', '断开')
-            : connecting
-              ? t('tcp.connecting', '连接中...')
-              : t('tcp.connect', '连接')}
-        </button>
       </div>
+
+      <button
+        onClick={onToggle}
+        disabled={connecting || (!connected && transport === "tcp" && !host) || (!connected && transport === "rtu" && !portName)}
+        className={cn(
+          "wb-primary-btn h-10 w-full justify-center px-3",
+          connected
+            ? "bg-red-500 hover:bg-red-600 hover:shadow-md"
+            : connecting
+              ? "bg-violet-500 cursor-wait opacity-70"
+              : "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 hover:shadow-md"
+        )}
+      >
+        {connected ? <X className="h-3.5 w-3.5" /> : <Plug className="h-3.5 w-3.5" />}
+        {connected
+          ? t('tcp.disconnect', '断开')
+          : connecting
+            ? t('tcp.connecting', '连接中...')
+            : t('tcp.connect', '连接')}
+      </button>
     </div>
   );
 }
@@ -228,156 +260,86 @@ function ModbusFunctionPanel({
   const fcDef = MODBUS_FUNCTION_CODES.find((f) => f.code === functionCode)!;
 
   return (
-    <div className="shrink-0 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary p-3 space-y-3">
-      {/* Row 1: unit ID + FC selector */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {/* Unit ID */}
-        <div className="flex items-center gap-2">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
+    <div className="space-y-3">
+      <label className="space-y-1">
+        <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          {t('serial.modbus.functionCode', '功能码')}
+        </span>
+        <div className="relative">
+          <select
+            value={functionCode}
+            onChange={(e) => onFunctionCodeChange(Number(e.target.value) as ModbusFunctionCode)}
+            disabled={executing}
+            className="wb-field wb-native-select w-full appearance-none pr-8"
+          >
+            {MODBUS_FUNCTION_CODES.map((f) => (
+              <option key={f.code} value={f.code}>
+                {t(FC_I18N_KEY[f.code], `FC${String(f.code).padStart(2, "0")}`)}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-disabled" />
+        </div>
+      </label>
+
+      <div className={cn("grid gap-2", fcDef.isSingle ? "grid-cols-2" : "grid-cols-3")}>
+        <label className="space-y-1">
+          <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('serial.modbus.unitId', '从站地址')}
-          </label>
+          </span>
           <input
             type="number"
-            min={0} max={247}
+            min={0}
+            max={247}
             value={unitId}
             onChange={(e) => onUnitIdChange(Math.min(247, Math.max(0, parseInt(e.target.value) || 0)))}
             disabled={executing}
-            className="h-7 w-[60px] rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-sm)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted disabled:opacity-60"
+            className="wb-field w-full"
           />
-        </div>
-
-        <div className="h-4 w-px bg-border-default/60 shrink-0" />
-
-        {/* Function code */}
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
-            {t('serial.modbus.functionCode', '功能码')}
-          </label>
-          <div className="relative flex-1 min-w-0">
-            <select
-              value={functionCode}
-              onChange={(e) => onFunctionCodeChange(Number(e.target.value) as ModbusFunctionCode)}
-              disabled={executing}
-              className="h-7 w-full appearance-none rounded-[6px] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-6 text-[var(--fs-sm)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-60 cursor-pointer"
-            >
-              {MODBUS_FUNCTION_CODES.map((f) => (
-                <option key={f.code} value={f.code}>
-                  {t(FC_I18N_KEY[f.code], `FC${String(f.code).padStart(2, "0")}`)}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled" />
-          </div>
-        </div>
-      </div>
-
-      {/* Row 2: start address + quantity */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
+        </label>
+        <label className="space-y-1">
+          <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('serial.modbus.startAddress', '起始地址')}
-          </label>
+          </span>
           <input
             type="number"
-            min={0} max={65535}
+            min={0}
+            max={65535}
             value={startAddress}
             onChange={(e) => onStartAddressChange(Math.min(65535, Math.max(0, parseInt(e.target.value) || 0)))}
             disabled={executing}
-            className="h-7 w-[80px] rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-sm)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted disabled:opacity-60"
+            className="wb-field w-full"
           />
-        </div>
-
-        {!fcDef.isSingle && (
-          <>
-            <div className="h-4 w-px bg-border-default/60 shrink-0" />
-            <div className="flex items-center gap-2">
-              <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
-                {t('serial.modbus.quantity', '数量')}
-              </label>
-              <input
-                type="number"
-                min={1} max={fcDef.maxQuantity}
-                value={quantity}
-                onChange={(e) => onQuantityChange(Math.min(fcDef.maxQuantity, Math.max(1, parseInt(e.target.value) || 1)))}
-                disabled={executing || fcDef.isSingle}
-                className="h-7 w-[70px] rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-sm)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted disabled:opacity-60"
-              />
-            </div>
-          </>
-        )}
-
-        <div className="flex-1" />
-
-        {/* Polling controls */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={onPollingToggle}
-            disabled={!connected}
-            className={cn(
-              "h-7 px-2.5 rounded-[6px] border text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-colors flex items-center gap-1.5",
-              pollingEnabled && connected
-                ? "bg-amber-500/15 border-amber-500/40 text-amber-500"
-                : "border-border-default/60 text-text-disabled hover:text-text-secondary disabled:opacity-40"
-            )}
-            title={t('serial.modbus.pollingToggle', '轮询')}
-          >
-            {pollingEnabled && connected
-              ? <Loader2 className="w-3 h-3 animate-spin" />
-              : <RefreshCw className="w-3 h-3" />}
-            {t('serial.modbus.polling', '轮询')}
-          </button>
-          {pollingEnabled && (
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                min={100}
-                max={60000}
-                value={pollingInterval}
-                onChange={(e) => onPollingIntervalChange(Math.max(100, parseInt(e.target.value) || 1000))}
-                className="h-7 w-[70px] rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted"
-              />
-              <span className="text-[var(--fs-xxs)] text-text-disabled">ms</span>
-            </div>
-          )}
-        </div>
-
-        {/* Execute button */}
-        <button
-          onClick={onExecute}
-          disabled={!connected || executing}
-          className={cn(
-            "wb-primary-btn px-4",
-            connected && !executing
-              ? "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 hover:shadow-md"
-              : "opacity-50 cursor-not-allowed"
-          )}
-        >
-          {executing ? (
-            <>
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              {t('serial.modbus.executing', '执行中...')}
-            </>
-          ) : (
-            <>
-              <ArrowRight className="w-3.5 h-3.5" />
-              {t('serial.modbus.execute', '执行')}
-            </>
-          )}
-        </button>
+        </label>
+        {!fcDef.isSingle ? (
+          <label className="space-y-1">
+            <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+              {t('serial.modbus.quantity', '数量')}
+            </span>
+            <input
+              type="number"
+              min={1}
+              max={fcDef.maxQuantity}
+              value={quantity}
+              onChange={(e) => onQuantityChange(Math.min(fcDef.maxQuantity, Math.max(1, parseInt(e.target.value) || 1)))}
+              disabled={executing || fcDef.isSingle}
+              className="wb-field w-full"
+            />
+          </label>
+        ) : null}
       </div>
 
-      {/* Write values (只在写功能码时显示) */}
-      {fcDef.isWrite && (
-        <div className="space-y-1">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+      {fcDef.isWrite ? (
+        <label className="space-y-1">
+          <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('serial.modbus.values', '写入值 (十进制，空格分隔)')}
-            {fcDef.isSingle && functionCode === 5 && (
+            {fcDef.isSingle && functionCode === 5 ? (
               <span className="ml-2 normal-case font-normal text-text-tertiary">
                 {t('serial.modbus.coilHint', '线圈: 1 = ON, 0 = OFF')}
               </span>
-            )}
-          </label>
-          <input
+            ) : null}
+          </span>
+          <textarea
             value={valuesText}
             onChange={(e) => onValuesTextChange(e.target.value)}
             disabled={executing}
@@ -388,10 +350,70 @@ function ModbusFunctionPanel({
                   ? "1234"
                   : "100 200 300"
             }
-            className="h-8 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-3 text-[var(--fs-sm)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted disabled:opacity-60"
+            rows={3}
+            className="min-h-[88px] w-full resize-none rounded-[12px] border border-border-default/60 bg-bg-secondary/30 px-3 py-2 text-[var(--fs-sm)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted disabled:opacity-60"
           />
-        </div>
-      )}
+        </label>
+      ) : null}
+
+      <div className="space-y-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2.5">
+        <button
+          onClick={onPollingToggle}
+          disabled={!connected}
+          className={cn(
+            "flex h-8 w-full items-center justify-center gap-1.5 rounded-[8px] border text-[var(--fs-xs)] font-semibold transition-colors",
+            pollingEnabled && connected
+              ? "border-amber-500/40 bg-amber-500/12 text-amber-500"
+              : "border-border-default/60 text-text-disabled hover:text-text-secondary disabled:opacity-40"
+          )}
+          title={t('serial.modbus.pollingToggle', '轮询')}
+        >
+          {pollingEnabled && connected
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <RefreshCw className="h-3.5 w-3.5" />}
+          {t('serial.modbus.polling', '轮询')}
+        </button>
+        {pollingEnabled ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={100}
+              max={60000}
+              value={pollingInterval}
+              onChange={(e) => onPollingIntervalChange(Math.max(100, parseInt(e.target.value) || 1000))}
+              className="wb-field w-[120px]"
+            />
+            <span className="text-[var(--fs-xxs)] text-text-disabled">ms</span>
+          </div>
+        ) : (
+          <div className="text-[var(--fs-3xs)] text-text-disabled">
+            {t('serial.modbus.pollingHint', '开启后会按固定间隔重复执行当前功能码，用于连续观测。')}
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={onExecute}
+        disabled={!connected || executing}
+        className={cn(
+          "wb-primary-btn h-10 w-full justify-center",
+          connected && !executing
+            ? "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 hover:shadow-md"
+            : "cursor-not-allowed opacity-50"
+        )}
+      >
+        {executing ? (
+          <>
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            {t('serial.modbus.executing', '执行中...')}
+          </>
+        ) : (
+          <>
+            <ArrowRight className="h-3.5 w-3.5" />
+            {t('serial.modbus.execute', '执行')}
+          </>
+        )}
+      </button>
     </div>
   );
 }
@@ -498,13 +520,41 @@ function ModbusResponseTable({
   transaction,
   dataType,
   onDataTypeChange,
+  integrated = false,
 }: {
   transaction: ModbusTransaction | undefined;
   dataType: ModbusDataType;
   onDataTypeChange: (dt: ModbusDataType) => void;
+  integrated?: boolean;
 }) {
   const { t } = useTranslation();
-  if (!transaction) return null;
+  if (!transaction) {
+    return (
+      <div className={cn(
+        "flex h-full min-h-[240px] flex-col overflow-hidden border border-border-default/75 bg-bg-primary",
+        integrated ? "rounded-t-[var(--radius-md)] border-b-0" : "rounded-[var(--radius-md)]"
+      )}>
+        <div className="flex items-center justify-between border-b border-border-default/60 bg-bg-secondary/30 px-3 py-2">
+          <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
+            {t('serial.modbus.responseRegisters', '响应寄存器')}
+          </span>
+          <span className="text-[var(--fs-xxs)] text-text-disabled">
+            {t('serial.modbus.waitingResponse', '等待执行请求')}
+          </span>
+        </div>
+        <div className="flex flex-1 items-center justify-center px-6 text-center">
+          <div className="space-y-2">
+            <div className="text-[var(--fs-sm)] font-semibold text-text-secondary">
+              {t('serial.modbus.noResponseYet', '还没有响应数据')}
+            </div>
+            <div className="text-[var(--fs-xs)] text-text-disabled">
+              {t('serial.modbus.noResponseHint', '先在左侧配置功能码并执行，请求结果会在这里展示寄存器、十六进制和解析值。')}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const resp = transaction.response;
   const isCoil = transaction.functionCode === 1 || transaction.functionCode === 2;
 
@@ -535,7 +585,10 @@ function ModbusResponseTable({
   ];
 
   return (
-    <div className="shrink-0 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden">
+    <div className={cn(
+      "shrink-0 border border-border-default/75 bg-bg-primary overflow-hidden",
+      integrated ? "h-full rounded-t-[var(--radius-md)] border-b-0" : "rounded-[var(--radius-md)]"
+    )}>
       <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60 bg-bg-secondary/30">
         <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
           {t('serial.modbus.responseRegisters', '响应寄存器')}
@@ -729,7 +782,7 @@ function ModbusTransactionLog({
 //  ModbusPanel 主体
 // ═══════════════════════════════════════════
 
-export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
+export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: string; compact?: boolean }) {
   const { t } = useTranslation();
   const connId = useRef(`modbus:${sessionKey}`).current;
 
@@ -983,184 +1036,293 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
     : connecting
       ? t('tcp.connecting', '连接中...')
       : t('tcp.system.idle', '空闲');
+  const successCount = transactions.filter((tx) => tx.success).length;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-      {/* 连接栏 */}
-      <div className="shrink-0 space-y-2">
-        <ModbusConnectionBar
-          transport={transport}
-          onTransportChange={setTransport}
-          host={host} port={port}
-          onHostChange={setHost} onPortChange={setPort}
-          portName={portName} serialConfig={serialConfig}
-          serialPorts={serialPorts} loadingPorts={loadingPorts}
-          onPortNameChange={setPortName}
-          onSerialConfigChange={(p) => setSerialConfig((c) => ({ ...c, ...p }))}
-          onRefreshPorts={refreshPorts}
-          connected={connected} connecting={connecting}
-          onToggle={handleToggleConnection}
-        />
-        <div className="flex items-center gap-2 px-0.5">
-          <button
-            onClick={() => setShowScan((v) => !v)}
-            disabled={!connected}
-            className={cn(
-              "wb-tool-chip cursor-pointer transition-colors disabled:opacity-40",
-              showScan && "bg-accent-soft text-accent border-accent/40"
-            )}
-            title={t('serial.modbus.unitScan', '单元地址扫描')}
-          >
-            <Search className="w-3 h-3" />
-            {t('serial.modbus.scan', '扫描')}
-          </button>
-        </div>
-      </div>
-
-      {/* Unit Scan Panel */}
-      {showScan && (
-        <div className="shrink-0 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60 bg-bg-secondary/30">
-            <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
-              {t('serial.modbus.unitScan', '单元地址扫描')}
-            </span>
-            <button
-              onClick={() => { setShowScan(false); scanAbortRef.current = true; }}
-              className="p-1 rounded-[6px] text-text-disabled hover:bg-bg-hover hover:text-text-secondary transition-colors"
+      <div className={cn("grid min-h-0 flex-1 gap-3", compact ? "xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)]" : "xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)]")}>
+        <div className={cn("min-h-0 overflow-auto", compact ? "pr-0" : "pr-1")}>
+          <div className={cn(compact ? "space-y-2.5" : "space-y-3")}>
+            <ProtocolSidebarSection
+              title={t('tcp.sidebar.connection', '连接设置')}
+              description={t('serial.modbus.sidebarConnectionDesc', '先选择传输方式和目标设备，再建立连接；需要找设备时可打开单元地址扫描。')}
+              compact={compact}
+              showDescriptionInCompact={compact}
+              action={
+                <button
+                  onClick={() => setShowScan((v) => !v)}
+                  disabled={!connected}
+                  className={cn(
+                    "wb-tool-chip cursor-pointer transition-colors disabled:opacity-40",
+                    showScan && "border-accent/40 bg-accent-soft text-accent"
+                  )}
+                  title={t('serial.modbus.unitScan', '单元地址扫描')}
+                >
+                  <Search className="h-3 w-3" />
+                  {t('serial.modbus.scan', '扫描')}
+                </button>
+              }
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="p-3 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
-                {t('serial.modbus.scanRange', '范围')}
-              </span>
-              <input
-                type="number" min={1} max={247} value={scanFrom}
-                onChange={(e) => setScanFrom(Math.max(1, Math.min(247, parseInt(e.target.value) || 1)))}
-                disabled={scanning}
-                className="h-7 w-16 rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+              <ModbusConnectionBar
+                transport={transport}
+                onTransportChange={setTransport}
+                host={host}
+                port={port}
+                onHostChange={setHost}
+                onPortChange={setPort}
+                portName={portName}
+                serialConfig={serialConfig}
+                serialPorts={serialPorts}
+                loadingPorts={loadingPorts}
+                onPortNameChange={setPortName}
+                onSerialConfigChange={(p) => setSerialConfig((c) => ({ ...c, ...p }))}
+                onRefreshPorts={refreshPorts}
+                connected={connected}
+                connecting={connecting}
+                onToggle={handleToggleConnection}
               />
-              <span className="text-text-disabled text-[var(--fs-xxs)]">—</span>
-              <input
-                type="number" min={1} max={247} value={scanTo}
-                onChange={(e) => setScanTo(Math.max(1, Math.min(247, parseInt(e.target.value) || 10)))}
-                disabled={scanning}
-                className="h-7 w-16 rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
-              />
-              <button
-                onClick={scanning ? () => { scanAbortRef.current = true; } : handleScan}
-                disabled={!connected}
-                className={cn(
-                  "wb-primary-btn px-3",
-                  scanning
-                    ? "bg-red-500 hover:bg-red-600"
-                    : "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
-                )}
+            </ProtocolSidebarSection>
+
+            {showScan ? (
+              <ProtocolSidebarSection
+                title={t('serial.modbus.unitScan', '单元地址扫描')}
+                description={t('serial.modbus.scanHint', '扫描常见 Unit ID，找到响应设备后可一键带回左侧表单。')}
+                compact={compact}
+                action={
+                  <button
+                    onClick={() => { setShowScan(false); scanAbortRef.current = true; }}
+                    className="rounded-[6px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                }
               >
-                {scanning ? (
-                  <><X className="w-3.5 h-3.5" />{t('serial.modbus.stopScan', '停止')}</>
-                ) : (
-                  <><ArrowRight className="w-3.5 h-3.5" />{t('serial.modbus.startScan', '扫描')}</>
-                )}
-              </button>
-              {scanResults.length > 0 && (
-                <span className="text-[var(--fs-xxs)] text-text-disabled ml-auto">
-                  {scanResults.filter((r) => r.ok).length} / {scanResults.length} {t('serial.modbus.found', '响应')}
-                </span>
-              )}
-            </div>
-            {scanResults.length > 0 && (
-              <div className="max-h-[160px] overflow-y-auto space-y-0.5">
-                {scanResults.map((r) => (
-                  <div
-                    key={r.unitId}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+                    <label className="space-y-1">
+                      <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                        From
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={247}
+                        value={scanFrom}
+                        onChange={(e) => setScanFrom(Math.max(1, Math.min(247, parseInt(e.target.value) || 1)))}
+                        disabled={scanning}
+                        className="wb-field w-full"
+                      />
+                    </label>
+                    <div className="pb-2 text-center text-[var(--fs-xxs)] text-text-disabled">—</div>
+                    <label className="space-y-1">
+                      <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                        To
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={247}
+                        value={scanTo}
+                        onChange={(e) => setScanTo(Math.max(1, Math.min(247, parseInt(e.target.value) || 10)))}
+                        disabled={scanning}
+                        className="wb-field w-full"
+                      />
+                    </label>
+                  </div>
+
+                  <button
+                    onClick={scanning ? () => { scanAbortRef.current = true; } : handleScan}
+                    disabled={!connected}
                     className={cn(
-                      "flex items-center gap-2 px-2 py-1 rounded-[4px] text-[var(--fs-xxs)] font-mono",
-                      r.ok ? "bg-emerald-500/5 text-emerald-600" : "text-text-disabled"
+                      "wb-primary-btn h-10 w-full justify-center",
+                      scanning
+                        ? "bg-red-500 hover:bg-red-600"
+                        : "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
                     )}
                   >
-                    {r.ok
-                      ? <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                      : <span className="w-3 h-3 shrink-0" />}
-                    <span className="font-semibold">UID {r.unitId}</span>
-                    <span className="text-text-disabled">{r.ms}ms</span>
-                    {r.ok && (
-                      <button
-                        onClick={() => setUnitId(r.unitId)}
-                        className="ml-auto text-accent hover:underline text-[var(--fs-3xs)]"
-                      >
-                        {t('serial.modbus.useThisUnit', '使用')}
-                      </button>
+                    {scanning ? (
+                      <><X className="h-3.5 w-3.5" />{t('serial.modbus.stopScan', '停止')}</>
+                    ) : (
+                      <><ArrowRight className="h-3.5 w-3.5" />{t('serial.modbus.startScan', '扫描')}</>
                     )}
+                  </button>
+
+                  {scanResults.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="text-[var(--fs-3xs)] text-text-disabled">
+                        {scanResults.filter((r) => r.ok).length} / {scanResults.length} {t('serial.modbus.found', '响应')}
+                      </div>
+                      <div className="max-h-[180px] space-y-1 overflow-y-auto">
+                        {scanResults.map((r) => (
+                          <div
+                            key={r.unitId}
+                            className={cn(
+                              "flex items-center gap-2 rounded-[8px] px-2.5 py-2 text-[var(--fs-xxs)] font-mono",
+                              r.ok ? "bg-emerald-500/5 text-emerald-600" : "bg-bg-secondary/20 text-text-disabled"
+                            )}
+                          >
+                            {r.ok
+                              ? <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-500" />
+                              : <span className="h-3 w-3 shrink-0" />}
+                            <span className="font-semibold">UID {r.unitId}</span>
+                            <span className="text-text-disabled">{r.ms}ms</span>
+                            {r.ok ? (
+                              <button
+                                onClick={() => setUnitId(r.unitId)}
+                                className="ml-auto text-accent hover:underline text-[var(--fs-3xs)]"
+                              >
+                                {t('serial.modbus.useThisUnit', '使用')}
+                              </button>
+                            ) : null}
+                          </div>
+                        ))}
+                        {scanning ? (
+                          <div className="flex items-center gap-2 px-2 py-1 text-[var(--fs-xxs)] text-text-disabled animate-pulse">
+                            <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                            {t('serial.modbus.scanning', '扫描中...')} UID {(scanResults[scanResults.length - 1]?.unitId ?? scanFrom) + 1}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </ProtocolSidebarSection>
+            ) : null}
+
+            <ProtocolSidebarSection
+              title={t('serial.modbus.requestConfig', '请求配置')}
+              description={t('serial.modbus.requestConfigDesc', '选择功能码、目标地址和数量，写操作可直接填写写入值。')}
+              compact={compact}
+            >
+              <ModbusFunctionPanel
+                connected={connected}
+                executing={executing}
+                unitId={unitId}
+                functionCode={functionCode}
+                startAddress={startAddress}
+                quantity={quantity}
+                valuesText={valuesText}
+                pollingEnabled={pollingEnabled}
+                pollingInterval={pollingInterval}
+                onUnitIdChange={setUnitId}
+                onFunctionCodeChange={(fc) => {
+                  setFunctionCode(fc);
+                  const def = MODBUS_FUNCTION_CODES.find((f) => f.code === fc)!;
+                  if (def.isSingle) setQuantity(1);
+                }}
+                onStartAddressChange={setStartAddress}
+                onQuantityChange={setQuantity}
+                onValuesTextChange={setValuesText}
+                onExecute={handleExecute}
+                onPollingToggle={() => setPollingEnabled((v) => !v)}
+                onPollingIntervalChange={setPollingInterval}
+              />
+            </ProtocolSidebarSection>
+
+            <ProtocolSidebarSection
+              title={t('serial.modbus.sessionStatus', '会话状态')}
+              description={t('serial.modbus.sessionStatusDesc', '在左侧持续掌握当前连接、事务执行和最近一次请求结果。')}
+              compact={compact}
+            >
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                    <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                      {t('tcp.sidebar.connection', '连接设置')}
+                    </div>
+                    <div className={cn("mt-1 text-[var(--fs-xs)] font-semibold", connected ? "text-emerald-600 dark:text-emerald-400" : "text-text-secondary")}>
+                      {statusText}
+                    </div>
                   </div>
-                ))}
-                {scanning && (
-                  <div className="flex items-center gap-2 px-2 py-1 text-[var(--fs-xxs)] text-text-disabled animate-pulse">
-                    <Loader2 className="w-3 h-3 animate-spin shrink-0" />
-                    {t('serial.modbus.scanning', '扫描中...')} UID {(scanResults[scanResults.length - 1]?.unitId ?? scanFrom) + 1}
+                  <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                    <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                      {t('serial.modbus.transport', '传输方式')}
+                    </div>
+                    <div className="mt-1 text-[var(--fs-xs)] font-semibold text-text-secondary">
+                      {transport.toUpperCase()}
+                    </div>
                   </div>
-                )}
+                  <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                    <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                      {t('serial.modbus.transactions', '事务')}
+                    </div>
+                    <div className="mt-1 text-[var(--fs-xs)] font-semibold text-text-secondary">
+                      {transactions.length}
+                    </div>
+                  </div>
+                  <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
+                    <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                      {t('serial.modbus.successRate', '成功')}
+                    </div>
+                    <div className={cn("mt-1 text-[var(--fs-xs)] font-semibold", successCount === transactions.length && transactions.length > 0 ? "text-emerald-500" : "text-text-secondary")}>
+                      {successCount} / {transactions.length}
+                    </div>
+                  </div>
+                </div>
+
+                {lastTransaction ? (
+                  <div className="rounded-[10px] border border-border-default/60 bg-bg-secondary/20 px-3 py-2.5">
+                    <div className="text-[var(--fs-3xs)] uppercase tracking-[0.08em] text-text-disabled">
+                      {t('serial.modbus.lastTransaction', '最近请求')}
+                    </div>
+                    <div className="mt-1 text-[var(--fs-xs)] font-semibold text-text-primary">
+                      {t(FC_I18N_KEY[lastTransaction.functionCode], `FC${String(lastTransaction.functionCode).padStart(2, "0")}`)}
+                    </div>
+                    <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">
+                      UID {lastTransaction.unitId} · Addr {lastTransaction.startAddress}
+                      {lastTransaction.quantity > 1 ? ` × ${lastTransaction.quantity}` : ""}
+                    </div>
+                    <div className={cn("mt-1 text-[var(--fs-xxs)]", lastTransaction.success ? "text-emerald-500" : "text-red-500")}>
+                      {lastTransaction.success ? t('serial.modbus.execute', '执行') : lastTransaction.error}
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            )}
+            </ProtocolSidebarSection>
           </div>
         </div>
-      )}
 
-      {/* 功能码执行区 */}
-      <ModbusFunctionPanel
-        connected={connected} executing={executing}
-        unitId={unitId} functionCode={functionCode}
-        startAddress={startAddress} quantity={quantity}
-        valuesText={valuesText}
-        pollingEnabled={pollingEnabled} pollingInterval={pollingInterval}
-        onUnitIdChange={setUnitId}
-        onFunctionCodeChange={(fc) => {
-          setFunctionCode(fc);
-          // 切换到单寄存器写时重置 quantity
-          const def = MODBUS_FUNCTION_CODES.find((f) => f.code === fc)!;
-          if (def.isSingle) setQuantity(1);
-        }}
-        onStartAddressChange={setStartAddress}
-        onQuantityChange={setQuantity}
-        onValuesTextChange={setValuesText}
-        onExecute={handleExecute}
-        onPollingToggle={() => setPollingEnabled((v) => !v)}
-        onPollingIntervalChange={setPollingInterval}
-      />
-
-      {/* 最近响应寄存器表格 */}
-      <ModbusResponseTable
-        transaction={lastTransaction}
-        dataType={dataType}
-        onDataTypeChange={setDataType}
-      />
-
-      {/* 事务日志 */}
-      <div className="flex min-h-0 flex-1 flex-col rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60 bg-bg-secondary/30 shrink-0">
-          <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
-            {t('serial.modbus.transactionLog', '事务日志')}
-            {transactions.length > 0 && (
-              <span className="ml-2 text-text-disabled font-normal">({transactions.length})</span>
-            )}
-          </span>
-          {transactions.length > 0 && (
-            <button
-              onClick={() => { setTransactions([]); setLastTransaction(undefined); }}
-              className="flex items-center gap-1 text-[var(--fs-xxs)] text-text-tertiary hover:text-text-secondary transition-colors"
-            >
-              <Trash2 className="w-3 h-3" />
-              {t('serial.modbus.clearLog', '清空')}
-            </button>
-          )}
+        <div className="min-h-0 h-full overflow-hidden">
+          <PanelGroup orientation="vertical">
+            <Panel defaultSize={58} minSize={34}>
+              <div className="h-full min-h-0">
+                <ModbusResponseTable
+                  transaction={lastTransaction}
+                  dataType={dataType}
+                  onDataTypeChange={setDataType}
+                  integrated
+                />
+              </div>
+            </Panel>
+            <PanelResizeHandle className="wb-workbench-divider wb-workbench-divider--flush" />
+            <Panel defaultSize={42} minSize={20}>
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-b-[var(--radius-md)] border border-t-0 border-border-default/75 bg-bg-primary">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60 bg-bg-secondary/30 shrink-0">
+                  <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
+                    {t('serial.modbus.transactionLog', '事务日志')}
+                    {transactions.length > 0 ? (
+                      <span className="ml-2 font-normal text-text-disabled">({transactions.length})</span>
+                    ) : null}
+                  </span>
+                  {transactions.length > 0 ? (
+                    <button
+                      onClick={() => { setTransactions([]); setLastTransaction(undefined); }}
+                      className="flex items-center gap-1 text-[var(--fs-xxs)] text-text-tertiary transition-colors hover:text-text-secondary"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      {t('serial.modbus.clearLog', '清空')}
+                    </button>
+                  ) : null}
+                </div>
+                <ModbusTransactionLog transactions={[...transactions].reverse()} />
+              </div>
+            </Panel>
+          </PanelGroup>
         </div>
-        <ModbusTransactionLog transactions={[...transactions].reverse()} />
       </div>
 
-      {/* 底部统计栏 */}
-      <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/50 border-t border-border-default/50 text-[var(--fs-xs)] font-medium shrink-0 select-none">
+      {!compact ? (
+        <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/50 border-t border-border-default/50 text-[var(--fs-xs)] font-medium shrink-0 select-none">
         <div className="flex items-center gap-1.5">
           <div className={cn(
             "w-1.5 h-1.5 rounded-full transition-colors",
@@ -1181,12 +1343,13 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
         {transactions.length > 0 && (
           <>
             <div className="w-[1px] h-3 bg-border-default" />
-            <span className={cn("font-medium", transactions.filter((t) => t.success).length === transactions.length ? "text-emerald-500" : "text-amber-500")}>
-              ✓ {transactions.filter((tx) => tx.success).length} / {transactions.length}
+            <span className={cn("font-medium", successCount === transactions.length ? "text-emerald-500" : "text-amber-500")}>
+              ✓ {successCount} / {transactions.length}
             </span>
           </>
         )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

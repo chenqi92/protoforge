@@ -10,9 +10,10 @@ interface ClientListProps {
   selectedClientId: string | null;
   onSelectClient: (id: string | null) => void;
   embedded?: boolean;
+  compact?: boolean;
 }
 
-export function ClientList({ clients, selectedClientId, onSelectClient, embedded = false }: ClientListProps) {
+export function ClientList({ clients, selectedClientId, onSelectClient, embedded = false, compact = false }: ClientListProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,25 +44,28 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
 
   return (
     <div ref={containerRef} className={cn("overflow-visible", !embedded && "wb-panel")}>
-      <div className={cn(embedded ? "wb-pane-header" : "wb-panel-header")}>
+      <div className={cn(embedded ? "wb-pane-header" : "wb-panel-header", compact && "px-3 py-2")}>
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-accent/8 text-accent">
+          <div className={cn("flex items-center justify-center rounded-[10px] bg-accent/8 text-accent", compact ? "h-7 w-7" : "h-8 w-8")}>
             <Users className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('tcp.clientList.title')}</div>
-            <div className="text-[var(--fs-xs)] text-text-tertiary">{t('tcp.clientList.connections', { count: clients.length })}</div>
+            <div className={cn("font-semibold text-text-primary", compact ? "text-[var(--fs-xs)]" : "text-[var(--fs-sm)]")}>{t('tcp.clientList.title')}</div>
+            {!compact ? (
+              <div className="text-[var(--fs-xs)] text-text-tertiary">{t('tcp.clientList.connections', { count: clients.length })}</div>
+            ) : null}
           </div>
         </div>
         <span className="wb-tool-chip">{isBroadcast ? t('tcp.clientList.broadcast') : t('tcp.clientList.unicast')}</span>
       </div>
 
-      <div className="relative p-3">
+      <div className={cn("relative", compact ? "p-2.5" : "p-3")}>
         {/* 选择器触发按钮 */}
         <button
           onClick={() => setOpen(!open)}
           className={cn(
-            "flex w-full items-center justify-between gap-2 rounded-[10px] border px-3 py-2.5 text-left transition-all",
+            "flex w-full items-center justify-between gap-2 rounded-[10px] border px-3 text-left transition-all",
+            compact ? "py-2" : "py-2.5",
             isBroadcast
               ? "border-accent/30 bg-accent/5 hover:bg-accent/8"
               : "border-border-default bg-bg-secondary/50 hover:bg-bg-hover"
@@ -71,7 +75,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
             {isBroadcast ? (
               <>
                 <Radio className="h-3.5 w-3.5 shrink-0 text-accent" />
-                <span className="truncate text-[var(--fs-sm)] font-medium text-accent">
+                <span className={cn("truncate font-medium text-accent", compact ? "text-[var(--fs-xs)]" : "text-[var(--fs-sm)]")}>
                   {t('tcp.clientList.broadcastAll')}
                 </span>
                 <span className="shrink-0 rounded-[7px] bg-accent/10 px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold text-accent">
@@ -81,7 +85,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
             ) : (
               <>
                 <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-                <span className="truncate font-mono text-[var(--fs-sm)] text-text-primary">
+                <span className={cn("truncate font-mono text-text-primary", compact ? "text-[var(--fs-xs)]" : "text-[var(--fs-sm)]")}>
                   {selectedClient?.remoteAddr ?? selectedClientId}
                 </span>
               </>

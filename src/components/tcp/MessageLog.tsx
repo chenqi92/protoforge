@@ -11,16 +11,21 @@ interface MessageLogProps {
   onClear: () => void;
   displayFormat: DataFormat;
   setDisplayFormat: (v: DataFormat) => void;
+  selectedMessageId?: string | null;
+  onSelectMessage?: (message: TcpMessage) => void;
   connected?: boolean;
   statusText?: string;
   stats?: ConnectionStats;
   embedded?: boolean;
 }
 
-const FORMAT_TABS: { value: DataFormat; label: string }[] = [
-  { value: "ascii", label: "ASCII" },
-  { value: "hex", label: "HEX" },
-  { value: "base64", label: "Base64" },
+const FORMAT_OPTIONS: { value: DataFormat; labelKey: string; fallback: string }[] = [
+  { value: "auto", labelKey: "tcp.messageLog.auto", fallback: "Auto" },
+  { value: "text", labelKey: "tcp.messageLog.text", fallback: "Text" },
+  { value: "hex", labelKey: "tcp.messageLog.hex", fallback: "HEX" },
+  { value: "base64", labelKey: "tcp.messageLog.base64", fallback: "Base64" },
+  { value: "gbk", labelKey: "tcp.messageLog.gbk", fallback: "GBK" },
+  { value: "json", labelKey: "tcp.messageLog.json", fallback: "JSON Pretty" },
 ];
 
 function formatTime(ts: string) {
@@ -42,6 +47,8 @@ export function MessageLog({
   onClear,
   displayFormat,
   setDisplayFormat,
+  selectedMessageId,
+  onSelectMessage,
   connected,
   statusText,
   stats,
@@ -116,17 +123,22 @@ export function MessageLog({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <div className="wb-tool-segment">
-            {FORMAT_TABS.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => setDisplayFormat(tab.value)}
-                className={cn(displayFormat === tab.value && "is-active")}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <label className="flex items-center gap-2 rounded-[10px] border border-border-default bg-bg-input px-2.5 py-1.5 text-[var(--fs-xs)] text-text-tertiary">
+            <span className="shrink-0 font-semibold uppercase tracking-wide">
+              {t('tcp.messageLog.displayFormat', '显示')}
+            </span>
+            <select
+              value={displayFormat}
+              onChange={(e) => setDisplayFormat(e.target.value as DataFormat)}
+              className="wb-native-select min-w-[128px] border-0 bg-transparent py-0 pl-0 pr-6 text-[var(--fs-xs)] font-semibold text-text-primary outline-none"
+            >
+              {FORMAT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {t(option.labelKey, option.fallback)}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <div className="wb-search w-[132px] transition-[width] focus-within:w-[188px]">
             <Search className="h-3.5 w-3.5 text-text-disabled" />
@@ -168,7 +180,7 @@ export function MessageLog({
                 <p className="mt-2 text-[var(--fs-sm)] leading-6 text-text-tertiary">{emptyDesc}</p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   <span className="rounded-[9px] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
-                    {displayFormat.toUpperCase()}
+                    {displayFormat === "auto" ? t("tcp.messageLog.auto", "AUTO") : displayFormat.toUpperCase()}
                   </span>
                   {typeof connected === "boolean" ? (
                     <span
@@ -201,16 +213,18 @@ export function MessageLog({
             {reversedMessages.map((m) => {
               const displayData = m.direction === "system"
                 ? m.data
-                : convertFormat(m.data, m.rawHex, "ascii", displayFormat);
+                : convertFormat(m.data, m.rawHex, displayFormat);
               const compactData = displayData.replace(/\s+/g, " ").trim();
               const preview = compactData || displayData;
 
               return (
                 <div
                   key={m.id}
+                  onClick={() => onSelectMessage?.(m)}
                   className={cn(
-                    "group flex items-center gap-3 px-3 py-2 transition-colors hover:bg-bg-hover/42",
-                    m.direction === "system" && "bg-amber-500/[0.04]"
+                    "group flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-bg-hover/42",
+                    m.direction === "system" && "bg-amber-500/[0.04]",
+                    selectedMessageId === m.id && "bg-accent/8 ring-1 ring-inset ring-accent/20"
                   )}
                   title={displayData}
                 >

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { measurePayloadSize } from "@/services/tcpService";
 import type { DataFormat, SendHistoryItem, QuickCommand, LineEnding } from "@/types/tcp";
 
 interface SendPanelProps {
@@ -34,12 +35,23 @@ interface SendPanelProps {
   lineEnding: LineEnding;
   onLineEndingChange: (v: LineEnding) => void;
   embedded?: boolean;
+  layout?: "bottom" | "sidebar";
+  compact?: boolean;
 }
 
-const FORMAT_OPTIONS: { value: DataFormat; label: string }[] = [
-  { value: "ascii", label: "ASCII" },
-  { value: "hex", label: "HEX" },
-  { value: "base64", label: "Base64" },
+const SEND_FORMAT_OPTIONS: { value: DataFormat; labelKey: string; fallback: string }[] = [
+  { value: "text", labelKey: "tcp.sendPanel.formatText", fallback: "Text (UTF-8)" },
+  { value: "hex", labelKey: "tcp.sendPanel.formatHex", fallback: "HEX / Binary" },
+  { value: "base64", labelKey: "tcp.sendPanel.formatBase64", fallback: "Base64" },
+  { value: "gbk", labelKey: "tcp.sendPanel.formatGbk", fallback: "GBK" },
+  { value: "json", labelKey: "tcp.sendPanel.formatJson", fallback: "JSON" },
+];
+
+const LINE_ENDING_OPTIONS: { value: LineEnding; label: string }[] = [
+  { value: "none", label: "无" },
+  { value: "lf", label: "LF" },
+  { value: "cr", label: "CR" },
+  { value: "crlf", label: "CRLF" },
 ];
 
 export function SendPanel({
@@ -52,6 +64,8 @@ export function SendPanel({
   sendTargetHint,
   timerEnabled, timerInterval, onTimerToggle, onTimerIntervalChange,
   lineEnding, onLineEndingChange,
+  layout = "bottom",
+  compact = false,
 }: SendPanelProps) {
   const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -62,11 +76,16 @@ export function SendPanel({
   const [editingCommandId, setEditingCommandId] = useState<string | null>(null);
   const [commandName, setCommandName] = useState("");
   const [commandData, setCommandData] = useState("");
-  const [commandFormat, setCommandFormat] = useState<DataFormat>("ascii");
+  const [commandFormat, setCommandFormat] = useState<DataFormat>("text");
   const optionsBtnRef = useRef<HTMLButtonElement>(null);
   const historyBtnRef = useRef<HTMLButtonElement>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
+
+  const formatLabel = useCallback((format: DataFormat) => {
+    const option = SEND_FORMAT_OPTIONS.find((item) => item.value === format);
+    return option ? t(option.labelKey, option.fallback) : format.toUpperCase();
+  }, [t]);
 
   // Auto-resize textarea
   const autoResize = useCallback(() => {
@@ -141,11 +160,346 @@ export function SendPanel({
     }
   };
 
-  const byteCount = message.length > 0
-    ? sendFormat === "hex"
-      ? message.replace(/[\s,]/g, "").replace(/0[xX]/g, "").length / 2
-      : new TextEncoder().encode(message).length
-    : 0;
+  const byteCount = measurePayloadSize(message, sendFormat);
+  const placeholder = sendFormat === "hex"
+    ? t('tcp.sendPanel.hexPlaceholder')
+    : sendFormat === "base64"
+      ? t('tcp.sendPanel.base64Placeholder')
+      : sendFormat === "gbk"
+        ? t('tcp.sendPanel.gbkPlaceholder', '输入 GBK 文本内容，发送时会按 GBK 编码')
+        : sendFormat === "json"
+          ? t('tcp.sendPanel.jsonPlaceholder', '输入 JSON 内容，发送时保持原样')
+          : t('tcp.sendPanel.textPlaceholder');
+
+  if (layout === "sidebar") {
+    return (
+      <div className="wb-subpanel relative overflow-visible">
+        <div className={cn("wb-pane-header", compact && "px-3 py-2")}>
+          <div className="min-w-0">
+            <div className={cn("font-semibold text-text-primary", compact ? "text-[var(--fs-xxs)]" : "text-[var(--fs-xs)]")}>
+              {t("tcp.sendPanel.title", "发送面板")}
+            </div>
+            {(!compact || sendTargetLabel || sendTargetHint) ? (
+              <div className="mt-0.5 truncate text-[var(--fs-xxs)] text-text-tertiary">
+                {sendTargetLabel || sendTargetHint || t("tcp.sendPanel.titleHint", "在左侧完成消息输入、格式配置和发送。")}
+              </div>
+            ) : null}
+          </div>
+          {sendHistory.length > 0 ? (
+            <div className="relative">
+              <button
+                ref={historyBtnRef}
+                onClick={() => setShowHistory((v) => !v)}
+                className={cn("wb-icon-btn !h-7 !w-7", showHistory && "bg-bg-hover text-accent")}
+                title={t('tcp.sendPanel.sendHistory')}
+              >
+                <History className="h-3.5 w-3.5" />
+              </button>
+              {showHistory && (
+                <div
+                  ref={historyRef}
+                  className="absolute right-0 top-full z-30 mt-2 w-[320px] overflow-hidden rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-lg"
+                >
+                  <div className="flex items-center justify-between border-b border-border-default/60 px-3 py-2">
+                    <span className="text-[var(--fs-xxs)] font-semibold text-text-secondary">
+                      {t('tcp.sendPanel.sendHistory')} ({sendHistory.length})
+                    </span>
+                    <button
+                      onClick={() => { onClearHistory(); setShowHistory(false); }}
+                      className="rounded-[8px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <div className="max-h-[220px] overflow-y-auto py-1">
+                    {sendHistory.slice(0, 20).map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => { onLoadHistory(item); setShowHistory(false); }}
+                        className="group flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-bg-hover"
+                      >
+                        <span className="shrink-0 rounded-[7px] bg-bg-primary px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold uppercase text-text-disabled">
+                          {formatLabel(item.format)}
+                        </span>
+                        <span className="flex-1 truncate font-mono text-[var(--fs-xs)] text-text-secondary">{item.data}</span>
+                        <span className="shrink-0 text-[var(--fs-3xs)] text-text-disabled opacity-0 group-hover:opacity-100">
+                          {new Date(item.timestamp).toLocaleTimeString("zh-CN", { hour12: false })}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <div className={cn(compact ? "space-y-2.5 p-2.5" : "space-y-3 p-3")}>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                {t("tcp.sendPanel.sendFormat")}
+              </span>
+              <select
+                value={sendFormat}
+                onChange={(e) => setSendFormat(e.target.value as DataFormat)}
+                className="wb-field wb-native-select w-full"
+              >
+                {SEND_FORMAT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {t(option.labelKey, option.fallback)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                {t('tcp.sendPanel.lineEnding', '行结尾')}
+              </span>
+              <select
+                value={lineEnding}
+                onChange={(e) => onLineEndingChange(e.target.value as LineEnding)}
+                className="wb-field wb-native-select w-full"
+              >
+                {LINE_ENDING_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {sendTargetLabel ? (
+            <div className={cn("rounded-[10px] border border-border-default/60 bg-bg-secondary/35", compact ? "px-2.5 py-1.5" : "px-3 py-2")}>
+              <div className="text-[var(--fs-3xs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">
+                {t("tcp.sendPanel.currentTarget")}
+              </div>
+              <div className="mt-1 truncate text-[var(--fs-xs)] font-medium text-text-primary">
+                {sendTargetLabel}
+              </div>
+              {sendTargetHint ? (
+                <div className="mt-1 text-[var(--fs-3xs)] text-text-tertiary">{sendTargetHint}</div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                {t('tcp.sendPanel.quickCommands')}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={openNewQuickCommand}
+                  className="rounded-[8px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent"
+                  title={t("tcp.sendPanel.addCommand")}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+                {quickCommands.length > 0 ? (
+                  <button
+                    onClick={() => setShowQuickCmds((v) => !v)}
+                    className="rounded-[8px] p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                    title={showQuickCmds ? t("common.collapse", "收起") : t("common.expand", "展开")}
+                  >
+                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !showQuickCmds && "-rotate-90")} />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {quickCommands.length === 0 ? (
+              <button
+                onClick={openNewQuickCommand}
+                className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-border-default/70 bg-bg-secondary/20 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary transition-colors hover:border-accent/35 hover:bg-accent-soft hover:text-accent"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {t("tcp.sendPanel.addCommand")}
+              </button>
+            ) : showQuickCmds ? (
+              <div className="flex flex-wrap gap-1.5">
+                {quickCommands.map((cmd) => (
+                  <button
+                    key={cmd.id}
+                    onClick={() => onLoadQuickCommand(cmd)}
+                    onContextMenu={(e) => { e.preventDefault(); openEditQuickCommand(cmd); }}
+                    className="group inline-flex items-center gap-1 rounded-[8px] border border-border-default/60 bg-bg-secondary/35 px-2 py-1 text-[var(--fs-xxs)] font-medium text-text-secondary transition-all hover:border-accent/35 hover:bg-accent-soft hover:text-text-primary"
+                    title={`${cmd.name} (${formatLabel(cmd.format)}) - ${t('tcp.sendPanel.rightClickEdit')}`}
+                  >
+                    <CornerDownLeft className="h-2.5 w-2.5 shrink-0 text-text-disabled group-hover:text-accent" />
+                    <span className="max-w-[120px] truncate">{cmd.name}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                {t("tcp.sendPanel.commandContent", "消息内容")}
+              </span>
+              <span className="text-[var(--fs-3xs)] text-text-disabled">
+                {Math.floor(byteCount)} {t('tcp.sendPanel.bytes')}
+              </span>
+            </div>
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={!connected}
+              rows={compact ? 4 : 5}
+              className={cn(
+                "wb-send-bar-input w-full resize-y rounded-[12px] border border-border-default bg-bg-input px-3 py-2 font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled",
+                compact ? "min-h-[112px] text-[var(--fs-xs)]" : "min-h-[132px] text-[var(--fs-sm)]",
+                "focus:border-accent focus:ring-2 focus:ring-accent-muted",
+                "disabled:cursor-not-allowed disabled:opacity-45"
+              )}
+            />
+          </div>
+
+          <div className={cn("space-y-2 rounded-[10px] border border-border-default/60 bg-bg-secondary/20", compact ? "px-2.5 py-2" : "px-3 py-2.5")}>
+            <label className="flex items-center gap-2 text-[var(--fs-xs)] text-text-secondary">
+              <input
+                type="checkbox"
+                checked={timerEnabled}
+                onChange={onTimerToggle}
+                className="h-3.5 w-3.5 rounded border-border-default text-accent focus:ring-accent/30"
+              />
+              <span>{t('tcp.sendPanel.timedSend')}</span>
+              {timerEnabled ? <Timer className="h-3.5 w-3.5 text-accent" /> : null}
+            </label>
+            {timerEnabled ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={timerInterval}
+                  onChange={(e) => onTimerIntervalChange(Math.max(100, parseInt(e.target.value) || 1000))}
+                  className="wb-field w-[110px]"
+                  min={100}
+                  step={100}
+                />
+                <span className="text-[var(--fs-xxs)] text-text-disabled">ms</span>
+              </div>
+            ) : (
+              <div className="text-[var(--fs-3xs)] text-text-disabled">
+                {t("tcp.sendPanel.timerHint", "需要定时发送时再开启，避免误触循环发包。")}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={onSend}
+            disabled={!connected || !message.trim()}
+            className={cn(
+              "wb-primary-btn w-full justify-center bg-accent",
+              compact ? "h-9" : "h-10",
+              "hover:bg-accent-hover disabled:cursor-not-allowed disabled:hover:bg-accent"
+            )}
+          >
+            <Send className="h-3.5 w-3.5" />
+            {sendLabel}
+            {timerEnabled ? <Timer className="ml-0.5 h-3 w-3 opacity-60" /> : null}
+          </button>
+        </div>
+
+        {showCommandEditor ? createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={closeQuickCommandEditor}>
+            <div
+              className="w-[420px] overflow-hidden rounded-[14px] border border-border-default bg-bg-primary shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-border-default/60 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <CornerDownLeft className="h-4 w-4 text-accent" />
+                  <span className="text-[var(--fs-sm)] font-semibold text-text-primary">
+                    {editingCommandId ? t("tcp.sendPanel.editCommand") : t("tcp.sendPanel.addCommand")}
+                  </span>
+                </div>
+                <button onClick={closeQuickCommandEditor} className="rounded-md p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 p-4">
+                <div>
+                  <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
+                    {t("tcp.sendPanel.commandName")}
+                  </div>
+                  <input
+                    value={commandName}
+                    onChange={(e) => setCommandName(e.target.value)}
+                    className="wb-field w-full"
+                    placeholder={t("tcp.sendPanel.commandName")}
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
+                    {t("tcp.sendPanel.sendFormat")}
+                  </div>
+                  <select
+                    value={commandFormat}
+                    onChange={(e) => setCommandFormat(e.target.value as DataFormat)}
+                    className="wb-field wb-native-select w-full"
+                  >
+                    {SEND_FORMAT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {t(option.labelKey, option.fallback)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
+                    {t("tcp.sendPanel.commandContent")}
+                  </div>
+                  <textarea
+                    value={commandData}
+                    onChange={(e) => setCommandData(e.target.value)}
+                    className="min-h-[120px] w-full resize-none rounded-[12px] border border-border-default bg-bg-input/85 p-3 text-[var(--fs-sm)] font-mono text-text-primary outline-none transition-all placeholder:text-text-disabled focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    placeholder={t("tcp.sendPanel.placeholder")}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-border-default/60 px-4 py-3">
+                {editingCommandId ? (
+                  <button
+                    onClick={() => {
+                      onDeleteQuickCommand(editingCommandId);
+                      closeQuickCommandEditor();
+                    }}
+                    className="wb-ghost-btn mr-auto px-3 text-red-500 hover:bg-red-500/8"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {t("contextMenu.delete")}
+                  </button>
+                ) : null}
+                <button onClick={closeQuickCommandEditor} className="wb-ghost-btn px-3">
+                  {t("tcp.sendPanel.cancelCommand")}
+                </button>
+                <button
+                  onClick={handleSaveQuickCommand}
+                  disabled={!commandName.trim() || !commandData.trim()}
+                  className="wb-primary-btn bg-accent hover:bg-accent-hover disabled:hover:bg-accent"
+                >
+                  {t("tcp.sendPanel.saveCommand")}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="wb-send-bar-wrap shrink-0">
@@ -162,7 +516,7 @@ export function SendPanel({
                 onClick={() => onLoadQuickCommand(cmd)}
                 onContextMenu={(e) => { e.preventDefault(); openEditQuickCommand(cmd); }}
                 className="group inline-flex items-center gap-1 shrink-0 rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 py-1 text-[var(--fs-xxs)] font-medium text-text-secondary transition-all hover:border-accent/40 hover:bg-accent-soft hover:text-text-primary"
-                title={`${cmd.name} (${cmd.format.toUpperCase()}) - ${t('tcp.sendPanel.rightClickEdit')}`}
+                title={`${cmd.name} (${formatLabel(cmd.format)}) - ${t('tcp.sendPanel.rightClickEdit')}`}
               >
                 <CornerDownLeft className="h-2.5 w-2.5 shrink-0 text-text-disabled group-hover:text-accent" />
                 <span className="truncate max-w-[80px]">{cmd.name}</span>
@@ -188,17 +542,22 @@ export function SendPanel({
       {/* == Main Send Row == */}
       <div className="flex items-end gap-2 px-3 py-2">
         {/* Format selector */}
-        <div className="wb-tool-segment shrink-0 self-end">
-          {FORMAT_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setSendFormat(opt.value)}
-              className={cn("!h-7 !px-2 !text-[var(--fs-xxs)]", sendFormat === opt.value && "is-active")}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <label className="flex h-[36px] shrink-0 items-center gap-2 rounded-[10px] border border-border-default bg-bg-primary px-3 text-[var(--fs-xs)] text-text-tertiary">
+          <span className="font-semibold uppercase tracking-wide">
+            {t("tcp.sendPanel.sendFormat")}
+          </span>
+          <select
+            value={sendFormat}
+            onChange={(e) => setSendFormat(e.target.value as DataFormat)}
+            className="wb-native-select min-w-[132px] border-0 bg-transparent py-0 pl-0 pr-6 text-[var(--fs-xs)] font-semibold text-text-primary outline-none"
+          >
+            {SEND_FORMAT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.labelKey, option.fallback)}
+              </option>
+            ))}
+          </select>
+        </label>
 
         {/* Textarea input */}
         <div className="relative flex-1 min-w-0">
@@ -207,13 +566,7 @@ export function SendPanel({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={
-              sendFormat === "hex"
-                ? t('tcp.sendPanel.hexPlaceholder')
-                : sendFormat === "base64"
-                  ? t('tcp.sendPanel.base64Placeholder')
-                  : t('tcp.sendPanel.textPlaceholder')
-            }
+            placeholder={placeholder}
             disabled={!connected}
             rows={1}
             className={cn(
@@ -277,7 +630,9 @@ export function SendPanel({
                         onClick={() => { onLoadHistory(item); setShowHistory(false); }}
                         className="group flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-bg-hover"
                       >
-                        <span className="w-8 shrink-0 text-[var(--fs-3xs)] font-bold uppercase text-text-disabled">{item.format}</span>
+                        <span className="shrink-0 rounded-[7px] bg-bg-primary px-1.5 py-0.5 text-[var(--fs-3xs)] font-bold uppercase text-text-disabled">
+                          {formatLabel(item.format)}
+                        </span>
                         <span className="flex-1 truncate font-mono text-[var(--fs-xs)] text-text-secondary">{item.data}</span>
                         <span className="shrink-0 text-[var(--fs-3xs)] text-text-disabled opacity-0 group-hover:opacity-100">
                           {new Date(item.timestamp).toLocaleTimeString("zh-CN", { hour12: false })}
@@ -431,17 +786,17 @@ export function SendPanel({
                 <div className="mb-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wider text-text-tertiary">
                   {t("tcp.sendPanel.sendFormat")}
                 </div>
-                <div className="wb-tool-segment">
-                  {FORMAT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setCommandFormat(opt.value)}
-                      className={cn("flex-1", commandFormat === opt.value && "is-active")}
-                    >
-                      {opt.label}
-                    </button>
+                <select
+                  value={commandFormat}
+                  onChange={(e) => setCommandFormat(e.target.value as DataFormat)}
+                  className="wb-field wb-native-select w-full"
+                >
+                  {SEND_FORMAT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {t(option.labelKey, option.fallback)}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
 
               <div>

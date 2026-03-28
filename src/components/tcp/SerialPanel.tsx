@@ -3,11 +3,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Usb, RefreshCw, X, History, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { MessageLog } from "./MessageLog";
 import { SendPanel } from "./SendPanel";
+import { ProtocolSidebarSection, ProtocolWorkbench } from "./ProtocolWorkbench";
 import { StatsBar } from "./StatsBar";
 import * as svc from "@/services/serialService";
-import { asciiToHex } from "@/services/tcpService";
+import { estimateRawHex, measurePayloadSize, normalizeSendEncoding } from "@/services/tcpService";
 import { useActivityLogStore } from "@/stores/activityLogStore";
 import type { TcpMessage, DataFormat, ConnectionStats, SendHistoryItem, QuickCommand } from "@/types/tcp";
 import { LineEnding, LINE_ENDING_MAP } from "@/types/tcp";
@@ -45,8 +45,9 @@ function saveRecentConfig(portName: string, config: SerialPortConfig) {
 function useSerialState() {
   const [messages, setMessages] = useState<TcpMessage[]>([]);
   const [message, setMessage] = useState("");
-  const [sendFormat, setSendFormat] = useState<DataFormat>("ascii");
-  const [displayFormat, setDisplayFormat] = useState<DataFormat>("ascii");
+  const [sendFormat, setSendFormat] = useState<DataFormat>("text");
+  const [displayFormat, setDisplayFormat] = useState<DataFormat>("auto");
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [sendHistory, setSendHistory] = useState<SendHistoryItem[]>([]);
   const [quickCommands, setQuickCommands] = useState<QuickCommand[]>([]);
   const [lineEnding, setLineEnding] = useState<LineEnding>('none');
@@ -104,9 +105,22 @@ function useSerialState() {
     });
   }, []);
 
+  useEffect(() => {
+    if (messages.length === 0) {
+      setSelectedMessageId(null);
+      return;
+    }
+    setSelectedMessageId((current) => (
+      current && messages.some((item) => item.id === current)
+        ? current
+        : messages[messages.length - 1]?.id ?? null
+    ));
+  }, [messages]);
+
   return {
     messages, setMessages, message, setMessage,
     sendFormat, setSendFormat, displayFormat, setDisplayFormat,
+    selectedMessageId, setSelectedMessageId,
     sendHistory, setSendHistory, quickCommands, setQuickCommands,
     lineEnding, setLineEnding,
     timerEnabled, setTimerEnabled,
@@ -336,7 +350,7 @@ function RecentSerialConfigs({
 //  SerialPanel 主体
 // ═══════════════════════════════════════════
 
-export function SerialPanel({ sessionKey }: { sessionKey: string }) {
+export function SerialPanel({ sessionKey }: { sessionKey: string; compact?: boolean }) {
   const { t } = useTranslation();
   const portId = useRef(`serial:${sessionKey}`).current;
   const state = useSerialState();
@@ -484,12 +498,12 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
     const suffix = LINE_ENDING_MAP[state.lineEnding];
     const data = suffix ? state.message + suffix : state.message;
     try {
-      await svc.serialSend(portId, data, state.sendFormat);
-      const size = new TextEncoder().encode(data).length;
+      await svc.serialSend(portId, data, normalizeSendEncoding(state.sendFormat));
       state.addMessage({
         id: crypto.randomUUID(), direction: "sent",
-        data, rawHex: asciiToHex(data), encoding: "utf8",
-        timestamp: new Date().toISOString(), size,
+        data, rawHex: estimateRawHex(data, state.sendFormat),
+        encoding: state.sendFormat === "hex" ? "hex" : state.sendFormat === "base64" ? "base64" : state.sendFormat === "gbk" ? "gbk" : "utf8",
+        timestamp: new Date().toISOString(), size: measurePayloadSize(data, state.sendFormat),
       });
       state.addToHistory(state.message, state.sendFormat);
       if (!state.timerEnabled) state.setMessage("");
@@ -520,138 +534,119 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0 space-y-2 pb-3">
-        <SerialConnectionBar
-          portName={portName}
-          config={config}
-          ports={ports}
-          loadingPorts={loadingPorts}
-          open={open}
-          opening={opening}
-          onPortNameChange={setPortName}
-          onConfigChange={(partial) => setConfig((c) => ({ ...c, ...partial }))}
-          onRefreshPorts={refreshPorts}
-          onToggle={handleToggle}
-        />
-        <div className="px-0.5">
-          <RecentSerialConfigs
-            recent={recentConfigs}
-            onLoad={handleLoadRecent}
-            onRemove={handleRemoveRecent}
-          />
-        </div>
-
-        {/* 信号控制栏 + 行结尾选择器 (仅在端口打开时显示) */}
-        {open && (
-          <div className="flex items-center gap-3 flex-wrap px-0.5">
-            {/* DTR/RTS 控制 */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
-                {t('serial.signals', '信号')}
-              </span>
-              <button
-                onClick={handleToggleDtr}
-                className={cn(
-                  "h-[22px] px-2 rounded-[4px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide border transition-colors",
-                  dtr
-                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
-                    : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
-                )}
-                title="Data Terminal Ready"
-              >
-                DTR
-              </button>
-              <button
-                onClick={handleToggleRts}
-                className={cn(
-                  "h-[22px] px-2 rounded-[4px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide border transition-colors",
-                  rts
-                    ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
-                    : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
-                )}
-                title="Request To Send"
-              >
-                RTS
-              </button>
-            </div>
-
-            <div className="h-3.5 w-px bg-border-default/50 shrink-0" />
-
-            {/* CTS/DSR/RI/CD 状态 */}
-            <div className="flex items-center gap-2">
-              {(['cts', 'dsr', 'ri', 'cd'] as const).map((sig) => (
-                <div key={sig} className="flex items-center gap-1">
-                  <div className={cn(
-                    "w-1.5 h-1.5 rounded-full transition-colors",
-                    signals[sig] ? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.6)]" : "bg-border-default/60"
-                  )} />
-                  <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide text-text-disabled">
-                    {sig.toUpperCase()}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="h-3.5 w-px bg-border-default/50 shrink-0" />
-
-            {/* 行结尾选择器 */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
-                {t('serial.lineEnding', '行结尾')}
-              </span>
-              <div className="flex h-[22px] items-center rounded-[4px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
-                {(['none', 'lf', 'cr', 'crlf'] as LineEnding[]).map((le) => (
-                  <button
-                    key={le}
-                    onClick={() => state.setLineEnding(le)}
-                    className={cn(
-                      "h-full px-2 text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-colors",
-                      state.lineEnding === le
-                        ? "bg-accent text-white"
-                        : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
-                    )}
-                  >
-                    {le === 'none' ? t('serial.leNone', '无') : le.toUpperCase()}
-                  </button>
-                ))}
+      <ProtocolWorkbench
+        sidebar={
+          <>
+            <ProtocolSidebarSection
+              title={t('tcp.sidebar.connection', '连接设置')}
+              description={t('tcp.sidebar.serialConnectionDesc', '选择串口、配置波特率与数据位，并管理最近的串口配置。')}
+              showDescriptionInCompact
+            >
+              <div className="space-y-3">
+                <SerialConnectionBar
+                  portName={portName}
+                  config={config}
+                  ports={ports}
+                  loadingPorts={loadingPorts}
+                  open={open}
+                  opening={opening}
+                  onPortNameChange={setPortName}
+                  onConfigChange={(partial) => setConfig((c) => ({ ...c, ...partial }))}
+                  onRefreshPorts={refreshPorts}
+                  onToggle={handleToggle}
+                />
+                <RecentSerialConfigs
+                  recent={recentConfigs}
+                  onLoad={handleLoadRecent}
+                  onRemove={handleRemoveRecent}
+                />
               </div>
-            </div>
-          </div>
-        )}
-      </div>
+            </ProtocolSidebarSection>
 
-      <div className="wb-workbench-stack min-h-0 flex-1">
-        <MessageLog
-          messages={state.messages}
-          onClear={() => { state.setMessages([]); state.resetStats(); }}
-          displayFormat={state.displayFormat}
-          setDisplayFormat={state.setDisplayFormat}
-          connected={open}
-          statusText={statusText}
-          stats={state.stats}
-          embedded
-        />
-        <SendPanel
-          message={state.message} setMessage={state.setMessage}
-          sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
-          connected={open} onSend={handleSend}
-          sendHistory={state.sendHistory}
-          onClearHistory={() => state.setSendHistory([])}
-          onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
-          quickCommands={state.quickCommands}
-          onSaveQuickCommand={state.saveQuickCommand}
-          onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
-          onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
-          sendTargetLabel={open ? portName : undefined}
-          sendTargetHint={open ? `${config.baudRate} ${config.dataBits}${config.parity === "none" ? "N" : config.parity === "even" ? "E" : "O"}${config.stopBits}` : undefined}
-          timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
-          onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
-          onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-          lineEnding={state.lineEnding}
-          onLineEndingChange={state.setLineEnding}
-          embedded
-        />
-      </div>
+            {open && (
+              <ProtocolSidebarSection
+                title={t('serial.signals', '信号')}
+                description={t('tcp.sidebar.serialSignalDesc', '查看 CTS/DSR/RI/CD 状态，并直接切换 DTR/RTS。')}
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      onClick={handleToggleDtr}
+                      className={cn(
+                        "h-[22px] px-2 rounded-[4px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide border transition-colors",
+                        dtr
+                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
+                          : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
+                      )}
+                      title="Data Terminal Ready"
+                    >
+                      DTR
+                    </button>
+                    <button
+                      onClick={handleToggleRts}
+                      className={cn(
+                        "h-[22px] px-2 rounded-[4px] text-[var(--fs-xxs)] font-semibold uppercase tracking-wide border transition-colors",
+                        rts
+                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
+                          : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
+                      )}
+                      title="Request To Send"
+                    >
+                      RTS
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['cts', 'dsr', 'ri', 'cd'] as const).map((sig) => (
+                      <div key={sig} className="flex items-center gap-2 rounded-[8px] border border-border-default/60 bg-bg-secondary/35 px-2.5 py-2">
+                        <div className={cn(
+                          "w-1.5 h-1.5 rounded-full transition-colors",
+                          signals[sig] ? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.6)]" : "bg-border-default/60"
+                        )} />
+                        <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide text-text-secondary">
+                          {sig.toUpperCase()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </ProtocolSidebarSection>
+            )}
+          </>
+        }
+        messages={state.messages}
+        selectedMessageId={state.selectedMessageId}
+        onSelectMessage={(message) => state.setSelectedMessageId(message.id)}
+        onClearMessages={() => { state.setMessages([]); state.resetStats(); }}
+        displayFormat={state.displayFormat}
+        setDisplayFormat={state.setDisplayFormat}
+        connected={open}
+        statusText={statusText}
+        stats={state.stats}
+        sendPanel={(
+          <SendPanel
+            message={state.message} setMessage={state.setMessage}
+            sendFormat={state.sendFormat} setSendFormat={state.setSendFormat}
+            connected={open} onSend={handleSend}
+            sendHistory={state.sendHistory}
+            onClearHistory={() => state.setSendHistory([])}
+            onLoadHistory={(item) => { state.setMessage(item.data); state.setSendFormat(item.format); }}
+            quickCommands={state.quickCommands}
+            onSaveQuickCommand={state.saveQuickCommand}
+            onDeleteQuickCommand={(id) => state.setQuickCommands((prev) => prev.filter((c) => c.id !== id))}
+            onLoadQuickCommand={(cmd) => { state.setMessage(cmd.data); state.setSendFormat(cmd.format); }}
+            sendTargetLabel={open ? portName : undefined}
+            sendTargetHint={open ? `${config.baudRate} ${config.dataBits}${config.parity === "none" ? "N" : config.parity === "even" ? "E" : "O"}${config.stopBits}` : undefined}
+            timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
+            onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
+            onTimerIntervalChange={(v) => state.setTimerInterval(v)}
+            lineEnding={state.lineEnding}
+            onLineEndingChange={state.setLineEnding}
+            embedded
+            layout="sidebar"
+          />
+        )}
+      />
       <StatsBar
         stats={state.stats}
         connected={open}
