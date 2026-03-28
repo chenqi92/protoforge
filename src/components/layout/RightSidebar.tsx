@@ -14,15 +14,16 @@ import { motion } from 'framer-motion';
 import {
   ScrollText, FileCode2, Search, Trash2,
   ArrowDownRight, ArrowUpRight, Globe, Network,
-  Radio, Wifi, Usb, Cpu,
+  Radio, Wifi, Usb, Cpu, Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useActivityLogStore, type ActivityLogEntry, type LogSource } from '@/stores/activityLogStore';
 import { usePluginStore } from '@/stores/pluginStore';
 import { ProtocolParserPanel } from '@/components/plugins/ProtocolParserPanel';
+import { ToolboxPanel } from '@/components/tcp/ToolboxPanel';
 
-type RightSidebarView = 'logs' | 'parser';
+type RightSidebarView = 'logs' | 'parser' | 'toolbox';
 
 interface RightSidebarProps {
   panelCollapsed: boolean;
@@ -34,6 +35,7 @@ const baseNavItems: { id: RightSidebarView; icon: typeof ScrollText; labelKey: s
 ];
 
 const parserNavItem = { id: 'parser' as RightSidebarView, icon: FileCode2, labelKey: 'rightSidebar.parser' };
+const toolboxNavItem = { id: 'toolbox' as RightSidebarView, icon: Wrench, labelKey: 'rightSidebar.toolbox' };
 
 const sourceIcons: Record<LogSource, typeof Globe> = {
   http: Globe,
@@ -68,6 +70,7 @@ export function RightSidebar({ panelCollapsed, onTogglePanel }: RightSidebarProp
   const navItems = useMemo(() => {
     const items = [...baseNavItems];
     if (hasParserPlugin) items.push(parserNavItem);
+    items.push(toolboxNavItem);
     return items;
   }, [hasParserPlugin]);
 
@@ -118,6 +121,7 @@ export function RightSidebar({ panelCollapsed, onTogglePanel }: RightSidebarProp
               className="flex-1 min-h-0"
             />
           )}
+          {activeView === 'toolbox' && <ToolboxPanel />}
         </div>
       )}
 

@@ -1,5 +1,5 @@
 // 连接配置栏组件 — TCP/UDP 通用
-import { Network, Server, Radio, Plug, X, Square, Usb, Cpu, Wrench } from "lucide-react";
+import { Network, Server, Radio, Plug, X, Square, Usb, Cpu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { SocketMode } from "@/types/tcp";
@@ -53,12 +53,12 @@ const modeConfig: Record<SocketMode, { label: string; icon: React.ReactNode; bad
     badge: "bg-violet-500",
     gradient: "from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700",
   },
-  // toolbox uses ToolboxPanel directly, stub required for TS exhaustiveness
-  "toolbox": {
-    label: "Toolbox",
-    icon: <Wrench className="w-3.5 h-3.5" />,
-    badge: "bg-slate-500",
-    gradient: "from-slate-500 to-zinc-600 hover:from-slate-600 hover:to-zinc-700",
+  // modbus-slave uses ModbusSlavePanel directly, stub required for TS exhaustiveness
+  "modbus-slave": {
+    label: "Modbus Slave",
+    icon: <Cpu className="w-3.5 h-3.5" />,
+    badge: "bg-violet-600",
+    gradient: "from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800",
   },
 };
 

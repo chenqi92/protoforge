@@ -2,7 +2,7 @@
 
 // ── 基础类型 ──
 
-export type SocketMode = 'tcp-client' | 'tcp-server' | 'udp-client' | 'udp-server' | 'serial' | 'modbus' | 'toolbox';
+export type SocketMode = 'tcp-client' | 'tcp-server' | 'udp-client' | 'udp-server' | 'serial' | 'modbus' | 'modbus-slave';
 export type DataFormat = 'ascii' | 'hex' | 'base64';
 export type DataEncoding = 'utf8' | 'hex' | 'base64';
 

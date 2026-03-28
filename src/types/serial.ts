@@ -124,6 +124,21 @@ export interface ModbusEvent {
   timestamp: string;
 }
 
+// ── Modbus 从站事件（后端推送） ──
+
+export interface ModbusSlaveEvent {
+  connId: string;
+  eventType: 'started' | 'stopped' | 'request' | 'write' | 'error';
+  clientAddr?: string;
+  unitId?: number;
+  functionCode?: number;
+  startAddress?: number;
+  quantity?: number;
+  values?: number[];
+  rawHex?: string;
+  timestamp: string;
+}
+
 // ── 事务日志条目 ──
 
 export interface ModbusTransaction {

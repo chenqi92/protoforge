@@ -383,6 +383,8 @@
       "serialHint": "物理串口通信，支持波特率、数据位、奇偶校验等参数配置，适用于嵌入式设备调试",
       "modbus": "Modbus",
       "modbusHint": "Modbus 工业协议调试，支持 TCP 和 RTU 两种传输方式，涵盖全部常用功能码",
+      "modbusSlave": "Modbus 从站",
+      "modbusSlaveHint": "模拟 Modbus 从站设备，自动响应主站请求，支持寄存器/线圈实时编辑",
       "toolbox": "工具箱",
       "toolboxHint": "CRC 计算、数值进制转换、字节操作等协议调试辅助工具"
     },
@@ -390,6 +392,9 @@
     "connectionless": "无连接报文",
     "serialPort": "串口通信",
     "modbusBus": "Modbus 总线",
+    "modbusSlaveMode": "从站模式",
+    "splitView": "双端视图",
+    "splitViewActive": "双端",
     "toolbox": "调试工具箱",
     "connect": "连接",
     "disconnect": "断开",
@@ -610,6 +615,32 @@
       "pollingToggle": "轮询开关",
       "parsedValue": "解析值",
       "exceptionDesc": "Modbus 异常"
+    },
+    "modbusslave": {
+      "modbusSlaveMode": "从站 (Slave)",
+      "slaveStart": "启动从站",
+      "slaveStop": "停止从站",
+      "slaveStarting": "启动中...",
+      "unitId": "从站地址",
+      "holdingRegs": "保持寄存器",
+      "coils": "线圈",
+      "discreteInputs": "离散输入",
+      "inputRegs": "输入寄存器",
+      "addressRange": "地址范围",
+      "fillAll": "批量填充",
+      "fillZero": "全部清零",
+      "fillOne": "全部置1",
+      "fillIncrement": "递增填充",
+      "fillRandom": "随机填充",
+      "requestLog": "请求日志",
+      "noRequests": "暂无请求记录，从站已就绪",
+      "address": "地址",
+      "value": "值",
+      "status": "状态",
+      "started": "从站已启动",
+      "stopped": "从站已停止",
+      "error": "错误",
+      "startFailed": "启动失败"
     }
   },
   "capture": {
@@ -1182,5 +1213,8 @@
       "orMask": "OR 掩码",
       "result": "结果"
     }
+  },
+  "rightSidebar": {
+    "toolbox": "工具箱"
   }
 }

@@ -1,7 +1,7 @@
 // TCP/UDP 工作区 — 上下分栏布局
 // 上方消息日志（主区域） + 下方紧凑发送栏
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Server, Radio, Square, Monitor, History, X, Usb, Cpu, Wrench } from "lucide-react";
+import { Server, Radio, Square, Monitor, History, X, Usb, Cpu, Columns2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { ConnectionBar } from "./ConnectionBar";
@@ -11,7 +11,7 @@ import { ClientList } from "./ClientList";
 import { StatsBar } from "./StatsBar";
 import { SerialPanel } from "./SerialPanel";
 import { ModbusPanel } from "./ModbusPanel";
-import { ToolboxPanel } from "./ToolboxPanel";
+import { ModbusSlavePanel } from "./ModbusSlavePanel";
 import * as svc from "@/services/tcpService";
 import { useActivityLogStore } from "@/stores/activityLogStore";
 import type {
@@ -96,15 +96,32 @@ const MODES: { value: SocketMode; labelKey: string; hintKey: string; icon: React
   { value: "udp-client", labelKey: "tcp.modes.udpClient", hintKey: "tcp.modes.udpClientHint", icon: <Radio className="w-3.5 h-3.5" /> },
   { value: "udp-server", labelKey: "tcp.modes.udpServer", hintKey: "tcp.modes.udpServerHint", icon: <Square className="w-3.5 h-3.5" /> },
   { value: "serial",     labelKey: "tcp.modes.serial",    hintKey: "tcp.modes.serialHint",    icon: <Usb className="w-3.5 h-3.5" /> },
-  { value: "modbus",     labelKey: "tcp.modes.modbus",    hintKey: "tcp.modes.modbusHint",    icon: <Cpu className="w-3.5 h-3.5" /> },
-  { value: "toolbox",    labelKey: "tcp.modes.toolbox",   hintKey: "tcp.modes.toolboxHint",   icon: <Wrench className="w-3.5 h-3.5" /> },
+  { value: "modbus",       labelKey: "tcp.modes.modbus",       hintKey: "tcp.modes.modbusHint",       icon: <Cpu className="w-3.5 h-3.5" /> },
+  { value: "modbus-slave", labelKey: "tcp.modes.modbusSlave",  hintKey: "tcp.modes.modbusSlaveHint",  icon: <Cpu className="w-3.5 h-3.5" /> },
 ];
+
+const SPLIT_PAIR: Partial<Record<SocketMode, SocketMode>> = {
+  'tcp-client':   'tcp-server',
+  'tcp-server':   'tcp-client',
+  'udp-client':   'udp-server',
+  'udp-server':   'udp-client',
+  'modbus':       'modbus-slave',
+  'modbus-slave': 'modbus',
+  'serial':       'serial',
+};
 
 export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<SocketMode>("tcp-client");
+  const [splitView, setSplitView] = useState(false);
   const sessionKey = useRef(sessionId ?? crypto.randomUUID()).current;
   const activeMode = MODES.find((item) => item.value === mode) || MODES[0];
+  const canSplit = mode in SPLIT_PAIR;
+
+  // Auto-reset split when switching to a non-splittable mode
+  useEffect(() => {
+    if (!canSplit) setSplitView(false);
+  }, [mode, canSplit]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-transparent p-3">
@@ -126,6 +143,19 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
         </div>
 
         <div className="wb-tool-strip-actions">
+          {canSplit && (
+            <button
+              onClick={() => setSplitView((v) => !v)}
+              className={cn(
+                "wb-tool-chip cursor-pointer transition-colors",
+                splitView && "bg-accent-soft text-accent border-accent/40"
+              )}
+              title={splitView ? t('tcp.splitViewActive', '双端') : t('tcp.splitView', '双端视图')}
+            >
+              <Columns2 className="w-3 h-3" />
+              {splitView ? t('tcp.splitViewActive', '双端') : t('tcp.splitView', '双端视图')}
+            </button>
+          )}
           <span className="wb-tool-chip">
             {mode.startsWith("tcp")
               ? t('tcp.connectionOriented')
@@ -135,33 +165,69 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
                   ? t('tcp.serialPort', '串口通信')
                   : mode === "modbus"
                     ? t('tcp.modbusBus', 'Modbus 总线')
-                    : t('tcp.toolbox', '调试工具箱')}
+                    : mode === "modbus-slave" ? t('tcp.modbusSlaveMode', '从站模式') : ''}
           </span>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col pt-3">
-        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "tcp-client" && "hidden")}>
-          <TcpClientPanel sessionKey={sessionKey} />
+      <div className={cn(
+        "flex min-h-0 flex-1 pt-3",
+        splitView && canSplit ? "flex-row gap-0" : "flex-col"
+      )}>
+        {/* Primary panel */}
+        <div className={cn("flex min-h-0 flex-col", splitView && canSplit ? "flex-1" : "flex-1")}>
+          <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "tcp-client" && "hidden")}>
+            <TcpClientPanel sessionKey={sessionKey} />
+          </div>
+          <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "tcp-server" && "hidden")}>
+            <TcpServerPanel sessionKey={sessionKey} />
+          </div>
+          <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "udp-client" && "hidden")}>
+            <UdpClientPanel sessionKey={sessionKey} />
+          </div>
+          <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "udp-server" && "hidden")}>
+            <UdpServerPanel sessionKey={sessionKey} />
+          </div>
+          <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "serial" && "hidden")}>
+            <SerialPanel sessionKey={sessionKey} />
+          </div>
+          <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "modbus" && "hidden")}>
+            <ModbusPanel sessionKey={sessionKey} />
+          </div>
+          <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "modbus-slave" && "hidden")}>
+            <ModbusSlavePanel sessionKey={sessionKey} />
+          </div>
         </div>
-        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "tcp-server" && "hidden")}>
-          <TcpServerPanel sessionKey={sessionKey} />
-        </div>
-        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "udp-client" && "hidden")}>
-          <UdpClientPanel sessionKey={sessionKey} />
-        </div>
-        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "udp-server" && "hidden")}>
-          <UdpServerPanel sessionKey={sessionKey} />
-        </div>
-        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "serial" && "hidden")}>
-          <SerialPanel sessionKey={sessionKey} />
-        </div>
-        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "modbus" && "hidden")}>
-          <ModbusPanel sessionKey={sessionKey} />
-        </div>
-        <div className={cn("flex min-h-0 flex-1 flex-col", mode !== "toolbox" && "hidden")}>
-          <ToolboxPanel />
-        </div>
+
+        {/* Divider + secondary split panel */}
+        {splitView && canSplit && (
+          <>
+            <div className="w-px bg-border-default/40 shrink-0" />
+            <div className="flex min-h-0 flex-1 flex-col border-l border-border-default/40 overflow-hidden">
+              {/* Split panel header */}
+              <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-bg-secondary/50 border-b border-border-default/40 text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wide">
+                {MODES.find((m) => m.value === SPLIT_PAIR[mode])?.icon}
+                {t(MODES.find((m) => m.value === SPLIT_PAIR[mode])?.labelKey ?? '')}
+              </div>
+              {/* Secondary panel content */}
+              {(() => {
+                const secondMode = SPLIT_PAIR[mode]!;
+                const splitKey = `${sessionKey}-split`;
+                return (
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
+                    {secondMode === "tcp-client" && <TcpClientPanel sessionKey={splitKey} />}
+                    {secondMode === "tcp-server" && <TcpServerPanel sessionKey={splitKey} />}
+                    {secondMode === "udp-client" && <UdpClientPanel sessionKey={splitKey} />}
+                    {secondMode === "udp-server" && <UdpServerPanel sessionKey={splitKey} />}
+                    {secondMode === "serial" && <SerialPanel sessionKey={splitKey} />}
+                    {secondMode === "modbus" && <ModbusPanel sessionKey={splitKey} />}
+                    {secondMode === "modbus-slave" && <ModbusSlavePanel sessionKey={splitKey} />}
+                  </div>
+                );
+              })()}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

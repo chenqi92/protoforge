@@ -382,6 +382,8 @@
       "serialHint": "Physical serial port communication with configurable baud rate, data bits, parity, and flow control",
       "modbus": "Modbus",
       "modbusHint": "Modbus industrial protocol debugging supporting TCP and RTU transports with full function code coverage",
+      "modbusSlave": "Modbus Slave",
+      "modbusSlaveHint": "Simulate a Modbus slave device, auto-respond to master requests, with real-time register/coil editing",
       "toolbox": "Toolbox",
       "toolboxHint": "CRC calculator, number base converter, and byte manipulation tools for protocol debugging"
     },
@@ -389,6 +391,9 @@
     "connectionless": "Connectionless Datagram",
     "serialPort": "Serial Port",
     "modbusBus": "Modbus Bus",
+    "modbusSlaveMode": "Slave Mode",
+    "splitView": "Split View",
+    "splitViewActive": "Split",
     "toolbox": "Debug Toolbox",
     "connect": "Connect",
     "disconnect": "Disconnect",
@@ -609,6 +614,32 @@
       "pollingToggle": "Polling Toggle",
       "parsedValue": "Parsed",
       "exceptionDesc": "Modbus Exception"
+    },
+    "modbusslave": {
+      "modbusSlaveMode": "Slave Mode",
+      "slaveStart": "Start Slave",
+      "slaveStop": "Stop Slave",
+      "slaveStarting": "Starting...",
+      "unitId": "Unit ID",
+      "holdingRegs": "Holding Registers",
+      "coils": "Coils",
+      "discreteInputs": "Discrete Inputs",
+      "inputRegs": "Input Registers",
+      "addressRange": "Address Range",
+      "fillAll": "Bulk Fill",
+      "fillZero": "Clear All",
+      "fillOne": "Set All to 1",
+      "fillIncrement": "Incremental Fill",
+      "fillRandom": "Random Fill",
+      "requestLog": "Request Log",
+      "noRequests": "No requests yet, slave is ready",
+      "address": "Address",
+      "value": "Value",
+      "status": "Status",
+      "started": "Slave started",
+      "stopped": "Slave stopped",
+      "error": "Error",
+      "startFailed": "Start failed"
     }
   },
   "capture": {
@@ -1166,5 +1197,8 @@
       "orMask": "OR Mask",
       "result": "Result"
     }
+  },
+  "rightSidebar": {
+    "toolbox": "Toolbox"
   }
 }

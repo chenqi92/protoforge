@@ -511,41 +511,81 @@ function ByteTools() {
   );
 }
 
-// ═══════════════════════════════════════════
-//  卡片容器
-// ═══════════════════════════════════════════
+// ── Collapsible Section for sidebar ──
 
-function ToolCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SidebarSection({ title, icon, defaultOpen = true, children }: {
+  title: string;
+  icon: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="shrink-0 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-border-default/60 bg-bg-secondary/30">
-        <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">{title}</span>
-      </div>
-      <div className="p-4">
-        {children}
-      </div>
+    <div className="border-b border-border-sidebar last:border-b-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-bg-hover transition-colors text-left group"
+      >
+        <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-accent/10 text-accent shrink-0">
+          {icon}
+        </span>
+        <span className="flex-1 text-[length:var(--fs-sidebar)] font-semibold text-text-primary">{title}</span>
+        <svg
+          className={cn("w-3.5 h-3.5 text-text-tertiary transition-transform duration-200", open && "rotate-180")}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 pt-1">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-//  ToolboxPanel 主体
+//  ToolboxPanel — 侧边栏版本（手风琴折叠）
 // ═══════════════════════════════════════════
 
 export function ToolboxPanel() {
   const { t } = useTranslation();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto gap-3 pb-3">
-      <ToolCard title={t('toolbox.crc.title', 'CRC / 校验计算')}>
-        <CrcCalculator />
-      </ToolCard>
-      <ToolCard title={t('toolbox.converter.title', '数值转换')}>
-        <NumberConverter />
-      </ToolCard>
-      <ToolCard title={t('toolbox.byteTools.title', '字节操作')}>
-        <ByteTools />
-      </ToolCard>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="shrink-0 border-b border-border-sidebar px-3 py-2.5">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-text-tertiary">
+          {t('rightSidebar.toolbox', '工具箱')}
+        </span>
+      </div>
+
+      {/* Scrollable sections */}
+      <div className="flex-1 overflow-y-auto">
+        <SidebarSection
+          title={t('toolbox.crc.title', 'CRC / 校验')}
+          icon={<svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
+          defaultOpen={true}
+        >
+          <CrcCalculator />
+        </SidebarSection>
+        <SidebarSection
+          title={t('toolbox.converter.title', '数值转换')}
+          icon={<svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>}
+          defaultOpen={false}
+        >
+          <NumberConverter />
+        </SidebarSection>
+        <SidebarSection
+          title={t('toolbox.byteTools.title', '字节操作')}
+          icon={<svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>}
+          defaultOpen={false}
+        >
+          <ByteTools />
+        </SidebarSection>
+      </div>
     </div>
   );
 }
