@@ -1836,12 +1836,36 @@ pub async fn vs_connect(
         }
     }
 
+    // For HTTP-FLV, start background stream parsing task
+    let shutdown_tx = if protocol == "http-flv" {
+        let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+        let sid = session_id.clone();
+        let cfg: serde_json::Value = serde_json::from_str(&config).unwrap_or_default();
+        let url = cfg.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let app_clone = app.clone();
+        tokio::spawn(async move {
+            if let Err(e) = crate::video_streaming::http_flv::start_flv_stream(sid.clone(), url, app_clone.clone(), rx).await {
+                log::warn!("FLV stream error: {}", e);
+                let event = StreamEvent {
+                    session_id: sid,
+                    event_type: "error".to_string(),
+                    data: Some(e),
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                };
+                let _ = app_clone.emit("videostream-event", &event);
+            }
+        });
+        Some(tx)
+    } else {
+        None
+    };
+
     let session = crate::video_streaming::state::StreamSession {
         session_id: session_id.clone(),
         protocol: protocol.clone(),
         config: config.clone(),
         connected: true,
-        shutdown_tx: None,
+        shutdown_tx,
     };
     sessions.insert(session_id.clone(), session);
 
@@ -1933,38 +1957,45 @@ pub async fn vs_player_set_volume(
 pub async fn vs_rtsp_command(
     session_id: String,
     method: String,
+    state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<String, String> {
-    use tauri::Emitter as _;
-
     log::info!("RTSP command: session={} method={}", session_id, method);
 
-    // Emit a protocol message for the command
-    let msg = crate::video_streaming::state::ProtocolMessage {
-        id: uuid::Uuid::new_v4().to_string(),
-        direction: "sent".to_string(),
-        protocol: "rtsp".to_string(),
-        summary: format!("{} rtsp://...", method.to_uppercase()),
-        detail: format!("{} rtsp://stream RTSP/1.0\r\nCSeq: 1\r\n\r\n", method.to_uppercase()),
-        timestamp: chrono::Utc::now().to_rfc3339(),
-        size: None,
+    // Get the URL from the session config
+    let sessions = state.sessions.lock().await;
+    let url = if let Some(session) = sessions.get(&session_id) {
+        let cfg: serde_json::Value = serde_json::from_str(&session.config).unwrap_or_default();
+        cfg.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string()
+    } else {
+        return Err("Session not found".to_string());
     };
-    let _ = app.emit("videostream-protocol-msg", &msg);
+    drop(sessions);
 
-    Ok(format!("RTSP/1.0 200 OK\r\nCSeq: 1\r\n\r\n"))
+    if url.is_empty() {
+        return Err("No RTSP URL configured".to_string());
+    }
+
+    // Use real RTSP client
+    crate::video_streaming::rtsp::send_rtsp_request(
+        &session_id,
+        &url,
+        &method,
+        None,
+        "",
+        &app,
+    ).await
 }
 
 #[tauri::command]
 pub async fn vs_hls_parse_playlist(
     session_id: String,
     url: String,
+    app: AppHandle,
 ) -> Result<serde_json::Value, String> {
     log::info!("HLS parse playlist: session={} url={}", session_id, url);
-    // Placeholder
-    Ok(serde_json::json!({
-        "type": "master",
-        "variants": []
-    }))
+    let playlist = crate::video_streaming::hls::fetch_and_parse_playlist(&session_id, &url, &app).await?;
+    serde_json::to_value(&playlist).map_err(|e| format!("Serialize error: {}", e))
 }
 
 #[tauri::command]

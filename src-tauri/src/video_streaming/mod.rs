@@ -2,5 +2,8 @@
 //! 支持 RTSP/RTMP/HTTP-FLV/HLS/WebRTC/GB28181/SRT
 
 pub mod state;
+pub mod rtsp;
+pub mod hls;
+pub mod http_flv;
 
 pub use state::VideoStreamState;
