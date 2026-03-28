@@ -132,8 +132,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
       </div>
 
       {/* Actions */}
-      {connected && (
-        <div className="flex gap-2">
+      <div className="flex gap-2">
           <button onClick={handleCreateOffer} disabled={creating}
             className="h-7 flex-1 rounded-[6px] border border-border-default/60 bg-accent/10 text-[var(--fs-xxs)] font-semibold text-accent hover:bg-accent/20 transition-colors disabled:opacity-50">
             {creating ? '生成中...' : mode === 'offer' ? 'Create Offer' : 'Create Answer'}
@@ -142,8 +141,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
             className="h-7 flex-1 rounded-[6px] border border-border-default/60 bg-accent/10 text-[var(--fs-xxs)] font-semibold text-accent hover:bg-accent/20 transition-colors disabled:opacity-50">
             Set Remote SDP
           </button>
-        </div>
-      )}
+      </div>
 
       {/* SDP Editor */}
       <div className="space-y-1.5">
@@ -172,7 +170,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
         <div className="max-h-[120px] overflow-y-auto rounded-[6px] border border-border-default/60 bg-bg-secondary/30 p-1">
           {iceCandidates.length === 0 ? (
             <div className="text-[var(--fs-xs)] text-text-disabled text-center py-4">
-              {connected ? t('videostream.webrtc.gatheringIce', '正在收集 ICE 候选...') : t('videostream.webrtc.connectFirst', '连接后开始 ICE 协商')}
+              {t('videostream.webrtc.connectFirst', '点击 Create Offer 开始 ICE 收集')}
             </div>
           ) : (
             iceCandidates.map((c, i) => (

@@ -75,24 +75,24 @@ export async function onvifGetStreamUri(sessionId: string, profileToken: string)
   return invoke('vs_onvif_get_stream_uri', { sessionId, profileToken });
 }
 
-export async function onvifPtzMove(sessionId: string, direction: string, speed: number): Promise<void> {
-  return invoke('vs_onvif_ptz_move', { sessionId, direction, speed });
+export async function onvifPtzMove(sessionId: string, direction: string, speed: number, profileToken?: string): Promise<void> {
+  return invoke('vs_onvif_ptz_move', { sessionId, direction, speed, profileToken });
 }
 
-export async function onvifPtzStop(sessionId: string): Promise<void> {
-  return invoke('vs_onvif_ptz_stop', { sessionId });
+export async function onvifPtzStop(sessionId: string, profileToken?: string): Promise<void> {
+  return invoke('vs_onvif_ptz_stop', { sessionId, profileToken });
 }
 
-export async function onvifGetPresets(sessionId: string): Promise<object[]> {
-  return invoke('vs_onvif_get_presets', { sessionId });
+export async function onvifGetPresets(sessionId: string, profileToken?: string): Promise<object[]> {
+  return invoke('vs_onvif_get_presets', { sessionId, profileToken });
 }
 
-export async function onvifGotoPreset(sessionId: string, presetToken: string): Promise<void> {
-  return invoke('vs_onvif_goto_preset', { sessionId, presetToken });
+export async function onvifGotoPreset(sessionId: string, presetToken: string, profileToken?: string): Promise<void> {
+  return invoke('vs_onvif_goto_preset', { sessionId, presetToken, profileToken });
 }
 
-export async function onvifSetPreset(sessionId: string, presetName: string): Promise<string> {
-  return invoke('vs_onvif_set_preset', { sessionId, presetName });
+export async function onvifSetPreset(sessionId: string, presetName: string, profileToken?: string): Promise<string> {
+  return invoke('vs_onvif_set_preset', { sessionId, presetName, profileToken });
 }
 
 // ── RTMP 专用 ──

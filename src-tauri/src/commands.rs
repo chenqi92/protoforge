@@ -1888,9 +1888,32 @@ pub async fn vs_disconnect(
     app: AppHandle,
 ) -> Result<(), String> {
 
+    // Clean up generic session
     let mut sessions = state.sessions.lock().await;
     if let Some(old) = sessions.remove(&session_id) {
         if let Some(tx) = old.shutdown_tx {
+            let _ = tx.send(());
+        }
+    }
+    drop(sessions);
+
+    // Clean up protocol-specific sessions
+    state.onvif_sessions.lock().await.remove(&session_id);
+    if let Some(gb) = state.gb_sessions.lock().await.remove(&session_id) {
+        drop(gb.socket); // Close UDP socket
+    }
+    if let Some(rtmp) = state.rtmp_sessions.lock().await.remove(&session_id) {
+        if let Some(tx) = rtmp.shutdown_tx {
+            let _ = tx.send(());
+        }
+    }
+    if let Some(srt) = state.srt_sessions.lock().await.remove(&session_id) {
+        if let Some(tx) = srt.shutdown_tx {
+            let _ = tx.send(());
+        }
+    }
+    if let Some(webrtc) = state.webrtc_sessions.lock().await.remove(&session_id) {
+        if let Some(tx) = webrtc.shutdown_tx {
             let _ = tx.send(());
         }
     }
@@ -1908,28 +1931,144 @@ pub async fn vs_disconnect(
 }
 
 #[tauri::command]
-pub async fn vs_probe(url: String) -> Result<StreamInfo, String> {
-    // Placeholder — will integrate ffprobe later
+pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String> {
     log::info!("Probing stream: {}", url);
-    Ok(StreamInfo {
-        codec: "H.264".to_string(),
-        width: 1920,
-        height: 1080,
-        fps: 25.0,
-        bitrate: 4096,
-        audio_codec: Some("AAC".to_string()),
-        sample_rate: Some(44100),
-        channels: Some(2),
-    })
+
+    // Detect protocol from URL and probe accordingly
+    let lower = url.to_lowercase();
+    if lower.starts_with("rtsp://") {
+        // RTSP probe: send DESCRIBE and parse SDP
+        let resp = crate::video_streaming::rtsp::send_rtsp_request(
+            "probe", &url, "DESCRIBE", None, "", &app,
+        ).await?;
+
+        // Parse SDP from DESCRIBE response
+        if let Some(sdp_start) = resp.find("v=0") {
+            let sdp = crate::video_streaming::rtsp::parse_sdp(&resp[sdp_start..]);
+            let video = sdp.media_descriptions.iter().find(|m| m.media_type == "video");
+            let audio = sdp.media_descriptions.iter().find(|m| m.media_type == "audio");
+
+            return Ok(StreamInfo {
+                codec: video.and_then(|v| v.codec.clone()).unwrap_or_else(|| "Unknown".to_string()),
+                width: 0,
+                height: 0,
+                fps: 0.0,
+                bitrate: 0,
+                audio_codec: audio.and_then(|a| a.codec.clone()),
+                sample_rate: audio.and_then(|a| a.clock_rate),
+                channels: None,
+            });
+        }
+        Err("RTSP DESCRIBE did not contain SDP".to_string())
+    } else if lower.ends_with(".m3u8") || lower.contains("/hls/") {
+        // HLS probe: fetch playlist and extract info
+        let playlist = crate::video_streaming::hls::fetch_and_parse_playlist("probe", &url, &app).await?;
+        let info = if !playlist.variants.is_empty() {
+            let first = &playlist.variants[0];
+            let codecs = first.codecs.as_deref().unwrap_or("");
+            let resolution = first.resolution.as_deref().unwrap_or("");
+            let (w, h) = if let Some(x_pos) = resolution.find('x') {
+                (resolution[..x_pos].parse().unwrap_or(0), resolution[x_pos+1..].parse().unwrap_or(0))
+            } else { (0u32, 0u32) };
+            StreamInfo {
+                codec: if codecs.contains("avc") { "H.264".to_string() } else if codecs.contains("hev") { "H.265".to_string() } else if codecs.is_empty() { "HLS".to_string() } else { codecs.to_string() },
+                width: w, height: h,
+                fps: 0.0,
+                bitrate: first.bandwidth / 1000,
+                audio_codec: if codecs.contains("mp4a") { Some("AAC".to_string()) } else { None },
+                sample_rate: None, channels: None,
+            }
+        } else {
+            let seg_count = playlist.segments.len();
+            let duration = playlist.total_duration;
+            StreamInfo {
+                codec: "HLS".to_string(), width: 0, height: 0,
+                fps: if duration > 0.0 && seg_count > 0 { seg_count as f64 / duration } else { 0.0 },
+                bitrate: 0, audio_codec: None, sample_rate: None, channels: None,
+            }
+        };
+        Ok(info)
+    } else if lower.ends_with(".flv") || lower.contains("/flv") || lower.contains("http-flv") {
+        // HTTP-FLV probe: fetch first few bytes to parse header
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build().map_err(|e| format!("HTTP client error: {}", e))?;
+        let resp = client.get(&url).send().await.map_err(|e| format!("HTTP error: {}", e))?;
+        let bytes = resp.bytes().await.map_err(|e| format!("Read error: {}", e))?;
+        if bytes.len() >= 9 {
+            let header = crate::video_streaming::http_flv::parse_flv_header(&bytes)?;
+            Ok(StreamInfo {
+                codec: if header.has_video { "FLV/H.264".to_string() } else { "FLV".to_string() },
+                width: 0, height: 0, fps: 0.0, bitrate: 0,
+                audio_codec: if header.has_audio { Some("FLV Audio".to_string()) } else { None },
+                sample_rate: None, channels: None,
+            })
+        } else {
+            Err("FLV response too short".to_string())
+        }
+    } else {
+        // Generic HTTP probe: try to detect content type
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build().map_err(|e| format!("HTTP client error: {}", e))?;
+        let resp = client.head(&url).send().await.map_err(|e| format!("HTTP error: {}", e))?;
+        let content_type = resp.headers().get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("unknown")
+            .to_string();
+        Ok(StreamInfo {
+            codec: content_type.clone(),
+            width: 0, height: 0, fps: 0.0, bitrate: 0,
+            audio_codec: None, sample_rate: None, channels: None,
+        })
+    }
 }
 
 #[tauri::command]
 pub async fn vs_player_load(
     session_id: String,
     url: String,
+    app: AppHandle,
 ) -> Result<(), String> {
-    // Placeholder — will integrate libmpv later
     log::info!("Player load: session={} url={}", session_id, url);
+
+    // Try to launch external player (mpv or ffplay)
+    let player = find_player().ok_or_else(|| {
+        "No video player found. Install mpv or ffplay for playback support.".to_string()
+    })?;
+
+    let args = match player.as_str() {
+        "mpv" => vec![
+            "--no-terminal".to_string(),
+            "--title".to_string(), format!("ProtoForge — {}", session_id),
+            "--force-window".to_string(),
+            url.clone(),
+        ],
+        "ffplay" => vec![
+            "-window_title".to_string(), format!("ProtoForge — {}", session_id),
+            "-autoexit".to_string(),
+            url.clone(),
+        ],
+        _ => vec![url.clone()],
+    };
+
+    // Emit info
+    let msg = crate::video_streaming::state::ProtocolMessage {
+        id: uuid::Uuid::new_v4().to_string(),
+        direction: "info".to_string(),
+        protocol: "player".to_string(),
+        summary: format!("Launching {} for playback", player),
+        detail: format!("Player: {}\nURL: {}\nSession: {}", player, url, session_id),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        size: None,
+    };
+    let _ = app.emit("videostream-protocol-msg", &msg);
+
+    std::process::Command::new(&player)
+        .args(&args)
+        .spawn()
+        .map_err(|e| format!("Failed to launch {}: {}", player, e))?;
+
     Ok(())
 }
 
@@ -1939,6 +2078,8 @@ pub async fn vs_player_control(
     action: String,
 ) -> Result<(), String> {
     log::info!("Player control: session={} action={}", session_id, action);
+    // External player controls are handled by the player itself
+    // For mpv IPC control, would need --input-ipc-server
     Ok(())
 }
 
@@ -1949,6 +2090,21 @@ pub async fn vs_player_set_volume(
 ) -> Result<(), String> {
     log::info!("Player volume: session={} vol={}", session_id, volume);
     Ok(())
+}
+
+/// Find available video player on the system
+fn find_player() -> Option<String> {
+    for player in &["mpv", "ffplay", "vlc"] {
+        if std::process::Command::new("which")
+            .arg(player)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+        {
+            return Some(player.to_string());
+        }
+    }
+    None
 }
 
 #[tauri::command]
@@ -2125,84 +2281,88 @@ pub async fn vs_onvif_ptz_move(
     session_id: String,
     direction: String,
     speed: f64,
+    profile_token: Option<String>,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    log::info!("ONVIF PTZ move: session={} dir={} speed={}", session_id, direction, speed);
+    let pt = profile_token.as_deref().unwrap_or("Profile_1");
+    log::info!("ONVIF PTZ move: session={} dir={} speed={} profile={}", session_id, direction, speed, pt);
 
     let sessions = state.onvif_sessions.lock().await;
     let session = sessions.get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
-    // Use first profile token (PTZ commands need it)
-    let profile_token = "Profile_1"; // Default — ideally pass from frontend
-    crate::video_streaming::onvif::ptz_continuous_move(session, &session_id, profile_token, &direction, speed, &app).await
+    crate::video_streaming::onvif::ptz_continuous_move(session, &session_id, pt, &direction, speed, &app).await
 }
 
 #[tauri::command]
 pub async fn vs_onvif_ptz_stop(
     session_id: String,
+    profile_token: Option<String>,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    log::info!("ONVIF PTZ stop: session={}", session_id);
+    let pt = profile_token.as_deref().unwrap_or("Profile_1");
+    log::info!("ONVIF PTZ stop: session={} profile={}", session_id, pt);
 
     let sessions = state.onvif_sessions.lock().await;
     let session = sessions.get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
-    let profile_token = "Profile_1";
-    crate::video_streaming::onvif::ptz_stop(session, &session_id, profile_token, &app).await
+    crate::video_streaming::onvif::ptz_stop(session, &session_id, pt, &app).await
 }
 
 #[tauri::command]
 pub async fn vs_onvif_get_presets(
     session_id: String,
+    profile_token: Option<String>,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<Vec<serde_json::Value>, String> {
-    log::info!("ONVIF get presets: session={}", session_id);
+    let pt = profile_token.as_deref().unwrap_or("Profile_1");
+    log::info!("ONVIF get presets: session={} profile={}", session_id, pt);
 
     let sessions = state.onvif_sessions.lock().await;
     let session = sessions.get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
-    let profile_token = "Profile_1";
-    crate::video_streaming::onvif::get_presets(session, &session_id, profile_token, &app).await
+    crate::video_streaming::onvif::get_presets(session, &session_id, pt, &app).await
 }
 
 #[tauri::command]
 pub async fn vs_onvif_goto_preset(
     session_id: String,
     preset_token: String,
+    profile_token: Option<String>,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    log::info!("ONVIF goto preset: session={} preset={}", session_id, preset_token);
+    let pt = profile_token.as_deref().unwrap_or("Profile_1");
+    log::info!("ONVIF goto preset: session={} preset={} profile={}", session_id, preset_token, pt);
 
     let sessions = state.onvif_sessions.lock().await;
     let session = sessions.get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
-    let profile_token = "Profile_1";
-    crate::video_streaming::onvif::goto_preset(session, &session_id, profile_token, &preset_token, &app).await
+    crate::video_streaming::onvif::goto_preset(session, &session_id, pt, &preset_token, &app).await
 }
 
 #[tauri::command]
 pub async fn vs_onvif_set_preset(
     session_id: String,
     preset_name: String,
+    profile_token: Option<String>,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<String, String> {
-    log::info!("ONVIF set preset: session={} name={}", session_id, preset_name);
+    let pt = profile_token.as_deref().unwrap_or("Profile_1");
+    log::info!("ONVIF set preset: session={} name={} profile={}", session_id, preset_name, pt);
 
     let sessions = state.onvif_sessions.lock().await;
     let session = sessions.get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
-    let profile_token = "Profile_1";
-    crate::video_streaming::onvif::set_preset(session, &session_id, profile_token, &preset_name, &app).await
+    crate::video_streaming::onvif::set_preset(session, &session_id, pt, &preset_name, &app).await
 }
 
 // ── RTMP Commands ──

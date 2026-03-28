@@ -62,33 +62,33 @@ export function OnvifPanel({ sessionKey, connected, streamUrl: _streamUrl, onStr
   }, [sessionKey, onStreamUrlChange]);
 
   const handlePtz = useCallback(async (direction: string) => {
-    try { await vsSvc.onvifPtzMove(sessionKey, direction, ptzSpeed); } catch { /* */ }
-  }, [sessionKey, ptzSpeed]);
+    try { await vsSvc.onvifPtzMove(sessionKey, direction, ptzSpeed, selectedProfile || undefined); } catch { /* */ }
+  }, [sessionKey, ptzSpeed, selectedProfile]);
 
   const handlePtzStop = useCallback(async () => {
-    try { await vsSvc.onvifPtzStop(sessionKey); } catch { /* */ }
-  }, [sessionKey]);
+    try { await vsSvc.onvifPtzStop(sessionKey, selectedProfile || undefined); } catch { /* */ }
+  }, [sessionKey, selectedProfile]);
 
   const handleLoadPresets = useCallback(async () => {
     try {
-      const p = await vsSvc.onvifGetPresets(sessionKey);
+      const p = await vsSvc.onvifGetPresets(sessionKey, selectedProfile || undefined);
       setPresets(p as OnvifPreset[]);
     } catch { /* */ }
-  }, [sessionKey]);
+  }, [sessionKey, selectedProfile]);
 
   const handleGotoPreset = useCallback(async (token: string) => {
-    try { await vsSvc.onvifGotoPreset(sessionKey, token); } catch { /* */ }
-  }, [sessionKey]);
+    try { await vsSvc.onvifGotoPreset(sessionKey, token, selectedProfile || undefined); } catch { /* */ }
+  }, [sessionKey, selectedProfile]);
 
   const handleSetPreset = useCallback(async () => {
     if (!newPresetName.trim()) return;
     try {
-      await vsSvc.onvifSetPreset(sessionKey, newPresetName.trim());
+      await vsSvc.onvifSetPreset(sessionKey, newPresetName.trim(), selectedProfile || undefined);
       setNewPresetName('');
       setShowPresetInput(false);
       handleLoadPresets();
     } catch { /* */ }
-  }, [sessionKey, newPresetName, handleLoadPresets]);
+  }, [sessionKey, newPresetName, selectedProfile, handleLoadPresets]);
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden">
