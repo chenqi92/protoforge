@@ -107,7 +107,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('videostream.rtsp.password', '密码')}
                 disabled={connected}
-                className="h-7 w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 pr-7 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+                className="wb-field-sm w-full pr-7 font-mono disabled:opacity-50"
               />
               <button
                 onClick={() => setShowPassword(v => !v)}

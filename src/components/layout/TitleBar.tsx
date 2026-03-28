@@ -59,7 +59,7 @@ export function TitleBar({
 
       <div className="flex min-w-0 flex-1 justify-center px-2">
         <div
-          className="flex items-center gap-0.5 rounded-[var(--radius-md)] border border-border-default/70 bg-bg-secondary/82 p-[3px] no-drag"
+          className="flex items-center gap-0.5 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/80 p-[3px] no-drag"
         >
           {workbenches.map((workbench) => {
             const Icon = workbench.icon;
@@ -73,7 +73,7 @@ export function TitleBar({
                 className={cn(
                   "flex h-8 items-center gap-2 rounded-[var(--radius-sm)] px-3 text-[var(--fs-sm)] font-medium transition-all",
                   isActive
-                    ? "bg-bg-primary text-text-primary shadow-sm"
+                    ? "bg-bg-primary text-text-primary shadow-sm ring-1 ring-border-default/50"
                     : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",
                 )}
                 title={label}
@@ -87,7 +87,7 @@ export function TitleBar({
       </div>
 
       <div className="flex items-center gap-2 no-drag">
-        <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default/70 bg-bg-secondary/80 p-[3px]">
+        <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/80 p-[3px]">
           <Tooltip content={t('titleBar.plugins')}>
             <button
               onClick={onOpenPlugins}
@@ -106,7 +106,7 @@ export function TitleBar({
           </Tooltip>
         </div>
 
-        <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default/70 bg-bg-secondary/80 p-[3px]">
+        <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/80 p-[3px]">
           <button
             onClick={() => {
               toggle();

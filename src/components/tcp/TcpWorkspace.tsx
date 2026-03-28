@@ -279,7 +279,7 @@ function AddressField({
   placeholder: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary px-3 py-2">
+    <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary px-3 py-2">
       <span className="shrink-0 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{label}</span>
       <input
         value={value}

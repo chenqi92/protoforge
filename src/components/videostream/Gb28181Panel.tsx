@@ -60,36 +60,36 @@ export function Gb28181Panel({ sessionKey, onStreamUrlChange }: Gb28181PanelProp
           <div className="space-y-0.5">
             <span className="text-[var(--fs-3xs)] text-text-disabled">SIP IP</span>
             <input value={sipServerIp} onChange={(e) => setSipServerIp(e.target.value)} disabled={registered}
-              className="h-6 w-full rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+              className="wb-field-xs w-full font-mono disabled:opacity-50"
             />
           </div>
           <div className="space-y-0.5">
             <span className="text-[var(--fs-3xs)] text-text-disabled">Port</span>
             <input type="number" value={sipServerPort} onChange={(e) => setSipServerPort(Number(e.target.value))} disabled={registered}
-              className="h-6 w-full rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+              className="wb-field-xs w-full font-mono disabled:opacity-50"
             />
           </div>
         </div>
         <div className="space-y-0.5">
           <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.domain', 'SIP 域')}</span>
           <input value={sipDomain} onChange={(e) => setSipDomain(e.target.value)} disabled={registered}
-            className="h-6 w-full rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+            className="wb-field-xs w-full font-mono disabled:opacity-50"
           />
         </div>
         <div className="space-y-0.5">
           <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.deviceId', '设备编码')}</span>
           <input value={deviceId} onChange={(e) => { setDeviceId(e.target.value); onStreamUrlChange(e.target.value); }} disabled={registered}
-            className="h-6 w-full rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+            className="wb-field-xs w-full font-mono disabled:opacity-50"
           />
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          <div className="space-y-0.5">
+        <div className="flex items-end gap-2">
+          <div className="flex-1 space-y-0.5">
             <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.localPort', '本地端口')}</span>
             <input type="number" value={localPort} onChange={(e) => setLocalPort(Number(e.target.value))} disabled={registered}
-              className="h-6 w-full rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] font-mono text-text-primary outline-none disabled:opacity-50"
+              className="wb-field-xs w-full font-mono disabled:opacity-50"
             />
           </div>
-          <div className="space-y-0.5">
+          <div className="shrink-0 space-y-0.5">
             <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.transport', '传输')}</span>
             <SegmentedControl
               value={sipTransport}

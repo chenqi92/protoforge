@@ -157,7 +157,7 @@ export function SseWorkspace() {
           <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/10">
             {events.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-border-default/70 bg-bg-primary/78">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-border-default/60 bg-bg-primary/78">
                   <Waves className="h-8 w-8 opacity-20 text-orange-500" />
                 </div>
                 <p className="text-[var(--fs-base)] font-medium">{t('sse.emptyTitle')}</p>

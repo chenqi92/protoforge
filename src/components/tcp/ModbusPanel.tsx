@@ -351,7 +351,7 @@ function ModbusFunctionPanel({
                   : "100 200 300"
             }
             rows={3}
-            className="min-h-[88px] w-full resize-none rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/30 px-3 py-2 text-[var(--fs-sm)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted disabled:opacity-60"
+            className="min-h-[88px] w-full resize-none rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/30 px-3 py-2 text-[var(--fs-sm)] font-mono text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent-muted disabled:opacity-60"
           />
         </label>
       ) : null}
@@ -531,7 +531,7 @@ function ModbusResponseTable({
   if (!transaction) {
     return (
       <div className={cn(
-        "flex h-full min-h-[240px] flex-col overflow-hidden border border-border-default/75 bg-bg-primary",
+        "flex h-full min-h-[240px] flex-col overflow-hidden border border-border-default/80 bg-bg-primary",
         integrated ? "rounded-t-[var(--radius-md)] border-b-0" : "rounded-[var(--radius-md)]"
       )}>
         <div className="flex items-center justify-between border-b border-border-default/60 bg-bg-secondary/30 px-3 py-2">
@@ -586,7 +586,7 @@ function ModbusResponseTable({
 
   return (
     <div className={cn(
-      "shrink-0 border border-border-default/75 bg-bg-primary overflow-hidden",
+      "shrink-0 border border-border-default/80 bg-bg-primary overflow-hidden",
       integrated ? "h-full rounded-t-[var(--radius-md)] border-b-0" : "rounded-[var(--radius-md)]"
     )}>
       <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60 bg-bg-secondary/30">
@@ -1296,7 +1296,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
             </Panel>
             <PanelResizeHandle className="wb-workbench-divider wb-workbench-divider--flush" />
             <Panel defaultSize={42} minSize={20}>
-              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-b-[var(--radius-md)] border border-t-0 border-border-default/75 bg-bg-primary">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-b-[var(--radius-md)] border border-t-0 border-border-default/80 bg-bg-primary">
                 <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60 bg-bg-secondary/30 shrink-0">
                   <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
                     {t('serial.modbus.transactionLog', '事务日志')}

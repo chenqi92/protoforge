@@ -94,7 +94,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
       <div className="flex max-h-[74vh] w-[520px] max-w-[92vw] flex-col overflow-hidden rounded-[var(--radius-xl)] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border-default/75 bg-bg-primary/78 px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-border-default/80 bg-bg-primary/78 px-5 py-4">
           <h2 className="text-[var(--fs-lg)] font-semibold text-text-primary flex items-center gap-2">
             <Save className="w-4 h-4 text-accent" />
             {t('saveDialog.title')}
@@ -191,7 +191,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
         </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border-default/75 bg-bg-primary/78 px-5 py-3">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border-default/80 bg-bg-primary/78 px-5 py-3">
           <button
             onClick={onClose}
             className="h-8 rounded-[var(--radius-md)] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"

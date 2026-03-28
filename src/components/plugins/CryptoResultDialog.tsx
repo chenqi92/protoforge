@@ -26,7 +26,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
   const isError = output.startsWith('[Error]');
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[var(--z-toast)] flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="w-[480px] max-h-[80vh] rounded-2xl border border-border-default bg-bg-surface shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border-default shrink-0">

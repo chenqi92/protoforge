@@ -170,7 +170,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
 
         <div className="flex h-full min-h-[680px] flex-col">
           {/* Header */}
-          <div className="flex shrink-0 items-start justify-between border-b border-border-default/75 px-6 py-5">
+          <div className="flex shrink-0 items-start justify-between border-b border-border-default/80 px-6 py-5">
             <div className="flex items-center gap-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-xl)] bg-[linear-gradient(135deg,#7c3aed,#a855f7)] shadow-[0_12px_28px_rgba(124,58,237,0.24)]">
                 <Puzzle className="h-5 w-5 text-white" />
@@ -185,7 +185,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
 
             <div className="flex items-center gap-2">
               {/* Tab switcher */}
-              <div className="flex items-center gap-0.5 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-secondary/55 p-0.5">
+              <div className="flex items-center gap-0.5 rounded-[var(--radius-md)] border border-border-default/80 bg-bg-secondary/55 p-0.5">
                 <button
                   onClick={() => { setTab("store"); setSelectedPlugin(null); }}
                   className={cn(
@@ -232,7 +232,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
           {/* Body: sidebar + content */}
           <div className="grid min-h-0 flex-1 grid-cols-[232px_minmax(0,1fr)]">
             {/* Sidebar */}
-            <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-4 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
+            <aside className="flex min-h-0 flex-col border-r border-border-default/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-4 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
               <div className="px-1 pb-3">
                 <p className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('plugin.categories')}
@@ -289,7 +289,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
               </div>
 
               {/* Info card */}
-              <div className="mt-3 rounded-[var(--radius-xl)] border border-border-default/75 bg-bg-primary/78 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div className="mt-3 rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/78 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 <p className="text-[var(--fs-xs)] font-semibold text-text-primary">{t('plugin.aboutSystem')}</p>
                 <ul className="mt-2 space-y-1.5 text-[var(--fs-xxs)] leading-4 text-text-tertiary">
                   <li>{t('plugin.aboutTip1')}</li>
@@ -302,7 +302,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
             {/* Content area */}
             <section className="flex min-h-0 flex-col bg-bg-primary/36">
               {/* Content header */}
-              <div className="shrink-0 border-b border-border-default/70 px-5 py-4">
+              <div className="shrink-0 border-b border-border-default/60 px-5 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-lg)]", currentCategory.accentClassName)}>
@@ -391,7 +391,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       animate={{ width: "58%", opacity: 1 }}
                       exit={{ width: 0, opacity: 0 }}
                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                      className="shrink-0 overflow-hidden border-l border-border-default/70 bg-bg-secondary/18"
+                      className="shrink-0 overflow-hidden border-l border-border-default/60 bg-bg-secondary/18"
                     >
                       <PluginDetail
                         plugin={selectedPlugin}
@@ -448,7 +448,7 @@ function PluginCard({
         "group cursor-pointer rounded-[var(--radius-xl)] border p-3.5 transition-all hover:-translate-y-[1px]",
         selected
           ? "border-violet-300 dark:border-violet-500/30 bg-bg-primary/92 shadow-[0_4px_16px_rgba(124,58,237,0.08)]"
-          : "border-border-default/70 bg-bg-primary/78 hover:border-border-default hover:shadow-[0_4px_16px_rgba(15,23,42,0.06)]",
+          : "border-border-default/60 bg-bg-primary/78 hover:border-border-default hover:shadow-[0_4px_16px_rgba(15,23,42,0.06)]",
       )}
     >
       <div className="flex items-start gap-3">
@@ -550,7 +550,7 @@ function PluginDetail({
   return (
     <div className="h-full flex flex-col overflow-auto">
       {/* Hero */}
-      <div className="border-b border-border-default/70 bg-bg-primary/72 px-6 pb-5 pt-6">
+      <div className="border-b border-border-default/60 bg-bg-primary/72 px-6 pb-5 pt-6">
         <div className="flex items-center justify-between">
           <div className="flex items-start gap-4 min-w-0">
             <PluginIcon pluginId={plugin.id} fallbackEmoji={plugin.icon} size="lg" />

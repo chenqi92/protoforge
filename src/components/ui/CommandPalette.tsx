@@ -100,10 +100,10 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-[999]" onClick={onClose} />
-      <div className="fixed left-1/2 top-[15%] z-[1000] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden rounded-[var(--radius-xl)] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
+      <div className="fixed inset-0 bg-black/40 z-[var(--z-tooltip)]" onClick={onClose} />
+      <div className="fixed left-1/2 top-[15%] z-[var(--z-tooltip)] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden rounded-[var(--radius-xl)] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
         {/* Search Input */}
-        <div className="flex items-center gap-3 border-b border-border-default/75 bg-bg-primary/78 px-5 py-3">
+        <div className="flex items-center gap-3 border-b border-border-default/80 bg-bg-primary/78 px-5 py-3">
           <Search className="w-4 h-4 text-text-disabled shrink-0" />
           <input
             ref={inputRef}
@@ -159,7 +159,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
         </div>
 
         {/* Footer hint */}
-        <div className="flex items-center gap-4 border-t border-border-default/75 bg-bg-primary/78 px-4 py-2.5 text-[var(--fs-xxs)] text-text-disabled">
+        <div className="flex items-center gap-4 border-t border-border-default/80 bg-bg-primary/78 px-4 py-2.5 text-[var(--fs-xxs)] text-text-disabled">
           <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[var(--fs-3xs)]">↑↓</kbd> {t('commandPalette.select')}</span>
           <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[var(--fs-3xs)]">Enter</kbd> {t('commandPalette.confirm')}</span>
           <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[var(--fs-3xs)]">Esc</kbd> {t('commandPalette.closeLabel')}</span>

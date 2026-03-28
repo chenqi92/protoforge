@@ -104,7 +104,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
         <DialogTitle className="sr-only">{t('import.title')}</DialogTitle>
 
         <div className="flex h-full overflow-hidden flex-col">
-          <div className="flex shrink-0 items-start justify-between border-b border-border-default/75 px-6 py-5">
+          <div className="flex shrink-0 items-start justify-between border-b border-border-default/80 px-6 py-5">
             <div className="flex items-center gap-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-xl)] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
                 <Download className="h-5 w-5 text-white" />
@@ -119,7 +119,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-3 py-1 text-[var(--fs-xs)] font-medium text-text-secondary">
+              <span className="rounded-full border border-border-default/80 bg-bg-secondary/60 px-3 py-1 text-[var(--fs-xs)] font-medium text-text-secondary">
                 {t('import.currentSource')}: {t(currentSource.label)}
               </span>
               <button
@@ -133,7 +133,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-[248px_minmax(0,1fr)]">
-            <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-5 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
+            <aside className="flex min-h-0 flex-col border-r border-border-default/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-5 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
               <div className="px-1 pb-3">
                 <p className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('import.sourceTitle')}
@@ -214,7 +214,7 @@ function PanelCard({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-[var(--radius-xl)] border border-border-default/75 bg-bg-primary/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
+        'overflow-hidden rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
         className
       )}
     >
@@ -432,7 +432,7 @@ function FileImportView({
     >
       <PanelCard className="flex min-h-0 flex-1 flex-col">
         {/* Header */}
-        <div className="border-b border-border-default/70 px-6 py-5">
+        <div className="border-b border-border-default/60 px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4">
               <div
@@ -452,7 +452,7 @@ function FileImportView({
         </div>
 
         {/* Target + Mode bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default/70 px-6 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default/60 px-6 py-3">
           <TargetSelector
             targetCollectionId={targetCollectionId}
             setTargetCollectionId={setTargetCollectionId}
@@ -508,7 +508,7 @@ function FileImportView({
 
         {/* Error area */}
         {error ? (
-          <div className="border-t border-border-default/70 px-6 py-4">
+          <div className="border-t border-border-default/60 px-6 py-4">
             <AlertMessage error={error} />
           </div>
         ) : null}
@@ -891,7 +891,7 @@ function SwaggerImportView({
     >
       <PanelCard className="flex min-h-0 flex-1 flex-col">
         {/* Header */}
-        <div className="border-b border-border-default/70 px-6 py-5">
+        <div className="border-b border-border-default/60 px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4">
               <div
@@ -911,12 +911,12 @@ function SwaggerImportView({
 
             <div className="flex items-center gap-2 text-[var(--fs-xs)] text-text-tertiary">
               {groups.length > 0 ? (
-                <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-2.5 py-1">
+                <span className="rounded-full border border-border-default/80 bg-bg-secondary/60 px-2.5 py-1">
                   {t('import.groupCount', { count: groups.length })}
                 </span>
               ) : null}
               {hasResults ? (
-                <span className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-2.5 py-1">
+                <span className="rounded-full border border-border-default/80 bg-bg-secondary/60 px-2.5 py-1">
                   {t('import.endpointCount', { count: mergedEndpoints.length })}
                 </span>
               ) : null}
@@ -925,7 +925,7 @@ function SwaggerImportView({
         </div>
 
         {/* Target + Mode bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default/70 px-6 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-default/60 px-6 py-3">
           <TargetSelector
             targetCollectionId={targetCollectionId}
             setTargetCollectionId={setTargetCollectionId}
@@ -939,7 +939,7 @@ function SwaggerImportView({
           <div className="flex min-h-0 flex-col gap-5 overflow-y-auto">
             {/* URL Input Card */}
             <PanelCard>
-              <div className="border-b border-border-default/70 px-5 py-4">
+              <div className="border-b border-border-default/60 px-5 py-4">
                 <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.connectDoc')}</p>
                 <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                   {t('import.urlInputDesc')}
@@ -988,7 +988,7 @@ function SwaggerImportView({
                 </div>
 
                 {mergedBaseUrl ? (
-                  <div className="rounded-[var(--radius-xl)] border border-border-default/70 bg-bg-secondary/40 px-4 py-3">
+                  <div className="rounded-[var(--radius-xl)] border border-border-default/60 bg-bg-secondary/40 px-4 py-3">
                     <p className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('import.parseResult')}</p>
                     <p className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">
                       Base URL: <span className="font-mono text-text-secondary">{mergedBaseUrl}</span>
@@ -1003,7 +1003,7 @@ function SwaggerImportView({
             {/* Group selector */}
             {groups.length > 1 ? (
               <PanelCard>
-                <div className="border-b border-border-default/70 px-5 py-4">
+                <div className="border-b border-border-default/60 px-5 py-4">
                   <div className="flex items-center gap-2">
                     <Layers className="h-4 w-4 text-text-disabled" />
                     <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.apiGroups')}</p>
@@ -1078,7 +1078,7 @@ function SwaggerImportView({
 
           {/* Endpoint Preview */}
           <PanelCard className="flex min-h-0 flex-col overflow-hidden">
-            <div className="border-b border-border-default/70 px-5 py-4">
+            <div className="border-b border-border-default/60 px-5 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <p className="text-[var(--fs-base)] font-semibold text-text-primary">{t('import.endpointPreview')}</p>
@@ -1088,7 +1088,7 @@ function SwaggerImportView({
                 </div>
 
                 {hasResults ? (
-                  <div className="rounded-full border border-border-default/75 bg-bg-secondary/60 px-2.5 py-1 text-[var(--fs-xs)] text-text-secondary">
+                  <div className="rounded-full border border-border-default/80 bg-bg-secondary/60 px-2.5 py-1 text-[var(--fs-xs)] text-text-secondary">
                     {t('import.selectedEndpoints', { selected: selectedIds.size, total: mergedEndpoints.length })}
                   </div>
                 ) : null}
@@ -1097,7 +1097,7 @@ function SwaggerImportView({
 
             {hasResults ? (
               <>
-                <div className="flex items-center gap-3 border-b border-border-default/70 px-5 py-4">
+                <div className="flex items-center gap-3 border-b border-border-default/60 px-5 py-4">
                   <div className="relative flex-1">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-disabled" />
                     <input
@@ -1130,7 +1130,7 @@ function SwaggerImportView({
                       const expanded = expandedTags.has(tag);
 
                       return (
-                        <div key={tag} className="mb-2 overflow-hidden rounded-[var(--radius-xl)] border border-border-default/65 bg-bg-secondary/24">
+                        <div key={tag} className="mb-2 overflow-hidden rounded-[var(--radius-xl)] border border-border-default/60 bg-bg-secondary/24">
                           <div className="flex items-center gap-2 px-3 py-2.5">
                             <button
                               onClick={() => toggleTag(tag)}
@@ -1170,7 +1170,7 @@ function SwaggerImportView({
                                 transition={{ duration: 0.16 }}
                                 className="overflow-hidden"
                               >
-                                <div className="border-t border-border-default/65 px-2 py-2">
+                                <div className="border-t border-border-default/60 px-2 py-2">
                                   {items.map(({ endpoint, index }) => {
                                     const id = `${index}`;
                                     const isSelected = selectedIds.has(id);
@@ -1232,7 +1232,7 @@ function SwaggerImportView({
                 </div>
 
                 {/* Footer with import button */}
-                <div className="border-t border-border-default/70 px-5 py-4">
+                <div className="border-t border-border-default/60 px-5 py-4">
                   {error ? <AlertMessage error={error} className="mb-4" /> : null}
 
                   <div className="flex items-center justify-end gap-2">

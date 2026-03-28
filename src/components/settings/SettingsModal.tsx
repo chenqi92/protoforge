@@ -127,7 +127,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
 
         <div className="flex h-full min-h-0 flex-1 flex-col">
-          <div className="flex shrink-0 items-center justify-between border-b border-border-default/75 px-6 py-4">
+          <div className="flex shrink-0 items-center justify-between border-b border-border-default/80 px-6 py-4">
             <div className="flex items-center gap-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-xl)] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
                 <Settings className="h-5 w-5 text-white" />
@@ -153,7 +153,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)]">
-            <aside className="flex min-h-0 flex-col border-r border-border-default/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
+            <aside className="flex min-h-0 flex-col border-r border-border-default/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
               <div className="shrink-0 px-4 pb-3 pt-4">
                 <p className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('settings.categoryNav')}
@@ -206,10 +206,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
               </div>
 
-              <div className="shrink-0 border-t border-border-default/70 px-3 py-3">
+              <div className="shrink-0 border-t border-border-default/60 px-3 py-3">
                 <button
                   onClick={handleReset}
-                  className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] border border-border-default/75 bg-bg-primary/72 px-3.5 py-3 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
+                  className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/72 px-3.5 py-3 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
                 >
                   <RotateCcw className="h-4 w-4" />
                   {t('settings.resetDefaults')}
@@ -219,8 +219,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             <section className="flex min-w-0 min-h-0 flex-col bg-bg-primary/36">
               <div className="flex-1 overflow-y-auto p-5">
-                <div className="overflow-hidden rounded-[var(--radius-xl)] border border-border-default/75 bg-bg-primary/88 shadow-panel">
-                  <div className="flex items-center gap-3 border-b border-border-default/70 px-6 py-4">
+                <div className="overflow-hidden rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/88 shadow-panel">
+                  <div className="flex items-center gap-3 border-b border-border-default/60 px-6 py-4">
                     <div
                       className={cn(
                         "flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)]",
@@ -236,7 +236,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     </div>
                   </div>
 
-                  <div className="divide-y divide-border-default/70">
+                  <div className="divide-y divide-border-default/60">
                     {section === "general" && (
                       <GeneralSection
                         settings={settings}
@@ -299,7 +299,7 @@ function SegmentedControl<T extends string>({
   options: Array<{ value: T; label: string; icon?: LucideIcon }>;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-[var(--radius-lg)] border border-border-default/75 bg-bg-secondary/60 p-1">
+    <div className="flex items-center gap-1 rounded-[var(--radius-lg)] border border-border-default/80 bg-bg-secondary/60 p-1">
       {options.map((option) => {
         const Icon = option.icon;
         const isActive = option.value === value;
@@ -534,7 +534,7 @@ function UpdateSettingRow() {
           <button
             onClick={checkForUpdate}
             disabled={isChecking}
-            className="flex items-center gap-1.5 h-8 px-4 text-[var(--fs-sm)] font-medium text-text-secondary border border-border-default/75 bg-bg-primary/72 hover:bg-bg-hover rounded-lg transition-colors disabled:opacity-60"
+            className="flex items-center gap-1.5 h-8 px-4 text-[var(--fs-sm)] font-medium text-text-secondary border border-border-default/80 bg-bg-primary/72 hover:bg-bg-hover rounded-lg transition-colors disabled:opacity-60"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", isChecking && "animate-spin")} />
             {isChecking ? t('update.checking') : t('settings.general.checkUpdateBtn')}

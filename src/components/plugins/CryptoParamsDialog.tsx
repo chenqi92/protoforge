@@ -48,7 +48,7 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
     : 'bg-success hover:bg-success/90';
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[var(--z-toast)] flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="w-[420px] rounded-2xl border border-border-default bg-bg-surface shadow-2xl">
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border-default">

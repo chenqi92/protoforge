@@ -124,7 +124,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
   }
 
   return (
-    <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
+    <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
       <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-3 text-[var(--fs-xs)] font-semibold text-white shadow-sm", cfg.badge)}>
         {cfg.icon}
         {cfg.label}
@@ -138,7 +138,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
         className="h-7 min-w-0 flex-1 bg-transparent px-2 text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
       />
 
-      <div className="h-5 w-px shrink-0 bg-border-default/70" />
+      <div className="h-5 w-px shrink-0 bg-border-default/60" />
 
       <input
         value={port}

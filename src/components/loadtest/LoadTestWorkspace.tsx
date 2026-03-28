@@ -389,7 +389,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
             </ControlBlock>
           </div>
           {showAdvanced && (
-            <div className="mt-3 border-t border-border-default/70 pt-3 animate-in slide-in-from-top-1 duration-150">
+            <div className="mt-3 border-t border-border-default/60 pt-3 animate-in slide-in-from-top-1 duration-150">
               <div className="grid gap-3 xl:grid-cols-[1.35fr_0.95fr_0.95fr]">
                 <AdvancedSection title={t('loadtest.headersTitle')}>
                   {headers.map((h, i) => (
@@ -540,21 +540,21 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
             <p className="text-[var(--fs-xl)] font-semibold text-text-secondary">{t('loadtest.emptyTitle')}</p>
             <p className="text-[var(--fs-base)] mt-1.5 text-text-tertiary">{t('loadtest.emptyDesc')}</p>
             <div className="mt-6 grid w-full max-w-3xl gap-4 text-left sm:grid-cols-3">
-              <div className="border-t border-border-default/70 pt-3">
+              <div className="border-t border-border-default/60 pt-3">
                 <div className="flex items-center gap-2 text-[var(--fs-xs)] font-semibold text-text-secondary">
                   <Flame className="h-3.5 w-3.5 text-accent" />
                   {t('loadtest.emptyTarget')}
                 </div>
                 <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('loadtest.emptyTargetDesc')}</div>
               </div>
-              <div className="border-t border-border-default/70 pt-3">
+              <div className="border-t border-border-default/60 pt-3">
                 <div className="flex items-center gap-2 text-[var(--fs-xs)] font-semibold text-text-secondary">
                   <Zap className="h-3.5 w-3.5 text-accent" />
                   {t('loadtest.emptyConcurrency')}
                 </div>
                 <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('loadtest.emptyConcurrencyDesc')}</div>
               </div>
-              <div className="border-t border-border-default/70 pt-3">
+              <div className="border-t border-border-default/60 pt-3">
                 <div className="flex items-center gap-2 text-[var(--fs-xs)] font-semibold text-text-secondary">
                   <BarChart3 className="h-3.5 w-3.5 text-accent" />
                   {t('loadtest.emptyResult')}
@@ -583,7 +583,7 @@ function ControlBlock({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("rounded-[var(--radius-md)] border border-border-default/65 bg-bg-secondary/24 p-3", className)}>
+    <div className={cn("rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/24 p-3", className)}>
       <div className="mb-2 flex items-center gap-1.5 text-[var(--fs-xs)] font-semibold text-text-secondary">
         {icon ? <span className="text-text-tertiary">{icon}</span> : null}
         <span>{label}</span>
@@ -595,7 +595,7 @@ function ControlBlock({
 
 function AdvancedSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[var(--radius-md)] border border-border-default/65 bg-bg-secondary/24 p-3">
+    <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/24 p-3">
       <div className="mb-2 text-[var(--fs-xs)] font-semibold uppercase tracking-wider text-text-tertiary">{title}</div>
       {children}
     </div>
@@ -620,7 +620,7 @@ function MetricCard({ label, value, icon, color, sub }: { label: string; value: 
   };
   const c = cm[color] || cm.rose;
   return (
-    <div className={cn("rounded-[var(--radius-md)] border border-border-default/70 p-4", c.bg)}>
+    <div className={cn("rounded-[var(--radius-md)] border border-border-default/60 p-4", c.bg)}>
       <div className="mb-2 flex items-center justify-between border-b border-border-default/60 pb-2">
         <span className="text-[var(--fs-xs)] font-medium text-text-tertiary uppercase tracking-wide">{label}</span>
         <div className={cn("flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)]", c.iconBg, c.text)}>{icon}</div>

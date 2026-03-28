@@ -778,7 +778,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
         <div className="min-h-0 h-full overflow-hidden">
           <PanelGroup orientation="vertical">
             <Panel defaultSize={56} minSize={34}>
-              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-t-[var(--radius-md)] border border-b-0 border-border-default/75 bg-bg-primary">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-t-[var(--radius-md)] border border-b-0 border-border-default/80 bg-bg-primary">
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-default/40 bg-bg-secondary/40 px-3 py-1.5">
                   <div>
                     <div className="text-[var(--fs-xxs)] font-semibold text-text-secondary">
@@ -839,7 +839,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
             <PanelResizeHandle className="wb-workbench-divider wb-workbench-divider--flush" />
 
             <Panel defaultSize={44} minSize={18}>
-              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-b-[var(--radius-md)] border border-t-0 border-border-default/75 bg-bg-primary">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-b-[var(--radius-md)] border border-t-0 border-border-default/80 bg-bg-primary">
                 <div className="flex shrink-0 items-center justify-between border-b border-border-default/40 bg-bg-secondary/40 px-3 py-1.5">
                   <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide text-text-tertiary">
                     {t('serial.modbusslave.requestLog', '请求日志')}

@@ -314,7 +314,7 @@ export function SendPanel({
             {quickCommands.length === 0 ? (
               <button
                 onClick={openNewQuickCommand}
-                className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-dashed border-border-default/70 bg-bg-secondary/20 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary transition-colors hover:border-accent/35 hover:bg-accent-soft hover:text-accent"
+                className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-dashed border-border-default/60 bg-bg-secondary/20 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary transition-colors hover:border-accent/35 hover:bg-accent-soft hover:text-accent"
               >
                 <Plus className="h-3.5 w-3.5" />
                 {t("tcp.sendPanel.addCommand")}

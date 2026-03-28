@@ -147,7 +147,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
           {mode === 'offer' ? 'Local SDP (Offer)' : 'Local SDP (Answer)'}
         </label>
         <textarea value={localSdp} onChange={(e) => setLocalSdp(e.target.value)} rows={4} placeholder="v=0\no=- ..."
-          className="w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 py-1.5 text-[var(--fs-xxs)] font-mono text-text-secondary outline-none focus:border-accent resize-none"
+          className="wb-textarea resize-none text-[var(--fs-xxs)]"
         />
       </div>
 
@@ -156,7 +156,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
           Remote SDP
         </label>
         <textarea value={remoteSdp} onChange={(e) => setRemoteSdp(e.target.value)} rows={4} placeholder="v=0\no=- ..."
-          className="w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 py-1.5 text-[var(--fs-xxs)] font-mono text-text-secondary outline-none focus:border-accent resize-none"
+          className="wb-textarea resize-none text-[var(--fs-xxs)]"
         />
       </div>
 

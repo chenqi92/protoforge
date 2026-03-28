@@ -701,7 +701,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               />
             </div>
             {urlSuggestions.length > 0 && urlFocused && urlRectRef.current && createPortal(
-              <div className="fixed z-[9999] max-h-[220px] overflow-y-auto rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_20px_48px_rgba(15,23,42,0.14)]"
+              <div className="fixed z-[var(--z-toast)] max-h-[220px] overflow-y-auto rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_20px_48px_rgba(15,23,42,0.14)]"
                 style={{ top: (urlRectRef.current.bottom + 2), left: urlRectRef.current.left, width: urlRectRef.current.width }}>
                 {urlSuggestions.map((u, i) => (
                   <button key={u} onMouseDown={(e) => { e.preventDefault(); updateHttpConfig(tabId, { url: u }); setUrlFocused(false); }}
@@ -846,7 +846,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                       />
                     ) : config.bodyType === "none" ? <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[var(--fs-base)]">{t('http.noBody')}</div> : null}
                     {!isGraphqlMode && config.bodyType === "json" && (
-                      <div className="w-full h-full border border-border-default/75 rounded-[var(--radius-lg)] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
+                      <div className="w-full h-full border border-border-default/80 rounded-[var(--radius-lg)] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                         <CodeEditor
                           value={config.jsonBody || ''}
                           onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
@@ -875,7 +875,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           <option value="application/javascript">JavaScript</option>
                           <option value="text/css">CSS</option>
                         </select>
-                        <div className="w-full flex-1 border border-border-default/75 rounded-[var(--radius-lg)] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
+                        <div className="w-full flex-1 border border-border-default/80 rounded-[var(--radius-lg)] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                           <CodeEditor
                             value={config.rawBody || ''}
                             onChange={(v) => updateHttpConfig(tabId, { rawBody: v })}
@@ -1265,7 +1265,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
 
                         {/* 各阶段说明卡片 */}
                         <div className="grid gap-3 md:grid-cols-3">
-                          <div className="rounded-[var(--radius-lg)] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
+                          <div className="rounded-[var(--radius-lg)] border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
                               <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.connectTime')}</span>
@@ -1274,7 +1274,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                               {t('http.connectTimeDesc', { defaultValue: 'TCP 连接建立耗时，包括 DNS 解析和 TLS 握手。' })}
                             </p>
                           </div>
-                          <div className="rounded-[var(--radius-lg)] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
+                          <div className="rounded-[var(--radius-lg)] border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                               <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.ttfb')}</span>
@@ -1283,7 +1283,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                               {t('http.ttfbDesc', { defaultValue: '从请求发出到接收到第一个字节的等待时间，反映服务器处理速度。' })}
                             </p>
                           </div>
-                          <div className="rounded-[var(--radius-lg)] border border-border-default/75 bg-bg-secondary/20 px-4 py-3">
+                          <div className="rounded-[var(--radius-lg)] border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
                               <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.download')}</span>
@@ -1735,7 +1735,7 @@ function GraphQLBodyEditor({
               </button>
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/70 bg-bg-input/88">
+          <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/60 bg-bg-input/88">
             <CodeEditor
               value={query}
               onChange={onQueryChange}
@@ -1768,7 +1768,7 @@ function GraphQLBodyEditor({
               </button>
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/70 bg-bg-input/88">
+          <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/60 bg-bg-input/88">
             <CodeEditor
               value={variables}
               onChange={onVariablesChange}
@@ -2456,7 +2456,7 @@ function VariableHoverPopover({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        "fixed z-[10000] rounded-[var(--radius-xl)] border border-border-default/85 bg-bg-primary/98 shadow-[0_18px_46px_rgba(15,23,42,0.14)] backdrop-blur-xl",
+        "fixed z-[var(--z-toast)] rounded-[var(--radius-xl)] border border-border-default/85 bg-bg-primary/98 shadow-[0_18px_46px_rgba(15,23,42,0.14)] backdrop-blur-xl",
         compact ? "w-[296px]" : "w-[340px]"
       )}
       style={{ top: rect.bottom + 10, left: Math.min(window.innerWidth - (compact ? 308 : 352), Math.max(12, rect.left - 8)) }}
@@ -3075,7 +3075,7 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
       {open && pos && createPortal(
         <div
           ref={panelRef}
-          className="fixed z-[10000] min-w-[320px] max-w-[480px] rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden"
+          className="fixed z-[var(--z-toast)] min-w-[320px] max-w-[480px] rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden"
           style={{ top: pos.top, right: pos.right }}
         >
           {!result ? (

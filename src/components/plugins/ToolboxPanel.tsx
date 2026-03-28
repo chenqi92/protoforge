@@ -171,7 +171,7 @@ function CrcCalculator() {
           onChange={(e) => setInput(e.target.value)}
           placeholder={inputMode === 'hex' ? 'FF 01 02 03 ...' : 'Hello World'}
           rows={3}
-          className="w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted resize-none placeholder:text-text-disabled"
+          className="w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent-muted resize-none placeholder:text-text-disabled"
         />
 
         <div className="flex items-center gap-2">
@@ -353,7 +353,7 @@ function NumberConverter() {
               onChange={(e) => onChange(e.target.value)}
               placeholder={placeholder}
               className={cn(
-                "h-7 w-full rounded-[var(--radius-sm)] border bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:ring-1 focus:ring-accent-muted transition-colors",
+                "h-7 w-full rounded-[var(--radius-sm)] border bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:ring-2 focus:ring-accent-muted transition-colors",
                 activeField === key ? "border-accent" : "border-border-default/60 focus:border-accent"
               )}
             />
@@ -450,7 +450,7 @@ function ByteTools() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="FF 01 02 03 ..."
-            className="h-7 w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted"
+            className="h-7 w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent-muted"
           />
         </div>
 
@@ -478,7 +478,7 @@ function ByteTools() {
                 value={mask}
                 onChange={(e) => setMask(e.target.value)}
                 placeholder="FF"
-                className="h-7 w-[80px] rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-1 focus:ring-accent-muted"
+                className="h-7 w-[80px] rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent-muted"
               />
             </div>
           )}

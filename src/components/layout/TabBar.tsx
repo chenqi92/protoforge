@@ -411,10 +411,14 @@ function TabItem({
           isActive
             ? "z-10 bg-bg-primary font-medium text-text-primary shadow-xs border border-border-default/50"
             : "bg-transparent text-text-tertiary hover:bg-bg-hover/60 hover:text-text-secondary",
-          isDragOver && "ring-2 ring-accent/50"
+          isDragOver && "ring-2 ring-accent"
         )}
       >
-        <span className={cn("shrink-0 rounded-[var(--radius-xs)] px-1.5 py-[3px] text-[var(--fs-xxs)] font-bold leading-none", badgeColor)}>
+        <span className={cn(
+          "shrink-0 rounded-[var(--radius-xs)] px-1.5 py-[3px] text-[var(--fs-xxs)] font-bold leading-none",
+          badgeColor,
+          !isActive && "opacity-60"
+        )}>
           {tab.protocol === "http"
             ? tab.requestMode && tab.requestMode !== "rest"
               ? modeLabels[tab.requestMode]
@@ -459,7 +463,7 @@ function TabItem({
             "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[var(--radius-xs)] transition-colors",
             isActive
               ? "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
-              : "text-text-disabled opacity-0 hover:text-text-primary group-hover:opacity-100"
+              : "text-text-disabled/40 hover:text-text-primary hover:bg-bg-hover group-hover:text-text-disabled"
           )}
         >
           <X className="h-3 w-3" />

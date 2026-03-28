@@ -155,7 +155,7 @@ function SerialConnectionBar({
   return (
     <div className="flex flex-col gap-2">
       {/* Row 1: port selector + open/close */}
-      <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
+      <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
         <div className="flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-3 text-[var(--fs-xs)] font-semibold text-white shadow-sm bg-accent">
           <Usb className="w-3.5 h-3.5" />
           <span>Serial</span>

@@ -38,7 +38,7 @@ export function ToolWindowShell({
       header={(
         <div
           {...frameGestures}
-          className="relative flex h-[var(--titlebar-height)] shrink-0 items-center justify-between gap-3 border-b border-border-default/70 bg-bg-primary/80 px-3 backdrop-blur-md select-none"
+          className="relative flex h-[var(--titlebar-height)] shrink-0 items-center justify-between gap-3 border-b border-border-default/60 bg-bg-primary/80 px-3 backdrop-blur-md select-none"
         >
           {/* macOS 交通灯按钮占位区域 */}
           <div className="w-[70px] shrink-0" />
@@ -69,7 +69,7 @@ export function ToolWindowShell({
               {t('toolWindow.mergeBack')}
             </button>
             {badgeLabel ? (
-              <span className="rounded-full border border-border-default/70 bg-bg-secondary/80 px-2.5 py-1 text-[var(--fs-xs)] text-text-tertiary">
+              <span className="rounded-full border border-border-default/60 bg-bg-secondary/80 px-2.5 py-1 text-[var(--fs-xs)] text-text-tertiary">
                 {badgeLabel}
               </span>
             ) : null}

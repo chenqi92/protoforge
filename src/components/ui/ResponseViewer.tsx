@@ -83,7 +83,7 @@ function HexView({ data }: { data: string }) {
   return (
     <div className="selectable overflow-x-auto font-mono leading-[18px]" style={{ fontSize: 'var(--fs-xs)' }}>
       <div className="min-w-[620px]">
-        <div className="mb-2 grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[var(--radius-md)] border border-border-default/70 bg-bg-secondary/30 px-2 py-2 font-semibold uppercase tracking-[0.08em] text-text-tertiary" style={{ fontSize: 'var(--fs-xxs)' }}>
+        <div className="mb-2 grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/30 px-2 py-2 font-semibold uppercase tracking-[0.08em] text-text-tertiary" style={{ fontSize: 'var(--fs-xxs)' }}>
           <span>Offset</span>
           <span>Hex</span>
           <span>ASCII</span>
@@ -117,7 +117,7 @@ export function ReadonlyCodeBlock({
   stickyScroll?: boolean;
 }) {
   return (
-    <div className={cn("flex flex-col overflow-hidden rounded-[var(--radius-md)] border border-border-default/70 bg-bg-primary h-full", minHeightClassName)}>
+    <div className={cn("flex flex-col overflow-hidden rounded-[var(--radius-md)] border border-border-default/60 bg-bg-primary h-full", minHeightClassName)}>
       <div className="flex-1 min-h-0">
         <CodeEditor value={value} language={language} readOnly height="100%" stickyScroll={stickyScroll} />
       </div>

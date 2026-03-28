@@ -237,7 +237,7 @@ export function OnvifPanel({ sessionKey, connected, streamUrl: _streamUrl, onStr
                 {t('videostream.gb.query', '加载')}
               </button>
               <button onClick={() => setShowPresetInput(v => !v)}
-                className="h-5 w-5 flex items-center justify-center rounded text-text-disabled hover:text-accent"
+                className="h-5 w-5 flex items-center justify-center rounded text-text-disabled hover:text-accent transition-colors"
               ><Plus className="w-3 h-3" /></button>
             </div>
           </div>
@@ -245,9 +245,9 @@ export function OnvifPanel({ sessionKey, connected, streamUrl: _streamUrl, onStr
             <div className="flex gap-1">
               <input value={newPresetName} onChange={(e) => setNewPresetName(e.target.value)} placeholder={t('videostream.onvif.presetName', '预置位名称')}
                 onKeyDown={(e) => e.key === 'Enter' && handleSetPreset()}
-                className="h-6 flex-1 rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] text-text-primary outline-none focus:border-accent"
+                className="wb-field-xs flex-1 font-mono"
               />
-              <button onClick={handleSetPreset} className="h-6 px-2 rounded-[var(--radius-xs)] bg-accent/10 text-accent text-[var(--fs-xxs)] hover:bg-accent/20">
+              <button onClick={handleSetPreset} className="h-6 px-2 rounded-[var(--radius-xs)] bg-accent/10 text-accent text-[var(--fs-xxs)] hover:bg-accent/20 transition-colors">
                 {t('videostream.onvif.save', '保存')}
               </button>
             </div>
@@ -255,7 +255,7 @@ export function OnvifPanel({ sessionKey, connected, streamUrl: _streamUrl, onStr
           {presets.length > 0 && (
             <div className="max-h-[100px] overflow-y-auto space-y-0.5 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
               {presets.map((p) => (
-                <div key={p.token} className="flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] hover:bg-bg-hover/50 text-[var(--fs-xxs)]">
+                <div key={p.token} className="flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] hover:bg-bg-hover/50 text-[var(--fs-xxs)] transition-colors">
                   <Star className="w-3 h-3 text-amber-500 shrink-0" />
                   <span className="text-text-primary flex-1 truncate">{p.name || `Preset ${p.token}`}</span>
                   <button onClick={() => handleGotoPreset(p.token)} className="text-accent hover:underline shrink-0">

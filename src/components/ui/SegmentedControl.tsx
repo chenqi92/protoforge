@@ -28,13 +28,13 @@ export function SegmentedControl<T extends string = string>({
   className,
 }: SegmentedControlProps<T>) {
   return (
-    <div className={cn("wb-tool-segment", size === "sm" && "wb-tool-segment-sm", className)}>
+    <div className={cn("wb-tool-segment !flex", size === "sm" && "wb-tool-segment-sm", className)}>
       {options.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
           disabled={disabled}
-          className={cn(value === opt.value && "is-active")}
+          className={cn("flex-1", value === opt.value && "is-active")}
         >
           {opt.icon}
           {opt.label}

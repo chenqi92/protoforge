@@ -134,7 +134,7 @@ export function PluginIcon({ pluginId, fallbackEmoji, className, size = "md" }: 
 
   return (
     <div className={cn(
-      "flex shrink-0 items-center justify-center border border-border-default/75 bg-bg-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]",
+      "flex shrink-0 items-center justify-center border border-border-default/80 bg-bg-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]",
       sizeClasses[size],
       className
     )}>

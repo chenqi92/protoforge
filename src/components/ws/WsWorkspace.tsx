@@ -415,7 +415,7 @@ export function WsWorkspace() {
                     <select
                       value={sendMode}
                       onChange={(e) => setSendMode(e.target.value as "json" | "text" | "binary")}
-                      className="pointer-events-auto wb-native-select text-[var(--fs-xs)] font-semibold text-text-tertiary uppercase tracking-wider h-7 px-2 focus:ring-0 cursor-pointer bg-bg-primary/90 backdrop-blur-md border border-border-default/50 hover:bg-bg-hover transition-colors rounded-[var(--radius-sm)]"
+                      className="pointer-events-auto wb-native-select text-[var(--fs-xs)] font-semibold text-text-secondary uppercase tracking-wider h-7 px-2 focus:ring-0 cursor-pointer bg-bg-primary/90 backdrop-blur-md border border-border-default/50 hover:bg-bg-hover transition-colors rounded-[var(--radius-sm)]"
                     >
                       <option value="text">TEXT</option>
                       <option value="json">JSON</option>

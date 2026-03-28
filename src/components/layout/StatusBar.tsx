@@ -191,11 +191,11 @@ export function StatusBar({
             className={cn(
               "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 transition-all",
               hasUpdate
-                ? "border border-violet-500/30 bg-violet-500/8 text-violet-500 hover:bg-violet-500/14 cursor-pointer"
+                ? "border border-accent/30 bg-accent-soft text-accent hover:bg-accent-muted cursor-pointer"
                 : isReady
-                  ? "border border-emerald-500/30 bg-emerald-500/8 hover:bg-emerald-500/14 cursor-pointer"
+                  ? "border border-success/30 bg-success/8 text-success hover:bg-success/14 cursor-pointer"
                   : isError
-                    ? "border border-red-400/30 bg-red-400/8 hover:bg-red-400/14 cursor-pointer"
+                    ? "border border-error/30 bg-error/8 text-error hover:bg-error/14 cursor-pointer"
                     : "text-text-disabled hover:text-text-secondary cursor-pointer",
             )}
             title={hasUpdate

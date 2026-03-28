@@ -368,7 +368,7 @@ export function CryptoContextMenu() {
       {visible && createPortal(
         <div
           ref={menuRef}
-          className="fixed z-[9999] min-w-[200px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
+          className="fixed z-[var(--z-toast)] min-w-[200px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
           style={{ left: position.x, top: position.y, fontSize: 'var(--fs-sm)' }}
         >
           {/* Cut / Copy / Paste — 仅 Monaco */}
@@ -517,7 +517,7 @@ function HoverSubmenu({
       </button>
       {hoveredSub === hoverKey && (
         <div
-          className="absolute left-full top-0 z-[10000] ml-1 min-w-[180px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
+          className="absolute left-full top-0 z-[var(--z-toast)] ml-1 min-w-[180px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
           style={{ fontSize: 'var(--fs-sm)' }}
         >
           {children}

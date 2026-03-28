@@ -238,12 +238,12 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
               </div>
               <div className="max-h-28 space-y-1 overflow-auto">
                 {subscriptions.length === 0 ? (
-                  <div className="border-t border-border-default/70 pt-3 text-[var(--fs-xs)] text-text-disabled">
+                  <div className="border-t border-border-default/60 pt-3 text-[var(--fs-xs)] text-text-disabled">
                     {t('mqtt.subscriptionHint')}
                   </div>
                 ) : (
                   subscriptions.map((sub, i) => (
-                    <div key={i} className="flex items-center justify-between border-t border-border-default/70 py-2 text-[var(--fs-xs)]">
+                    <div key={i} className="flex items-center justify-between border-t border-border-default/60 py-2 text-[var(--fs-xs)]">
                       <span className="truncate font-mono text-text-secondary">{sub.topic}</span>
                       <div className="flex shrink-0 items-center gap-1.5">
                         <span className="rounded-[var(--radius-sm)] bg-bg-primary px-1.5 py-0.5 text-[var(--fs-xxs)] text-text-tertiary">Q{sub.qos}</span>
@@ -266,7 +266,7 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
                 className="wb-field-sm mb-2 font-mono disabled:opacity-50" />
               <textarea value={pubPayload} onChange={(e) => setPubPayload(e.target.value)} placeholder={t('mqtt.messagePlaceholder')} disabled={!isConnected}
                 className="wb-textarea mb-2 flex-1 min-h-[160px] text-[var(--fs-sm)] text-text-secondary disabled:opacity-50" />
-              <div className="flex flex-wrap items-center gap-2 border-t border-border-default/70 pt-2">
+              <div className="flex flex-wrap items-center gap-2 border-t border-border-default/60 pt-2">
                 <select value={pubQos} onChange={(e) => setPubQos(Number(e.target.value))} disabled={!isConnected}
                   className="wb-field-sm wb-native-select w-[86px] shrink-0 disabled:opacity-50">
                   <option value={0}>QoS 0</option>
@@ -299,7 +299,7 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
               <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/10">
                 {messages.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-border-default/70 bg-bg-primary/78">
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-border-default/60 bg-bg-primary/78">
                       <Radio className="w-8 h-8 opacity-20 text-violet-500" />
                     </div>
                     <p className="text-[var(--fs-base)] font-medium">{t('mqtt.emptyTitle')}</p>

@@ -164,7 +164,7 @@ export function MessageLog({
         {filteredMessages.length === 0 ? (
           isFiltering ? (
             <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default/70 bg-bg-secondary">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default/60 bg-bg-secondary">
                 <Search className="h-6 w-6 opacity-35" />
               </div>
               <p className="text-[var(--fs-md)] font-semibold text-text-secondary">{t('tcp.messageLog.noMatch')}</p>
@@ -173,13 +173,13 @@ export function MessageLog({
           ) : (
             <div className="flex h-full items-center justify-center px-6 py-8">
               <div className="max-w-xl text-center">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-border-default/70 bg-bg-primary/82">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-border-default/60 bg-bg-primary/82">
                   <PlugZap className="h-5 w-5 text-text-disabled" />
                 </div>
                 <p className="text-[var(--fs-lg)] font-semibold text-text-secondary">{emptyTitle}</p>
                 <p className="mt-2 text-[var(--fs-sm)] leading-6 text-text-tertiary">{emptyDesc}</p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <span className="rounded-[var(--radius-sm)] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                  <span className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
                     {displayFormat === "auto" ? t("tcp.messageLog.auto", "AUTO") : displayFormat.toUpperCase()}
                   </span>
                   {typeof connected === "boolean" ? (
@@ -188,7 +188,7 @@ export function MessageLog({
                         "rounded-[var(--radius-sm)] border px-2.5 py-1 text-[var(--fs-xxs)] font-semibold",
                         connected
                           ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
-                          : "border-border-default/70 bg-bg-secondary/78 text-text-tertiary"
+                          : "border-border-default/60 bg-bg-secondary/78 text-text-tertiary"
                       )}
                     >
                       {connected ? t('tcp.system.connected') : t('tcp.system.waitingConnection')}
@@ -196,10 +196,10 @@ export function MessageLog({
                   ) : null}
                   {stats && hasTraffic ? (
                     <>
-                      <span className="rounded-[var(--radius-sm)] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
+                      <span className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
                         {formatSize(stats.sentBytes)} / {stats.sentCount} TX
                       </span>
-                      <span className="rounded-[var(--radius-sm)] border border-border-default/70 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
+                      <span className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
                         {formatSize(stats.receivedBytes)} / {stats.receivedCount} RX
                       </span>
                     </>

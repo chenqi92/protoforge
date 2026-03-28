@@ -466,7 +466,7 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
   return (
     <div className={cn("flex h-full items-center justify-center", !embedded && "wb-panel")}>
       <div className="w-full max-w-3xl px-6 py-10 text-center">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent/5 flex items-center justify-center border border-border-default/70">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent/5 flex items-center justify-center border border-border-default/60">
           <ArrowUpDown className="w-7 h-7 text-accent/40" />
         </div>
         {running ? (
@@ -478,7 +478,7 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
               {t('capture.proxyRunning')} <code className="font-mono text-accent bg-accent/5 px-1.5 py-0.5 rounded text-[var(--fs-xs)]">127.0.0.1:{port}</code> {t('capture.proxyRunningOn')}
             </p>
             <div className="grid gap-4 text-left sm:grid-cols-2">
-              <div className="border-t border-border-default/70 pt-3 text-[var(--fs-xs)] text-text-tertiary">
+              <div className="border-t border-border-default/60 pt-3 text-[var(--fs-xs)] text-text-tertiary">
                 <p className="font-medium text-text-secondary">{t('capture.general')}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="rounded bg-bg-tertiary px-2 py-0.5 text-[var(--fs-xxs)] font-mono">{t('capture.httpProxy')}</span>
@@ -486,7 +486,7 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
                 </div>
                 <p className="mt-2 text-[var(--fs-xxs)] text-text-disabled">{t('capture.proxyHint')}</p>
               </div>
-              <div className="border-t border-border-default/70 pt-3 text-[var(--fs-xs)] text-text-tertiary">
+              <div className="border-t border-border-default/60 pt-3 text-[var(--fs-xs)] text-text-tertiary">
                 <p className="font-medium text-text-secondary">{t('capture.general')}</p>
                 <div className="mt-2 flex items-start gap-1.5 text-[var(--fs-xxs)] text-text-disabled">
                   <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-[1px]" />
@@ -504,15 +504,15 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
               {t('capture.emptyState')}
             </p>
             <div className="mt-6 grid gap-4 text-left sm:grid-cols-3">
-              <div className="border-t border-border-default/70 pt-3">
+              <div className="border-t border-border-default/60 pt-3">
                 <div className="text-[var(--fs-xs)] font-semibold text-text-secondary">{t('capture.emptyStep1')}</div>
                 <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('capture.emptyStep1Desc')}</div>
               </div>
-              <div className="border-t border-border-default/70 pt-3">
+              <div className="border-t border-border-default/60 pt-3">
                 <div className="text-[var(--fs-xs)] font-semibold text-text-secondary">{t('capture.emptyStep2')}</div>
                 <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('capture.emptyStep2Desc')}</div>
               </div>
-              <div className="border-t border-border-default/70 pt-3">
+              <div className="border-t border-border-default/60 pt-3">
                 <div className="text-[var(--fs-xs)] font-semibold text-text-secondary">{t('capture.emptyStep3')}</div>
                 <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('capture.emptyStep3Desc')}</div>
               </div>
