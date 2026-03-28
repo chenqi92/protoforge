@@ -66,7 +66,9 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
 
   // Check if sidebar-panel plugin is installed
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
-  const hasSidebarPanelPlugin = installedPlugins.some((p) => p.pluginType === 'sidebar-panel');
+  const hasSidebarPanelPlugin = installedPlugins.some(
+    (p) => p.pluginType === 'sidebar-panel' && p.panelPosition !== 'right'
+  );
 
   const allNavItems = useMemo(() => {
     const items = [...navItems];
@@ -826,7 +828,7 @@ function RequestItemWithTooltip({
     if (item.url) {
       let displayUrl = item.url;
       try { displayUrl = decodeURIComponent(item.url); } catch { /* keep original if decode fails */ }
-      displayUrl = resolveVariableTemplate(displayUrl, item.collectionId);
+      displayUrl = resolveVariableTemplate(displayUrl, item.collectionId, item.id);
       summary.push({ label: "URL", value: displayUrl });
     }
     // Query params

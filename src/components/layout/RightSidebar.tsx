@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { useActivityLogStore, type ActivityLogEntry, type LogSource } from '@/stores/activityLogStore';
 import { usePluginStore } from '@/stores/pluginStore';
 import { ProtocolParserPanel } from '@/components/plugins/ProtocolParserPanel';
-import { ToolboxPanel } from '@/components/tcp/ToolboxPanel';
+import { ToolboxPanel } from '@/components/plugins/ToolboxPanel';
 
 type RightSidebarView = 'logs' | 'parser' | 'toolbox';
 
@@ -67,19 +67,23 @@ export function RightSidebar({ panelCollapsed, onTogglePanel }: RightSidebarProp
   // 仅在安装了 protocol-parser 插件时才显示 Parser Tab
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
   const hasParserPlugin = installedPlugins.some((p) => p.pluginType === 'protocol-parser');
+  const hasToolboxPlugin = installedPlugins.some((p) => p.id === 'devtools-toolbox');
   const navItems = useMemo(() => {
     const items = [...baseNavItems];
     if (hasParserPlugin) items.push(parserNavItem);
-    items.push(toolboxNavItem);
+    if (hasToolboxPlugin) items.push(toolboxNavItem);
     return items;
-  }, [hasParserPlugin]);
+  }, [hasParserPlugin, hasToolboxPlugin]);
 
-  // 如果卸载了所有解析插件，自动切回 logs 视图
+  // 如果卸载了相关插件，自动切回 logs 视图
   useEffect(() => {
     if (!hasParserPlugin && activeView === 'parser') {
       setActiveView('logs');
     }
-  }, [hasParserPlugin, activeView]);
+    if (!hasToolboxPlugin && activeView === 'toolbox') {
+      setActiveView('logs');
+    }
+  }, [hasParserPlugin, hasToolboxPlugin, activeView]);
 
   // 监听来自 MessageLog / 其它模块的解析请求事件
   useEffect(() => {

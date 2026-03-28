@@ -1,4 +1,5 @@
 // 调试工具箱面板 — CRC 计算、数值转换、字节操作
+// 作为 devtools-toolbox 插件的前端渲染组件，安装插件后在右侧边栏显示
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
