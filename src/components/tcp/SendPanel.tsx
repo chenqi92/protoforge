@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import type { DataFormat, SendHistoryItem, QuickCommand } from "@/types/tcp";
+import type { DataFormat, SendHistoryItem, QuickCommand, LineEnding } from "@/types/tcp";
 
 interface SendPanelProps {
   message: string;
@@ -31,8 +31,8 @@ interface SendPanelProps {
   timerInterval: number;
   onTimerToggle: () => void;
   onTimerIntervalChange: (v: number) => void;
-  appendNewline: boolean;
-  onAppendNewlineChange: (v: boolean) => void;
+  lineEnding: LineEnding;
+  onLineEndingChange: (v: LineEnding) => void;
   embedded?: boolean;
 }
 
@@ -51,7 +51,7 @@ export function SendPanel({
   sendTargetLabel,
   sendTargetHint,
   timerEnabled, timerInterval, onTimerToggle, onTimerIntervalChange,
-  appendNewline, onAppendNewlineChange,
+  lineEnding, onLineEndingChange,
 }: SendPanelProps) {
   const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -298,7 +298,7 @@ export function SendPanel({
               className={cn(
                 "wb-icon-btn !w-7 !h-7",
                 showOptions && "bg-bg-hover text-accent",
-                (timerEnabled || appendNewline) && "text-accent"
+                (timerEnabled || lineEnding !== 'none') && "text-accent"
               )}
               title={t('tcp.sendPanel.sendOptions') || 'Options'}
             >
@@ -323,18 +323,28 @@ export function SendPanel({
                     </div>
                   )}
 
-                  {/* Append newline */}
-                  <label className="group flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={appendNewline}
-                      onChange={(e) => onAppendNewlineChange(e.target.checked)}
-                      className="h-3.5 w-3.5 cursor-pointer rounded border-border-default text-accent focus:ring-accent/30"
-                    />
-                    <span className="text-[var(--fs-xs)] text-text-secondary transition-colors group-hover:text-text-primary">
-                      {t('tcp.sendPanel.appendNewline')}
-                    </span>
-                  </label>
+                  {/* Line ending */}
+                  <div className="space-y-1.5">
+                    <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+                      {t('tcp.sendPanel.lineEnding', '行结尾')}
+                    </div>
+                    <div className="flex h-7 items-center rounded-[6px] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
+                      {(['none', 'lf', 'cr', 'crlf'] as LineEnding[]).map((le) => (
+                        <button
+                          key={le}
+                          onClick={() => onLineEndingChange(le)}
+                          className={cn(
+                            "h-full flex-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-colors border-r border-border-default/40 last:border-r-0",
+                            lineEnding === le
+                              ? "bg-accent text-white"
+                              : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
+                          )}
+                        >
+                          {le === 'none' ? t('tcp.sendPanel.lineEndingNone', '无') : le.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Timer */}
                   <div className="space-y-2">

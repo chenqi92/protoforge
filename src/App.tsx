@@ -24,6 +24,7 @@ import { useAppStore, type RequestProtocol, type ToolSession, type ToolWorkbench
 import { useSettingsStore } from "@/stores/settingsStore";
 import { usePluginStore } from "@/stores/pluginStore";
 import { closeWindowByLabel, listOpenToolWindowSessions, openToolWindow } from "@/lib/windowManager";
+import { hasActiveConnections, getActiveConnectionLabels } from '@/lib/connectionRegistry';
 import { CommandPalette } from "@/components/ui/CommandPalette";
 
 import { CryptoContextMenu } from "@/components/plugins/CryptoContextMenu";
@@ -275,6 +276,11 @@ function ToolWorkbenchPanel({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (hasActiveConnections(session.id)) {
+                        const labels = getActiveConnectionLabels(session.id);
+                        const msg = `此会话存在活跃连接：\n${labels.join('\n')}\n\n确定要关闭吗？`;
+                        if (!window.confirm(msg)) return;
+                      }
                       onCloseSession(tool, session.id);
                     }}
                     onMouseDown={(e) => e.stopPropagation()}

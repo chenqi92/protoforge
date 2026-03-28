@@ -18,6 +18,8 @@ import type {
   SocketMode, DataFormat, TcpMessage, TcpEvent,
   TcpServerClient, ConnectionStats, SendHistoryItem, QuickCommand,
 } from "@/types/tcp";
+import { LineEnding, LINE_ENDING_MAP } from "@/types/tcp";
+import { registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
 
 // ═══════════════════════════════════════════
 //  Recent Connections — localStorage 存储
@@ -304,7 +306,7 @@ function useSocketState() {
     { id: "hb", name: "Heartbeat", data: "PING", format: "ascii" },
     { id: "ack", name: "ACK", data: "06", format: "hex" },
   ]);
-  const [appendNewline, setAppendNewline] = useState(false);
+  const [lineEnding, setLineEnding] = useState<LineEnding>('none');
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [timerInterval, setTimerInterval] = useState(1000);
   const [stats, setStats] = useState<ConnectionStats>({ sentBytes: 0, receivedBytes: 0, sentCount: 0, receivedCount: 0 });
@@ -367,7 +369,7 @@ function useSocketState() {
     messages, setMessages, message, setMessage,
     sendFormat, setSendFormat, displayFormat, setDisplayFormat,
     sendHistory, setSendHistory, quickCommands, setQuickCommands,
-    appendNewline, setAppendNewline, timerEnabled, setTimerEnabled,
+    lineEnding, setLineEnding, timerEnabled, setTimerEnabled,
     timerInterval, setTimerInterval, stats, setStats,
     addMessage, addToHistory, systemMessage, resetStats, saveQuickCommand,
   };
@@ -418,6 +420,7 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
             setConnecting(false);
             setConnectedSince(new Date().toISOString());
             state.systemMessage(`[OK] ${t('tcp.system.connectedTo')} ${event.data}`);
+            registerConnection(sessionKey, connectionId, `TCP ${hostRef.current}:${portRef.current}`);
             break;
           case "data":
             state.addMessage({
@@ -431,6 +434,7 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
             setConnecting(false);
             setConnectedSince(undefined);
             state.systemMessage(`[CLOSED] ${t('tcp.system.disconnected')}`);
+            unregisterConnection(sessionKey, connectionId);
             if (autoReconnectRef.current) {
               state.systemMessage(`[INFO] 2s 后自动重连...`);
               setTimeout(async () => {
@@ -449,6 +453,7 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
             setConnecting(false);
             setConnectedSince(undefined);
             state.systemMessage(`[WARN] ${t('tcp.system.error')}: ${event.data}`);
+            unregisterConnection(sessionKey, connectionId);
             break;
         }
       });
@@ -459,6 +464,7 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
     return () => {
       disposed = true;
       unlisten?.();
+      unregisterConnection(sessionKey, connectionId);
       svc.tcpDisconnect(connectionId).catch(() => {});
     };
   }, [connectionId, state.addMessage, state.systemMessage, t]);
@@ -472,6 +478,7 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
 
   const handleConnect = async () => {
     if (connected) {
+      unregisterConnection(sessionKey, connectionId);
       await svc.tcpDisconnect(connectionId);
       setConnected(false);
       setConnectedSince(undefined);
@@ -489,7 +496,7 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
 
   const handleSend = async () => {
     if (!connected || !state.message.trim()) return;
-    const data = state.appendNewline ? state.message + "\n" : state.message;
+    const data = state.message + LINE_ENDING_MAP[state.lineEnding];
     try {
       await svc.tcpSend(connectionId, data, state.sendFormat);
       const rawHex = svc.asciiToHex(data);
@@ -567,8 +574,8 @@ function TcpClientPanel({ sessionKey }: { sessionKey: string }) {
           timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
           onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
           onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-          appendNewline={state.appendNewline}
-          onAppendNewlineChange={state.setAppendNewline}
+          lineEnding={state.lineEnding}
+          onLineEndingChange={state.setLineEnding}
           embedded
         />
       </div>
@@ -630,6 +637,7 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
             setStarting(false);
             setConnectedSince(new Date().toISOString());
             state.systemMessage(`[OK] ${t('tcp.system.serverStarted')} ${event.data}`);
+            registerConnection(sessionKey, serverId, 'TCP Server');
             break;
           case "client-connected":
             if (event.clientId && event.remoteAddr) {
@@ -663,6 +671,7 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
     return () => {
       disposed = true;
       unlisten?.();
+      unregisterConnection(sessionKey, serverId);
       svc.tcpServerStop(serverId).catch(() => {});
     };
   }, [serverId, state.addMessage, state.systemMessage, t]);
@@ -676,6 +685,7 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
 
   const handleToggle = async () => {
     if (running) {
+      unregisterConnection(sessionKey, serverId);
       await svc.tcpServerStop(serverId);
       setRunning(false);
       setClients([]);
@@ -695,7 +705,7 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
 
   const handleSend = async () => {
     if (!running || !state.message.trim()) return;
-    const data = state.appendNewline ? state.message + "\n" : state.message;
+    const data = state.message + LINE_ENDING_MAP[state.lineEnding];
     try {
       if (selectedClientId) {
         await svc.tcpServerSend(serverId, selectedClientId, data, state.sendFormat);
@@ -773,8 +783,8 @@ function TcpServerPanel({ sessionKey }: { sessionKey: string }) {
           timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
           onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
           onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-          appendNewline={state.appendNewline}
-          onAppendNewlineChange={state.setAppendNewline}
+          lineEnding={state.lineEnding}
+          onLineEndingChange={state.setLineEnding}
           embedded
         />
       </div>
@@ -826,6 +836,7 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
             setBinding(false);
             setConnectedSince(new Date().toISOString());
             state.systemMessage(`[OK] ${t('tcp.system.bound')} ${event.data}`);
+            registerConnection(sessionKey, socketId, 'UDP Client');
             break;
           case "data":
             state.addMessage({
@@ -840,6 +851,7 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
             setBinding(false);
             setConnectedSince(undefined);
             state.systemMessage(`[WARN] ${t('tcp.system.error')}: ${event.data}`);
+            unregisterConnection(sessionKey, socketId);
             break;
         }
       });
@@ -850,6 +862,7 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
     return () => {
       disposed = true;
       unlisten?.();
+      unregisterConnection(sessionKey, socketId);
       svc.udpClose(socketId).catch(() => {});
     };
   }, [socketId, state.addMessage, state.systemMessage, t]);
@@ -863,6 +876,7 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
 
   const handleBind = async () => {
     if (bound) {
+      unregisterConnection(sessionKey, socketId);
       await svc.udpClose(socketId);
       setBound(false);
       setConnectedSince(undefined);
@@ -881,7 +895,7 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
 
   const handleSend = async () => {
     if (!bound || !state.message.trim() || !targetAddr.trim()) return;
-    const data = state.appendNewline ? state.message + "\n" : state.message;
+    const data = state.message + LINE_ENDING_MAP[state.lineEnding];
     try {
       await svc.udpSendTo(socketId, data, targetAddr, state.sendFormat);
       const size = new TextEncoder().encode(data).length;
@@ -951,8 +965,8 @@ function UdpClientPanel({ sessionKey }: { sessionKey: string }) {
           timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
           onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
           onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-          appendNewline={state.appendNewline}
-          onAppendNewlineChange={state.setAppendNewline}
+          lineEnding={state.lineEnding}
+          onLineEndingChange={state.setLineEnding}
           embedded
         />
       </div>
@@ -1004,6 +1018,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
             setBinding(false);
             setConnectedSince(new Date().toISOString());
             state.systemMessage(`[OK] ${t('tcp.system.udpServerBound')} ${event.data}`);
+            registerConnection(sessionKey, socketId, 'UDP Server');
             break;
           case "data":
             state.addMessage({
@@ -1021,6 +1036,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
             setBinding(false);
             setConnectedSince(undefined);
             state.systemMessage(`[WARN] ${t('tcp.system.error')}: ${event.data}`);
+            unregisterConnection(sessionKey, socketId);
             break;
         }
       });
@@ -1031,6 +1047,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
     return () => {
       disposed = true;
       unlisten?.();
+      unregisterConnection(sessionKey, socketId);
       svc.udpClose(socketId).catch(() => {});
     };
   }, [socketId, state.addMessage, state.systemMessage, t]);
@@ -1044,6 +1061,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
 
   const handleBind = async () => {
     if (bound) {
+      unregisterConnection(sessionKey, socketId);
       await svc.udpClose(socketId);
       setBound(false);
       setConnectedSince(undefined);
@@ -1062,7 +1080,7 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
 
   const handleSend = async () => {
     if (!bound || !state.message.trim() || !replyAddr.trim()) return;
-    const data = state.appendNewline ? state.message + "\n" : state.message;
+    const data = state.message + LINE_ENDING_MAP[state.lineEnding];
     try {
       await svc.udpSendTo(socketId, data, replyAddr, state.sendFormat);
       const size = new TextEncoder().encode(data).length;
@@ -1133,8 +1151,8 @@ function UdpServerPanel({ sessionKey }: { sessionKey: string }) {
           timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
           onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
           onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-          appendNewline={state.appendNewline}
-          onAppendNewlineChange={state.setAppendNewline}
+          lineEnding={state.lineEnding}
+          onLineEndingChange={state.setLineEnding}
           embedded
         />
       </div>

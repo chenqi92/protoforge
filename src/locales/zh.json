@@ -448,6 +448,8 @@
       "offline": "离线",
       "sendFormat": "发送格式",
       "appendNewline": "追加换行",
+      "lineEnding": "行结尾",
+      "lineEndingNone": "无",
       "timedSend": "定时发送",
       "hexPlaceholder": "输入十六进制数据，如 48 65 6C 6C 6F",
       "base64Placeholder": "输入 Base64 编码数据",
@@ -614,7 +616,15 @@
       "polling": "轮询",
       "pollingToggle": "轮询开关",
       "parsedValue": "解析值",
-      "exceptionDesc": "Modbus 异常"
+      "exceptionDesc": "Modbus 异常",
+      "unitScan": "单元地址扫描",
+      "scanRange": "范围",
+      "startScan": "扫描",
+      "stopScan": "停止",
+      "found": "响应",
+      "useThisUnit": "使用",
+      "scanning": "扫描中...",
+      "scan": "扫描"
     },
     "modbusslave": {
       "modbusSlaveMode": "从站 (Slave)",

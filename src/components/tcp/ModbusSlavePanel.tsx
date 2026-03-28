@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import * as mbSvc from "@/services/modbusService";
 import * as svcSerial from "@/services/serialService";
+import { registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
 import type {
   SerialPortInfo, SerialPortConfig, ModbusTransport, ModbusSlaveEvent,
 } from "@/types/serial";
@@ -303,9 +304,11 @@ export function ModbusSlavePanel({ sessionKey }: { sessionKey: string }) {
           setRunning(true);
           setStarting(false);
           setStartedAt(new Date());
+          registerConnection(sessionKey, connId, 'Modbus Slave');
         } else if (ev.eventType === 'stopped') {
           setRunning(false);
           setStartedAt(null);
+          unregisterConnection(sessionKey, connId);
         } else if (ev.eventType === 'request') {
           setRequestCount((c) => c + 1);
           setRequestLog((prev) => [...prev.slice(-499), ev]);
@@ -341,6 +344,7 @@ export function ModbusSlavePanel({ sessionKey }: { sessionKey: string }) {
     return () => {
       disposed = true;
       unlisten?.();
+      unregisterConnection(sessionKey, connId);
       mbSvc.modbusSlaveStopTcp(connId).catch(() => {});
       mbSvc.modbusSlaveStopRtu(connId).catch(() => {});
     };
@@ -355,6 +359,7 @@ export function ModbusSlavePanel({ sessionKey }: { sessionKey: string }) {
   const handleToggle = useCallback(async () => {
     if (running) {
       try {
+        unregisterConnection(sessionKey, connId);
         if (transport === 'tcp') await mbSvc.modbusSlaveStopTcp(connId);
         else await mbSvc.modbusSlaveStopRtu(connId);
         setRunning(false);

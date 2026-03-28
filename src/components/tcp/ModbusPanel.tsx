@@ -2,12 +2,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Cpu, Plug, X, RefreshCw, Trash2,
-  ChevronDown, ArrowRight, CheckCircle2, AlertCircle, Loader2,
+  ChevronDown, ArrowRight, CheckCircle2, AlertCircle, Loader2, Search,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import * as mbSvc from "@/services/modbusService";
 import * as svcSerial from "@/services/serialService";
+import { registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
 import { useActivityLogStore } from "@/stores/activityLogStore";
 import type { SerialPortInfo, SerialPortConfig, ModbusTransport, ModbusFunctionCode, ModbusTransaction, ModbusResponse } from "@/types/serial";
 import { MODBUS_FUNCTION_CODES, DEFAULT_SERIAL_CONFIG, BAUD_RATES } from "@/types/serial";
@@ -734,6 +735,7 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
 
   // ── 连接状态 ──
   const [transport, setTransport] = useState<ModbusTransport>("tcp");
+  const transportRef = useRef<ModbusTransport>("tcp");
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
 
@@ -767,6 +769,14 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
   const [transactions, setTransactions] = useState<ModbusTransaction[]>([]);
   const [lastTransaction, setLastTransaction] = useState<ModbusTransaction | undefined>();
 
+  // ── Unit ID 扫描 ──
+  const [showScan, setShowScan] = useState(false);
+  const [scanFrom, setScanFrom] = useState(1);
+  const [scanTo, setScanTo] = useState(10);
+  const [scanning, setScanning] = useState(false);
+  const [scanResults, setScanResults] = useState<{ unitId: number; ok: boolean; ms: number }[]>([]);
+  const scanAbortRef = useRef(false);
+
   // ── 枚举串口 ──
   const refreshPorts = useCallback(async () => {
     setLoadingPorts(true);
@@ -778,6 +788,7 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
   }, []);
 
   useEffect(() => { refreshPorts(); }, []);
+  useEffect(() => { transportRef.current = transport; }, [transport]);
 
   // ── 连接事件监听 ──
   useEffect(() => {
@@ -790,14 +801,17 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
           case "connected":
             setConnected(true);
             setConnecting(false);
+            registerConnection(sessionKey, connId, `Modbus ${transportRef.current.toUpperCase()}`);
             break;
           case "disconnected":
             setConnected(false);
             setConnecting(false);
+            unregisterConnection(sessionKey, connId);
             break;
           case "error":
             setConnected(false);
             setConnecting(false);
+            unregisterConnection(sessionKey, connId);
             break;
         }
       });
@@ -808,6 +822,7 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
     return () => {
       disposed = true;
       unlisten?.();
+      unregisterConnection(sessionKey, connId);
       mbSvc.modbusTcpDisconnect(connId).catch(() => {});
       mbSvc.modbusRtuClose(connId).catch(() => {});
     };
@@ -836,6 +851,7 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
   // ── 连接 / 断开 ──
   const handleToggleConnection = async () => {
     if (connected) {
+      unregisterConnection(sessionKey, connId);
       if (transport === "tcp") {
         await mbSvc.modbusTcpDisconnect(connId).catch(() => {});
       } else {
@@ -868,6 +884,25 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
       }
     }
   };
+
+  // ── Unit ID 扫描 ──
+  const handleScan = useCallback(async () => {
+    if (!connected || scanning) return;
+    scanAbortRef.current = false;
+    setScanning(true);
+    setScanResults([]);
+    for (let uid = scanFrom; uid <= scanTo; uid++) {
+      if (scanAbortRef.current) break;
+      const t0 = Date.now();
+      try {
+        await mbSvc.modbusExecute(connId, uid, 3, 0, 1, []);
+        setScanResults((prev) => [...prev, { unitId: uid, ok: true, ms: Date.now() - t0 }]);
+      } catch {
+        setScanResults((prev) => [...prev, { unitId: uid, ok: false, ms: Date.now() - t0 }]);
+      }
+    }
+    setScanning(false);
+  }, [connected, scanning, scanFrom, scanTo, connId]);
 
   // ── 执行功能码 ──
   const handleExecute = async () => {
@@ -952,7 +987,7 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       {/* 连接栏 */}
-      <div className="shrink-0">
+      <div className="shrink-0 space-y-2">
         <ModbusConnectionBar
           transport={transport}
           onTransportChange={setTransport}
@@ -966,7 +1001,112 @@ export function ModbusPanel({ sessionKey }: { sessionKey: string }) {
           connected={connected} connecting={connecting}
           onToggle={handleToggleConnection}
         />
+        <div className="flex items-center gap-2 px-0.5">
+          <button
+            onClick={() => setShowScan((v) => !v)}
+            disabled={!connected}
+            className={cn(
+              "wb-tool-chip cursor-pointer transition-colors disabled:opacity-40",
+              showScan && "bg-accent-soft text-accent border-accent/40"
+            )}
+            title={t('serial.modbus.unitScan', '单元地址扫描')}
+          >
+            <Search className="w-3 h-3" />
+            {t('serial.modbus.scan', '扫描')}
+          </button>
+        </div>
       </div>
+
+      {/* Unit Scan Panel */}
+      {showScan && (
+        <div className="shrink-0 rounded-[var(--radius-md)] border border-border-default/75 bg-bg-primary overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60 bg-bg-secondary/30">
+            <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
+              {t('serial.modbus.unitScan', '单元地址扫描')}
+            </span>
+            <button
+              onClick={() => { setShowScan(false); scanAbortRef.current = true; }}
+              className="p-1 rounded-[6px] text-text-disabled hover:bg-bg-hover hover:text-text-secondary transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="p-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
+                {t('serial.modbus.scanRange', '范围')}
+              </span>
+              <input
+                type="number" min={1} max={247} value={scanFrom}
+                onChange={(e) => setScanFrom(Math.max(1, Math.min(247, parseInt(e.target.value) || 1)))}
+                disabled={scanning}
+                className="h-7 w-16 rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+              />
+              <span className="text-text-disabled text-[var(--fs-xxs)]">—</span>
+              <input
+                type="number" min={1} max={247} value={scanTo}
+                onChange={(e) => setScanTo(Math.max(1, Math.min(247, parseInt(e.target.value) || 10)))}
+                disabled={scanning}
+                className="h-7 w-16 rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+              />
+              <button
+                onClick={scanning ? () => { scanAbortRef.current = true; } : handleScan}
+                disabled={!connected}
+                className={cn(
+                  "wb-primary-btn px-3",
+                  scanning
+                    ? "bg-red-500 hover:bg-red-600"
+                    : "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+                )}
+              >
+                {scanning ? (
+                  <><X className="w-3.5 h-3.5" />{t('serial.modbus.stopScan', '停止')}</>
+                ) : (
+                  <><ArrowRight className="w-3.5 h-3.5" />{t('serial.modbus.startScan', '扫描')}</>
+                )}
+              </button>
+              {scanResults.length > 0 && (
+                <span className="text-[var(--fs-xxs)] text-text-disabled ml-auto">
+                  {scanResults.filter((r) => r.ok).length} / {scanResults.length} {t('serial.modbus.found', '响应')}
+                </span>
+              )}
+            </div>
+            {scanResults.length > 0 && (
+              <div className="max-h-[160px] overflow-y-auto space-y-0.5">
+                {scanResults.map((r) => (
+                  <div
+                    key={r.unitId}
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-1 rounded-[4px] text-[var(--fs-xxs)] font-mono",
+                      r.ok ? "bg-emerald-500/5 text-emerald-600" : "text-text-disabled"
+                    )}
+                  >
+                    {r.ok
+                      ? <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                      : <span className="w-3 h-3 shrink-0" />}
+                    <span className="font-semibold">UID {r.unitId}</span>
+                    <span className="text-text-disabled">{r.ms}ms</span>
+                    {r.ok && (
+                      <button
+                        onClick={() => setUnitId(r.unitId)}
+                        className="ml-auto text-accent hover:underline text-[var(--fs-3xs)]"
+                      >
+                        {t('serial.modbus.useThisUnit', '使用')}
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {scanning && (
+                  <div className="flex items-center gap-2 px-2 py-1 text-[var(--fs-xxs)] text-text-disabled animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                    {t('serial.modbus.scanning', '扫描中...')} UID {(scanResults[scanResults.length - 1]?.unitId ?? scanFrom) + 1}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 功能码执行区 */}
       <ModbusFunctionPanel

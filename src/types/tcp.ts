@@ -4,6 +4,15 @@
 
 export type SocketMode = 'tcp-client' | 'tcp-server' | 'udp-client' | 'udp-server' | 'serial' | 'modbus' | 'modbus-slave';
 export type DataFormat = 'ascii' | 'hex' | 'base64';
+
+export type LineEnding = 'none' | 'lf' | 'cr' | 'crlf';
+
+export const LINE_ENDING_MAP: Record<LineEnding, string> = {
+  none: '',
+  lf: '\n',
+  cr: '\r',
+  crlf: '\r\n',
+};
 export type DataEncoding = 'utf8' | 'hex' | 'base64';
 
 // ── 消息 ──

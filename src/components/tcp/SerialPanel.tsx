@@ -10,6 +10,8 @@ import * as svc from "@/services/serialService";
 import { asciiToHex } from "@/services/tcpService";
 import { useActivityLogStore } from "@/stores/activityLogStore";
 import type { TcpMessage, DataFormat, ConnectionStats, SendHistoryItem, QuickCommand } from "@/types/tcp";
+import { LineEnding, LINE_ENDING_MAP } from "@/types/tcp";
+import { registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
 import type {
   SerialPortInfo, SerialPortConfig, SerialEvent, RecentSerialConfig, SerialSignals,
 } from "@/types/serial";
@@ -17,14 +19,6 @@ import {
   BAUD_RATES, DATA_BITS_OPTIONS, STOP_BITS_OPTIONS, DEFAULT_SERIAL_CONFIG,
 } from "@/types/serial";
 
-// ── 行结尾类型 ──
-type LineEnding = 'none' | 'lf' | 'cr' | 'crlf';
-const LINE_ENDING_MAP: Record<LineEnding, string> = {
-  none: '',
-  lf: '\n',
-  cr: '\r',
-  crlf: '\r\n',
-};
 
 // ═══════════════════════════════════════════
 //  最近串口配置 — localStorage
@@ -55,7 +49,6 @@ function useSerialState() {
   const [displayFormat, setDisplayFormat] = useState<DataFormat>("ascii");
   const [sendHistory, setSendHistory] = useState<SendHistoryItem[]>([]);
   const [quickCommands, setQuickCommands] = useState<QuickCommand[]>([]);
-  const [appendNewline, setAppendNewline] = useState(false);
   const [lineEnding, setLineEnding] = useState<LineEnding>('none');
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [timerInterval, setTimerInterval] = useState(1000);
@@ -115,7 +108,7 @@ function useSerialState() {
     messages, setMessages, message, setMessage,
     sendFormat, setSendFormat, displayFormat, setDisplayFormat,
     sendHistory, setSendHistory, quickCommands, setQuickCommands,
-    appendNewline, setAppendNewline, lineEnding, setLineEnding,
+    lineEnding, setLineEnding,
     timerEnabled, setTimerEnabled,
     timerInterval, setTimerInterval, stats, setStats,
     addMessage, addToHistory, systemMessage, resetStats, saveQuickCommand,
@@ -400,6 +393,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
             setRts(false);
             setSignals({ cts: false, dsr: false, ri: false, cd: false });
             state.systemMessage(`[OK] ${t('serial.system.opened', '串口已打开')} ${portName}`);
+            registerConnection(sessionKey, portId, `Serial ${portName}`);
             break;
           case "data":
             state.addMessage({
@@ -413,12 +407,14 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
             setOpening(false);
             setConnectedSince(undefined);
             state.systemMessage(`[CLOSED] ${t('serial.system.closed', '串口已关闭')}`);
+            unregisterConnection(sessionKey, portId);
             break;
           case "error":
             setOpen(false);
             setOpening(false);
             setConnectedSince(undefined);
             state.systemMessage(`[WARN] ${t('serial.system.error', '错误')}: ${event.data}`);
+            unregisterConnection(sessionKey, portId);
             break;
           case "signals":
             if (event.signals) {
@@ -434,6 +430,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
     return () => {
       disposed = true;
       unlisten?.();
+      unregisterConnection(sessionKey, portId);
       svc.serialClose(portId).catch(() => {});
     };
   }, [portId, state.addMessage, state.systemMessage, portName, t]);
@@ -449,6 +446,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
   // ── 打开 / 关闭 ──
   const handleToggle = async () => {
     if (open) {
+      unregisterConnection(sessionKey, portId);
       await svc.serialClose(portId);
       setOpen(false);
       setConnectedSince(undefined);
@@ -649,8 +647,8 @@ export function SerialPanel({ sessionKey }: { sessionKey: string }) {
           timerEnabled={state.timerEnabled} timerInterval={state.timerInterval}
           onTimerToggle={() => state.setTimerEnabled(!state.timerEnabled)}
           onTimerIntervalChange={(v) => state.setTimerInterval(v)}
-          appendNewline={state.appendNewline}
-          onAppendNewlineChange={state.setAppendNewline}
+          lineEnding={state.lineEnding}
+          onLineEndingChange={state.setLineEnding}
           embedded
         />
       </div>
