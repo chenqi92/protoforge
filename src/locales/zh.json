@@ -1280,7 +1280,9 @@
       "gb28181": "GB28181",
       "gb28181Hint": "国标视频监控 — 公安/交通联网",
       "srt": "SRT",
-      "srtHint": "安全可靠传输 — 广播级远程传输"
+      "srtHint": "安全可靠传输 — 广播级远程传输",
+      "onvif": "ONVIF",
+      "onvifHint": "设备发现与管理 — PTZ/预置位/配置"
     },
     "player": {
       "idle": "等待播放...",
@@ -1362,6 +1364,19 @@
       "passphrase": "加密口令 (可选)",
       "encryptionHint": "AES-128/192/256 加密，口令长度 10-79 字符",
       "stats": "连接统计"
+    },
+    "onvif": {
+      "discover": "设备发现",
+      "discovering": "发现中...",
+      "discoverBtn": "WS-Discovery 扫描",
+      "connection": "设备连接",
+      "queryDevice": "查询设备",
+      "deviceInfo": "设备信息",
+      "profiles": "媒体配置",
+      "presets": "预置位",
+      "presetName": "预置位名称",
+      "save": "保存",
+      "goto": "转到"
     }
   }
 }

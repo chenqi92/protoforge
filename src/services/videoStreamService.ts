@@ -57,6 +57,44 @@ export async function gb28181Ptz(sessionId: string, command: string, speed: numb
   return invoke('vs_gb_ptz', { sessionId, command, speed });
 }
 
+// ── ONVIF 专用 ──
+
+export async function onvifDiscover(): Promise<object[]> {
+  return invoke('vs_onvif_discover');
+}
+
+export async function onvifGetDeviceInfo(sessionId: string, config: object): Promise<object> {
+  return invoke('vs_onvif_device_info', { sessionId, config: JSON.stringify(config) });
+}
+
+export async function onvifGetProfiles(sessionId: string): Promise<object[]> {
+  return invoke('vs_onvif_get_profiles', { sessionId });
+}
+
+export async function onvifGetStreamUri(sessionId: string, profileToken: string): Promise<string> {
+  return invoke('vs_onvif_get_stream_uri', { sessionId, profileToken });
+}
+
+export async function onvifPtzMove(sessionId: string, direction: string, speed: number): Promise<void> {
+  return invoke('vs_onvif_ptz_move', { sessionId, direction, speed });
+}
+
+export async function onvifPtzStop(sessionId: string): Promise<void> {
+  return invoke('vs_onvif_ptz_stop', { sessionId });
+}
+
+export async function onvifGetPresets(sessionId: string): Promise<object[]> {
+  return invoke('vs_onvif_get_presets', { sessionId });
+}
+
+export async function onvifGotoPreset(sessionId: string, presetToken: string): Promise<void> {
+  return invoke('vs_onvif_goto_preset', { sessionId, presetToken });
+}
+
+export async function onvifSetPreset(sessionId: string, presetName: string): Promise<string> {
+  return invoke('vs_onvif_set_preset', { sessionId, presetName });
+}
+
 // ── 事件监听 ──
 
 export async function onStreamEvent(cb: (e: StreamEvent) => void): Promise<UnlistenFn> {

@@ -321,6 +321,16 @@ pub fn run() {
             commands::vs_gb_register,
             commands::vs_gb_query_catalog,
             commands::vs_gb_ptz,
+            // ONVIF
+            commands::vs_onvif_discover,
+            commands::vs_onvif_device_info,
+            commands::vs_onvif_get_profiles,
+            commands::vs_onvif_get_stream_uri,
+            commands::vs_onvif_ptz_move,
+            commands::vs_onvif_ptz_stop,
+            commands::vs_onvif_get_presets,
+            commands::vs_onvif_goto_preset,
+            commands::vs_onvif_set_preset,
             // macOS Rounded Corners
             plugins::mac_rounded_corners::enable_rounded_corners,
         ])

@@ -1,0 +1,272 @@
+// ONVIF 设备管理协议面板
+import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
+import { Search, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ZoomIn, ZoomOut, RotateCcw, Star, Plus, Play } from "lucide-react";
+import * as vsSvc from "@/services/videoStreamService";
+import type { OnvifDeviceInfo, OnvifProfile, OnvifPreset } from "@/types/videostream";
+
+interface OnvifPanelProps {
+  sessionKey: string;
+  connected: boolean;
+  streamUrl: string;
+  onStreamUrlChange: (url: string) => void;
+}
+
+export function OnvifPanel({ sessionKey, connected, streamUrl: _streamUrl, onStreamUrlChange }: OnvifPanelProps) {
+  const { t } = useTranslation();
+  const [host, setHost] = useState('192.168.1.100');
+  const [port, setPort] = useState(80);
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('');
+  const [deviceInfo, setDeviceInfo] = useState<OnvifDeviceInfo | null>(null);
+  const [profiles, setProfiles] = useState<OnvifProfile[]>([]);
+  const [presets, setPresets] = useState<OnvifPreset[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<string>('');
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveredDevices, setDiscoveredDevices] = useState<{ host: string; port: number; name?: string }[]>([]);
+  const [ptzSpeed, setPtzSpeed] = useState(5);
+  const [newPresetName, setNewPresetName] = useState('');
+  const [showPresetInput, setShowPresetInput] = useState(false);
+
+  const handleDiscover = useCallback(async () => {
+    setDiscovering(true);
+    try {
+      const devices = await vsSvc.onvifDiscover();
+      setDiscoveredDevices(devices as typeof discoveredDevices);
+    } catch { /* */ }
+    setDiscovering(false);
+  }, []);
+
+  const handleGetDeviceInfo = useCallback(async () => {
+    try {
+      const info = await vsSvc.onvifGetDeviceInfo(sessionKey, { host, port, username, password });
+      setDeviceInfo(info as OnvifDeviceInfo);
+      const profs = await vsSvc.onvifGetProfiles(sessionKey);
+      setProfiles(profs as OnvifProfile[]);
+      if (profs.length > 0) {
+        const firstToken = (profs[0] as OnvifProfile).token;
+        setSelectedProfile(firstToken);
+        const uri = await vsSvc.onvifGetStreamUri(sessionKey, firstToken);
+        onStreamUrlChange(uri);
+      }
+    } catch { /* */ }
+  }, [sessionKey, host, port, username, password, onStreamUrlChange]);
+
+  const handleSelectProfile = useCallback(async (token: string) => {
+    setSelectedProfile(token);
+    try {
+      const uri = await vsSvc.onvifGetStreamUri(sessionKey, token);
+      onStreamUrlChange(uri);
+    } catch { /* */ }
+  }, [sessionKey, onStreamUrlChange]);
+
+  const handlePtz = useCallback(async (direction: string) => {
+    try { await vsSvc.onvifPtzMove(sessionKey, direction, ptzSpeed); } catch { /* */ }
+  }, [sessionKey, ptzSpeed]);
+
+  const handlePtzStop = useCallback(async () => {
+    try { await vsSvc.onvifPtzStop(sessionKey); } catch { /* */ }
+  }, [sessionKey]);
+
+  const handleLoadPresets = useCallback(async () => {
+    try {
+      const p = await vsSvc.onvifGetPresets(sessionKey);
+      setPresets(p as OnvifPreset[]);
+    } catch { /* */ }
+  }, [sessionKey]);
+
+  const handleGotoPreset = useCallback(async (token: string) => {
+    try { await vsSvc.onvifGotoPreset(sessionKey, token); } catch { /* */ }
+  }, [sessionKey]);
+
+  const handleSetPreset = useCallback(async () => {
+    if (!newPresetName.trim()) return;
+    try {
+      await vsSvc.onvifSetPreset(sessionKey, newPresetName.trim());
+      setNewPresetName('');
+      setShowPresetInput(false);
+      handleLoadPresets();
+    } catch { /* */ }
+  }, [sessionKey, newPresetName, handleLoadPresets]);
+
+  return (
+    <div className="space-y-4">
+      {/* Device Discovery */}
+      <div className="space-y-1.5">
+        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          {t('videostream.onvif.discover', '设备发现')}
+        </label>
+        <button onClick={handleDiscover} disabled={discovering}
+          className={cn("wb-primary-btn w-full px-3 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700", discovering && "opacity-70 cursor-wait")}
+        >
+          <Search className="w-3.5 h-3.5" />
+          {discovering ? t('videostream.onvif.discovering', '发现中...') : t('videostream.onvif.discoverBtn', 'WS-Discovery 扫描')}
+        </button>
+        {discoveredDevices.length > 0 && (
+          <div className="max-h-[80px] overflow-y-auto space-y-0.5 rounded-[6px] border border-border-default/60 bg-bg-secondary/30 p-1">
+            {discoveredDevices.map((d, i) => (
+              <button key={i} onClick={() => { setHost(d.host); setPort(d.port); }}
+                className="w-full text-left flex items-center gap-2 px-2 py-1 rounded-[4px] hover:bg-bg-hover/50 text-[var(--fs-xxs)] font-mono"
+              >
+                <span className="text-accent">{d.host}:{d.port}</span>
+                {d.name && <span className="text-text-disabled truncate">{d.name}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Connection Config */}
+      <div className="space-y-1.5">
+        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          {t('videostream.onvif.connection', '设备连接')}
+        </label>
+        <div className="grid grid-cols-3 gap-1.5">
+          <div className="col-span-2">
+            <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="192.168.1.100" disabled={connected}
+              className="h-7 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+            />
+          </div>
+          <input type="number" value={port} onChange={(e) => setPort(Number(e.target.value))} disabled={connected}
+            className="h-7 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('videostream.rtsp.username', '用户名')} disabled={connected}
+            className="h-7 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+          />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('videostream.rtsp.password', '密码')} disabled={connected}
+            className="h-7 w-full rounded-[6px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent disabled:opacity-50"
+          />
+        </div>
+        <button onClick={handleGetDeviceInfo}
+          className="wb-primary-btn w-full px-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+        >
+          {t('videostream.onvif.queryDevice', '查询设备')}
+        </button>
+      </div>
+
+      {/* Device Info */}
+      {deviceInfo && (
+        <div className="space-y-1.5">
+          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            {t('videostream.onvif.deviceInfo', '设备信息')}
+          </label>
+          <div className="rounded-[6px] border border-border-default/60 bg-bg-secondary/30 p-2 text-[var(--fs-xxs)] font-mono space-y-0.5">
+            <div className="flex justify-between"><span className="text-text-disabled">Manufacturer</span><span className="text-text-primary">{deviceInfo.manufacturer}</span></div>
+            <div className="flex justify-between"><span className="text-text-disabled">Model</span><span className="text-text-primary">{deviceInfo.model}</span></div>
+            <div className="flex justify-between"><span className="text-text-disabled">Firmware</span><span className="text-text-primary">{deviceInfo.firmwareVersion}</span></div>
+            <div className="flex justify-between"><span className="text-text-disabled">Serial</span><span className="text-text-primary truncate ml-4">{deviceInfo.serialNumber}</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* Profiles */}
+      {profiles.length > 0 && (
+        <div className="space-y-1.5">
+          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            {t('videostream.onvif.profiles', '媒体配置')} ({profiles.length})
+          </label>
+          <div className="space-y-0.5">
+            {profiles.map((p) => (
+              <button key={p.token} onClick={() => handleSelectProfile(p.token)}
+                className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-left transition-colors text-[var(--fs-xxs)]",
+                  selectedProfile === p.token ? "bg-accent/10 border border-accent/30" : "bg-bg-secondary/30 hover:bg-bg-hover/50"
+                )}
+              >
+                <Play className="w-3 h-3 text-accent shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-text-primary">{p.name}</div>
+                  <div className="text-text-disabled font-mono">{p.videoEncoding} {p.resolution} {p.fps}fps</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* PTZ Control */}
+      {deviceInfo && (
+        <div className="space-y-1.5">
+          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            PTZ {t('videostream.gb.control', '控制')}
+          </label>
+          <div className="flex flex-col items-center gap-1">
+            <button onMouseDown={() => handlePtz('up')} onMouseUp={handlePtzStop}
+              className="h-8 w-8 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+            ><ArrowUp className="w-4 h-4" /></button>
+            <div className="flex gap-1">
+              <button onMouseDown={() => handlePtz('left')} onMouseUp={handlePtzStop}
+                className="h-8 w-8 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              ><ArrowLeft className="w-4 h-4" /></button>
+              <button onClick={handlePtzStop}
+                className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors"
+              ><RotateCcw className="w-3.5 h-3.5" /></button>
+              <button onMouseDown={() => handlePtz('right')} onMouseUp={handlePtzStop}
+                className="h-8 w-8 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              ><ArrowRight className="w-4 h-4" /></button>
+            </div>
+            <button onMouseDown={() => handlePtz('down')} onMouseUp={handlePtzStop}
+              className="h-8 w-8 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+            ><ArrowDown className="w-4 h-4" /></button>
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <button onMouseDown={() => handlePtz('zoom_in')} onMouseUp={handlePtzStop}
+              className="h-7 w-7 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+            ><ZoomIn className="w-3.5 h-3.5" /></button>
+            <button onMouseDown={() => handlePtz('zoom_out')} onMouseUp={handlePtzStop}
+              className="h-7 w-7 flex items-center justify-center rounded-[6px] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+            ><ZoomOut className="w-3.5 h-3.5" /></button>
+            <span className="text-[var(--fs-3xs)] text-text-disabled ml-1">{t('videostream.gb.speed', '速度')}</span>
+            <input type="range" min={1} max={15} value={ptzSpeed} onChange={(e) => setPtzSpeed(Number(e.target.value))} className="w-16 h-1 accent-accent" />
+            <span className="text-[var(--fs-3xs)] text-text-disabled w-4">{ptzSpeed}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Presets */}
+      {deviceInfo && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+              {t('videostream.onvif.presets', '预置位')} ({presets.length})
+            </label>
+            <div className="flex items-center gap-1">
+              <button onClick={handleLoadPresets} className="text-[var(--fs-3xs)] text-accent hover:underline">
+                {t('videostream.gb.query', '加载')}
+              </button>
+              <button onClick={() => setShowPresetInput(v => !v)}
+                className="h-5 w-5 flex items-center justify-center rounded text-text-disabled hover:text-accent"
+              ><Plus className="w-3 h-3" /></button>
+            </div>
+          </div>
+          {showPresetInput && (
+            <div className="flex gap-1">
+              <input value={newPresetName} onChange={(e) => setNewPresetName(e.target.value)} placeholder={t('videostream.onvif.presetName', '预置位名称')}
+                onKeyDown={(e) => e.key === 'Enter' && handleSetPreset()}
+                className="h-6 flex-1 rounded-[4px] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xxs)] text-text-primary outline-none focus:border-accent"
+              />
+              <button onClick={handleSetPreset} className="h-6 px-2 rounded-[4px] bg-accent/10 text-accent text-[var(--fs-xxs)] hover:bg-accent/20">
+                {t('videostream.onvif.save', '保存')}
+              </button>
+            </div>
+          )}
+          {presets.length > 0 && (
+            <div className="max-h-[100px] overflow-y-auto space-y-0.5 rounded-[6px] border border-border-default/60 bg-bg-secondary/30 p-1">
+              {presets.map((p) => (
+                <div key={p.token} className="flex items-center gap-2 px-2 py-1 rounded-[4px] hover:bg-bg-hover/50 text-[var(--fs-xxs)]">
+                  <Star className="w-3 h-3 text-amber-500 shrink-0" />
+                  <span className="text-text-primary flex-1 truncate">{p.name || `Preset ${p.token}`}</span>
+                  <button onClick={() => handleGotoPreset(p.token)} className="text-accent hover:underline shrink-0">
+                    {t('videostream.onvif.goto', '转到')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

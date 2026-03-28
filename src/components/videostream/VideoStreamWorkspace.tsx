@@ -2,7 +2,7 @@
 // 布局：Tabs+URL 固定顶部 → 可拖拽分栏（上：视频+配置 | 下：协议报文）
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
-import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, MonitorPlay, Play, Pause, Square, Volume2, GripHorizontal } from "lucide-react";
+import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, Play, Pause, Square, Volume2, GripHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { VideoProtocol, StreamInfo, StreamStats, ProtocolMessage } from "@/types/videostream";
@@ -14,6 +14,7 @@ import { HlsPanel } from "./HlsPanel";
 import { WebRtcPanel } from "./WebRtcPanel";
 import { Gb28181Panel } from "./Gb28181Panel";
 import { SrtPanel } from "./SrtPanel";
+import { OnvifPanel } from "./OnvifPanel";
 
 const MODES: { value: VideoProtocol; labelKey: string; hintKey: string; icon: React.ReactNode }[] = [
   { value: "rtsp",     labelKey: "videostream.modes.rtsp",    hintKey: "videostream.modes.rtspHint",    icon: <Camera className="w-3.5 h-3.5" /> },
@@ -23,11 +24,12 @@ const MODES: { value: VideoProtocol; labelKey: string; hintKey: string; icon: Re
   { value: "webrtc",   labelKey: "videostream.modes.webrtc",  hintKey: "videostream.modes.webrtcHint",  icon: <Webcam className="w-3.5 h-3.5" /> },
   { value: "gb28181",  labelKey: "videostream.modes.gb28181", hintKey: "videostream.modes.gb28181Hint", icon: <Shield className="w-3.5 h-3.5" /> },
   { value: "srt",      labelKey: "videostream.modes.srt",     hintKey: "videostream.modes.srtHint",     icon: <Zap className="w-3.5 h-3.5" /> },
+  { value: "onvif",    labelKey: "videostream.modes.onvif",   hintKey: "videostream.modes.onvifHint",   icon: <Aperture className="w-3.5 h-3.5" /> },
 ];
 
 const MODE_COLORS: Record<VideoProtocol, string> = {
   rtsp: 'bg-blue-500', rtmp: 'bg-rose-500', 'http-flv': 'bg-orange-500',
-  hls: 'bg-emerald-500', webrtc: 'bg-indigo-500', gb28181: 'bg-cyan-600', srt: 'bg-violet-500',
+  hls: 'bg-emerald-500', webrtc: 'bg-indigo-500', gb28181: 'bg-cyan-600', srt: 'bg-violet-500', onvif: 'bg-teal-500',
 };
 
 export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
@@ -96,6 +98,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
       case 'webrtc': return <WebRtcPanel sessionKey={sessionKey} connected={connected} />;
       case 'gb28181': return <Gb28181Panel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} onStreamUrlChange={setStreamUrl} />;
       case 'srt': return <SrtPanel sessionKey={sessionKey} connected={connected} />;
+      case 'onvif': return <OnvifPanel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} onStreamUrlChange={setStreamUrl} />;
     }
   };
 
@@ -116,7 +119,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
         <div className="wb-tool-strip-actions">
           <span className="wb-tool-chip">
             {mode === 'rtsp' ? 'RTSP/RTP' : mode === 'rtmp' ? 'RTMP/FLV' : mode === 'http-flv' ? 'HTTP-FLV'
-              : mode === 'hls' ? 'HLS/TS' : mode === 'webrtc' ? 'WebRTC/ICE' : mode === 'gb28181' ? 'GB/T 28181' : 'SRT'}
+              : mode === 'hls' ? 'HLS/TS' : mode === 'webrtc' ? 'WebRTC/ICE' : mode === 'gb28181' ? 'GB/T 28181' : mode === 'onvif' ? 'ONVIF/SOAP' : 'SRT'}
           </span>
         </div>
       </div>

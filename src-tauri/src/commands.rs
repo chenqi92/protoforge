@@ -2024,3 +2024,69 @@ pub async fn vs_gb_ptz(
     log::info!("GB28181 PTZ: session={} cmd={} speed={}", session_id, command, speed);
     Ok(())
 }
+
+// ── ONVIF Commands ──
+
+#[tauri::command]
+pub async fn vs_onvif_discover() -> Result<Vec<serde_json::Value>, String> {
+    log::info!("ONVIF WS-Discovery scan");
+    // Placeholder — will integrate onvif-rs later
+    Ok(vec![])
+}
+
+#[tauri::command]
+pub async fn vs_onvif_device_info(
+    session_id: String,
+    config: String,
+) -> Result<serde_json::Value, String> {
+    log::info!("ONVIF get device info: session={} config={}", session_id, config);
+    Ok(serde_json::json!({
+        "manufacturer": "Unknown",
+        "model": "Unknown",
+        "firmwareVersion": "1.0.0",
+        "serialNumber": "000000",
+        "hardwareId": "HW-001"
+    }))
+}
+
+#[tauri::command]
+pub async fn vs_onvif_get_profiles(session_id: String) -> Result<Vec<serde_json::Value>, String> {
+    log::info!("ONVIF get profiles: session={}", session_id);
+    Ok(vec![])
+}
+
+#[tauri::command]
+pub async fn vs_onvif_get_stream_uri(session_id: String, profile_token: String) -> Result<String, String> {
+    log::info!("ONVIF get stream URI: session={} profile={}", session_id, profile_token);
+    Ok(String::new())
+}
+
+#[tauri::command]
+pub async fn vs_onvif_ptz_move(session_id: String, direction: String, speed: f64) -> Result<(), String> {
+    log::info!("ONVIF PTZ move: session={} dir={} speed={}", session_id, direction, speed);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_onvif_ptz_stop(session_id: String) -> Result<(), String> {
+    log::info!("ONVIF PTZ stop: session={}", session_id);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_onvif_get_presets(session_id: String) -> Result<Vec<serde_json::Value>, String> {
+    log::info!("ONVIF get presets: session={}", session_id);
+    Ok(vec![])
+}
+
+#[tauri::command]
+pub async fn vs_onvif_goto_preset(session_id: String, preset_token: String) -> Result<(), String> {
+    log::info!("ONVIF goto preset: session={} preset={}", session_id, preset_token);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_onvif_set_preset(session_id: String, preset_name: String) -> Result<String, String> {
+    log::info!("ONVIF set preset: session={} name={}", session_id, preset_name);
+    Ok("preset-1".to_string())
+}

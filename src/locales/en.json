@@ -1264,7 +1264,9 @@
       "gb28181": "GB28181",
       "gb28181Hint": "National standard surveillance protocol",
       "srt": "SRT",
-      "srtHint": "Secure Reliable Transport — Broadcast"
+      "srtHint": "Secure Reliable Transport — Broadcast",
+      "onvif": "ONVIF",
+      "onvifHint": "Device discovery & management — PTZ/Presets/Config"
     },
     "player": {
       "idle": "Waiting for playback...",
@@ -1346,6 +1348,19 @@
       "passphrase": "Passphrase (optional)",
       "encryptionHint": "AES-128/192/256 encryption, passphrase 10-79 chars",
       "stats": "Connection Stats"
+    },
+    "onvif": {
+      "discover": "Device Discovery",
+      "discovering": "Discovering...",
+      "discoverBtn": "WS-Discovery Scan",
+      "connection": "Device Connection",
+      "queryDevice": "Query Device",
+      "deviceInfo": "Device Info",
+      "profiles": "Media Profiles",
+      "presets": "Presets",
+      "presetName": "Preset Name",
+      "save": "Save",
+      "goto": "Go To"
     }
   }
 }

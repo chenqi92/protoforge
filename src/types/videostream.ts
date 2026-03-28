@@ -1,6 +1,35 @@
 // 视频流协议调试 — 类型定义
 
-export type VideoProtocol = 'rtsp' | 'rtmp' | 'http-flv' | 'hls' | 'webrtc' | 'gb28181' | 'srt';
+export type VideoProtocol = 'rtsp' | 'rtmp' | 'http-flv' | 'hls' | 'webrtc' | 'gb28181' | 'srt' | 'onvif';
+
+export interface OnvifConfig {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+}
+
+export interface OnvifDeviceInfo {
+  manufacturer: string;
+  model: string;
+  firmwareVersion: string;
+  serialNumber: string;
+  hardwareId: string;
+}
+
+export interface OnvifProfile {
+  token: string;
+  name: string;
+  videoEncoding: string;
+  resolution: string;
+  fps: number;
+  streamUri: string;
+}
+
+export interface OnvifPreset {
+  token: string;
+  name: string;
+}
 
 // ── 流信息 ──
 
