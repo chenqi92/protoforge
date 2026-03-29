@@ -7,42 +7,63 @@ use tauri::{AppHandle, Emitter};
 
 use super::state::{OnvifSession, ProtocolMessage};
 
+/// Detect the primary LAN IPv4 address by connecting to an external target.
+/// This avoids picking VPN/proxy interfaces (e.g. Surge on macOS).
+fn detect_lan_ip() -> Option<std::net::Ipv4Addr> {
+    let sock = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    // Connect to a public IP (doesn't actually send data) to let the OS pick the right interface
+    sock.connect("8.8.8.8:80").ok()?;
+    match sock.local_addr().ok()?.ip() {
+        std::net::IpAddr::V4(ip) => Some(ip),
+        _ => None,
+    }
+}
+
 // ── WS-Security UsernameToken 认证 ──
+// ONVIF Profile S requires WS-UsernameToken with PasswordDigest.
+// Formula: PasswordDigest = Base64(SHA-1(nonce_raw + created_utf8 + password_utf8))
 
 fn build_wsse_header(username: &str, password: &str) -> String {
-    let nonce_bytes: [u8; 16] = rand_nonce();
-    let nonce_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, nonce_bytes);
+    use base64::Engine;
+
+    let nonce_bytes: [u8; 20] = rand_nonce();
+    let nonce_b64 = base64::engine::general_purpose::STANDARD.encode(nonce_bytes);
     let created = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
 
-    // PasswordDigest = Base64(SHA1(nonce + created + password))
+    // PasswordDigest = Base64(SHA1(nonce_raw + created + password))
     let mut hasher = Sha1::new();
-    hasher.update(&nonce_bytes);
+    hasher.update(nonce_bytes);
     hasher.update(created.as_bytes());
     hasher.update(password.as_bytes());
     let digest = hasher.finalize();
-    let digest_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, digest);
+    let digest_b64 = base64::engine::general_purpose::STANDARD.encode(digest);
 
     format!(
-        r#"<Security xmlns="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
-      <UsernameToken>
-        <Username>{}</Username>
-        <Password Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest">{}</Password>
-        <Nonce EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary">{}</Nonce>
-        <Created xmlns="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">{}</Created>
-      </UsernameToken>
-    </Security>"#,
+        r#"<wsse:Security xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+      <wsse:UsernameToken>
+        <wsse:Username>{}</wsse:Username>
+        <wsse:Password Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest">{}</wsse:Password>
+        <wsse:Nonce EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary">{}</wsse:Nonce>
+        <wsu:Created>{}</wsu:Created>
+      </wsse:UsernameToken>
+    </wsse:Security>"#,
         username, digest_b64, nonce_b64, created
     )
 }
 
-fn rand_nonce() -> [u8; 16] {
-    let mut buf = [0u8; 16];
+fn rand_nonce() -> [u8; 20] {
+    let mut buf = [0u8; 20];
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default();
+    // Mix timestamp nanos with process id for better uniqueness
     let seed = ts.as_nanos();
+    let pid = std::process::id() as u128;
+    let mixed = seed ^ (pid << 32);
     for (i, b) in buf.iter_mut().enumerate() {
-        *b = ((seed >> (i * 4)) & 0xFF) as u8;
+        // Use different bit ranges and multiply by a prime for spread
+        let val = (mixed.wrapping_mul(6364136223846793005).wrapping_add(i as u128 * 1442695040888963407)) >> (i * 3);
+        *b = (val & 0xFF) as u8;
     }
     buf
 }
@@ -72,10 +93,9 @@ async fn soap_request(
     auth: Option<(&str, &str)>,
     app: &AppHandle,
 ) -> Result<String, String> {
-    let header = if let Some((user, pass)) = auth {
-        build_wsse_header(user, pass)
-    } else {
-        String::new()
+    let header = match auth {
+        Some((user, pass)) if !user.is_empty() || !pass.is_empty() => build_wsse_header(user, pass),
+        _ => String::new(),
     };
     let envelope = build_soap_envelope(&header, body);
 
@@ -122,22 +142,36 @@ async fn soap_request(
     let _ = app.emit("videostream-protocol-msg", &recv_msg);
 
     if !status.is_success() {
-        return Err(format!("SOAP error HTTP {}: {}", status, extract_soap_fault(&body_text)));
+        let fault = extract_soap_fault(&body_text);
+        let friendly = if fault.to_lowercase().contains("authority") || fault.to_lowercase().contains("auth") {
+            format!("认证失败 ({}): 请检查用户名和密码是否正确", fault)
+        } else if fault.to_lowercase().contains("not authorized") {
+            format!("未授权: 该操作需要认证，请填写正确的凭证")
+        } else if fault.to_lowercase().contains("action not supported") {
+            format!("不支持的操作: 设备不支持该功能 ({})", fault)
+        } else {
+            format!("SOAP 错误 (HTTP {}): {}", status.as_u16(), fault)
+        };
+        return Err(friendly);
     }
 
     Ok(body_text)
 }
 
 fn extract_soap_fault(xml: &str) -> String {
-    // Simple extraction of fault string
-    if let Some(start) = xml.find("<faultstring>") {
-        if let Some(end) = xml[start..].find("</faultstring>") {
-            return xml[start + 13..start + end].to_string();
-        }
-    }
-    if let Some(start) = xml.find("<SOAP-ENV:Reason>") {
-        if let Some(end) = xml[start..].find("</SOAP-ENV:Reason>") {
-            return xml[start + 17..start + end].to_string();
+    // Try multiple fault text patterns used by different ONVIF devices
+    for tag in &["faultstring", "Text", "Reason"] {
+        if let Some(text) = extract_tag_content(xml, tag) {
+            let clean = text.trim().to_string();
+            if !clean.is_empty() {
+                // Recursively extract inner text if it's still XML
+                if clean.contains('<') {
+                    if let Some(inner) = extract_tag_content(&clean, "Text") {
+                        return inner.trim().to_string();
+                    }
+                }
+                return clean;
+            }
         }
     }
     "Unknown SOAP fault".to_string()
@@ -146,51 +180,111 @@ fn extract_soap_fault(xml: &str) -> String {
 // ── XML 简易提取工具 ──
 
 fn extract_tag_content(xml: &str, tag: &str) -> Option<String> {
-    // Try with namespace prefix patterns: <ns:Tag>, <tds:Tag>, etc.
-    // Also try plain <Tag>
-    for prefix in &["", "tds:", "trt:", "tt:", "tptz:", "d:", "wsdd:", "wsa:"] {
-        let open = format!("<{}{}", prefix, tag);
-        if let Some(start_pos) = xml.find(&open) {
-            let rest = &xml[start_pos..];
-            // Find the > that closes the opening tag
-            if let Some(gt) = rest.find('>') {
-                // Check for self-closing tag
-                if rest.as_bytes().get(gt - 1) == Some(&b'/') {
-                    return Some(String::new());
-                }
-                let content_start = gt + 1;
-                let close_tag = format!("</{}{}>", prefix, tag);
-                if let Some(close_pos) = rest.find(&close_tag) {
-                    return Some(rest[content_start..close_pos].to_string());
-                }
-            }
+    // Flexible search: find any <...tag or <prefix:tag pattern
+    // This handles dynamic namespace prefixes like ns0:, ns1:, tds:, etc.
+    let mut search_pos = 0;
+    while search_pos < xml.len() {
+        // Find the tag name anywhere (with or without prefix)
+        let remaining = &xml[search_pos..];
+        // Look for ":Tag" or "<Tag" patterns
+        let found_pos = remaining.find(&format!(":{}", tag))
+            .or_else(|| remaining.find(&format!("<{}", tag)));
+
+        let abs_pos = match found_pos {
+            Some(p) => search_pos + p,
+            None => return None,
+        };
+
+        // Walk back to find the '<'
+        let lt_pos = xml[..abs_pos].rfind('<')?;
+        let rest = &xml[lt_pos..];
+
+        // Verify this is an opening tag (not a closing tag)
+        if rest.starts_with("</") {
+            search_pos = abs_pos + 1;
+            continue;
         }
+
+        // Extract the full tag name including prefix (e.g. "trt:Profiles")
+        let tag_start = &rest[1..]; // skip '<'
+        let tag_end = tag_start.find(|c: char| c == ' ' || c == '>' || c == '/')?;
+        let full_tag = &tag_start[..tag_end];
+
+        // Verify the tag name ends with our target (handles ns0:Tag, trt:Tag, etc.)
+        if !full_tag.ends_with(tag) {
+            search_pos = abs_pos + 1;
+            continue;
+        }
+
+        // Find the closing '>' of the opening tag
+        let gt = rest.find('>')?;
+        // Check for self-closing
+        if rest.as_bytes().get(gt - 1) == Some(&b'/') {
+            return Some(String::new());
+        }
+
+        let content_start = lt_pos + gt + 1;
+        // Build closing tag
+        let close_tag = format!("</{}>", full_tag);
+        if let Some(close_pos) = xml[content_start..].find(&close_tag) {
+            return Some(xml[content_start..content_start + close_pos].to_string());
+        }
+
+        search_pos = content_start;
     }
     None
 }
 
 fn extract_all_tags<'a>(xml: &'a str, tag: &str) -> Vec<&'a str> {
     let mut results = Vec::new();
-    let mut search = xml;
-    loop {
-        // Try with various namespace prefixes
-        let mut found = None;
-        for prefix in &["", "tds:", "trt:", "tt:", "tptz:", "d:", "wsdd:", "wsa:"] {
-            let open = format!("<{}{}", prefix, tag);
-            let close = format!("</{}{}>", prefix, tag);
-            if let Some(start) = search.find(&open) {
-                if let Some(end) = search[start..].find(&close) {
-                    let full_end = start + end + close.len();
-                    found = Some((start, full_end, &search[start..full_end]));
-                    break;
-                }
-            }
+    let mut search_pos = 0;
+    let tag_suffix = format!(":{}", tag);
+
+    while search_pos < xml.len() {
+        let remaining = &xml[search_pos..];
+
+        // Find ":Tag" or "<Tag" pattern
+        let found = remaining.find(&tag_suffix)
+            .or_else(|| remaining.find(&format!("<{}", tag)));
+        let rel_pos = match found {
+            Some(p) => p,
+            None => break,
+        };
+        let abs_pos = search_pos + rel_pos;
+
+        // Walk back to find '<'
+        let lt_pos = match xml[..abs_pos].rfind('<') {
+            Some(p) => p,
+            None => { search_pos = abs_pos + 1; continue; }
+        };
+
+        let rest = &xml[lt_pos..];
+        if rest.starts_with("</") {
+            search_pos = abs_pos + 1;
+            continue;
         }
-        if let Some((_start, end, content)) = found {
-            results.push(content);
-            search = &search[end..];
+
+        // Extract full tag name
+        let tag_start = &rest[1..];
+        let tag_end = match tag_start.find(|c: char| c == ' ' || c == '>' || c == '/') {
+            Some(p) => p,
+            None => { search_pos = abs_pos + 1; continue; }
+        };
+        let full_tag = &tag_start[..tag_end];
+
+        if !full_tag.ends_with(tag) {
+            search_pos = abs_pos + 1;
+            continue;
+        }
+
+        // Find the matching close tag
+        let close_tag = format!("</{}>", full_tag);
+        if let Some(close_pos) = xml[lt_pos..].find(&close_tag) {
+            let end = lt_pos + close_pos + close_tag.len();
+            results.push(&xml[lt_pos..end]);
+            search_pos = end;
         } else {
-            break;
+            search_pos = abs_pos + 1;
         }
     }
     results
@@ -201,15 +295,20 @@ fn extract_all_tags<'a>(xml: &'a str, tag: &str) -> Vec<&'a str> {
 pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String> {
     use tokio::net::UdpSocket;
 
+    // WS-Discovery Probe — xmlns:dn declared for NetworkVideoTransmitter type
     let probe_xml = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"
             xmlns:a="http://schemas.xmlsoap.org/ws/2004/08/addressing"
-            xmlns:d="http://schemas.xmlsoap.org/ws/2005/04/discovery">
+            xmlns:d="http://schemas.xmlsoap.org/ws/2005/04/discovery"
+            xmlns:dn="http://www.onvif.org/ver10/network/wsdl">
   <s:Header>
-    <a:Action>http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</a:Action>
+    <a:Action s:mustUnderstand="1">http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</a:Action>
     <a:MessageID>uuid:{}</a:MessageID>
-    <a:To>urn:schemas-xmlsoap-org:ws:2005:04:discovery</a:To>
+    <a:ReplyTo>
+      <a:Address>http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous</a:Address>
+    </a:ReplyTo>
+    <a:To s:mustUnderstand="1">urn:schemas-xmlsoap-org:ws:2005:04:discovery</a:To>
   </s:Header>
   <s:Body>
     <d:Probe>
@@ -235,18 +334,68 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
     let socket = UdpSocket::bind("0.0.0.0:0").await
         .map_err(|e| format!("Bind UDP socket failed: {}", e))?;
 
-    // Allow broadcast/multicast
+    let multicast_group: std::net::Ipv4Addr = "239.255.255.250".parse().unwrap();
+
+    // Detect the local LAN IP to bind multicast to the correct interface.
+    // On macOS with VPN/proxy (e.g. Surge), binding to 0.0.0.0 picks the wrong
+    // interface, causing "No route to host". We must use IP_MULTICAST_IF.
+    let local_ip = detect_lan_ip().unwrap_or(std::net::Ipv4Addr::UNSPECIFIED);
+    log::info!("WS-Discovery: using local IP {} for multicast", local_ip);
+
+    // Set socket options via raw fd for multicast interface binding
+    {
+        use std::os::fd::AsRawFd;
+        let fd = socket.as_raw_fd();
+        // IP_MULTICAST_IF — set outgoing multicast interface
+        let ip_bytes = local_ip.octets();
+        unsafe {
+            libc::setsockopt(
+                fd,
+                libc::IPPROTO_IP,
+                libc::IP_MULTICAST_IF,
+                ip_bytes.as_ptr() as *const libc::c_void,
+                4,
+            );
+            // IP_MULTICAST_TTL
+            let ttl: libc::c_int = 4;
+            libc::setsockopt(
+                fd,
+                libc::IPPROTO_IP,
+                libc::IP_MULTICAST_TTL,
+                &ttl as *const _ as *const libc::c_void,
+                std::mem::size_of::<libc::c_int>() as libc::socklen_t,
+            );
+            // IP_ADD_MEMBERSHIP — join multicast group on LAN interface
+            let mreq = libc::ip_mreq {
+                imr_multiaddr: libc::in_addr { s_addr: u32::from_ne_bytes(multicast_group.octets()) },
+                imr_interface: libc::in_addr { s_addr: u32::from_ne_bytes(local_ip.octets()) },
+            };
+            libc::setsockopt(
+                fd,
+                libc::IPPROTO_IP,
+                libc::IP_ADD_MEMBERSHIP,
+                &mreq as *const _ as *const libc::c_void,
+                std::mem::size_of::<libc::ip_mreq>() as libc::socklen_t,
+            );
+        }
+    }
     socket.set_broadcast(true).map_err(|e| format!("Set broadcast failed: {}", e))?;
 
     let multicast_addr: std::net::SocketAddr = "239.255.255.250:3702".parse().unwrap();
-    socket.send_to(probe_xml.as_bytes(), multicast_addr).await
-        .map_err(|e| format!("Send probe failed: {}", e))?;
+
+    // Send the probe multiple times to improve reliability
+    for _ in 0..3 {
+        socket.send_to(probe_xml.as_bytes(), multicast_addr).await
+            .map_err(|e| format!("Send probe failed: {}", e))?;
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
 
     let mut devices = Vec::new();
+    let mut seen_addrs = std::collections::HashSet::new();
     let mut buf = vec![0u8; 65535];
 
-    // Wait for responses with timeout
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(3);
+    // Wait for responses with 5s timeout (ONVIF devices can be slow)
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
         match tokio::time::timeout_at(deadline, socket.recv_from(&mut buf)).await {
             Ok(Ok((n, addr))) => {
@@ -264,17 +413,27 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
                 };
                 let _ = app.emit("videostream-protocol-msg", &recv_msg);
 
-                // Parse XAddrs from response
-                if let Some(xaddrs) = extract_tag_content(&response, "XAddrs") {
+                // Parse XAddrs from response — try multiple tag name patterns
+                let xaddrs_str = extract_tag_content(&response, "XAddrs")
+                    .or_else(|| extract_tag_content(&response, "ProbeMatch")
+                        .and_then(|pm| extract_tag_content(&pm, "XAddrs")));
+
+                if let Some(xaddrs) = xaddrs_str {
                     for xaddr in xaddrs.split_whitespace() {
                         if let Ok(url) = url::Url::parse(xaddr) {
                             let host = url.host_str().unwrap_or("").to_string();
                             let port = url.port().unwrap_or(80);
+                            let key = format!("{}:{}", host, port);
+                            if seen_addrs.contains(&key) { continue; }
+                            seen_addrs.insert(key);
+
                             let name = extract_tag_content(&response, "Scopes")
                                 .and_then(|s| {
                                     s.split_whitespace()
-                                        .find(|scope| scope.contains("onvif://www.onvif.org/name/"))
-                                        .map(|scope| scope.replace("onvif://www.onvif.org/name/", ""))
+                                        .find(|scope| scope.contains("onvif://www.onvif.org/name/") || scope.contains("/name/"))
+                                        .map(|scope| {
+                                            scope.rsplit('/').next().unwrap_or("").to_string()
+                                        })
                                 });
                             devices.push(serde_json::json!({
                                 "host": host,
@@ -283,6 +442,19 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
                                 "xaddr": xaddr,
                             }));
                         }
+                    }
+                } else {
+                    // Fallback: extract from sender address if no XAddrs found
+                    let host = addr.ip().to_string();
+                    let key = format!("{}:80", host);
+                    if !seen_addrs.contains(&key) && !host.starts_with("127.") {
+                        seen_addrs.insert(key);
+                        devices.push(serde_json::json!({
+                            "host": host,
+                            "port": 80,
+                            "name": null,
+                            "xaddr": format!("http://{}:80/onvif/device_service", host),
+                        }));
                     }
                 }
             }

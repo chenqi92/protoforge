@@ -19,7 +19,7 @@ export async function probeStream(url: string): Promise<StreamInfo> {
 
 // ── 播放器控制 ──
 
-export async function playerLoad(sessionId: string, url: string): Promise<void> {
+export async function playerLoad(sessionId: string, url: string): Promise<string> {
   return invoke('vs_player_load', { sessionId, url });
 }
 

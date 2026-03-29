@@ -13,7 +13,7 @@ interface OnvifPanelProps {
   onStreamUrlChange: (url: string) => void;
 }
 
-export function OnvifPanel({ sessionKey, connected, streamUrl: _streamUrl, onStreamUrlChange }: OnvifPanelProps) {
+export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _streamUrl, onStreamUrlChange }: OnvifPanelProps) {
   const { t } = useTranslation();
   const [host, setHost] = useState('192.168.1.100');
   const [port, setPort] = useState(80);
@@ -38,19 +38,31 @@ export function OnvifPanel({ sessionKey, connected, streamUrl: _streamUrl, onStr
     setDiscovering(false);
   }, []);
 
+  const [querying, setQuerying] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
+
   const handleGetDeviceInfo = useCallback(async () => {
+    setQuerying(true);
+    setQueryError(null);
     try {
       const info = await vsSvc.onvifGetDeviceInfo(sessionKey, { host, port, username, password });
       setDeviceInfo(info as OnvifDeviceInfo);
-      const profs = await vsSvc.onvifGetProfiles(sessionKey);
-      setProfiles(profs as OnvifProfile[]);
-      if (profs.length > 0) {
-        const firstToken = (profs[0] as OnvifProfile).token;
-        setSelectedProfile(firstToken);
-        const uri = await vsSvc.onvifGetStreamUri(sessionKey, firstToken);
-        onStreamUrlChange(uri);
+      try {
+        const profs = await vsSvc.onvifGetProfiles(sessionKey);
+        setProfiles(profs as OnvifProfile[]);
+        if (profs.length > 0) {
+          const firstToken = (profs[0] as OnvifProfile).token;
+          setSelectedProfile(firstToken);
+          const uri = await vsSvc.onvifGetStreamUri(sessionKey, firstToken);
+          if (uri) onStreamUrlChange(uri);
+        }
+      } catch (e) {
+        console.warn('GetProfiles/GetStreamUri failed:', e);
       }
-    } catch { /* */ }
+    } catch (e) {
+      setQueryError(String(e));
+    }
+    setQuerying(false);
   }, [sessionKey, host, port, username, password, onStreamUrlChange]);
 
   const handleSelectProfile = useCallback(async (token: string) => {
@@ -91,74 +103,85 @@ export function OnvifPanel({ sessionKey, connected, streamUrl: _streamUrl, onStr
   }, [sessionKey, newPresetName, selectedProfile, handleLoadPresets]);
 
   return (
-    <div className="min-w-0 space-y-4 overflow-x-hidden">
-      {/* Device Discovery */}
-      <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
-          {t('videostream.onvif.discover', '设备发现')}
-        </label>
-        <button onClick={handleDiscover} disabled={discovering}
-          className={cn("wb-primary-btn w-full px-3 bg-accent hover:bg-accent-hover", discovering && "opacity-70 cursor-wait")}
-        >
-          <Search className="w-3.5 h-3.5" />
-          {discovering ? t('videostream.onvif.discovering', '发现中...') : t('videostream.onvif.discoverBtn', 'WS-Discovery 扫描')}
-        </button>
-        {discoveredDevices.length > 0 && (
-          <div className="max-h-[80px] overflow-y-auto space-y-0.5 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
-            {discoveredDevices.map((d, i) => (
-              <button key={i} onClick={() => { setHost(d.host); setPort(d.port); }}
-                className="w-full text-left flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] hover:bg-bg-hover/50 text-[var(--fs-xxs)] font-mono"
-              >
-                <span className="text-accent">{d.host}:{d.port}</span>
-                {d.name && <span className="text-text-disabled truncate">{d.name}</span>}
-              </button>
-            ))}
+    <div className="min-w-0 space-y-3 overflow-x-hidden">
+      {/* ── Before device connected: Discovery + Connection form ── */}
+      {!deviceInfo && (
+        <>
+          {/* Device Discovery */}
+          <div className="space-y-1.5">
+            <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+              {t('videostream.onvif.discover', '设备发现')}
+            </label>
+            <button onClick={handleDiscover} disabled={discovering}
+              className={cn("wb-primary-btn w-full px-3 bg-accent hover:bg-accent-hover", discovering && "opacity-70 cursor-wait")}
+            >
+              <Search className="w-3.5 h-3.5" />
+              {discovering ? t('videostream.onvif.discovering', '发现中...') : t('videostream.onvif.discoverBtn', 'WS-Discovery 扫描')}
+            </button>
+            {discoveredDevices.length > 0 && (
+              <div className="max-h-[80px] overflow-y-auto space-y-0.5 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
+                {discoveredDevices.map((d, i) => (
+                  <button key={i} onClick={() => { setHost(d.host); setPort(d.port); }}
+                    className="w-full text-left flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] hover:bg-bg-hover/50 text-[var(--fs-xxs)] font-mono"
+                  >
+                    <span className="text-accent">{d.host}:{d.port}</span>
+                    {d.name && <span className="text-text-disabled truncate">{d.name}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Connection Config */}
-      <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
-          {t('videostream.onvif.connection', '设备连接')}
-        </label>
-        <div className="grid grid-cols-3 gap-1.5">
-          <div className="col-span-2">
-            <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="192.168.1.100" disabled={connected}
-              className="wb-field-sm w-full font-mono disabled:opacity-50"
-            />
+          {/* Connection Config */}
+          <div className="space-y-1.5">
+            <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+              {t('videostream.onvif.connection', '设备连接')}
+            </label>
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="col-span-2">
+                <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="192.168.1.100"
+                  className="wb-field-sm w-full font-mono"
+                />
+              </div>
+              <input type="number" value={port} onChange={(e) => setPort(Number(e.target.value))}
+                className="wb-field-sm w-full font-mono"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('videostream.rtsp.username', '用户名')}
+                className="wb-field-sm w-full font-mono"
+              />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('videostream.rtsp.password', '密码')}
+                className="wb-field-sm w-full font-mono"
+              />
+            </div>
+            <button onClick={handleGetDeviceInfo} disabled={querying}
+              className={cn("wb-primary-btn w-full px-3 bg-accent hover:bg-accent-hover", querying && "opacity-70 cursor-wait")}
+            >
+              {querying ? t('videostream.onvif.querying', '查询中...') : t('videostream.onvif.queryDevice', '查询设备')}
+            </button>
+            {queryError && (
+              <div className="flex items-start gap-2 rounded-[var(--radius-sm)] bg-error/8 border border-error/20 px-3 py-2">
+                <span className="shrink-0 mt-0.5 text-error">&#9888;</span>
+                <span className="text-[var(--fs-xxs)] text-error leading-relaxed">{queryError}</span>
+              </div>
+            )}
           </div>
-          <input type="number" value={port} onChange={(e) => setPort(Number(e.target.value))} disabled={connected}
-            className="wb-field-sm w-full font-mono disabled:opacity-50"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('videostream.rtsp.username', '用户名')} disabled={connected}
-            className="wb-field-sm w-full font-mono disabled:opacity-50"
-          />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('videostream.rtsp.password', '密码')} disabled={connected}
-            className="wb-field-sm w-full font-mono disabled:opacity-50"
-          />
-        </div>
-        <button onClick={handleGetDeviceInfo}
-          className="wb-primary-btn w-full px-3 bg-accent hover:bg-accent-hover"
-        >
-          {t('videostream.onvif.queryDevice', '查询设备')}
-        </button>
-      </div>
+        </>
+      )}
 
-      {/* Device Info */}
+      {/* ── After device connected: Compact device header + content ── */}
       {deviceInfo && (
-        <div className="space-y-1.5">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
-            {t('videostream.onvif.deviceInfo', '设备信息')}
-          </label>
-          <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-2 text-[var(--fs-xxs)] font-mono space-y-0.5">
-            <div className="flex justify-between"><span className="text-text-disabled">Manufacturer</span><span className="text-text-primary">{deviceInfo.manufacturer}</span></div>
-            <div className="flex justify-between"><span className="text-text-disabled">Model</span><span className="text-text-primary">{deviceInfo.model}</span></div>
-            <div className="flex justify-between"><span className="text-text-disabled">Firmware</span><span className="text-text-primary">{deviceInfo.firmwareVersion}</span></div>
-            <div className="flex justify-between"><span className="text-text-disabled">Serial</span><span className="text-text-primary truncate ml-4">{deviceInfo.serialNumber}</span></div>
+        <div className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 px-2.5 py-1.5">
+          <div className="flex-1 min-w-0">
+            <div className="text-[var(--fs-xs)] font-semibold text-text-primary truncate">{deviceInfo.manufacturer} {deviceInfo.model}</div>
+            <div className="text-[var(--fs-3xs)] text-text-disabled font-mono truncate">{host}:{port} &middot; {deviceInfo.firmwareVersion}</div>
           </div>
+          <button onClick={() => { setDeviceInfo(null); setProfiles([]); setSelectedProfile(''); setPresets([]); }}
+            className="shrink-0 text-[var(--fs-xxs)] text-text-disabled hover:text-text-secondary transition-colors"
+          >
+            {t('videostream.onvif.disconnect', '断开')}
+          </button>
         </div>
       )}
 
@@ -183,6 +206,23 @@ export function OnvifPanel({ sessionKey, connected, streamUrl: _streamUrl, onStr
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Stream URI — shown after profile selection */}
+      {profiles.length > 0 && selectedProfile && (
+        <div className="space-y-1.5">
+          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            {t('videostream.onvif.streamUri', '流地址')}
+          </label>
+          <div className="rounded-[var(--radius-sm)] border border-accent/20 bg-accent-soft p-2 text-[var(--fs-xxs)] font-mono text-accent break-all select-text">
+            {_streamUrl || t('videostream.onvif.noUri', '未获取到流地址')}
+          </div>
+          {_streamUrl && (
+            <p className="text-[var(--fs-3xs)] text-text-disabled">
+              {t('videostream.onvif.streamHint', '流地址已填入顶部 URL 栏，可切换到 RTSP 标签页查看详细协议交互')}
+            </p>
+          )}
         </div>
       )}
 

@@ -56,5 +56,6 @@ regex-lite = "0.1"
 tokio-util = "0.7"
 sha1 = "0.10"
 quick-xml = "0.37"
+libc = "0.2"
 tauri-plugin-prevent-default = { version = "4", features = ["platform-windows"] }
 

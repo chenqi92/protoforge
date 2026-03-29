@@ -2028,48 +2028,11 @@ pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String>
 pub async fn vs_player_load(
     session_id: String,
     url: String,
-    app: AppHandle,
-) -> Result<(), String> {
+) -> Result<String, String> {
     log::info!("Player load: session={} url={}", session_id, url);
-
-    // Try to launch external player (mpv or ffplay)
-    let player = find_player().ok_or_else(|| {
-        "No video player found. Install mpv or ffplay for playback support.".to_string()
-    })?;
-
-    let args = match player.as_str() {
-        "mpv" => vec![
-            "--no-terminal".to_string(),
-            "--title".to_string(), format!("ProtoForge — {}", session_id),
-            "--force-window".to_string(),
-            url.clone(),
-        ],
-        "ffplay" => vec![
-            "-window_title".to_string(), format!("ProtoForge — {}", session_id),
-            "-autoexit".to_string(),
-            url.clone(),
-        ],
-        _ => vec![url.clone()],
-    };
-
-    // Emit info
-    let msg = crate::video_streaming::state::ProtocolMessage {
-        id: uuid::Uuid::new_v4().to_string(),
-        direction: "info".to_string(),
-        protocol: "player".to_string(),
-        summary: format!("Launching {} for playback", player),
-        detail: format!("Player: {}\nURL: {}\nSession: {}", player, url, session_id),
-        timestamp: chrono::Utc::now().to_rfc3339(),
-        size: None,
-    };
-    let _ = app.emit("videostream-protocol-msg", &msg);
-
-    std::process::Command::new(&player)
-        .args(&args)
-        .spawn()
-        .map_err(|e| format!("Failed to launch {}: {}", player, e))?;
-
-    Ok(())
+    // Return the URL as-is — actual playback handled by frontend for supported formats
+    // (HLS via hls.js, HTTP-FLV via flv.js — RTSP requires future native decoder integration)
+    Ok(url)
 }
 
 #[tauri::command]
@@ -2078,8 +2041,6 @@ pub async fn vs_player_control(
     action: String,
 ) -> Result<(), String> {
     log::info!("Player control: session={} action={}", session_id, action);
-    // External player controls are handled by the player itself
-    // For mpv IPC control, would need --input-ipc-server
     Ok(())
 }
 
@@ -2090,21 +2051,6 @@ pub async fn vs_player_set_volume(
 ) -> Result<(), String> {
     log::info!("Player volume: session={} vol={}", session_id, volume);
     Ok(())
-}
-
-/// Find available video player on the system
-fn find_player() -> Option<String> {
-    for player in &["mpv", "ffplay", "vlc"] {
-        if std::process::Command::new("which")
-            .arg(player)
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false)
-        {
-            return Some(player.to_string());
-        }
-    }
-    None
 }
 
 #[tauri::command]

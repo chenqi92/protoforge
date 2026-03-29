@@ -2,11 +2,12 @@
 // 布局：Tabs+URL 固定顶部 → 可拖拽分栏（上：视频+配置 | 下：协议报文）
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
-import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, Play, Pause, Square, Volume2, GripHorizontal, History, X, Download } from "lucide-react";
+import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, Play, Square, GripHorizontal, History, X, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { VideoProtocol, StreamInfo, StreamStats, ProtocolMessage } from "@/types/videostream";
 import * as vsSvc from "@/services/videoStreamService";
+import { VideoPlayer } from "./VideoPlayer";
 import { RtspPanel } from "./RtspPanel";
 import { RtmpPanel } from "./RtmpPanel";
 import { HttpFlvPanel } from "./HttpFlvPanel";
@@ -60,7 +61,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const [stats, setStats] = useState<StreamStats | null>(null);
   const [messageMap, setMessageMap] = useState<Record<string, ProtocolMessage[]>>({});
   const filteredMessages = messageMap[mode] ?? [];
-  const [playing, setPlaying] = useState(false);
+  const [, setPlaying] = useState(false); // kept for event handler compat
   const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -103,9 +104,18 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
     else { if (!streamUrl.trim()) return; setConnecting(true); saveRecentStream(streamUrl, mode); setRecentStreams(loadRecentStreams()); try { await vsSvc.connectStream(sessionKey, mode, { url: streamUrl }); } catch { setConnecting(false); } }
   }, [connected, sessionKey, mode, streamUrl]);
 
-  const handlePlay = useCallback(async () => { if (!connected) return; try { await vsSvc.playerLoad(sessionKey, streamUrl); setPlaying(true); } catch { /* */ } }, [connected, sessionKey, streamUrl]);
-  const handlePause = useCallback(async () => { await vsSvc.playerControl(sessionKey, 'pause').catch(() => {}); setPlaying(false); }, [sessionKey]);
-  const handleStop = useCallback(async () => { await vsSvc.playerControl(sessionKey, 'stop').catch(() => {}); setPlaying(false); }, [sessionKey]);
+  const [playerError, setPlayerError] = useState<string | null>(null);
+  const [showPlayer, setShowPlayer] = useState(false);
+  const handlePlay = useCallback(() => {
+    if (!streamUrl.trim()) return;
+    setPlayerError(null);
+    setShowPlayer(true);
+    setPlaying(true);
+  }, [streamUrl]);
+  const handleStop = useCallback(() => {
+    setShowPlayer(false);
+    setPlaying(false);
+  }, []);
 
   const selectedMsg = selectedMsgId ? filteredMessages.find(m => m.id === selectedMsgId) : null;
 
@@ -202,78 +212,64 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
         </div>
       )}
 
-      {/* ── Resizable: vertical split (top: video+config, bottom: protocol log) ── */}
+      {/* ── Player error toast ── */}
+      {playerError && (
+        <div className="shrink-0 flex items-center gap-2 rounded-[var(--radius-sm)] bg-error/10 border border-error/20 px-3 py-1.5 mt-2">
+          <span className="text-error text-[var(--fs-sm)]">&#9888;</span>
+          <span className="flex-1 text-[var(--fs-xxs)] text-error">{playerError}</span>
+          <button onClick={() => setPlayerError(null)} className="text-error/60 hover:text-error"><X className="w-3 h-3" /></button>
+        </div>
+      )}
+
+      {/* ── Resizable: vertical split (top: config+player, bottom: protocol log) ── */}
       <div className="flex-1 min-h-0 min-w-0 overflow-hidden pt-3">
         <PanelGroup orientation="vertical">
-          {/* ═══ Top Panel: Video Player + Protocol Config ═══ */}
+          {/* ═══ Top Panel: Config + Video Player side by side ═══ */}
           <Panel id="vs-top" defaultSize="55%" minSize="25%">
-            <PanelGroup orientation="horizontal">
-              {/* Video Player */}
-              <Panel id="vs-player" defaultSize="60%" minSize="30%">
-                <div className="h-full min-w-0 rounded-[var(--radius-md)] border border-border-default/80 bg-black overflow-hidden flex flex-col">
-                  <div className="flex-1 flex items-center justify-center">
-                    {!playing ? (
-                      <div className="flex flex-col items-center gap-3 text-white/50">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/8 border border-white/10">
-                          <MonitorPlay className="w-7 h-7" />
-                        </div>
-                        <div className="text-center">
-                          <span className="text-[var(--fs-sm)] font-medium block">{t('videostream.player.idle', '等待播放 ...')}</span>
-                          <span className="text-[var(--fs-xxs)] text-white/30 mt-1 block">{t('videostream.player.hint', '输入流地址并连接')}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-1.5 text-white/50">
-                        <div className="w-6 h-6 rounded-full border-2 border-white/30 border-t-white/70 animate-spin" />
-                        <span className="text-[var(--fs-xxs)]">libmpv</span>
-                      </div>
-                    )}
-                  </div>
-                  {/* Controls */}
-                  <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-t from-black/80 to-black/30">
-                    <button onClick={playing ? handlePause : handlePlay} disabled={!connected}
-                      className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-50 transition-colors"
-                    >{playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}</button>
-                    <button onClick={handleStop} disabled={!playing}
-                      className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-50 transition-colors"
-                    ><Square className="w-3 h-3" /></button>
-                    <Volume2 className="w-3 h-3 text-white/40 ml-1" />
-                    <input type="range" min={0} max={100} defaultValue={80}
-                      className="w-14 h-0.5 accent-white rounded-full appearance-none bg-white/20 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:h-2 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                    />
-                    <div className="flex-1" />
+            <div className="h-full flex gap-2">
+              {/* Protocol Config — takes most space */}
+              <div className="flex-1 min-w-0 rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
+                <div className="wb-pane-header shrink-0">
+                  <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
+                    {t('videostream.protocolConfig', '协议配置')}
+                  </span>
+                  <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">{mode.toUpperCase()}</span>
+                  <div className="flex items-center gap-1.5 ml-auto">
                     {streamInfo && (
-                      <div className="flex items-center gap-1 text-[var(--fs-3xs)] text-white/50 font-mono">
-                        <span className="px-1 rounded bg-white/10">{streamInfo.codec}</span>
-                        {streamInfo.width > 0 && <span className="px-1 rounded bg-white/10">{streamInfo.width}×{streamInfo.height}</span>}
-                        {streamInfo.fps > 0 && <span className="px-1 rounded bg-white/10">{streamInfo.fps}fps</span>}
-                      </div>
+                      <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">
+                        {streamInfo.codec} {streamInfo.width > 0 ? `${streamInfo.width}×${streamInfo.height}` : ''} {streamInfo.fps > 0 ? `${streamInfo.fps}fps` : ''}
+                      </span>
+                    )}
+                    {streamUrl && !showPlayer && (
+                      <button onClick={handlePlay}
+                        className="flex items-center gap-1 h-6 px-2 rounded-[var(--radius-xs)] bg-accent/10 text-accent text-[var(--fs-xxs)] font-semibold hover:bg-accent/20 transition-colors"
+                      >
+                        <Play className="w-3 h-3" /> 播放
+                      </button>
+                    )}
+                    {showPlayer && (
+                      <button onClick={handleStop}
+                        className="flex items-center gap-1 h-6 px-2 rounded-[var(--radius-xs)] bg-error/10 text-error text-[var(--fs-xxs)] font-semibold hover:bg-error/20 transition-colors"
+                      >
+                        <Square className="w-3 h-3" /> 关闭
+                      </button>
                     )}
                   </div>
                 </div>
-              </Panel>
-
-              <PanelResizeHandle className="relative w-[7px] shrink-0 cursor-col-resize group flex items-center justify-center">
-                <div className="absolute inset-y-0 left-[3px] w-px bg-border-default/40 group-hover:bg-accent/40 transition-colors" />
-              </PanelResizeHandle>
-
-              {/* Protocol Config */}
-              <Panel id="vs-config" defaultSize="40%" minSize="20%">
-                <div className="h-full min-w-0 rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
-                  <div className="wb-pane-header shrink-0">
-                    <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
-                      {t('videostream.protocolConfig', '协议配置')}
-                    </span>
-                    <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">{mode.toUpperCase()}</span>
-                  </div>
-                  <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-3">
-                    <div className="min-w-0 overflow-x-hidden">
-                      {renderProtocolConfig()}
-                    </div>
+                <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-3">
+                  <div className="min-w-0 overflow-x-hidden">
+                    {renderProtocolConfig()}
                   </div>
                 </div>
-              </Panel>
-            </PanelGroup>
+              </div>
+
+              {/* Video Player — compact right side, only when user clicks play */}
+              {showPlayer && streamUrl && (
+                <div className="w-[360px] shrink-0 rounded-[var(--radius-md)] border border-border-default/80 overflow-hidden">
+                  <VideoPlayer url={streamUrl} protocol={mode} onError={(e) => setPlayerError(e)} />
+                </div>
+              )}
+            </div>
           </Panel>
 
           {/* Horizontal resize handle */}
