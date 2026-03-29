@@ -106,16 +106,26 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
 
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
-  const handlePlay = useCallback(() => {
+  const [playerUrl, setPlayerUrl] = useState<string | null>(null);
+  const handlePlay = useCallback(async () => {
     if (!streamUrl.trim()) return;
     setPlayerError(null);
     setShowPlayer(true);
     setPlaying(true);
-  }, [streamUrl]);
-  const handleStop = useCallback(() => {
+    try {
+      const url = await vsSvc.playerLoad(sessionKey, streamUrl);
+      setPlayerUrl(url); // ws:// for RTSP/RTMP, or direct URL for HLS
+    } catch (e) {
+      setPlayerError(String(e));
+      setPlaying(false);
+    }
+  }, [sessionKey, streamUrl]);
+  const handleStop = useCallback(async () => {
+    await vsSvc.playerControl(sessionKey, 'stop').catch(() => {});
     setShowPlayer(false);
     setPlaying(false);
-  }, []);
+    setPlayerUrl(null);
+  }, [sessionKey]);
 
   const selectedMsg = selectedMsgId ? filteredMessages.find(m => m.id === selectedMsgId) : null;
 
@@ -257,16 +267,16 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                   </div>
                 </div>
                 <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-3">
-                  <div className="min-w-0 overflow-x-hidden">
+                  <div className="min-w-0 max-w-lg overflow-x-hidden">
                     {renderProtocolConfig()}
                   </div>
                 </div>
               </div>
 
-              {/* Video Player — compact right side, only when user clicks play */}
-              {showPlayer && streamUrl && (
-                <div className="w-[360px] shrink-0 rounded-[var(--radius-md)] border border-border-default/80 overflow-hidden">
-                  <VideoPlayer url={streamUrl} protocol={mode} onError={(e) => setPlayerError(e)} />
+              {/* Video Player — right side, only when user clicks play */}
+              {showPlayer && (
+                <div className="w-[400px] shrink-0 rounded-[var(--radius-md)] border border-border-default/80 overflow-hidden">
+                  <VideoPlayer url={playerUrl} protocol={mode} onError={(e) => setPlayerError(e)} />
                 </div>
               )}
             </div>

@@ -2028,11 +2028,17 @@ pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String>
 pub async fn vs_player_load(
     session_id: String,
     url: String,
+    app: AppHandle,
 ) -> Result<String, String> {
     log::info!("Player load: session={} url={}", session_id, url);
-    // Return the URL as-is — actual playback handled by frontend for supported formats
-    // (HLS via hls.js, HTTP-FLV via flv.js — RTSP requires future native decoder integration)
-    Ok(url)
+
+    // HLS 可直接在前端播放
+    if url.to_lowercase().contains(".m3u8") {
+        return Ok(url);
+    }
+
+    // 其他格式（RTSP/RTMP/HTTP-FLV 等）通过内置 ffmpeg 转码 + WebSocket 推送
+    crate::video_streaming::player::start_player(session_id, url, app).await
 }
 
 #[tauri::command]
@@ -2041,6 +2047,9 @@ pub async fn vs_player_control(
     action: String,
 ) -> Result<(), String> {
     log::info!("Player control: session={} action={}", session_id, action);
+    if action == "stop" {
+        crate::video_streaming::player::stop_player(&session_id).await;
+    }
     Ok(())
 }
 

@@ -1,0 +1,4 @@
+[env]
+FFMPEG_DIR = "/opt/homebrew/opt/ffmpeg@7"
+PKG_CONFIG_PATH = "/opt/homebrew/opt/ffmpeg@7/lib/pkgconfig"
+BINDGEN_EXTRA_CLANG_ARGS = "-I/opt/homebrew/opt/ffmpeg@7/include"

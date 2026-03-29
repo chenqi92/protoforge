@@ -10,5 +10,6 @@ pub mod gb28181;
 pub mod rtmp;
 pub mod srt;
 pub mod webrtc;
+pub mod player;
 
 pub use state::VideoStreamState;
