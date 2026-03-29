@@ -276,7 +276,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
               {/* Video Player — right side, only when user clicks play */}
               {showPlayer && (
                 <div className="w-[400px] shrink-0 rounded-[var(--radius-md)] border border-border-default/80 overflow-hidden">
-                  <VideoPlayer url={playerUrl} protocol={mode} onError={(e) => setPlayerError(e)} />
+                  <VideoPlayer url={playerUrl} sessionId={sessionKey} onError={(e) => setPlayerError(e)} />
                 </div>
               )}
             </div>

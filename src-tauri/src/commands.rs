@@ -2032,13 +2032,14 @@ pub async fn vs_player_load(
 ) -> Result<String, String> {
     log::info!("Player load: session={} url={}", session_id, url);
 
-    // HLS 可直接在前端播放
+    // HLS 可直接在前端用 hls.js 播放
     if url.to_lowercase().contains(".m3u8") {
-        return Ok(url);
+        return Ok(format!("hls:{}", url));
     }
 
-    // 其他格式（RTSP/RTMP/HTTP-FLV 等）通过内置 ffmpeg 转码 + WebSocket 推送
-    crate::video_streaming::player::start_player(session_id, url, app).await
+    // 其他格式通过内置 ffmpeg 读取 → Tauri 事件推送帧数据
+    crate::video_streaming::player::start_player(session_id.clone(), url.clone(), app).await
+        .map(|_| format!("tauri:{}", url))
 }
 
 #[tauri::command]
