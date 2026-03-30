@@ -11,5 +11,6 @@ pub mod rtmp;
 pub mod srt;
 pub mod webrtc;
 pub mod player;
+pub mod ffmpeg_manager;
 
 pub use state::VideoStreamState;

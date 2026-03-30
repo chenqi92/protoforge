@@ -105,7 +105,6 @@ function createCaptureSessionStore(sessionId: string) {
 
     initListener: async () => {
       if (!listenerPromise) {
-        console.log(`[CAPTURE] 正在注册事件监听器: session=${sessionId}`);
         listenerPromise = listen<CapturedEntry>("capture-event", (event) => {
           const entry = event.payload;
           console.log("[CAPTURE] 收到事件:", entry.sessionId, "期望:", sessionId, "url:", entry.url, "匹配:", entry.sessionId === sessionId);

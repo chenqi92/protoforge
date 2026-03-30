@@ -1,7 +1,3 @@
-[env]
-# Windows (Scoop) defaults — macOS overrides via shell profile:
-#   export FFMPEG_DIR="/opt/homebrew/opt/ffmpeg@7"
-#   export PKG_CONFIG_PATH="/opt/homebrew/opt/ffmpeg@7/lib/pkgconfig"
-#   export BINDGEN_EXTRA_CLANG_ARGS="-I/opt/homebrew/opt/ffmpeg@7/include"
-FFMPEG_DIR = { value = "C:\\Users\\cq921\\scoop\\apps\\ffmpeg-shared\\current", force = false }
-LIBCLANG_PATH = { value = "C:\\Users\\cq921\\scoop\\apps\\llvm\\current\\bin", force = false }
+# Cargo config
+# FFmpeg is downloaded at runtime, no compile-time paths needed.
+# macOS/Windows developers: no FFMPEG_DIR or LIBCLANG_PATH required.

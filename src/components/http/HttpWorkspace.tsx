@@ -430,22 +430,24 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
         setLoading(tabId, false);
       }
       // 记录到历史（即使被取消也记录，因为请求已实际发出）
+      // 历史记录不关联集合/分组，无法解析变量模板，因此存储解析后的值
       if (finalResponse) {
+        const resolvedConfig = resolveHttpConfig(config);
         useHistoryStore.getState().addEntry({
           id: crypto.randomUUID(),
-          method: config.method,
-          url: config.url,
+          method: resolvedConfig.method,
+          url: resolvedConfig.url,
           status: finalResponse.status,
           durationMs: finalResponse.durationMs ?? null,
           bodySize: finalResponse.bodySize ?? null,
-          requestConfig: JSON.stringify(config),
+          requestConfig: JSON.stringify(resolvedConfig),
           responseSummary: null,
           createdAt: new Date().toISOString(),
         });
         // 记录到插件统计面板
         recordRequestStat({
-          method: config.method,
-          url: config.url,
+          method: resolvedConfig.method,
+          url: resolvedConfig.url,
           status: finalResponse.status,
           duration: finalResponse.durationMs,
           timestamp: Date.now(),
@@ -456,7 +458,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
         logStore.getState().addEntry({
           source: 'http',
           direction: 'sent',
-          summary: `${config.method} ${config.url} - ${finalResponse.status} (${finalResponse.durationMs}ms)`,
+          summary: `${resolvedConfig.method} ${resolvedConfig.url} - ${finalResponse.status} (${finalResponse.durationMs}ms)`,
         });
       }
     }

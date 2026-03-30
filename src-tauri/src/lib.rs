@@ -313,6 +313,8 @@ pub fn run() {
             commands::vs_connect,
             commands::vs_disconnect,
             commands::vs_probe,
+            commands::vs_ffmpeg_status,
+            commands::vs_ffmpeg_download,
             commands::vs_player_load,
             commands::vs_player_control,
             commands::vs_player_set_volume,

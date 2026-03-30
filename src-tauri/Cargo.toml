@@ -20,7 +20,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.5.6", features = [] }
 
 [dependencies]
-tauri = { version = "2.10.3", features = ["macos-proxy"] }
+tauri = { version = "2.10.3", features = ["protocol-asset", "macos-proxy"] }
 tauri-plugin-opener = "2.5.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -57,6 +57,5 @@ tokio-util = "0.7"
 sha1 = "0.10"
 quick-xml = "0.37"
 libc = "0.2"
-ffmpeg-next = "8"
 tauri-plugin-prevent-default = { version = "4", features = ["platform-windows"] }
 

@@ -2037,9 +2037,23 @@ pub async fn vs_player_load(
         return Ok(format!("hls:{}", url));
     }
 
-    // 其他格式通过内置 ffmpeg 读取 → Tauri 事件推送帧数据
+    // 其他格式通过 FFmpeg CLI 子进程读取 -> Tauri 事件推送帧数据
     crate::video_streaming::player::start_player(session_id.clone(), url.clone(), app).await
         .map(|_| format!("tauri:{}", url))
+}
+
+/// 查询 FFmpeg 安装状态
+#[tauri::command]
+pub async fn vs_ffmpeg_status(app: AppHandle) -> Result<serde_json::Value, String> {
+    let status = crate::video_streaming::ffmpeg_manager::get_status(&app).await;
+    serde_json::to_value(status).map_err(|e| e.to_string())
+}
+
+/// 按需下载 FFmpeg 到应用数据目录
+#[tauri::command]
+pub async fn vs_ffmpeg_download(app: AppHandle) -> Result<String, String> {
+    let path = crate::video_streaming::ffmpeg_manager::download(&app).await?;
+    Ok(path.to_string_lossy().to_string())
 }
 
 #[tauri::command]

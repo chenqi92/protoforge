@@ -136,7 +136,9 @@ export function useSettingsEffect() {
 
   // 注入插件字体 @font-face
   useEffect(() => {
-    injectPluginFontFaces(pluginFonts);
+    injectPluginFontFaces(pluginFonts).catch((e) =>
+      console.warn('[Settings] Plugin font injection failed:', e)
+    );
   }, [pluginFonts]);
 
   // ── 字号 ──
