@@ -342,41 +342,91 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
     let local_ip = detect_lan_ip().unwrap_or(std::net::Ipv4Addr::UNSPECIFIED);
     log::info!("WS-Discovery: using local IP {} for multicast", local_ip);
 
-    // Set socket options via raw fd for multicast interface binding
+    // Set socket options for multicast interface binding
     {
-        use std::os::fd::AsRawFd;
-        let fd = socket.as_raw_fd();
-        // IP_MULTICAST_IF — set outgoing multicast interface
-        let ip_bytes = local_ip.octets();
-        unsafe {
-            libc::setsockopt(
-                fd,
-                libc::IPPROTO_IP,
-                libc::IP_MULTICAST_IF,
-                ip_bytes.as_ptr() as *const libc::c_void,
-                4,
-            );
-            // IP_MULTICAST_TTL
-            let ttl: libc::c_int = 4;
-            libc::setsockopt(
-                fd,
-                libc::IPPROTO_IP,
-                libc::IP_MULTICAST_TTL,
-                &ttl as *const _ as *const libc::c_void,
-                std::mem::size_of::<libc::c_int>() as libc::socklen_t,
-            );
-            // IP_ADD_MEMBERSHIP — join multicast group on LAN interface
-            let mreq = libc::ip_mreq {
-                imr_multiaddr: libc::in_addr { s_addr: u32::from_ne_bytes(multicast_group.octets()) },
-                imr_interface: libc::in_addr { s_addr: u32::from_ne_bytes(local_ip.octets()) },
-            };
-            libc::setsockopt(
-                fd,
-                libc::IPPROTO_IP,
-                libc::IP_ADD_MEMBERSHIP,
-                &mreq as *const _ as *const libc::c_void,
-                std::mem::size_of::<libc::ip_mreq>() as libc::socklen_t,
-            );
+        #[cfg(unix)]
+        {
+            use std::os::fd::AsRawFd;
+            let fd = socket.as_raw_fd();
+            // IP_MULTICAST_IF -- set outgoing multicast interface
+            let ip_bytes = local_ip.octets();
+            unsafe {
+                libc::setsockopt(
+                    fd,
+                    libc::IPPROTO_IP,
+                    libc::IP_MULTICAST_IF,
+                    ip_bytes.as_ptr() as *const libc::c_void,
+                    4,
+                );
+                // IP_MULTICAST_TTL
+                let ttl: libc::c_int = 4;
+                libc::setsockopt(
+                    fd,
+                    libc::IPPROTO_IP,
+                    libc::IP_MULTICAST_TTL,
+                    &ttl as *const _ as *const libc::c_void,
+                    std::mem::size_of::<libc::c_int>() as libc::socklen_t,
+                );
+                // IP_ADD_MEMBERSHIP -- join multicast group on LAN interface
+                let mreq = libc::ip_mreq {
+                    imr_multiaddr: libc::in_addr { s_addr: u32::from_ne_bytes(multicast_group.octets()) },
+                    imr_interface: libc::in_addr { s_addr: u32::from_ne_bytes(local_ip.octets()) },
+                };
+                libc::setsockopt(
+                    fd,
+                    libc::IPPROTO_IP,
+                    libc::IP_ADD_MEMBERSHIP,
+                    &mreq as *const _ as *const libc::c_void,
+                    std::mem::size_of::<libc::ip_mreq>() as libc::socklen_t,
+                );
+            }
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::AsRawSocket;
+            let raw = socket.as_raw_socket() as libc::SOCKET;
+            // Winsock2 constants
+            const IPPROTO_IP: libc::c_int = 0;
+            const IP_MULTICAST_IF: libc::c_int = 9;
+            const IP_MULTICAST_TTL: libc::c_int = 10;
+            const IP_ADD_MEMBERSHIP: libc::c_int = 12;
+            unsafe {
+                // IP_MULTICAST_IF — set outgoing multicast interface
+                let ip_bytes = local_ip.octets();
+                libc::setsockopt(
+                    raw,
+                    IPPROTO_IP,
+                    IP_MULTICAST_IF,
+                    ip_bytes.as_ptr() as *const i8,
+                    4,
+                );
+                // IP_MULTICAST_TTL
+                let ttl: i32 = 4;
+                libc::setsockopt(
+                    raw,
+                    IPPROTO_IP,
+                    IP_MULTICAST_TTL,
+                    &ttl as *const _ as *const i8,
+                    std::mem::size_of::<i32>() as i32,
+                );
+                // IP_ADD_MEMBERSHIP — join multicast group on LAN interface
+                #[repr(C)]
+                struct IpMreq {
+                    imr_multiaddr: [u8; 4],
+                    imr_interface: [u8; 4],
+                }
+                let mreq = IpMreq {
+                    imr_multiaddr: multicast_group.octets(),
+                    imr_interface: local_ip.octets(),
+                };
+                libc::setsockopt(
+                    raw,
+                    IPPROTO_IP,
+                    IP_ADD_MEMBERSHIP,
+                    &mreq as *const _ as *const i8,
+                    std::mem::size_of::<IpMreq>() as i32,
+                );
+            }
         }
     }
     socket.set_broadcast(true).map_err(|e| format!("Set broadcast failed: {}", e))?;

@@ -45,7 +45,7 @@ pub async fn start_player(
 ) -> Result<(), String> {
     stop_player(&session_id).await;
 
-    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+    let (shutdown_tx, _shutdown_rx) = oneshot::channel::<()>();
 
     PLAYER_SESSIONS.lock().await.insert(session_id.clone(), PlayerSession {
         shutdown_tx: Some(shutdown_tx),
