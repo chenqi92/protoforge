@@ -11,6 +11,7 @@ import { TabBar, type Tab } from "@/components/layout/TabBar";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { WelcomePage, type WelcomeAction } from "@/components/WelcomePage";
 import { HttpWorkspace } from "@/components/http/HttpWorkspace";
+import { RequestsOverview } from "@/components/http/RequestsOverview";
 import { WsWorkspace } from "@/components/ws/WsWorkspace";
 import { MqttWorkspace } from "@/components/mqtt/MqttWorkspace";
 import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
@@ -569,12 +570,7 @@ function App() {
     });
   }, [openToolTab]);
 
-  // 接口调试视图下，关闭所有 tab 后自动新建一个空 HTTP 请求
-  useEffect(() => {
-    if (activeWorkbench === "requests" && tabs.length === 0 && !activeCollectionId) {
-      addTab("http");
-    }
-  }, [activeWorkbench, tabs.length, activeCollectionId, addTab]);
+  // 不再自动创建空 tab，当 tabs.length === 0 时展示概览页面
 
   const displayTabs: Tab[] = tabs.map((tab) => ({
     id: tab.id,
@@ -612,15 +608,11 @@ function App() {
       if (activeCollectionId && !activeTabId) {
         closeCollectionPanel();
       }
-      // 如果接口调试视图没有任何 tab，自动创建一个空请求
-      if (tabs.length === 0 && !activeCollectionId) {
-        addTab("http");
-      }
       return;
     }
 
     openToolTab(workbench);
-  }, [activeCollectionId, activeTabId, closeCollectionPanel, openToolTab, setActiveWorkbench, tabs, addTab]);
+  }, [activeCollectionId, activeTabId, closeCollectionPanel, openToolTab, setActiveWorkbench]);
 
   const handlePopoutWorkbench = useCallback(async (tool: ToolWorkbench, sessionId: string) => {
     const detachedSessionId = await openToolWindow(tool, sessionId);
@@ -761,6 +753,17 @@ function App() {
                 <div className={cn("absolute inset-0 z-10 bg-bg-primary", activeCollectionId ? "block" : "hidden")}>
                   {activeCollectionId && <CollectionSettingsPanel collectionId={activeCollectionId} />}
                 </div>
+
+                {/* No tabs: show overview */}
+                {tabs.length === 0 && !activeCollectionId && (
+                  <div className="absolute inset-0 bg-bg-primary">
+                    <RequestsOverview
+                      onNewTab={handleNewTab}
+                      onOpenCollection={(id) => useAppStore.getState().openCollectionPanel(id)}
+                      onOpenEnvModal={() => setEnvModalOpen(true)}
+                    />
+                  </div>
+                )}
 
                 {tabs.map((tab) => {
                   const isActive = !activeCollectionId && activeTabId === tab.id;

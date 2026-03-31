@@ -1,7 +1,7 @@
 //! 内置视频播放器
 //! 使用 FFmpeg CLI 子进程读取 RTSP/RTMP/HLS 等流
-//! 通过 Tauri 事件将 H.264 数据推送到前端（避免 WebSocket 安全限制）
-//! 前端用 MSE API + fMP4 封装播放
+//! 输出 fragmented MP4 (fMP4)，通过 Tauri 事件推送到前端
+//! 前端用 MSE API 直接 appendBuffer 播放
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -19,17 +19,14 @@ struct PlayerInitEvent {
     codec: String,
     width: u32,
     height: u32,
-    extradata: String, // base64
 }
 
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct PlayerFrameEvent {
+struct PlayerDataEvent {
     session_id: String,
     seq: u32,
-    pts: i64,
-    is_key: bool,
-    data: String, // base64
+    data: String, // base64-encoded fMP4 chunk
 }
 
 pub struct PlayerSession {
@@ -60,8 +57,8 @@ pub async fn start_player(
         id: uuid::Uuid::new_v4().to_string(),
         direction: "info".to_string(),
         protocol: "player".to_string(),
-        summary: format!("播放器启动 — FFmpeg CLI: {}", url),
-        detail: format!("源: {}\nFFmpeg: {}\n传输: Tauri IPC", url, ffmpeg_path.display()),
+        summary: format!("播放器启动 -- FFmpeg fMP4 管线: {}", url),
+        detail: format!("源: {}\nFFmpeg: {}\n输出: fragmented MP4 → Tauri IPC → MSE", url, ffmpeg_path.display()),
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: None,
     };
@@ -72,7 +69,7 @@ pub async fn start_player(
 
     // Run FFmpeg CLI pipeline in a blocking thread
     std::thread::spawn(move || {
-        let result = run_pipeline(&sid, &url, &ffmpeg_path, ffprobe_path.as_deref(), &app_clone, shutdown_rx);
+        let result = run_fmp4_pipeline(&sid, &url, &ffmpeg_path, ffprobe_path.as_deref(), &app_clone, shutdown_rx);
         if let Err(e) = &result {
             log::warn!("Player {} error: {}", sid, e);
             let msg = ProtocolMessage {
@@ -103,7 +100,7 @@ pub async fn stop_player(session_id: &str) {
 }
 
 /// 使用 ffprobe 获取视频流元信息
-fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String, Vec<u8>) {
+fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String) {
     let output = std::process::Command::new(ffprobe_path)
         .args([
             "-v", "quiet",
@@ -127,18 +124,18 @@ fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String,
                         .and_then(|v| v.as_str())
                         .unwrap_or("h264")
                         .to_string();
-                    return (width, height, codec, Vec::new());
+                    return (width, height, codec);
                 }
             }
         }
     }
 
     // Fallback defaults
-    (0, 0, "h264".to_string(), Vec::new())
+    (0, 0, "h264".to_string())
 }
 
-/// Blocking pipeline: spawn FFmpeg CLI -> read H.264 NAL units from stdout -> emit via Tauri events
-fn run_pipeline(
+/// Blocking pipeline: spawn FFmpeg CLI → output fMP4 to stdout → read chunks → emit via Tauri events
+fn run_fmp4_pipeline(
     session_id: &str,
     url: &str,
     ffmpeg_path: &std::path::Path,
@@ -146,18 +143,27 @@ fn run_pipeline(
     app: &AppHandle,
     shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<(), String> {
-    log::info!("Player {}: opening {} via CLI", session_id, url);
+    log::info!("Player {}: opening {} via fMP4 pipeline", session_id, url);
 
     // Probe stream info
-    let (width, height, codec, extradata) = if let Some(probe_path) = ffprobe_path {
+    let (width, height, codec) = if let Some(probe_path) = ffprobe_path {
         probe_stream(probe_path, url)
     } else {
-        (0, 0, "h264".to_string(), Vec::new())
+        (0, 0, "h264".to_string())
     };
 
     log::info!("Player {}: probed {}x{} codec={}", session_id, width, height, codec);
 
-    // Build FFmpeg command
+    // Emit init event (metadata only, no extradata needed — fMP4 moov contains avcC/hvcC)
+    let init_event = PlayerInitEvent {
+        session_id: session_id.to_string(),
+        codec: codec.clone(),
+        width,
+        height,
+    };
+    let _ = app.emit("player-init", &init_event);
+
+    // Build FFmpeg command — output fragmented MP4
     let mut cmd = std::process::Command::new(ffmpeg_path);
     cmd.args(["-hide_banner", "-loglevel", "warning"]);
 
@@ -172,12 +178,15 @@ fn run_pipeline(
         "-i", url,
     ]);
 
-    // Output: copy video stream, convert to Annex B H.264, output to stdout
+    // Output: copy video stream → fragmented MP4 to stdout
+    // -movflags frag_keyframe: fragment on each keyframe
+    // -movflags empty_moov: put no samples in initial moov (required for streaming)
+    // -movflags default_base_moof: required by MSE spec
     cmd.args([
         "-c:v", "copy",
         "-an",                          // no audio
-        "-bsf:v", "h264_mp4toannexb",  // ensure Annex B format with start codes
-        "-f", "h264",                   // raw H.264 output
+        "-f", "mp4",
+        "-movflags", "frag_keyframe+empty_moov+default_base_moof",
         "pipe:1",
     ]);
 
@@ -185,27 +194,24 @@ fn run_pipeline(
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
 
+    // Windows: prevent console window from flashing
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+
     let mut child = cmd.spawn()
         .map_err(|e| format!("启动 FFmpeg 失败: {}", e))?;
 
     let stdout = child.stdout.take()
         .ok_or("无法获取 FFmpeg stdout")?;
 
-    // Emit init event
-    let init_event = PlayerInitEvent {
-        session_id: session_id.to_string(),
-        codec: codec.clone(),
-        width,
-        height,
-        extradata: base64::engine::general_purpose::STANDARD.encode(&extradata),
-    };
-    let _ = app.emit("player-init", &init_event);
-
-    // Read H.264 NAL units from stdout and emit as frame events
-    let mut reader = std::io::BufReader::with_capacity(256 * 1024, stdout);
-    let mut buf = vec![0u8; 512 * 1024]; // 512KB read buffer
-    let mut nal_buffer = Vec::with_capacity(1024 * 1024); // accumulate NAL data
+    // Read fMP4 chunks from stdout and emit as data events
+    let mut reader = std::io::BufReader::with_capacity(128 * 1024, stdout);
+    let mut buf = vec![0u8; 64 * 1024]; // 64KB read buffer
     let mut seq = 0u32;
+    let mut total_bytes = 0u64;
     let mut errors = 0;
 
     // Check shutdown in a non-blocking way
@@ -232,39 +238,28 @@ fn run_pipeline(
             }
         };
 
-        nal_buffer.extend_from_slice(&buf[..n]);
+        seq += 1;
+        total_bytes += n as u64;
 
-        // Split NAL units by start codes (0x00000001 or 0x000001)
-        // and emit each complete NAL as a frame event
-        while let Some((nal, remaining)) = extract_nal(&nal_buffer) {
-            seq += 1;
-            // Check NAL type for key frame detection (bit 5 of first byte after start code)
-            let nal_type = nal.first().map(|b| b & 0x1F).unwrap_or(0);
-            let is_key = nal_type == 5 || nal_type == 7; // IDR or SPS
+        let data_event = PlayerDataEvent {
+            session_id: session_id.to_string(),
+            seq,
+            data: base64::engine::general_purpose::STANDARD.encode(&buf[..n]),
+        };
 
-            let frame_event = PlayerFrameEvent {
-                session_id: session_id.to_string(),
-                seq,
-                pts: seq as i64, // CLI mode doesn't give us PTS easily
-                is_key,
-                data: base64::engine::general_purpose::STANDARD.encode(&nal),
-            };
-
-            if app.emit("player-frame", &frame_event).is_err() {
-                errors += 1;
-                if errors > 10 {
-                    log::info!("Player {}: too many emit errors, stopping", session_id);
-                    let _ = child.kill();
-                    return Ok(());
-                }
+        if app.emit("player-data", &data_event).is_err() {
+            errors += 1;
+            if errors > 10 {
+                log::info!("Player {}: too many emit errors, stopping", session_id);
+                let _ = child.kill();
+                return Ok(());
             }
+        }
 
-            nal_buffer = remaining;
-
-            // Pace output
-            if seq % 2 == 0 {
-                std::thread::sleep(std::time::Duration::from_millis(30));
-            }
+        // Pace output to avoid overwhelming IPC
+        // ~30fps at 64KB chunks ≈ ~15Mbps throughput, sufficient for most streams
+        if seq % 3 == 0 {
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
 
@@ -272,42 +267,6 @@ fn run_pipeline(
     let _ = child.kill();
     let _ = child.wait();
 
-    log::info!("Player {}: stream ended after {} NAL units", session_id, seq);
+    log::info!("Player {}: stream ended, {} chunks, {} bytes total", session_id, seq, total_bytes);
     Ok(())
-}
-
-/// Extract one complete NAL unit from the buffer.
-/// Returns (NAL data without start code, remaining buffer) or None if no complete NAL found.
-fn extract_nal(buf: &[u8]) -> Option<(Vec<u8>, Vec<u8>)> {
-    // Find first start code
-    let start = find_start_code(buf, 0)?;
-    let nal_start = start + if buf[start..].starts_with(&[0, 0, 0, 1]) { 4 } else { 3 };
-
-    // Find next start code (marks end of current NAL)
-    if let Some(next_start) = find_start_code(buf, nal_start) {
-        let nal_data = buf[nal_start..next_start].to_vec();
-        let remaining = buf[next_start..].to_vec();
-        Some((nal_data, remaining))
-    } else {
-        // No next start code found — NAL is incomplete, wait for more data
-        None
-    }
-}
-
-/// Find the position of a start code (0x000001 or 0x00000001) starting from `from`.
-fn find_start_code(buf: &[u8], from: usize) -> Option<usize> {
-    if buf.len() < from + 3 {
-        return None;
-    }
-    for i in from..buf.len().saturating_sub(2) {
-        if buf[i] == 0 && buf[i + 1] == 0 {
-            if buf[i + 2] == 1 {
-                return Some(i);
-            }
-            if i + 3 < buf.len() && buf[i + 2] == 0 && buf[i + 3] == 1 {
-                return Some(i);
-            }
-        }
-    }
-    None
 }

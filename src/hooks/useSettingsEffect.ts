@@ -84,9 +84,11 @@ async function injectPluginFontFaces(entries: PluginFontEntry[]) {
 
   // 获取 appDataDir 用于构建字体文件绝对路径
   let appDataPath: string;
+  let joinFn: (...paths: string[]) => Promise<string>;
   try {
-    const { appDataDir } = await import('@tauri-apps/api/path');
-    appDataPath = await appDataDir();
+    const pathMod = await import('@tauri-apps/api/path');
+    appDataPath = await pathMod.appDataDir();
+    joinFn = pathMod.join;
   } catch {
     console.warn('Failed to get appDataDir, plugin fonts will not load');
     return;
@@ -105,10 +107,10 @@ async function injectPluginFontFaces(entries: PluginFontEntry[]) {
   for (const { pluginId, font } of entries) {
     if (!font.files?.length) continue;
 
-    const faces = font.files.map((file) => {
+    const faces = await Promise.all(font.files.map(async (file) => {
       const format = file.format || (file.path.endsWith('.woff2') ? 'woff2' : file.path.endsWith('.ttf') ? 'truetype' : 'woff2');
-      // 构建绝对路径并转为 Tauri asset URL
-      const absolutePath = `${appDataPath}plugins/${pluginId}/${file.path}`;
+      // 安全拼接路径，避免 appDataDir 不带尾部分隔符导致路径错误
+      const absolutePath = await joinFn(appDataPath, 'plugins', pluginId, file.path);
       const src = convertFn(absolutePath);
       return `@font-face {
   font-family: '${font.name}';
@@ -117,11 +119,11 @@ async function injectPluginFontFaces(entries: PluginFontEntry[]) {
   font-style: ${file.style || 'normal'};
   font-display: swap;
 }`;
-    }).join('\n');
+    }));
 
     const style = document.createElement('style');
     style.dataset.pluginFont = font.fontId;
-    style.textContent = faces;
+    style.textContent = faces.join('\n');
     document.head.appendChild(style);
   }
 }

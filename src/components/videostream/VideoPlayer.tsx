@@ -1,6 +1,6 @@
 // 内置视频播放器
 // HLS: hls.js 直接播放
-// RTSP/RTMP/其他: 后端 ffmpeg 读取 → Tauri 事件推送 H.264 帧 → MSE 播放
+// RTSP/RTMP/其他: 后端 FFmpeg 输出 fMP4 → Tauri 事件推送 → MSE 直接 appendBuffer 播放
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import Hls from "hls.js";
@@ -18,15 +18,21 @@ interface InitEvent {
   codec: string;
   width: number;
   height: number;
-  extradata: string; // base64
 }
 
-interface FrameEvent {
+interface DataEvent {
   sessionId: string;
   seq: number;
-  pts: number;
-  isKey: boolean;
-  data: string; // base64
+  data: string; // base64-encoded fMP4 chunk
+}
+
+/** Map FFmpeg codec name to MSE mime codec string */
+function codecToMime(codec: string): string {
+  const c = codec.toLowerCase();
+  if (c.includes("h264") || c.includes("avc")) return 'video/mp4; codecs="avc1.42E01E"';
+  if (c.includes("h265") || c.includes("hevc") || c.includes("hev")) return 'video/mp4; codecs="hev1.1.6.L93.B0"';
+  // Fallback — most streams are H.264
+  return 'video/mp4; codecs="avc1.42E01E"';
 }
 
 export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
@@ -44,7 +50,7 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
   // Cleanup
   useEffect(() => () => { hlsRef.current?.destroy(); }, []);
 
-  // HLS playback
+  // ── HLS playback (unchanged) ──
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !url || !isHls) return;
@@ -70,7 +76,7 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
     }
   }, [url, isHls, onError]);
 
-  // Tauri event playback (ffmpeg backend → MSE)
+  // ── Tauri event playback (FFmpeg fMP4 → MSE direct append) ──
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !url || !isTauri) return;
@@ -78,60 +84,83 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
     let cancelled = false;
     let mediaSource: MediaSource | null = null;
     let sourceBuffer: SourceBuffer | null = null;
-    let pendingBuffers: ArrayBuffer[] = [];
-    let initDone = false;
+    const pendingBuffers: ArrayBuffer[] = [];
+    let sbReady = false;
     let unlistenInit: (() => void) | null = null;
-    let unlistenFrame: (() => void) | null = null;
+    let unlistenData: (() => void) | null = null;
+    let objectUrl: string | null = null;
+    let playAttempted = false;
 
     setLoading(true);
     setStatus("等待流数据...");
 
+    /** Flush pending buffers when SourceBuffer is ready */
+    function flushPending() {
+      if (!sourceBuffer || sourceBuffer.updating || pendingBuffers.length === 0) return;
+      const chunk = pendingBuffers.shift()!;
+      try {
+        sourceBuffer.appendBuffer(chunk);
+      } catch {
+        // QuotaExceededError — evict old data & retry
+        if (sourceBuffer.buffered.length > 0) {
+          try {
+            const start = sourceBuffer.buffered.start(0);
+            const end = sourceBuffer.buffered.end(sourceBuffer.buffered.length - 1);
+            if (end - start > 10) {
+              sourceBuffer.remove(start, end - 5);
+            }
+          } catch { /* ignore */ }
+        }
+      }
+    }
+
+    /** Try to start playback once we have some data */
+    function tryPlay() {
+      if (playAttempted || !video) return;
+      playAttempted = true;
+      video.play().then(() => setPlaying(true)).catch(() => {
+        // autoplay blocked — user needs to click play
+        playAttempted = false;
+      });
+    }
+
     async function setup() {
-      // Listen for init event (codec info)
+      // Listen for init event (codec metadata)
       unlistenInit = await listen<InitEvent>("player-init", (event) => {
         if (cancelled || event.payload.sessionId !== sessionId) return;
-        const { width, height, extradata: edB64 } = event.payload;
+        const { codec, width, height } = event.payload;
 
-        setStatus(`H.264 ${width}x${height}`);
+        const mime = codecToMime(codec);
+        setStatus(`${codec.toUpperCase()} ${width > 0 ? `${width}x${height}` : ""}`);
 
-        // Decode extradata
-        const edBytes = Uint8Array.from(atob(edB64), c => c.charCodeAt(0));
-
-        // Parse avcC to get codec string
-        let codec = "avc1.42E01E";
-        if (edBytes.length >= 4) {
-          const p = edBytes[1] || 0x42;
-          const c2 = edBytes[2] || 0xE0;
-          const l = edBytes[3] || 0x1E;
-          codec = `avc1.${p.toString(16).padStart(2,'0')}${c2.toString(16).padStart(2,'0')}${l.toString(16).padStart(2,'0')}`;
+        if (!MediaSource.isTypeSupported(mime)) {
+          onError?.(`浏览器不支持编码: ${mime}`);
+          setLoading(false);
+          return;
         }
 
         // Create MSE
         mediaSource = new MediaSource();
-        video!.src = URL.createObjectURL(mediaSource);
+        objectUrl = URL.createObjectURL(mediaSource);
+        video!.src = objectUrl;
 
         mediaSource.addEventListener("sourceopen", () => {
+          if (cancelled || !mediaSource) return;
           try {
-            const mime = `video/mp4; codecs="${codec}"`;
-            if (!MediaSource.isTypeSupported(mime)) {
-              onError?.(`不支持的编码: ${mime}`);
-              setLoading(false);
-              return;
-            }
             sourceBuffer = mediaSource!.addSourceBuffer(mime);
             sourceBuffer.mode = "segments";
             sourceBuffer.addEventListener("updateend", () => {
-              if (pendingBuffers.length > 0 && sourceBuffer && !sourceBuffer.updating) {
-                sourceBuffer.appendBuffer(pendingBuffers.shift()!);
+              flushPending();
+              // Auto-play once we have some buffered data
+              if (video && video.buffered.length > 0 && !playAttempted) {
+                tryPlay();
               }
             });
-
-            // Build and append init segment
-            const initSeg = buildFmp4Init(edBytes, width, height);
-            sourceBuffer.appendBuffer(initSeg);
-            initDone = true;
+            sbReady = true;
             setLoading(false);
             setStatus("播放中");
+            // Flush any data that arrived before SourceBuffer was ready
+            flushPending();
           } catch (e) {
             onError?.(`MSE 错误: ${e}`);
             setLoading(false);
@@ -139,30 +168,36 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
         });
       });
 
-      // Listen for frame events
-      let frameSeq = 0;
-      unlistenFrame = await listen<FrameEvent>("player-frame", (event) => {
+      // Listen for fMP4 data chunks
+      unlistenData = await listen<DataEvent>("player-data", (event) => {
         if (cancelled || event.payload.sessionId !== sessionId) return;
-        if (!initDone || !sourceBuffer) return;
 
-        const { data: dataB64, isKey } = event.payload;
-        const nalData = Uint8Array.from(atob(dataB64), c => c.charCodeAt(0));
+        // Decode base64 → ArrayBuffer
+        const raw = atob(event.payload.data);
+        const buf = new ArrayBuffer(raw.length);
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < raw.length; i++) {
+          view[i] = raw.charCodeAt(i);
+        }
 
-        frameSeq++;
-        const mediaSeg = buildFmp4Segment(nalData, frameSeq, isKey);
+        if (!sbReady || !sourceBuffer) {
+          // Buffer data until SourceBuffer is ready
+          pendingBuffers.push(buf);
+          // Prevent unbounded buffering before init
+          if (pendingBuffers.length > 100) pendingBuffers.splice(0, 50);
+          return;
+        }
 
         if (!sourceBuffer.updating) {
           try {
-            sourceBuffer.appendBuffer(mediaSeg);
-            if (!playing && video) {
-              video.play().then(() => setPlaying(true)).catch(() => {});
-            }
+            sourceBuffer.appendBuffer(buf);
           } catch {
-            pendingBuffers.push(mediaSeg);
+            pendingBuffers.push(buf);
           }
         } else {
-          pendingBuffers.push(mediaSeg);
-          if (pendingBuffers.length > 30) pendingBuffers.splice(0, 20);
+          pendingBuffers.push(buf);
+          // Limit pending queue to prevent memory blowup
+          if (pendingBuffers.length > 60) pendingBuffers.splice(0, 30);
         }
       });
     }
@@ -172,9 +207,10 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
     return () => {
       cancelled = true;
       unlistenInit?.();
-      unlistenFrame?.();
+      unlistenData?.();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, isTauri, sessionId, onError, playing]);
+  }, [url, isTauri, sessionId, onError]);
 
   const handlePlayPause = useCallback(() => {
     const v = videoRef.current;
@@ -235,62 +271,4 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
       </div>
     </div>
   );
-}
-
-// ── fMP4 工具函数 ──
-
-// sequence counter for fMP4 segments (module-level)
-
-function buildFmp4Init(extradata: Uint8Array, width: number, height: number): ArrayBuffer {
-  const ftyp = fbox('ftyp', cat(s('isom'), u4(0x200), s('isom'), s('iso2'), s('avc1'), s('mp41')));
-  const avcC = fbox('avcC', extradata);
-  const stbl = fbox('stbl', cat(
-    fbox('stsd', cat(u4(0), u4(1), fbox('avc1', cat(new Uint8Array(6), u2(1), new Uint8Array(16), u2(width), u2(height), u4(0x00480000), u4(0x00480000), u4(0), u2(1), new Uint8Array(32), u2(0x0018), u2(0xFFFF), avcC)))),
-    fbox('stts', new Uint8Array(8)), fbox('stsc', new Uint8Array(8)), fbox('stsz', new Uint8Array(12)), fbox('stco', new Uint8Array(8))
-  ));
-  const trak = fbox('trak', cat(
-    fbox('tkhd', cat(u4(3), u4(0), u4(0), u4(1), u4(0), u4(0), new Uint8Array(8), u2(0), u2(0), u2(0), u2(0), new Uint8Array([0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x40,0,0,0]), u4(width<<16), u4(height<<16))),
-    fbox('mdia', cat(
-      fbox('mdhd', cat(u4(0), u4(0), u4(0), u4(90000), u4(0), u4(0))),
-      fbox('hdlr', cat(u4(0), u4(0), s('vide'), new Uint8Array(12), s('VideoHandler'), new Uint8Array(1))),
-      fbox('minf', cat(fbox('vmhd', cat(u4(1), new Uint8Array(8))), fbox('dinf', fbox('dref', cat(u4(0), u4(1), fbox('url ', new Uint8Array(4))))), stbl))
-    ))
-  ));
-  const moov = fbox('moov', cat(
-    fbox('mvhd', cat(u4(0), u4(0), u4(0), u4(90000), u4(0), u4(0x00010000), u2(0x0100), new Uint8Array(10), new Uint8Array([0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x40,0,0,0]), new Uint8Array(24), u4(2))),
-    trak,
-    fbox('mvex', fbox('trex', cat(u4(0), u4(1), u4(1), u4(0), u4(0), u4(0))))
-  ));
-  return cat(ftyp, moov).buffer;
-}
-
-function buildFmp4Segment(nalData: Uint8Array, seq: number, _isKey: boolean): ArrayBuffer {
-  const trun = fbox('trun', cat(u4(0x000201), u4(1), u4(0), u4(nalData.length + 4)));
-  const tfhd = fbox('tfhd', cat(u4(0x020000), u4(1)));
-  const tfdt = fbox('tfdt', cat(u4(0x01000000), u4(0), u4(seq * 3000)));
-  const traf = fbox('traf', cat(tfhd, tfdt, trun));
-  const moof = fbox('moof', cat(fbox('mfhd', cat(u4(0), u4(seq))), traf));
-  const mb = new Uint8Array(moof);
-  // Patch data offset
-  const trunOff = findBox(mb, 'trun');
-  if (trunOff >= 0) new DataView(mb.buffer).setUint32(trunOff + 16, mb.length + 8);
-  const mdat = fbox('mdat', cat(u4(nalData.length), nalData));
-  return cat(mb, mdat).buffer;
-}
-
-function fbox(type: string, payload: Uint8Array): Uint8Array {
-  const r = new Uint8Array(8 + payload.length);
-  new DataView(r.buffer).setUint32(0, r.length);
-  r[4]=type.charCodeAt(0); r[5]=type.charCodeAt(1); r[6]=type.charCodeAt(2); r[7]=type.charCodeAt(3);
-  r.set(payload, 8); return r;
-}
-function cat(...a: Uint8Array[]): Uint8Array { const t=a.reduce((s,x)=>s+x.length,0); const r=new Uint8Array(t); let o=0; for(const x of a){r.set(x,o);o+=x.length;} return r; }
-function u4(v: number): Uint8Array { const b=new Uint8Array(4); new DataView(b.buffer).setUint32(0,v); return b; }
-function u2(v: number): Uint8Array { const b=new Uint8Array(2); new DataView(b.buffer).setUint16(0,v); return b; }
-function s(v: string): Uint8Array { return new Uint8Array(v.split('').map(c=>c.charCodeAt(0))); }
-function findBox(d: Uint8Array, type: string): number {
-  const v=new DataView(d.buffer); let o=0;
-  while(o+8<=d.length) { const sz=v.getUint32(o); const t=String.fromCharCode(d[o+4],d[o+5],d[o+6],d[o+7]);
-    if(t===type) return o; if(sz<8) break;
-    if(['moof','traf','moov','trak','mdia','minf'].includes(t)){const i=findBox(d.subarray(o+8,o+sz),type);if(i>=0)return o+8+i;} o+=sz;} return -1;
 }
