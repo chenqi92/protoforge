@@ -19,6 +19,7 @@ struct PlayerInitEvent {
     codec: String,
     width: u32,
     height: u32,
+    has_audio: bool,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -141,14 +142,23 @@ fn detect_rtsp_timeout_flag(ffmpeg_path: &std::path::Path) -> &'static str {
     })
 }
 
+/// Stream probe result
+struct ProbeResult {
+    width: u32,
+    height: u32,
+    codec: String,
+    has_audio: bool,
+}
+
 /// 使用 ffprobe 获取视频流元信息（带超时，防止阻塞）
-fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String) {
+/// 同时检测是否存在音频流，用于决定 FFmpeg 输出是否包含音频
+fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> ProbeResult {
     let mut cmd = std::process::Command::new(ffprobe_path);
 
-    // 为流媒体 URL 添加超时参数，避免 ffprobe 无限阻塞
+    // 为流媒体 URL 添加超时参数
     let lower_url = url.to_lowercase();
     if lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://") {
-        cmd.args(["-rw_timeout", "5000000"]); // 5 秒超时
+        cmd.args(["-rw_timeout", "5000000"]);
     } else if lower_url.starts_with("rtsp://") {
         cmd.args(["-rtsp_transport", "tcp"]);
         let flag = detect_rtsp_timeout_flag(ffprobe_path);
@@ -157,11 +167,11 @@ fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String)
         cmd.args(["-rw_timeout", "5000000"]);
     }
 
+    // Probe ALL streams (not just video) so we can detect audio
     cmd.args([
         "-v", "quiet",
         "-print_format", "json",
         "-show_streams",
-        "-select_streams", "v:0",
         "-analyzeduration", "3000000",
         "-probesize", "2000000",
         url,
@@ -170,25 +180,20 @@ fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String)
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::null());
 
-    // Windows: 不弹控制台窗口
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x08000000);
     }
 
-    // 启动子进程，用 try_wait 轮询防止无限阻塞
     match cmd.spawn() {
         Ok(mut child) => {
-            // 轮询等待最多 8 秒
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
             let status = loop {
                 match child.try_wait() {
                     Ok(Some(status)) => break Some(status),
                     Ok(None) => {
-                        if std::time::Instant::now() >= deadline {
-                            break None; // 超时
-                        }
+                        if std::time::Instant::now() >= deadline { break None; }
                         std::thread::sleep(std::time::Duration::from_millis(100));
                     }
                     Err(e) => {
@@ -198,10 +203,8 @@ fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String)
                     }
                 }
             };
-
             match status {
                 Some(s) if s.success() => {
-                    // 读取 stdout
                     if let Some(stdout) = child.stdout.take() {
                         use std::io::Read;
                         let mut output = Vec::new();
@@ -212,42 +215,46 @@ fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String)
                     }
                     log::warn!("ffprobe: could not read stdout");
                 }
-                Some(s) => {
-                    log::warn!("ffprobe exited with status: {}", s);
-                }
+                Some(s) => log::warn!("ffprobe exited with status: {}", s),
                 None => {
-                    // 超时，杀掉子进程
                     log::warn!("ffprobe timed out, killing process");
                     let _ = child.kill();
                     let _ = child.wait();
                 }
             }
         }
-        Err(e) => {
-            log::warn!("ffprobe spawn error: {}", e);
-        }
+        Err(e) => log::warn!("ffprobe spawn error: {}", e),
     }
 
-    // Fallback defaults
-    (0, 0, "h264".to_string())
+    ProbeResult { width: 0, height: 0, codec: "h264".to_string(), has_audio: false }
 }
 
-/// 解析 ffprobe JSON 输出
-fn parse_ffprobe_output(output: &[u8]) -> (u32, u32, String) {
+/// 解析 ffprobe JSON 输出 — 提取视频 codec/分辨率 + 检测音频流
+fn parse_ffprobe_output(output: &[u8]) -> ProbeResult {
+    let mut result = ProbeResult { width: 0, height: 0, codec: "h264".to_string(), has_audio: false };
     if let Ok(json) = serde_json::from_slice::<serde_json::Value>(output) {
         if let Some(streams) = json.get("streams").and_then(|s| s.as_array()) {
-            if let Some(stream) = streams.first() {
-                let width = stream.get("width").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                let height = stream.get("height").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                let codec = stream.get("codec_name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("h264")
-                    .to_string();
-                return (width, height, codec);
+            for stream in streams {
+                let codec_type = stream.get("codec_type").and_then(|v| v.as_str()).unwrap_or("");
+                match codec_type {
+                    "video" if result.width == 0 => {
+                        // First video stream
+                        result.width = stream.get("width").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                        result.height = stream.get("height").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                        result.codec = stream.get("codec_name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("h264")
+                            .to_string();
+                    }
+                    "audio" => {
+                        result.has_audio = true;
+                    }
+                    _ => {}
+                }
             }
         }
     }
-    (0, 0, "h264".to_string())
+    result
 }
 
 /// Blocking pipeline: spawn FFmpeg CLI → output fMP4 to stdout → read chunks → emit via Tauri events
@@ -261,28 +268,33 @@ fn run_fmp4_pipeline(
 ) -> Result<(), String> {
     log::info!("Player {}: opening {} via fMP4 pipeline", session_id, url);
 
-    // Probe stream info
-    let (width, height, codec) = if let Some(probe_path) = ffprobe_path {
+    // Probe stream info (video codec + audio detection)
+    let probe = if let Some(probe_path) = ffprobe_path {
         probe_stream(probe_path, url)
     } else {
-        (0, 0, "h264".to_string())
+        ProbeResult { width: 0, height: 0, codec: "h264".to_string(), has_audio: false }
     };
 
-    log::info!("Player {}: probed {}x{} codec={}", session_id, width, height, codec);
+    log::info!("Player {}: probed {}x{} codec={} has_audio={}",
+        session_id, probe.width, probe.height, probe.codec, probe.has_audio);
 
-    // If HEVC, we'll transcode to H.264 for MSE compatibility — tell frontend the output codec
-    let output_codec = if codec.contains("hevc") || codec.contains("h265") || codec.contains("hev") {
-        "h264".to_string()
-    } else {
-        codec.clone()
-    };
+    let needs_transcode = probe.codec.contains("hevc") || probe.codec.contains("h265") || probe.codec.contains("hev");
 
-    // Emit init event (metadata only, no extradata needed — fMP4 moov contains avcC/hvcC)
+    // If HEVC, we'll transcode to H.264 for MSE compatibility
+    let output_codec = if needs_transcode { "h264".to_string() } else { probe.codec.clone() };
+    let output_width = if probe.width > 1920 && needs_transcode { 1920 } else { probe.width };
+    let output_height = if probe.width > 1920 && needs_transcode { 0 } else { probe.height };
+
+    // Emit init event — frontend uses has_audio to decide MIME type
+    // Small delay to ensure frontend event listeners are ready
+    // (the probe usually takes seconds, but in case it's fast)
+    std::thread::sleep(std::time::Duration::from_millis(200));
     let init_event = PlayerInitEvent {
         session_id: session_id.to_string(),
         codec: output_codec,
-        width: if width > 1920 { 1920 } else { width },
-        height: if width > 1920 { 0 } else { height }, // 0 = auto-detect from stream
+        width: output_width,
+        height: output_height,
+        has_audio: probe.has_audio,
     };
     let _ = app.emit("player-init", &init_event);
 
@@ -293,18 +305,13 @@ fn run_fmp4_pipeline(
     // Protocol-specific input options
     let lower_url = url.to_lowercase();
     if lower_url.starts_with("rtsp://") {
-        // RTSP: force TCP interleaved transport, set socket timeout
         cmd.args(["-rtsp_transport", "tcp"]);
-        // FFmpeg 8+ removed -stimeout; use -timeout instead.
-        // Detect version to pick the right option.
         let rtsp_timeout_flag = detect_rtsp_timeout_flag(ffmpeg_path);
         cmd.args([rtsp_timeout_flag, "5000000"]);
     } else if lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://") {
-        // RTMP: hint live stream mode, set connection timeout
         cmd.args(["-rtmp_live", "live"]);
         cmd.args(["-rw_timeout", "5000000"]);
     } else {
-        // Generic: use rw_timeout for connection/read timeout
         cmd.args(["-rw_timeout", "5000000"]);
     }
 
@@ -317,46 +324,29 @@ fn run_fmp4_pipeline(
         "-i", url,
     ]);
 
-    // Output: fragmented MP4 to stdout for MSE playback
-    // -movflags frag_keyframe: fragment on each keyframe
-    // -movflags empty_moov: put no samples in initial moov (required for streaming)
-    // -movflags default_base_moof: required by MSE spec
-    let needs_transcode = codec.contains("hevc") || codec.contains("h265") || codec.contains("hev");
-
+    // ── Video output ──
     if needs_transcode {
-        // HEVC is not supported by MSE in most WebViews — transcode to H.264
         log::info!("Player {}: HEVC detected, transcoding to H.264 for MSE compatibility", session_id);
-
-        // Scale down if resolution is very high (>1920px wide) to keep performance reasonable
-        if width > 1920 {
+        if probe.width > 1920 {
             cmd.args(["-vf", "scale=1920:-2"]);
         }
-
-        // Try VideoToolbox hardware encoder on macOS, fall back to libx264
         if cfg!(target_os = "macos") {
-            cmd.args([
-                "-c:v", "h264_videotoolbox",
-                "-b:v", "4000k",
-                "-realtime", "1",
-            ]);
+            cmd.args(["-c:v", "h264_videotoolbox", "-b:v", "4000k", "-realtime", "1"]);
         } else {
-            cmd.args([
-                "-c:v", "libx264",
-                "-preset", "ultrafast",
-                "-tune", "zerolatency",
-                "-b:v", "4000k",
-            ]);
+            cmd.args(["-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-b:v", "4000k"]);
         }
     } else {
-        // H.264 or other MSE-compatible codec — copy without transcoding
         cmd.args(["-c:v", "copy"]);
     }
 
+    // ── Audio output (conditional) ──
+    if probe.has_audio {
+        cmd.args(["-c:a", "aac", "-ac", "1", "-ar", "44100", "-b:a", "64k"]);
+    } else {
+        cmd.args(["-an"]);
+    }
+
     cmd.args([
-        "-c:a", "aac",                  // transcode audio to AAC for MSE
-        "-ac", "1",                      // mono (most IP cams are mono)
-        "-ar", "44100",                  // standard sample rate
-        "-b:a", "64k",
         "-f", "mp4",
         "-movflags", "frag_keyframe+empty_moov+default_base_moof",
         "pipe:1",

@@ -2,7 +2,7 @@
 // 布局：Tabs+URL 固定顶部 → 可拖拽分栏（上：视频+配置 | 下：协议报文）
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
-import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, Play, Square, GripHorizontal, GripVertical, History, X, Download } from "lucide-react";
+import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, GripHorizontal, GripVertical, History, X, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { VideoProtocol, StreamInfo, StreamStats, ProtocolMessage } from "@/types/videostream";
@@ -99,33 +99,44 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
     return () => { disposed = true; unlistenEvent?.(); unlistenStats?.(); unlistenMsg?.(); vsSvc.disconnectStream(sessionKey).catch(() => {}); };
   }, [sessionKey]);
 
-  const handleConnect = useCallback(async () => {
-    if (connected) { await vsSvc.disconnectStream(sessionKey).catch(() => {}); setConnected(false); setPlaying(false); }
-    else { if (!streamUrl.trim()) return; setConnecting(true); saveRecentStream(streamUrl, mode); setRecentStreams(loadRecentStreams()); try { await vsSvc.connectStream(sessionKey, mode, { url: streamUrl }); } catch { setConnecting(false); } }
-  }, [connected, sessionKey, mode, streamUrl]);
-
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
   const [playerUrl, setPlayerUrl] = useState<string | null>(null);
-  const handlePlay = useCallback(async () => {
+
+  const handleConnect = useCallback(async () => {
+    if (showPlayer) {
+      // Stop playback and disconnect
+      await vsSvc.playerControl(sessionKey, 'stop').catch(() => {});
+      await vsSvc.disconnectStream(sessionKey).catch(() => {});
+      setShowPlayer(false);
+      setPlaying(false);
+      setPlayerUrl(null);
+      setConnected(false);
+      return;
+    }
     if (!streamUrl.trim()) return;
     setPlayerError(null);
+    saveRecentStream(streamUrl, mode);
+    setRecentStreams(loadRecentStreams());
+    // Set player URL first so listeners are ready before FFmpeg starts
+    const tauriUrl = `tauri:${streamUrl}`;
+    setPlayerUrl(tauriUrl);
     setShowPlayer(true);
     setPlaying(true);
+    setConnecting(true);
+    // Wait for React render cycle to complete
+    await new Promise(r => requestAnimationFrame(() => setTimeout(r, 50)));
     try {
-      const url = await vsSvc.playerLoad(sessionKey, streamUrl);
-      setPlayerUrl(url); // ws:// for RTSP/RTMP, or direct URL for HLS
+      await vsSvc.playerLoad(sessionKey, streamUrl);
+      setConnected(true);
     } catch (e) {
       setPlayerError(String(e));
       setPlaying(false);
+      setShowPlayer(false);
+      setPlayerUrl(null);
     }
-  }, [sessionKey, streamUrl]);
-  const handleStop = useCallback(async () => {
-    await vsSvc.playerControl(sessionKey, 'stop').catch(() => {});
-    setShowPlayer(false);
-    setPlaying(false);
-    setPlayerUrl(null);
-  }, [sessionKey]);
+    setConnecting(false);
+  }, [showPlayer, sessionKey, mode, streamUrl]);
 
   const selectedMsg = selectedMsgId ? filteredMessages.find(m => m.id === selectedMsgId) : null;
 
@@ -175,14 +186,14 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
           <input
             value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)}
             placeholder={mode === 'rtsp' ? 'rtsp://admin:password@192.168.1.100:554/stream1' : mode === 'rtmp' ? 'rtmp://live.example.com/app/stream' : mode === 'http-flv' ? 'http://live.example.com/live/stream.flv' : mode === 'hls' ? 'https://example.com/live/index.m3u8' : mode === 'webrtc' ? 'wss://signal.example.com/ws' : mode === 'gb28181' ? '34020000001320000001' : 'srt://live.example.com:9000'}
-            disabled={connected}
+            disabled={showPlayer}
             className="h-7 flex-1 bg-transparent text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
-            onKeyDown={(e) => e.key === 'Enter' && !connected && handleConnect()}
+            onKeyDown={(e) => e.key === 'Enter' && !showPlayer && handleConnect()}
           />
-          <button onClick={handleConnect} disabled={connecting || (!streamUrl.trim() && !connected)}
-            className={cn("wb-primary-btn min-w-[80px] px-3", connected ? "bg-error hover:bg-error/90" : connecting ? "bg-warning cursor-wait opacity-70" : "bg-accent hover:bg-accent-hover hover:shadow-md")}
+          <button onClick={handleConnect} disabled={connecting || (!streamUrl.trim() && !showPlayer)}
+            className={cn("wb-primary-btn min-w-[80px] px-3", showPlayer ? "bg-error hover:bg-error/90" : connecting ? "bg-warning cursor-wait opacity-70" : "bg-accent hover:bg-accent-hover hover:shadow-md")}
           >
-            {connected ? t('videostream.disconnect', '断开') : connecting ? t('videostream.connecting', '连接中...') : t('videostream.connect', '连接')}
+            {showPlayer ? t('videostream.disconnect', '断开') : connecting ? t('videostream.connecting', '连接中...') : t('videostream.play', '播放')}
           </button>
         </div>
       </div>
@@ -242,22 +253,6 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                   {t('videostream.protocolConfig', '协议配置')}
                 </span>
                 <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">{mode.toUpperCase()}</span>
-                <div className="flex items-center gap-1.5 ml-auto">
-                  {streamUrl && !showPlayer && (
-                    <button onClick={handlePlay}
-                      className="flex items-center gap-1 h-6 px-2 rounded-[var(--radius-xs)] bg-accent/10 text-accent text-[var(--fs-xxs)] font-semibold hover:bg-accent/20 transition-colors"
-                    >
-                      <Play className="w-3 h-3" /> 播放
-                    </button>
-                  )}
-                  {showPlayer && (
-                    <button onClick={handleStop}
-                      className="flex items-center gap-1 h-6 px-2 rounded-[var(--radius-xs)] bg-error/10 text-error text-[var(--fs-xxs)] font-semibold hover:bg-error/20 transition-colors"
-                    >
-                      <Square className="w-3 h-3" /> 关闭
-                    </button>
-                  )}
-                </div>
               </div>
               <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-3">
                 <div className="min-w-0 max-w-full overflow-x-hidden">

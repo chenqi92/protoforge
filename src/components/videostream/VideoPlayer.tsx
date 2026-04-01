@@ -18,6 +18,7 @@ interface InitEvent {
   codec: string;
   width: number;
   height: number;
+  hasAudio: boolean;
 }
 
 interface DataEvent {
@@ -31,13 +32,13 @@ interface ErrorEvent {
   error: string;
 }
 
-/** Map FFmpeg codec name to MSE mime codec string (video + AAC audio) */
-function codecToMime(codec: string): string {
+/** Map FFmpeg codec name to MSE mime codec string (conditionally include audio) */
+function codecToMime(codec: string, hasAudio: boolean): string {
   const c = codec.toLowerCase();
-  if (c.includes("h264") || c.includes("avc")) return 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
-  if (c.includes("h265") || c.includes("hevc") || c.includes("hev")) return 'video/mp4; codecs="hev1.1.6.L93.B0, mp4a.40.2"';
-  // Fallback — most streams are H.264
-  return 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+  const audio = hasAudio ? ', mp4a.40.2' : '';
+  if (c.includes("h264") || c.includes("avc")) return `video/mp4; codecs="avc1.42E01E${audio}"`;
+  if (c.includes("h265") || c.includes("hevc") || c.includes("hev")) return `video/mp4; codecs="hev1.1.6.L93.B0${audio}"`;
+  return `video/mp4; codecs="avc1.42E01E${audio}"`;
 }
 
 export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
@@ -153,10 +154,10 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
       // Listen for init event (codec metadata)
       unlistenInit = await listen<InitEvent>("player-init", (event) => {
         if (cancelled || event.payload.sessionId !== sessionId) return;
-        const { codec, width, height } = event.payload;
+        const { codec, width, height, hasAudio } = event.payload;
 
-        const mime = codecToMime(codec);
-        setStatus(`${codec.toUpperCase()} ${width > 0 ? `${width}x${height}` : ""}`);
+        const mime = codecToMime(codec, hasAudio);
+        setStatus(`${codec.toUpperCase()} ${width > 0 ? `${width}x${height}` : ""}${hasAudio ? ' 🔊' : ''}`);
 
         if (!MediaSource.isTypeSupported(mime)) {
           onErrorRef.current?.(`浏览器不支持编码: ${mime}`);

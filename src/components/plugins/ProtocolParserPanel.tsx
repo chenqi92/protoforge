@@ -228,7 +228,7 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
         )}
 
         {!loading && result?.success && (
-          <div className="p-2.5 space-y-2">
+          <div className="p-2.5 space-y-2 select-text cursor-auto">
             {/* Summary Header */}
             <div className="rounded-[var(--radius-sm)] border border-border-default/50 overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2 bg-accent-soft border-l-[3px] border-l-accent">
@@ -429,14 +429,14 @@ function RegisterTable({ columns, rows, fieldMap, search }: {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-[var(--fs-xs)]">
+      <table className="w-full table-fixed border-collapse text-[var(--fs-xs)]">
         {/* Header */}
         <thead>
           <tr className="border-b border-border-default/50">
             {columns.map((col, i) => (
               <th key={i} className={cn(
                 "px-2 py-1.5 text-[var(--fs-3xs)] font-semibold text-text-tertiary uppercase tracking-wider whitespace-nowrap",
-                i === 0 ? "text-left pl-3 w-[20%]" : "text-right"
+                i === 0 ? "text-left pl-3 w-[20%]" : "text-center"
               )}>
                 {col}
               </th>
@@ -459,10 +459,10 @@ function RegisterTable({ columns, rows, fieldMap, search }: {
                 {row.cells.map((cell, ci) => {
                   const field = fieldMap.get(cell.key);
                   if (!field) {
-                    return <td key={ci} className="px-2 py-1.5 text-right text-text-disabled">--</td>;
+                    return <td key={ci} className="px-2 py-1.5 text-center text-text-disabled">--</td>;
                   }
                   return (
-                    <td key={ci} className={cn("px-2 py-1.5 text-right whitespace-nowrap", cell.span && `col-span-${cell.span}`)}>
+                    <td key={ci} colSpan={cell.span || 1} className="px-2 py-1.5 text-center whitespace-nowrap">
                       <CellValue field={field} />
                     </td>
                   );
@@ -482,7 +482,7 @@ function CellValue({ field }: { field: ParsedField }) {
 
   if (field.uiType === 'status-dot') {
     return (
-      <span className="inline-flex items-center gap-1 justify-end">
+      <span className="inline-flex items-center gap-1 justify-center">
         <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", field.color ? DOT_COLOR[field.color] || DOT_COLOR.slate : "bg-text-tertiary")} />
         <span className={cn("text-[var(--fs-xs)] font-medium", field.color ? TEXT_COLOR[field.color] : "text-text-primary")}>{valStr}</span>
       </span>
