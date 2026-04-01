@@ -353,7 +353,10 @@ fn run_fmp4_pipeline(
     }
 
     cmd.args([
-        "-an",                          // no audio
+        "-c:a", "aac",                  // transcode audio to AAC for MSE
+        "-ac", "1",                      // mono (most IP cams are mono)
+        "-ar", "44100",                  // standard sample rate
+        "-b:a", "64k",
         "-f", "mp4",
         "-movflags", "frag_keyframe+empty_moov+default_base_moof",
         "pipe:1",

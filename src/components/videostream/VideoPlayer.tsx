@@ -31,13 +31,13 @@ interface ErrorEvent {
   error: string;
 }
 
-/** Map FFmpeg codec name to MSE mime codec string */
+/** Map FFmpeg codec name to MSE mime codec string (video + AAC audio) */
 function codecToMime(codec: string): string {
   const c = codec.toLowerCase();
-  if (c.includes("h264") || c.includes("avc")) return 'video/mp4; codecs="avc1.42E01E"';
-  if (c.includes("h265") || c.includes("hevc") || c.includes("hev")) return 'video/mp4; codecs="hev1.1.6.L93.B0"';
+  if (c.includes("h264") || c.includes("avc")) return 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+  if (c.includes("h265") || c.includes("hevc") || c.includes("hev")) return 'video/mp4; codecs="hev1.1.6.L93.B0, mp4a.40.2"';
   // Fallback — most streams are H.264
-  return 'video/mp4; codecs="avc1.42E01E"';
+  return 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
 }
 
 export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
@@ -48,6 +48,11 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
   const [volume, setVolume] = useState(80);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
+
+  // Stabilize onError ref so it doesn't cause useEffect re-runs
+  // (parent re-renders from PTZ/state changes would create new inline fn each time)
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   const isHls = url?.startsWith("hls:") ?? false;
   const isTauri = url?.startsWith("tauri:") ?? false;
@@ -75,11 +80,11 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
         video.play().then(() => setPlaying(true)).catch(() => {});
       });
       hls.on(Hls.Events.ERROR, (_, data) => {
-        if (data.fatal) { setLoading(false); onError?.(`HLS: ${data.details}`); }
+        if (data.fatal) { setLoading(false); onErrorRef.current?.(`HLS: ${data.details}`); }
       });
       return () => { hls.destroy(); hlsRef.current = null; };
     }
-  }, [url, isHls, onError]);
+  }, [url, isHls]);
 
   // ── Tauri event playback (FFmpeg fMP4 → MSE direct append) ──
   useEffect(() => {
@@ -126,13 +131,20 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
     function tryPlay() {
       if (playAttempted || !video) return;
       playAttempted = true;
+      // Muted autoplay is always allowed; unmute after play starts
+      video.muted = true;
       video.play().then(() => {
         setPlaying(true);
-        // Clear the loading overlay once playback actually starts
         setLoading(false);
         setStatus("");
+        // Unmute after playback starts (Tauri WKWebView allows this)
+        setTimeout(() => {
+          if (video) {
+            video.muted = false;
+            video.volume = 0.8;
+          }
+        }, 300);
       }).catch(() => {
-        // autoplay blocked — user needs to click play
         playAttempted = false;
       });
     }
@@ -147,7 +159,7 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
         setStatus(`${codec.toUpperCase()} ${width > 0 ? `${width}x${height}` : ""}`);
 
         if (!MediaSource.isTypeSupported(mime)) {
-          onError?.(`浏览器不支持编码: ${mime}`);
+          onErrorRef.current?.(`浏览器不支持编码: ${mime}`);
           setLoading(false);
           return;
         }
@@ -180,7 +192,7 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
             // Flush any data that arrived before SourceBuffer was ready
             flushPending();
           } catch (e) {
-            onError?.(`MSE 错误: ${e}`);
+            onErrorRef.current?.(`MSE 错误: ${e}`);
             setLoading(false);
           }
         });
@@ -229,7 +241,7 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
         if (cancelled || event.payload.sessionId !== sessionId) return;
         setLoading(false);
         setStatus("");
-        onError?.(event.payload.error);
+        onErrorRef.current?.(event.payload.error);
       });
     }
 
@@ -242,7 +254,7 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
       unlistenError?.();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, isTauri, sessionId, onError]);
+  }, [url, isTauri, sessionId]);
 
   const handlePlayPause = useCallback(() => {
     const v = videoRef.current;
