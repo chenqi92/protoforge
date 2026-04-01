@@ -192,6 +192,22 @@ pub async fn connect_app(
 ) -> Result<(), String> {
     let (_host, _port, app_name, _stream_name) = parse_rtmp_url(url)?;
 
+    // tcUrl = rtmp://host[:port]/app (without stream key, per RTMP spec)
+    let tc_url = {
+        let without_scheme = url.strip_prefix("rtmp://").unwrap_or(url);
+        match without_scheme.find('/') {
+            Some(first_slash) => {
+                let after_host = &without_scheme[first_slash + 1..];
+                // app is everything before the next '/'
+                match after_host.find('/') {
+                    Some(second_slash) => format!("rtmp://{}/{}", &without_scheme[..first_slash], &after_host[..second_slash]),
+                    None => format!("rtmp://{}/{}", &without_scheme[..first_slash], after_host),
+                }
+            }
+            None => url.to_string(),
+        }
+    };
+
     // Build connect command
     let mut payload = Vec::new();
     payload.extend(amf0_encode_string("connect"));
@@ -201,7 +217,7 @@ pub async fn connect_app(
     payload.extend(amf0_encode_object(&[
         ("app", AmfValue::String(&app_name)),
         ("flashVer", AmfValue::String("ProtoForge/1.0")),
-        ("tcUrl", AmfValue::String(url)),
+        ("tcUrl", AmfValue::String(&tc_url)),
         ("fpad", AmfValue::Boolean(false)),
         ("capabilities", AmfValue::Number(239.0)),
         ("audioCodecs", AmfValue::Number(3575.0)),

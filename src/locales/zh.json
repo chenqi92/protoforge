@@ -1379,5 +1379,27 @@
       "save": "保存",
       "goto": "转到"
     }
+  },
+  "overview": {
+    "title": "API 工作台",
+    "subtitle": "新建一个请求，或从集合中选择开始调试。",
+    "newRequest": "新建请求",
+    "manageEnv": "环境变量",
+    "collections": "集合",
+    "noCollections": "暂无集合",
+    "noCollectionsHint": "创建集合来组织您的 API 请求",
+    "recentHistory": "最近请求",
+    "environment": "环境",
+    "noActiveEnv": "无活跃环境",
+    "otherEnvs": "个其他环境可用",
+    "globalVars": "全局变量",
+    "noGlobalVars": "暂无全局变量",
+    "totalRequests": "集合请求",
+    "totalEnvs": "环境数",
+    "requests": "个请求",
+    "requestsSingular": "个请求",
+    "folders": "个文件夹",
+    "foldersSingular": "个文件夹",
+    "more": "更多"
   }
 }

@@ -167,14 +167,27 @@ fn run_fmp4_pipeline(
     let mut cmd = std::process::Command::new(ffmpeg_path);
     cmd.args(["-hide_banner", "-loglevel", "warning"]);
 
-    // Input options
-    if url.starts_with("rtsp://") {
+    // Protocol-specific input options
+    let lower_url = url.to_lowercase();
+    if lower_url.starts_with("rtsp://") {
+        // RTSP: force TCP interleaved transport, set socket timeout
         cmd.args(["-rtsp_transport", "tcp"]);
+        cmd.args(["-stimeout", "5000000"]);
+    } else if lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://") {
+        // RTMP: hint live stream mode, set connection timeout
+        cmd.args(["-rtmp_live", "live"]);
+        cmd.args(["-rw_timeout", "5000000"]);
+    } else {
+        // Generic: use rw_timeout for connection/read timeout
+        cmd.args(["-rw_timeout", "5000000"]);
     }
+
+    // Common input options
     cmd.args([
-        "-stimeout", "5000000",
         "-analyzeduration", "3000000",
         "-probesize", "2000000",
+        "-fflags", "nobuffer",
+        "-flags", "low_delay",
         "-i", url,
     ]);
 
@@ -206,6 +219,43 @@ fn run_fmp4_pipeline(
 
     let stdout = child.stdout.take()
         .ok_or("无法获取 FFmpeg stdout")?;
+
+    // CRITICAL: Drain stderr in a separate thread to prevent pipe deadlock.
+    // If stderr fills up and nobody reads it, FFmpeg blocks on write() and hangs.
+    let stderr = child.stderr.take();
+    let stderr_sid = session_id.to_string();
+    let stderr_app = app.clone();
+    let stderr_handle = std::thread::spawn(move || {
+        if let Some(stderr) = stderr {
+            use std::io::{BufRead, BufReader};
+            let reader = BufReader::new(stderr);
+            let mut lines = Vec::new();
+            for line in reader.lines() {
+                match line {
+                    Ok(l) => {
+                        if !l.trim().is_empty() {
+                            log::warn!("FFmpeg [{}]: {}", stderr_sid, l);
+                            lines.push(l);
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+            // Emit aggregated stderr as a protocol message for debugging
+            if !lines.is_empty() {
+                let msg = super::state::ProtocolMessage {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    direction: "info".to_string(),
+                    protocol: "player".to_string(),
+                    summary: format!("FFmpeg stderr ({} lines)", lines.len()),
+                    detail: lines.join("\n"),
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                    size: None,
+                };
+                let _ = stderr_app.emit("videostream-protocol-msg", &msg);
+            }
+        }
+    });
 
     // Read fMP4 chunks from stdout and emit as data events
     let mut reader = std::io::BufReader::with_capacity(128 * 1024, stdout);
@@ -266,6 +316,9 @@ fn run_fmp4_pipeline(
     // Clean up child process
     let _ = child.kill();
     let _ = child.wait();
+
+    // Wait for stderr drain thread to finish
+    let _ = stderr_handle.join();
 
     log::info!("Player {}: stream ended, {} chunks, {} bytes total", session_id, seq, total_bytes);
     Ok(())

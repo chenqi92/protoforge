@@ -1363,5 +1363,27 @@
       "save": "Save",
       "goto": "Go To"
     }
+  },
+  "overview": {
+    "title": "API Workspace",
+    "subtitle": "Create a new request or select from your collections to get started.",
+    "newRequest": "New Request",
+    "manageEnv": "Environments",
+    "collections": "Collections",
+    "noCollections": "No collections yet",
+    "noCollectionsHint": "Create a collection to organize your API requests",
+    "recentHistory": "Recent Requests",
+    "environment": "Environment",
+    "noActiveEnv": "No active environment",
+    "otherEnvs": "other environment(s) available",
+    "globalVars": "Global Variables",
+    "noGlobalVars": "No global variables defined",
+    "totalRequests": "Collection Requests",
+    "totalEnvs": "Environments",
+    "requests": "requests",
+    "requestsSingular": "request",
+    "folders": "folders",
+    "foldersSingular": "folder",
+    "more": "more"
   }
 }

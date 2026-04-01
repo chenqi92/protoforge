@@ -32,6 +32,7 @@ interface RequestsOverviewProps {
 }
 
 export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }: RequestsOverviewProps) {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   const { t } = useTranslation();
   const collections = useCollectionStore((s) => s.collections);
   const allItems = useCollectionStore((s) => s.items);
@@ -115,7 +116,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
         {/* Two-column layout */}
         <div className="grid gap-6 lg:grid-cols-5">
           {/* Left: Collections (3/5) */}
-          <div className="lg:col-span-3 flex flex-col gap-6">
+          <div className="lg:col-span-3 flex min-w-0 flex-col gap-6">
             {/* Collections */}
             <section>
               <div className="mb-3 flex items-center justify-between">
@@ -139,7 +140,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-2">
+                <div className="grid min-w-0 gap-2">
                   {collections.map((col) => (
                     <CollectionCard
                       key={col.id}
@@ -240,7 +241,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                     ))}
                     {enabledEnvVars.length > 8 && (
                       <div className="px-3.5 py-1.5 text-[var(--fs-xxs)] text-text-disabled">
-                        +{enabledEnvVars.length - 8} more
+                        +{enabledEnvVars.length - 8} {t('overview.more')}
                       </div>
                     )}
                   </div>
@@ -287,7 +288,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                 )}
                 {enabledGlobalVars.length > 10 && (
                   <div className="border-t border-border-subtle/40 px-3.5 py-1.5 text-[var(--fs-xxs)] text-text-disabled">
-                    +{enabledGlobalVars.length - 10} more
+                    +{enabledGlobalVars.length - 10} {t('overview.more')}
                   </div>
                 )}
               </div>
@@ -329,6 +330,7 @@ function CollectionCard({
   folderCount: number;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   const hasAuth = collection.auth && collection.auth !== 'null' && collection.auth !== '{}';
   const hasVars = collection.variables && collection.variables !== '{}' && collection.variables !== '[]';
   const hasScripts = collection.preScript?.trim() || collection.postScript?.trim();
@@ -336,34 +338,34 @@ function CollectionCard({
   return (
     <button
       onClick={onClick}
-      className="group flex items-center gap-3 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-primary px-4 py-3 text-left transition-all hover:border-accent/30 hover:bg-bg-hover/40 hover:shadow-xs"
+      className="group flex min-w-0 items-center gap-3 overflow-hidden rounded-[var(--radius-md)] border border-border-default/60 bg-bg-primary px-4 py-3 text-left transition-all hover:border-accent/30 hover:bg-bg-hover/40 hover:shadow-xs"
     >
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-accent/8 text-accent/60 transition-colors group-hover:bg-accent/12 group-hover:text-accent">
         <FolderOpen className="h-4.5 w-4.5" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-[var(--fs-sm)] font-semibold text-text-primary">{collection.name}</div>
-        <div className="mt-0.5 flex items-center gap-3 text-[var(--fs-xxs)] text-text-disabled">
-          <span>{itemCount} request{itemCount !== 1 ? 's' : ''}</span>
-          {folderCount > 0 && <span>{folderCount} folder{folderCount !== 1 ? 's' : ''}</span>}
+        <div className="mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden text-[var(--fs-xxs)] text-text-disabled">
+          <span className="shrink-0">{itemCount} {itemCount !== 1 ? t('overview.requests') : t('overview.requestsSingular')}</span>
+          {folderCount > 0 && <span className="shrink-0">{folderCount} {folderCount !== 1 ? t('overview.folders') : t('overview.foldersSingular')}</span>}
           {collection.description && (
-            <span className="truncate text-text-disabled/70">{collection.description}</span>
+            <span className="min-w-0 truncate text-text-disabled/70">{collection.description}</span>
           )}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         {hasAuth && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-emerald-500/10" title="Auth configured">
+          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-emerald-500/10" title={t('overview.authConfigured', 'Auth configured')}>
             <Shield className="h-3 w-3 text-emerald-500/70" />
           </span>
         )}
         {hasVars && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-amber-500/10" title="Variables defined">
+          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-amber-500/10" title={t('overview.varsConfigured', 'Variables defined')}>
             <Braces className="h-3 w-3 text-amber-500/70" />
           </span>
         )}
         {hasScripts && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-violet-500/10" title="Scripts configured">
+          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-violet-500/10" title={t('overview.scriptsConfigured', 'Scripts configured')}>
             <FileJson className="h-3 w-3 text-violet-500/70" />
           </span>
         )}
