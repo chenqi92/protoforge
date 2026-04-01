@@ -2,7 +2,7 @@
 // 布局：Tabs+URL 固定顶部 → 可拖拽分栏（上：视频+配置 | 下：协议报文）
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
-import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, Play, Square, GripHorizontal, History, X, Download } from "lucide-react";
+import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, Play, Square, GripHorizontal, GripVertical, History, X, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { VideoProtocol, StreamInfo, StreamStats, ProtocolMessage } from "@/types/videostream";
@@ -233,63 +233,88 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
 
       {/* ── Resizable: vertical split (top: config+player, bottom: protocol log) ── */}
       <div className="flex-1 min-h-0 min-w-0 overflow-hidden pt-3">
-        <PanelGroup orientation="vertical">
-          {/* ═══ Top Panel: Config + Video Player side by side ═══ */}
-          <Panel id="vs-top" defaultSize="55%" minSize="25%">
-            <div className="h-full flex gap-2">
-              {/* Protocol Config — takes most space */}
-              <div className="flex-1 min-w-0 rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
-                <div className="wb-pane-header shrink-0">
-                  <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
-                    {t('videostream.protocolConfig', '协议配置')}
-                  </span>
-                  <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">{mode.toUpperCase()}</span>
-                  <div className="flex items-center gap-1.5 ml-auto">
-                    {streamInfo && (
-                      <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">
-                        {streamInfo.codec} {streamInfo.width > 0 ? `${streamInfo.width}×${streamInfo.height}` : ''} {streamInfo.fps > 0 ? `${streamInfo.fps}fps` : ''}
-                      </span>
-                    )}
-                    {streamUrl && !showPlayer && (
-                      <button onClick={handlePlay}
-                        className="flex items-center gap-1 h-6 px-2 rounded-[var(--radius-xs)] bg-accent/10 text-accent text-[var(--fs-xxs)] font-semibold hover:bg-accent/20 transition-colors"
-                      >
-                        <Play className="w-3 h-3" /> 播放
-                      </button>
-                    )}
-                    {showPlayer && (
-                      <button onClick={handleStop}
-                        className="flex items-center gap-1 h-6 px-2 rounded-[var(--radius-xs)] bg-error/10 text-error text-[var(--fs-xxs)] font-semibold hover:bg-error/20 transition-colors"
-                      >
-                        <Square className="w-3 h-3" /> 关闭
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-3">
-                  <div className="min-w-0 max-w-lg overflow-x-hidden">
-                    {renderProtocolConfig()}
-                  </div>
+        <PanelGroup orientation="horizontal">
+          {/* ═══ Left Panel: Protocol Config ═══ */}
+          <Panel id="vs-left" defaultSize={35} minSize={20}>
+            <div className="h-full rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
+              <div className="wb-pane-header shrink-0">
+                <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
+                  {t('videostream.protocolConfig', '协议配置')}
+                </span>
+                <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">{mode.toUpperCase()}</span>
+                <div className="flex items-center gap-1.5 ml-auto">
+                  {streamUrl && !showPlayer && (
+                    <button onClick={handlePlay}
+                      className="flex items-center gap-1 h-6 px-2 rounded-[var(--radius-xs)] bg-accent/10 text-accent text-[var(--fs-xxs)] font-semibold hover:bg-accent/20 transition-colors"
+                    >
+                      <Play className="w-3 h-3" /> 播放
+                    </button>
+                  )}
+                  {showPlayer && (
+                    <button onClick={handleStop}
+                      className="flex items-center gap-1 h-6 px-2 rounded-[var(--radius-xs)] bg-error/10 text-error text-[var(--fs-xxs)] font-semibold hover:bg-error/20 transition-colors"
+                    >
+                      <Square className="w-3 h-3" /> 关闭
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {/* Video Player — right side, only when user clicks play */}
-              {showPlayer && (
-                <div className="w-[400px] shrink-0 rounded-[var(--radius-md)] border border-border-default/80 overflow-hidden">
-                  <VideoPlayer url={playerUrl} sessionId={sessionKey} onError={(e) => setPlayerError(e)} />
+              <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-3">
+                <div className="min-w-0 max-w-full overflow-x-hidden">
+                  {renderProtocolConfig()}
                 </div>
-              )}
+              </div>
             </div>
           </Panel>
 
-          {/* Horizontal resize handle */}
-          <PanelResizeHandle className="relative h-[7px] shrink-0 cursor-row-resize group flex items-center justify-center">
-            <div className="absolute inset-x-0 top-[3px] h-px bg-border-default/40 group-hover:bg-accent/40 transition-colors" />
-            <GripHorizontal className="relative w-4 h-3 text-text-disabled/30 group-hover:text-accent/50 transition-colors" />
+          {/* Vertical resize handle */}
+          <PanelResizeHandle className="relative w-[7px] shrink-0 cursor-col-resize group flex items-center justify-center">
+            <div className="absolute inset-y-0 left-[3px] w-px bg-border-default/40 group-hover:bg-accent/40 transition-colors" />
+            <GripVertical className="relative w-3 h-4 text-text-disabled/30 group-hover:text-accent/50 transition-colors" />
           </PanelResizeHandle>
 
-          {/* ═══ Bottom Panel: Protocol Message Log ═══ */}
-          <Panel id="vs-log" defaultSize="45%" minSize="10%">
+          {/* ═══ Right Panel: Video + Log ═══ */}
+          <Panel id="vs-right" defaultSize={65} minSize={30}>
+            <PanelGroup orientation="vertical">
+              {/* ═══ Top Right Panel: Video Player ═══ */}
+              <Panel id="vs-player" defaultSize={55} minSize={20}>
+                <div className="h-full rounded-[var(--radius-md)] border border-border-default/80 bg-black overflow-hidden flex flex-col relative">
+                  <div className="shrink-0 h-[38px] px-3 border-b border-border-default/40 bg-bg-secondary/40 flex items-center justify-between">
+                    <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
+                      {t('videostream.videoPlayer', '视频画面')}
+                    </span>
+                    <div className="flex items-center gap-1.5 ml-auto">
+                      {streamInfo && (
+                        <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">
+                          {streamInfo.codec} {streamInfo.width > 0 ? `${streamInfo.width}×${streamInfo.height}` : ''} {streamInfo.fps > 0 ? `${streamInfo.fps}fps` : ''} {streamInfo.bitrate > 0 ? `${streamInfo.bitrate}kbps` : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 w-full bg-[#0a0a0a] flex flex-col items-center justify-center relative overflow-hidden">
+                    {showPlayer ? (
+                      <div className="absolute inset-0 w-full h-full flex flex-col">
+                        <VideoPlayer url={playerUrl} sessionId={sessionKey} onError={(e) => setPlayerError(e)} />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-3 text-text-disabled/40">
+                        <MonitorPlay className="w-10 h-10 opacity-60" />
+                        <span className="text-[var(--fs-xs)] font-medium text-text-disabled/80">等待视频流接入...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Panel>
+
+              {/* Horizontal resize handle */}
+              <PanelResizeHandle className="relative h-[7px] shrink-0 cursor-row-resize group flex items-center justify-center">
+                <div className="absolute inset-x-0 top-[3px] h-px bg-border-default/40 group-hover:bg-accent/40 transition-colors" />
+                <GripHorizontal className="relative w-4 h-3 text-text-disabled/30 group-hover:text-accent/50 transition-colors" />
+              </PanelResizeHandle>
+
+              {/* ═══ Bottom Right Panel: Protocol Message Log ═══ */}
+              <Panel id="vs-log" defaultSize={45} minSize={10}>
             <div className="h-full rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
               {/* Log header with status */}
               <div className="wb-pane-header shrink-0">
@@ -393,7 +418,9 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
             </div>
           </Panel>
         </PanelGroup>
-      </div>
-    </div>
+      </Panel>
+    </PanelGroup>
+  </div>
+</div>
   );
 }
