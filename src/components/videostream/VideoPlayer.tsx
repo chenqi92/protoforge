@@ -26,6 +26,11 @@ interface DataEvent {
   data: string; // base64-encoded fMP4 chunk
 }
 
+interface ErrorEvent {
+  sessionId: string;
+  error: string;
+}
+
 /** Map FFmpeg codec name to MSE mime codec string */
 function codecToMime(codec: string): string {
   const c = codec.toLowerCase();
@@ -88,6 +93,7 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
     let sbReady = false;
     let unlistenInit: (() => void) | null = null;
     let unlistenData: (() => void) | null = null;
+    let unlistenError: (() => void) | null = null;
     let objectUrl: string | null = null;
     let playAttempted = false;
 
@@ -200,6 +206,14 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
           if (pendingBuffers.length > 60) pendingBuffers.splice(0, 30);
         }
       });
+
+      // Listen for player errors from FFmpeg backend
+      unlistenError = await listen<ErrorEvent>("player-error", (event) => {
+        if (cancelled || event.payload.sessionId !== sessionId) return;
+        setLoading(false);
+        setStatus("");
+        onError?.(event.payload.error);
+      });
     }
 
     setup();
@@ -208,6 +222,7 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
       cancelled = true;
       unlistenInit?.();
       unlistenData?.();
+      unlistenError?.();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [url, isTauri, sessionId, onError]);

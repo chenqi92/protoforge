@@ -29,6 +29,13 @@ struct PlayerDataEvent {
     data: String, // base64-encoded fMP4 chunk
 }
 
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PlayerErrorEvent {
+    session_id: String,
+    error: String,
+}
+
 pub struct PlayerSession {
     pub shutdown_tx: Option<oneshot::Sender<()>>,
 }
@@ -72,6 +79,11 @@ pub async fn start_player(
         let result = run_fmp4_pipeline(&sid, &url, &ffmpeg_path, ffprobe_path.as_deref(), &app_clone, shutdown_rx);
         if let Err(e) = &result {
             log::warn!("Player {} error: {}", sid, e);
+            // Emit player-error so frontend VideoPlayer can show the error
+            let _ = app_clone.emit("player-error", &PlayerErrorEvent {
+                session_id: sid.clone(),
+                error: e.clone(),
+            });
             let msg = ProtocolMessage {
                 id: uuid::Uuid::new_v4().to_string(),
                 direction: "info".to_string(),
@@ -99,38 +111,111 @@ pub async fn stop_player(session_id: &str) {
     }
 }
 
-/// 使用 ffprobe 获取视频流元信息
+/// 使用 ffprobe 获取视频流元信息（带超时，防止阻塞）
 fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String) {
-    let output = std::process::Command::new(ffprobe_path)
-        .args([
-            "-v", "quiet",
-            "-print_format", "json",
-            "-show_streams",
-            "-select_streams", "v:0",
-            url,
-        ])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output();
+    let mut cmd = std::process::Command::new(ffprobe_path);
 
-    if let Ok(output) = output {
-        if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
-            if let Some(streams) = json.get("streams").and_then(|s| s.as_array()) {
-                if let Some(stream) = streams.first() {
-                    let width = stream.get("width").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                    let height = stream.get("height").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                    let codec = stream.get("codec_name")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("h264")
-                        .to_string();
-                    return (width, height, codec);
+    // 为流媒体 URL 添加超时参数，避免 ffprobe 无限阻塞
+    let lower_url = url.to_lowercase();
+    if lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://") {
+        cmd.args(["-rw_timeout", "5000000"]); // 5 秒超时
+    } else if lower_url.starts_with("rtsp://") {
+        cmd.args(["-rtsp_transport", "tcp"]);
+        cmd.args(["-stimeout", "5000000"]);
+    } else {
+        cmd.args(["-rw_timeout", "5000000"]);
+    }
+
+    cmd.args([
+        "-v", "quiet",
+        "-print_format", "json",
+        "-show_streams",
+        "-select_streams", "v:0",
+        "-analyzeduration", "3000000",
+        "-probesize", "2000000",
+        url,
+    ]);
+    cmd.stdin(std::process::Stdio::null());
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::null());
+
+    // Windows: 不弹控制台窗口
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000);
+    }
+
+    // 启动子进程，用 try_wait 轮询防止无限阻塞
+    match cmd.spawn() {
+        Ok(mut child) => {
+            // 轮询等待最多 8 秒
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
+            let status = loop {
+                match child.try_wait() {
+                    Ok(Some(status)) => break Some(status),
+                    Ok(None) => {
+                        if std::time::Instant::now() >= deadline {
+                            break None; // 超时
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                    Err(e) => {
+                        log::warn!("ffprobe wait error: {}", e);
+                        let _ = child.kill();
+                        break None;
+                    }
+                }
+            };
+
+            match status {
+                Some(s) if s.success() => {
+                    // 读取 stdout
+                    if let Some(stdout) = child.stdout.take() {
+                        use std::io::Read;
+                        let mut output = Vec::new();
+                        let mut reader = std::io::BufReader::new(stdout);
+                        if reader.read_to_end(&mut output).is_ok() {
+                            return parse_ffprobe_output(&output);
+                        }
+                    }
+                    log::warn!("ffprobe: could not read stdout");
+                }
+                Some(s) => {
+                    log::warn!("ffprobe exited with status: {}", s);
+                }
+                None => {
+                    // 超时，杀掉子进程
+                    log::warn!("ffprobe timed out, killing process");
+                    let _ = child.kill();
+                    let _ = child.wait();
                 }
             }
+        }
+        Err(e) => {
+            log::warn!("ffprobe spawn error: {}", e);
         }
     }
 
     // Fallback defaults
+    (0, 0, "h264".to_string())
+}
+
+/// 解析 ffprobe JSON 输出
+fn parse_ffprobe_output(output: &[u8]) -> (u32, u32, String) {
+    if let Ok(json) = serde_json::from_slice::<serde_json::Value>(output) {
+        if let Some(streams) = json.get("streams").and_then(|s| s.as_array()) {
+            if let Some(stream) = streams.first() {
+                let width = stream.get("width").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                let height = stream.get("height").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                let codec = stream.get("codec_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("h264")
+                    .to_string();
+                return (width, height, codec);
+            }
+        }
+    }
     (0, 0, "h264".to_string())
 }
 
@@ -273,6 +358,11 @@ fn run_fmp4_pipeline(
     });
 
     use std::io::Read;
+
+    // 设置读取超时：如果 10 秒内没有数据，认为流已断开
+    let mut no_data_start: Option<std::time::Instant> = None;
+    let max_wait = std::time::Duration::from_secs(15);
+
     loop {
         if shutdown_flag.load(std::sync::atomic::Ordering::Relaxed) {
             log::info!("Player {}: shutdown requested", session_id);
@@ -280,10 +370,45 @@ fn run_fmp4_pipeline(
         }
 
         let n = match reader.read(&mut buf) {
-            Ok(0) => break, // EOF
-            Ok(n) => n,
+            Ok(0) => {
+                // EOF — 流结束
+                if seq == 0 {
+                    // 没读到任何数据就 EOF，说明 FFmpeg 连接/启动失败
+                    let _ = app.emit("player-error", &PlayerErrorEvent {
+                        session_id: session_id.to_string(),
+                        error: "FFmpeg 未能读取到流数据，请检查地址是否正确或流是否可用".to_string(),
+                    });
+                }
+                break;
+            }
+            Ok(n) => {
+                no_data_start = None;
+                n
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut
+                       || e.kind() == std::io::ErrorKind::WouldBlock => {
+                // 非阻塞读取可能返回 WouldBlock
+                if let Some(start) = no_data_start {
+                    if start.elapsed() > max_wait {
+                        log::warn!("Player {}: no data for {:?}, giving up", session_id, max_wait);
+                        let _ = app.emit("player-error", &PlayerErrorEvent {
+                            session_id: session_id.to_string(),
+                            error: "流数据超时，可能已断开".to_string(),
+                        });
+                        break;
+                    }
+                } else {
+                    no_data_start = Some(std::time::Instant::now());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+                continue;
+            }
             Err(e) => {
                 log::warn!("Player {}: read error: {}", session_id, e);
+                let _ = app.emit("player-error", &PlayerErrorEvent {
+                    session_id: session_id.to_string(),
+                    error: format!("读取流数据失败: {}", e),
+                });
                 break;
             }
         };
