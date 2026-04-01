@@ -106,14 +106,16 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
       const chunk = pendingBuffers.shift()!;
       try {
         sourceBuffer.appendBuffer(chunk);
-      } catch {
-        // QuotaExceededError — evict old data & retry
+      } catch (e) {
+        // QuotaExceededError — evict old buffer data and retry
         if (sourceBuffer.buffered.length > 0) {
           try {
             const start = sourceBuffer.buffered.start(0);
             const end = sourceBuffer.buffered.end(sourceBuffer.buffered.length - 1);
-            if (end - start > 10) {
-              sourceBuffer.remove(start, end - 5);
+            if (end - start > 5) {
+              sourceBuffer.remove(start, end - 2);
+              // Re-queue the chunk for retry after remove completes
+              pendingBuffers.unshift(chunk);
             }
           } catch { /* ignore */ }
         }
@@ -124,7 +126,12 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
     function tryPlay() {
       if (playAttempted || !video) return;
       playAttempted = true;
-      video.play().then(() => setPlaying(true)).catch(() => {
+      video.play().then(() => {
+        setPlaying(true);
+        // Clear the loading overlay once playback actually starts
+        setLoading(false);
+        setStatus("");
+      }).catch(() => {
         // autoplay blocked — user needs to click play
         playAttempted = false;
       });
@@ -158,13 +165,18 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
             sourceBuffer.addEventListener("updateend", () => {
               flushPending();
               // Auto-play once we have some buffered data
-              if (video && video.buffered.length > 0 && !playAttempted) {
-                tryPlay();
+              if (video && video.buffered.length > 0) {
+                if (!playAttempted) tryPlay();
+                // Keep video currentTime near live edge to avoid growing buffer lag
+                const buffEnd = video.buffered.end(video.buffered.length - 1);
+                if (buffEnd - video.currentTime > 3) {
+                  video.currentTime = buffEnd - 0.5;
+                }
               }
             });
             sbReady = true;
             setLoading(false);
-            setStatus("播放中");
+            setStatus("缓冲中...");
             // Flush any data that arrived before SourceBuffer was ready
             flushPending();
           } catch (e) {
@@ -192,6 +204,11 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
           // Prevent unbounded buffering before init
           if (pendingBuffers.length > 100) pendingBuffers.splice(0, 50);
           return;
+        }
+
+        // Drop oldest pending data if queue grows too large (keep low latency)
+        if (pendingBuffers.length > 30) {
+          pendingBuffers.splice(0, pendingBuffers.length - 10);
         }
 
         if (!sourceBuffer.updating) {
@@ -252,18 +269,18 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
 
   return (
     <div className="relative h-full w-full bg-black rounded-[var(--radius-md)] overflow-hidden flex flex-col">
-      <video ref={videoRef} className="flex-1 w-full bg-black object-contain" playsInline muted={muted} />
+      <video ref={videoRef} className="flex-1 min-h-0 w-full bg-black object-contain" playsInline muted={muted} />
 
-      {(loading || status) && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-none">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-white/70">
-            {loading && <Loader className="w-6 h-6 animate-spin" />}
+            <Loader className="w-6 h-6 animate-spin" />
             {status && <span className="text-[var(--fs-xxs)] font-mono">{status}</span>}
           </div>
         </div>
       )}
 
-      <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
+      <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
         <button onClick={handlePlayPause}
           className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/80 hover:text-white hover:bg-white/10 transition-colors"
         >{playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}</button>

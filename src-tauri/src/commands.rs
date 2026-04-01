@@ -2204,9 +2204,11 @@ pub async fn vs_onvif_device_info(
     let port = cfg.get("port").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
     let username = cfg.get("username").and_then(|v| v.as_str()).unwrap_or("");
     let password = cfg.get("password").and_then(|v| v.as_str()).unwrap_or("");
+    let xaddr = cfg.get("xaddr").and_then(|v| v.as_str());
+    let use_proxy = cfg.get("useProxy").and_then(|v| v.as_bool()).unwrap_or(false);
 
     let (info, session) = crate::video_streaming::onvif::get_device_info(
-        &session_id, host, port, username, password, &app,
+        &session_id, host, port, username, password, xaddr, use_proxy, &app,
     ).await?;
 
     // Cache session for subsequent calls

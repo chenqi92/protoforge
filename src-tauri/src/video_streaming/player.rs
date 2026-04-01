@@ -111,6 +111,36 @@ pub async fn stop_player(session_id: &str) {
     }
 }
 
+/// Detect FFmpeg major version and return the correct RTSP socket timeout flag.
+/// FFmpeg < 8: -stimeout (microseconds)
+/// FFmpeg >= 8: -timeout (microseconds, -stimeout was removed)
+fn detect_rtsp_timeout_flag(ffmpeg_path: &std::path::Path) -> &'static str {
+    // Cache result to avoid repeated subprocess spawns
+    use std::sync::OnceLock;
+    static FLAG: OnceLock<&'static str> = OnceLock::new();
+    FLAG.get_or_init(|| {
+        let output = std::process::Command::new(ffmpeg_path)
+            .args(["-version"])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .output();
+        if let Ok(out) = output {
+            let version_str = String::from_utf8_lossy(&out.stdout);
+            // Parse "ffmpeg version X.Y.Z" or "ffmpeg version N-..."
+            if let Some(ver_part) = version_str.split_whitespace().nth(2) {
+                if let Some(major) = ver_part.split('.').next().and_then(|m| m.parse::<u32>().ok()) {
+                    log::info!("Detected FFmpeg major version: {}", major);
+                    if major >= 8 {
+                        return "-timeout";
+                    }
+                }
+            }
+        }
+        // Default to -stimeout for older/unknown versions
+        "-stimeout"
+    })
+}
+
 /// 使用 ffprobe 获取视频流元信息（带超时，防止阻塞）
 fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String) {
     let mut cmd = std::process::Command::new(ffprobe_path);
@@ -121,7 +151,8 @@ fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> (u32, u32, String)
         cmd.args(["-rw_timeout", "5000000"]); // 5 秒超时
     } else if lower_url.starts_with("rtsp://") {
         cmd.args(["-rtsp_transport", "tcp"]);
-        cmd.args(["-stimeout", "5000000"]);
+        let flag = detect_rtsp_timeout_flag(ffprobe_path);
+        cmd.args([flag, "5000000"]);
     } else {
         cmd.args(["-rw_timeout", "5000000"]);
     }
@@ -239,12 +270,19 @@ fn run_fmp4_pipeline(
 
     log::info!("Player {}: probed {}x{} codec={}", session_id, width, height, codec);
 
+    // If HEVC, we'll transcode to H.264 for MSE compatibility — tell frontend the output codec
+    let output_codec = if codec.contains("hevc") || codec.contains("h265") || codec.contains("hev") {
+        "h264".to_string()
+    } else {
+        codec.clone()
+    };
+
     // Emit init event (metadata only, no extradata needed — fMP4 moov contains avcC/hvcC)
     let init_event = PlayerInitEvent {
         session_id: session_id.to_string(),
-        codec: codec.clone(),
-        width,
-        height,
+        codec: output_codec,
+        width: if width > 1920 { 1920 } else { width },
+        height: if width > 1920 { 0 } else { height }, // 0 = auto-detect from stream
     };
     let _ = app.emit("player-init", &init_event);
 
@@ -257,7 +295,10 @@ fn run_fmp4_pipeline(
     if lower_url.starts_with("rtsp://") {
         // RTSP: force TCP interleaved transport, set socket timeout
         cmd.args(["-rtsp_transport", "tcp"]);
-        cmd.args(["-stimeout", "5000000"]);
+        // FFmpeg 8+ removed -stimeout; use -timeout instead.
+        // Detect version to pick the right option.
+        let rtsp_timeout_flag = detect_rtsp_timeout_flag(ffmpeg_path);
+        cmd.args([rtsp_timeout_flag, "5000000"]);
     } else if lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://") {
         // RTMP: hint live stream mode, set connection timeout
         cmd.args(["-rtmp_live", "live"]);
@@ -276,12 +317,42 @@ fn run_fmp4_pipeline(
         "-i", url,
     ]);
 
-    // Output: copy video stream → fragmented MP4 to stdout
+    // Output: fragmented MP4 to stdout for MSE playback
     // -movflags frag_keyframe: fragment on each keyframe
     // -movflags empty_moov: put no samples in initial moov (required for streaming)
     // -movflags default_base_moof: required by MSE spec
+    let needs_transcode = codec.contains("hevc") || codec.contains("h265") || codec.contains("hev");
+
+    if needs_transcode {
+        // HEVC is not supported by MSE in most WebViews — transcode to H.264
+        log::info!("Player {}: HEVC detected, transcoding to H.264 for MSE compatibility", session_id);
+
+        // Scale down if resolution is very high (>1920px wide) to keep performance reasonable
+        if width > 1920 {
+            cmd.args(["-vf", "scale=1920:-2"]);
+        }
+
+        // Try VideoToolbox hardware encoder on macOS, fall back to libx264
+        if cfg!(target_os = "macos") {
+            cmd.args([
+                "-c:v", "h264_videotoolbox",
+                "-b:v", "4000k",
+                "-realtime", "1",
+            ]);
+        } else {
+            cmd.args([
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-tune", "zerolatency",
+                "-b:v", "4000k",
+            ]);
+        }
+    } else {
+        // H.264 or other MSE-compatible codec — copy without transcoding
+        cmd.args(["-c:v", "copy"]);
+    }
+
     cmd.args([
-        "-c:v", "copy",
         "-an",                          // no audio
         "-f", "mp4",
         "-movflags", "frag_keyframe+empty_moov+default_base_moof",

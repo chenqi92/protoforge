@@ -279,19 +279,6 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
               {/* ═══ Top Right Panel: Video Player ═══ */}
               <Panel id="vs-player" defaultSize={55} minSize={20}>
                 <div className="h-full rounded-[var(--radius-md)] border border-border-default/80 bg-black overflow-hidden flex flex-col relative">
-                  <div className="shrink-0 h-[38px] px-3 border-b border-border-default/40 bg-bg-secondary/40 flex items-center justify-between">
-                    <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
-                      {t('videostream.videoPlayer', '视频画面')}
-                    </span>
-                    <div className="flex items-center gap-1.5 ml-auto">
-                      {streamInfo && (
-                        <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">
-                          {streamInfo.codec} {streamInfo.width > 0 ? `${streamInfo.width}×${streamInfo.height}` : ''} {streamInfo.fps > 0 ? `${streamInfo.fps}fps` : ''} {streamInfo.bitrate > 0 ? `${streamInfo.bitrate}kbps` : ''}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
                   <div className="flex-1 w-full bg-[#0a0a0a] flex flex-col items-center justify-center relative overflow-hidden">
                     {showPlayer ? (
                       <div className="absolute inset-0 w-full h-full flex flex-col">

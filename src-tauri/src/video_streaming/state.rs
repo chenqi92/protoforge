@@ -69,6 +69,7 @@ pub struct OnvifSession {
     pub device_service_url: String,
     pub media_service_url: String,
     pub ptz_service_url: String,
+    pub use_proxy: bool,
 }
 
 // ���─ GB28181 Session ──

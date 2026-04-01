@@ -28,6 +28,8 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
   const [ptzSpeed, setPtzSpeed] = useState(5);
   const [newPresetName, setNewPresetName] = useState('');
   const [showPresetInput, setShowPresetInput] = useState(false);
+  const [useProxy, setUseProxy] = useState(false);
+  const [selectedXaddr, setSelectedXaddr] = useState<string | null>(null);
 
   const handleDiscover = useCallback(async () => {
     setDiscovering(true);
@@ -45,7 +47,7 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
     setQuerying(true);
     setQueryError(null);
     try {
-      const info = await vsSvc.onvifGetDeviceInfo(sessionKey, { host, port, username, password });
+      const info = await vsSvc.onvifGetDeviceInfo(sessionKey, { host, port, username, password, xaddr: selectedXaddr || undefined, useProxy });
       setDeviceInfo(info as OnvifDeviceInfo);
       try {
         const profs = await vsSvc.onvifGetProfiles(sessionKey);
@@ -63,7 +65,7 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
       setQueryError(String(e));
     }
     setQuerying(false);
-  }, [sessionKey, host, port, username, password, onStreamUrlChange]);
+  }, [sessionKey, host, port, username, password, selectedXaddr, useProxy, onStreamUrlChange]);
 
   const handleSelectProfile = useCallback(async (token: string) => {
     setSelectedProfile(token);
@@ -121,7 +123,7 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
             {discoveredDevices.length > 0 && (
               <div className="max-h-[80px] overflow-y-auto space-y-0.5 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
                 {discoveredDevices.map((d, i) => (
-                  <button key={i} onClick={() => { setHost(d.host); setPort(d.port); }}
+                  <button key={i} onClick={() => { setHost(d.host); setPort(d.port); setSelectedXaddr((d as any).xaddr || null); }}
                     className="w-full text-left flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] hover:bg-bg-hover/50 text-[var(--fs-xxs)] font-mono"
                   >
                     <span className="text-accent">{d.host}:{d.port}</span>
@@ -155,6 +157,14 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
                 className="wb-field-sm w-full font-mono"
               />
             </div>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input type="checkbox" checked={useProxy} onChange={(e) => setUseProxy(e.target.checked)}
+                className="accent-accent w-3.5 h-3.5 rounded"
+              />
+              <span className="text-[var(--fs-xxs)] text-text-secondary">
+                {t('videostream.onvif.useProxy', '通过系统代理')}
+              </span>
+            </label>
             <button onClick={handleGetDeviceInfo} disabled={querying}
               className={cn("wb-primary-btn w-full px-3 bg-accent hover:bg-accent-hover", querying && "opacity-70 cursor-wait")}
             >
@@ -293,7 +303,7 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
             </div>
           )}
           {presets.length > 0 && (
-            <div className="max-h-[100px] overflow-y-auto space-y-0.5 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
+            <div className="max-h-[200px] overflow-y-auto space-y-0.5 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
               {presets.map((p) => (
                 <div key={p.token} className="flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] hover:bg-bg-hover/50 text-[var(--fs-xxs)] transition-colors">
                   <Star className="w-3 h-3 text-amber-500 shrink-0" />

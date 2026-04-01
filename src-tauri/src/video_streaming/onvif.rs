@@ -91,6 +91,7 @@ async fn soap_request(
     body: &str,
     _session_id: &str,
     auth: Option<(&str, &str)>,
+    use_proxy: bool,
     app: &AppHandle,
 ) -> Result<String, String> {
     let header = match auth {
@@ -111,9 +112,13 @@ async fn soap_request(
     };
     let _ = app.emit("videostream-protocol-msg", &sent_msg);
 
-    let client = reqwest::Client::builder()
+    let mut builder = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
-        .danger_accept_invalid_certs(true)
+        .danger_accept_invalid_certs(true);
+    if !use_proxy {
+        builder = builder.no_proxy();
+    }
+    let client = builder
         .build()
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
@@ -124,7 +129,16 @@ async fn soap_request(
         .body(envelope)
         .send()
         .await
-        .map_err(|e| format!("SOAP request failed: {}", e))?;
+        .map_err(|e| {
+            // Expand full error chain for debugging
+            let mut msg = format!("SOAP request failed: {}", e);
+            let mut source = std::error::Error::source(&e);
+            while let Some(cause) = source {
+                msg.push_str(&format!(" → {}", cause));
+                source = std::error::Error::source(cause);
+            }
+            msg
+        })?;
 
     let status = resp.status();
     let body_text = resp.text().await.map_err(|e| format!("Read response error: {}", e))?;
@@ -539,9 +553,16 @@ pub async fn get_device_info(
     port: u16,
     username: &str,
     password: &str,
+    xaddr: Option<&str>,
+    use_proxy: bool,
     app: &AppHandle,
 ) -> Result<(serde_json::Value, OnvifSession), String> {
-    let device_url = format!("http://{}:{}/onvif/device_service", host, port);
+    // Prefer xaddr from WS-Discovery if available, otherwise construct from host:port
+    let device_url = match xaddr {
+        Some(url) if !url.is_empty() => url.to_string(),
+        _ => format!("http://{}:{}/onvif/device_service", host, port),
+    };
+    log::info!("ONVIF get_device_info: url={} use_proxy={}", device_url, use_proxy);
 
     let body = "<tds:GetDeviceInformation/>";
     let response = soap_request(
@@ -550,6 +571,7 @@ pub async fn get_device_info(
         body,
         session_id,
         Some((username, password)),
+        use_proxy,
         app,
     ).await?;
 
@@ -567,6 +589,7 @@ pub async fn get_device_info(
         cap_body,
         session_id,
         Some((username, password)),
+        use_proxy,
         app,
     ).await.unwrap_or_default();
 
@@ -586,6 +609,7 @@ pub async fn get_device_info(
         device_service_url: device_url,
         media_service_url: media_url,
         ptz_service_url: ptz_url,
+        use_proxy,
     };
 
     let info = serde_json::json!({
@@ -613,6 +637,7 @@ pub async fn get_profiles(
         body,
         session_id,
         Some((&session.username, &session.password)),
+        session.use_proxy,
         app,
     ).await?;
 
@@ -702,13 +727,36 @@ pub async fn get_stream_uri(
         &body,
         session_id,
         Some((&session.username, &session.password)),
+        session.use_proxy,
         app,
     ).await?;
 
     let uri = extract_tag_content(&response, "Uri")
         .unwrap_or_default();
 
+    // ONVIF GetStreamUri returns RTSP URLs without credentials.
+    // Most cameras require RTSP authentication, so inject the ONVIF
+    // username/password into the URL for FFmpeg to use directly.
+    let uri = inject_rtsp_credentials(&uri, &session.username, &session.password);
+
     Ok(uri)
+}
+
+/// Inject username:password into an RTSP URL if it doesn't already have credentials.
+/// e.g. rtsp://192.168.0.168:554/stream1 → rtsp://admin:pass@192.168.0.168:554/stream1
+fn inject_rtsp_credentials(uri: &str, username: &str, password: &str) -> String {
+    // Only inject for rtsp:// URLs with non-empty credentials
+    if username.is_empty() && password.is_empty() {
+        return uri.to_string();
+    }
+    if let Ok(mut parsed) = url::Url::parse(uri) {
+        if parsed.scheme() == "rtsp" && parsed.username().is_empty() {
+            let _ = parsed.set_username(username);
+            let _ = parsed.set_password(Some(password));
+            return parsed.to_string();
+        }
+    }
+    uri.to_string()
 }
 
 // ── PTZ 控制 ──
@@ -751,6 +799,7 @@ pub async fn ptz_continuous_move(
         &body,
         session_id,
         Some((&session.username, &session.password)),
+        session.use_proxy,
         app,
     ).await?;
 
@@ -778,6 +827,7 @@ pub async fn ptz_stop(
         &body,
         session_id,
         Some((&session.username, &session.password)),
+        session.use_proxy,
         app,
     ).await?;
 
@@ -805,6 +855,7 @@ pub async fn get_presets(
         &body,
         session_id,
         Some((&session.username, &session.password)),
+        session.use_proxy,
         app,
     ).await?;
 
@@ -844,6 +895,7 @@ pub async fn goto_preset(
         &body,
         session_id,
         Some((&session.username, &session.password)),
+        session.use_proxy,
         app,
     ).await?;
 
@@ -871,6 +923,7 @@ pub async fn set_preset(
         &body,
         session_id,
         Some((&session.username, &session.password)),
+        session.use_proxy,
         app,
     ).await?;
 
