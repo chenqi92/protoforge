@@ -13,7 +13,7 @@ interface Gb28181PanelProps {
   onStreamUrlChange: (url: string) => void;
 }
 
-export function Gb28181Panel({ sessionKey, onStreamUrlChange }: Gb28181PanelProps) {
+export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb28181PanelProps) {
   const { t } = useTranslation();
   const [sipServerIp, setSipServerIp] = useState('192.168.1.100');
   const [sipServerPort, setSipServerPort] = useState(5060);
@@ -26,6 +26,9 @@ export function Gb28181Panel({ sessionKey, onStreamUrlChange }: Gb28181PanelProp
   const [catalogItems, setCatalogItems] = useState<{ id: string; name: string; type: string; status: string }[]>([]);
   const [expandedCatalog, setExpandedCatalog] = useState(false);
   const [ptzSpeed, setPtzSpeed] = useState(5);
+  const [selectedChannelId, setSelectedChannelId] = useState('');
+  const [startingLive, setStartingLive] = useState(false);
+  const liveActive = streamUrl.trim().startsWith('gb28181+udp://');
 
   const handleRegister = useCallback(async () => {
     setRegistering(true);
@@ -48,6 +51,43 @@ export function Gb28181Panel({ sessionKey, onStreamUrlChange }: Gb28181PanelProp
       await vsSvc.gb28181Ptz(sessionKey, command, ptzSpeed);
     } catch {}
   }, [sessionKey, ptzSpeed]);
+
+  const handleUnregister = useCallback(async () => {
+    try {
+      await vsSvc.gb28181Unregister(sessionKey);
+    } catch {
+      // Keep local cleanup even if backend session was already gone.
+    }
+    setRegistered(false);
+    setCatalogItems([]);
+    setExpandedCatalog(false);
+    setSelectedChannelId('');
+    onStreamUrlChange('');
+  }, [onStreamUrlChange, sessionKey]);
+
+  const handleStartLive = useCallback(async (channelId?: string) => {
+    const targetId = (channelId || selectedChannelId || deviceId).trim();
+    if (!targetId) return;
+
+    setStartingLive(true);
+    try {
+      const mediaUrl = await vsSvc.gb28181StartLive(sessionKey, targetId);
+      setSelectedChannelId(targetId);
+      onStreamUrlChange(mediaUrl);
+    } catch {
+      // Errors are surfaced by the shared protocol log and workspace banner.
+    }
+    setStartingLive(false);
+  }, [deviceId, onStreamUrlChange, selectedChannelId, sessionKey]);
+
+  const handleStopLive = useCallback(async () => {
+    try {
+      await vsSvc.gb28181StopLive(sessionKey);
+    } catch {
+      // Errors are surfaced by the shared protocol log and workspace banner.
+    }
+    onStreamUrlChange('');
+  }, [onStreamUrlChange, sessionKey]);
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden">
@@ -78,9 +118,37 @@ export function Gb28181Panel({ sessionKey, onStreamUrlChange }: Gb28181PanelProp
         </div>
         <div className="space-y-0.5">
           <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.deviceId', '设备编码')}</span>
-          <input value={deviceId} onChange={(e) => { setDeviceId(e.target.value); onStreamUrlChange(e.target.value); }} disabled={registered}
+          <input value={deviceId} onChange={(e) => setDeviceId(e.target.value)} disabled={registered}
             className="wb-field-xs w-full font-mono disabled:opacity-50"
           />
+        </div>
+        <div className="space-y-0.5">
+          <span className="text-[var(--fs-3xs)] text-text-disabled">媒体地址</span>
+          <div className="flex gap-1.5">
+            <input
+              value={streamUrl}
+              onChange={(e) => onStreamUrlChange(e.target.value)}
+              placeholder="gb28181+udp:// / rtsp:// / http(s):// / ws(s)://"
+              className="wb-field-xs w-full font-mono"
+            />
+            <button
+              onClick={() => void handleStartLive()}
+              disabled={!registered || startingLive || sipTransport !== 'udp'}
+              className="shrink-0 h-7 px-2.5 rounded-[var(--radius-sm)] bg-accent/10 text-accent text-[var(--fs-xxs)] font-semibold hover:bg-accent/20 disabled:opacity-50"
+            >
+              {startingLive ? '取流中...' : '请求实况'}
+            </button>
+            <button
+              onClick={() => void handleStopLive()}
+              disabled={!registered || !liveActive}
+              className="shrink-0 h-7 px-2.5 rounded-[var(--radius-sm)] bg-error/10 text-error text-[var(--fs-xxs)] font-semibold hover:bg-error/20 disabled:opacity-50"
+            >
+              停止实况
+            </button>
+          </div>
+          <p className="text-[var(--fs-3xs)] text-text-disabled leading-relaxed">
+            现在可以直接向国标设备发起 `INVITE`，成功后会生成本地 `gb28181+udp://` 媒体入口，顶部播放按钮会把它接入内置网关。
+          </p>
         </div>
         <div className="flex items-end gap-2">
           <div className="flex-1 space-y-0.5">
@@ -103,9 +171,14 @@ export function Gb28181Panel({ sessionKey, onStreamUrlChange }: Gb28181PanelProp
             />
           </div>
         </div>
+        {sipTransport === 'tcp' && !registered && (
+          <p className="text-[var(--fs-3xs)] text-warning leading-relaxed">
+            当前 GB28181 只实现了 UDP SIP 注册和 UDP 实况取流，TCP 传输还没有真正接通。
+          </p>
+        )}
         <button
-          onClick={registered ? () => setRegistered(false) : handleRegister}
-          disabled={registering}
+          onClick={registered ? handleUnregister : handleRegister}
+          disabled={registering || (!registered && sipTransport !== 'udp')}
           className={cn("wb-primary-btn w-full px-3",
             registered ? "bg-error hover:bg-error/90" : "bg-accent hover:bg-accent-hover"
           )}
@@ -140,11 +213,26 @@ export function Gb28181Panel({ sessionKey, onStreamUrlChange }: Gb28181PanelProp
                 catalogItems.map((item, i) => (
                   <div key={i} className="flex items-center gap-2 px-2 py-1 text-[var(--fs-xxs)]">
                     <Video className="w-3 h-3 text-accent shrink-0" />
-                    <span className="font-mono text-text-primary truncate">{item.id}</span>
+                    <button
+                      onClick={() => setSelectedChannelId(item.id)}
+                      className={cn(
+                        "font-mono text-left truncate",
+                        selectedChannelId === item.id ? "text-accent" : "text-text-primary",
+                      )}
+                    >
+                      {item.id}
+                    </button>
                     <span className="text-text-tertiary truncate">{item.name}</span>
                     <span className={cn("text-[var(--fs-3xs)] px-1 rounded", item.status === 'ON' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-400')}>
                       {item.status}
                     </span>
+                    <button
+                      onClick={() => void handleStartLive(item.id)}
+                      disabled={startingLive || item.status !== 'ON'}
+                      className="ml-auto shrink-0 text-[var(--fs-3xs)] text-accent hover:underline disabled:opacity-50"
+                    >
+                      取流
+                    </button>
                   </div>
                 ))
               )}

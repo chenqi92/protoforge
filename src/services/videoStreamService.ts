@@ -73,6 +73,18 @@ export async function gb28181Ptz(sessionId: string, command: string, speed: numb
   return invoke('vs_gb_ptz', { sessionId, command, speed });
 }
 
+export async function gb28181Unregister(sessionId: string): Promise<void> {
+  return invoke('vs_gb_unregister', { sessionId });
+}
+
+export async function gb28181StartLive(sessionId: string, channelId: string): Promise<string> {
+  return invoke('vs_gb_start_live', { sessionId, channelId });
+}
+
+export async function gb28181StopLive(sessionId: string): Promise<void> {
+  return invoke('vs_gb_stop_live', { sessionId });
+}
+
 // ── ONVIF 专用 ──
 
 export async function onvifDiscover(): Promise<object[]> {
@@ -109,6 +121,10 @@ export async function onvifGotoPreset(sessionId: string, presetToken: string, pr
 
 export async function onvifSetPreset(sessionId: string, presetName: string, profileToken?: string): Promise<string> {
   return invoke('vs_onvif_set_preset', { sessionId, presetName, profileToken });
+}
+
+export async function onvifClose(sessionId: string): Promise<void> {
+  return invoke('vs_onvif_close', { sessionId });
 }
 
 // ── RTMP 专用 ──

@@ -27,7 +27,7 @@ pub struct CollectionItem {
     pub id: String,
     pub collection_id: String,
     pub parent_id: Option<String>,
-    pub item_type: String,       // "request" | "folder"
+    pub item_type: String, // "request" | "folder"
     pub variables: String,
     pub name: String,
     pub sort_order: i64,
@@ -115,13 +115,17 @@ pub struct GlobalVariable {
 
 pub async fn list_collections(pool: &SqlitePool) -> Result<Vec<Collection>, String> {
     sqlx::query_as::<_, Collection>("SELECT * FROM collections ORDER BY sort_order, name")
-        .fetch_all(pool).await.map_err(|e| format!("查询集合失败: {}", e))
+        .fetch_all(pool)
+        .await
+        .map_err(|e| format!("查询集合失败: {}", e))
 }
 
 pub async fn get_collection(pool: &SqlitePool, id: &str) -> Result<Collection, String> {
     sqlx::query_as::<_, Collection>("SELECT * FROM collections WHERE id = ?")
         .bind(id)
-        .fetch_one(pool).await.map_err(|e| format!("集合不存在: {}", e))
+        .fetch_one(pool)
+        .await
+        .map_err(|e| format!("集合不存在: {}", e))
 }
 
 pub async fn create_collection(pool: &SqlitePool, col: Collection) -> Result<Collection, String> {
@@ -154,10 +158,14 @@ pub async fn delete_collection(pool: &SqlitePool, id: &str) -> Result<(), String
     // 级联删除关联的集合项（避免孤儿数据）
     sqlx::query("DELETE FROM collection_items WHERE collection_id = ?")
         .bind(id)
-        .execute(pool).await.map_err(|e| format!("删除集合项失败: {}", e))?;
+        .execute(pool)
+        .await
+        .map_err(|e| format!("删除集合项失败: {}", e))?;
     sqlx::query("DELETE FROM collections WHERE id = ?")
         .bind(id)
-        .execute(pool).await.map_err(|e| format!("删除集合失败: {}", e))?;
+        .execute(pool)
+        .await
+        .map_err(|e| format!("删除集合失败: {}", e))?;
     Ok(())
 }
 
@@ -169,12 +177,12 @@ pub async fn export_collection(pool: &SqlitePool, id: &str) -> Result<String, St
 }
 
 pub async fn import_collection(pool: &SqlitePool, json: &str) -> Result<Collection, String> {
-    let data: serde_json::Value = serde_json::from_str(json)
-        .map_err(|e| format!("导入解析失败: {}", e))?;
+    let data: serde_json::Value =
+        serde_json::from_str(json).map_err(|e| format!("导入解析失败: {}", e))?;
 
-    let col: Collection = serde_json::from_value(
-        data.get("collection").cloned().unwrap_or(data.clone())
-    ).map_err(|e| format!("集合数据格式错误: {}", e))?;
+    let col: Collection =
+        serde_json::from_value(data.get("collection").cloned().unwrap_or(data.clone()))
+            .map_err(|e| format!("集合数据格式错误: {}", e))?;
 
     create_collection(pool, col.clone()).await?;
 
@@ -192,15 +200,23 @@ pub async fn import_collection(pool: &SqlitePool, json: &str) -> Result<Collecti
 //  Collection Items CRUD
 // ═══════════════════════════════════════════
 
-pub async fn list_collection_items(pool: &SqlitePool, collection_id: &str) -> Result<Vec<CollectionItem>, String> {
+pub async fn list_collection_items(
+    pool: &SqlitePool,
+    collection_id: &str,
+) -> Result<Vec<CollectionItem>, String> {
     sqlx::query_as::<_, CollectionItem>(
-        "SELECT * FROM collection_items WHERE collection_id = ? ORDER BY sort_order, name"
+        "SELECT * FROM collection_items WHERE collection_id = ? ORDER BY sort_order, name",
     )
     .bind(collection_id)
-    .fetch_all(pool).await.map_err(|e| format!("查询集合项失败: {}", e))
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询集合项失败: {}", e))
 }
 
-pub async fn create_collection_item(pool: &SqlitePool, item: CollectionItem) -> Result<CollectionItem, String> {
+pub async fn create_collection_item(
+    pool: &SqlitePool,
+    item: CollectionItem,
+) -> Result<CollectionItem, String> {
     sqlx::query(
         "INSERT INTO collection_items (id, collection_id, parent_id, item_type, variables, name, sort_order,
          method, url, headers, query_params, body_type, body_content, auth_type, auth_config,
@@ -235,26 +251,41 @@ pub async fn update_collection_item(pool: &SqlitePool, item: CollectionItem) -> 
 pub async fn delete_collection_item(pool: &SqlitePool, id: &str) -> Result<(), String> {
     sqlx::query("DELETE FROM collection_items WHERE id = ?")
         .bind(id)
-        .execute(pool).await.map_err(|e| format!("删除集合项失败: {}", e))?;
+        .execute(pool)
+        .await
+        .map_err(|e| format!("删除集合项失败: {}", e))?;
     Ok(())
 }
 
 /// Batch update sort_order for collection items (used by drag-drop reorder)
-pub async fn reorder_collection_items(pool: &SqlitePool, item_ids: Vec<String>) -> Result<(), String> {
+pub async fn reorder_collection_items(
+    pool: &SqlitePool,
+    item_ids: Vec<String>,
+) -> Result<(), String> {
     // 使用事务包裹批量更新，避免部分成功部分失败
-    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| format!("开始事务失败: {}", e))?;
     for (idx, id) in item_ids.iter().enumerate() {
         sqlx::query("UPDATE collection_items SET sort_order = ? WHERE id = ?")
             .bind(idx as i64)
             .bind(id)
-            .execute(&mut *tx).await.map_err(|e| format!("排序更新失败: {}", e))?;
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| format!("排序更新失败: {}", e))?;
     }
-    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
+    tx.commit()
+        .await
+        .map_err(|e| format!("提交事务失败: {}", e))?;
     Ok(())
 }
 
 /// 集合去重：同一 parent_id 下 method+url 相同的请求，保留 sort_order 最小的一条
-pub async fn deduplicate_collection_items(pool: &SqlitePool, collection_id: &str) -> Result<u64, String> {
+pub async fn deduplicate_collection_items(
+    pool: &SqlitePool,
+    collection_id: &str,
+) -> Result<u64, String> {
     let result = sqlx::query(
         "DELETE FROM collection_items WHERE id IN (
             SELECT ci.id FROM collection_items ci
@@ -280,49 +311,75 @@ pub async fn deduplicate_collection_items(pool: &SqlitePool, collection_id: &str
 
 pub async fn list_environments(pool: &SqlitePool) -> Result<Vec<Environment>, String> {
     sqlx::query_as::<_, Environment>("SELECT * FROM environments ORDER BY sort_order, name")
-        .fetch_all(pool).await.map_err(|e| format!("查询环境失败: {}", e))
+        .fetch_all(pool)
+        .await
+        .map_err(|e| format!("查询环境失败: {}", e))
 }
 
-pub async fn create_environment(pool: &SqlitePool, env: Environment) -> Result<Environment, String> {
+pub async fn create_environment(
+    pool: &SqlitePool,
+    env: Environment,
+) -> Result<Environment, String> {
     sqlx::query(
         "INSERT INTO environments (id, name, is_active, sort_order, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)"
+         VALUES (?, ?, ?, ?, ?, ?)",
     )
-    .bind(&env.id).bind(&env.name).bind(env.is_active)
-    .bind(env.sort_order).bind(&env.created_at).bind(&env.updated_at)
-    .execute(pool).await.map_err(|e| format!("创建环境失败: {}", e))?;
+    .bind(&env.id)
+    .bind(&env.name)
+    .bind(env.is_active)
+    .bind(env.sort_order)
+    .bind(&env.created_at)
+    .bind(&env.updated_at)
+    .execute(pool)
+    .await
+    .map_err(|e| format!("创建环境失败: {}", e))?;
     Ok(env)
 }
 
 pub async fn set_active_environment(pool: &SqlitePool, id: Option<&str>) -> Result<(), String> {
     // 使用事务保证原子性：避免全部取消激活后设置激活失败
-    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| format!("开始事务失败: {}", e))?;
     // 先全部取消激活
     sqlx::query("UPDATE environments SET is_active = 0")
-        .execute(&mut *tx).await.map_err(|e| format!("更新环境失败: {}", e))?;
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| format!("更新环境失败: {}", e))?;
     // 激活指定环境
     if let Some(env_id) = id {
         sqlx::query("UPDATE environments SET is_active = 1 WHERE id = ?")
             .bind(env_id)
-            .execute(&mut *tx).await.map_err(|e| format!("激活环境失败: {}", e))?;
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| format!("激活环境失败: {}", e))?;
     }
-    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
+    tx.commit()
+        .await
+        .map_err(|e| format!("提交事务失败: {}", e))?;
     Ok(())
 }
 
 pub async fn get_active_environment(pool: &SqlitePool) -> Result<Option<Environment>, String> {
     sqlx::query_as::<_, Environment>("SELECT * FROM environments WHERE is_active = 1 LIMIT 1")
-        .fetch_optional(pool).await.map_err(|e| format!("查询活跃环境失败: {}", e))
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| format!("查询活跃环境失败: {}", e))
 }
 
 pub async fn delete_environment(pool: &SqlitePool, id: &str) -> Result<(), String> {
     // 级联删除关联的环境变量（避免孤儿数据）
     sqlx::query("DELETE FROM environment_variables WHERE environment_id = ?")
         .bind(id)
-        .execute(pool).await.map_err(|e| format!("删除环境变量失败: {}", e))?;
+        .execute(pool)
+        .await
+        .map_err(|e| format!("删除环境变量失败: {}", e))?;
     sqlx::query("DELETE FROM environments WHERE id = ?")
         .bind(id)
-        .execute(pool).await.map_err(|e| format!("删除环境失败: {}", e))?;
+        .execute(pool)
+        .await
+        .map_err(|e| format!("删除环境失败: {}", e))?;
     Ok(())
 }
 
@@ -330,20 +387,34 @@ pub async fn delete_environment(pool: &SqlitePool, id: &str) -> Result<(), Strin
 //  Environment Variables CRUD
 // ═══════════════════════════════════════════
 
-pub async fn list_env_variables(pool: &SqlitePool, env_id: &str) -> Result<Vec<EnvVariable>, String> {
+pub async fn list_env_variables(
+    pool: &SqlitePool,
+    env_id: &str,
+) -> Result<Vec<EnvVariable>, String> {
     sqlx::query_as::<_, EnvVariable>(
-        "SELECT * FROM environment_variables WHERE environment_id = ? ORDER BY sort_order"
+        "SELECT * FROM environment_variables WHERE environment_id = ? ORDER BY sort_order",
     )
     .bind(env_id)
-    .fetch_all(pool).await.map_err(|e| format!("查询环境变量失败: {}", e))
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("查询环境变量失败: {}", e))
 }
 
-pub async fn save_env_variables(pool: &SqlitePool, env_id: &str, vars: Vec<EnvVariable>) -> Result<(), String> {
+pub async fn save_env_variables(
+    pool: &SqlitePool,
+    env_id: &str,
+    vars: Vec<EnvVariable>,
+) -> Result<(), String> {
     // 使用事务保证原子性：避免删除后插入失败导致数据丢失
-    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| format!("开始事务失败: {}", e))?;
     sqlx::query("DELETE FROM environment_variables WHERE environment_id = ?")
         .bind(env_id)
-        .execute(&mut *tx).await.map_err(|e| format!("清除旧变量失败: {}", e))?;
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| format!("清除旧变量失败: {}", e))?;
 
     for var in vars {
         sqlx::query(
@@ -354,7 +425,9 @@ pub async fn save_env_variables(pool: &SqlitePool, env_id: &str, vars: Vec<EnvVa
         .bind(var.enabled).bind(var.is_secret).bind(var.sort_order)
         .execute(&mut *tx).await.map_err(|e| format!("保存变量失败: {}", e))?;
     }
-    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
+    tx.commit()
+        .await
+        .map_err(|e| format!("提交事务失败: {}", e))?;
     Ok(())
 }
 
@@ -364,23 +437,38 @@ pub async fn save_env_variables(pool: &SqlitePool, env_id: &str, vars: Vec<EnvVa
 
 pub async fn list_global_variables(pool: &SqlitePool) -> Result<Vec<GlobalVariable>, String> {
     sqlx::query_as::<_, GlobalVariable>("SELECT * FROM global_variables ORDER BY key")
-        .fetch_all(pool).await.map_err(|e| format!("查询全局变量失败: {}", e))
+        .fetch_all(pool)
+        .await
+        .map_err(|e| format!("查询全局变量失败: {}", e))
 }
 
-pub async fn save_global_variables(pool: &SqlitePool, vars: Vec<GlobalVariable>) -> Result<(), String> {
+pub async fn save_global_variables(
+    pool: &SqlitePool,
+    vars: Vec<GlobalVariable>,
+) -> Result<(), String> {
     // 使用事务保证原子性
-    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
+    let mut tx = pool
+        .begin()
+        .await
+        .map_err(|e| format!("开始事务失败: {}", e))?;
     sqlx::query("DELETE FROM global_variables")
-        .execute(&mut *tx).await.map_err(|e| format!("清除全局变量失败: {}", e))?;
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| format!("清除全局变量失败: {}", e))?;
 
     for var in vars {
-        sqlx::query(
-            "INSERT INTO global_variables (id, key, value, enabled) VALUES (?, ?, ?, ?)"
-        )
-        .bind(&var.id).bind(&var.key).bind(&var.value).bind(var.enabled)
-        .execute(&mut *tx).await.map_err(|e| format!("保存全局变量失败: {}", e))?;
+        sqlx::query("INSERT INTO global_variables (id, key, value, enabled) VALUES (?, ?, ?, ?)")
+            .bind(&var.id)
+            .bind(&var.key)
+            .bind(&var.value)
+            .bind(var.enabled)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| format!("保存全局变量失败: {}", e))?;
     }
-    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
+    tx.commit()
+        .await
+        .map_err(|e| format!("提交事务失败: {}", e))?;
     Ok(())
 }
 
@@ -408,15 +496,18 @@ pub async fn add_history(pool: &SqlitePool, entry: HistoryEntry) -> Result<(), S
 }
 
 pub async fn list_history(pool: &SqlitePool, limit: i64) -> Result<Vec<HistoryEntry>, String> {
-    sqlx::query_as::<_, HistoryEntry>(
-        "SELECT * FROM history ORDER BY created_at DESC LIMIT ?"
-    )
-    .bind(limit)
-    .fetch_all(pool).await.map_err(|e| format!("查询历史失败: {}", e))
+    sqlx::query_as::<_, HistoryEntry>("SELECT * FROM history ORDER BY created_at DESC LIMIT ?")
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| format!("查询历史失败: {}", e))
 }
 
 /// 轻量列表：不返回 request_config / response_summary，节省内存
-pub async fn list_history_summary(pool: &SqlitePool, limit: i64) -> Result<Vec<HistoryEntrySummary>, String> {
+pub async fn list_history_summary(
+    pool: &SqlitePool,
+    limit: i64,
+) -> Result<Vec<HistoryEntrySummary>, String> {
     sqlx::query_as::<_, HistoryEntrySummary>(
         "SELECT id, method, url, status, duration_ms, body_size, created_at FROM history ORDER BY created_at DESC LIMIT ?"
     )
@@ -426,22 +517,26 @@ pub async fn list_history_summary(pool: &SqlitePool, limit: i64) -> Result<Vec<H
 
 /// 按 ID 获取完整历史记录（含 request_config）
 pub async fn get_history_entry(pool: &SqlitePool, id: &str) -> Result<HistoryEntry, String> {
-    sqlx::query_as::<_, HistoryEntry>(
-        "SELECT * FROM history WHERE id = ?"
-    )
-    .bind(id)
-    .fetch_one(pool).await.map_err(|e| format!("历史记录不存在: {}", e))
+    sqlx::query_as::<_, HistoryEntry>("SELECT * FROM history WHERE id = ?")
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| format!("历史记录不存在: {}", e))
 }
 
 pub async fn delete_history_entry(pool: &SqlitePool, id: &str) -> Result<(), String> {
     sqlx::query("DELETE FROM history WHERE id = ?")
         .bind(id)
-        .execute(pool).await.map_err(|e| format!("删除历史失败: {}", e))?;
+        .execute(pool)
+        .await
+        .map_err(|e| format!("删除历史失败: {}", e))?;
     Ok(())
 }
 
 pub async fn clear_history(pool: &SqlitePool) -> Result<(), String> {
     sqlx::query("DELETE FROM history")
-        .execute(pool).await.map_err(|e| format!("清空历史失败: {}", e))?;
+        .execute(pool)
+        .await
+        .map_err(|e| format!("清空历史失败: {}", e))?;
     Ok(())
 }

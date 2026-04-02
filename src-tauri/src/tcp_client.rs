@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 
 /// TCP/UDP 事件（后端 → 前端推送）
 #[derive(Debug, Clone, Serialize)]
@@ -29,7 +29,10 @@ fn now_iso() -> String {
 
 /// Convert raw bytes to hex string like "48 65 6c 6c 6f"
 fn bytes_to_hex(data: &[u8]) -> String {
-    data.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" ")
+    data.iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Decode user input based on encoding format.
@@ -318,7 +321,8 @@ pub async fn tcp_server_start(
     // 清理所有占用相同地址的旧服务器（处理刷新后 ID 不一致的情况）
     {
         let svrs = servers.servers.lock().await;
-        let stale_ids: Vec<String> = svrs.iter()
+        let stale_ids: Vec<String> = svrs
+            .iter()
             .filter(|(_, h)| h.bind_addr == addr)
             .map(|(id, _)| id.clone())
             .collect();
@@ -365,7 +369,12 @@ pub async fn tcp_server_start(
                     {
                         let c = clients_clone.lock().await;
                         if c.len() >= MAX_TCP_CLIENTS {
-                            log::warn!("TCP 服务器 {} 连接数已达上限 {}，拒绝新连接 {}", sid, MAX_TCP_CLIENTS, addr);
+                            log::warn!(
+                                "TCP 服务器 {} 连接数已达上限 {}，拒绝新连接 {}",
+                                sid,
+                                MAX_TCP_CLIENTS,
+                                addr
+                            );
                             drop(stream);
                             continue;
                         }
@@ -471,10 +480,7 @@ pub async fn tcp_server_start(
                         abort_handle: client_task.abort_handle(),
                         remote_addr,
                     };
-                    clients_clone
-                        .lock()
-                        .await
-                        .insert(client_id, client_handle);
+                    clients_clone.lock().await.insert(client_id, client_handle);
                 }
                 Err(e) => {
                     let _ = app_clone.emit(
@@ -616,7 +622,8 @@ pub async fn udp_bind(
     // 清理占用相同地址的旧 socket（处理刷新后 ID 不一致的情况）
     {
         let conns = sockets.sockets.lock().await;
-        let stale_ids: Vec<String> = conns.iter()
+        let stale_ids: Vec<String> = conns
+            .iter()
             .filter(|(_, h)| h.bind_addr == local_addr)
             .map(|(id, _)| id.clone())
             .collect();
@@ -776,7 +783,12 @@ pub struct ActiveUdpSocket {
 /// 查询后端所有活跃的 TCP 客户端连接
 pub async fn list_active_connections(connections: &TcpConnections) -> Vec<ActiveTcpConnection> {
     let conns = connections.connections.lock().await;
-    conns.keys().map(|id| ActiveTcpConnection { connection_id: id.clone() }).collect()
+    conns
+        .keys()
+        .map(|id| ActiveTcpConnection {
+            connection_id: id.clone(),
+        })
+        .collect()
 }
 
 /// 查询后端所有活跃的 TCP 服务端
@@ -799,5 +811,10 @@ pub async fn list_active_servers(servers: &TcpServers) -> Vec<ActiveTcpServer> {
 /// 查询后端所有活跃的 UDP Socket
 pub async fn list_active_sockets(sockets: &UdpSockets) -> Vec<ActiveUdpSocket> {
     let conns = sockets.sockets.lock().await;
-    conns.keys().map(|id| ActiveUdpSocket { socket_id: id.clone() }).collect()
+    conns
+        .keys()
+        .map(|id| ActiveUdpSocket {
+            socket_id: id.clone(),
+        })
+        .collect()
 }

@@ -1,10 +1,10 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{Mutex, oneshot};
-use tokio::net::UdpSocket;
-use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
 use std::sync::atomic::AtomicU32;
+use tokio::net::UdpSocket;
+use tokio::sync::{Mutex, oneshot};
 
 /// 单个流会话
 #[allow(dead_code)]
@@ -74,6 +74,16 @@ pub struct OnvifSession {
 
 // ���─ GB28181 Session ──
 
+#[derive(Debug, Clone)]
+pub struct Gb28181PlaySession {
+    pub target_device_id: String,
+    pub request_uri: String,
+    pub from_header: String,
+    pub to_header: String,
+    pub call_id: String,
+    pub media_port: u16,
+}
+
 #[allow(dead_code)]
 pub struct Gb28181Session {
     pub socket: Option<Arc<UdpSocket>>,
@@ -81,10 +91,12 @@ pub struct Gb28181Session {
     pub sip_port: u16,
     pub sip_domain: String,
     pub device_id: String,
+    pub local_ip: String,
     pub local_port: u16,
     pub call_id: String,
     pub cseq: AtomicU32,
     pub transport: String,
+    pub active_play: Option<Gb28181PlaySession>,
 }
 
 // ── RTMP Session ──

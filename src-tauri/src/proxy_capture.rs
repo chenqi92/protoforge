@@ -2,6 +2,9 @@
 // 基于 hudsucker 实现 MITM HTTP/HTTPS 代理
 // 通过 Tauri Event 将捕获的请求/响应实时推送到前端
 
+use base64::Engine as _;
+use http::uri::Uri;
+use http_body_util::{BodyExt, Empty, Full};
 use hudsucker::{
     certificate_authority::RcgenAuthority,
     hyper::{Request, Response},
@@ -9,15 +12,12 @@ use hudsucker::{
     rustls::crypto::aws_lc_rs,
     *,
 };
-use http_body_util::{BodyExt, Full, Empty};
-use base64::Engine as _;
-use http::uri::Uri;
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Emitter;
 use tokio::sync::Mutex;
 
@@ -162,7 +162,11 @@ fn extract_url(req: &Request<Body>) -> String {
     if uri.scheme().is_none() {
         if let Some(host) = req.headers().get("host") {
             if let Ok(host_str) = host.to_str() {
-                return format!("http://{}{}", host_str, uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("/"));
+                return format!(
+                    "http://{}{}",
+                    host_str,
+                    uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("/")
+                );
             }
         }
     }
@@ -194,7 +198,12 @@ impl HttpHandler for CaptureHandler {
         let method = req.method().to_string();
         let url = extract_url(&req);
 
-        log::info!("[CAPTURE] 收到请求: {} {} (session={})", method, url, self.session_id);
+        log::info!(
+            "[CAPTURE] 收到请求: {} {} (session={})",
+            method,
+            url,
+            self.session_id
+        );
 
         // 跳过 CONNECT 请求本身（HTTPS 隧道建立阶段）
         if method == "CONNECT" {
@@ -274,7 +283,12 @@ impl HttpHandler for CaptureHandler {
             http_version: Some(http_version.clone()),
         };
 
-        log::info!("[CAPTURE] 推送 pending entry: id={}, session={}, url={}", entry_id, self.session_id, url);
+        log::info!(
+            "[CAPTURE] 推送 pending entry: id={}, session={}, url={}",
+            entry_id,
+            self.session_id,
+            url
+        );
         let emit_result = self.app.emit("capture-event", &pending_entry);
         if let Err(e) = &emit_result {
             log::error!("[CAPTURE] emit 失败: {:?}", e);
@@ -300,17 +314,9 @@ impl HttpHandler for CaptureHandler {
         new_req.into()
     }
 
-    async fn handle_response(
-        &mut self,
-        _ctx: &HttpContext,
-        res: Response<Body>,
-    ) -> Response<Body> {
+    async fn handle_response(&mut self, _ctx: &HttpContext, res: Response<Body>) -> Response<Body> {
         let status = res.status().as_u16();
-        let status_text = res
-            .status()
-            .canonical_reason()
-            .unwrap_or("")
-            .to_string();
+        let status_text = res.status().canonical_reason().unwrap_or("").to_string();
 
         let response_headers: Vec<(String, String)> = res
             .headers()
@@ -382,7 +388,13 @@ impl HttpHandler for CaptureHandler {
                 http_version: Some(meta.http_version),
             };
 
-            log::info!("[CAPTURE] 推送 completed entry: id={}, session={}, status={}, url={}", entry.id, self.session_id, status, entry.url);
+            log::info!(
+                "[CAPTURE] 推送 completed entry: id={}, session={}, status={}, url={}",
+                entry.id,
+                self.session_id,
+                status,
+                entry.url
+            );
             // 推送完整条目到前端
             let emit_result = self.app.emit("capture-event", &entry);
             if let Err(e) = &emit_result {
@@ -407,8 +419,7 @@ pub async fn test_proxy_connection(port: u16) -> Result<String, String> {
     let proxy_url = format!("http://127.0.0.1:{}", port);
     log::info!("[CAPTURE] 测试代理连接: proxy={}", proxy_url);
 
-    let proxy = reqwest::Proxy::http(&proxy_url)
-        .map_err(|e| format!("创建代理配置失败: {}", e))?;
+    let proxy = reqwest::Proxy::http(&proxy_url).map_err(|e| format!("创建代理配置失败: {}", e))?;
 
     let client = reqwest::Client::builder()
         .proxy(proxy)
@@ -444,16 +455,15 @@ fn get_or_create_ca(app_data_dir: &PathBuf) -> Result<(String, String, PathBuf),
 
     // 如果已有证书，直接加载
     if cert_path.exists() && key_path.exists() {
-        let cert_pem = std::fs::read_to_string(&cert_path)
-            .map_err(|e| format!("读取 CA 证书失败: {}", e))?;
-        let key_pem = std::fs::read_to_string(&key_path)
-            .map_err(|e| format!("读取 CA 私钥失败: {}", e))?;
+        let cert_pem =
+            std::fs::read_to_string(&cert_path).map_err(|e| format!("读取 CA 证书失败: {}", e))?;
+        let key_pem =
+            std::fs::read_to_string(&key_path).map_err(|e| format!("读取 CA 私钥失败: {}", e))?;
         return Ok((cert_pem, key_pem, cert_path));
     }
 
     // 生成新的 CA 证书
-    std::fs::create_dir_all(&ca_dir)
-        .map_err(|e| format!("创建 CA 目录失败: {}", e))?;
+    std::fs::create_dir_all(&ca_dir).map_err(|e| format!("创建 CA 目录失败: {}", e))?;
 
     let mut params = CertificateParams::new(Vec::<String>::new())
         .map_err(|e| format!("创建证书参数失败: {}", e))?;
@@ -467,18 +477,16 @@ fn get_or_create_ca(app_data_dir: &PathBuf) -> Result<(String, String, PathBuf),
         rcgen::DnValue::Utf8String("ProtoForge".to_string()),
     );
 
-    let key_pair = KeyPair::generate()
-        .map_err(|e| format!("生成密钥对失败: {}", e))?;
-    let cert = params.self_signed(&key_pair)
+    let key_pair = KeyPair::generate().map_err(|e| format!("生成密钥对失败: {}", e))?;
+    let cert = params
+        .self_signed(&key_pair)
         .map_err(|e| format!("自签名证书失败: {}", e))?;
 
     let cert_pem = cert.pem();
     let key_pem = key_pair.serialize_pem();
 
-    std::fs::write(&cert_path, &cert_pem)
-        .map_err(|e| format!("写入 CA 证书失败: {}", e))?;
-    std::fs::write(&key_path, &key_pem)
-        .map_err(|e| format!("写入 CA 私钥失败: {}", e))?;
+    std::fs::write(&cert_path, &cert_pem).map_err(|e| format!("写入 CA 证书失败: {}", e))?;
+    std::fs::write(&key_path, &key_pem).map_err(|e| format!("写入 CA 私钥失败: {}", e))?;
 
     log::info!("已生成新的 CA 证书: {:?}", cert_path);
 
@@ -511,8 +519,7 @@ pub async fn start_proxy(
     *state.ca_cert_path.lock().await = Some(cert_path);
 
     // 创建 RcgenAuthority
-    let key_pair = KeyPair::from_pem(&key_pem)
-        .map_err(|e| format!("解析 CA 私钥失败: {}", e))?;
+    let key_pair = KeyPair::from_pem(&key_pem).map_err(|e| format!("解析 CA 私钥失败: {}", e))?;
     let issuer = Issuer::from_ca_cert_pem(&cert_pem, key_pair)
         .map_err(|e| format!("解析 CA 证书失败: {}", e))?;
     let ca = RcgenAuthority::new(issuer, 1_000, aws_lc_rs::default_provider());

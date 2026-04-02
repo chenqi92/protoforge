@@ -2,32 +2,37 @@
 //! 支持 TCP 握手 (C0/S0/C1/S1/C2/S2)、AMF0 编解码、connect/createStream/play 命令
 //! 手写实现，展示原始报文用于协议调试
 
+use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tauri::{AppHandle, Emitter};
 
 use super::state::ProtocolMessage;
 
 // ── RTMP 握手 ──
 
 /// 执行 RTMP 握手全流程 (C0+C1 → S0+S1+S2 → C2)
-pub async fn handshake(
-    session_id: &str,
-    url: &str,
-    app: &AppHandle,
-) -> Result<TcpStream, String> {
+pub async fn handshake(session_id: &str, url: &str, app: &AppHandle) -> Result<TcpStream, String> {
     let (host, port, _app_name, _stream_name) = parse_rtmp_url(url)?;
 
     let addr = format!("{}:{}", host, port);
-    let mut stream = TcpStream::connect(&addr).await
+    let mut stream = TcpStream::connect(&addr)
+        .await
         .map_err(|e| format!("RTMP connect to {} failed: {}", addr, e))?;
 
     // ── C0: version byte (0x03 = RTMP version 3)
     let c0 = [0x03u8];
-    stream.write_all(&c0).await.map_err(|e| format!("Send C0 failed: {}", e))?;
+    stream
+        .write_all(&c0)
+        .await
+        .map_err(|e| format!("Send C0 failed: {}", e))?;
 
-    emit_protocol_msg(app, session_id, "sent", "C0 → Version (0x03)",
-        &format!("RTMP Handshake C0\nVersion: 3\nBytes: {:02X}", c0[0]));
+    emit_protocol_msg(
+        app,
+        session_id,
+        "sent",
+        "C0 → Version (0x03)",
+        &format!("RTMP Handshake C0\nVersion: 3\nBytes: {:02X}", c0[0]),
+    );
 
     // ── C1: 1536 bytes (timestamp + zero + random)
     let mut c1 = vec![0u8; 1536];
@@ -41,41 +46,92 @@ pub async fn handshake(
     for i in 8..1536 {
         c1[i] = ((i * 37 + 13) % 256) as u8;
     }
-    stream.write_all(&c1).await.map_err(|e| format!("Send C1 failed: {}", e))?;
+    stream
+        .write_all(&c1)
+        .await
+        .map_err(|e| format!("Send C1 failed: {}", e))?;
 
-    emit_protocol_msg(app, session_id, "sent", "C1 → Handshake (1536 bytes)",
-        &format!("RTMP Handshake C1\nTimestamp: {}\nSize: 1536 bytes\nFirst 16 bytes: {}",
-            ts, hex_preview(&c1, 16)));
+    emit_protocol_msg(
+        app,
+        session_id,
+        "sent",
+        "C1 → Handshake (1536 bytes)",
+        &format!(
+            "RTMP Handshake C1\nTimestamp: {}\nSize: 1536 bytes\nFirst 16 bytes: {}",
+            ts,
+            hex_preview(&c1, 16)
+        ),
+    );
 
     // ── Read S0 (1 byte)
     let mut s0 = [0u8; 1];
-    stream.read_exact(&mut s0).await.map_err(|e| format!("Read S0 failed: {}", e))?;
+    stream
+        .read_exact(&mut s0)
+        .await
+        .map_err(|e| format!("Read S0 failed: {}", e))?;
 
-    emit_protocol_msg(app, session_id, "received", &format!("S0 ← Version (0x{:02X})", s0[0]),
-        &format!("RTMP Handshake S0\nServer version: {}\nBytes: {:02X}", s0[0], s0[0]));
+    emit_protocol_msg(
+        app,
+        session_id,
+        "received",
+        &format!("S0 ← Version (0x{:02X})", s0[0]),
+        &format!(
+            "RTMP Handshake S0\nServer version: {}\nBytes: {:02X}",
+            s0[0], s0[0]
+        ),
+    );
 
     // ── Read S1 (1536 bytes)
     let mut s1 = vec![0u8; 1536];
-    stream.read_exact(&mut s1).await.map_err(|e| format!("Read S1 failed: {}", e))?;
+    stream
+        .read_exact(&mut s1)
+        .await
+        .map_err(|e| format!("Read S1 failed: {}", e))?;
 
     let s1_ts = u32::from_be_bytes([s1[0], s1[1], s1[2], s1[3]]);
-    emit_protocol_msg(app, session_id, "received", "S1 ← Handshake (1536 bytes)",
-        &format!("RTMP Handshake S1\nServer timestamp: {}\nSize: 1536 bytes\nFirst 16 bytes: {}",
-            s1_ts, hex_preview(&s1, 16)));
+    emit_protocol_msg(
+        app,
+        session_id,
+        "received",
+        "S1 ← Handshake (1536 bytes)",
+        &format!(
+            "RTMP Handshake S1\nServer timestamp: {}\nSize: 1536 bytes\nFirst 16 bytes: {}",
+            s1_ts,
+            hex_preview(&s1, 16)
+        ),
+    );
 
     // ── Read S2 (1536 bytes) — echo of C1
     let mut s2 = vec![0u8; 1536];
-    stream.read_exact(&mut s2).await.map_err(|e| format!("Read S2 failed: {}", e))?;
+    stream
+        .read_exact(&mut s2)
+        .await
+        .map_err(|e| format!("Read S2 failed: {}", e))?;
 
-    emit_protocol_msg(app, session_id, "received", "S2 ← Echo of C1 (1536 bytes)",
-        &format!("RTMP Handshake S2\nSize: 1536 bytes\nFirst 16 bytes: {}",
-            hex_preview(&s2, 16)));
+    emit_protocol_msg(
+        app,
+        session_id,
+        "received",
+        "S2 ← Echo of C1 (1536 bytes)",
+        &format!(
+            "RTMP Handshake S2\nSize: 1536 bytes\nFirst 16 bytes: {}",
+            hex_preview(&s2, 16)
+        ),
+    );
 
     // ── C2: echo of S1
-    stream.write_all(&s1).await.map_err(|e| format!("Send C2 failed: {}", e))?;
+    stream
+        .write_all(&s1)
+        .await
+        .map_err(|e| format!("Send C2 failed: {}", e))?;
 
-    emit_protocol_msg(app, session_id, "sent", "C2 → Echo of S1 (1536 bytes)",
-        &format!("RTMP Handshake C2\nSize: 1536 bytes (echo of S1)"));
+    emit_protocol_msg(
+        app,
+        session_id,
+        "sent",
+        "C2 → Echo of S1 (1536 bytes)",
+        &format!("RTMP Handshake C2\nSize: 1536 bytes (echo of S1)"),
+    );
 
     // Emit handshake complete info
     let info_msg = ProtocolMessage {
@@ -83,7 +139,10 @@ pub async fn handshake(
         direction: "info".to_string(),
         protocol: "rtmp".to_string(),
         summary: "RTMP handshake completed successfully".to_string(),
-        detail: format!("Server: {}:{}\nClient version: 3\nServer version: {}", host, port, s0[0]),
+        detail: format!(
+            "Server: {}:{}\nClient version: 3\nServer version: {}",
+            host, port, s0[0]
+        ),
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: None,
     };
@@ -200,7 +259,11 @@ pub async fn connect_app(
                 let after_host = &without_scheme[first_slash + 1..];
                 // app is everything before the next '/'
                 match after_host.find('/') {
-                    Some(second_slash) => format!("rtmp://{}/{}", &without_scheme[..first_slash], &after_host[..second_slash]),
+                    Some(second_slash) => format!(
+                        "rtmp://{}/{}",
+                        &without_scheme[..first_slash],
+                        &after_host[..second_slash]
+                    ),
                     None => format!("rtmp://{}/{}", &without_scheme[..first_slash], after_host),
                 }
             }
@@ -227,26 +290,47 @@ pub async fn connect_app(
 
     let chunk = build_rtmp_chunk(3, 0x14, 0, &payload); // 0x14 = AMF0 command
 
-    emit_protocol_msg(app, session_id, "sent", "connect command (AMF0)",
-        &format!("RTMP connect\nApp: {}\ntcUrl: {}\nPayload size: {} bytes\nChunk size: {} bytes",
-            app_name, url, payload.len(), chunk.len()));
+    emit_protocol_msg(
+        app,
+        session_id,
+        "sent",
+        "connect command (AMF0)",
+        &format!(
+            "RTMP connect\nApp: {}\ntcUrl: {}\nPayload size: {} bytes\nChunk size: {} bytes",
+            app_name,
+            url,
+            payload.len(),
+            chunk.len()
+        ),
+    );
 
-    stream.write_all(&chunk).await.map_err(|e| format!("Send connect failed: {}", e))?;
+    stream
+        .write_all(&chunk)
+        .await
+        .map_err(|e| format!("Send connect failed: {}", e))?;
 
     // Read response
     let mut resp_buf = vec![0u8; 4096];
     let n = tokio::time::timeout(
         std::time::Duration::from_secs(5),
         stream.read(&mut resp_buf),
-    ).await
-        .map_err(|_| "connect response timeout".to_string())?
-        .map_err(|e| format!("Read connect response failed: {}", e))?;
+    )
+    .await
+    .map_err(|_| "connect response timeout".to_string())?
+    .map_err(|e| format!("Read connect response failed: {}", e))?;
 
     if n > 0 {
-        emit_protocol_msg(app, session_id, "received",
+        emit_protocol_msg(
+            app,
+            session_id,
+            "received",
             &format!("connect response ({} bytes)", n),
-            &format!("RTMP connect response\nSize: {} bytes\nFirst 32 bytes: {}",
-                n, hex_preview(&resp_buf[..n], 32)));
+            &format!(
+                "RTMP connect response\nSize: {} bytes\nFirst 32 bytes: {}",
+                n,
+                hex_preview(&resp_buf[..n], 32)
+            ),
+        );
     }
 
     Ok(())
@@ -268,24 +352,44 @@ pub async fn play(
 
     let cs_chunk = build_rtmp_chunk(3, 0x14, 0, &cs_payload);
 
-    emit_protocol_msg(app, session_id, "sent", "createStream command",
-        &format!("RTMP createStream\nTransaction ID: 2\nPayload: {} bytes", cs_payload.len()));
+    emit_protocol_msg(
+        app,
+        session_id,
+        "sent",
+        "createStream command",
+        &format!(
+            "RTMP createStream\nTransaction ID: 2\nPayload: {} bytes",
+            cs_payload.len()
+        ),
+    );
 
-    stream.write_all(&cs_chunk).await.map_err(|e| format!("Send createStream failed: {}", e))?;
+    stream
+        .write_all(&cs_chunk)
+        .await
+        .map_err(|e| format!("Send createStream failed: {}", e))?;
 
     // Read createStream response
     let mut resp_buf = vec![0u8; 4096];
     let n = tokio::time::timeout(
         std::time::Duration::from_secs(5),
         stream.read(&mut resp_buf),
-    ).await
-        .map_err(|_| "createStream response timeout".to_string())?
-        .map_err(|e| format!("Read createStream response failed: {}", e))?;
+    )
+    .await
+    .map_err(|_| "createStream response timeout".to_string())?
+    .map_err(|e| format!("Read createStream response failed: {}", e))?;
 
     if n > 0 {
-        emit_protocol_msg(app, session_id, "received",
+        emit_protocol_msg(
+            app,
+            session_id,
+            "received",
             &format!("createStream response ({} bytes)", n),
-            &format!("Size: {} bytes\nFirst 32 bytes: {}", n, hex_preview(&resp_buf[..n], 32)));
+            &format!(
+                "Size: {} bytes\nFirst 32 bytes: {}",
+                n,
+                hex_preview(&resp_buf[..n], 32)
+            ),
+        );
     }
 
     // play command
@@ -297,23 +401,44 @@ pub async fn play(
 
     let play_chunk = build_rtmp_chunk(8, 0x14, 1, &play_payload);
 
-    emit_protocol_msg(app, session_id, "sent", &format!("play \"{}\"", stream_key),
-        &format!("RTMP play\nStream key: {}\nPayload: {} bytes", stream_key, play_payload.len()));
+    emit_protocol_msg(
+        app,
+        session_id,
+        "sent",
+        &format!("play \"{}\"", stream_key),
+        &format!(
+            "RTMP play\nStream key: {}\nPayload: {} bytes",
+            stream_key,
+            play_payload.len()
+        ),
+    );
 
-    stream.write_all(&play_chunk).await.map_err(|e| format!("Send play failed: {}", e))?;
+    stream
+        .write_all(&play_chunk)
+        .await
+        .map_err(|e| format!("Send play failed: {}", e))?;
 
     // Read play response
     let n2 = tokio::time::timeout(
         std::time::Duration::from_secs(5),
         stream.read(&mut resp_buf),
-    ).await
-        .map_err(|_| "play response timeout".to_string())?
-        .map_err(|e| format!("Read play response failed: {}", e))?;
+    )
+    .await
+    .map_err(|_| "play response timeout".to_string())?
+    .map_err(|e| format!("Read play response failed: {}", e))?;
 
     if n2 > 0 {
-        emit_protocol_msg(app, session_id, "received",
+        emit_protocol_msg(
+            app,
+            session_id,
+            "received",
             &format!("play response ({} bytes)", n2),
-            &format!("Size: {} bytes\nFirst 32 bytes: {}", n2, hex_preview(&resp_buf[..n2], 32)));
+            &format!(
+                "Size: {} bytes\nFirst 32 bytes: {}",
+                n2,
+                hex_preview(&resp_buf[..n2], 32)
+            ),
+        );
     }
 
     Ok(())
@@ -322,7 +447,8 @@ pub async fn play(
 // ── 辅助函数 ──
 
 fn parse_rtmp_url(url: &str) -> Result<(String, u16, String, String), String> {
-    let without_scheme = url.strip_prefix("rtmp://")
+    let without_scheme = url
+        .strip_prefix("rtmp://")
         .ok_or_else(|| "URL must start with rtmp://".to_string())?;
 
     let (host_port, path) = match without_scheme.find('/') {
@@ -349,10 +475,20 @@ fn parse_rtmp_url(url: &str) -> Result<(String, u16, String, String), String> {
 
 fn hex_preview(data: &[u8], max: usize) -> String {
     let len = data.len().min(max);
-    data[..len].iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ")
+    data[..len]
+        .iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
-fn emit_protocol_msg(app: &AppHandle, _session_id: &str, direction: &str, summary: &str, detail: &str) {
+fn emit_protocol_msg(
+    app: &AppHandle,
+    _session_id: &str,
+    direction: &str,
+    summary: &str,
+    detail: &str,
+) {
     let msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
         direction: direction.to_string(),

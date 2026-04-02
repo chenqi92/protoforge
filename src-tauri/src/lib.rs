@@ -1,31 +1,31 @@
-mod http_client;
-mod commands;
+mod builtin_parsers;
 mod collections;
+mod commands;
 mod database;
-mod postman_compat;
-mod swagger_import;
-mod ws_client;
-mod tcp_client;
+mod http_client;
 mod load_test;
-mod proxy_capture;
+mod mqtt_client;
 mod plugin_runtime;
+mod plugins;
+mod postman_compat;
+mod proxy_capture;
 mod script_engine;
 mod sse_client;
-mod mqtt_client;
-mod wasm_runtime;
-mod builtin_parsers;
-mod plugins;
-mod workflow_engine;
+mod swagger_import;
+mod tcp_client;
 mod video_streaming;
+mod wasm_runtime;
+mod workflow_engine;
+mod ws_client;
 
-use tauri::Manager;
+use load_test::LoadTestState;
+use plugin_runtime::PluginManager;
+use proxy_capture::ProxyState;
 #[cfg(target_os = "macos")]
 use tauri::Emitter;
-use ws_client::WsConnections;
+use tauri::Manager;
 use tcp_client::{TcpConnections, TcpServers, UdpSockets};
-use load_test::LoadTestState;
-use proxy_capture::ProxyState;
-use plugin_runtime::PluginManager;
+use ws_client::WsConnections;
 
 /// 开发模式：保留 DevTools / Reload / ContextMenu（方便调试）
 /// 生产模式：禁用所有浏览器默认行为
@@ -44,7 +44,7 @@ fn prevent_default() -> tauri::plugin::TauriPlugin<tauri::Wry> {
         .platform(
             PlatformOptions::new()
                 .default_context_menus(false)
-                .browser_accelerator_keys(false)
+                .browser_accelerator_keys(false),
         )
         .build()
 }
@@ -64,30 +64,37 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
-            let app_data = app.path().app_data_dir()
+            let app_data = app
+                .path()
+                .app_data_dir()
                 .expect("failed to get app data dir");
 
             // 初始化 SQLite 数据库连接池
             let app_data_for_db = app_data.clone();
             let handle = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                let pool = database::init_pool(&app_data_for_db).await
+                let pool = database::init_pool(&app_data_for_db)
+                    .await
                     .expect("failed to init database");
                 handle.manage(pool);
             });
 
             // 注册 Tauri 插件 (updater 仅在 release 模式启用)
             #[cfg(not(debug_assertions))]
-            app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
             app.handle().plugin(tauri_plugin_process::init())?;
 
             // ── macOS 系统级菜单 ──
             #[cfg(target_os = "macos")]
             {
-                use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder, PredefinedMenuItem};
+                use tauri::menu::{
+                    MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder,
+                };
 
-                let check_updates = MenuItemBuilder::with_id("check_for_updates", "Check for Updates…")
-                    .build(app)?;
+                let check_updates =
+                    MenuItemBuilder::with_id("check_for_updates", "Check for Updates…")
+                        .build(app)?;
 
                 let help_submenu = SubmenuBuilder::new(app, "Help")
                     .item(&check_updates)
@@ -322,6 +329,9 @@ pub fn run() {
             commands::vs_hls_parse_playlist,
             commands::vs_gb_register,
             commands::vs_gb_query_catalog,
+            commands::vs_gb_unregister,
+            commands::vs_gb_start_live,
+            commands::vs_gb_stop_live,
             commands::vs_gb_ptz,
             // ONVIF
             commands::vs_onvif_discover,
@@ -333,6 +343,7 @@ pub fn run() {
             commands::vs_onvif_get_presets,
             commands::vs_onvif_goto_preset,
             commands::vs_onvif_set_preset,
+            commands::vs_onvif_close,
             // RTMP
             commands::vs_rtmp_handshake,
             commands::vs_rtmp_connect_app,

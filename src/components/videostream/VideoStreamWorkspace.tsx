@@ -2,14 +2,16 @@
 // 布局：Tabs+URL 固定顶部 → 可拖拽分栏（上：视频+配置 | 下：协议报文）
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
-import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, GripHorizontal, GripVertical, History, X, Download } from "lucide-react";
+import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, GripHorizontal, GripVertical, History, X, Download, Loader } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { modeLikelyNeedsFfmpeg, resolvePlaybackTarget, supportsIntegratedPlayback } from "@/lib/videoPlayback";
 import type {
   FfmpegStatus,
   ProtocolMessage,
   RtmpConfig,
   RtspConfig,
+  SrtConfig,
   StreamInfo,
   StreamStats,
   VideoProtocol,
@@ -49,9 +51,31 @@ function loadRecentStreams(): RecentStream[] {
   try { return JSON.parse(localStorage.getItem(rsKey()) || '[]'); } catch { return []; }
 }
 
+function sanitizeRecentStreamLabel(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.username) {
+      parsed.username = parsed.username ? "***" : "";
+    }
+    if (parsed.password) {
+      parsed.password = "***";
+    }
+    for (const key of ["token", "passphrase", "password", "auth", "signature"]) {
+      if (parsed.searchParams.has(key)) {
+        parsed.searchParams.set(key, "***");
+      }
+    }
+    return parsed.toString();
+  } catch {
+    return url
+      .replace(/\/\/([^/@:]+):([^@/]+)@/g, "//$1:***@")
+      .replace(/([?&](?:token|passphrase|password|auth|signature)=)[^&]+/gi, "$1***");
+  }
+}
+
 function saveRecentStream(url: string, protocol: VideoProtocol) {
   const list = loadRecentStreams().filter(r => !(r.url === url && r.protocol === protocol));
-  localStorage.setItem(rsKey(), JSON.stringify([{ url, protocol }, ...list].slice(0, 12)));
+  localStorage.setItem(rsKey(), JSON.stringify([{ url, protocol, label: sanitizeRecentStreamLabel(url) }, ...list].slice(0, 12)));
 }
 
 const DEFAULT_RTSP_CONFIG: RtspConfig = {
@@ -68,15 +92,14 @@ const DEFAULT_RTMP_CONFIG: RtmpConfig = {
   streamKey: "",
 };
 
-function supportsIntegratedPlayback(mode: VideoProtocol, url: string): boolean {
-  if (mode === "webrtc") return false;
-  if (mode === "gb28181" && !/^([a-z][a-z0-9+.-]*):\/\//i.test(url)) return false;
-  return true;
-}
-
-function expectedPlayerUrl(mode: VideoProtocol, url: string): string {
-  return mode === "hls" ? `hls:${url}` : `tauri:${url}`;
-}
+const DEFAULT_SRT_CONFIG: SrtConfig = {
+  host: "127.0.0.1",
+  port: 9000,
+  mode: "caller",
+  passphrase: "",
+  latency: 120,
+  streamId: "",
+};
 
 export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const { t } = useTranslation();
@@ -91,6 +114,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const [streamUrl, setStreamUrl] = useState("");
   const [rtspConfig, setRtspConfig] = useState<RtspConfig>(DEFAULT_RTSP_CONFIG);
   const [rtmpConfig, setRtmpConfig] = useState<RtmpConfig>(DEFAULT_RTMP_CONFIG);
+  const [srtConfig, setSrtConfig] = useState<SrtConfig>(DEFAULT_SRT_CONFIG);
   const [streamInfo, setStreamInfo] = useState<StreamInfo | null>(null);
   const [stats, setStats] = useState<StreamStats | null>(null);
   const [messageMap, setMessageMap] = useState<Record<string, ProtocolMessage[]>>({});
@@ -139,9 +163,22 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
       const ue = await vsSvc.onStreamEvent((e) => {
         if (e.sessionId !== sessionKey) return;
         switch (e.eventType) {
-          case 'connected': setConnected(true); setConnecting(false); break;
-          case 'disconnected': setConnected(false); setConnecting(false); setPlaying(false); setStreamInfo(null); setStats(null); break;
-          case 'error': setConnecting(false); setConnected(false); if (e.data) setPlayerError(e.data); break;
+          case 'connected': setConnected(true); break;
+          case 'disconnected':
+            setConnected(false);
+            setConnecting(false);
+            setPlaying(false);
+            setPlaybackReady(false);
+            setPlaybackPathLabel(null);
+            setStreamInfo(null);
+            setStats(null);
+            break;
+          case 'error':
+            setConnecting(false);
+            setConnected(false);
+            setPlaybackReady(false);
+            if (e.data) setPlayerError(e.data);
+            break;
           case 'stream-info': if (e.data) { try { setStreamInfo(JSON.parse(e.data)); } catch { /* */ } } break;
         }
       });
@@ -164,6 +201,8 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
   const [playerUrl, setPlayerUrl] = useState<string | null>(null);
+  const [playbackReady, setPlaybackReady] = useState(false);
+  const [playbackPathLabel, setPlaybackPathLabel] = useState<string | null>(null);
 
   const refreshFfmpegStatus = useCallback(async () => {
     try {
@@ -186,6 +225,13 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
     }
   }, [refreshFfmpegStatus]);
 
+  const resolveActiveUrl = useCallback(() => {
+    const explicitUrl = streamUrl.trim();
+    if (explicitUrl) return explicitUrl;
+    if (mode === "srt") return `srt://${srtConfig.host}:${srtConfig.port}`;
+    return "";
+  }, [mode, srtConfig.host, srtConfig.port, streamUrl]);
+
   const buildConnectConfig = useCallback((activeUrl: string) => {
     switch (mode) {
       case "rtsp":
@@ -196,10 +242,22 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
         return { protocol: mode, config: { url: activeUrl } };
       case "hls":
         return { protocol: mode, config: { url: activeUrl } };
+      case "srt": {
+        let host = srtConfig.host;
+        let port = srtConfig.port;
+        try {
+          const parsed = new URL(activeUrl);
+          host = parsed.hostname || host;
+          port = parsed.port ? Number(parsed.port) : port;
+        } catch {
+          // Keep panel config if the URL is not parseable.
+        }
+        return { protocol: mode, config: { ...srtConfig, host, port } };
+      }
       default:
         return null;
     }
-  }, [mode, rtmpConfig, rtspConfig]);
+  }, [mode, rtmpConfig, rtspConfig, srtConfig]);
 
   const handleConnect = useCallback(async () => {
     if (showPlayer) {
@@ -208,20 +266,24 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
       await vsSvc.disconnectStream(sessionKey).catch(() => {});
       setShowPlayer(false);
       setPlaying(false);
+      setConnecting(false);
+      setPlaybackReady(false);
+      setPlaybackPathLabel(null);
       setPlayerUrl(null);
       setConnected(false);
       return;
     }
-    const activeUrl = streamUrl.trim();
+    const activeUrl = resolveActiveUrl();
     if (!activeUrl) return;
     if (!supportsIntegratedPlayback(mode, activeUrl)) {
       setPlayerError(mode === "webrtc"
-        ? "当前内置播放器不直接处理 WebRTC 信令流。请先完成面板内的 SDP/ICE 协商，或接入媒体网关后再播放。"
-        : "GB28181 需要先通过媒体网关或设备目录拿到实际媒体地址，再启动播放。");
+        ? "当前仅支持直接输入可播放的 WebRTC 媒体地址，例如 webrtc/http/ws 网关地址；面板里的 SDP/ICE 调试流程本身不是播放器地址。"
+        : "GB28181 需要先拿到实际媒体地址，再启动播放。请在面板里的“媒体地址”或顶部 URL 栏填写 RTSP、HLS、HTTP-FLV 或 WebRTC 网关地址。");
       return;
     }
 
-    if (mode !== "hls") {
+    const playbackTarget = resolvePlaybackTarget(mode, activeUrl);
+    if (playbackTarget.requiresFfmpeg) {
       const status = ffmpegStatus ?? await vsSvc.ffmpegStatus().catch(() => null);
       if (status) setFfmpegStatus(status);
       if (status && !status.available) {
@@ -245,24 +307,31 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
     }
 
     // Set the expected player URL first so listeners are mounted before backend emits data.
-    setPlayerUrl(expectedPlayerUrl(mode, activeUrl));
+    setPlaybackReady(false);
+    setPlaybackPathLabel(playbackTarget.label);
+    setPlayerUrl(playbackTarget.engine === "tauri-mse" || !playbackTarget.requiresPlayerLoad ? playbackTarget.url : null);
     setShowPlayer(true);
     setPlaying(true);
     setConnecting(true);
-    // Wait for React render cycle to complete before starting the backend pipeline.
-    await new Promise(r => requestAnimationFrame(() => setTimeout(r, 50)));
-    try {
-      const resolvedUrl = await vsSvc.playerLoad(sessionKey, mode, activeUrl, connectPayload?.config);
-      setPlayerUrl(resolvedUrl);
-    } catch (e) {
-      setPlayerError(String(e));
-      setPlaying(false);
-      setShowPlayer(false);
-      setPlayerUrl(null);
-      await vsSvc.disconnectStream(sessionKey).catch(() => {});
+    if (playbackTarget.engine === "tauri-mse") {
+      await new Promise(r => requestAnimationFrame(() => setTimeout(r, 50)));
     }
-    setConnecting(false);
-  }, [showPlayer, streamUrl, mode, ffmpegStatus, buildConnectConfig, sessionKey]);
+    if (playbackTarget.requiresPlayerLoad) {
+      try {
+        const resolvedUrl = await vsSvc.playerLoad(sessionKey, mode, activeUrl, connectPayload?.config);
+        setPlayerUrl(resolvedUrl);
+      } catch (e) {
+        setPlayerError(String(e));
+        setConnecting(false);
+        setPlaying(false);
+        setPlaybackReady(false);
+        setPlaybackPathLabel(null);
+        setShowPlayer(false);
+        setPlayerUrl(null);
+        await vsSvc.disconnectStream(sessionKey).catch(() => {});
+      }
+    }
+  }, [showPlayer, resolveActiveUrl, mode, ffmpegStatus, buildConnectConfig, sessionKey]);
 
   const selectedMsg = selectedMsgId ? filteredMessages.find(m => m.id === selectedMsgId) : null;
 
@@ -295,10 +364,22 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
       case 'hls': return <HlsPanel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} />;
       case 'webrtc': return <WebRtcPanel sessionKey={sessionKey} connected={connected} />;
       case 'gb28181': return <Gb28181Panel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} onStreamUrlChange={setStreamUrl} />;
-      case 'srt': return <SrtPanel sessionKey={sessionKey} connected={connected} />;
+      case 'srt': return <SrtPanel sessionKey={sessionKey} connected={connected} config={srtConfig} onConfigChange={setSrtConfig} />;
       case 'onvif': return <OnvifPanel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} onStreamUrlChange={setStreamUrl} />;
     }
   };
+
+  const activePlaybackUrl = resolveActiveUrl();
+  const ffmpegRequired = activePlaybackUrl
+    ? resolvePlaybackTarget(mode, activePlaybackUrl).requiresFfmpeg
+    : modeLikelyNeedsFfmpeg(mode);
+  const playbackStateLabel = !showPlayer
+    ? "未播放"
+    : connecting
+      ? "启动中"
+      : playbackReady
+        ? "播放中"
+        : "等待中";
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden bg-transparent p-3">
@@ -319,6 +400,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
             {mode === 'rtsp' ? 'RTSP/RTP' : mode === 'rtmp' ? 'RTMP/FLV' : mode === 'http-flv' ? 'HTTP-FLV'
               : mode === 'hls' ? 'HLS/TS' : mode === 'webrtc' ? 'WebRTC/ICE' : mode === 'gb28181' ? 'GB/T 28181' : mode === 'onvif' ? 'ONVIF/SOAP' : 'SRT'}
           </span>
+          {playbackPathLabel && <span className="wb-tool-chip">{playbackPathLabel}</span>}
         </div>
       </div>
 
@@ -331,12 +413,12 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
           </div>
           <input
             value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)}
-            placeholder={mode === 'rtsp' ? 'rtsp://admin:password@192.168.1.100:554/stream1' : mode === 'rtmp' ? 'rtmp://live.example.com/app/stream' : mode === 'http-flv' ? 'http://live.example.com/live/stream.flv' : mode === 'hls' ? 'https://example.com/live/index.m3u8' : mode === 'webrtc' ? 'wss://signal.example.com/ws' : mode === 'gb28181' ? '34020000001320000001' : 'srt://live.example.com:9000'}
+            placeholder={mode === 'rtsp' ? 'rtsp://admin:password@192.168.1.100:554/stream1' : mode === 'rtmp' ? 'rtmp://live.example.com/app/stream' : mode === 'http-flv' ? 'http://live.example.com/live/stream.flv' : mode === 'hls' ? 'https://example.com/live/index.m3u8' : mode === 'webrtc' ? 'wss://signal.example.com/ws' : mode === 'gb28181' ? 'rtsp:// / http(s):// / ws(s):// / webrtc:// 媒体地址' : 'srt://live.example.com:9000'}
             disabled={showPlayer}
             className="h-7 flex-1 bg-transparent text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
             onKeyDown={(e) => e.key === 'Enter' && !showPlayer && handleConnect()}
           />
-          <button onClick={handleConnect} disabled={connecting || (!streamUrl.trim() && !showPlayer)}
+          <button onClick={handleConnect} disabled={connecting || (!activePlaybackUrl && !showPlayer)}
             className={cn("wb-primary-btn min-w-[80px] px-3", showPlayer ? "bg-error hover:bg-error/90" : connecting ? "bg-warning cursor-wait opacity-70" : "bg-accent hover:bg-accent-hover hover:shadow-md")}
           >
             {showPlayer ? t('videostream.disconnect', '断开') : connecting ? t('videostream.connecting', '连接中...') : t('videostream.play', '播放')}
@@ -361,7 +443,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                   className="h-[22px] px-2 text-[var(--fs-xxs)] font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors flex items-center gap-1"
                 >
                   <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", MODE_COLORS[r.protocol]?.replace('bg-', 'bg-') || 'bg-text-disabled')} />
-                  <span className="truncate max-w-[180px]" title={r.url}>{r.url}</span>
+                  <span className="truncate max-w-[180px]" title={r.label || r.url}>{r.label || r.url}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -379,7 +461,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
         </div>
       )}
 
-      {mode !== "hls" && ffmpegStatus && !ffmpegStatus.available && (
+      {ffmpegRequired && ffmpegStatus && !ffmpegStatus.available && (
         <div className="shrink-0 flex items-center gap-2 rounded-[var(--radius-sm)] border border-warning/20 bg-warning/8 px-3 py-2 mt-2">
           <span className="text-[var(--fs-xxs)] text-warning flex-1">
             内置播放器依赖 FFmpeg。当前未检测到可用安装{ffmpegProgressText ? `，${ffmpegProgressText}` : "。"}
@@ -443,11 +525,28 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                           url={playerUrl}
                           sessionId={sessionKey}
                           liveMode={mode !== "hls"}
+                          onReady={() => {
+                            setConnecting(false);
+                            setConnected(true);
+                            setPlaybackReady(true);
+                          }}
                           onError={(error) => {
+                            setConnecting(false);
                             setConnected(false);
+                            setPlaybackReady(false);
                             setPlayerError(error);
                           }}
                         />
+                        {connecting && !playerUrl && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                            <div className="flex flex-col items-center gap-2 text-white/75">
+                              <Loader className="w-6 h-6 animate-spin" />
+                              <span className="text-[var(--fs-xxs)] font-mono">
+                                {playbackPathLabel === "本地 HLS 网关" ? "启动本地媒体网关..." : "等待播放器初始化..."}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-3 text-text-disabled/40">
@@ -478,6 +577,13 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                 <div className="flex items-center gap-1.5">
                   <span className={cn("w-1.5 h-1.5 rounded-full", connected ? "bg-emerald-500" : "bg-text-disabled/40")} />
                   <span className="text-[var(--fs-3xs)] text-text-disabled">{connected ? t('videostream.connected', '已连接') : t('videostream.idle', '空闲')}</span>
+                </div>
+                <div className="flex items-center gap-1.5 ml-2">
+                  <span className={cn(
+                    "w-1.5 h-1.5 rounded-full",
+                    !showPlayer ? "bg-text-disabled/40" : connecting ? "bg-warning animate-pulse" : playbackReady ? "bg-sky-400" : "bg-text-disabled/60",
+                  )} />
+                  <span className="text-[var(--fs-3xs)] text-text-disabled">{playbackStateLabel}</span>
                 </div>
                 {streamInfo && (
                   <div className="flex items-center gap-1.5 ml-2 text-[var(--fs-3xs)] text-text-disabled font-mono">

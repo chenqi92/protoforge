@@ -104,6 +104,20 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
     } catch { /* */ }
   }, [sessionKey, newPresetName, selectedProfile, handleLoadPresets]);
 
+  const handleCloseSession = useCallback(async () => {
+    try {
+      await vsSvc.onvifClose(sessionKey);
+    } catch {
+      // Ignore stale backend session cleanup failures.
+    }
+    setDeviceInfo(null);
+    setProfiles([]);
+    setSelectedProfile('');
+    setPresets([]);
+    setSelectedXaddr(null);
+    onStreamUrlChange('');
+  }, [onStreamUrlChange, sessionKey]);
+
   return (
     <div className="min-w-0 space-y-3 overflow-x-hidden">
       {/* ── Before device connected: Discovery + Connection form ── */}
@@ -187,7 +201,7 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
             <div className="text-[var(--fs-xs)] font-semibold text-text-primary truncate">{deviceInfo.manufacturer} {deviceInfo.model}</div>
             <div className="text-[var(--fs-3xs)] text-text-disabled font-mono truncate">{host}:{port} &middot; {deviceInfo.firmwareVersion}</div>
           </div>
-          <button onClick={() => { setDeviceInfo(null); setProfiles([]); setSelectedProfile(''); setPresets([]); }}
+          <button onClick={handleCloseSession}
             className="shrink-0 text-[var(--fs-xxs)] text-text-disabled hover:text-text-secondary transition-colors"
           >
             {t('videostream.onvif.disconnect', '断开')}

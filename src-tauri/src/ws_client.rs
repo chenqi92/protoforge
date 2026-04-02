@@ -6,9 +6,9 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::Emitter;
-use tokio::sync::{mpsc, Mutex};
-use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio::sync::{Mutex, mpsc};
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::http;
 
 /// WebSocket 事件（后端 → 前端推送）
@@ -159,7 +159,12 @@ pub async fn connect(
                         }
                         Message::Binary(b) => {
                             // 转为 hex 显示
-                            let hex: String = b.iter().map(|byte| format!("{:02x} ", byte)).collect::<String>().trim().to_string();
+                            let hex: String = b
+                                .iter()
+                                .map(|byte| format!("{:02x} ", byte))
+                                .collect::<String>()
+                                .trim()
+                                .to_string();
                             let len = b.len();
                             (Some(hex), Some("binary".to_string()), Some(len))
                         }
@@ -306,7 +311,10 @@ pub async fn disconnect(connections: &WsConnections, connection_id: &str) -> Res
     Ok(())
 }
 
-pub async fn is_connected(connections: &WsConnections, connection_id: &str) -> Result<bool, String> {
+pub async fn is_connected(
+    connections: &WsConnections,
+    connection_id: &str,
+) -> Result<bool, String> {
     let conns = connections.connections.lock().await;
     Ok(conns.contains_key(connection_id))
 }

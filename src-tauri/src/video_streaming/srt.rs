@@ -2,8 +2,8 @@
 //! 手写 SRT 握手协议，展示连接建立过程和报文用于协议调试
 //! SRT 使用 UDP 传输，握手分为 Induction 和 Conclusion 两个阶段
 
-use tokio::net::UdpSocket;
 use tauri::{AppHandle, Emitter};
+use tokio::net::UdpSocket;
 
 use super::state::{ProtocolMessage, SrtSession, VideoStreamState};
 
@@ -28,7 +28,10 @@ pub async fn connect(
     app: &AppHandle,
 ) -> Result<(), String> {
     let cfg: serde_json::Value = serde_json::from_str(config).unwrap_or_default();
-    let host = cfg.get("host").and_then(|v| v.as_str()).unwrap_or("127.0.0.1");
+    let host = cfg
+        .get("host")
+        .and_then(|v| v.as_str())
+        .unwrap_or("127.0.0.1");
     let port = cfg.get("port").and_then(|v| v.as_u64()).unwrap_or(9000) as u16;
     let mode = cfg.get("mode").and_then(|v| v.as_str()).unwrap_or("caller");
     let latency = cfg.get("latency").and_then(|v| v.as_u64()).unwrap_or(120) as u32;
@@ -50,11 +53,14 @@ async fn caller_connect(
     state: &VideoStreamState,
     app: &AppHandle,
 ) -> Result<(), String> {
-    let socket = UdpSocket::bind("0.0.0.0:0").await
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .await
         .map_err(|e| format!("Bind UDP socket failed: {}", e))?;
 
     let target = format!("{}:{}", host, port);
-    socket.connect(&target).await
+    socket
+        .connect(&target)
+        .await
         .map_err(|e| format!("Connect to {} failed: {}", target, e))?;
 
     // ── Phase 1: Induction ──
@@ -62,45 +68,62 @@ async fn caller_connect(
     let induction_req = build_handshake_packet(
         HS_TYPE_INDUCTION,
         SRT_VERSION,
-        1500, // MSS
+        1500,   // MSS
         256000, // flow window
-        0,    // initial seq
+        0,      // initial seq
         client_socket_id,
-        0,    // SRT socket ID (0 for induction)
-        &[],  // no extensions in induction
+        0,   // SRT socket ID (0 for induction)
+        &[], // no extensions in induction
     );
 
-    emit_msg(app, session_id, "sent", "SRT Induction Request (Caller → Listener)",
-        &format!("SRT Handshake Phase 1: Induction\n\
+    emit_msg(
+        app,
+        session_id,
+        "sent",
+        "SRT Induction Request (Caller → Listener)",
+        &format!(
+            "SRT Handshake Phase 1: Induction\n\
                    Socket ID: 0x{:08X}\n\
                    Version: 0x{:08X}\n\
                    MSS: 1500\n\
                    Flow Window: 256000\n\
                    Packet size: {} bytes",
-                  client_socket_id, SRT_VERSION, induction_req.len()));
+            client_socket_id,
+            SRT_VERSION,
+            induction_req.len()
+        ),
+    );
 
-    socket.send(&induction_req).await
+    socket
+        .send(&induction_req)
+        .await
         .map_err(|e| format!("Send induction failed: {}", e))?;
 
     // Read induction response
     let mut buf = vec![0u8; 2048];
-    let n = tokio::time::timeout(
-        std::time::Duration::from_secs(5),
-        socket.recv(&mut buf),
-    ).await
+    let n = tokio::time::timeout(std::time::Duration::from_secs(5), socket.recv(&mut buf))
+        .await
         .map_err(|_| "SRT induction response timeout".to_string())?
         .map_err(|e| format!("Recv induction failed: {}", e))?;
 
     let resp_data = &buf[..n];
     let server_socket_id = parse_handshake_socket_id(resp_data);
 
-    emit_msg(app, session_id, "received",
+    emit_msg(
+        app,
+        session_id,
+        "received",
         &format!("SRT Induction Response ({} bytes)", n),
-        &format!("SRT Handshake Phase 1: Induction Response\n\
+        &format!(
+            "SRT Handshake Phase 1: Induction Response\n\
                    Server Socket ID: 0x{:08X}\n\
                    Packet size: {} bytes\n\
                    First 32 bytes: {}",
-                  server_socket_id, n, hex_preview(resp_data, 32)));
+            server_socket_id,
+            n,
+            hex_preview(resp_data, 32)
+        ),
+    );
 
     // ── Phase 2: Conclusion ──
     let mut extensions = Vec::new();
@@ -126,35 +149,56 @@ async fn caller_connect(
         &extensions,
     );
 
-    emit_msg(app, session_id, "sent", "SRT Conclusion Request (Caller → Listener)",
-        &format!("SRT Handshake Phase 2: Conclusion\n\
+    emit_msg(
+        app,
+        session_id,
+        "sent",
+        "SRT Conclusion Request (Caller → Listener)",
+        &format!(
+            "SRT Handshake Phase 2: Conclusion\n\
                    Client Socket ID: 0x{:08X}\n\
                    Server Socket ID: 0x{:08X}\n\
                    Latency: {} ms\n\
                    Stream ID: {}\n\
                    Extensions: {} bytes\n\
                    Total packet: {} bytes",
-                  client_socket_id, server_socket_id, latency,
-                  if stream_id.is_empty() { "(none)" } else { stream_id },
-                  extensions.len(), conclusion_req.len()));
+            client_socket_id,
+            server_socket_id,
+            latency,
+            if stream_id.is_empty() {
+                "(none)"
+            } else {
+                stream_id
+            },
+            extensions.len(),
+            conclusion_req.len()
+        ),
+    );
 
-    socket.send(&conclusion_req).await
+    socket
+        .send(&conclusion_req)
+        .await
         .map_err(|e| format!("Send conclusion failed: {}", e))?;
 
     // Read conclusion response
-    let n2 = tokio::time::timeout(
-        std::time::Duration::from_secs(5),
-        socket.recv(&mut buf),
-    ).await
+    let n2 = tokio::time::timeout(std::time::Duration::from_secs(5), socket.recv(&mut buf))
+        .await
         .map_err(|_| "SRT conclusion response timeout".to_string())?
         .map_err(|e| format!("Recv conclusion failed: {}", e))?;
 
-    emit_msg(app, session_id, "received",
+    emit_msg(
+        app,
+        session_id,
+        "received",
         &format!("SRT Conclusion Response ({} bytes)", n2),
-        &format!("SRT Handshake Phase 2: Conclusion Response\n\
+        &format!(
+            "SRT Handshake Phase 2: Conclusion Response\n\
                    Packet size: {} bytes\n\
                    First 32 bytes: {}",
-                  n2, hex_preview(&buf[..n2], 32)));
+            n2,
+            hex_preview(&buf[..n2], 32)
+        ),
+    );
 
     // Emit success
     let info_msg = ProtocolMessage {
@@ -162,8 +206,10 @@ async fn caller_connect(
         direction: "info".to_string(),
         protocol: "srt".to_string(),
         summary: format!("SRT connected to {}:{}", host, port),
-        detail: format!("Mode: Caller\nTarget: {}:{}\nLatency: {} ms\nStream ID: {}",
-                         host, port, latency, stream_id),
+        detail: format!(
+            "Mode: Caller\nTarget: {}:{}\nLatency: {} ms\nStream ID: {}",
+            host, port, latency, stream_id
+        ),
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: None,
     };
@@ -175,7 +221,11 @@ async fn caller_connect(
         connected: true,
         shutdown_tx: None,
     };
-    state.srt_sessions.lock().await.insert(session_id.to_string(), srt_session);
+    state
+        .srt_sessions
+        .lock()
+        .await
+        .insert(session_id.to_string(), srt_session);
 
     Ok(())
 }
@@ -187,28 +237,43 @@ async fn listener_connect(
     state: &VideoStreamState,
     app: &AppHandle,
 ) -> Result<(), String> {
-    let socket = UdpSocket::bind(format!("0.0.0.0:{}", port)).await
+    let socket = UdpSocket::bind(format!("0.0.0.0:{}", port))
+        .await
         .map_err(|e| format!("Bind SRT listener on port {} failed: {}", port, e))?;
 
-    emit_msg(app, session_id, "info",
+    emit_msg(
+        app,
+        session_id,
+        "info",
         &format!("SRT Listener waiting on port {}", port),
-        &format!("SRT Listener Mode\nPort: {}\nLatency: {} ms\nWaiting for caller...", port, latency));
+        &format!(
+            "SRT Listener Mode\nPort: {}\nLatency: {} ms\nWaiting for caller...",
+            port, latency
+        ),
+    );
 
     // Wait for induction from caller
     let mut buf = vec![0u8; 2048];
     let (n, caller_addr) = tokio::time::timeout(
         std::time::Duration::from_secs(30),
         socket.recv_from(&mut buf),
-    ).await
-        .map_err(|_| "SRT listener: no caller connected within 30s".to_string())?
-        .map_err(|e| format!("SRT recv failed: {}", e))?;
+    )
+    .await
+    .map_err(|_| "SRT listener: no caller connected within 30s".to_string())?
+    .map_err(|e| format!("SRT recv failed: {}", e))?;
 
     let caller_socket_id = parse_handshake_socket_id(&buf[..n]);
 
-    emit_msg(app, session_id, "received",
+    emit_msg(
+        app,
+        session_id,
+        "received",
         &format!("SRT Induction from {} ({} bytes)", caller_addr, n),
-        &format!("Caller: {}\nCaller Socket ID: 0x{:08X}\nSize: {} bytes",
-                  caller_addr, caller_socket_id, n));
+        &format!(
+            "Caller: {}\nCaller Socket ID: 0x{:08X}\nSize: {} bytes",
+            caller_addr, caller_socket_id, n
+        ),
+    );
 
     // Send induction response
     let server_socket_id = gen_socket_id();
@@ -223,23 +288,43 @@ async fn listener_connect(
         &[],
     );
 
-    socket.send_to(&resp, caller_addr).await
+    socket
+        .send_to(&resp, caller_addr)
+        .await
         .map_err(|e| format!("Send induction response failed: {}", e))?;
 
-    emit_msg(app, session_id, "sent", "SRT Induction Response (Listener → Caller)",
-        &format!("Server Socket ID: 0x{:08X}\nSize: {} bytes", server_socket_id, resp.len()));
+    emit_msg(
+        app,
+        session_id,
+        "sent",
+        "SRT Induction Response (Listener → Caller)",
+        &format!(
+            "Server Socket ID: 0x{:08X}\nSize: {} bytes",
+            server_socket_id,
+            resp.len()
+        ),
+    );
 
     // Wait for conclusion
     let (n2, _) = tokio::time::timeout(
         std::time::Duration::from_secs(5),
         socket.recv_from(&mut buf),
-    ).await
-        .map_err(|_| "SRT conclusion timeout".to_string())?
-        .map_err(|e| format!("Recv conclusion failed: {}", e))?;
+    )
+    .await
+    .map_err(|_| "SRT conclusion timeout".to_string())?
+    .map_err(|e| format!("Recv conclusion failed: {}", e))?;
 
-    emit_msg(app, session_id, "received",
+    emit_msg(
+        app,
+        session_id,
+        "received",
         &format!("SRT Conclusion from caller ({} bytes)", n2),
-        &format!("Size: {} bytes\nFirst 32 bytes: {}", n2, hex_preview(&buf[..n2], 32)));
+        &format!(
+            "Size: {} bytes\nFirst 32 bytes: {}",
+            n2,
+            hex_preview(&buf[..n2], 32)
+        ),
+    );
 
     // Send conclusion response
     let hsreq_ext = build_srt_hs_extension(latency);
@@ -254,11 +339,18 @@ async fn listener_connect(
         &hsreq_ext,
     );
 
-    socket.send_to(&conclusion_resp, caller_addr).await
+    socket
+        .send_to(&conclusion_resp, caller_addr)
+        .await
         .map_err(|e| format!("Send conclusion response failed: {}", e))?;
 
-    emit_msg(app, session_id, "sent", "SRT Conclusion Response",
-        &format!("SRT handshake complete\nCaller: {}", caller_addr));
+    emit_msg(
+        app,
+        session_id,
+        "sent",
+        "SRT Conclusion Response",
+        &format!("SRT handshake complete\nCaller: {}", caller_addr),
+    );
 
     // Emit connected
     let info_msg = ProtocolMessage {
@@ -266,8 +358,10 @@ async fn listener_connect(
         direction: "info".to_string(),
         protocol: "srt".to_string(),
         summary: format!("SRT listener connected from {}", caller_addr),
-        detail: format!("Mode: Listener\nPort: {}\nCaller: {}\nLatency: {} ms",
-                         port, caller_addr, latency),
+        detail: format!(
+            "Mode: Listener\nPort: {}\nCaller: {}\nLatency: {} ms",
+            port, caller_addr, latency
+        ),
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: None,
     };
@@ -278,7 +372,11 @@ async fn listener_connect(
         connected: true,
         shutdown_tx: None,
     };
-    state.srt_sessions.lock().await.insert(session_id.to_string(), srt_session);
+    state
+        .srt_sessions
+        .lock()
+        .await
+        .insert(session_id.to_string(), srt_session);
 
     Ok(())
 }
@@ -313,15 +411,15 @@ fn build_handshake_packet(
     pkt.extend_from_slice(&peer_socket_id.to_be_bytes());
 
     // ── Handshake Payload (48 bytes) ──
-    pkt.extend_from_slice(&version.to_be_bytes());       // UDT/SRT version
-    pkt.extend_from_slice(&5u16.to_be_bytes());          // Encryption: none
-    pkt.extend_from_slice(&0u16.to_be_bytes());          // Extension field
-    pkt.extend_from_slice(&initial_seq.to_be_bytes());   // Initial sequence
-    pkt.extend_from_slice(&mss.to_be_bytes());           // MSS
-    pkt.extend_from_slice(&flow_window.to_be_bytes());   // Flow window
-    pkt.extend_from_slice(&hs_type.to_be_bytes());       // Handshake type
-    pkt.extend_from_slice(&socket_id.to_be_bytes());     // SRT Socket ID
-    pkt.extend_from_slice(&SRT_MAGIC.to_be_bytes());     // SYN Cookie / Magic
+    pkt.extend_from_slice(&version.to_be_bytes()); // UDT/SRT version
+    pkt.extend_from_slice(&5u16.to_be_bytes()); // Encryption: none
+    pkt.extend_from_slice(&0u16.to_be_bytes()); // Extension field
+    pkt.extend_from_slice(&initial_seq.to_be_bytes()); // Initial sequence
+    pkt.extend_from_slice(&mss.to_be_bytes()); // MSS
+    pkt.extend_from_slice(&flow_window.to_be_bytes()); // Flow window
+    pkt.extend_from_slice(&hs_type.to_be_bytes()); // Handshake type
+    pkt.extend_from_slice(&socket_id.to_be_bytes()); // SRT Socket ID
+    pkt.extend_from_slice(&SRT_MAGIC.to_be_bytes()); // SYN Cookie / Magic
     // Peer IP (16 bytes, IPv4-mapped-IPv6 or zeros)
     pkt.extend_from_slice(&[0u8; 16]);
 
@@ -386,7 +484,11 @@ fn gen_socket_id() -> u32 {
 
 fn hex_preview(data: &[u8], max: usize) -> String {
     let len = data.len().min(max);
-    data[..len].iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ")
+    data[..len]
+        .iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn emit_msg(app: &AppHandle, _session_id: &str, direction: &str, summary: &str, detail: &str) {

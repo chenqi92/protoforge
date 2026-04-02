@@ -1,12 +1,14 @@
 // ProtoForge HTTP 客户端引擎
 // 支持 7 种方法、多种 Body 类型（含 multipart form-data）、4 种认证、Cookies、详细时序、前后置脚本
 
+use crate::script_engine::{
+    self, ScriptRequestContext, ScriptRequestPatch, ScriptResponse, ScriptResult,
+};
+use base64::Engine as _;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
-use base64::Engine as _;
 use std::collections::HashMap;
 use std::time::Instant;
-use crate::script_engine::{self, ScriptRequestContext, ScriptRequestPatch, ScriptResult, ScriptResponse};
 
 /// 请求配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,7 +44,7 @@ pub struct HttpRequestWithScripts {
 #[serde(rename_all = "camelCase")]
 pub struct ProxyConfig {
     #[serde(rename = "type")]
-    pub proxy_type: String,     // "http" | "socks5"
+    pub proxy_type: String, // "http" | "socks5"
     pub host: String,
     pub port: u16,
     pub auth: Option<ProxyAuth>,
@@ -60,15 +62,27 @@ pub struct ProxyAuth {
 pub enum RequestBody {
     None,
     #[serde(rename = "raw")]
-    Raw { content: String, #[serde(default = "default_content_type")] content_type: String },
+    Raw {
+        content: String,
+        #[serde(default = "default_content_type")]
+        content_type: String,
+    },
     #[serde(rename = "json")]
-    Json { data: String },
+    Json {
+        data: String,
+    },
     #[serde(rename = "formUrlencoded")]
-    FormUrlencoded { fields: HashMap<String, String> },
+    FormUrlencoded {
+        fields: HashMap<String, String>,
+    },
     #[serde(rename = "formData")]
-    FormData { fields: Vec<FormDataField> },
+    FormData {
+        fields: Vec<FormDataField>,
+    },
     #[serde(rename = "binary")]
-    Binary { file_path: String },
+    Binary {
+        file_path: String,
+    },
 }
 
 fn default_content_type() -> String {
@@ -80,8 +94,8 @@ fn default_content_type() -> String {
 #[serde(rename_all = "camelCase")]
 pub struct FormDataField {
     pub key: String,
-    pub value: String,        // text value 或 file path
-    pub field_type: String,   // "text" | "file"
+    pub value: String,      // text value 或 file path
+    pub field_type: String, // "text" | "file"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,7 +106,11 @@ pub enum AuthConfig {
     #[serde(rename = "basic")]
     Basic { username: String, password: String },
     #[serde(rename = "apiKey")]
-    ApiKey { key: String, value: String, add_to: String },
+    ApiKey {
+        key: String,
+        value: String,
+        add_to: String,
+    },
 }
 
 /// Cookie 信息
@@ -173,7 +191,11 @@ fn build_script_request_context(request: &HttpRequest) -> ScriptRequestContext {
 }
 
 fn remove_header_case_insensitive(headers: &mut HashMap<String, String>, key: &str) {
-    if let Some(existing) = headers.keys().find(|candidate| candidate.eq_ignore_ascii_case(key)).cloned() {
+    if let Some(existing) = headers
+        .keys()
+        .find(|candidate| candidate.eq_ignore_ascii_case(key))
+        .cloned()
+    {
         headers.remove(&existing);
     }
 }
@@ -202,16 +224,14 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
     let start = Instant::now();
 
     // 构建 URL（含 query params）
-    let mut url = url::Url::parse(&req.url)
-        .map_err(|e| format!("URL 解析失败: {}", e))?;
+    let mut url = url::Url::parse(&req.url).map_err(|e| format!("URL 解析失败: {}", e))?;
     for (k, v) in &req.query_params {
         url.query_pairs_mut().append_pair(k, v);
     }
 
     // 构建客户端
     let ssl_verify = req.ssl_verify.unwrap_or(true);
-    let mut client_builder = reqwest::Client::builder()
-        .danger_accept_invalid_certs(!ssl_verify);
+    let mut client_builder = reqwest::Client::builder().danger_accept_invalid_certs(!ssl_verify);
 
     // 代理
     if let Some(proxy_cfg) = &req.proxy {
@@ -220,8 +240,8 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
         } else {
             format!("http://{}:{}", proxy_cfg.host, proxy_cfg.port)
         };
-        let mut proxy = reqwest::Proxy::all(&proxy_url)
-            .map_err(|e| format!("代理配置失败: {}", e))?;
+        let mut proxy =
+            reqwest::Proxy::all(&proxy_url).map_err(|e| format!("代理配置失败: {}", e))?;
         if let Some(auth) = &proxy_cfg.auth {
             proxy = proxy.basic_auth(&auth.username, &auth.password);
         }
@@ -238,7 +258,8 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
         client_builder = client_builder.redirect(reqwest::redirect::Policy::none());
     }
 
-    let client = client_builder.build()
+    let client = client_builder
+        .build()
         .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
 
     // 方法
@@ -311,7 +332,10 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
     if let Some(ref body) = req.body {
         match body {
             RequestBody::None => {}
-            RequestBody::Raw { content, content_type } => {
+            RequestBody::Raw {
+                content,
+                content_type,
+            } => {
                 request_builder = request_builder
                     .header("Content-Type", content_type.as_str())
                     .body(content.clone());
@@ -334,9 +358,11 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
                 for field in fields {
                     if field.field_type == "file" {
                         let file_path = std::path::Path::new(&field.value);
-                        let file_bytes = tokio::fs::read(file_path).await
+                        let file_bytes = tokio::fs::read(file_path)
+                            .await
                             .map_err(|e| format!("读取文件失败 '{}': {}", field.value, e))?;
-                        let file_name = file_path.file_name()
+                        let file_name = file_path
+                            .file_name()
                             .map(|n| n.to_string_lossy().to_string())
                             .unwrap_or_else(|| "file".to_string());
                         let mime = mime_from_path(&field.value);
@@ -352,25 +378,29 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
                 request_builder = request_builder.multipart(form);
             }
             RequestBody::Binary { file_path } => {
-                let data = tokio::fs::read(file_path).await
+                let data = tokio::fs::read(file_path)
+                    .await
                     .map_err(|e| format!("读取文件失败 '{}': {}", file_path, e))?;
                 let mime = mime_from_path(file_path);
-                request_builder = request_builder
-                    .header("Content-Type", mime)
-                    .body(data);
+                request_builder = request_builder.header("Content-Type", mime).body(data);
             }
         }
     }
 
     // 发送请求
-    let response = request_builder.send().await
+    let response = request_builder
+        .send()
+        .await
         .map_err(|e| format!("请求发送失败: {}", e))?;
 
     let ttfb_ms = start.elapsed().as_secs_f64() * 1000.0;
 
     let status = response.status().as_u16();
-    let status_text = response.status().canonical_reason()
-        .unwrap_or("Unknown").to_string();
+    let status_text = response
+        .status()
+        .canonical_reason()
+        .unwrap_or("Unknown")
+        .to_string();
 
     // 响应 headers — 使用 Vec 保留同名 Header 的多个值（如多个 Set-Cookie）
     let mut resp_headers: Vec<(String, String)> = Vec::new();
@@ -418,7 +448,9 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
 
     // 响应 body
     let download_start = Instant::now();
-    let body_bytes = response.bytes().await
+    let body_bytes = response
+        .bytes()
+        .await
         .map_err(|e| format!("读取响应 body 失败: {}", e))?;
     let download_ms = download_start.elapsed().as_millis() as u64;
     let body_size = body_bytes.len() as u64;
@@ -491,7 +523,10 @@ pub async fn execute_request_with_scripts(
     // 如果前置脚本失败，直接返回
     if let Some(ref pre) = pre_script_result {
         if !pre.success {
-            return Err(format!("前置脚本执行失败: {}", pre.error.as_deref().unwrap_or("unknown")));
+            return Err(format!(
+                "前置脚本执行失败: {}",
+                pre.error.as_deref().unwrap_or("unknown")
+            ));
         }
     }
 
@@ -631,7 +666,8 @@ fn mime_from_path(path: &str) -> String {
         "doc" | "docx" => "application/msword",
         "xls" | "xlsx" => "application/vnd.ms-excel",
         _ => "application/octet-stream",
-    }.to_string()
+    }
+    .to_string()
 }
 
 /// 判断 Content-Type 是否为二进制内容
@@ -689,9 +725,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_cookie() {
-        let headers = vec![
-            ("set-cookie".into(), "session=abc123".into()),
-        ];
+        let headers = vec![("set-cookie".into(), "session=abc123".into())];
         let cookies = parse_cookies_from_headers(&headers);
         assert_eq!(cookies.len(), 1);
         assert_eq!(cookies[0].name, "session");
@@ -700,9 +734,10 @@ mod tests {
 
     #[test]
     fn test_parse_cookie_with_attributes() {
-        let headers = vec![
-            ("set-cookie".into(), "token=xyz; Path=/; Domain=example.com; HttpOnly; Secure; SameSite=Strict".into()),
-        ];
+        let headers = vec![(
+            "set-cookie".into(),
+            "token=xyz; Path=/; Domain=example.com; HttpOnly; Secure; SameSite=Strict".into(),
+        )];
         let cookies = parse_cookies_from_headers(&headers);
         assert_eq!(cookies.len(), 1);
         let c = &cookies[0];
@@ -733,9 +768,10 @@ mod tests {
 
     #[test]
     fn test_parse_cookie_with_expires() {
-        let headers = vec![
-            ("set-cookie".into(), "lang=zh; Expires=Thu, 01 Jan 2030 00:00:00 GMT; Path=/".into()),
-        ];
+        let headers = vec![(
+            "set-cookie".into(),
+            "lang=zh; Expires=Thu, 01 Jan 2030 00:00:00 GMT; Path=/".into(),
+        )];
         let cookies = parse_cookies_from_headers(&headers);
         assert_eq!(cookies.len(), 1);
         assert!(cookies[0].expires.is_some());

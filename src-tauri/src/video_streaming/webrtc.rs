@@ -2,10 +2,10 @@
 //! 支持 SDP Offer/Answer 生成与解析、ICE candidate 收集
 //! 使用 STUN 绑定请求获取 server reflexive 地址，展示信令流程用于协议调试
 
-use tokio::net::UdpSocket;
 use tauri::{AppHandle, Emitter};
+use tokio::net::UdpSocket;
 
-use super::state::{ProtocolMessage, WebRtcSession, VideoStreamState};
+use super::state::{ProtocolMessage, VideoStreamState, WebRtcSession};
 
 // ── STUN 常量 ──
 
@@ -17,11 +17,7 @@ const STUN_ATTR_MAPPED_ADDR: u16 = 0x0001;
 
 // ── SDP 生成 ──
 
-fn generate_sdp_offer(
-    ice_ufrag: &str,
-    ice_pwd: &str,
-    candidates: &[IceCandidate],
-) -> String {
+fn generate_sdp_offer(ice_ufrag: &str, ice_pwd: &str, candidates: &[IceCandidate]) -> String {
     let session_id = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -87,7 +83,8 @@ async fn stun_binding(
     session_id: &str,
     app: &AppHandle,
 ) -> Result<Option<(String, u16)>, String> {
-    let socket = UdpSocket::bind("0.0.0.0:0").await
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .await
         .map_err(|e| format!("Bind STUN socket failed: {}", e))?;
 
     // Parse STUN server address
@@ -123,34 +120,49 @@ async fn stun_binding(
     request.extend_from_slice(&STUN_MAGIC_COOKIE.to_be_bytes());
     request.extend_from_slice(&transaction_id);
 
-    emit_msg(app, session_id, "sent",
+    emit_msg(
+        app,
+        session_id,
+        "sent",
         &format!("STUN Binding Request → {}", addr_with_port),
-        &format!("STUN Binding Request\nServer: {}\nTransaction ID: {}\nMessage size: {} bytes",
-                  addr_with_port,
-                  transaction_id.iter().map(|b| format!("{:02X}", b)).collect::<String>(),
-                  request.len()));
+        &format!(
+            "STUN Binding Request\nServer: {}\nTransaction ID: {}\nMessage size: {} bytes",
+            addr_with_port,
+            transaction_id
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<String>(),
+            request.len()
+        ),
+    );
 
     // Resolve and send
-    let resolved: std::net::SocketAddr = tokio::net::lookup_host(&addr_with_port).await
+    let resolved: std::net::SocketAddr = tokio::net::lookup_host(&addr_with_port)
+        .await
         .map_err(|e| format!("Resolve STUN server {} failed: {}", addr_with_port, e))?
         .next()
         .ok_or_else(|| format!("No address found for {}", addr_with_port))?;
 
-    socket.send_to(&request, resolved).await
+    socket
+        .send_to(&request, resolved)
+        .await
         .map_err(|e| format!("Send STUN request failed: {}", e))?;
 
     // Receive response
     let mut buf = vec![0u8; 2048];
-    let n = match tokio::time::timeout(
-        std::time::Duration::from_secs(3),
-        socket.recv(&mut buf),
-    ).await {
+    let n = match tokio::time::timeout(std::time::Duration::from_secs(3), socket.recv(&mut buf))
+        .await
+    {
         Ok(Ok(n)) => n,
         Ok(Err(e)) => return Err(format!("STUN recv error: {}", e)),
         Err(_) => {
-            emit_msg(app, session_id, "info",
+            emit_msg(
+                app,
+                session_id,
+                "info",
                 &format!("STUN timeout from {}", addr_with_port),
-                "No response within 3 seconds");
+                "No response within 3 seconds",
+            );
             return Ok(None);
         }
     };
@@ -171,10 +183,16 @@ async fn stun_binding(
     let mapped = parse_stun_mapped_address(resp, &transaction_id);
 
     if let Some((ip, port)) = &mapped {
-        emit_msg(app, session_id, "received",
+        emit_msg(
+            app,
+            session_id,
+            "received",
             &format!("STUN Response: {}:{} (srflx)", ip, port),
-            &format!("STUN Binding Response from {}\nMapped Address: {}:{}\nCandidate type: srflx (server reflexive)\nPacket size: {} bytes",
-                      addr_with_port, ip, port, n));
+            &format!(
+                "STUN Binding Response from {}\nMapped Address: {}:{}\nCandidate type: srflx (server reflexive)\nPacket size: {} bytes",
+                addr_with_port, ip, port, n
+            ),
+        );
     }
 
     Ok(mapped)
@@ -204,16 +222,28 @@ fn parse_stun_mapped_address(resp: &[u8], _txn_id: &[u8; 12]) -> Option<(String,
             let family = attr_data[1];
             if family == 0x01 {
                 // IPv4
-                let xport = u16::from_be_bytes([attr_data[2], attr_data[3]]) ^ (STUN_MAGIC_COOKIE >> 16) as u16;
-                let xip = u32::from_be_bytes([attr_data[4], attr_data[5], attr_data[6], attr_data[7]]) ^ STUN_MAGIC_COOKIE;
-                let ip = format!("{}.{}.{}.{}", (xip >> 24) & 0xFF, (xip >> 16) & 0xFF, (xip >> 8) & 0xFF, xip & 0xFF);
+                let xport = u16::from_be_bytes([attr_data[2], attr_data[3]])
+                    ^ (STUN_MAGIC_COOKIE >> 16) as u16;
+                let xip =
+                    u32::from_be_bytes([attr_data[4], attr_data[5], attr_data[6], attr_data[7]])
+                        ^ STUN_MAGIC_COOKIE;
+                let ip = format!(
+                    "{}.{}.{}.{}",
+                    (xip >> 24) & 0xFF,
+                    (xip >> 16) & 0xFF,
+                    (xip >> 8) & 0xFF,
+                    xip & 0xFF
+                );
                 return Some((ip, xport));
             }
         } else if attr_type == STUN_ATTR_MAPPED_ADDR && attr_len >= 8 {
             let family = attr_data[1];
             if family == 0x01 {
                 let port = u16::from_be_bytes([attr_data[2], attr_data[3]]);
-                let ip = format!("{}.{}.{}.{}", attr_data[4], attr_data[5], attr_data[6], attr_data[7]);
+                let ip = format!(
+                    "{}.{}.{}.{}",
+                    attr_data[4], attr_data[5], attr_data[6], attr_data[7]
+                );
                 return Some((ip, port));
             }
         }
@@ -234,9 +264,14 @@ pub async fn create_offer(
     app: &AppHandle,
 ) -> Result<String, String> {
     let cfg: serde_json::Value = serde_json::from_str(config).unwrap_or_default();
-    let stun_servers: Vec<String> = cfg.get("stunServers")
+    let stun_servers: Vec<String> = cfg
+        .get("stunServers")
         .and_then(|v| v.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_else(|| vec!["stun:stun.l.google.com:19302".to_string()]);
 
     let (ice_ufrag, ice_pwd) = generate_ice_credentials();
@@ -254,21 +289,27 @@ pub async fn create_offer(
     });
 
     // Emit host candidate
-    let _ = app.emit("videostream-event", &super::state::StreamEvent {
-        session_id: session_id.to_string(),
-        event_type: "protocol-data".to_string(),
-        data: Some(serde_json::json!({
-            "type": "ice-candidate",
-            "candidate": {
-                "type": "host",
-                "address": local_addr,
-                "port": 9,
-                "protocol": "udp",
-                "state": "gathered"
-            }
-        }).to_string()),
-        timestamp: chrono::Utc::now().to_rfc3339(),
-    });
+    let _ = app.emit(
+        "videostream-event",
+        &super::state::StreamEvent {
+            session_id: session_id.to_string(),
+            event_type: "protocol-data".to_string(),
+            data: Some(
+                serde_json::json!({
+                    "type": "ice-candidate",
+                    "candidate": {
+                        "type": "host",
+                        "address": local_addr,
+                        "port": 9,
+                        "protocol": "udp",
+                        "state": "gathered"
+                    }
+                })
+                .to_string(),
+            ),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        },
+    );
 
     // Gather server reflexive candidates via STUN
     for stun_server in &stun_servers {
@@ -284,21 +325,27 @@ pub async fn create_offer(
                 });
 
                 // Emit srflx candidate
-                let _ = app.emit("videostream-event", &super::state::StreamEvent {
-                    session_id: session_id.to_string(),
-                    event_type: "protocol-data".to_string(),
-                    data: Some(serde_json::json!({
-                        "type": "ice-candidate",
-                        "candidate": {
-                            "type": "srflx",
-                            "address": ip,
-                            "port": port,
-                            "protocol": "udp",
-                            "state": "gathered"
-                        }
-                    }).to_string()),
-                    timestamp: chrono::Utc::now().to_rfc3339(),
-                });
+                let _ = app.emit(
+                    "videostream-event",
+                    &super::state::StreamEvent {
+                        session_id: session_id.to_string(),
+                        event_type: "protocol-data".to_string(),
+                        data: Some(
+                            serde_json::json!({
+                                "type": "ice-candidate",
+                                "candidate": {
+                                    "type": "srflx",
+                                    "address": ip,
+                                    "port": port,
+                                    "protocol": "udp",
+                                    "state": "gathered"
+                                }
+                            })
+                            .to_string(),
+                        ),
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
+                );
             }
             Ok(None) => {}
             Err(e) => {
@@ -310,9 +357,13 @@ pub async fn create_offer(
     // Generate SDP offer
     let sdp = generate_sdp_offer(&ice_ufrag, &ice_pwd, &candidates);
 
-    emit_msg(app, session_id, "info",
+    emit_msg(
+        app,
+        session_id,
+        "info",
         &format!("SDP Offer generated ({} candidates)", candidates.len()),
-        &sdp);
+        &sdp,
+    );
 
     // Store session
     let webrtc_session = WebRtcSession {
@@ -320,7 +371,11 @@ pub async fn create_offer(
         connected: false,
         shutdown_tx: None,
     };
-    state.webrtc_sessions.lock().await.insert(session_id.to_string(), webrtc_session);
+    state
+        .webrtc_sessions
+        .lock()
+        .await
+        .insert(session_id.to_string(), webrtc_session);
 
     Ok(sdp)
 }
@@ -331,24 +386,41 @@ pub async fn set_answer(
     state: &VideoStreamState,
     app: &AppHandle,
 ) -> Result<(), String> {
-    emit_msg(app, session_id, "received", "SDP Answer received",
-        &format!("Remote SDP Answer:\n{}", sdp));
+    emit_msg(
+        app,
+        session_id,
+        "received",
+        "SDP Answer received",
+        &format!("Remote SDP Answer:\n{}", sdp),
+    );
 
     // Parse remote SDP for ice-ufrag, ice-pwd, candidates
-    let remote_ufrag = sdp.lines()
+    let remote_ufrag = sdp
+        .lines()
         .find(|l| l.starts_with("a=ice-ufrag:"))
         .map(|l| l[12..].to_string())
         .unwrap_or_default();
 
-    let remote_candidates: Vec<&str> = sdp.lines()
+    let remote_candidates: Vec<&str> = sdp
+        .lines()
         .filter(|l| l.starts_with("a=candidate:"))
         .collect();
 
-    emit_msg(app, session_id, "info",
-        &format!("Parsed remote SDP: ufrag={}, {} candidates", remote_ufrag, remote_candidates.len()),
-        &format!("Remote ICE ufrag: {}\nRemote candidates:\n{}",
-                  remote_ufrag,
-                  remote_candidates.join("\n")));
+    emit_msg(
+        app,
+        session_id,
+        "info",
+        &format!(
+            "Parsed remote SDP: ufrag={}, {} candidates",
+            remote_ufrag,
+            remote_candidates.len()
+        ),
+        &format!(
+            "Remote ICE ufrag: {}\nRemote candidates:\n{}",
+            remote_ufrag,
+            remote_candidates.join("\n")
+        ),
+    );
 
     // Update session state
     if let Some(session) = state.webrtc_sessions.lock().await.get_mut(session_id) {
@@ -356,12 +428,15 @@ pub async fn set_answer(
     }
 
     // Emit connected event
-    let _ = app.emit("videostream-event", &super::state::StreamEvent {
-        session_id: session_id.to_string(),
-        event_type: "connected".to_string(),
-        data: Some("WebRTC signaling complete".to_string()),
-        timestamp: chrono::Utc::now().to_rfc3339(),
-    });
+    let _ = app.emit(
+        "videostream-event",
+        &super::state::StreamEvent {
+            session_id: session_id.to_string(),
+            event_type: "connected".to_string(),
+            data: Some("WebRTC signaling complete".to_string()),
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        },
+    );
 
     Ok(())
 }
@@ -372,9 +447,13 @@ pub async fn add_ice_candidate(
     _state: &VideoStreamState,
     app: &AppHandle,
 ) -> Result<(), String> {
-    emit_msg(app, session_id, "received",
+    emit_msg(
+        app,
+        session_id,
+        "received",
         &format!("Remote ICE candidate added"),
-        &format!("Candidate: {}", candidate));
+        &format!("Candidate: {}", candidate),
+    );
 
     Ok(())
 }

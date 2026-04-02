@@ -15,12 +15,12 @@
 //! 宿主通过 `alloc` 写入输入数据，通过返回的 ptr 读取输出数据。
 //! 输出数据格式: 前 4 字节为 u32 LE 表示长度，其后为 UTF-8 JSON。
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use wasmtime::*;
-use serde::{Serialize, Deserialize};
 
 use crate::plugin_runtime::ParseResult;
 
@@ -104,11 +104,7 @@ impl WasmPluginRuntime {
     }
 
     /// Execute the `parse` function of a loaded WASM plugin.
-    pub async fn parse_data(
-        &self,
-        plugin_id: &str,
-        raw_data: &str,
-    ) -> Result<ParseResult, String> {
+    pub async fn parse_data(&self, plugin_id: &str, raw_data: &str) -> Result<ParseResult, String> {
         let cached = {
             let map = self.modules.read().await;
             map.get(plugin_id)
@@ -222,17 +218,12 @@ impl WasmPluginRuntime {
 // ── Internal helpers ──
 
 /// Compile a WASM module and query its plugin_info export.
-fn compile_and_query_info(
-    wasm_bytes: &[u8],
-    fallback_id: &str,
-) -> Result<CachedModule, String> {
+fn compile_and_query_info(wasm_bytes: &[u8], fallback_id: &str) -> Result<CachedModule, String> {
     // 启用 fuel 资源限制，防止恶意 WASM 插件无限循环或消耗过量资源
     let mut config = wasmtime::Config::new();
     config.consume_fuel(true);
-    let engine = Engine::new(&config)
-        .map_err(|e| format!("WASM 引擎创建失败: {}", e))?;
-    let module = Module::new(&engine, wasm_bytes)
-        .map_err(|e| format!("WASM 编译失败: {}", e))?;
+    let engine = Engine::new(&config).map_err(|e| format!("WASM 引擎创建失败: {}", e))?;
+    let module = Module::new(&engine, wasm_bytes).map_err(|e| format!("WASM 编译失败: {}", e))?;
 
     // Try to get plugin info by calling plugin_info()
     let info = match call_plugin_info(&engine, &module) {
@@ -261,7 +252,9 @@ fn compile_and_query_info(
 fn call_plugin_info(engine: &Engine, module: &Module) -> Result<WasmPluginInfo, String> {
     let mut store = Store::new(engine, ());
     // 为 plugin_info 调用分配资源限制
-    store.set_fuel(1_000_000).map_err(|e| format!("fuel 设置失败: {}", e))?;
+    store
+        .set_fuel(1_000_000)
+        .map_err(|e| format!("fuel 设置失败: {}", e))?;
     let linker = Linker::new(engine);
     let instance = linker
         .instantiate(&mut store, module)
@@ -280,8 +273,8 @@ fn call_plugin_info(engine: &Engine, module: &Module) -> Result<WasmPluginInfo, 
         .ok_or("找不到 memory 导出")?;
 
     let json_str = read_guest_string(&store, &memory, ptr as u32)?;
-    let info: WasmPluginInfo =
-        serde_json::from_str(&json_str).map_err(|e| format!("解析 plugin_info JSON 失败: {}", e))?;
+    let info: WasmPluginInfo = serde_json::from_str(&json_str)
+        .map_err(|e| format!("解析 plugin_info JSON 失败: {}", e))?;
 
     Ok(info)
 }
@@ -290,7 +283,9 @@ fn call_plugin_info(engine: &Engine, module: &Module) -> Result<WasmPluginInfo, 
 fn execute_parse(engine: &Engine, module: &Module, raw_data: &str) -> Result<ParseResult, String> {
     let mut store = Store::new(engine, ());
     // 为 parse 执行分配充裕的 fuel 限制（10M 指令级别）
-    store.set_fuel(10_000_000).map_err(|e| format!("fuel 设置失败: {}", e))?;
+    store
+        .set_fuel(10_000_000)
+        .map_err(|e| format!("fuel 设置失败: {}", e))?;
     let linker = Linker::new(engine);
     let instance = linker
         .instantiate(&mut store, module)
@@ -343,10 +338,16 @@ fn execute_parse(engine: &Engine, module: &Module, raw_data: &str) -> Result<Par
 
 /// Execute the render(ptr, len) -> ptr export for renderer plugins.
 #[allow(dead_code)]
-fn execute_render(engine: &Engine, module: &Module, base64_data: &str) -> Result<crate::plugin_runtime::RenderResult, String> {
+fn execute_render(
+    engine: &Engine,
+    module: &Module,
+    base64_data: &str,
+) -> Result<crate::plugin_runtime::RenderResult, String> {
     let mut store = Store::new(engine, ());
     // 渲染操作可能需要更多资源（Excel 解析等），给予更多 fuel
-    store.set_fuel(50_000_000).map_err(|e| format!("fuel 设置失败: {}", e))?;
+    store
+        .set_fuel(50_000_000)
+        .map_err(|e| format!("fuel 设置失败: {}", e))?;
     let linker = Linker::new(engine);
     let instance = linker
         .instantiate(&mut store, module)
@@ -402,15 +403,14 @@ fn read_guest_string(store: &Store<()>, memory: &Memory, ptr: u32) -> Result<Str
         return Err("指针超出内存边界".to_string());
     }
 
-    let len = u32::from_le_bytes([
-        data[ptr],
-        data[ptr + 1],
-        data[ptr + 2],
-        data[ptr + 3],
-    ]) as usize;
+    let len = u32::from_le_bytes([data[ptr], data[ptr + 1], data[ptr + 2], data[ptr + 3]]) as usize;
 
     if len > MAX_GUEST_STRING {
-        return Err(format!("guest 字符串长度 {} 超过最大限制 {}MB", len, MAX_GUEST_STRING / 1024 / 1024));
+        return Err(format!(
+            "guest 字符串长度 {} 超过最大限制 {}MB",
+            len,
+            MAX_GUEST_STRING / 1024 / 1024
+        ));
     }
 
     if ptr + 4 + len > data.len() {

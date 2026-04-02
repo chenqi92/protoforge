@@ -1,0 +1,6 @@
+Vendor source: https://github.com/tsingsee/EasyPlayer.js
+Version reference: GitHub snapshot fetched on 2026-04-02
+Runtime assets bundled locally:
+- EasyPlayer-pro.js
+- EasyPlayer-pro.wasm
+- EasyPlayer-snap.wasm

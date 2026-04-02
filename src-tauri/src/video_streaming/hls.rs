@@ -90,10 +90,18 @@ pub fn parse_m3u8(content: &str, base_url: &str) -> HlsPlaylistInfo {
 
             for attr in parse_attributes(attrs) {
                 match attr.0.as_str() {
-                    "BANDWIDTH" => { variant.bandwidth = attr.1.parse().unwrap_or(0); }
-                    "RESOLUTION" => { variant.resolution = Some(attr.1.clone()); }
-                    "CODECS" => { variant.codecs = Some(attr.1.trim_matches('"').to_string()); }
-                    "NAME" => { variant.name = Some(attr.1.trim_matches('"').to_string()); }
+                    "BANDWIDTH" => {
+                        variant.bandwidth = attr.1.parse().unwrap_or(0);
+                    }
+                    "RESOLUTION" => {
+                        variant.resolution = Some(attr.1.clone());
+                    }
+                    "CODECS" => {
+                        variant.codecs = Some(attr.1.trim_matches('"').to_string());
+                    }
+                    "NAME" => {
+                        variant.name = Some(attr.1.trim_matches('"').to_string());
+                    }
                     _ => {}
                 }
             }
@@ -161,7 +169,10 @@ fn parse_attributes(s: &str) -> Vec<(String, String)> {
             } else {
                 // Unquoted value
                 if let Some(comma_idx) = after_eq.find(',') {
-                    (after_eq[..comma_idx].trim().to_string(), after_eq[comma_idx + 1..].trim())
+                    (
+                        after_eq[..comma_idx].trim().to_string(),
+                        after_eq[comma_idx + 1..].trim(),
+                    )
                 } else {
                     (after_eq.trim().to_string(), "")
                 }
@@ -189,7 +200,10 @@ pub async fn fetch_and_parse_playlist(
         direction: "sent".to_string(),
         protocol: "hls".to_string(),
         summary: format!("GET {}", url),
-        detail: format!("GET {} HTTP/1.1\r\nAccept: application/vnd.apple.mpegurl\r\n", url),
+        detail: format!(
+            "GET {} HTTP/1.1\r\nAccept: application/vnd.apple.mpegurl\r\n",
+            url
+        ),
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: None,
     };
@@ -201,14 +215,17 @@ pub async fn fetch_and_parse_playlist(
         .build()
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
-    let response = client.get(url)
+    let response = client
+        .get(url)
         .header("User-Agent", "ProtoForge/1.0")
         .send()
         .await
         .map_err(|e| format!("Failed to fetch m3u8: {}", e))?;
 
     let status = response.status();
-    let body = response.text().await
+    let body = response
+        .text()
+        .await
         .map_err(|e| format!("Failed to read m3u8 body: {}", e))?;
 
     // Emit response message
@@ -236,7 +253,11 @@ pub async fn fetch_and_parse_playlist(
         protocol: "hls".to_string(),
         summary: format!(
             "{} playlist: {} variants, {} segments, {:.1}s total",
-            if playlist.playlist_type == "master" { "Master" } else { "Media" },
+            if playlist.playlist_type == "master" {
+                "Master"
+            } else {
+                "Media"
+            },
             playlist.variants.len(),
             playlist.segments.len(),
             playlist.total_duration,

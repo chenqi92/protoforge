@@ -3,15 +3,15 @@
 //! 输出 fragmented MP4 (fMP4)，通过 Tauri 事件推送到前端
 //! 前端用 MSE API 直接 appendBuffer 播放
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::{Mutex, oneshot};
-use tauri::{AppHandle, Emitter};
 use base64::Engine;
 use serde_json::Value;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tauri::{AppHandle, Emitter};
+use tokio::sync::{Mutex, oneshot};
 
-use super::state::ProtocolMessage;
 use super::ffmpeg_manager;
+use super::state::ProtocolMessage;
 
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,16 +72,23 @@ pub async fn start_player(
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
-    PLAYER_SESSIONS.lock().await.insert(session_id.clone(), PlayerSession {
-        shutdown_tx: Some(shutdown_tx),
-    });
+    PLAYER_SESSIONS.lock().await.insert(
+        session_id.clone(),
+        PlayerSession {
+            shutdown_tx: Some(shutdown_tx),
+        },
+    );
 
     let msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
         direction: "info".to_string(),
         protocol: "player".to_string(),
         summary: format!("播放器启动 -- FFmpeg fMP4 管线: {}", url),
-        detail: format!("源: {}\nFFmpeg: {}\n输出: fragmented MP4 → Tauri IPC → MSE", url, ffmpeg_path.display()),
+        detail: format!(
+            "源: {}\nFFmpeg: {}\n输出: fragmented MP4 → Tauri IPC → MSE",
+            url,
+            ffmpeg_path.display()
+        ),
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: None,
     };
@@ -106,10 +113,13 @@ pub async fn start_player(
         if let Err(e) = &result {
             log::warn!("Player {} error: {}", sid, e);
             // Emit player-error so frontend VideoPlayer can show the error
-            let _ = app_clone.emit("player-error", &PlayerErrorEvent {
-                session_id: sid.clone(),
-                error: e.clone(),
-            });
+            let _ = app_clone.emit(
+                "player-error",
+                &PlayerErrorEvent {
+                    session_id: sid.clone(),
+                    error: e.clone(),
+                },
+            );
             let msg = ProtocolMessage {
                 id: uuid::Uuid::new_v4().to_string(),
                 direction: "info".to_string(),
@@ -154,7 +164,11 @@ fn detect_rtsp_timeout_flag(ffmpeg_path: &std::path::Path) -> &'static str {
             let version_str = String::from_utf8_lossy(&out.stdout);
             // Parse "ffmpeg version X.Y.Z" or "ffmpeg version N-..."
             if let Some(ver_part) = version_str.split_whitespace().nth(2) {
-                if let Some(major) = ver_part.split('.').next().and_then(|m| m.parse::<u32>().ok()) {
+                if let Some(major) = ver_part
+                    .split('.')
+                    .next()
+                    .and_then(|m| m.parse::<u32>().ok())
+                {
                     log::info!("Detected FFmpeg major version: {}", major);
                     if major >= 8 {
                         return "-timeout";
@@ -187,15 +201,20 @@ fn probe_stream(
 
     // 为流媒体 URL 添加超时参数
     let lower_url = url.to_lowercase();
-    let is_rtmp = protocol == "rtmp" || lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://");
+    let is_rtmp =
+        protocol == "rtmp" || lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://");
     if is_rtmp {
         // RTMP 需要完成握手+connect+play协商后才有数据，远程服务器可能需要更长时间
         cmd.args(["-rw_timeout", "15000000"]);
     } else if protocol == "rtsp" || lower_url.starts_with("rtsp://") {
-        let transport = config.get("transport")
+        let transport = config
+            .get("transport")
             .and_then(|v| v.as_str())
             .unwrap_or("tcp");
-        cmd.args(["-rtsp_transport", if transport == "udp" { "udp" } else { "tcp" }]);
+        cmd.args([
+            "-rtsp_transport",
+            if transport == "udp" { "udp" } else { "tcp" },
+        ]);
         let flag = detect_rtsp_timeout_flag(ffprobe_path);
         cmd.args([flag, "5000000"]);
     } else if protocol == "srt" || lower_url.starts_with("srt://") {
@@ -213,11 +232,15 @@ fn probe_stream(
 
     // Probe ALL streams (not just video) so we can detect audio
     cmd.args([
-        "-v", "quiet",
-        "-print_format", "json",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
         "-show_streams",
-        "-analyzeduration", analyze_dur,
-        "-probesize", probe_sz,
+        "-analyzeduration",
+        analyze_dur,
+        "-probesize",
+        probe_sz,
         url,
     ]);
     cmd.stdin(std::process::Stdio::null());
@@ -234,12 +257,15 @@ fn probe_stream(
     let probe_deadline_secs = if is_rtmp { 18 } else { 8 };
     match cmd.spawn() {
         Ok(mut child) => {
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(probe_deadline_secs);
+            let deadline =
+                std::time::Instant::now() + std::time::Duration::from_secs(probe_deadline_secs);
             let status = loop {
                 match child.try_wait() {
                     Ok(Some(status)) => break Some(status),
                     Ok(None) => {
-                        if std::time::Instant::now() >= deadline { break None; }
+                        if std::time::Instant::now() >= deadline {
+                            break None;
+                        }
                         std::thread::sleep(std::time::Duration::from_millis(100));
                     }
                     Err(e) => {
@@ -272,22 +298,38 @@ fn probe_stream(
         Err(e) => log::warn!("ffprobe spawn error: {}", e),
     }
 
-    ProbeResult { width: 0, height: 0, codec: "h264".to_string(), has_audio: false }
+    ProbeResult {
+        width: 0,
+        height: 0,
+        codec: "h264".to_string(),
+        has_audio: false,
+    }
 }
 
 /// 解析 ffprobe JSON 输出 — 提取视频 codec/分辨率 + 检测音频流
 fn parse_ffprobe_output(output: &[u8]) -> ProbeResult {
-    let mut result = ProbeResult { width: 0, height: 0, codec: "h264".to_string(), has_audio: false };
+    let mut result = ProbeResult {
+        width: 0,
+        height: 0,
+        codec: "h264".to_string(),
+        has_audio: false,
+    };
     if let Ok(json) = serde_json::from_slice::<serde_json::Value>(output) {
         if let Some(streams) = json.get("streams").and_then(|s| s.as_array()) {
             for stream in streams {
-                let codec_type = stream.get("codec_type").and_then(|v| v.as_str()).unwrap_or("");
+                let codec_type = stream
+                    .get("codec_type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
                 match codec_type {
                     "video" if result.width == 0 => {
                         // First video stream
-                        result.width = stream.get("width").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                        result.height = stream.get("height").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                        result.codec = stream.get("codec_name")
+                        result.width =
+                            stream.get("width").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                        result.height =
+                            stream.get("height").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                        result.codec = stream
+                            .get("codec_name")
                             .and_then(|v| v.as_str())
                             .unwrap_or("h264")
                             .to_string();
@@ -326,8 +368,14 @@ fn inject_url_credentials(url: &str, username: &str, password: &str) -> String {
 fn prepare_input_url(protocol: &str, url: &str, config: &Value) -> String {
     match protocol {
         "rtsp" => {
-            let username = config.get("username").and_then(|v| v.as_str()).unwrap_or("");
-            let password = config.get("password").and_then(|v| v.as_str()).unwrap_or("");
+            let username = config
+                .get("username")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let password = config
+                .get("password")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             inject_url_credentials(url, username, password)
         }
         "srt" => {
@@ -335,7 +383,8 @@ fn prepare_input_url(protocol: &str, url: &str, config: &Value) -> String {
                 Ok(parsed) => parsed,
                 Err(_) => return url.to_string(),
             };
-            let mut params: Vec<(String, String)> = parsed.query_pairs()
+            let mut params: Vec<(String, String)> = parsed
+                .query_pairs()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect();
             let mut push_if_missing = |key: &str, value: Option<String>| {
@@ -348,19 +397,31 @@ fn prepare_input_url(protocol: &str, url: &str, config: &Value) -> String {
             };
             push_if_missing(
                 "latency",
-                config.get("latency").and_then(|v| v.as_u64()).map(|v| v.to_string()),
+                config
+                    .get("latency")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v.to_string()),
             );
             push_if_missing(
                 "streamid",
-                config.get("streamId").and_then(|v| v.as_str()).map(str::to_string),
+                config
+                    .get("streamId")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string),
             );
             push_if_missing(
                 "passphrase",
-                config.get("passphrase").and_then(|v| v.as_str()).map(str::to_string),
+                config
+                    .get("passphrase")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string),
             );
             push_if_missing(
                 "mode",
-                config.get("mode").and_then(|v| v.as_str()).map(str::to_string),
+                config
+                    .get("mode")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string),
             );
             parsed.set_query(None);
             let mut qp = parsed.query_pairs_mut();
@@ -387,24 +448,52 @@ fn run_fmp4_pipeline(
     let config = parse_player_config(config);
     let prepared_url = prepare_input_url(protocol, url, &config);
 
-    log::info!("Player {}: opening {} via fMP4 pipeline", session_id, prepared_url);
+    log::info!(
+        "Player {}: opening {} via fMP4 pipeline",
+        session_id,
+        prepared_url
+    );
 
     // Probe stream info (video codec + audio detection)
     let probe = if let Some(probe_path) = ffprobe_path {
         probe_stream(probe_path, protocol, &prepared_url, &config)
     } else {
-        ProbeResult { width: 0, height: 0, codec: "h264".to_string(), has_audio: false }
+        ProbeResult {
+            width: 0,
+            height: 0,
+            codec: "h264".to_string(),
+            has_audio: false,
+        }
     };
 
-    log::info!("Player {}: probed {}x{} codec={} has_audio={}",
-        session_id, probe.width, probe.height, probe.codec, probe.has_audio);
+    log::info!(
+        "Player {}: probed {}x{} codec={} has_audio={}",
+        session_id,
+        probe.width,
+        probe.height,
+        probe.codec,
+        probe.has_audio
+    );
 
-    let needs_transcode = probe.codec.contains("hevc") || probe.codec.contains("h265") || probe.codec.contains("hev");
+    let needs_transcode =
+        probe.codec.contains("hevc") || probe.codec.contains("h265") || probe.codec.contains("hev");
 
     // If HEVC, we'll transcode to H.264 for MSE compatibility
-    let output_codec = if needs_transcode { "h264".to_string() } else { probe.codec.clone() };
-    let output_width = if probe.width > 1920 && needs_transcode { 1920 } else { probe.width };
-    let output_height = if probe.width > 1920 && needs_transcode { 0 } else { probe.height };
+    let output_codec = if needs_transcode {
+        "h264".to_string()
+    } else {
+        probe.codec.clone()
+    };
+    let output_width = if probe.width > 1920 && needs_transcode {
+        1920
+    } else {
+        probe.width
+    };
+    let output_height = if probe.width > 1920 && needs_transcode {
+        0
+    } else {
+        probe.height
+    };
 
     // Emit init event — frontend uses has_audio to decide MIME type
     // Small delay to ensure frontend event listeners are ready
@@ -425,12 +514,17 @@ fn run_fmp4_pipeline(
 
     // Protocol-specific input options
     let lower_url = prepared_url.to_lowercase();
-    let is_rtmp = protocol == "rtmp" || lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://");
+    let is_rtmp =
+        protocol == "rtmp" || lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://");
     if protocol == "rtsp" || lower_url.starts_with("rtsp://") {
-        let transport = config.get("transport")
+        let transport = config
+            .get("transport")
             .and_then(|v| v.as_str())
             .unwrap_or("tcp");
-        cmd.args(["-rtsp_transport", if transport == "udp" { "udp" } else { "tcp" }]);
+        cmd.args([
+            "-rtsp_transport",
+            if transport == "udp" { "udp" } else { "tcp" },
+        ]);
         let rtsp_timeout_flag = detect_rtsp_timeout_flag(ffmpeg_path);
         cmd.args([rtsp_timeout_flag, "5000000"]);
     } else if is_rtmp {
@@ -452,10 +546,7 @@ fn run_fmp4_pipeline(
     };
 
     // Common input options
-    cmd.args([
-        "-analyzeduration", analyze_dur,
-        "-probesize", probe_sz,
-    ]);
+    cmd.args(["-analyzeduration", analyze_dur, "-probesize", probe_sz]);
 
     // RTMP 不使用 nobuffer — 需要缓冲来完成 FLV 初始化解析
     // 其他协议可以用 nobuffer + low_delay 降低延迟
@@ -469,14 +560,33 @@ fn run_fmp4_pipeline(
 
     // ── Video output ──
     if needs_transcode {
-        log::info!("Player {}: HEVC detected, transcoding to H.264 for MSE compatibility", session_id);
+        log::info!(
+            "Player {}: HEVC detected, transcoding to H.264 for MSE compatibility",
+            session_id
+        );
         if probe.width > 1920 {
             cmd.args(["-vf", "scale=1920:-2"]);
         }
         if cfg!(target_os = "macos") {
-            cmd.args(["-c:v", "h264_videotoolbox", "-b:v", "4000k", "-realtime", "1"]);
+            cmd.args([
+                "-c:v",
+                "h264_videotoolbox",
+                "-b:v",
+                "4000k",
+                "-realtime",
+                "1",
+            ]);
         } else {
-            cmd.args(["-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-b:v", "4000k"]);
+            cmd.args([
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-tune",
+                "zerolatency",
+                "-b:v",
+                "4000k",
+            ]);
         }
     } else {
         cmd.args(["-c:v", "copy"]);
@@ -490,8 +600,10 @@ fn run_fmp4_pipeline(
     }
 
     cmd.args([
-        "-f", "mp4",
-        "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+        "-f",
+        "mp4",
+        "-movflags",
+        "frag_keyframe+empty_moov+default_base_moof",
         "pipe:1",
     ]);
 
@@ -506,11 +618,11 @@ fn run_fmp4_pipeline(
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
 
-    let mut child = cmd.spawn()
+    let mut child = cmd
+        .spawn()
         .map_err(|e| format!("启动 FFmpeg 失败: {}", e))?;
 
-    let stdout = child.stdout.take()
-        .ok_or("无法获取 FFmpeg stdout")?;
+    let stdout = child.stdout.take().ok_or("无法获取 FFmpeg stdout")?;
 
     // CRITICAL: Drain stderr in a separate thread to prevent pipe deadlock.
     // If stderr fills up and nobody reads it, FFmpeg blocks on write() and hangs.
@@ -586,10 +698,14 @@ fn run_fmp4_pipeline(
                 // EOF — 流结束
                 if seq == 0 {
                     // 没读到任何数据就 EOF，说明 FFmpeg 连接/启动失败
-                    let _ = app.emit("player-error", &PlayerErrorEvent {
-                        session_id: session_id.to_string(),
-                        error: "FFmpeg 未能读取到流数据，请检查地址是否正确或流是否可用".to_string(),
-                    });
+                    let _ = app.emit(
+                        "player-error",
+                        &PlayerErrorEvent {
+                            session_id: session_id.to_string(),
+                            error: "FFmpeg 未能读取到流数据，请检查地址是否正确或流是否可用"
+                                .to_string(),
+                        },
+                    );
                 }
                 break;
             }
@@ -597,16 +713,25 @@ fn run_fmp4_pipeline(
                 no_data_start = None;
                 n
             }
-            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut
-                       || e.kind() == std::io::ErrorKind::WouldBlock => {
+            Err(ref e)
+                if e.kind() == std::io::ErrorKind::TimedOut
+                    || e.kind() == std::io::ErrorKind::WouldBlock =>
+            {
                 // 非阻塞读取可能返回 WouldBlock
                 if let Some(start) = no_data_start {
                     if start.elapsed() > max_wait {
-                        log::warn!("Player {}: no data for {:?}, giving up", session_id, max_wait);
-                        let _ = app.emit("player-error", &PlayerErrorEvent {
-                            session_id: session_id.to_string(),
-                            error: "流数据超时，可能已断开".to_string(),
-                        });
+                        log::warn!(
+                            "Player {}: no data for {:?}, giving up",
+                            session_id,
+                            max_wait
+                        );
+                        let _ = app.emit(
+                            "player-error",
+                            &PlayerErrorEvent {
+                                session_id: session_id.to_string(),
+                                error: "流数据超时，可能已断开".to_string(),
+                            },
+                        );
                         break;
                     }
                 } else {
@@ -617,10 +742,13 @@ fn run_fmp4_pipeline(
             }
             Err(e) => {
                 log::warn!("Player {}: read error: {}", session_id, e);
-                let _ = app.emit("player-error", &PlayerErrorEvent {
-                    session_id: session_id.to_string(),
-                    error: format!("读取流数据失败: {}", e),
-                });
+                let _ = app.emit(
+                    "player-error",
+                    &PlayerErrorEvent {
+                        session_id: session_id.to_string(),
+                        error: format!("读取流数据失败: {}", e),
+                    },
+                );
                 break;
             }
         };
@@ -673,6 +801,11 @@ fn run_fmp4_pipeline(
     // Wait for stderr drain thread to finish
     let _ = stderr_handle.join();
 
-    log::info!("Player {}: stream ended, {} chunks, {} bytes total", session_id, seq, total_bytes);
+    log::info!(
+        "Player {}: stream ended, {} chunks, {} bytes total",
+        session_id,
+        seq,
+        total_bytes
+    );
     Ok(())
 }

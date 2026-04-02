@@ -5,8 +5,8 @@ use crate::http_client::{self, AuthConfig, HttpRequest, RequestBody};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use tauri::Emitter;
 use tokio::sync::Mutex;
 use tokio::time::{Duration, Instant};
@@ -24,13 +24,13 @@ pub struct LoadTestConfig {
     pub body: Option<RequestBody>,
     pub auth: Option<AuthConfig>,
     pub concurrency: u32,
-    pub duration_secs: Option<u64>,    // 持续时间模式
-    pub total_requests: Option<u64>,   // 总请求数模式
+    pub duration_secs: Option<u64>,  // 持续时间模式
+    pub total_requests: Option<u64>, // 总请求数模式
     pub timeout_ms: Option<u64>,
-    pub rps_limit: Option<u64>,        // 每秒最大请求数限制
+    pub rps_limit: Option<u64>, // 每秒最大请求数限制
     // Advanced mode
-    pub mode: Option<String>,          // "constant" | "ramp" | "step" | "spike"
-    pub ramp_duration_secs: Option<u64>,  // ramp 模式: 从 1 线性增长到 concurrency 的时间
+    pub mode: Option<String>, // "constant" | "ramp" | "step" | "spike"
+    pub ramp_duration_secs: Option<u64>, // ramp 模式: 从 1 线性增长到 concurrency 的时间
     pub step_interval_secs: Option<u64>, // step 模式: 每隔多少秒增加一步
     pub latency_threshold_ms: Option<u64>, // 延迟阈值断言: 超过此值视为失败
 }
@@ -150,7 +150,9 @@ fn spawn_worker(
 ) -> tokio::task::JoinHandle<()> {
     let total_limit = config.total_requests;
     let duration_limit = config.duration_secs;
-    let per_worker_rps = config.rps_limit.map(|r| (r as f64 / concurrency as f64).max(1.0));
+    let per_worker_rps = config
+        .rps_limit
+        .map(|r| (r as f64 / concurrency as f64).max(1.0));
 
     // Worker 入场
     active_count.fetch_add(1, Ordering::Relaxed);
@@ -158,12 +160,18 @@ fn spawn_worker(
     tokio::spawn(async move {
         let mut last_send = Instant::now();
         loop {
-            if stop_flag.load(Ordering::Relaxed) { break; }
+            if stop_flag.load(Ordering::Relaxed) {
+                break;
+            }
             if let Some(dur) = duration_limit {
-                if start_time.elapsed().as_secs() >= dur { break; }
+                if start_time.elapsed().as_secs() >= dur {
+                    break;
+                }
             }
             if let Some(limit) = total_limit {
-                if total_requests.load(Ordering::Relaxed) >= limit { break; }
+                if total_requests.load(Ordering::Relaxed) >= limit {
+                    break;
+                }
             }
 
             let req = HttpRequest {
@@ -212,7 +220,9 @@ fn spawn_worker(
                         // Record error sample
                         let seq = total_requests.load(Ordering::Relaxed);
                         let mut samples = error_samples.lock().await;
-                        if samples.len() >= 20 { samples.pop_front(); }
+                        if samples.len() >= 20 {
+                            samples.pop_front();
+                        }
                         samples.push_back(RequestRecord {
                             seq,
                             elapsed_ms: start_time.elapsed().as_millis() as u64,
@@ -227,7 +237,9 @@ fn spawn_worker(
                             total_errors.fetch_add(1, Ordering::Relaxed);
                             let seq = total_requests.load(Ordering::Relaxed);
                             let mut samples = error_samples.lock().await;
-                            if samples.len() >= 20 { samples.pop_front(); }
+                            if samples.len() >= 20 {
+                                samples.pop_front();
+                            }
                             samples.push_back(RequestRecord {
                                 seq,
                                 elapsed_ms: start_time.elapsed().as_millis() as u64,
@@ -235,7 +247,10 @@ fn spawn_worker(
                                 latency_ms: latency,
                                 bytes: resp.body_size,
                                 success: false,
-                                error_msg: Some(format!("Latency {}ms > {}ms threshold", latency, threshold)),
+                                error_msg: Some(format!(
+                                    "Latency {}ms > {}ms threshold",
+                                    latency, threshold
+                                )),
                             });
                         }
                     }
@@ -248,7 +263,9 @@ fn spawn_worker(
                     // Record error sample
                     let seq = total_requests.load(Ordering::Relaxed);
                     let mut samples = error_samples.lock().await;
-                    if samples.len() >= 20 { samples.pop_front(); }
+                    if samples.len() >= 20 {
+                        samples.pop_front();
+                    }
                     samples.push_back(RequestRecord {
                         seq,
                         elapsed_ms: start_time.elapsed().as_millis() as u64,
@@ -311,7 +328,8 @@ pub async fn start_load_test(
     let window_ttfb: Arc<Mutex<Vec<f64>>> = Arc::new(Mutex::new(Vec::with_capacity(1_000)));
     let window_lat_points: Arc<Mutex<Vec<f64>>> = Arc::new(Mutex::new(Vec::with_capacity(200)));
     let active_count = Arc::new(AtomicU32::new(0));
-    let error_samples: Arc<Mutex<VecDeque<RequestRecord>>> = Arc::new(Mutex::new(VecDeque::with_capacity(20)));
+    let error_samples: Arc<Mutex<VecDeque<RequestRecord>>> =
+        Arc::new(Mutex::new(VecDeque::with_capacity(20)));
 
     let tid = test_id.clone();
     let sf = stop_flag.clone();
@@ -345,7 +363,24 @@ pub async fn start_load_test(
             let codes = status_codes.clone();
             let win_req = window_requests.clone();
             let win_lats = window_latencies.clone();
-            let handle = spawn_worker(config, sf, total_req, total_err, lats, codes, win_req, win_lats, start_time, concurrency, window_bytes.clone(), total_bytes.clone(), window_ttfb.clone(), window_lat_points.clone(), active_count.clone(), error_samples.clone());
+            let handle = spawn_worker(
+                config,
+                sf,
+                total_req,
+                total_err,
+                lats,
+                codes,
+                win_req,
+                win_lats,
+                start_time,
+                concurrency,
+                window_bytes.clone(),
+                total_bytes.clone(),
+                window_ttfb.clone(),
+                window_lat_points.clone(),
+                active_count.clone(),
+                error_samples.clone(),
+            );
             worker_handles.push(handle);
         }
 
@@ -367,7 +402,8 @@ pub async fn start_load_test(
             let es = error_samples.clone();
             let mode_clone = mode.clone();
             // 收集动态 spawn 的 worker 句柄，避免句柄泄漏
-            let dynamic_handles: Arc<Mutex<Vec<tokio::task::JoinHandle<()>>>> = Arc::new(Mutex::new(Vec::new()));
+            let dynamic_handles: Arc<Mutex<Vec<tokio::task::JoinHandle<()>>>> =
+                Arc::new(Mutex::new(Vec::new()));
             let dh = dynamic_handles.clone();
 
             let ramp_task = tokio::spawn(async move {
@@ -379,8 +415,27 @@ pub async fn start_load_test(
                             let interval_ms = (ramp_secs * 1000) / workers_to_add as u64;
                             for _ in 0..workers_to_add {
                                 tokio::time::sleep(Duration::from_millis(interval_ms)).await;
-                                if sf_clone.load(Ordering::Relaxed) { break; }
-                                let h = spawn_worker(config_clone.clone(), sf_clone.clone(), tr.clone(), te.clone(), la.clone(), sc.clone(), wr.clone(), wl.clone(), start_time, concurrency, wb.clone(), tb.clone(), wt.clone(), wlp.clone(), ac.clone(), es.clone());
+                                if sf_clone.load(Ordering::Relaxed) {
+                                    break;
+                                }
+                                let h = spawn_worker(
+                                    config_clone.clone(),
+                                    sf_clone.clone(),
+                                    tr.clone(),
+                                    te.clone(),
+                                    la.clone(),
+                                    sc.clone(),
+                                    wr.clone(),
+                                    wl.clone(),
+                                    start_time,
+                                    concurrency,
+                                    wb.clone(),
+                                    tb.clone(),
+                                    wt.clone(),
+                                    wlp.clone(),
+                                    ac.clone(),
+                                    es.clone(),
+                                );
                                 dh.lock().await.push(h);
                             }
                         }
@@ -390,8 +445,27 @@ pub async fn start_load_test(
                         let steps = max_concurrency.saturating_sub(1);
                         for _ in 0..steps {
                             tokio::time::sleep(Duration::from_secs(step_interval)).await;
-                            if sf_clone.load(Ordering::Relaxed) { break; }
-                            let h = spawn_worker(config_clone.clone(), sf_clone.clone(), tr.clone(), te.clone(), la.clone(), sc.clone(), wr.clone(), wl.clone(), start_time, concurrency, wb.clone(), tb.clone(), wt.clone(), wlp.clone(), ac.clone(), es.clone());
+                            if sf_clone.load(Ordering::Relaxed) {
+                                break;
+                            }
+                            let h = spawn_worker(
+                                config_clone.clone(),
+                                sf_clone.clone(),
+                                tr.clone(),
+                                te.clone(),
+                                la.clone(),
+                                sc.clone(),
+                                wr.clone(),
+                                wl.clone(),
+                                start_time,
+                                concurrency,
+                                wb.clone(),
+                                tb.clone(),
+                                wt.clone(),
+                                wlp.clone(),
+                                ac.clone(),
+                                es.clone(),
+                            );
                             dh.lock().await.push(h);
                         }
                     }
@@ -401,7 +475,24 @@ pub async fn start_load_test(
                         tokio::time::sleep(Duration::from_secs(half)).await;
                         if !sf_clone.load(Ordering::Relaxed) {
                             for _ in 0..max_concurrency {
-                                let h = spawn_worker(config_clone.clone(), sf_clone.clone(), tr.clone(), te.clone(), la.clone(), sc.clone(), wr.clone(), wl.clone(), start_time, concurrency, wb.clone(), tb.clone(), wt.clone(), wlp.clone(), ac.clone(), es.clone());
+                                let h = spawn_worker(
+                                    config_clone.clone(),
+                                    sf_clone.clone(),
+                                    tr.clone(),
+                                    te.clone(),
+                                    la.clone(),
+                                    sc.clone(),
+                                    wr.clone(),
+                                    wl.clone(),
+                                    start_time,
+                                    concurrency,
+                                    wb.clone(),
+                                    tb.clone(),
+                                    wt.clone(),
+                                    wlp.clone(),
+                                    ac.clone(),
+                                    es.clone(),
+                                );
                                 dh.lock().await.push(h);
                             }
                         }
@@ -553,7 +644,11 @@ pub async fn start_load_test(
             let mut wl = window_latencies.lock().await;
             let mut wl_sorted = wl.clone();
             wl_sorted.sort_unstable();
-            let avg_lat = if wl_sorted.is_empty() { 0.0 } else { wl_sorted.iter().sum::<u64>() as f64 / wl_sorted.len() as f64 };
+            let avg_lat = if wl_sorted.is_empty() {
+                0.0
+            } else {
+                wl_sorted.iter().sum::<u64>() as f64 / wl_sorted.len() as f64
+            };
             wl.clear();
             drop(wl);
             let all_lats_snap = latencies.lock().await;
@@ -563,7 +658,11 @@ pub async fn start_load_test(
             let win_bytes_val = window_bytes.swap(0, Ordering::Relaxed);
             let active_conn = active_count.load(Ordering::Relaxed);
             let mut ttfb_data = window_ttfb.lock().await;
-            let ttfb_avg = if ttfb_data.is_empty() { 0.0 } else { ttfb_data.iter().sum::<f64>() / ttfb_data.len() as f64 };
+            let ttfb_avg = if ttfb_data.is_empty() {
+                0.0
+            } else {
+                ttfb_data.iter().sum::<f64>() / ttfb_data.len() as f64
+            };
             ttfb_data.clear();
             drop(ttfb_data);
             let mut lat_pts = window_lat_points.lock().await;
@@ -615,14 +714,22 @@ pub async fn start_load_test(
         };
 
         let total_dl = total_bytes.load(Ordering::Relaxed);
-        let avg_throughput = if total_duration > 0.0 { total_dl as f64 / total_duration } else { 0.0 };
+        let avg_throughput = if total_duration > 0.0 {
+            total_dl as f64 / total_duration
+        } else {
+            0.0
+        };
 
         let complete = LoadTestComplete {
             test_id: tid.clone(),
             total_requests: req_count,
             total_errors: err_count,
             total_duration_secs: total_duration,
-            avg_rps: if total_duration > 0.0 { req_count as f64 / total_duration } else { 0.0 },
+            avg_rps: if total_duration > 0.0 {
+                req_count as f64 / total_duration
+            } else {
+                0.0
+            },
             avg_latency_ms: avg_lat,
             min_latency_ms: all_lats.first().copied().unwrap_or(0),
             max_latency_ms: all_lats.last().copied().unwrap_or(0),

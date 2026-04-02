@@ -238,7 +238,11 @@ fn lookup_header_value(map: &HashMap<String, String>, key: &str) -> Option<Strin
 }
 
 fn remove_header_value(map: &mut HashMap<String, String>, key: &str) {
-    if let Some(existing_key) = map.keys().find(|existing| existing.eq_ignore_ascii_case(key)).cloned() {
+    if let Some(existing_key) = map
+        .keys()
+        .find(|existing| existing.eq_ignore_ascii_case(key))
+        .cloned()
+    {
         map.remove(&existing_key);
     }
 }
@@ -315,16 +319,21 @@ fn run_script_internal(
     request: Option<&ScriptRequestContext>,
 ) -> ScriptResult {
     let env_updates: Rc<RefCell<HashMap<String, String>>> = Rc::new(RefCell::new(HashMap::new()));
-    let folder_updates: Rc<RefCell<HashMap<String, String>>> = Rc::new(RefCell::new(HashMap::new()));
-    let collection_updates: Rc<RefCell<HashMap<String, String>>> = Rc::new(RefCell::new(HashMap::new()));
-    let global_updates: Rc<RefCell<HashMap<String, String>>> = Rc::new(RefCell::new(HashMap::new()));
+    let folder_updates: Rc<RefCell<HashMap<String, String>>> =
+        Rc::new(RefCell::new(HashMap::new()));
+    let collection_updates: Rc<RefCell<HashMap<String, String>>> =
+        Rc::new(RefCell::new(HashMap::new()));
+    let global_updates: Rc<RefCell<HashMap<String, String>>> =
+        Rc::new(RefCell::new(HashMap::new()));
     let test_results: Rc<RefCell<Vec<TestResult>>> = Rc::new(RefCell::new(Vec::new()));
     let logs: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
     let request_headers_state: Rc<RefCell<HashMap<String, String>>> = Rc::new(RefCell::new(
         request.map(|req| req.headers.clone()).unwrap_or_default(),
     ));
     let request_query_state: Rc<RefCell<HashMap<String, String>>> = Rc::new(RefCell::new(
-        request.map(|req| req.query_params.clone()).unwrap_or_default(),
+        request
+            .map(|req| req.query_params.clone())
+            .unwrap_or_default(),
     ));
 
     let mut context = Context::default();
@@ -521,7 +530,11 @@ fn run_script_internal(
     let console = ObjectInitializer::new(&mut context)
         .function(console_log, boa_engine::js_string!("log"), 0)
         .build();
-    let _ = context.register_global_property(boa_engine::js_string!("console"), console, Attribute::all());
+    let _ = context.register_global_property(
+        boa_engine::js_string!("console"),
+        console,
+        Attribute::all(),
+    );
 
     let pm_env = ObjectInitializer::new(&mut context)
         .function(pm_env_set, boa_engine::js_string!("set"), 2)
@@ -551,8 +564,8 @@ fn run_script_internal(
         let body_for_json = resp.body.clone();
         let pm_resp_json = unsafe {
             NativeFunction::from_closure(move |_this, _args, ctx| {
-                let json_escaped = serde_json::to_string(&body_for_json)
-                    .unwrap_or_else(|_| "\"\"".to_string());
+                let json_escaped =
+                    serde_json::to_string(&body_for_json).unwrap_or_else(|_| "\"\"".to_string());
                 let src = format!("JSON.parse({})", json_escaped);
                 match ctx.eval(Source::from_bytes(&src)) {
                     Ok(val) => Ok(val),
@@ -572,17 +585,47 @@ fn run_script_internal(
                 })
                 .collect();
             let array_src = format!("[{}]", src_pairs.join(","));
-            context.eval(Source::from_bytes(&array_src)).unwrap_or(JsValue::undefined())
+            context
+                .eval(Source::from_bytes(&array_src))
+                .unwrap_or(JsValue::undefined())
         };
 
         ObjectInitializer::new(&mut context)
-            .property(boa_engine::js_string!("status"), JsValue::from(resp.status as i32), Attribute::all())
-            .property(boa_engine::js_string!("code"), JsValue::from(resp.status as i32), Attribute::all())
-            .property(boa_engine::js_string!("statusText"), JsValue::from(boa_engine::js_string!(resp.status_text.as_str())), Attribute::all())
-            .property(boa_engine::js_string!("body"), JsValue::from(boa_engine::js_string!(resp.body.as_str())), Attribute::all())
-            .property(boa_engine::js_string!("durationMs"), JsValue::from(resp.duration_ms as i32), Attribute::all())
-            .property(boa_engine::js_string!("responseTime"), JsValue::from(resp.duration_ms as i32), Attribute::all())
-            .property(boa_engine::js_string!("headers"), headers_array, Attribute::all())
+            .property(
+                boa_engine::js_string!("status"),
+                JsValue::from(resp.status as i32),
+                Attribute::all(),
+            )
+            .property(
+                boa_engine::js_string!("code"),
+                JsValue::from(resp.status as i32),
+                Attribute::all(),
+            )
+            .property(
+                boa_engine::js_string!("statusText"),
+                JsValue::from(boa_engine::js_string!(resp.status_text.as_str())),
+                Attribute::all(),
+            )
+            .property(
+                boa_engine::js_string!("body"),
+                JsValue::from(boa_engine::js_string!(resp.body.as_str())),
+                Attribute::all(),
+            )
+            .property(
+                boa_engine::js_string!("durationMs"),
+                JsValue::from(resp.duration_ms as i32),
+                Attribute::all(),
+            )
+            .property(
+                boa_engine::js_string!("responseTime"),
+                JsValue::from(resp.duration_ms as i32),
+                Attribute::all(),
+            )
+            .property(
+                boa_engine::js_string!("headers"),
+                headers_array,
+                Attribute::all(),
+            )
             .function(pm_resp_json, boa_engine::js_string!("json"), 0)
             .build()
     });
@@ -693,8 +736,16 @@ fn run_script_internal(
             .build();
 
         ObjectInitializer::new(&mut context)
-            .property(boa_engine::js_string!("method"), JsValue::from(boa_engine::js_string!(req.method.as_str())), Attribute::all())
-            .property(boa_engine::js_string!("url"), JsValue::from(boa_engine::js_string!(req.url.as_str())), Attribute::all())
+            .property(
+                boa_engine::js_string!("method"),
+                JsValue::from(boa_engine::js_string!(req.method.as_str())),
+                Attribute::all(),
+            )
+            .property(
+                boa_engine::js_string!("url"),
+                JsValue::from(boa_engine::js_string!(req.url.as_str())),
+                Attribute::all(),
+            )
             .property(
                 boa_engine::js_string!("body"),
                 req.body
@@ -703,28 +754,60 @@ fn run_script_internal(
                     .unwrap_or_else(JsValue::undefined),
                 Attribute::all(),
             )
-            .property(boa_engine::js_string!("headers"), headers_obj, Attribute::all())
+            .property(
+                boa_engine::js_string!("headers"),
+                headers_obj,
+                Attribute::all(),
+            )
             .property(boa_engine::js_string!("query"), query_obj, Attribute::all())
             .build()
     });
 
     let mut pm_initializer = ObjectInitializer::new(&mut context);
     let pm_builder = pm_initializer
-        .property(boa_engine::js_string!("environment"), pm_env, Attribute::all())
-        .property(boa_engine::js_string!("folderVariables"), pm_folder, Attribute::all())
-        .property(boa_engine::js_string!("collectionVariables"), pm_collection, Attribute::all())
-        .property(boa_engine::js_string!("globals"), pm_globals, Attribute::all())
-        .property(boa_engine::js_string!("variables"), pm_variables, Attribute::all())
+        .property(
+            boa_engine::js_string!("environment"),
+            pm_env,
+            Attribute::all(),
+        )
+        .property(
+            boa_engine::js_string!("folderVariables"),
+            pm_folder,
+            Attribute::all(),
+        )
+        .property(
+            boa_engine::js_string!("collectionVariables"),
+            pm_collection,
+            Attribute::all(),
+        )
+        .property(
+            boa_engine::js_string!("globals"),
+            pm_globals,
+            Attribute::all(),
+        )
+        .property(
+            boa_engine::js_string!("variables"),
+            pm_variables,
+            Attribute::all(),
+        )
         .function(pm_test, boa_engine::js_string!("test"), 2);
 
     let pm_builder = if let Some(resp_obj) = pm_response {
-        pm_builder.property(boa_engine::js_string!("response"), resp_obj, Attribute::all())
+        pm_builder.property(
+            boa_engine::js_string!("response"),
+            resp_obj,
+            Attribute::all(),
+        )
     } else {
         pm_builder
     };
 
     let pm_builder = if let Some(request_obj) = pm_request {
-        pm_builder.property(boa_engine::js_string!("request"), request_obj, Attribute::all())
+        pm_builder.property(
+            boa_engine::js_string!("request"),
+            request_obj,
+            Attribute::all(),
+        )
     } else {
         pm_builder
     };
@@ -773,10 +856,7 @@ mod tests {
 
     #[test]
     fn test_pm_env_set() {
-        let result = run_pre_script(
-            r#"pm.environment.set("token", "abc123");"#,
-            &HashMap::new(),
-        );
+        let result = run_pre_script(r#"pm.environment.set("token", "abc123");"#, &HashMap::new());
         assert!(result.success);
         assert_eq!(result.env_updates.get("token"), Some(&"abc123".to_string()));
     }
@@ -800,7 +880,10 @@ mod tests {
 
         assert!(result.success);
         assert_eq!(result.logs[0], "folder-1");
-        assert_eq!(result.folder_updates.get("token"), Some(&"folder-token".to_string()));
+        assert_eq!(
+            result.folder_updates.get("token"),
+            Some(&"folder-token".to_string())
+        );
     }
 
     #[test]
@@ -854,7 +937,10 @@ mod tests {
 
         assert!(result.success);
         let patch = result.request_patch.expect("should include request patch");
-        assert_eq!(patch.headers.get("Authorization"), Some(&"Bearer token-123".to_string()));
+        assert_eq!(
+            patch.headers.get("Authorization"),
+            Some(&"Bearer token-123".to_string())
+        );
         assert_eq!(patch.query_params.get("page"), Some(&"2".to_string()));
     }
 }

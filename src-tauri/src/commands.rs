@@ -1,21 +1,22 @@
 // Tauri IPC Commands — 全部使用 SQLite 持久化
 // 这是一个薄委托层，业务逻辑在各领域模块中
 
-use crate::http_client::{self, HttpRequest, HttpResponse, HttpRequestWithScripts, HttpResponseWithScripts};
 use crate::collections::{
-    self, Collection, CollectionItem, HistoryEntry,
-    Environment, EnvVariable, GlobalVariable,
+    self, Collection, CollectionItem, EnvVariable, Environment, GlobalVariable, HistoryEntry,
 };
-use crate::script_engine::{self, ScriptRequestContext, ScriptResponse, ScriptResult};
-use crate::ws_client::WsConnections;
-use crate::tcp_client::{TcpConnections, TcpServers, UdpSockets};
+use crate::http_client::{
+    self, HttpRequest, HttpRequestWithScripts, HttpResponse, HttpResponseWithScripts,
+};
 use crate::load_test::{LoadTestConfig, LoadTestState};
-use crate::sse_client::{self, SseConnections, SseConnectRequest};
-use crate::mqtt_client::{self, MqttConnections, MqttConnectRequest};
+use crate::mqtt_client::{self, MqttConnectRequest, MqttConnections};
+use crate::script_engine::{self, ScriptRequestContext, ScriptResponse, ScriptResult};
+use crate::sse_client::{self, SseConnectRequest, SseConnections};
+use crate::tcp_client::{TcpConnections, TcpServers, UdpSockets};
 use crate::wasm_runtime::WasmPluginRuntime;
+use crate::ws_client::WsConnections;
 use sqlx::SqlitePool;
-use tauri::{Manager, State, AppHandle};
 use std::collections::HashMap;
+use tauri::{AppHandle, Manager, State};
 
 // ═══════════════════════════════════════════
 //  HTTP
@@ -27,7 +28,9 @@ pub async fn send_request(request: HttpRequest) -> Result<HttpResponse, String> 
 }
 
 #[tauri::command]
-pub async fn send_request_with_scripts(request: HttpRequestWithScripts) -> Result<HttpResponseWithScripts, String> {
+pub async fn send_request_with_scripts(
+    request: HttpRequestWithScripts,
+) -> Result<HttpResponseWithScripts, String> {
     http_client::execute_request_with_scripts(request).await
 }
 
@@ -76,8 +79,8 @@ pub async fn save_response_body(
     body_base64: String,
     suggested_name: String,
 ) -> Result<String, String> {
-    use tauri_plugin_dialog::DialogExt;
     use base64::Engine as _;
+    use tauri_plugin_dialog::DialogExt;
 
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(&body_base64)
@@ -86,7 +89,8 @@ pub async fn save_response_body(
     let sname = suggested_name.clone();
     let app_clone = app.clone();
     let file_path = tokio::task::spawn_blocking(move || {
-        app_clone.dialog()
+        app_clone
+            .dialog()
             .file()
             .set_file_name(&sname)
             .blocking_save_file()
@@ -99,7 +103,8 @@ pub async fn save_response_body(
         None => return Err("用户取消保存".to_string()),
     };
 
-    tokio::fs::write(&path, &bytes).await
+    tokio::fs::write(&path, &bytes)
+        .await
         .map_err(|e| format!("写入文件失败: {}", e))?;
 
     Ok(path)
@@ -112,7 +117,7 @@ pub async fn save_response_body(
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OAuth2TokenRequest {
-    pub grant_type: String,       // "client_credentials" | "password" | "authorization_code"
+    pub grant_type: String, // "client_credentials" | "password" | "authorization_code"
     pub access_token_url: String,
     pub client_id: String,
     pub client_secret: String,
@@ -207,7 +212,10 @@ pub async fn fetch_oauth2_token(req: OAuth2TokenRequest) -> Result<OAuth2TokenRe
         .map_err(|e| format!("Token 请求失败: {}", e))?;
 
     let status = resp.status();
-    let body = resp.text().await.map_err(|e| format!("读取响应失败: {}", e))?;
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| format!("读取响应失败: {}", e))?;
 
     if !status.is_success() {
         return Err(format!("Token 端点返回 {} — {}", status.as_u16(), body));
@@ -217,7 +225,8 @@ pub async fn fetch_oauth2_token(req: OAuth2TokenRequest) -> Result<OAuth2TokenRe
     let json: serde_json::Value = serde_json::from_str(&body)
         .map_err(|e| format!("解析 Token 响应 JSON 失败: {} — 原始响应: {}", e, body))?;
 
-    let access_token = json["access_token"].as_str()
+    let access_token = json["access_token"]
+        .as_str()
         .ok_or_else(|| format!("响应中缺少 access_token 字段 — 原始响应: {}", body))?
         .to_string();
 
@@ -257,13 +266,13 @@ pub async fn open_oauth_window(
     app: AppHandle,
     req: OAuthWindowRequest,
 ) -> Result<OAuthWindowResult, String> {
-    use tauri::WebviewWindowBuilder;
     use std::sync::Arc;
+    use tauri::WebviewWindowBuilder;
     use tokio::sync::oneshot;
 
     // 构建标准 OAuth 授权 URL
-    let mut url = reqwest::Url::parse(&req.auth_url)
-        .map_err(|e| format!("Auth URL 解析失败: {}", e))?;
+    let mut url =
+        reqwest::Url::parse(&req.auth_url).map_err(|e| format!("Auth URL 解析失败: {}", e))?;
     url.query_pairs_mut()
         .append_pair("response_type", "code")
         .append_pair("client_id", &req.client_id)
@@ -277,7 +286,15 @@ pub async fn open_oauth_window(
         url.query_pairs_mut().append_pair("state", state);
     }
 
-    let label = format!("oauth-{}", uuid::Uuid::new_v4().to_string().replace("-", "").chars().take(8).collect::<String>());
+    let label = format!(
+        "oauth-{}",
+        uuid::Uuid::new_v4()
+            .to_string()
+            .replace("-", "")
+            .chars()
+            .take(8)
+            .collect::<String>()
+    );
     let redirect_uri = req.redirect_uri.clone();
 
     // 用 channel 传递结果
@@ -287,55 +304,63 @@ pub async fn open_oauth_window(
     let tx_nav = tx.clone();
     let redirect_uri_clone = redirect_uri.clone();
 
-    let window = WebviewWindowBuilder::new(
-        &app,
-        &label,
-        tauri::WebviewUrl::External(url),
-    )
-    .title("OAuth Authorization")
-    .inner_size(800.0, 680.0)
-    .center()
-    .decorations(true)
-    .resizable(true)
-    .on_navigation(move |nav_url| {
-        let nav_str = nav_url.as_str();
-        if nav_str.starts_with(&redirect_uri_clone) {
-            // 拦截到 redirect，提取 code
-            let parsed = reqwest::Url::parse(nav_str).ok();
-            let code = parsed.as_ref().and_then(|u| {
-                u.query_pairs().find(|(k, _)| k == "code").map(|(_, v)| v.to_string())
-            });
-            let state = parsed.as_ref().and_then(|u| {
-                u.query_pairs().find(|(k, _)| k == "state").map(|(_, v)| v.to_string())
-            });
-            let error = parsed.as_ref().and_then(|u| {
-                u.query_pairs().find(|(k, _)| k == "error").map(|(_, v)| v.to_string())
-            });
-            let error_desc = parsed.as_ref().and_then(|u| {
-                u.query_pairs().find(|(k, _)| k == "error_description").map(|(_, v)| v.to_string())
-            });
+    let window = WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::External(url))
+        .title("OAuth Authorization")
+        .inner_size(800.0, 680.0)
+        .center()
+        .decorations(true)
+        .resizable(true)
+        .on_navigation(move |nav_url| {
+            let nav_str = nav_url.as_str();
+            if nav_str.starts_with(&redirect_uri_clone) {
+                // 拦截到 redirect，提取 code
+                let parsed = reqwest::Url::parse(nav_str).ok();
+                let code = parsed.as_ref().and_then(|u| {
+                    u.query_pairs()
+                        .find(|(k, _)| k == "code")
+                        .map(|(_, v)| v.to_string())
+                });
+                let state = parsed.as_ref().and_then(|u| {
+                    u.query_pairs()
+                        .find(|(k, _)| k == "state")
+                        .map(|(_, v)| v.to_string())
+                });
+                let error = parsed.as_ref().and_then(|u| {
+                    u.query_pairs()
+                        .find(|(k, _)| k == "error")
+                        .map(|(_, v)| v.to_string())
+                });
+                let error_desc = parsed.as_ref().and_then(|u| {
+                    u.query_pairs()
+                        .find(|(k, _)| k == "error_description")
+                        .map(|(_, v)| v.to_string())
+                });
 
-            let result = if let Some(err) = error {
-                Err(format!("OAuth 错误: {}{}", err, error_desc.map(|d| format!(" — {}", d)).unwrap_or_default()))
-            } else if let Some(code) = code {
-                Ok(OAuthWindowResult { code, state })
-            } else {
-                Err("OAuth 响应中缺少 code 参数".to_string())
-            };
+                let result = if let Some(err) = error {
+                    Err(format!(
+                        "OAuth 错误: {}{}",
+                        err,
+                        error_desc.map(|d| format!(" — {}", d)).unwrap_or_default()
+                    ))
+                } else if let Some(code) = code {
+                    Ok(OAuthWindowResult { code, state })
+                } else {
+                    Err("OAuth 响应中缺少 code 参数".to_string())
+                };
 
-            if let Ok(mut guard) = tx_nav.lock() {
-                if let Some(sender) = guard.take() {
-                    let _ = sender.send(result);
+                if let Ok(mut guard) = tx_nav.lock() {
+                    if let Some(sender) = guard.take() {
+                        let _ = sender.send(result);
+                    }
                 }
-            }
 
-            // 阻止导航到 redirect_uri
-            return false;
-        }
-        true
-    })
-    .build()
-    .map_err(|e| format!("创建 OAuth 窗口失败: {}", e))?;
+                // 阻止导航到 redirect_uri
+                return false;
+            }
+            true
+        })
+        .build()
+        .map_err(|e| format!("创建 OAuth 窗口失败: {}", e))?;
 
     // 监听窗口关闭，如果用户关闭窗口则发送取消信号
     let tx_close = tx.clone();
@@ -408,7 +433,12 @@ fn find_chrome_path() -> Option<String> {
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn find_chrome_path() -> Option<String> {
     // Linux: try common names
-    for name in &["google-chrome", "chromium-browser", "chromium", "microsoft-edge"] {
+    for name in &[
+        "google-chrome",
+        "chromium-browser",
+        "chromium",
+        "microsoft-edge",
+    ] {
         if let Ok(output) = std::process::Command::new("which").arg(name).output() {
             let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if !path.is_empty() {
@@ -440,7 +470,11 @@ pub async fn open_proxy_browser(
         url
     };
 
-    log::info!("打开代理浏览器: url={}, proxy_port={}", target_url, proxy_port);
+    log::info!(
+        "打开代理浏览器: url={}, proxy_port={}",
+        target_url,
+        proxy_port
+    );
 
     let proxy_arg = format!("--proxy-server=127.0.0.1:{}", proxy_port);
     let profile_dir = proxy_browser_profile_dir();
@@ -480,9 +514,7 @@ pub async fn open_proxy_browser(
 fn fallback_open_browser(target_url: &str, _proxy_port: u16) -> Result<String, String> {
     #[cfg(target_os = "macos")]
     {
-        let _ = std::process::Command::new("open")
-            .arg(target_url)
-            .output();
+        let _ = std::process::Command::new("open").arg(target_url).output();
         Ok("fallback".to_string())
     }
 
@@ -505,9 +537,7 @@ fn fallback_open_browser(target_url: &str, _proxy_port: u16) -> Result<String, S
 
 /// 清理代理浏览器（在抓包停止时调用）
 #[tauri::command]
-pub async fn close_proxy_browser(
-    service_name: String,
-) -> Result<(), String> {
+pub async fn close_proxy_browser(service_name: String) -> Result<(), String> {
     log::info!("清理代理浏览器: mode={}", service_name);
 
     // 对于 chrome-proxy 模式，无需额外清理（关闭浏览器窗口即可）
@@ -527,12 +557,18 @@ pub async fn list_collections(pool: State<'_, SqlitePool>) -> Result<Vec<Collect
 }
 
 #[tauri::command]
-pub async fn create_collection(pool: State<'_, SqlitePool>, collection: Collection) -> Result<Collection, String> {
+pub async fn create_collection(
+    pool: State<'_, SqlitePool>,
+    collection: Collection,
+) -> Result<Collection, String> {
     collections::create_collection(&pool, collection).await
 }
 
 #[tauri::command]
-pub async fn update_collection(pool: State<'_, SqlitePool>, collection: Collection) -> Result<(), String> {
+pub async fn update_collection(
+    pool: State<'_, SqlitePool>,
+    collection: Collection,
+) -> Result<(), String> {
     collections::update_collection(&pool, collection).await
 }
 
@@ -547,7 +583,10 @@ pub async fn export_collection(pool: State<'_, SqlitePool>, id: String) -> Resul
 }
 
 #[tauri::command]
-pub async fn import_collection(pool: State<'_, SqlitePool>, json: String) -> Result<Collection, String> {
+pub async fn import_collection(
+    pool: State<'_, SqlitePool>,
+    json: String,
+) -> Result<Collection, String> {
     collections::import_collection(&pool, &json).await
 }
 
@@ -556,17 +595,26 @@ pub async fn import_collection(pool: State<'_, SqlitePool>, json: String) -> Res
 // ═══════════════════════════════════════════
 
 #[tauri::command]
-pub async fn list_collection_items(pool: State<'_, SqlitePool>, collection_id: String) -> Result<Vec<CollectionItem>, String> {
+pub async fn list_collection_items(
+    pool: State<'_, SqlitePool>,
+    collection_id: String,
+) -> Result<Vec<CollectionItem>, String> {
     collections::list_collection_items(&pool, &collection_id).await
 }
 
 #[tauri::command]
-pub async fn create_collection_item(pool: State<'_, SqlitePool>, item: CollectionItem) -> Result<CollectionItem, String> {
+pub async fn create_collection_item(
+    pool: State<'_, SqlitePool>,
+    item: CollectionItem,
+) -> Result<CollectionItem, String> {
     collections::create_collection_item(&pool, item).await
 }
 
 #[tauri::command]
-pub async fn update_collection_item(pool: State<'_, SqlitePool>, item: CollectionItem) -> Result<(), String> {
+pub async fn update_collection_item(
+    pool: State<'_, SqlitePool>,
+    item: CollectionItem,
+) -> Result<(), String> {
     collections::update_collection_item(&pool, item).await
 }
 
@@ -576,12 +624,18 @@ pub async fn delete_collection_item(pool: State<'_, SqlitePool>, id: String) -> 
 }
 
 #[tauri::command]
-pub async fn reorder_collection_items(pool: State<'_, SqlitePool>, item_ids: Vec<String>) -> Result<(), String> {
+pub async fn reorder_collection_items(
+    pool: State<'_, SqlitePool>,
+    item_ids: Vec<String>,
+) -> Result<(), String> {
     collections::reorder_collection_items(&pool, item_ids).await
 }
 
 #[tauri::command]
-pub async fn deduplicate_collection_items(pool: State<'_, SqlitePool>, collection_id: String) -> Result<u64, String> {
+pub async fn deduplicate_collection_items(
+    pool: State<'_, SqlitePool>,
+    collection_id: String,
+) -> Result<u64, String> {
     collections::deduplicate_collection_items(&pool, &collection_id).await
 }
 
@@ -595,17 +649,25 @@ pub async fn list_environments(pool: State<'_, SqlitePool>) -> Result<Vec<Enviro
 }
 
 #[tauri::command]
-pub async fn create_environment(pool: State<'_, SqlitePool>, environment: Environment) -> Result<Environment, String> {
+pub async fn create_environment(
+    pool: State<'_, SqlitePool>,
+    environment: Environment,
+) -> Result<Environment, String> {
     collections::create_environment(&pool, environment).await
 }
 
 #[tauri::command]
-pub async fn set_active_environment(pool: State<'_, SqlitePool>, id: Option<String>) -> Result<(), String> {
+pub async fn set_active_environment(
+    pool: State<'_, SqlitePool>,
+    id: Option<String>,
+) -> Result<(), String> {
     collections::set_active_environment(&pool, id.as_deref()).await
 }
 
 #[tauri::command]
-pub async fn get_active_environment(pool: State<'_, SqlitePool>) -> Result<Option<Environment>, String> {
+pub async fn get_active_environment(
+    pool: State<'_, SqlitePool>,
+) -> Result<Option<Environment>, String> {
     collections::get_active_environment(&pool).await
 }
 
@@ -619,12 +681,19 @@ pub async fn delete_environment(pool: State<'_, SqlitePool>, id: String) -> Resu
 // ═══════════════════════════════════════════
 
 #[tauri::command]
-pub async fn list_env_variables(pool: State<'_, SqlitePool>, environment_id: String) -> Result<Vec<EnvVariable>, String> {
+pub async fn list_env_variables(
+    pool: State<'_, SqlitePool>,
+    environment_id: String,
+) -> Result<Vec<EnvVariable>, String> {
     collections::list_env_variables(&pool, &environment_id).await
 }
 
 #[tauri::command]
-pub async fn save_env_variables(pool: State<'_, SqlitePool>, environment_id: String, variables: Vec<EnvVariable>) -> Result<(), String> {
+pub async fn save_env_variables(
+    pool: State<'_, SqlitePool>,
+    environment_id: String,
+    variables: Vec<EnvVariable>,
+) -> Result<(), String> {
     collections::save_env_variables(&pool, &environment_id, variables).await
 }
 
@@ -633,12 +702,17 @@ pub async fn save_env_variables(pool: State<'_, SqlitePool>, environment_id: Str
 // ═══════════════════════════════════════════
 
 #[tauri::command]
-pub async fn list_global_variables(pool: State<'_, SqlitePool>) -> Result<Vec<GlobalVariable>, String> {
+pub async fn list_global_variables(
+    pool: State<'_, SqlitePool>,
+) -> Result<Vec<GlobalVariable>, String> {
     collections::list_global_variables(&pool).await
 }
 
 #[tauri::command]
-pub async fn save_global_variables(pool: State<'_, SqlitePool>, variables: Vec<GlobalVariable>) -> Result<(), String> {
+pub async fn save_global_variables(
+    pool: State<'_, SqlitePool>,
+    variables: Vec<GlobalVariable>,
+) -> Result<(), String> {
     collections::save_global_variables(&pool, variables).await
 }
 
@@ -652,17 +726,26 @@ pub async fn add_history(pool: State<'_, SqlitePool>, entry: HistoryEntry) -> Re
 }
 
 #[tauri::command]
-pub async fn list_history(pool: State<'_, SqlitePool>, limit: i64) -> Result<Vec<HistoryEntry>, String> {
+pub async fn list_history(
+    pool: State<'_, SqlitePool>,
+    limit: i64,
+) -> Result<Vec<HistoryEntry>, String> {
     collections::list_history(&pool, limit).await
 }
 
 #[tauri::command]
-pub async fn list_history_summary(pool: State<'_, SqlitePool>, limit: i64) -> Result<Vec<collections::HistoryEntrySummary>, String> {
+pub async fn list_history_summary(
+    pool: State<'_, SqlitePool>,
+    limit: i64,
+) -> Result<Vec<collections::HistoryEntrySummary>, String> {
     collections::list_history_summary(&pool, limit).await
 }
 
 #[tauri::command]
-pub async fn get_history_entry(pool: State<'_, SqlitePool>, id: String) -> Result<HistoryEntry, String> {
+pub async fn get_history_entry(
+    pool: State<'_, SqlitePool>,
+    id: String,
+) -> Result<HistoryEntry, String> {
     collections::get_history_entry(&pool, &id).await
 }
 
@@ -700,7 +783,7 @@ pub async fn export_postman_collection(
 //  Swagger / OpenAPI 导入
 // ═══════════════════════════════════════════
 
-use crate::swagger_import::{self, SwaggerDiscoveryResult, SwaggerParseResult, SwaggerEndpoint};
+use crate::swagger_import::{self, SwaggerDiscoveryResult, SwaggerEndpoint, SwaggerParseResult};
 
 #[tauri::command]
 pub async fn fetch_swagger(url: String) -> Result<SwaggerDiscoveryResult, String> {
@@ -732,13 +815,12 @@ pub async fn save_request_to_collection(
     item: CollectionItem,
 ) -> Result<CollectionItem, String> {
     // 试更新，不存在则创建
-    let existing = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM collection_items WHERE id = ?"
-    )
-    .bind(&item.id)
-    .fetch_one(pool.inner())
-    .await
-    .map_err(|e| e.to_string())?;
+    let existing =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM collection_items WHERE id = ?")
+            .bind(&item.id)
+            .fetch_one(pool.inner())
+            .await
+            .map_err(|e| e.to_string())?;
 
     if existing > 0 {
         collections::update_collection_item(&pool, item.clone()).await?;
@@ -897,10 +979,7 @@ pub async fn udp_send_to(
 }
 
 #[tauri::command]
-pub async fn udp_close(
-    sockets: State<'_, UdpSockets>,
-    socket_id: String,
-) -> Result<(), String> {
+pub async fn udp_close(sockets: State<'_, UdpSockets>, socket_id: String) -> Result<(), String> {
     crate::tcp_client::udp_close(&sockets, &socket_id).await
 }
 
@@ -960,16 +1039,17 @@ pub async fn export_load_test_report(
     format: String, // "json" or "csv"
 ) -> Result<String, String> {
     use tauri_plugin_dialog::DialogExt;
-    
+
     let extension = if format == "csv" { "csv" } else { "json" };
     let file_name = format!("loadtest_report.{}", extension);
-    
+
     // 将阻塞式文件对话框移入 spawn_blocking，避免阻塞 tokio 异步运行时线程
     let app_clone = app.clone();
     let ext = extension.to_string();
     let fname = file_name.clone();
     let file_path = tokio::task::spawn_blocking(move || {
-        app_clone.dialog()
+        app_clone
+            .dialog()
             .file()
             .set_file_name(&fname)
             .add_filter(ext.to_uppercase(), &[&ext])
@@ -977,18 +1057,21 @@ pub async fn export_load_test_report(
     })
     .await
     .map_err(|e| format!("对话框任务失败: {}", e))?;
-    
+
     let path = match file_path {
         Some(p) => p.to_string(),
         None => return Err("用户取消导出".to_string()),
     };
-    
+
     let content = if format == "csv" {
         // Parse JSON and convert to CSV
-        let data: serde_json::Value = serde_json::from_str(&report_json)
-            .map_err(|e| format!("解析报告 JSON 失败: {}", e))?;
-        let mut csv = String::from("testId,totalRequests,totalErrors,totalDurationSecs,avgRps,avgLatencyMs,minLatencyMs,maxLatencyMs,p50Ms,p95Ms,p99Ms\n");
-        csv.push_str(&format!("{},{},{},{},{},{},{},{},{},{},{}\n",
+        let data: serde_json::Value =
+            serde_json::from_str(&report_json).map_err(|e| format!("解析报告 JSON 失败: {}", e))?;
+        let mut csv = String::from(
+            "testId,totalRequests,totalErrors,totalDurationSecs,avgRps,avgLatencyMs,minLatencyMs,maxLatencyMs,p50Ms,p95Ms,p99Ms\n",
+        );
+        csv.push_str(&format!(
+            "{},{},{},{},{},{},{},{},{},{},{}\n",
             data["testId"].as_str().unwrap_or(""),
             data["totalRequests"].as_u64().unwrap_or(0),
             data["totalErrors"].as_u64().unwrap_or(0),
@@ -1004,14 +1087,15 @@ pub async fn export_load_test_report(
         csv
     } else {
         // Pretty print JSON
-        let data: serde_json::Value = serde_json::from_str(&report_json)
-            .map_err(|e| format!("解析报告 JSON 失败: {}", e))?;
+        let data: serde_json::Value =
+            serde_json::from_str(&report_json).map_err(|e| format!("解析报告 JSON 失败: {}", e))?;
         serde_json::to_string_pretty(&data).map_err(|e| format!("格式化失败: {}", e))?
     };
-    
-    tokio::fs::write(&path, content).await
+
+    tokio::fs::write(&path, content)
+        .await
         .map_err(|e| format!("写入文件失败: {}", e))?;
-    
+
     Ok(path)
 }
 
@@ -1028,16 +1112,15 @@ pub async fn proxy_start(
     session_id: String,
     port: u16,
 ) -> Result<(), String> {
-    let app_data_dir = app.path().app_data_dir()
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
         .map_err(|e| format!("获取数据目录失败: {}", e))?;
     proxy_capture::start_proxy(app, &state, &session_id, port, app_data_dir).await
 }
 
 #[tauri::command]
-pub async fn proxy_stop(
-    state: State<'_, ProxyState>,
-    session_id: String,
-) -> Result<(), String> {
+pub async fn proxy_stop(state: State<'_, ProxyState>, session_id: String) -> Result<(), String> {
     proxy_capture::stop_proxy(&state, &session_id).await
 }
 
@@ -1058,26 +1141,19 @@ pub async fn proxy_get_entries(
 }
 
 #[tauri::command]
-pub async fn proxy_clear(
-    state: State<'_, ProxyState>,
-    session_id: String,
-) -> Result<(), String> {
+pub async fn proxy_clear(state: State<'_, ProxyState>, session_id: String) -> Result<(), String> {
     proxy_capture::clear_entries(&state, &session_id).await;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn proxy_export_ca(
-    state: State<'_, ProxyState>,
-) -> Result<String, String> {
+pub async fn proxy_export_ca(state: State<'_, ProxyState>) -> Result<String, String> {
     proxy_capture::export_ca_cert(&state).await
 }
 
 /// 通过代理发送测试请求，验证代理功能
 #[tauri::command]
-pub async fn proxy_test_connection(
-    port: u16,
-) -> Result<String, String> {
+pub async fn proxy_test_connection(port: u16) -> Result<String, String> {
     proxy_capture::test_proxy_connection(port).await
 }
 
@@ -1085,9 +1161,7 @@ pub async fn proxy_test_connection(
 /// macOS: security import + open（触发原生证书信任对话框）
 /// Windows: certutil -addstore Root
 #[tauri::command]
-pub async fn proxy_install_ca(
-    state: State<'_, ProxyState>,
-) -> Result<String, String> {
+pub async fn proxy_install_ca(state: State<'_, ProxyState>) -> Result<String, String> {
     let cert_path = {
         let path = state.ca_cert_path.lock().await;
         match &*path {
@@ -1152,9 +1226,7 @@ pub async fn proxy_install_ca(
 
 /// 检查 CA 证书是否已安装到系统信任库
 #[tauri::command]
-pub async fn proxy_check_ca_trusted(
-    state: State<'_, ProxyState>,
-) -> Result<bool, String> {
+pub async fn proxy_check_ca_trusted(state: State<'_, ProxyState>) -> Result<bool, String> {
     let _cert_path = {
         let path = state.ca_cert_path.lock().await;
         match &*path {
@@ -1167,7 +1239,12 @@ pub async fn proxy_check_ca_trusted(
     {
         // 检查系统钥匙串中是否包含 ProtoForge CA
         let output = std::process::Command::new("security")
-            .args(["find-certificate", "-c", "ProtoForge CA", "/Library/Keychains/System.keychain"])
+            .args([
+                "find-certificate",
+                "-c",
+                "ProtoForge CA",
+                "/Library/Keychains/System.keychain",
+            ])
             .output()
             .map_err(|e| format!("执行 security 命令失败: {}", e))?;
 
@@ -1196,14 +1273,13 @@ pub async fn proxy_check_ca_trusted(
 //  Plugins
 // ═══════════════════════════════════════════
 
-use crate::plugin_runtime::{PluginManager, PluginManifest, ProtocolParser, ParseResult, RenderResult, HookResult, GenerateDataResult, ExportResult, CryptoResult, InstalledCryptoAlgorithm};
-
-
+use crate::plugin_runtime::{
+    CryptoResult, ExportResult, GenerateDataResult, HookResult, InstalledCryptoAlgorithm,
+    ParseResult, PluginManager, PluginManifest, ProtocolParser, RenderResult,
+};
 
 #[tauri::command]
-pub async fn plugin_list(
-    mgr: State<'_, PluginManager>,
-) -> Result<Vec<PluginManifest>, String> {
+pub async fn plugin_list(mgr: State<'_, PluginManager>) -> Result<Vec<PluginManifest>, String> {
     Ok(mgr.list_installed().await)
 }
 
@@ -1256,9 +1332,7 @@ pub async fn plugin_get_protocol_parsers(
 }
 
 #[tauri::command]
-pub async fn plugin_refresh_registry(
-    mgr: State<'_, PluginManager>,
-) -> Result<usize, String> {
+pub async fn plugin_refresh_registry(mgr: State<'_, PluginManager>) -> Result<usize, String> {
     mgr.refresh_registry().await
 }
 
@@ -1286,7 +1360,8 @@ pub async fn plugin_run_generator(
     generator_id: String,
     options_json: String,
 ) -> Result<GenerateDataResult, String> {
-    mgr.run_generator(&plugin_id, &generator_id, &options_json).await
+    mgr.run_generator(&plugin_id, &generator_id, &options_json)
+        .await
 }
 
 #[tauri::command]
@@ -1307,7 +1382,8 @@ pub async fn plugin_run_crypto(
     input: String,
     params_json: String,
 ) -> Result<CryptoResult, String> {
-    mgr.run_crypto(&plugin_id, &algorithm_id, &mode, &input, &params_json).await
+    mgr.run_crypto(&plugin_id, &algorithm_id, &mode, &input, &params_json)
+        .await
 }
 
 #[tauri::command]
@@ -1325,9 +1401,9 @@ pub async fn plugin_list_crypto_algorithms(
 #[serde(rename_all = "camelCase")]
 pub struct RunCollectionConfig {
     pub collection_id: String,
-    pub item_ids: Vec<String>,    // 选中的请求 ID（空 = 全部）
-    pub delay_ms: u64,            // 请求间延迟
-    pub iterations: u32,          // 迭代次数
+    pub item_ids: Vec<String>, // 选中的请求 ID（空 = 全部）
+    pub delay_ms: u64,         // 请求间延迟
+    pub iterations: u32,       // 迭代次数
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -1365,7 +1441,8 @@ pub async fn run_collection(
     let all_items = collections::list_collection_items(&pool, &config.collection_id).await?;
 
     // 过滤出请求类型
-    let requests: Vec<_> = all_items.into_iter()
+    let requests: Vec<_> = all_items
+        .into_iter()
         .filter(|item| item.item_type == "request")
         .filter(|item| config.item_ids.is_empty() || config.item_ids.contains(&item.id))
         .collect();
@@ -1394,12 +1471,15 @@ pub async fn run_collection(
                 };
                 failed += 1;
                 all_results.push(r.clone());
-                let _ = app_handle.emit("collection-runner-progress", &serde_json::json!({
-                    "iteration": iter,
-                    "index": idx,
-                    "total": requests.len(),
-                    "result": r,
-                }));
+                let _ = app_handle.emit(
+                    "collection-runner-progress",
+                    &serde_json::json!({
+                        "iteration": iter,
+                        "index": idx,
+                        "total": requests.len(),
+                        "result": r,
+                    }),
+                );
                 continue;
             }
 
@@ -1411,7 +1491,11 @@ pub async fn run_collection(
                             .filter(|h| h.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true))
                             .filter_map(|h| {
                                 let k = h.get("key")?.as_str()?.to_string();
-                                let v = h.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                let v = h
+                                    .get("value")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string();
                                 Some((k, v))
                             })
                             .collect()
@@ -1432,18 +1516,31 @@ pub async fn run_collection(
                 None
             } else {
                 match item.body_type.as_str() {
-                    "json" => Some(http_client::RequestBody::Json { data: item.body_content.clone() }),
-                    "raw" => Some(http_client::RequestBody::Raw { content: item.body_content.clone(), content_type: "text/plain".to_string() }),
-                    "binary" => Some(http_client::RequestBody::Binary { file_path: item.body_content.clone() }),
+                    "json" => Some(http_client::RequestBody::Json {
+                        data: item.body_content.clone(),
+                    }),
+                    "raw" => Some(http_client::RequestBody::Raw {
+                        content: item.body_content.clone(),
+                        content_type: "text/plain".to_string(),
+                    }),
+                    "binary" => Some(http_client::RequestBody::Binary {
+                        file_path: item.body_content.clone(),
+                    }),
                     "formUrlencoded" => {
                         // 从数组格式解析 [{key, value, enabled}] -> FormUrlEncoded {fields: HashMap}
                         let mut fields = std::collections::HashMap::new();
-                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&item.body_content) {
+                        if let Ok(val) =
+                            serde_json::from_str::<serde_json::Value>(&item.body_content)
+                        {
                             if let Some(arr) = val.as_array() {
                                 for f in arr {
                                     if f.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true) {
                                         if let Some(k) = f.get("key").and_then(|v| v.as_str()) {
-                                            let v = f.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                            let v = f
+                                                .get("value")
+                                                .and_then(|v| v.as_str())
+                                                .unwrap_or("")
+                                                .to_string();
                                             fields.insert(k.to_string(), v);
                                         }
                                     }
@@ -1458,17 +1555,30 @@ pub async fn run_collection(
                     }
                     "graphql" => {
                         // graphql: {query, variables}
-                        if let Ok(gql) = serde_json::from_str::<serde_json::Value>(&item.body_content) {
-                            let query = gql.get("query").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                            let variables = gql.get("variables").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        if let Ok(gql) =
+                            serde_json::from_str::<serde_json::Value>(&item.body_content)
+                        {
+                            let query = gql
+                                .get("query")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let variables = gql
+                                .get("variables")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
                             let raw = if variables.is_empty() {
                                 serde_json::json!({"query": query}).to_string()
                             } else {
-                                serde_json::json!({"query": query, "variables": variables}).to_string()
+                                serde_json::json!({"query": query, "variables": variables})
+                                    .to_string()
                             };
                             Some(http_client::RequestBody::Json { data: raw })
                         } else {
-                            Some(http_client::RequestBody::Json { data: item.body_content.clone() })
+                            Some(http_client::RequestBody::Json {
+                                data: item.body_content.clone(),
+                            })
                         }
                     }
                     _ => serde_json::from_str(&item.body_content).ok(),
@@ -1476,7 +1586,9 @@ pub async fn run_collection(
             };
 
             // 构造 auth（兼容 ProtoForge 平面格式和 Postman 嵌套数组格式）
-            let auth: Option<http_client::AuthConfig> = if item.auth_type == "none" || item.auth_config.is_empty() {
+            let auth: Option<http_client::AuthConfig> = if item.auth_type == "none"
+                || item.auth_config.is_empty()
+            {
                 None
             } else {
                 serde_json::from_str::<http_client::AuthConfig>(&item.auth_config)
@@ -1486,13 +1598,19 @@ pub async fn run_collection(
                         let v: serde_json::Value = serde_json::from_str(&item.auth_config).ok()?;
                         let find_kv = |arr: Option<&serde_json::Value>, key: &str| -> String {
                             arr.and_then(|a| a.as_array())
-                                .and_then(|a| a.iter().find(|kv| kv.get("key").and_then(|k| k.as_str()) == Some(key)))
+                                .and_then(|a| {
+                                    a.iter().find(|kv| {
+                                        kv.get("key").and_then(|k| k.as_str()) == Some(key)
+                                    })
+                                })
                                 .and_then(|kv| kv.get("value").and_then(|v| v.as_str()))
                                 .unwrap_or("")
                                 .to_string()
                         };
                         match item.auth_type.as_str() {
-                            "bearer" => Some(http_client::AuthConfig::Bearer { token: find_kv(v.get("bearer"), "token") }),
+                            "bearer" => Some(http_client::AuthConfig::Bearer {
+                                token: find_kv(v.get("bearer"), "token"),
+                            }),
                             "basic" => Some(http_client::AuthConfig::Basic {
                                 username: find_kv(v.get("basic"), "username"),
                                 password: find_kv(v.get("basic"), "password"),
@@ -1515,10 +1633,16 @@ pub async fn run_collection(
                     if let Ok(val) = serde_json::from_str::<serde_json::Value>(&item.query_params) {
                         if let Some(arr) = val.as_array() {
                             arr.iter()
-                                .filter(|q| q.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true))
+                                .filter(|q| {
+                                    q.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true)
+                                })
                                 .filter_map(|q| {
                                     let k = q.get("key")?.as_str()?.to_string();
-                                    let v = q.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                    let v = q
+                                        .get("value")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
                                     Some((k, v))
                                 })
                                 .collect()
@@ -1556,7 +1680,11 @@ pub async fn run_collection(
             let result = match http_client::execute_request(req).await {
                 Ok(resp) => {
                     let success = resp.status < 400;
-                    if success { passed += 1; } else { failed += 1; }
+                    if success {
+                        passed += 1;
+                    } else {
+                        failed += 1;
+                    }
                     RunItemResult {
                         item_id: item.id.clone(),
                         name: item.name.clone(),
@@ -1584,12 +1712,15 @@ pub async fn run_collection(
             };
 
             all_results.push(result.clone());
-            let _ = app_handle.emit("collection-runner-progress", &serde_json::json!({
-                "iteration": iter,
-                "index": idx,
-                "total": requests.len(),
-                "result": result,
-            }));
+            let _ = app_handle.emit(
+                "collection-runner-progress",
+                &serde_json::json!({
+                    "iteration": iter,
+                    "index": idx,
+                    "total": requests.len(),
+                    "result": result,
+                }),
+            );
 
             // 延迟
             if config.delay_ms > 0 {
@@ -1681,7 +1812,15 @@ pub async fn mqtt_publish(
     qos: u8,
     retain: bool,
 ) -> Result<(), String> {
-    mqtt_client::publish(&conn_id, &topic, &payload, qos, retain, connections.inner().clone()).await
+    mqtt_client::publish(
+        &conn_id,
+        &topic,
+        &payload,
+        qos,
+        retain,
+        connections.inner().clone(),
+    )
+    .await
 }
 
 // ═══════════════════════════════════════════
@@ -1742,12 +1881,18 @@ pub async fn workflow_get(pool: State<'_, SqlitePool>, id: String) -> Result<Wor
 }
 
 #[tauri::command]
-pub async fn workflow_create(pool: State<'_, SqlitePool>, workflow: Workflow) -> Result<Workflow, String> {
+pub async fn workflow_create(
+    pool: State<'_, SqlitePool>,
+    workflow: Workflow,
+) -> Result<Workflow, String> {
     workflow_engine::create_workflow(&pool, &workflow).await
 }
 
 #[tauri::command]
-pub async fn workflow_update(pool: State<'_, SqlitePool>, workflow: Workflow) -> Result<(), String> {
+pub async fn workflow_update(
+    pool: State<'_, SqlitePool>,
+    workflow: Workflow,
+) -> Result<(), String> {
     workflow_engine::update_workflow(&pool, &workflow).await
 }
 
@@ -1781,7 +1926,8 @@ pub async fn workflow_run(
     // 后台异步执行
     let app_clone = app.clone();
     tauri::async_runtime::spawn(async move {
-        let result = workflow_engine::run_workflow(&workflow, app_clone.clone(), cancel_token).await;
+        let result =
+            workflow_engine::run_workflow(&workflow, app_clone.clone(), cancel_token).await;
 
         // 清理取消令牌
         {
@@ -1815,7 +1961,10 @@ pub async fn workflow_cancel(
 //  Video Streaming Commands
 // ═══════════════════════════════════════════
 
-use crate::video_streaming::{VideoStreamState, state::{StreamEvent, StreamInfo}};
+use crate::video_streaming::{
+    VideoStreamState,
+    state::{StreamEvent, StreamInfo},
+};
 
 #[tauri::command]
 pub async fn vs_connect(
@@ -1825,7 +1974,6 @@ pub async fn vs_connect(
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
-
     let mut sessions = state.sessions.lock().await;
 
     // Remove existing session if any
@@ -1840,10 +1988,21 @@ pub async fn vs_connect(
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
         let sid = session_id.clone();
         let cfg: serde_json::Value = serde_json::from_str(&config).unwrap_or_default();
-        let url = cfg.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let url = cfg
+            .get("url")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
         let app_clone = app.clone();
         tokio::spawn(async move {
-            if let Err(e) = crate::video_streaming::http_flv::start_flv_stream(sid.clone(), url, app_clone.clone(), rx).await {
+            if let Err(e) = crate::video_streaming::http_flv::start_flv_stream(
+                sid.clone(),
+                url,
+                app_clone.clone(),
+                rx,
+            )
+            .await
+            {
                 log::warn!("FLV stream error: {}", e);
                 let event = StreamEvent {
                     session_id: sid,
@@ -1877,7 +2036,11 @@ pub async fn vs_connect(
     };
     let _ = app.emit("videostream-event", &event);
 
-    log::info!("Video stream connected: {} protocol={}", session_id, protocol);
+    log::info!(
+        "Video stream connected: {} protocol={}",
+        session_id,
+        protocol
+    );
     Ok(())
 }
 
@@ -1887,6 +2050,8 @@ pub async fn vs_disconnect(
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    crate::video_streaming::player::stop_player(&session_id).await;
+    crate::video_streaming::media_gateway::stop_hls_session(&session_id).await;
 
     // Clean up generic session
     let mut sessions = state.sessions.lock().await;
@@ -1899,7 +2064,8 @@ pub async fn vs_disconnect(
 
     // Clean up protocol-specific sessions
     state.onvif_sessions.lock().await.remove(&session_id);
-    if let Some(gb) = state.gb_sessions.lock().await.remove(&session_id) {
+    if let Some(mut gb) = state.gb_sessions.lock().await.remove(&session_id) {
+        let _ = crate::video_streaming::gb28181::stop_play(&mut gb, &session_id, &app).await;
         drop(gb.socket); // Close UDP socket
     }
     if let Some(rtmp) = state.rtmp_sessions.lock().await.remove(&session_id) {
@@ -1940,16 +2106,25 @@ pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String>
         // RTSP probe: send DESCRIBE and parse SDP
         let resp = crate::video_streaming::rtsp::send_rtsp_request(
             "probe", &url, "DESCRIBE", None, "tcp", "", &app,
-        ).await?;
+        )
+        .await?;
 
         // Parse SDP from DESCRIBE response
         if let Some(sdp_start) = resp.find("v=0") {
             let sdp = crate::video_streaming::rtsp::parse_sdp(&resp[sdp_start..]);
-            let video = sdp.media_descriptions.iter().find(|m| m.media_type == "video");
-            let audio = sdp.media_descriptions.iter().find(|m| m.media_type == "audio");
+            let video = sdp
+                .media_descriptions
+                .iter()
+                .find(|m| m.media_type == "video");
+            let audio = sdp
+                .media_descriptions
+                .iter()
+                .find(|m| m.media_type == "audio");
 
             return Ok(StreamInfo {
-                codec: video.and_then(|v| v.codec.clone()).unwrap_or_else(|| "Unknown".to_string()),
+                codec: video
+                    .and_then(|v| v.codec.clone())
+                    .unwrap_or_else(|| "Unknown".to_string()),
                 width: 0,
                 height: 0,
                 fps: 0.0,
@@ -1962,29 +2137,58 @@ pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String>
         Err("RTSP DESCRIBE did not contain SDP".to_string())
     } else if lower.ends_with(".m3u8") || lower.contains("/hls/") {
         // HLS probe: fetch playlist and extract info
-        let playlist = crate::video_streaming::hls::fetch_and_parse_playlist("probe", &url, &app).await?;
+        let playlist =
+            crate::video_streaming::hls::fetch_and_parse_playlist("probe", &url, &app).await?;
         let info = if !playlist.variants.is_empty() {
             let first = &playlist.variants[0];
             let codecs = first.codecs.as_deref().unwrap_or("");
             let resolution = first.resolution.as_deref().unwrap_or("");
             let (w, h) = if let Some(x_pos) = resolution.find('x') {
-                (resolution[..x_pos].parse().unwrap_or(0), resolution[x_pos+1..].parse().unwrap_or(0))
-            } else { (0u32, 0u32) };
+                (
+                    resolution[..x_pos].parse().unwrap_or(0),
+                    resolution[x_pos + 1..].parse().unwrap_or(0),
+                )
+            } else {
+                (0u32, 0u32)
+            };
             StreamInfo {
-                codec: if codecs.contains("avc") { "H.264".to_string() } else if codecs.contains("hev") { "H.265".to_string() } else if codecs.is_empty() { "HLS".to_string() } else { codecs.to_string() },
-                width: w, height: h,
+                codec: if codecs.contains("avc") {
+                    "H.264".to_string()
+                } else if codecs.contains("hev") {
+                    "H.265".to_string()
+                } else if codecs.is_empty() {
+                    "HLS".to_string()
+                } else {
+                    codecs.to_string()
+                },
+                width: w,
+                height: h,
                 fps: 0.0,
                 bitrate: first.bandwidth / 1000,
-                audio_codec: if codecs.contains("mp4a") { Some("AAC".to_string()) } else { None },
-                sample_rate: None, channels: None,
+                audio_codec: if codecs.contains("mp4a") {
+                    Some("AAC".to_string())
+                } else {
+                    None
+                },
+                sample_rate: None,
+                channels: None,
             }
         } else {
             let seg_count = playlist.segments.len();
             let duration = playlist.total_duration;
             StreamInfo {
-                codec: "HLS".to_string(), width: 0, height: 0,
-                fps: if duration > 0.0 && seg_count > 0 { seg_count as f64 / duration } else { 0.0 },
-                bitrate: 0, audio_codec: None, sample_rate: None, channels: None,
+                codec: "HLS".to_string(),
+                width: 0,
+                height: 0,
+                fps: if duration > 0.0 && seg_count > 0 {
+                    seg_count as f64 / duration
+                } else {
+                    0.0
+                },
+                bitrate: 0,
+                audio_codec: None,
+                sample_rate: None,
+                channels: None,
             }
         };
         Ok(info)
@@ -1992,16 +2196,36 @@ pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String>
         // HTTP-FLV probe: fetch first few bytes to parse header
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
-            .build().map_err(|e| format!("HTTP client error: {}", e))?;
-        let resp = client.get(&url).send().await.map_err(|e| format!("HTTP error: {}", e))?;
-        let bytes = resp.bytes().await.map_err(|e| format!("Read error: {}", e))?;
+            .build()
+            .map_err(|e| format!("HTTP client error: {}", e))?;
+        let resp = client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("HTTP error: {}", e))?;
+        let bytes = resp
+            .bytes()
+            .await
+            .map_err(|e| format!("Read error: {}", e))?;
         if bytes.len() >= 9 {
             let header = crate::video_streaming::http_flv::parse_flv_header(&bytes)?;
             Ok(StreamInfo {
-                codec: if header.has_video { "FLV/H.264".to_string() } else { "FLV".to_string() },
-                width: 0, height: 0, fps: 0.0, bitrate: 0,
-                audio_codec: if header.has_audio { Some("FLV Audio".to_string()) } else { None },
-                sample_rate: None, channels: None,
+                codec: if header.has_video {
+                    "FLV/H.264".to_string()
+                } else {
+                    "FLV".to_string()
+                },
+                width: 0,
+                height: 0,
+                fps: 0.0,
+                bitrate: 0,
+                audio_codec: if header.has_audio {
+                    Some("FLV Audio".to_string())
+                } else {
+                    None
+                },
+                sample_rate: None,
+                channels: None,
             })
         } else {
             Err("FLV response too short".to_string())
@@ -2010,16 +2234,28 @@ pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String>
         // Generic HTTP probe: try to detect content type
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
-            .build().map_err(|e| format!("HTTP client error: {}", e))?;
-        let resp = client.head(&url).send().await.map_err(|e| format!("HTTP error: {}", e))?;
-        let content_type = resp.headers().get("content-type")
+            .build()
+            .map_err(|e| format!("HTTP client error: {}", e))?;
+        let resp = client
+            .head(&url)
+            .send()
+            .await
+            .map_err(|e| format!("HTTP error: {}", e))?;
+        let content_type = resp
+            .headers()
+            .get("content-type")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("unknown")
             .to_string();
         Ok(StreamInfo {
             codec: content_type.clone(),
-            width: 0, height: 0, fps: 0.0, bitrate: 0,
-            audio_codec: None, sample_rate: None, channels: None,
+            width: 0,
+            height: 0,
+            fps: 0.0,
+            bitrate: 0,
+            audio_codec: None,
+            sample_rate: None,
+            channels: None,
         })
     }
 }
@@ -2032,16 +2268,44 @@ pub async fn vs_player_load(
     config: Option<String>,
     app: AppHandle,
 ) -> Result<String, String> {
-    log::info!("Player load: session={} protocol={} url={}", session_id, protocol, url);
+    log::info!(
+        "Player load: session={} protocol={} url={}",
+        session_id,
+        protocol,
+        url
+    );
 
     // HLS 可直接在前端用 hls.js 播放
     if protocol == "hls" || url.to_lowercase().contains(".m3u8") {
         return Ok(format!("hls:{}", url));
     }
 
-    // 其他格式通过 FFmpeg CLI 子进程读取 -> Tauri 事件推送帧数据
-    crate::video_streaming::player::start_player(session_id.clone(), protocol, url.clone(), config, app).await
-        .map(|_| format!("tauri:{}", url))
+    // 源协议优先通过本地 HLS 网关统一输出，供 EasyPlayer 直接播放
+    match protocol.as_str() {
+        "rtsp" | "rtmp" | "srt" | "onvif" | "gb28181" => {
+            crate::video_streaming::player::stop_player(&session_id).await;
+            crate::video_streaming::media_gateway::start_hls_session(
+                session_id.clone(),
+                protocol,
+                url,
+                config,
+                app,
+            )
+            .await
+        }
+        _ => {
+            crate::video_streaming::media_gateway::stop_hls_session(&session_id).await;
+            crate::video_streaming::player::start_player(
+                session_id.clone(),
+                protocol,
+                url.clone(),
+                config,
+                app,
+            )
+            .await
+            .map(|_| format!("tauri:{}", url))
+        }
+    }
 }
 
 /// 查询 FFmpeg 安装状态
@@ -2059,22 +2323,17 @@ pub async fn vs_ffmpeg_download(app: AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn vs_player_control(
-    session_id: String,
-    action: String,
-) -> Result<(), String> {
+pub async fn vs_player_control(session_id: String, action: String) -> Result<(), String> {
     log::info!("Player control: session={} action={}", session_id, action);
     if action == "stop" {
         crate::video_streaming::player::stop_player(&session_id).await;
+        crate::video_streaming::media_gateway::stop_hls_session(&session_id).await;
     }
     Ok(())
 }
 
 #[tauri::command]
-pub async fn vs_player_set_volume(
-    session_id: String,
-    volume: f64,
-) -> Result<(), String> {
+pub async fn vs_player_set_volume(session_id: String, volume: f64) -> Result<(), String> {
     log::info!("Player volume: session={} vol={}", session_id, volume);
     Ok(())
 }
@@ -2092,7 +2351,10 @@ pub async fn vs_rtsp_command(
     let sessions = state.sessions.lock().await;
     let url = if let Some(session) = sessions.get(&session_id) {
         let cfg: serde_json::Value = serde_json::from_str(&session.config).unwrap_or_default();
-        cfg.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string()
+        cfg.get("url")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string()
     } else {
         return Err("Session not found".to_string());
     };
@@ -2103,16 +2365,19 @@ pub async fn vs_rtsp_command(
     }
 
     let sessions = state.sessions.lock().await;
-    let cfg: serde_json::Value = sessions.get(&session_id)
+    let cfg: serde_json::Value = sessions
+        .get(&session_id)
         .and_then(|session| serde_json::from_str(&session.config).ok())
         .unwrap_or_default();
     drop(sessions);
 
-    let transport = cfg.get("transport")
+    let transport = cfg
+        .get("transport")
         .and_then(|v| v.as_str())
         .unwrap_or("tcp")
         .to_string();
-    let auth_method = cfg.get("authMethod")
+    let auth_method = cfg
+        .get("authMethod")
         .and_then(|v| v.as_str())
         .unwrap_or("none");
     let username = cfg.get("username").and_then(|v| v.as_str()).unwrap_or("");
@@ -2120,10 +2385,14 @@ pub async fn vs_rtsp_command(
     let mut extra_headers = String::new();
     if auth_method == "basic" && !username.is_empty() {
         use base64::Engine;
-        let token = base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", username, password));
+        let token =
+            base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", username, password));
         extra_headers.push_str(&format!("Authorization: Basic {}\r\n", token));
     } else if auth_method == "digest" {
-        return Err("当前 RTSP 调试面板暂未实现 Digest 挑战应答，仅内置播放器会通过 FFmpeg 自动处理。".to_string());
+        return Err(
+            "当前 RTSP 调试面板暂未实现 Digest 挑战应答，仅内置播放器会通过 FFmpeg 自动处理。"
+                .to_string(),
+        );
     }
 
     // Use real RTSP client
@@ -2135,7 +2404,8 @@ pub async fn vs_rtsp_command(
         &transport,
         &extra_headers,
         &app,
-    ).await
+    )
+    .await
 }
 
 #[tauri::command]
@@ -2145,7 +2415,8 @@ pub async fn vs_hls_parse_playlist(
     app: AppHandle,
 ) -> Result<serde_json::Value, String> {
     log::info!("HLS parse playlist: session={} url={}", session_id, url);
-    let playlist = crate::video_streaming::hls::fetch_and_parse_playlist(&session_id, &url, &app).await?;
+    let playlist =
+        crate::video_streaming::hls::fetch_and_parse_playlist(&session_id, &url, &app).await?;
     serde_json::to_value(&playlist).map_err(|e| format!("Serialize error: {}", e))
 }
 
@@ -2158,18 +2429,44 @@ pub async fn vs_gb_register(
 ) -> Result<(), String> {
     log::info!("GB28181 register: session={}", session_id);
 
-    let cfg: serde_json::Value = serde_json::from_str(&config)
-        .map_err(|e| format!("Invalid config JSON: {}", e))?;
-    let sip_server = cfg.get("sipServerIp").and_then(|v| v.as_str()).unwrap_or("192.168.1.100");
-    let sip_port = cfg.get("sipServerPort").and_then(|v| v.as_u64()).unwrap_or(5060) as u16;
-    let sip_domain = cfg.get("sipDomain").and_then(|v| v.as_str()).unwrap_or("3402000000");
-    let device_id = cfg.get("deviceId").and_then(|v| v.as_str()).unwrap_or("34020000001320000001");
-    let local_port = cfg.get("localPort").and_then(|v| v.as_u64()).unwrap_or(5080) as u16;
-    let transport = cfg.get("transport").and_then(|v| v.as_str()).unwrap_or("udp");
+    let cfg: serde_json::Value =
+        serde_json::from_str(&config).map_err(|e| format!("Invalid config JSON: {}", e))?;
+    let sip_server = cfg
+        .get("sipServerIp")
+        .and_then(|v| v.as_str())
+        .unwrap_or("192.168.1.100");
+    let sip_port = cfg
+        .get("sipServerPort")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(5060) as u16;
+    let sip_domain = cfg
+        .get("sipDomain")
+        .and_then(|v| v.as_str())
+        .unwrap_or("3402000000");
+    let device_id = cfg
+        .get("deviceId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("34020000001320000001");
+    let local_port = cfg
+        .get("localPort")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(5080) as u16;
+    let transport = cfg
+        .get("transport")
+        .and_then(|v| v.as_str())
+        .unwrap_or("udp");
 
     let session = crate::video_streaming::gb28181::register(
-        &session_id, sip_server, sip_port, sip_domain, device_id, local_port, transport, &app,
-    ).await?;
+        &session_id,
+        sip_server,
+        sip_port,
+        sip_domain,
+        device_id,
+        local_port,
+        transport,
+        &app,
+    )
+    .await?;
 
     state.gb_sessions.lock().await.insert(session_id, session);
 
@@ -2185,10 +2482,88 @@ pub async fn vs_gb_query_catalog(
     log::info!("GB28181 query catalog: session={}", session_id);
 
     let sessions = state.gb_sessions.lock().await;
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| "GB28181 not registered".to_string())?;
 
     crate::video_streaming::gb28181::query_catalog(session, &session_id, &app).await
+}
+
+#[tauri::command]
+pub async fn vs_gb_unregister(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    log::info!("GB28181 unregister: session={}", session_id);
+
+    if let Some(mut session) = state.gb_sessions.lock().await.remove(&session_id) {
+        let _ = crate::video_streaming::gb28181::stop_play(&mut session, &session_id, &app).await;
+        drop(session.socket);
+    }
+
+    let msg = crate::video_streaming::state::ProtocolMessage {
+        id: uuid::Uuid::new_v4().to_string(),
+        direction: "info".to_string(),
+        protocol: "gb28181".to_string(),
+        summary: "GB28181 会话已注销".to_string(),
+        detail: format!("Session: {}", session_id),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        size: None,
+    };
+    let _ = app.emit("videostream-protocol-msg", &msg);
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn vs_gb_start_live(
+    session_id: String,
+    channel_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<String, String> {
+    log::info!(
+        "GB28181 start live: session={} channel={}",
+        session_id,
+        channel_id
+    );
+
+    let mut sessions = state.gb_sessions.lock().await;
+    let session = sessions
+        .get_mut(&session_id)
+        .ok_or_else(|| "GB28181 not registered".to_string())?;
+
+    crate::video_streaming::gb28181::start_play(session, &session_id, &channel_id, &app).await
+}
+
+#[tauri::command]
+pub async fn vs_gb_stop_live(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    log::info!("GB28181 stop live: session={}", session_id);
+
+    crate::video_streaming::player::stop_player(&session_id).await;
+    crate::video_streaming::media_gateway::stop_hls_session(&session_id).await;
+
+    let mut sessions = state.gb_sessions.lock().await;
+    let session = sessions
+        .get_mut(&session_id)
+        .ok_or_else(|| "GB28181 not registered".to_string())?;
+
+    crate::video_streaming::gb28181::stop_play(session, &session_id, &app).await?;
+
+    let event = crate::video_streaming::state::StreamEvent {
+        session_id,
+        event_type: "disconnected".to_string(),
+        data: None,
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+    let _ = app.emit("videostream-event", &event);
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -2199,10 +2574,16 @@ pub async fn vs_gb_ptz(
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    log::info!("GB28181 PTZ: session={} cmd={} speed={}", session_id, command, speed);
+    log::info!(
+        "GB28181 PTZ: session={} cmd={} speed={}",
+        session_id,
+        command,
+        speed
+    );
 
     let sessions = state.gb_sessions.lock().await;
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| "GB28181 not registered".to_string())?;
 
     crate::video_streaming::gb28181::ptz_control(session, &session_id, &command, speed, &app).await
@@ -2225,21 +2606,39 @@ pub async fn vs_onvif_device_info(
 ) -> Result<serde_json::Value, String> {
     log::info!("ONVIF get device info: session={}", session_id);
 
-    let cfg: serde_json::Value = serde_json::from_str(&config)
-        .map_err(|e| format!("Invalid config JSON: {}", e))?;
-    let host = cfg.get("host").and_then(|v| v.as_str()).unwrap_or("192.168.1.100");
+    let cfg: serde_json::Value =
+        serde_json::from_str(&config).map_err(|e| format!("Invalid config JSON: {}", e))?;
+    let host = cfg
+        .get("host")
+        .and_then(|v| v.as_str())
+        .unwrap_or("192.168.1.100");
     let port = cfg.get("port").and_then(|v| v.as_u64()).unwrap_or(80) as u16;
     let username = cfg.get("username").and_then(|v| v.as_str()).unwrap_or("");
     let password = cfg.get("password").and_then(|v| v.as_str()).unwrap_or("");
     let xaddr = cfg.get("xaddr").and_then(|v| v.as_str());
-    let use_proxy = cfg.get("useProxy").and_then(|v| v.as_bool()).unwrap_or(false);
+    let use_proxy = cfg
+        .get("useProxy")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     let (info, session) = crate::video_streaming::onvif::get_device_info(
-        &session_id, host, port, username, password, xaddr, use_proxy, &app,
-    ).await?;
+        &session_id,
+        host,
+        port,
+        username,
+        password,
+        xaddr,
+        use_proxy,
+        &app,
+    )
+    .await?;
 
     // Cache session for subsequent calls
-    state.onvif_sessions.lock().await.insert(session_id, session);
+    state
+        .onvif_sessions
+        .lock()
+        .await
+        .insert(session_id, session);
 
     Ok(info)
 }
@@ -2253,7 +2652,8 @@ pub async fn vs_onvif_get_profiles(
     log::info!("ONVIF get profiles: session={}", session_id);
 
     let sessions = state.onvif_sessions.lock().await;
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| "ONVIF session not found — get device info first".to_string())?;
 
     crate::video_streaming::onvif::get_profiles(session, &session_id, &app).await
@@ -2266,10 +2666,15 @@ pub async fn vs_onvif_get_stream_uri(
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<String, String> {
-    log::info!("ONVIF get stream URI: session={} profile={}", session_id, profile_token);
+    log::info!(
+        "ONVIF get stream URI: session={} profile={}",
+        session_id,
+        profile_token
+    );
 
     let sessions = state.onvif_sessions.lock().await;
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
     crate::video_streaming::onvif::get_stream_uri(session, &session_id, &profile_token, &app).await
@@ -2285,13 +2690,28 @@ pub async fn vs_onvif_ptz_move(
     app: AppHandle,
 ) -> Result<(), String> {
     let pt = profile_token.as_deref().unwrap_or("Profile_1");
-    log::info!("ONVIF PTZ move: session={} dir={} speed={} profile={}", session_id, direction, speed, pt);
+    log::info!(
+        "ONVIF PTZ move: session={} dir={} speed={} profile={}",
+        session_id,
+        direction,
+        speed,
+        pt
+    );
 
     let sessions = state.onvif_sessions.lock().await;
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
-    crate::video_streaming::onvif::ptz_continuous_move(session, &session_id, pt, &direction, speed, &app).await
+    crate::video_streaming::onvif::ptz_continuous_move(
+        session,
+        &session_id,
+        pt,
+        &direction,
+        speed,
+        &app,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -2305,7 +2725,8 @@ pub async fn vs_onvif_ptz_stop(
     log::info!("ONVIF PTZ stop: session={} profile={}", session_id, pt);
 
     let sessions = state.onvif_sessions.lock().await;
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
     crate::video_streaming::onvif::ptz_stop(session, &session_id, pt, &app).await
@@ -2322,7 +2743,8 @@ pub async fn vs_onvif_get_presets(
     log::info!("ONVIF get presets: session={} profile={}", session_id, pt);
 
     let sessions = state.onvif_sessions.lock().await;
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
     crate::video_streaming::onvif::get_presets(session, &session_id, pt, &app).await
@@ -2337,10 +2759,16 @@ pub async fn vs_onvif_goto_preset(
     app: AppHandle,
 ) -> Result<(), String> {
     let pt = profile_token.as_deref().unwrap_or("Profile_1");
-    log::info!("ONVIF goto preset: session={} preset={} profile={}", session_id, preset_token, pt);
+    log::info!(
+        "ONVIF goto preset: session={} preset={} profile={}",
+        session_id,
+        preset_token,
+        pt
+    );
 
     let sessions = state.onvif_sessions.lock().await;
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
     crate::video_streaming::onvif::goto_preset(session, &session_id, pt, &preset_token, &app).await
@@ -2355,13 +2783,43 @@ pub async fn vs_onvif_set_preset(
     app: AppHandle,
 ) -> Result<String, String> {
     let pt = profile_token.as_deref().unwrap_or("Profile_1");
-    log::info!("ONVIF set preset: session={} name={} profile={}", session_id, preset_name, pt);
+    log::info!(
+        "ONVIF set preset: session={} name={} profile={}",
+        session_id,
+        preset_name,
+        pt
+    );
 
     let sessions = state.onvif_sessions.lock().await;
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| "ONVIF session not found".to_string())?;
 
     crate::video_streaming::onvif::set_preset(session, &session_id, pt, &preset_name, &app).await
+}
+
+#[tauri::command]
+pub async fn vs_onvif_close(
+    session_id: String,
+    state: State<'_, VideoStreamState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    log::info!("ONVIF close: session={}", session_id);
+
+    state.onvif_sessions.lock().await.remove(&session_id);
+
+    let msg = crate::video_streaming::state::ProtocolMessage {
+        id: uuid::Uuid::new_v4().to_string(),
+        direction: "info".to_string(),
+        protocol: "onvif".to_string(),
+        summary: "ONVIF 会话已关闭".to_string(),
+        detail: format!("Session: {}", session_id),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        size: None,
+    };
+    let _ = app.emit("videostream-protocol-msg", &msg);
+
+    Ok(())
 }
 
 // ── RTMP Commands ──
@@ -2378,7 +2836,10 @@ pub async fn vs_rtmp_handshake(
     let sessions = state.sessions.lock().await;
     let url = if let Some(session) = sessions.get(&session_id) {
         let cfg: serde_json::Value = serde_json::from_str(&session.config).unwrap_or_default();
-        cfg.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string()
+        cfg.get("url")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string()
     } else {
         return Err("Session not found".to_string());
     };
@@ -2398,7 +2859,11 @@ pub async fn vs_rtmp_handshake(
         connected: false,
         shutdown_tx: None,
     };
-    state.rtmp_sessions.lock().await.insert(session_id, rtmp_session);
+    state
+        .rtmp_sessions
+        .lock()
+        .await
+        .insert(session_id, rtmp_session);
 
     Ok(())
 }
@@ -2412,10 +2877,13 @@ pub async fn vs_rtmp_connect_app(
     log::info!("RTMP connect app: session={}", session_id);
 
     let mut sessions = state.rtmp_sessions.lock().await;
-    let rtmp = sessions.get_mut(&session_id)
+    let rtmp = sessions
+        .get_mut(&session_id)
         .ok_or_else(|| "RTMP session not found — handshake first".to_string())?;
 
-    let stream = rtmp.stream.as_mut()
+    let stream = rtmp
+        .stream
+        .as_mut()
         .ok_or_else(|| "RTMP TCP stream not available".to_string())?;
 
     crate::video_streaming::rtmp::connect_app(stream, &session_id, &rtmp.url.clone(), &app).await?;
@@ -2434,10 +2902,13 @@ pub async fn vs_rtmp_play(
     log::info!("RTMP play: session={} key={}", session_id, stream_key);
 
     let mut sessions = state.rtmp_sessions.lock().await;
-    let rtmp = sessions.get_mut(&session_id)
+    let rtmp = sessions
+        .get_mut(&session_id)
         .ok_or_else(|| "RTMP session not found".to_string())?;
 
-    let stream = rtmp.stream.as_mut()
+    let stream = rtmp
+        .stream
+        .as_mut()
         .ok_or_else(|| "RTMP TCP stream not available".to_string())?;
 
     crate::video_streaming::rtmp::play(stream, &session_id, &stream_key, &app).await

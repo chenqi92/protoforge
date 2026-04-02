@@ -8,11 +8,11 @@
 // 4. Tauri Event 实时推送状态 → 前端可观测
 
 use serde::{Deserialize, Serialize};
+use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::time::Instant;
-use sqlx::SqlitePool;
-use tokio_util::sync::CancellationToken;
 use tauri::Emitter;
+use tokio_util::sync::CancellationToken;
 
 // ═══════════════════════════════════════════
 //  类型定义
@@ -215,10 +215,8 @@ impl FlowContext {
             }
         }
         // 也存一份完整的输出 JSON 字符串
-        self.variables.insert(
-            format!("{}.output", node_id),
-            output.to_string(),
-        );
+        self.variables
+            .insert(format!("{}.output", node_id), output.to_string());
         self.node_outputs.insert(node_id.to_string(), output);
     }
 
@@ -240,9 +238,7 @@ impl FlowContext {
                 None => break,
             };
             let var_name = &result[start + 2..end - 2].trim();
-            let replacement = self.variables.get(*var_name)
-                .cloned()
-                .unwrap_or_default();
+            let replacement = self.variables.get(*var_name).cloned().unwrap_or_default();
             result = format!("{}{}{}", &result[..start], replacement, &result[end..]);
         }
         result
@@ -251,9 +247,7 @@ impl FlowContext {
     /// 解析整个 JSON 配置中的模板引用
     pub fn resolve_config(&self, config: &serde_json::Value) -> serde_json::Value {
         match config {
-            serde_json::Value::String(s) => {
-                serde_json::Value::String(self.resolve_template(s))
-            }
+            serde_json::Value::String(s) => serde_json::Value::String(self.resolve_template(s)),
             serde_json::Value::Object(map) => {
                 let mut resolved = serde_json::Map::new();
                 for (k, v) in map {
@@ -287,14 +281,16 @@ fn topological_sort(nodes: &[FlowNode], edges: &[FlowEdge]) -> Result<Vec<String
 
     // 计算入度
     for edge in edges {
-        adjacency.entry(edge.source_node_id.clone())
+        adjacency
+            .entry(edge.source_node_id.clone())
             .or_default()
             .push(edge.target_node_id.clone());
         *in_degree.entry(edge.target_node_id.clone()).or_insert(0) += 1;
     }
 
     // BFS (Kahn's algorithm)
-    let mut queue: Vec<String> = in_degree.iter()
+    let mut queue: Vec<String> = in_degree
+        .iter()
         .filter(|(_, deg)| **deg == 0)
         .map(|(id, _)| id.clone())
         .collect();
@@ -356,9 +352,8 @@ pub async fn run_workflow(
     };
 
     // 构建节点 ID → 节点的查找表
-    let node_map: HashMap<&str, &FlowNode> = workflow.nodes.iter()
-        .map(|n| (n.id.as_str(), n))
-        .collect();
+    let node_map: HashMap<&str, &FlowNode> =
+        workflow.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
 
     let mut context = FlowContext::new(&workflow.variables);
     let mut node_results: Vec<NodeResult> = Vec::new();
@@ -392,16 +387,19 @@ pub async fn run_workflow(
         };
 
         // 发送"正在执行"事件
-        let _ = app.emit("workflow-progress", WorkflowProgressEvent {
-            execution_id: execution_id.clone(),
-            workflow_id: workflow.id.clone(),
-            current_step: step_idx,
-            total_steps,
-            current_node_id: node.id.clone(),
-            current_node_name: node.name.clone(),
-            status: ExecutionStatus::Running,
-            node_result: None,
-        });
+        let _ = app.emit(
+            "workflow-progress",
+            WorkflowProgressEvent {
+                execution_id: execution_id.clone(),
+                workflow_id: workflow.id.clone(),
+                current_step: step_idx,
+                total_steps,
+                current_node_id: node.id.clone(),
+                current_node_name: node.name.clone(),
+                status: ExecutionStatus::Running,
+                node_result: None,
+            },
+        );
 
         // 解析节点配置中的变量引用
         let resolved_config = context.resolve_config(&node.config);
@@ -450,16 +448,19 @@ pub async fn run_workflow(
         };
 
         // 发送节点完成事件
-        let _ = app.emit("workflow-progress", WorkflowProgressEvent {
-            execution_id: execution_id.clone(),
-            workflow_id: workflow.id.clone(),
-            current_step: step_idx,
-            total_steps,
-            current_node_id: node.id.clone(),
-            current_node_name: node.name.clone(),
-            status: node_result.status.clone(),
-            node_result: Some(node_result.clone()),
-        });
+        let _ = app.emit(
+            "workflow-progress",
+            WorkflowProgressEvent {
+                execution_id: execution_id.clone(),
+                workflow_id: workflow.id.clone(),
+                current_step: step_idx,
+                total_steps,
+                current_node_id: node.id.clone(),
+                current_node_name: node.name.clone(),
+                status: node_result.status.clone(),
+                node_result: Some(node_result.clone()),
+            },
+        );
 
         let failed = node_result.status == ExecutionStatus::Failed
             || node_result.status == ExecutionStatus::Cancelled;
@@ -531,8 +532,7 @@ async fn execute_http_node(config: &serde_json::Value) -> Result<serde_json::Val
 
     let response = http_client::execute_request(request).await?;
 
-    serde_json::to_value(&response)
-        .map_err(|e| format!("HTTP 响应序列化失败: {}", e))
+    serde_json::to_value(&response).map_err(|e| format!("HTTP 响应序列化失败: {}", e))
 }
 
 /// TCP 发送节点 — 连接 → 发送 → 可选等待响应 → 关闭
@@ -557,12 +557,15 @@ async fn execute_tcp_send_node(config: &serde_json::Value) -> Result<serde_json:
         .map_err(|e| format!("TCP 节点配置解析失败: {}", e))?;
 
     let addr = format!("{}:{}", cfg.host, cfg.port);
-    let mut stream = TcpStream::connect(&addr).await
+    let mut stream = TcpStream::connect(&addr)
+        .await
         .map_err(|e| format!("TCP 连接 {} 失败: {}", addr, e))?;
 
     // 编码数据
     let bytes = encode_data(&cfg.data, &cfg.encoding)?;
-    stream.write_all(&bytes).await
+    stream
+        .write_all(&bytes)
+        .await
         .map_err(|e| format!("TCP 发送失败: {}", e))?;
 
     // 可选等待响应
@@ -571,7 +574,9 @@ async fn execute_tcp_send_node(config: &serde_json::Value) -> Result<serde_json:
         match tokio::time::timeout(
             std::time::Duration::from_millis(cfg.read_timeout_ms),
             stream.read(&mut buf),
-        ).await {
+        )
+        .await
+        {
             Ok(Ok(n)) => {
                 let data = &buf[..n];
                 Some(decode_response_data(data, &cfg.encoding))
@@ -619,13 +624,16 @@ async fn execute_udp_send_node(config: &serde_json::Value) -> Result<serde_json:
     let cfg: UdpNodeConfig = serde_json::from_value(config.clone())
         .map_err(|e| format!("UDP 节点配置解析失败: {}", e))?;
 
-    let socket = UdpSocket::bind(&cfg.local_addr).await
+    let socket = UdpSocket::bind(&cfg.local_addr)
+        .await
         .map_err(|e| format!("UDP 绑定 {} 失败: {}", cfg.local_addr, e))?;
 
     let target = format!("{}:{}", cfg.target_host, cfg.target_port);
     let bytes = encode_data(&cfg.data, &cfg.encoding)?;
 
-    let sent = socket.send_to(&bytes, &target).await
+    let sent = socket
+        .send_to(&bytes, &target)
+        .await
         .map_err(|e| format!("UDP 发送到 {} 失败: {}", target, e))?;
 
     let response_data = if cfg.read_timeout_ms > 0 {
@@ -633,7 +641,9 @@ async fn execute_udp_send_node(config: &serde_json::Value) -> Result<serde_json:
         match tokio::time::timeout(
             std::time::Duration::from_millis(cfg.read_timeout_ms),
             socket.recv_from(&mut buf),
-        ).await {
+        )
+        .await
+        {
             Ok(Ok((n, from_addr))) => {
                 let data = &buf[..n];
                 Some(serde_json::json!({
@@ -746,8 +756,8 @@ async fn execute_extract_node(
 
     let extracted = match cfg.mode {
         ExtractMode::JsonPath => {
-            let json: serde_json::Value = serde_json::from_str(source)
-                .map_err(|e| format!("解析 JSON 源数据失败: {}", e))?;
+            let json: serde_json::Value =
+                serde_json::from_str(source).map_err(|e| format!("解析 JSON 源数据失败: {}", e))?;
             extract_json_path(&json, &cfg.expression)
                 .ok_or_else(|| format!("JSON 路径 '{}' 未找到匹配", cfg.expression))?
         }
@@ -826,8 +836,7 @@ async fn execute_base64_node(
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(&cfg.input)
             .map_err(|e| format!("Base64 解码失败: {}", e))?;
-        String::from_utf8(decoded)
-            .map_err(|e| format!("Base64 解码后非 UTF-8: {}", e))?
+        String::from_utf8(decoded).map_err(|e| format!("Base64 解码后非 UTF-8: {}", e))?
     };
 
     Ok(serde_json::json!({
@@ -865,7 +874,11 @@ fn encode_data(data: &str, encoding: &str) -> Result<Vec<u8>, String> {
 /// 将响应字节解码为字符串
 fn decode_response_data(data: &[u8], encoding: &str) -> String {
     match encoding {
-        "hex" => data.iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "),
+        "hex" => data
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join(" "),
         _ => String::from_utf8_lossy(data).to_string(), // utf8 default
     }
 }
@@ -885,8 +898,8 @@ pub async fn list_workflows(pool: &SqlitePool) -> Result<Vec<Workflow>, String> 
 
     let mut workflows = Vec::new();
     for (id, name, description, definition, created_at, updated_at) in rows {
-        let mut workflow: Workflow = serde_json::from_str(&definition)
-            .unwrap_or_else(|_| Workflow {
+        let mut workflow: Workflow =
+            serde_json::from_str(&definition).unwrap_or_else(|_| Workflow {
                 id: id.clone(),
                 name: name.clone(),
                 description: description.clone(),
@@ -919,8 +932,8 @@ pub async fn get_workflow(pool: &SqlitePool, id: &str) -> Result<Workflow, Strin
     .ok_or_else(|| format!("流程 {} 不存在", id))?;
 
     let (id, name, description, definition, created_at, updated_at) = row;
-    let mut workflow: Workflow = serde_json::from_str(&definition)
-        .map_err(|e| format!("解析流程定义失败: {}", e))?;
+    let mut workflow: Workflow =
+        serde_json::from_str(&definition).map_err(|e| format!("解析流程定义失败: {}", e))?;
     workflow.id = id;
     workflow.name = name;
     workflow.description = description;
@@ -937,8 +950,8 @@ pub async fn create_workflow(pool: &SqlitePool, workflow: &Workflow) -> Result<W
         "edges": workflow.edges,
         "variables": workflow.variables,
     });
-    let def_str = serde_json::to_string(&definition)
-        .map_err(|e| format!("序列化流程定义失败: {}", e))?;
+    let def_str =
+        serde_json::to_string(&definition).map_err(|e| format!("序列化流程定义失败: {}", e))?;
 
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -968,8 +981,8 @@ pub async fn update_workflow(pool: &SqlitePool, workflow: &Workflow) -> Result<(
         "edges": workflow.edges,
         "variables": workflow.variables,
     });
-    let def_str = serde_json::to_string(&definition)
-        .map_err(|e| format!("序列化流程定义失败: {}", e))?;
+    let def_str =
+        serde_json::to_string(&definition).map_err(|e| format!("序列化流程定义失败: {}", e))?;
 
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -1011,24 +1024,35 @@ mod tests {
 
     #[test]
     fn test_resolve_template_simple() {
-        let ctx = FlowContext::new(&[
-            FlowVariable { key: "host".into(), value: "example.com".into(), description: "".into() },
-        ]);
-        assert_eq!(ctx.resolve_template("https://{{host}}/api"), "https://example.com/api");
+        let ctx = FlowContext::new(&[FlowVariable {
+            key: "host".into(),
+            value: "example.com".into(),
+            description: "".into(),
+        }]);
+        assert_eq!(
+            ctx.resolve_template("https://{{host}}/api"),
+            "https://example.com/api"
+        );
     }
 
     #[test]
     fn test_resolve_template_node_output() {
         let mut ctx = FlowContext::new(&[]);
-        ctx.set_node_output("step1", serde_json::json!({
-            "body": "{\"token\":\"abc123\"}",
-            "status": 200,
-        }));
+        ctx.set_node_output(
+            "step1",
+            serde_json::json!({
+                "body": "{\"token\":\"abc123\"}",
+                "status": 200,
+            }),
+        );
         assert_eq!(
             ctx.resolve_template("Token: {{step1.body}}"),
             "Token: {\"token\":\"abc123\"}"
         );
-        assert_eq!(ctx.resolve_template("Status: {{step1.status}}"), "Status: 200");
+        assert_eq!(
+            ctx.resolve_template("Status: {{step1.status}}"),
+            "Status: 200"
+        );
     }
 
     #[test]
@@ -1045,9 +1069,11 @@ mod tests {
 
     #[test]
     fn test_resolve_config_nested() {
-        let ctx = FlowContext::new(&[
-            FlowVariable { key: "base".into(), value: "https://api.test.com".into(), description: "".into() },
-        ]);
+        let ctx = FlowContext::new(&[FlowVariable {
+            key: "base".into(),
+            value: "https://api.test.com".into(),
+            description: "".into(),
+        }]);
         let config = serde_json::json!({
             "url": "{{base}}/users",
             "headers": {
@@ -1064,13 +1090,41 @@ mod tests {
     #[test]
     fn test_topological_sort_linear() {
         let nodes = vec![
-            FlowNode { id: "c".into(), name: "C".into(), node_type: NodeType::Delay, config: serde_json::json!({}), position: None },
-            FlowNode { id: "a".into(), name: "A".into(), node_type: NodeType::Delay, config: serde_json::json!({}), position: None },
-            FlowNode { id: "b".into(), name: "B".into(), node_type: NodeType::Delay, config: serde_json::json!({}), position: None },
+            FlowNode {
+                id: "c".into(),
+                name: "C".into(),
+                node_type: NodeType::Delay,
+                config: serde_json::json!({}),
+                position: None,
+            },
+            FlowNode {
+                id: "a".into(),
+                name: "A".into(),
+                node_type: NodeType::Delay,
+                config: serde_json::json!({}),
+                position: None,
+            },
+            FlowNode {
+                id: "b".into(),
+                name: "B".into(),
+                node_type: NodeType::Delay,
+                config: serde_json::json!({}),
+                position: None,
+            },
         ];
         let edges = vec![
-            FlowEdge { id: "e1".into(), source_node_id: "a".into(), target_node_id: "b".into(), condition: None },
-            FlowEdge { id: "e2".into(), source_node_id: "b".into(), target_node_id: "c".into(), condition: None },
+            FlowEdge {
+                id: "e1".into(),
+                source_node_id: "a".into(),
+                target_node_id: "b".into(),
+                condition: None,
+            },
+            FlowEdge {
+                id: "e2".into(),
+                source_node_id: "b".into(),
+                target_node_id: "c".into(),
+                condition: None,
+            },
         ];
         let result = topological_sort(&nodes, &edges).unwrap();
         assert_eq!(result, vec!["a", "b", "c"]);
@@ -1079,21 +1133,47 @@ mod tests {
     #[test]
     fn test_topological_sort_cycle_detection() {
         let nodes = vec![
-            FlowNode { id: "a".into(), name: "A".into(), node_type: NodeType::Delay, config: serde_json::json!({}), position: None },
-            FlowNode { id: "b".into(), name: "B".into(), node_type: NodeType::Delay, config: serde_json::json!({}), position: None },
+            FlowNode {
+                id: "a".into(),
+                name: "A".into(),
+                node_type: NodeType::Delay,
+                config: serde_json::json!({}),
+                position: None,
+            },
+            FlowNode {
+                id: "b".into(),
+                name: "B".into(),
+                node_type: NodeType::Delay,
+                config: serde_json::json!({}),
+                position: None,
+            },
         ];
         let edges = vec![
-            FlowEdge { id: "e1".into(), source_node_id: "a".into(), target_node_id: "b".into(), condition: None },
-            FlowEdge { id: "e2".into(), source_node_id: "b".into(), target_node_id: "a".into(), condition: None },
+            FlowEdge {
+                id: "e1".into(),
+                source_node_id: "a".into(),
+                target_node_id: "b".into(),
+                condition: None,
+            },
+            FlowEdge {
+                id: "e2".into(),
+                source_node_id: "b".into(),
+                target_node_id: "a".into(),
+                condition: None,
+            },
         ];
         assert!(topological_sort(&nodes, &edges).is_err());
     }
 
     #[test]
     fn test_topological_sort_single_node() {
-        let nodes = vec![
-            FlowNode { id: "a".into(), name: "A".into(), node_type: NodeType::Delay, config: serde_json::json!({}), position: None },
-        ];
+        let nodes = vec![FlowNode {
+            id: "a".into(),
+            name: "A".into(),
+            node_type: NodeType::Delay,
+            config: serde_json::json!({}),
+            position: None,
+        }];
         let edges = vec![];
         let result = topological_sort(&nodes, &edges).unwrap();
         assert_eq!(result, vec!["a"]);
@@ -1104,15 +1184,24 @@ mod tests {
     #[test]
     fn test_extract_json_path_simple() {
         let json = serde_json::json!({"name": "ProtoForge", "version": "1.0"});
-        assert_eq!(extract_json_path(&json, "name"), Some("ProtoForge".to_string()));
+        assert_eq!(
+            extract_json_path(&json, "name"),
+            Some("ProtoForge".to_string())
+        );
         assert_eq!(extract_json_path(&json, "version"), Some("1.0".to_string()));
     }
 
     #[test]
     fn test_extract_json_path_nested() {
         let json = serde_json::json!({"data": {"items": [{"id": 1}, {"id": 2}]}});
-        assert_eq!(extract_json_path(&json, "data.items[0].id"), Some("1".to_string()));
-        assert_eq!(extract_json_path(&json, "data.items[1].id"), Some("2".to_string()));
+        assert_eq!(
+            extract_json_path(&json, "data.items[0].id"),
+            Some("1".to_string())
+        );
+        assert_eq!(
+            extract_json_path(&json, "data.items[1].id"),
+            Some("2".to_string())
+        );
     }
 
     #[test]
@@ -1179,7 +1268,13 @@ mod tests {
         });
         let context = FlowContext::new(&[]);
         let result = execute_script_node(&config, &context).await.unwrap();
-        assert!(result["logs"].as_array().unwrap().iter().any(|l| l == "hello from script"));
+        assert!(
+            result["logs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|l| l == "hello from script")
+        );
         assert_eq!(result["envUpdates"]["result"], "42");
     }
 }

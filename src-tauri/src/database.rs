@@ -1,7 +1,7 @@
 // ProtoForge 数据库初始化与连接管理
 
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions, SqliteJournalMode};
 use sqlx::SqlitePool;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use std::path::Path;
 
 /// 初始化 SQLite 数据库连接池
@@ -12,7 +12,7 @@ pub async fn init_pool(app_data_dir: &Path) -> Result<SqlitePool, sqlx::Error> {
     let options = SqliteConnectOptions::new()
         .filename(&db_path)
         .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)       // WAL 模式 — 并发读写
+        .journal_mode(SqliteJournalMode::Wal) // WAL 模式 — 并发读写
         .busy_timeout(std::time::Duration::from_secs(5));
 
     let pool = SqlitePoolOptions::new()
@@ -34,20 +34,39 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             version INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )"
-    ).execute(pool).await?;
+        )",
+    )
+    .execute(pool)
+    .await?;
 
     // 获取当前版本
-    let current_version: i64 = sqlx::query_scalar(
-        "SELECT COALESCE(MAX(version), 0) FROM _migrations"
-    ).fetch_one(pool).await?;
+    let current_version: i64 =
+        sqlx::query_scalar("SELECT COALESCE(MAX(version), 0) FROM _migrations")
+            .fetch_one(pool)
+            .await?;
 
     // 按顺序执行未应用的迁移
     let migrations: Vec<(i64, &str, &str)> = vec![
-        (1, "initial_schema", include_str!("../migrations/001_initial_schema.sql")),
-        (2, "add_response_example", include_str!("../migrations/002_add_response_example.sql")),
-        (3, "workflow_schema", include_str!("../migrations/003_workflow_schema.sql")),
-        (4, "add_item_variables", include_str!("../migrations/004_add_item_variables.sql")),
+        (
+            1,
+            "initial_schema",
+            include_str!("../migrations/001_initial_schema.sql"),
+        ),
+        (
+            2,
+            "add_response_example",
+            include_str!("../migrations/002_add_response_example.sql"),
+        ),
+        (
+            3,
+            "workflow_schema",
+            include_str!("../migrations/003_workflow_schema.sql"),
+        ),
+        (
+            4,
+            "add_item_variables",
+            include_str!("../migrations/004_add_item_variables.sql"),
+        ),
     ];
 
     for (version, name, sql) in migrations {
@@ -65,7 +84,8 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             sqlx::query("INSERT INTO _migrations (version, name) VALUES (?, ?)")
                 .bind(version)
                 .bind(name)
-                .execute(pool).await?;
+                .execute(pool)
+                .await?;
         }
     }
 

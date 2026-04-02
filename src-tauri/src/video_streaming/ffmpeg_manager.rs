@@ -3,8 +3,8 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
+use tokio::sync::Mutex;
 
 /// FFmpeg 版本号（用于下载 URL 和本地目录命名）
 const FFMPEG_VERSION: &str = "7.1.1";
@@ -128,8 +128,7 @@ pub async fn download(app: &AppHandle) -> Result<PathBuf, String> {
 /// 实际下载逻辑
 async fn do_download(app: &AppHandle) -> Result<PathBuf, String> {
     let install_dir = get_ffmpeg_dir(app).ok_or("无法获取应用数据目录")?;
-    std::fs::create_dir_all(&install_dir)
-        .map_err(|e| format!("创建目录失败: {}", e))?;
+    std::fs::create_dir_all(&install_dir).map_err(|e| format!("创建目录失败: {}", e))?;
 
     let (url, archive_name) = get_download_url();
     log::info!("Downloading FFmpeg from: {}", url);
@@ -142,7 +141,10 @@ async fn do_download(app: &AppHandle) -> Result<PathBuf, String> {
         .build()
         .map_err(|e| format!("HTTP 客户端错误: {}", e))?;
 
-    let resp = client.get(&url).send().await
+    let resp = client
+        .get(&url)
+        .send()
+        .await
         .map_err(|e| format!("下载请求失败: {}", e))?;
 
     if !resp.status().is_success() {
@@ -154,7 +156,8 @@ async fn do_download(app: &AppHandle) -> Result<PathBuf, String> {
 
     // 流式下载到文件
     use tokio::io::AsyncWriteExt;
-    let mut file = tokio::fs::File::create(&archive_path).await
+    let mut file = tokio::fs::File::create(&archive_path)
+        .await
         .map_err(|e| format!("创建文件失败: {}", e))?;
 
     let mut stream = resp.bytes_stream();
@@ -163,13 +166,26 @@ async fn do_download(app: &AppHandle) -> Result<PathBuf, String> {
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("下载中断: {}", e))?;
-        file.write_all(&chunk).await
+        file.write_all(&chunk)
+            .await
             .map_err(|e| format!("写入失败: {}", e))?;
         downloaded += chunk.len() as u64;
-        let progress = if total_size > 0 { downloaded as f64 / total_size as f64 } else { 0.0 };
-        emit_progress(app, progress * 0.8, downloaded, total_size, "正在下载 FFmpeg...");
+        let progress = if total_size > 0 {
+            downloaded as f64 / total_size as f64
+        } else {
+            0.0
+        };
+        emit_progress(
+            app,
+            progress * 0.8,
+            downloaded,
+            total_size,
+            "正在下载 FFmpeg...",
+        );
     }
-    file.flush().await.map_err(|e| format!("刷新文件失败: {}", e))?;
+    file.flush()
+        .await
+        .map_err(|e| format!("刷新文件失败: {}", e))?;
     drop(file);
 
     emit_progress(app, 0.85, downloaded, total_size, "正在解压...");
@@ -183,11 +199,13 @@ async fn do_download(app: &AppHandle) -> Result<PathBuf, String> {
     emit_progress(app, 1.0, downloaded, total_size, "FFmpeg 安装完成");
 
     // 验证安装
-    let ffmpeg_path = get_local_ffmpeg_path(app)
-        .ok_or("解压后未找到 ffmpeg 可执行文件")?;
+    let ffmpeg_path = get_local_ffmpeg_path(app).ok_or("解压后未找到 ffmpeg 可执行文件")?;
 
     if !ffmpeg_path.exists() {
-        return Err(format!("解压完成但未找到 ffmpeg: {}", ffmpeg_path.display()));
+        return Err(format!(
+            "解压完成但未找到 ffmpeg: {}",
+            ffmpeg_path.display()
+        ));
     }
 
     // macOS: 设置可执行权限
@@ -226,15 +244,18 @@ fn get_download_url() -> (String, String) {
 }
 
 /// 解压下载的压缩包
-fn extract_archive(archive_path: &std::path::Path, install_dir: &std::path::Path) -> Result<(), String> {
-    let file = std::fs::File::open(archive_path)
-        .map_err(|e| format!("打开压缩包失败: {}", e))?;
+fn extract_archive(
+    archive_path: &std::path::Path,
+    install_dir: &std::path::Path,
+) -> Result<(), String> {
+    let file = std::fs::File::open(archive_path).map_err(|e| format!("打开压缩包失败: {}", e))?;
 
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| format!("读取 ZIP 格式失败: {}", e))?;
+    let mut archive =
+        zip::ZipArchive::new(file).map_err(|e| format!("读取 ZIP 格式失败: {}", e))?;
 
     for i in 0..archive.len() {
-        let mut entry = archive.by_index(i)
+        let mut entry = archive
+            .by_index(i)
             .map_err(|e| format!("读取 ZIP 条目失败: {}", e))?;
 
         let name = match entry.enclosed_name() {
@@ -248,11 +269,15 @@ fn extract_archive(archive_path: &std::path::Path, install_dir: &std::path::Path
 
         // Only extract executables we need
         let is_target = if cfg!(windows) {
-            name_str.ends_with("bin/ffmpeg.exe") || name_str.ends_with("bin/ffprobe.exe")
-                || name_str.ends_with("bin\\ffmpeg.exe") || name_str.ends_with("bin\\ffprobe.exe")
+            name_str.ends_with("bin/ffmpeg.exe")
+                || name_str.ends_with("bin/ffprobe.exe")
+                || name_str.ends_with("bin\\ffmpeg.exe")
+                || name_str.ends_with("bin\\ffprobe.exe")
         } else {
-            name_str == "ffmpeg" || name_str.ends_with("/ffmpeg")
-                || name_str == "ffprobe" || name_str.ends_with("/ffprobe")
+            name_str == "ffmpeg"
+                || name_str.ends_with("/ffmpeg")
+                || name_str == "ffprobe"
+                || name_str.ends_with("/ffprobe")
         };
 
         if !is_target || entry.is_dir() {
@@ -265,10 +290,9 @@ fn extract_archive(archive_path: &std::path::Path, install_dir: &std::path::Path
             .to_owned();
         let output_path = install_dir.join(&file_name);
 
-        let mut outfile = std::fs::File::create(&output_path)
-            .map_err(|e| format!("创建文件失败: {}", e))?;
-        std::io::copy(&mut entry, &mut outfile)
-            .map_err(|e| format!("解压文件失败: {}", e))?;
+        let mut outfile =
+            std::fs::File::create(&output_path).map_err(|e| format!("创建文件失败: {}", e))?;
+        std::io::copy(&mut entry, &mut outfile).map_err(|e| format!("解压文件失败: {}", e))?;
 
         log::info!("Extracted: {} -> {}", name_str, output_path.display());
     }
@@ -284,7 +308,11 @@ fn get_ffmpeg_dir(app: &AppHandle) -> Option<PathBuf> {
 /// 获取本地下载的 ffmpeg 可执行文件完整路径
 fn get_local_ffmpeg_path(app: &AppHandle) -> Option<PathBuf> {
     let dir = get_ffmpeg_dir(app)?;
-    let exe = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+    let exe = if cfg!(windows) {
+        "ffmpeg.exe"
+    } else {
+        "ffmpeg"
+    };
     Some(dir.join(exe))
 }
 
@@ -311,10 +339,13 @@ fn find_system_binary(name: &str) -> Option<PathBuf> {
 
 /// 推送下载进度事件
 fn emit_progress(app: &AppHandle, progress: f64, downloaded: u64, total: u64, stage: &str) {
-    let _ = app.emit("ffmpeg-download-progress", DownloadProgress {
-        progress,
-        downloaded,
-        total,
-        stage: stage.to_string(),
-    });
+    let _ = app.emit(
+        "ffmpeg-download-progress",
+        DownloadProgress {
+            progress,
+            downloaded,
+            total,
+            stage: stage.to_string(),
+        },
+    );
 }

@@ -7,7 +7,10 @@ fn parse_qos(qos: u8) -> Result<rumqttc::QoS, String> {
         0 => Ok(rumqttc::QoS::AtMostOnce),
         1 => Ok(rumqttc::QoS::AtLeastOnce),
         2 => Ok(rumqttc::QoS::ExactlyOnce),
-        _ => Err(format!("无效的 QoS 等级: {}，仅支持 0 (AtMostOnce) / 1 (AtLeastOnce) / 2 (ExactlyOnce)", qos)),
+        _ => Err(format!(
+            "无效的 QoS 等级: {}，仅支持 0 (AtMostOnce) / 1 (AtLeastOnce) / 2 (ExactlyOnce)",
+            qos
+        )),
     }
 }
 
@@ -31,7 +34,7 @@ pub fn new_connections() -> MqttConnections {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MqttConnectRequest {
-    pub broker_url: String,   // e.g. "mqtt://broker.example.com:1883"
+    pub broker_url: String, // e.g. "mqtt://broker.example.com:1883"
     pub client_id: String,
     pub username: Option<String>,
     pub password: Option<String>,
@@ -47,7 +50,7 @@ pub struct MqttMessage {
     pub qos: u8,
     pub retain: bool,
     pub timestamp: String,
-    pub direction: String,  // "in" | "out"
+    pub direction: String, // "in" | "out"
 }
 
 /// 连接 MQTT Broker
@@ -65,8 +68,8 @@ pub async fn connect(
     }
 
     // 解析 URL
-    let url = url::Url::parse(&req.broker_url)
-        .map_err(|e| format!("Broker URL 解析失败: {}", e))?;
+    let url =
+        url::Url::parse(&req.broker_url).map_err(|e| format!("Broker URL 解析失败: {}", e))?;
     let host = url.host_str().unwrap_or("localhost").to_string();
     let port = url.port().unwrap_or(1883);
 
@@ -161,7 +164,9 @@ pub async fn subscribe(
     let mqttqos = parse_qos(qos)?;
     let conns = connections.lock().await;
     let conn = conns.get(conn_id).ok_or("连接不存在")?;
-    conn.client.subscribe(topic, mqttqos).await
+    conn.client
+        .subscribe(topic, mqttqos)
+        .await
         .map_err(|e| format!("订阅失败: {}", e))
 }
 
@@ -173,7 +178,9 @@ pub async fn unsubscribe(
 ) -> Result<(), String> {
     let conns = connections.lock().await;
     let conn = conns.get(conn_id).ok_or("连接不存在")?;
-    conn.client.unsubscribe(topic).await
+    conn.client
+        .unsubscribe(topic)
+        .await
         .map_err(|e| format!("取消订阅失败: {}", e))
 }
 
@@ -189,7 +196,9 @@ pub async fn publish(
     let mqttqos = parse_qos(qos)?;
     let conns = connections.lock().await;
     let conn = conns.get(conn_id).ok_or("连接不存在")?;
-    conn.client.publish(topic, mqttqos, retain, payload.as_bytes()).await
+    conn.client
+        .publish(topic, mqttqos, retain, payload.as_bytes())
+        .await
         .map_err(|e| format!("发布失败: {}", e))
 }
 

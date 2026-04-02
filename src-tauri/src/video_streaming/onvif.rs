@@ -2,7 +2,7 @@
 //! 支持 WS-Discovery 设备发现、设备信息获取、媒体 Profile 管理、PTZ 控制、预置位管理
 //! 使用手写 SOAP over HTTP，展示原始报文用于协议调试
 
-use sha1::{Sha1, Digest};
+use sha1::{Digest, Sha1};
 use tauri::{AppHandle, Emitter};
 
 use super::state::{OnvifSession, ProtocolMessage};
@@ -62,7 +62,10 @@ fn rand_nonce() -> [u8; 20] {
     let mixed = seed ^ (pid << 32);
     for (i, b) in buf.iter_mut().enumerate() {
         // Use different bit ranges and multiply by a prime for spread
-        let val = (mixed.wrapping_mul(6364136223846793005).wrapping_add(i as u128 * 1442695040888963407)) >> (i * 3);
+        let val = (mixed
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(i as u128 * 1442695040888963407))
+            >> (i * 3);
         *b = (val & 0xFF) as u8;
     }
     buf
@@ -141,14 +144,22 @@ async fn soap_request(
         })?;
 
     let status = resp.status();
-    let body_text = resp.text().await.map_err(|e| format!("Read response error: {}", e))?;
+    let body_text = resp
+        .text()
+        .await
+        .map_err(|e| format!("Read response error: {}", e))?;
 
     // Emit received message
     let recv_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
         direction: "received".to_string(),
         protocol: "onvif".to_string(),
-        summary: format!("HTTP {} — {} response ({} bytes)", status.as_u16(), action, body_text.len()),
+        summary: format!(
+            "HTTP {} — {} response ({} bytes)",
+            status.as_u16(),
+            action,
+            body_text.len()
+        ),
         detail: body_text.clone(),
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: Some(body_text.len() as u32),
@@ -157,7 +168,9 @@ async fn soap_request(
 
     if !status.is_success() {
         let fault = extract_soap_fault(&body_text);
-        let friendly = if fault.to_lowercase().contains("authority") || fault.to_lowercase().contains("auth") {
+        let friendly = if fault.to_lowercase().contains("authority")
+            || fault.to_lowercase().contains("auth")
+        {
             format!("认证失败 ({}): 请检查用户名和密码是否正确", fault)
         } else if fault.to_lowercase().contains("not authorized") {
             format!("未授权: 该操作需要认证，请填写正确的凭证")
@@ -201,7 +214,8 @@ fn extract_tag_content(xml: &str, tag: &str) -> Option<String> {
         // Find the tag name anywhere (with or without prefix)
         let remaining = &xml[search_pos..];
         // Look for ":Tag" or "<Tag" patterns
-        let found_pos = remaining.find(&format!(":{}", tag))
+        let found_pos = remaining
+            .find(&format!(":{}", tag))
             .or_else(|| remaining.find(&format!("<{}", tag)));
 
         let abs_pos = match found_pos {
@@ -258,7 +272,8 @@ fn extract_all_tags<'a>(xml: &'a str, tag: &str) -> Vec<&'a str> {
         let remaining = &xml[search_pos..];
 
         // Find ":Tag" or "<Tag" pattern
-        let found = remaining.find(&tag_suffix)
+        let found = remaining
+            .find(&tag_suffix)
             .or_else(|| remaining.find(&format!("<{}", tag)));
         let rel_pos = match found {
             Some(p) => p,
@@ -269,7 +284,10 @@ fn extract_all_tags<'a>(xml: &'a str, tag: &str) -> Vec<&'a str> {
         // Walk back to find '<'
         let lt_pos = match xml[..abs_pos].rfind('<') {
             Some(p) => p,
-            None => { search_pos = abs_pos + 1; continue; }
+            None => {
+                search_pos = abs_pos + 1;
+                continue;
+            }
         };
 
         let rest = &xml[lt_pos..];
@@ -282,7 +300,10 @@ fn extract_all_tags<'a>(xml: &'a str, tag: &str) -> Vec<&'a str> {
         let tag_start = &rest[1..];
         let tag_end = match tag_start.find(|c: char| c == ' ' || c == '>' || c == '/') {
             Some(p) => p,
-            None => { search_pos = abs_pos + 1; continue; }
+            None => {
+                search_pos = abs_pos + 1;
+                continue;
+            }
         };
         let full_tag = &tag_start[..tag_end];
 
@@ -345,7 +366,8 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
     };
     let _ = app.emit("videostream-protocol-msg", &sent_msg);
 
-    let socket = UdpSocket::bind("0.0.0.0:0").await
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .await
         .map_err(|e| format!("Bind UDP socket failed: {}", e))?;
 
     let multicast_group: std::net::Ipv4Addr = "239.255.255.250".parse().unwrap();
@@ -383,8 +405,12 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
                 );
                 // IP_ADD_MEMBERSHIP -- join multicast group on LAN interface
                 let mreq = libc::ip_mreq {
-                    imr_multiaddr: libc::in_addr { s_addr: u32::from_ne_bytes(multicast_group.octets()) },
-                    imr_interface: libc::in_addr { s_addr: u32::from_ne_bytes(local_ip.octets()) },
+                    imr_multiaddr: libc::in_addr {
+                        s_addr: u32::from_ne_bytes(multicast_group.octets()),
+                    },
+                    imr_interface: libc::in_addr {
+                        s_addr: u32::from_ne_bytes(local_ip.octets()),
+                    },
                 };
                 libc::setsockopt(
                     fd,
@@ -443,13 +469,17 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
             }
         }
     }
-    socket.set_broadcast(true).map_err(|e| format!("Set broadcast failed: {}", e))?;
+    socket
+        .set_broadcast(true)
+        .map_err(|e| format!("Set broadcast failed: {}", e))?;
 
     let multicast_addr: std::net::SocketAddr = "239.255.255.250:3702".parse().unwrap();
 
     // Send the probe multiple times to improve reliability
     for _ in 0..3 {
-        socket.send_to(probe_xml.as_bytes(), multicast_addr).await
+        socket
+            .send_to(probe_xml.as_bytes(), multicast_addr)
+            .await
             .map_err(|e| format!("Send probe failed: {}", e))?;
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
@@ -478,9 +508,10 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
                 let _ = app.emit("videostream-protocol-msg", &recv_msg);
 
                 // Parse XAddrs from response — try multiple tag name patterns
-                let xaddrs_str = extract_tag_content(&response, "XAddrs")
-                    .or_else(|| extract_tag_content(&response, "ProbeMatch")
-                        .and_then(|pm| extract_tag_content(&pm, "XAddrs")));
+                let xaddrs_str = extract_tag_content(&response, "XAddrs").or_else(|| {
+                    extract_tag_content(&response, "ProbeMatch")
+                        .and_then(|pm| extract_tag_content(&pm, "XAddrs"))
+                });
 
                 if let Some(xaddrs) = xaddrs_str {
                     for xaddr in xaddrs.split_whitespace() {
@@ -488,17 +519,19 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
                             let host = url.host_str().unwrap_or("").to_string();
                             let port = url.port().unwrap_or(80);
                             let key = format!("{}:{}", host, port);
-                            if seen_addrs.contains(&key) { continue; }
+                            if seen_addrs.contains(&key) {
+                                continue;
+                            }
                             seen_addrs.insert(key);
 
-                            let name = extract_tag_content(&response, "Scopes")
-                                .and_then(|s| {
-                                    s.split_whitespace()
-                                        .find(|scope| scope.contains("onvif://www.onvif.org/name/") || scope.contains("/name/"))
-                                        .map(|scope| {
-                                            scope.rsplit('/').next().unwrap_or("").to_string()
-                                        })
-                                });
+                            let name = extract_tag_content(&response, "Scopes").and_then(|s| {
+                                s.split_whitespace()
+                                    .find(|scope| {
+                                        scope.contains("onvif://www.onvif.org/name/")
+                                            || scope.contains("/name/")
+                                    })
+                                    .map(|scope| scope.rsplit('/').next().unwrap_or("").to_string())
+                            });
                             devices.push(serde_json::json!({
                                 "host": host,
                                 "port": port,
@@ -562,7 +595,11 @@ pub async fn get_device_info(
         Some(url) if !url.is_empty() => url.to_string(),
         _ => format!("http://{}:{}/onvif/device_service", host, port),
     };
-    log::info!("ONVIF get_device_info: url={} use_proxy={}", device_url, use_proxy);
+    log::info!(
+        "ONVIF get_device_info: url={} use_proxy={}",
+        device_url,
+        use_proxy
+    );
 
     let body = "<tds:GetDeviceInformation/>";
     let response = soap_request(
@@ -573,13 +610,18 @@ pub async fn get_device_info(
         Some((username, password)),
         use_proxy,
         app,
-    ).await?;
+    )
+    .await?;
 
-    let manufacturer = extract_tag_content(&response, "Manufacturer").unwrap_or_else(|| "Unknown".to_string());
+    let manufacturer =
+        extract_tag_content(&response, "Manufacturer").unwrap_or_else(|| "Unknown".to_string());
     let model = extract_tag_content(&response, "Model").unwrap_or_else(|| "Unknown".to_string());
-    let firmware = extract_tag_content(&response, "FirmwareVersion").unwrap_or_else(|| "Unknown".to_string());
-    let serial = extract_tag_content(&response, "SerialNumber").unwrap_or_else(|| "Unknown".to_string());
-    let hardware = extract_tag_content(&response, "HardwareId").unwrap_or_else(|| "Unknown".to_string());
+    let firmware =
+        extract_tag_content(&response, "FirmwareVersion").unwrap_or_else(|| "Unknown".to_string());
+    let serial =
+        extract_tag_content(&response, "SerialNumber").unwrap_or_else(|| "Unknown".to_string());
+    let hardware =
+        extract_tag_content(&response, "HardwareId").unwrap_or_else(|| "Unknown".to_string());
 
     // Also get service URLs via GetCapabilities
     let cap_body = r#"<tds:GetCapabilities><tds:Category>All</tds:Category></tds:GetCapabilities>"#;
@@ -591,7 +633,9 @@ pub async fn get_device_info(
         Some((username, password)),
         use_proxy,
         app,
-    ).await.unwrap_or_default();
+    )
+    .await
+    .unwrap_or_default();
 
     let media_url = extract_tag_content(&cap_response, "Media")
         .and_then(|m| extract_tag_content(&m, "XAddr"))
@@ -639,7 +683,8 @@ pub async fn get_profiles(
         Some((&session.username, &session.password)),
         session.use_proxy,
         app,
-    ).await?;
+    )
+    .await?;
 
     let mut profiles = Vec::new();
     let profile_blocks = extract_all_tags(&response, "Profiles");
@@ -648,7 +693,8 @@ pub async fn get_profiles(
         let token = extract_attr(block, "token").unwrap_or_default();
         let name = extract_tag_content(block, "Name").unwrap_or_else(|| token.clone());
 
-        let video_encoding = extract_tag_content(block, "Encoding").unwrap_or_else(|| "H264".to_string());
+        let video_encoding =
+            extract_tag_content(block, "Encoding").unwrap_or_else(|| "H264".to_string());
 
         let width = extract_tag_content(block, "Width")
             .and_then(|w| w.parse::<u32>().ok())
@@ -729,10 +775,10 @@ pub async fn get_stream_uri(
         Some((&session.username, &session.password)),
         session.use_proxy,
         app,
-    ).await?;
+    )
+    .await?;
 
-    let uri = extract_tag_content(&response, "Uri")
-        .unwrap_or_default();
+    let uri = extract_tag_content(&response, "Uri").unwrap_or_default();
 
     // ONVIF GetStreamUri returns RTSP URLs without credentials.
     // Most cameras require RTSP authentication, so inject the ONVIF
@@ -801,7 +847,8 @@ pub async fn ptz_continuous_move(
         Some((&session.username, &session.password)),
         session.use_proxy,
         app,
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }
@@ -829,7 +876,8 @@ pub async fn ptz_stop(
         Some((&session.username, &session.password)),
         session.use_proxy,
         app,
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }
@@ -857,7 +905,8 @@ pub async fn get_presets(
         Some((&session.username, &session.password)),
         session.use_proxy,
         app,
-    ).await?;
+    )
+    .await?;
 
     let mut presets = Vec::new();
     let preset_blocks = extract_all_tags(&response, "Preset");
@@ -897,7 +946,8 @@ pub async fn goto_preset(
         Some((&session.username, &session.password)),
         session.use_proxy,
         app,
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }
@@ -925,7 +975,8 @@ pub async fn set_preset(
         Some((&session.username, &session.password)),
         session.use_proxy,
         app,
-    ).await?;
+    )
+    .await?;
 
     let token = extract_tag_content(&response, "PresetToken")
         .unwrap_or_else(|| format!("preset-{}", chrono::Utc::now().timestamp_millis()));

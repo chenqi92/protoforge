@@ -20,7 +20,7 @@ pub struct FlvHeader {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FlvTag {
-    pub tag_type: String,  // "audio" | "video" | "script"
+    pub tag_type: String, // "audio" | "video" | "script"
     pub data_size: u32,
     pub timestamp: u32,
     pub stream_id: u32,
@@ -70,7 +70,9 @@ pub fn parse_flv_tag(data: &[u8], offset: u64) -> Result<(FlvTag, usize), String
     };
 
     let data_size = ((data[1] as u32) << 16) | ((data[2] as u32) << 8) | (data[3] as u32);
-    let timestamp = ((data[4] as u32) << 16) | ((data[5] as u32) << 8) | (data[6] as u32)
+    let timestamp = ((data[4] as u32) << 16)
+        | ((data[5] as u32) << 8)
+        | (data[6] as u32)
         | ((data[7] as u32) << 24); // timestamp_extended
     let stream_id = ((data[8] as u32) << 16) | ((data[9] as u32) << 8) | (data[10] as u32);
 
@@ -85,14 +87,17 @@ pub fn parse_flv_tag(data: &[u8], offset: u64) -> Result<(FlvTag, usize), String
                     let frame_type = (data[11] >> 4) & 0x0F;
                     let codec_id = data[11] & 0x0F;
                     keyframe = frame_type == 1;
-                    codec_info = Some(match codec_id {
-                        2 => "H.263",
-                        3 => "Screen Video",
-                        4 => "VP6",
-                        7 => "AVC (H.264)",
-                        12 => "HEVC (H.265)",
-                        _ => "Unknown",
-                    }.to_string());
+                    codec_info = Some(
+                        match codec_id {
+                            2 => "H.263",
+                            3 => "Screen Video",
+                            4 => "VP6",
+                            7 => "AVC (H.264)",
+                            12 => "HEVC (H.265)",
+                            _ => "Unknown",
+                        }
+                        .to_string(),
+                    );
                 }
             }
             "audio" => {
@@ -156,14 +161,16 @@ pub async fn start_flv_stream(
         .build()
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
-    let response = client.get(&url)
+    let response = client
+        .get(&url)
         .header("User-Agent", "ProtoForge/1.0")
         .send()
         .await
         .map_err(|e| format!("Failed to connect: {}", e))?;
 
     let status = response.status();
-    let content_type = response.headers()
+    let content_type = response
+        .headers()
         .get("content-type")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("unknown")
@@ -174,7 +181,10 @@ pub async fn start_flv_stream(
         direction: "received".to_string(),
         protocol: "http-flv".to_string(),
         summary: format!("HTTP {} Content-Type: {}", status.as_u16(), content_type),
-        detail: format!("HTTP/1.1 {}\r\nContent-Type: {}\r\nTransfer-Encoding: chunked\r\n", status, content_type),
+        detail: format!(
+            "HTTP/1.1 {}\r\nContent-Type: {}\r\nTransfer-Encoding: chunked\r\n",
+            status, content_type
+        ),
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: None,
     };

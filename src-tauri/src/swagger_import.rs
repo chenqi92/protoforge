@@ -4,20 +4,20 @@
 //   2. 分组发现（通过 swagger-config）
 //   3. Swagger 2.0 和 OpenAPI 3.x 兼容
 
+use crate::collections::{self, Collection, CollectionItem};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use uuid::Uuid;
-use chrono::Utc;
-use crate::collections::{self, Collection, CollectionItem};
 
 // ── 输出类型 (返回给前端) ──
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SwaggerGroup {
-    pub name: String,          // "default", "ais", "system" 等
-    pub url: String,           // 完整的 API 文档 URL
-    pub display_name: String,  // 展示名称
+    pub name: String,         // "default", "ais", "system" 等
+    pub url: String,          // 完整的 API 文档 URL
+    pub display_name: String, // 展示名称
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,9 +55,9 @@ pub struct SwaggerEndpoint {
 #[serde(rename_all = "camelCase")]
 pub struct SwaggerParameter {
     pub name: String,
-    pub location: String,       // query, header, path, cookie
+    pub location: String, // query, header, path, cookie
     pub required: bool,
-    pub param_type: String,     // string, integer, boolean, etc.
+    pub param_type: String, // string, integer, boolean, etc.
     pub description: String,
     pub default_value: String,
 }
@@ -65,8 +65,8 @@ pub struct SwaggerParameter {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SwaggerRequestBody {
-    pub content_type: String,        // application/json, multipart/form-data, etc.
-    pub schema_json: String,         // 示例 JSON 或 schema 描述
+    pub content_type: String, // application/json, multipart/form-data, etc.
+    pub schema_json: String,  // 示例 JSON 或 schema 描述
     pub required: bool,
 }
 
@@ -83,7 +83,8 @@ fn build_client() -> Result<reqwest::Client, String> {
 }
 
 async fn fetch_json(client: &reqwest::Client, url: &str) -> Result<serde_json::Value, String> {
-    let resp = client.get(url)
+    let resp = client
+        .get(url)
         .header("Accept", "application/json")
         .send()
         .await
@@ -93,11 +94,12 @@ async fn fetch_json(client: &reqwest::Client, url: &str) -> Result<serde_json::V
         return Err(format!("HTTP {} ({})", resp.status(), url));
     }
 
-    let text = resp.text().await
+    let text = resp
+        .text()
+        .await
         .map_err(|e| format!("读取响应失败: {}", e))?;
 
-    serde_json::from_str(&text)
-        .map_err(|e| format!("JSON 解析失败 ({}): {}", url, e))
+    serde_json::from_str(&text).map_err(|e| format!("JSON 解析失败 ({}): {}", url, e))
 }
 
 // ── URL 规范化 ──
@@ -111,10 +113,13 @@ fn extract_base_origin(url: &str) -> String {
     let url = url.split('#').next().unwrap_or(url);
 
     if let Ok(parsed) = url::Url::parse(url) {
-        let port_str = parsed.port()
-            .map(|p| format!(":{}", p))
-            .unwrap_or_default();
-        format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or(""), port_str)
+        let port_str = parsed.port().map(|p| format!(":{}", p)).unwrap_or_default();
+        format!(
+            "{}://{}{}",
+            parsed.scheme(),
+            parsed.host_str().unwrap_or(""),
+            port_str
+        )
     } else {
         url.to_string()
     }
@@ -178,7 +183,10 @@ pub async fn discover_and_parse(url: &str) -> Result<SwaggerDiscoveryResult, Str
                 if !groups.is_empty() {
                     // 获取第一个分组的文档作为默认结果
                     let default_result = fetch_and_parse_doc(&client, &groups[0].url).await.ok();
-                    return Ok(SwaggerDiscoveryResult { groups, default_result });
+                    return Ok(SwaggerDiscoveryResult {
+                        groups,
+                        default_result,
+                    });
                 }
             }
 
@@ -186,7 +194,10 @@ pub async fn discover_and_parse(url: &str) -> Result<SwaggerDiscoveryResult, Str
             if let Some(groups) = try_parse_swagger_resources(&doc, url) {
                 if !groups.is_empty() {
                     let default_result = fetch_and_parse_doc(&client, &groups[0].url).await.ok();
-                    return Ok(SwaggerDiscoveryResult { groups, default_result });
+                    return Ok(SwaggerDiscoveryResult {
+                        groups,
+                        default_result,
+                    });
                 }
             }
 
@@ -216,7 +227,10 @@ pub async fn discover_and_parse(url: &str) -> Result<SwaggerDiscoveryResult, Str
         if let Some(groups) = try_parse_swagger_config(&config_doc, &base_with_ctx) {
             if !groups.is_empty() {
                 let default_result = fetch_and_parse_doc(&client, &groups[0].url).await.ok();
-                return Ok(SwaggerDiscoveryResult { groups, default_result });
+                return Ok(SwaggerDiscoveryResult {
+                    groups,
+                    default_result,
+                });
             }
         }
     }
@@ -227,7 +241,10 @@ pub async fn discover_and_parse(url: &str) -> Result<SwaggerDiscoveryResult, Str
         if let Some(groups) = try_parse_swagger_resources(&resources_doc, &base_with_ctx) {
             if !groups.is_empty() {
                 let default_result = fetch_and_parse_doc(&client, &groups[0].url).await.ok();
-                return Ok(SwaggerDiscoveryResult { groups, default_result });
+                return Ok(SwaggerDiscoveryResult {
+                    groups,
+                    default_result,
+                });
             }
         }
     }
@@ -251,7 +268,9 @@ pub async fn discover_and_parse(url: &str) -> Result<SwaggerDiscoveryResult, Str
                     default_result: Some(result),
                 });
             }
-            Err(e) => { last_error = e; }
+            Err(e) => {
+                last_error = e;
+            }
         }
     }
 
@@ -278,39 +297,52 @@ fn try_parse_swagger_config(doc: &serde_json::Value, base_url: &str) -> Option<V
     let base = extract_base_origin(base_url);
     let context_path = extract_context_path(base_url).unwrap_or_default();
 
-    let groups: Vec<SwaggerGroup> = urls.iter().filter_map(|entry| {
-        let url_path = entry.get("url")?.as_str()?;
-        let name = entry.get("name").and_then(|v| v.as_str()).unwrap_or("default");
+    let groups: Vec<SwaggerGroup> = urls
+        .iter()
+        .filter_map(|entry| {
+            let url_path = entry.get("url")?.as_str()?;
+            let name = entry
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("default");
 
-        // url 可能是相对路径或绝对路径
-        let full_url = if url_path.starts_with("http://") || url_path.starts_with("https://") {
-            url_path.to_string()
-        } else {
-            format!("{}{}", base, url_path)
-        };
+            // url 可能是相对路径或绝对路径
+            let full_url = if url_path.starts_with("http://") || url_path.starts_with("https://") {
+                url_path.to_string()
+            } else {
+                format!("{}{}", base, url_path)
+            };
 
-        // 如果 URL 不包含 context path 但 context path 存在，尝试加上
-        let final_url = if !context_path.is_empty()
-            && !full_url.contains(&context_path)
-            && !url_path.starts_with("http")
-        {
-            format!("{}{}{}", base, context_path, url_path)
-        } else {
-            full_url
-        };
+            // 如果 URL 不包含 context path 但 context path 存在，尝试加上
+            let final_url = if !context_path.is_empty()
+                && !full_url.contains(&context_path)
+                && !url_path.starts_with("http")
+            {
+                format!("{}{}{}", base, context_path, url_path)
+            } else {
+                full_url
+            };
 
-        Some(SwaggerGroup {
-            name: name.to_string(),
-            url: final_url,
-            display_name: name.to_string(),
+            Some(SwaggerGroup {
+                name: name.to_string(),
+                url: final_url,
+                display_name: name.to_string(),
+            })
         })
-    }).collect();
+        .collect();
 
-    if groups.is_empty() { None } else { Some(groups) }
+    if groups.is_empty() {
+        None
+    } else {
+        Some(groups)
+    }
 }
 
 /// 尝试从 swagger-resources JSON 中解析分组列表（Spring Boot 旧版）
-fn try_parse_swagger_resources(doc: &serde_json::Value, base_url: &str) -> Option<Vec<SwaggerGroup>> {
+fn try_parse_swagger_resources(
+    doc: &serde_json::Value,
+    base_url: &str,
+) -> Option<Vec<SwaggerGroup>> {
     // swagger-resources 格式: [{ "url": "/v2/api-docs?group=xxx", "name": "xxx", "location": "/v2/api-docs?group=xxx" }, ...]
     let arr = doc.as_array()?;
     if arr.is_empty() {
@@ -319,32 +351,46 @@ fn try_parse_swagger_resources(doc: &serde_json::Value, base_url: &str) -> Optio
 
     let base = extract_base_origin(base_url);
 
-    let groups: Vec<SwaggerGroup> = arr.iter().filter_map(|entry| {
-        let url_path = entry.get("url")
-            .or_else(|| entry.get("location"))
-            .and_then(|v| v.as_str())?;
-        let name = entry.get("name").and_then(|v| v.as_str()).unwrap_or("default");
+    let groups: Vec<SwaggerGroup> = arr
+        .iter()
+        .filter_map(|entry| {
+            let url_path = entry
+                .get("url")
+                .or_else(|| entry.get("location"))
+                .and_then(|v| v.as_str())?;
+            let name = entry
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("default");
 
-        let full_url = if url_path.starts_with("http://") || url_path.starts_with("https://") {
-            url_path.to_string()
-        } else {
-            format!("{}{}", base, url_path)
-        };
+            let full_url = if url_path.starts_with("http://") || url_path.starts_with("https://") {
+                url_path.to_string()
+            } else {
+                format!("{}{}", base, url_path)
+            };
 
-        Some(SwaggerGroup {
-            name: name.to_string(),
-            url: full_url,
-            display_name: name.to_string(),
+            Some(SwaggerGroup {
+                name: name.to_string(),
+                url: full_url,
+                display_name: name.to_string(),
+            })
         })
-    }).collect();
+        .collect();
 
-    if groups.is_empty() { None } else { Some(groups) }
+    if groups.is_empty() {
+        None
+    } else {
+        Some(groups)
+    }
 }
 
 // ── 文档获取与解析 ──
 
 /// 获取并解析单个 Swagger/OpenAPI 文档 URL
-pub async fn fetch_and_parse_doc(client: &reqwest::Client, url: &str) -> Result<SwaggerParseResult, String> {
+pub async fn fetch_and_parse_doc(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<SwaggerParseResult, String> {
     let doc = fetch_json(client, url).await?;
     parse_doc(&doc, url)
 }
@@ -369,9 +415,21 @@ fn parse_doc(doc: &serde_json::Value, url: &str) -> Result<SwaggerParseResult, S
 /// 解析 OpenAPI 3.x
 fn parse_openapi3(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerParseResult, String> {
     let info = doc.get("info").unwrap_or(&serde_json::Value::Null);
-    let title = info.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled API").to_string();
-    let version = info.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string();
-    let description = info.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let title = info
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Untitled API")
+        .to_string();
+    let version = info
+        .get("version")
+        .and_then(|v| v.as_str())
+        .unwrap_or("1.0.0")
+        .to_string();
+    let description = info
+        .get("description")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
 
     // 提取 base URL
     let base_url = extract_base_url_v3(doc, source_url);
@@ -384,28 +442,38 @@ fn parse_openapi3(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerPa
 
                 for method in &["get", "post", "put", "delete", "patch", "head", "options"] {
                     if let Some(operation) = obj.get(*method) {
-                        let summary = operation.get("summary")
+                        let summary = operation
+                            .get("summary")
                             .and_then(|v| v.as_str())
-                            .unwrap_or("").to_string();
-                        let desc = operation.get("description")
+                            .unwrap_or("")
+                            .to_string();
+                        let desc = operation
+                            .get("description")
                             .and_then(|v| v.as_str())
-                            .unwrap_or("").to_string();
-                        let tag = operation.get("tags")
+                            .unwrap_or("")
+                            .to_string();
+                        let tag = operation
+                            .get("tags")
                             .and_then(|v| v.as_array())
                             .and_then(|arr| arr.first())
                             .and_then(|v| v.as_str())
-                            .unwrap_or("default").to_string();
-                        let operation_id = operation.get("operationId")
+                            .unwrap_or("default")
+                            .to_string();
+                        let operation_id = operation
+                            .get("operationId")
                             .and_then(|v| v.as_str())
-                            .unwrap_or("").to_string();
+                            .unwrap_or("")
+                            .to_string();
 
                         let mut params = path_params.clone();
                         params.extend(extract_parameters_v3(operation.get("parameters"), doc));
 
-                        let request_body = extract_request_body_v3(operation.get("requestBody"), doc);
+                        let request_body =
+                            extract_request_body_v3(operation.get("requestBody"), doc);
 
                         // 提取响应示例 (200/201)
-                        let response_example = extract_response_example(operation.get("responses"), doc);
+                        let response_example =
+                            extract_response_example(operation.get("responses"), doc);
 
                         endpoints.push(SwaggerEndpoint {
                             path: path.clone(),
@@ -424,15 +492,33 @@ fn parse_openapi3(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerPa
         }
     }
 
-    Ok(SwaggerParseResult { title, version, description, base_url, endpoints })
+    Ok(SwaggerParseResult {
+        title,
+        version,
+        description,
+        base_url,
+        endpoints,
+    })
 }
 
 /// 解析 Swagger 2.0
 fn parse_swagger2(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerParseResult, String> {
     let info = doc.get("info").unwrap_or(&serde_json::Value::Null);
-    let title = info.get("title").and_then(|v| v.as_str()).unwrap_or("Untitled API").to_string();
-    let version = info.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string();
-    let description = info.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let title = info
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Untitled API")
+        .to_string();
+    let version = info
+        .get("version")
+        .and_then(|v| v.as_str())
+        .unwrap_or("1.0.0")
+        .to_string();
+    let description = info
+        .get("description")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
 
     // 提取 base URL
     let base_url = extract_base_url_v2(doc, source_url);
@@ -445,20 +531,28 @@ fn parse_swagger2(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerPa
 
                 for method in &["get", "post", "put", "delete", "patch", "head", "options"] {
                     if let Some(operation) = obj.get(*method) {
-                        let summary = operation.get("summary")
+                        let summary = operation
+                            .get("summary")
                             .and_then(|v| v.as_str())
-                            .unwrap_or("").to_string();
-                        let desc = operation.get("description")
+                            .unwrap_or("")
+                            .to_string();
+                        let desc = operation
+                            .get("description")
                             .and_then(|v| v.as_str())
-                            .unwrap_or("").to_string();
-                        let tag = operation.get("tags")
+                            .unwrap_or("")
+                            .to_string();
+                        let tag = operation
+                            .get("tags")
                             .and_then(|v| v.as_array())
                             .and_then(|arr| arr.first())
                             .and_then(|v| v.as_str())
-                            .unwrap_or("default").to_string();
-                        let operation_id = operation.get("operationId")
+                            .unwrap_or("default")
+                            .to_string();
+                        let operation_id = operation
+                            .get("operationId")
                             .and_then(|v| v.as_str())
-                            .unwrap_or("").to_string();
+                            .unwrap_or("")
+                            .to_string();
 
                         let mut params = path_params.clone();
                         let op_params = extract_parameters_v2(operation.get("parameters"), doc);
@@ -476,13 +570,17 @@ fn parse_swagger2(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerPa
                         }
 
                         // 检查 consumes 中是否包含 form-data
-                        let consumes = operation.get("consumes")
-                            .or_else(|| doc.get("consumes"));
+                        let consumes = operation.get("consumes").or_else(|| doc.get("consumes"));
                         let has_formdata = op_params.iter().any(|p| p.location == "formData");
                         if has_formdata && request_body.is_none() {
-                            let content_type = if consumes.and_then(|v| v.as_array())
-                                .map(|arr| arr.iter().any(|v| v.as_str() == Some("multipart/form-data")))
-                                .unwrap_or(false) {
+                            let content_type = if consumes
+                                .and_then(|v| v.as_array())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .any(|v| v.as_str() == Some("multipart/form-data"))
+                                })
+                                .unwrap_or(false)
+                            {
                                 "multipart/form-data"
                             } else {
                                 "application/x-www-form-urlencoded"
@@ -495,11 +593,15 @@ fn parse_swagger2(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerPa
                         }
 
                         // 过滤掉 body/formData 参数
-                        params.extend(op_params.into_iter()
-                            .filter(|p| p.location != "body" && p.location != "formData"));
+                        params.extend(
+                            op_params
+                                .into_iter()
+                                .filter(|p| p.location != "body" && p.location != "formData"),
+                        );
 
                         // 提取响应示例 (200/201)
-                        let response_example = extract_response_example(operation.get("responses"), doc);
+                        let response_example =
+                            extract_response_example(operation.get("responses"), doc);
 
                         endpoints.push(SwaggerEndpoint {
                             path: path.clone(),
@@ -518,29 +620,59 @@ fn parse_swagger2(doc: &serde_json::Value, source_url: &str) -> Result<SwaggerPa
         }
     }
 
-    Ok(SwaggerParseResult { title, version, description, base_url, endpoints })
+    Ok(SwaggerParseResult {
+        title,
+        version,
+        description,
+        base_url,
+        endpoints,
+    })
 }
 
 // ── 参数提取 helpers ──
 
-fn extract_parameters_v3(params_val: Option<&serde_json::Value>, doc: &serde_json::Value) -> Vec<SwaggerParameter> {
+fn extract_parameters_v3(
+    params_val: Option<&serde_json::Value>,
+    doc: &serde_json::Value,
+) -> Vec<SwaggerParameter> {
     let mut result = Vec::new();
     if let Some(arr) = params_val.and_then(|v| v.as_array()) {
         for param in arr {
             let param = resolve_ref(param, doc);
-            let name = param.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let location = param.get("in").and_then(|v| v.as_str()).unwrap_or("query").to_string();
-            let required = param.get("required").and_then(|v| v.as_bool()).unwrap_or(location == "path");
-            let desc = param.get("description")
+            let name = param
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let location = param
+                .get("in")
+                .and_then(|v| v.as_str())
+                .unwrap_or("query")
+                .to_string();
+            let required = param
+                .get("required")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(location == "path");
+            let desc = param
+                .get("description")
                 .and_then(|v| v.as_str())
                 .filter(|s| !s.is_empty())
-                .or_else(|| param.get("schema")
-                    .and_then(|s| s.get("description").and_then(|v| v.as_str())))
-                .unwrap_or("").to_string();
+                .or_else(|| {
+                    param
+                        .get("schema")
+                        .and_then(|s| s.get("description").and_then(|v| v.as_str()))
+                })
+                .unwrap_or("")
+                .to_string();
 
             let schema = param.get("schema").unwrap_or(&serde_json::Value::Null);
-            let param_type = schema.get("type").and_then(|v| v.as_str()).unwrap_or("string").to_string();
-            let default_value = schema.get("default")
+            let param_type = schema
+                .get("type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("string")
+                .to_string();
+            let default_value = schema
+                .get("default")
                 .map(|v| v.to_string())
                 .unwrap_or_default();
 
@@ -557,30 +689,55 @@ fn extract_parameters_v3(params_val: Option<&serde_json::Value>, doc: &serde_jso
     result
 }
 
-fn extract_parameters_v2(params_val: Option<&serde_json::Value>, doc: &serde_json::Value) -> Vec<SwaggerParameter> {
+fn extract_parameters_v2(
+    params_val: Option<&serde_json::Value>,
+    doc: &serde_json::Value,
+) -> Vec<SwaggerParameter> {
     let mut result = Vec::new();
     if let Some(arr) = params_val.and_then(|v| v.as_array()) {
         for param in arr {
             let param = resolve_ref(param, doc);
-            let name = param.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let location = param.get("in").and_then(|v| v.as_str()).unwrap_or("query").to_string();
-            let required = param.get("required").and_then(|v| v.as_bool()).unwrap_or(location == "path");
-            let desc = param.get("description")
+            let name = param
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let location = param
+                .get("in")
+                .and_then(|v| v.as_str())
+                .unwrap_or("query")
+                .to_string();
+            let required = param
+                .get("required")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(location == "path");
+            let desc = param
+                .get("description")
                 .and_then(|v| v.as_str())
                 .filter(|s| !s.is_empty())
-                .or_else(|| param.get("schema")
-                    .map(|s| resolve_ref(s, doc))
-                    .and_then(|s| s.get("description").and_then(|v| v.as_str())))
-                .unwrap_or("").to_string();
-            let param_type = param.get("type").and_then(|v| v.as_str()).unwrap_or("string").to_string();
+                .or_else(|| {
+                    param
+                        .get("schema")
+                        .map(|s| resolve_ref(s, doc))
+                        .and_then(|s| s.get("description").and_then(|v| v.as_str()))
+                })
+                .unwrap_or("")
+                .to_string();
+            let param_type = param
+                .get("type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("string")
+                .to_string();
 
             let default_value = if location == "body" {
                 // 尝试从 schema 生成示例
-                param.get("schema")
+                param
+                    .get("schema")
                     .map(|s| generate_example_json(s, doc))
                     .unwrap_or_default()
             } else {
-                param.get("default")
+                param
+                    .get("default")
                     .map(|v| v.to_string())
                     .unwrap_or_default()
             };
@@ -598,17 +755,25 @@ fn extract_parameters_v2(params_val: Option<&serde_json::Value>, doc: &serde_jso
     result
 }
 
-fn extract_request_body_v3(body_val: Option<&serde_json::Value>, doc: &serde_json::Value) -> Option<SwaggerRequestBody> {
+fn extract_request_body_v3(
+    body_val: Option<&serde_json::Value>,
+    doc: &serde_json::Value,
+) -> Option<SwaggerRequestBody> {
     let body = body_val?;
     let body = resolve_ref(body, doc);
-    let required = body.get("required").and_then(|v| v.as_bool()).unwrap_or(false);
+    let required = body
+        .get("required")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     let content = body.get("content")?.as_object()?;
 
     // 优先 application/json
     if let Some(json_content) = content.get("application/json") {
         let schema = json_content.get("schema");
-        let schema_json = schema.map(|s| generate_example_json(s, doc)).unwrap_or_else(|| "{}".to_string());
+        let schema_json = schema
+            .map(|s| generate_example_json(s, doc))
+            .unwrap_or_else(|| "{}".to_string());
         return Some(SwaggerRequestBody {
             content_type: "application/json".to_string(),
             schema_json,
@@ -619,7 +784,9 @@ fn extract_request_body_v3(body_val: Option<&serde_json::Value>, doc: &serde_jso
     // multipart/form-data
     if let Some(form_content) = content.get("multipart/form-data") {
         let schema = form_content.get("schema");
-        let schema_json = schema.map(|s| generate_example_json(s, doc)).unwrap_or_else(|| "{}".to_string());
+        let schema_json = schema
+            .map(|s| generate_example_json(s, doc))
+            .unwrap_or_else(|| "{}".to_string());
         return Some(SwaggerRequestBody {
             content_type: "multipart/form-data".to_string(),
             schema_json,
@@ -630,7 +797,9 @@ fn extract_request_body_v3(body_val: Option<&serde_json::Value>, doc: &serde_jso
     // application/x-www-form-urlencoded
     if let Some(urlencoded) = content.get("application/x-www-form-urlencoded") {
         let schema = urlencoded.get("schema");
-        let schema_json = schema.map(|s| generate_example_json(s, doc)).unwrap_or_else(|| "{}".to_string());
+        let schema_json = schema
+            .map(|s| generate_example_json(s, doc))
+            .unwrap_or_else(|| "{}".to_string());
         return Some(SwaggerRequestBody {
             content_type: "application/x-www-form-urlencoded".to_string(),
             schema_json,
@@ -641,7 +810,9 @@ fn extract_request_body_v3(body_val: Option<&serde_json::Value>, doc: &serde_jso
     // 其他类型
     if let Some((ct, ct_obj)) = content.iter().next() {
         let schema = ct_obj.get("schema");
-        let schema_json = schema.map(|s| generate_example_json(s, doc)).unwrap_or_else(|| "{}".to_string());
+        let schema_json = schema
+            .map(|s| generate_example_json(s, doc))
+            .unwrap_or_else(|| "{}".to_string());
         return Some(SwaggerRequestBody {
             content_type: ct.clone(),
             schema_json,
@@ -653,14 +824,18 @@ fn extract_request_body_v3(body_val: Option<&serde_json::Value>, doc: &serde_jso
 }
 
 /// 从 responses 对象中提取成功响应(200/201)的示例 JSON
-fn extract_response_example(responses_val: Option<&serde_json::Value>, doc: &serde_json::Value) -> String {
+fn extract_response_example(
+    responses_val: Option<&serde_json::Value>,
+    doc: &serde_json::Value,
+) -> String {
     let responses = match responses_val {
         Some(r) => r,
         None => return String::new(),
     };
 
     // 优先 200，其次 201
-    let success_resp = responses.get("200")
+    let success_resp = responses
+        .get("200")
         .or_else(|| responses.get("201"))
         .or_else(|| responses.get("default"));
 
@@ -714,19 +889,29 @@ fn extract_response_example(responses_val: Option<&serde_json::Value>, doc: &ser
 
 // ── $ref 解析 ──
 
-fn resolve_ref<'a>(val: &'a serde_json::Value, doc: &'a serde_json::Value) -> &'a serde_json::Value {
+fn resolve_ref<'a>(
+    val: &'a serde_json::Value,
+    doc: &'a serde_json::Value,
+) -> &'a serde_json::Value {
     resolve_ref_depth(val, doc, 0)
 }
 
 /// 带深度限制的 $ref 解析，防止循环引用导致无限递归
-fn resolve_ref_depth<'a>(val: &'a serde_json::Value, doc: &'a serde_json::Value, depth: u32) -> &'a serde_json::Value {
+fn resolve_ref_depth<'a>(
+    val: &'a serde_json::Value,
+    doc: &'a serde_json::Value,
+    depth: u32,
+) -> &'a serde_json::Value {
     if depth > 10 {
         return val; // 超过深度限制，返回原始值
     }
     if let Some(ref_str) = val.get("$ref").and_then(|v| v.as_str()) {
         // #/components/schemas/Xxx  or  #/definitions/Xxx
-        let parts: Vec<&str> = ref_str.trim_start_matches('#').trim_start_matches('/')
-            .split('/').collect();
+        let parts: Vec<&str> = ref_str
+            .trim_start_matches('#')
+            .trim_start_matches('/')
+            .split('/')
+            .collect();
         let mut current = doc;
         for part in parts {
             current = current.get(part).unwrap_or(&serde_json::Value::Null);
@@ -750,7 +935,11 @@ fn generate_example_json(schema: &serde_json::Value, doc: &serde_json::Value) ->
     serde_json::to_string_pretty(&example).unwrap_or_else(|_| "{}".to_string())
 }
 
-fn generate_example_value(schema: &serde_json::Value, doc: &serde_json::Value, depth: u32) -> serde_json::Value {
+fn generate_example_value(
+    schema: &serde_json::Value,
+    doc: &serde_json::Value,
+    depth: u32,
+) -> serde_json::Value {
     if depth > 5 {
         return serde_json::Value::Null;
     }
@@ -775,7 +964,10 @@ fn generate_example_value(schema: &serde_json::Value, doc: &serde_json::Value, d
         // 同时处理 allOf 同级的 properties（有些生成器把 allOf 和 properties 混用）
         if let Some(props) = schema.get("properties").and_then(|v| v.as_object()) {
             for (key, prop_schema) in props {
-                merged.insert(key.clone(), generate_example_value(prop_schema, doc, depth + 1));
+                merged.insert(
+                    key.clone(),
+                    generate_example_value(prop_schema, doc, depth + 1),
+                );
             }
         }
         if !merged.is_empty() {
@@ -793,26 +985,40 @@ fn generate_example_value(schema: &serde_json::Value, doc: &serde_json::Value, d
     }
 
     // ── 智能推断 type ──
-    let type_str = schema.get("type").and_then(|v| v.as_str()).unwrap_or_else(|| {
-        if schema.get("properties").is_some() { "object" }
-        else if schema.get("items").is_some() { "array" }
-        else if schema.get("enum").is_some() { "string" }
-        else { "object" }
-    });
+    let type_str = schema
+        .get("type")
+        .and_then(|v| v.as_str())
+        .unwrap_or_else(|| {
+            if schema.get("properties").is_some() {
+                "object"
+            } else if schema.get("items").is_some() {
+                "array"
+            } else if schema.get("enum").is_some() {
+                "string"
+            } else {
+                "object"
+            }
+        });
 
     match type_str {
         "object" => {
             let mut obj = serde_json::Map::new();
             if let Some(props) = schema.get("properties").and_then(|v| v.as_object()) {
                 for (key, prop_schema) in props {
-                    obj.insert(key.clone(), generate_example_value(prop_schema, doc, depth + 1));
+                    obj.insert(
+                        key.clone(),
+                        generate_example_value(prop_schema, doc, depth + 1),
+                    );
                 }
             }
             // 处理 additionalProperties（Map 类型）
             if obj.is_empty() {
                 if let Some(add_props) = schema.get("additionalProperties") {
                     if add_props.is_object() && !add_props.get("$ref").is_some() {
-                        obj.insert("key".to_string(), generate_example_value(add_props, doc, depth + 1));
+                        obj.insert(
+                            "key".to_string(),
+                            generate_example_value(add_props, doc, depth + 1),
+                        );
                     }
                 }
             }
@@ -832,7 +1038,10 @@ fn generate_example_value(schema: &serde_json::Value, doc: &serde_json::Value, d
                 "uri" | "url" => serde_json::json!("https://example.com"),
                 _ => {
                     if let Some(enum_vals) = schema.get("enum").and_then(|v| v.as_array()) {
-                        enum_vals.first().cloned().unwrap_or(serde_json::json!("string"))
+                        enum_vals
+                            .first()
+                            .cloned()
+                            .unwrap_or(serde_json::json!("string"))
                     } else {
                         serde_json::json!("string")
                     }
@@ -861,7 +1070,12 @@ fn extract_base_url_v3(doc: &serde_json::Value, source_url: &str) -> String {
                 // 如果是相对路径，拼接 source_url
                 if url.starts_with('/') {
                     if let Ok(parsed) = url::Url::parse(source_url) {
-                        return format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or(""), url);
+                        return format!(
+                            "{}://{}{}",
+                            parsed.scheme(),
+                            parsed.host_str().unwrap_or(""),
+                            url
+                        );
                     }
                 }
                 return url.to_string();
@@ -887,7 +1101,12 @@ fn extract_base_url_v2(doc: &serde_json::Value, source_url: &str) -> String {
     if !host.is_empty() {
         format!("{}://{}{}", scheme, host, base_path)
     } else if let Ok(parsed) = url::Url::parse(source_url) {
-        format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or(""), base_path)
+        format!(
+            "{}://{}{}",
+            parsed.scheme(),
+            parsed.host_str().unwrap_or(""),
+            base_path
+        )
     } else {
         String::new()
     }
@@ -924,7 +1143,8 @@ pub async fn import_selected(
     collections::create_collection(pool, collection.clone()).await?;
 
     // 按 tag 分组创建文件夹
-    let mut tag_folders: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut tag_folders: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
 
     for (idx, ep) in endpoints.iter().enumerate() {
         // 获取或创建 tag 文件夹
@@ -965,26 +1185,34 @@ pub async fn import_selected(
         let full_url = format!("{{{{baseUrl}}}}{}", ep.path);
 
         // 构造 query params — 前端期望格式: [{key, value, description, enabled}]
-        let query_arr: Vec<serde_json::Value> = ep.parameters.iter()
+        let query_arr: Vec<serde_json::Value> = ep
+            .parameters
+            .iter()
             .filter(|p| p.location == "query")
-            .map(|p| serde_json::json!({
-                "key": p.name,
-                "value": p.default_value.trim_matches('"'),
-                "description": p.description,
-                "enabled": true
-            }))
+            .map(|p| {
+                serde_json::json!({
+                    "key": p.name,
+                    "value": p.default_value.trim_matches('"'),
+                    "description": p.description,
+                    "enabled": true
+                })
+            })
             .collect();
         let query_params = serde_json::to_string(&query_arr).unwrap_or_else(|_| "[]".to_string());
 
         // 构造 headers — 前端期望格式: [{key, value, description, enabled}]
-        let header_arr: Vec<serde_json::Value> = ep.parameters.iter()
+        let header_arr: Vec<serde_json::Value> = ep
+            .parameters
+            .iter()
             .filter(|p| p.location == "header")
-            .map(|p| serde_json::json!({
-                "key": p.name,
-                "value": p.default_value.trim_matches('"'),
-                "description": p.description,
-                "enabled": true
-            }))
+            .map(|p| {
+                serde_json::json!({
+                    "key": p.name,
+                    "value": p.default_value.trim_matches('"'),
+                    "description": p.description,
+                    "enabled": true
+                })
+            })
             .collect();
         let headers = serde_json::to_string(&header_arr).unwrap_or_else(|_| "[]".to_string());
 
@@ -993,7 +1221,9 @@ pub async fn import_selected(
             match rb.content_type.as_str() {
                 "application/json" => ("json".to_string(), rb.schema_json.clone()),
                 "multipart/form-data" => ("formData".to_string(), rb.schema_json.clone()),
-                "application/x-www-form-urlencoded" => ("formUrlencoded".to_string(), rb.schema_json.clone()),
+                "application/x-www-form-urlencoded" => {
+                    ("formUrlencoded".to_string(), rb.schema_json.clone())
+                }
                 _ => ("raw".to_string(), rb.schema_json.clone()),
             }
         } else {

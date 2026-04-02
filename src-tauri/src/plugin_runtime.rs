@@ -3,9 +3,9 @@ use std::io::Read;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use boa_engine::{Context, Source, JsError};
+use boa_engine::{Context, JsError, Source};
 use flate2::read::GzDecoder;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, RwLock};
 
 // ── Plugin Types ──
@@ -454,8 +454,7 @@ impl RemotePluginEntry {
 }
 
 /// GitHub 基础 URL（默认 / 海外）
-const GITHUB_BASE_URL: &str =
-    "https://raw.githubusercontent.com/chenqi92/protoforge-plugins/main/";
+const GITHUB_BASE_URL: &str = "https://raw.githubusercontent.com/chenqi92/protoforge-plugins/main/";
 
 /// Cloudflare R2 CDN 基础 URL（中国大陆加速）
 const R2_BASE_URL: &str = "https://protoforge.tuytuy.com/";
@@ -557,10 +556,13 @@ impl PluginManager {
         parse_fn: fn(&str) -> ParseResult,
     ) {
         let id = manifest.id.clone();
-        self.registry.write().await.insert(id, RegisteredPlugin {
-            manifest,
-            runtime: PluginRuntime::Native(parse_fn),
-        });
+        self.registry.write().await.insert(
+            id,
+            RegisteredPlugin {
+                manifest,
+                runtime: PluginRuntime::Native(parse_fn),
+            },
+        );
     }
 
     /// 扫描插件目录，加载所有已安装的 JS/WASM 插件到注册表。
@@ -722,7 +724,8 @@ impl PluginManager {
         let result: Vec<PluginManifest> = all_plugins
             .into_iter()
             .map(|mut m| {
-                let is_installed = registry.get(&m.id)
+                let is_installed = registry
+                    .get(&m.id)
                     .map(|rp| rp.manifest.source != "native")
                     .unwrap_or(false);
                 m.installed = is_installed;
@@ -766,7 +769,10 @@ impl PluginManager {
                     match resp.json::<RemoteRegistry>().await {
                         Ok(registry) => {
                             let manifests: Vec<PluginManifest> = registry
-                                .plugins.into_iter().map(|e| e.into_manifest()).collect();
+                                .plugins
+                                .into_iter()
+                                .map(|e| e.into_manifest())
+                                .collect();
                             let count = manifests.len();
                             *self.remote_cache.write().await = Some(manifests);
                             *self.last_refresh.lock().await = Some(Instant::now());
@@ -794,7 +800,10 @@ impl PluginManager {
                     match resp.json::<RemoteRegistry>().await {
                         Ok(registry) => {
                             let manifests: Vec<PluginManifest> = registry
-                                .plugins.into_iter().map(|e| e.into_manifest()).collect();
+                                .plugins
+                                .into_iter()
+                                .map(|e| e.into_manifest())
+                                .collect();
                             let count = manifests.len();
                             *self.remote_cache.write().await = Some(manifests);
                             *self.last_refresh.lock().await = Some(Instant::now());
@@ -827,7 +836,8 @@ impl PluginManager {
                     // 检查远程是否有更新版本
                     let remote_version = {
                         let cache = self.remote_cache.read().await;
-                        cache.as_ref()
+                        cache
+                            .as_ref()
                             .and_then(|ps| ps.iter().find(|p| p.id == plugin_id))
                             .map(|p| p.version.clone())
                     };
@@ -905,8 +915,6 @@ impl PluginManager {
         Err(format!("插件 '{}' 在仓库中不存在", plugin_id))
     }
 
-
-
     /// Install from remote URL (download .tar.gz and extract)
     async fn install_from_remote(
         &self,
@@ -945,11 +953,10 @@ impl PluginManager {
         let bytes_vec = bytes.to_vec();
         let plugin_dir_clone = plugin_dir.clone();
 
-        let extract_result = tokio::task::spawn_blocking(move || {
-            extract_tar_gz(&bytes_vec, &plugin_dir_clone)
-        })
-        .await
-        .map_err(|e| format!("解压任务失败: {}", e))?;
+        let extract_result =
+            tokio::task::spawn_blocking(move || extract_tar_gz(&bytes_vec, &plugin_dir_clone))
+                .await
+                .map_err(|e| format!("解压任务失败: {}", e))?;
 
         if let Err(tar_err) = extract_result {
             // If tar.gz extraction fails, try treating it as raw JSON/JS content
@@ -971,7 +978,9 @@ impl PluginManager {
             .map_err(|e| format!("读取已安装插件 manifest 失败: {}", e))?;
 
         // 去掉 UTF-8 BOM（某些编辑器会在文件头添加 \u{FEFF}）
-        let manifest_content = manifest_content.strip_prefix('\u{feff}').unwrap_or(&manifest_content);
+        let manifest_content = manifest_content
+            .strip_prefix('\u{feff}')
+            .unwrap_or(&manifest_content);
 
         if manifest_content.trim().is_empty() {
             let _ = tokio::fs::remove_dir_all(&plugin_dir).await;
@@ -981,8 +990,14 @@ impl PluginManager {
             ));
         }
 
-        let mut manifest: PluginManifest = serde_json::from_str(&manifest_content)
-            .map_err(|e| format!("解析已安装插件 manifest 失败: {} (内容前100字符: {:?})", e, &manifest_content[..manifest_content.len().min(100)]))?;
+        let mut manifest: PluginManifest =
+            serde_json::from_str(&manifest_content).map_err(|e| {
+                format!(
+                    "解析已安装插件 manifest 失败: {} (内容前100字符: {:?})",
+                    e,
+                    &manifest_content[..manifest_content.len().min(100)]
+                )
+            })?;
 
         manifest.installed = true;
         manifest.source = "remote".to_string();
@@ -1001,13 +1016,13 @@ impl PluginManager {
             PluginRuntime::JavaScript
         };
 
-        self.registry
-            .write()
-            .await
-            .insert(plugin_id.to_string(), RegisteredPlugin {
+        self.registry.write().await.insert(
+            plugin_id.to_string(),
+            RegisteredPlugin {
                 manifest: manifest.clone(),
                 runtime,
-            });
+            },
+        );
 
         log::info!("远程插件安装成功: {}", plugin_id);
         Ok(manifest)
@@ -1073,7 +1088,7 @@ impl PluginManager {
     /// 查找顺序: icon.svg → icon.png → None (前端 fallback 到 emoji)
     pub async fn get_plugin_icon(&self, plugin_id: &str) -> Option<String> {
         let plugin_dir = self.plugins_dir.join(plugin_id);
-        
+
         // 优先 SVG
         let svg_path = plugin_dir.join("icon.svg");
         if svg_path.exists() {
@@ -1083,7 +1098,7 @@ impl PluginManager {
                 return Some(format!("data:image/svg+xml;base64,{}", b64));
             }
         }
-        
+
         // 其次 PNG
         let png_path = plugin_dir.join("icon.png");
         if png_path.exists() {
@@ -1093,17 +1108,13 @@ impl PluginManager {
                 return Some(format!("data:image/png;base64,{}", b64));
             }
         }
-        
+
         None
     }
 
     /// Execute a plugin's parse function on raw data.
     /// 通过统一注册表动态分发到正确的运行时，零硬编码。
-    pub async fn parse_data(
-        &self,
-        plugin_id: &str,
-        raw_data: &str,
-    ) -> Result<ParseResult, String> {
+    pub async fn parse_data(&self, plugin_id: &str, raw_data: &str) -> Result<ParseResult, String> {
         // 从注册表查找插件及其运行时类型
         let reg = self.registry.read().await;
         let rp = reg
@@ -1119,24 +1130,29 @@ impl PluginManager {
             }
             // JavaScript — boa_engine 解释执行
             PluginRuntime::JavaScript => {
-                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                let script_path = self
+                    .plugins_dir
+                    .join(plugin_id)
+                    .join(&rp.manifest.entrypoint);
                 drop(reg);
                 let script = tokio::fs::read_to_string(&script_path)
                     .await
                     .map_err(|e| format!("读取插件脚本失败: {}", e))?;
                 let raw_data = raw_data.to_string();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_parse_script(&script, &raw_data)
-                })
-                .await
-                .map_err(|e| format!("执行插件失败: {}", e))??;
+                let result =
+                    tokio::task::spawn_blocking(move || execute_parse_script(&script, &raw_data))
+                        .await
+                        .map_err(|e| format!("执行插件失败: {}", e))??;
                 Ok(result)
             }
             // WASM — wasmtime JIT（委托给 WasmPluginRuntime）
             PluginRuntime::Wasm => {
                 drop(reg);
-                    // WASM 执行通过独立的 WasmPluginRuntime 处理
-                Err(format!("WASM 插件 '{}' 请通过 wasm_parse_data 命令调用", plugin_id))
+                // WASM 执行通过独立的 WasmPluginRuntime 处理
+                Err(format!(
+                    "WASM 插件 '{}' 请通过 wasm_parse_data 命令调用",
+                    plugin_id
+                ))
             }
         }
     }
@@ -1159,22 +1175,27 @@ impl PluginManager {
                 Err(format!("原生插件 '{}' 不支持 render 操作", plugin_id))
             }
             PluginRuntime::JavaScript => {
-                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                let script_path = self
+                    .plugins_dir
+                    .join(plugin_id)
+                    .join(&rp.manifest.entrypoint);
                 drop(reg);
                 let script = tokio::fs::read_to_string(&script_path)
                     .await
                     .map_err(|e| format!("读取插件脚本失败: {}", e))?;
                 let data = base64_data.to_string();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_render_script(&script, &data)
-                })
-                .await
-                .map_err(|e| format!("执行插件失败: {}", e))??;
+                let result =
+                    tokio::task::spawn_blocking(move || execute_render_script(&script, &data))
+                        .await
+                        .map_err(|e| format!("执行插件失败: {}", e))??;
                 Ok(result)
             }
             PluginRuntime::Wasm => {
                 drop(reg);
-                Err(format!("WASM 插件 '{}' 的 render 功能请通过 wasm_render_data 命令调用", plugin_id))
+                Err(format!(
+                    "WASM 插件 '{}' 的 render 功能请通过 wasm_render_data 命令调用",
+                    plugin_id
+                ))
             }
         }
     }
@@ -1196,17 +1217,19 @@ impl PluginManager {
                 Err(format!("原生插件 '{}' 不支持 hook 操作", plugin_id))
             }
             PluginRuntime::JavaScript => {
-                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                let script_path = self
+                    .plugins_dir
+                    .join(plugin_id)
+                    .join(&rp.manifest.entrypoint);
                 drop(reg);
                 let script = tokio::fs::read_to_string(&script_path)
                     .await
                     .map_err(|e| format!("读取插件脚本失败: {}", e))?;
                 let req = request_json.to_string();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_hook_script(&script, &req)
-                })
-                .await
-                .map_err(|e| format!("执行插件失败: {}", e))??;
+                let result =
+                    tokio::task::spawn_blocking(move || execute_hook_script(&script, &req))
+                        .await
+                        .map_err(|e| format!("执行插件失败: {}", e))??;
                 Ok(result)
             }
             PluginRuntime::Wasm => {
@@ -1234,7 +1257,10 @@ impl PluginManager {
                 Err(format!("原生插件 '{}' 不支持 generate 操作", plugin_id))
             }
             PluginRuntime::JavaScript => {
-                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                let script_path = self
+                    .plugins_dir
+                    .join(plugin_id)
+                    .join(&rp.manifest.entrypoint);
                 drop(reg);
                 let script = tokio::fs::read_to_string(&script_path)
                     .await
@@ -1272,17 +1298,19 @@ impl PluginManager {
                 Err(format!("原生插件 '{}' 不支持 export 操作", plugin_id))
             }
             PluginRuntime::JavaScript => {
-                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                let script_path = self
+                    .plugins_dir
+                    .join(plugin_id)
+                    .join(&rp.manifest.entrypoint);
                 drop(reg);
                 let script = tokio::fs::read_to_string(&script_path)
                     .await
                     .map_err(|e| format!("读取插件脚本失败: {}", e))?;
                 let req = request_json.to_string();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_export_script(&script, &req)
-                })
-                .await
-                .map_err(|e| format!("执行插件失败: {}", e))??;
+                let result =
+                    tokio::task::spawn_blocking(move || execute_export_script(&script, &req))
+                        .await
+                        .map_err(|e| format!("执行插件失败: {}", e))??;
                 Ok(result)
             }
             PluginRuntime::Wasm => {
@@ -1330,7 +1358,10 @@ impl PluginManager {
                 Err(format!("原生插件 '{}' 不支持 crypto 操作", plugin_id))
             }
             PluginRuntime::JavaScript => {
-                let script_path = self.plugins_dir.join(plugin_id).join(&rp.manifest.entrypoint);
+                let script_path = self
+                    .plugins_dir
+                    .join(plugin_id)
+                    .join(&rp.manifest.entrypoint);
                 drop(reg);
                 let script = tokio::fs::read_to_string(&script_path)
                     .await
@@ -1348,7 +1379,10 @@ impl PluginManager {
             }
             PluginRuntime::Wasm => {
                 drop(reg);
-                Err(format!("WASM 插件 '{}' 不支持 crypto 操作（暂未实现）", plugin_id))
+                Err(format!(
+                    "WASM 插件 '{}' 不支持 crypto 操作（暂未实现）",
+                    plugin_id
+                ))
             }
         }
     }
@@ -1365,14 +1399,18 @@ fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), Strin
     let should_strip = {
         let gz = GzDecoder::new(data);
         let mut archive = tar::Archive::new(gz);
-        let entries = archive.entries().map_err(|e| format!("读取 tar 条目失败: {}", e))?;
+        let entries = archive
+            .entries()
+            .map_err(|e| format!("读取 tar 条目失败: {}", e))?;
 
         let mut common_root: Option<String> = None;
         let mut all_share_root = true;
 
         for entry_result in entries {
             let entry = entry_result.map_err(|e| format!("读取 tar 条目失败: {}", e))?;
-            let path = entry.path().map_err(|e| format!("获取条目路径失败: {}", e))?;
+            let path = entry
+                .path()
+                .map_err(|e| format!("获取条目路径失败: {}", e))?;
 
             // 跳过 macOS AppleDouble 资源分支文件 (._xxx)，不影响公共根目录判断
             if let Some(name) = path.file_name() {
@@ -1414,19 +1452,21 @@ fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), Strin
     let mut archive2 = tar::Archive::new(gz2);
 
     // 预先获取 target_dir 的规范路径用于安全校验
-    let canonical_target = std::fs::canonicalize(target_dir)
-        .unwrap_or_else(|_| target_dir.to_path_buf());
+    let canonical_target =
+        std::fs::canonicalize(target_dir).unwrap_or_else(|_| target_dir.to_path_buf());
 
     let skip_count = if should_strip { 1 } else { 0 };
 
-    for entry_result in archive2.entries().map_err(|e| format!("读取 tar 条目失败: {}", e))? {
+    for entry_result in archive2
+        .entries()
+        .map_err(|e| format!("读取 tar 条目失败: {}", e))?
+    {
         let mut entry = entry_result.map_err(|e| format!("读取 tar 条目失败: {}", e))?;
-        let path = entry.path().map_err(|e| format!("获取条目路径失败: {}", e))?;
+        let path = entry
+            .path()
+            .map_err(|e| format!("获取条目路径失败: {}", e))?;
 
-        let relative: PathBuf = path
-            .components()
-            .skip(skip_count)
-            .collect();
+        let relative: PathBuf = path.components().skip(skip_count).collect();
 
         // 跳过空路径（根目录条目本身）
         if relative.as_os_str().is_empty() {
@@ -1434,7 +1474,10 @@ fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), Strin
         }
 
         // 安全检查：过滤掉包含 ".." 的路径组件以防止路径穿越攻击 (Zip Slip)
-        if relative.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+        if relative
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
             log::warn!("跳过可疑路径 (路径穿越): {:?}", relative);
             continue;
         }
@@ -1443,8 +1486,7 @@ fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), Strin
 
         // 二次校验：确保最终路径在 target_dir 内
         let canonical_path = if target_path.exists() {
-            std::fs::canonicalize(&target_path)
-                .unwrap_or_else(|_| target_path.clone())
+            std::fs::canonicalize(&target_path).unwrap_or_else(|_| target_path.clone())
         } else {
             // 文件尚不存在，检查父目录的规范路径
             let parent = target_path.parent().unwrap_or(target_dir);
@@ -1472,7 +1514,8 @@ fn extract_tar_gz(data: &[u8], target_dir: &std::path::Path) -> Result<(), Strin
             }
 
             let mut file_data = Vec::new();
-            entry.read_to_end(&mut file_data)
+            entry
+                .read_to_end(&mut file_data)
                 .map_err(|e| format!("读取条目数据失败: {}", e))?;
 
             std::fs::write(&target_path, &file_data)
@@ -1497,8 +1540,8 @@ fn execute_parse_script(script: &str, raw_data: &str) -> Result<ParseResult, Str
 
     // 使用 serde_json::to_string 对 raw_data 进行安全转义，
     // 可正确处理所有特殊字符（\0, \u2028, \u2029, 反引号等），防止 JS 注入。
-    let json_escaped = serde_json::to_string(raw_data)
-        .map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let json_escaped =
+        serde_json::to_string(raw_data).map_err(|e| format!("序列化输入数据失败: {}", e))?;
     let call_script = format!("JSON.stringify(parse({}))", json_escaped);
 
     let result = context
@@ -1571,8 +1614,8 @@ fn execute_render_script(script: &str, base64_data: &str) -> Result<RenderResult
     }
 
     // 将 base64 数据也传给 render()（插件可用于非 ZIP 场景）
-    let json_escaped = serde_json::to_string(base64_data)
-        .map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let json_escaped =
+        serde_json::to_string(base64_data).map_err(|e| format!("序列化输入数据失败: {}", e))?;
     let call_script = format!("JSON.stringify(render({}))", json_escaped);
 
     let result = context
@@ -1585,8 +1628,8 @@ fn execute_render_script(script: &str, base64_data: &str) -> Result<RenderResult
         .to_std_string()
         .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
 
-    let rendered: RenderResult =
-        serde_json::from_str(&json_str).map_err(|e| format!("解析 render 返回 JSON 失败: {}", e))?;
+    let rendered: RenderResult = serde_json::from_str(&json_str)
+        .map_err(|e| format!("解析 render 返回 JSON 失败: {}", e))?;
 
     Ok(rendered)
 }
@@ -1596,13 +1639,13 @@ fn execute_render_script(script: &str, base64_data: &str) -> Result<RenderResult
 fn extract_zip_to_map(bytes: &[u8]) -> Result<std::collections::HashMap<String, String>, String> {
     use std::io::Read;
     let cursor = std::io::Cursor::new(bytes);
-    let mut archive = zip::ZipArchive::new(cursor)
-        .map_err(|e| format!("ZIP 解析失败: {}", e))?;
+    let mut archive = zip::ZipArchive::new(cursor).map_err(|e| format!("ZIP 解析失败: {}", e))?;
 
     let mut files = std::collections::HashMap::new();
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
+        let mut file = archive
+            .by_index(i)
             .map_err(|e| format!("读取 ZIP 条目 {} 失败: {}", i, e))?;
 
         if file.is_dir() {
@@ -1638,8 +1681,8 @@ fn execute_hook_script(script: &str, request_json: &str) -> Result<HookResult, S
         .eval(Source::from_bytes(script))
         .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
 
-    let json_escaped = serde_json::to_string(request_json)
-        .map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let json_escaped =
+        serde_json::to_string(request_json).map_err(|e| format!("序列化输入数据失败: {}", e))?;
     let call_script = format!("JSON.stringify(hook(JSON.parse({})))", json_escaped);
 
     let result = context
@@ -1659,7 +1702,11 @@ fn execute_hook_script(script: &str, request_json: &str) -> Result<HookResult, S
 }
 
 /// Execute a JS plugin's generate(generatorId, options) function in a sandboxed boa_engine context.
-fn execute_generate_script(script: &str, generator_id: &str, options_json: &str) -> Result<GenerateDataResult, String> {
+fn execute_generate_script(
+    script: &str,
+    generator_id: &str,
+    options_json: &str,
+) -> Result<GenerateDataResult, String> {
     let mut context = Context::default();
 
     context
@@ -1668,9 +1715,12 @@ fn execute_generate_script(script: &str, generator_id: &str, options_json: &str)
 
     let gen_id_escaped = serde_json::to_string(generator_id)
         .map_err(|e| format!("序列化 generatorId 失败: {}", e))?;
-    let opts_escaped = serde_json::to_string(options_json)
-        .map_err(|e| format!("序列化 options 失败: {}", e))?;
-    let call_script = format!("JSON.stringify(generate({}, JSON.parse({})))", gen_id_escaped, opts_escaped);
+    let opts_escaped =
+        serde_json::to_string(options_json).map_err(|e| format!("序列化 options 失败: {}", e))?;
+    let call_script = format!(
+        "JSON.stringify(generate({}, JSON.parse({})))",
+        gen_id_escaped, opts_escaped
+    );
 
     let result = context
         .eval(Source::from_bytes(call_script.as_bytes()))
@@ -1682,8 +1732,8 @@ fn execute_generate_script(script: &str, generator_id: &str, options_json: &str)
         .to_std_string()
         .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
 
-    let parsed: GenerateDataResult =
-        serde_json::from_str(&json_str).map_err(|e| format!("解析 generate 返回 JSON 失败: {}", e))?;
+    let parsed: GenerateDataResult = serde_json::from_str(&json_str)
+        .map_err(|e| format!("解析 generate 返回 JSON 失败: {}", e))?;
 
     Ok(parsed)
 }
@@ -1696,9 +1746,12 @@ fn execute_export_script(script: &str, request_json: &str) -> Result<ExportResul
         .eval(Source::from_bytes(script))
         .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
 
-    let json_escaped = serde_json::to_string(request_json)
-        .map_err(|e| format!("序列化输入数据失败: {}", e))?;
-    let call_script = format!("JSON.stringify(exportRequest(JSON.parse({})))", json_escaped);
+    let json_escaped =
+        serde_json::to_string(request_json).map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let call_script = format!(
+        "JSON.stringify(exportRequest(JSON.parse({})))",
+        json_escaped
+    );
 
     let result = context
         .eval(Source::from_bytes(call_script.as_bytes()))
@@ -1710,8 +1763,8 @@ fn execute_export_script(script: &str, request_json: &str) -> Result<ExportResul
         .to_std_string()
         .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
 
-    let parsed: ExportResult =
-        serde_json::from_str(&json_str).map_err(|e| format!("解析 export 返回 JSON 失败: {}", e))?;
+    let parsed: ExportResult = serde_json::from_str(&json_str)
+        .map_err(|e| format!("解析 export 返回 JSON 失败: {}", e))?;
 
     Ok(parsed)
 }
@@ -1733,13 +1786,17 @@ fn execute_crypto_script(
 
     let algo_escaped = serde_json::to_string(algorithm_id)
         .map_err(|e| format!("序列化 algorithmId 失败: {}", e))?;
-    let input_escaped = serde_json::to_string(input)
-        .map_err(|e| format!("序列化输入数据失败: {}", e))?;
-    let params_escaped = serde_json::to_string(params_json)
-        .map_err(|e| format!("序列化参数失败: {}", e))?;
+    let input_escaped =
+        serde_json::to_string(input).map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let params_escaped =
+        serde_json::to_string(params_json).map_err(|e| format!("序列化参数失败: {}", e))?;
 
     // 调用 encrypt(algorithmId, input, params) 或 decrypt(algorithmId, input, params)
-    let fn_name = if mode == "encrypt" { "encrypt" } else { "decrypt" };
+    let fn_name = if mode == "encrypt" {
+        "encrypt"
+    } else {
+        "decrypt"
+    };
     let call_script = format!(
         "JSON.stringify({}({}, {}, JSON.parse({})))",
         fn_name, algo_escaped, input_escaped, params_escaped
@@ -1755,8 +1812,8 @@ fn execute_crypto_script(
         .to_std_string()
         .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
 
-    let parsed: CryptoResult =
-        serde_json::from_str(&json_str).map_err(|e| format!("解析 {} 返回 JSON 失败: {}", fn_name, e))?;
+    let parsed: CryptoResult = serde_json::from_str(&json_str)
+        .map_err(|e| format!("解析 {} 返回 JSON 失败: {}", fn_name, e))?;
 
     Ok(parsed)
 }
