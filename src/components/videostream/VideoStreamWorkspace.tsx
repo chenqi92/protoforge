@@ -5,7 +5,15 @@ import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "reac
 import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, GripHorizontal, GripVertical, History, X, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import type { VideoProtocol, StreamInfo, StreamStats, ProtocolMessage } from "@/types/videostream";
+import type {
+  FfmpegStatus,
+  ProtocolMessage,
+  RtmpConfig,
+  RtspConfig,
+  StreamInfo,
+  StreamStats,
+  VideoProtocol,
+} from "@/types/videostream";
 import * as vsSvc from "@/services/videoStreamService";
 import { VideoPlayer } from "./VideoPlayer";
 import { RtspPanel } from "./RtspPanel";
@@ -46,6 +54,30 @@ function saveRecentStream(url: string, protocol: VideoProtocol) {
   localStorage.setItem(rsKey(), JSON.stringify([{ url, protocol }, ...list].slice(0, 12)));
 }
 
+const DEFAULT_RTSP_CONFIG: RtspConfig = {
+  url: "",
+  username: "",
+  password: "",
+  transport: "tcp",
+  authMethod: "none",
+};
+
+const DEFAULT_RTMP_CONFIG: RtmpConfig = {
+  url: "",
+  mode: "pull",
+  streamKey: "",
+};
+
+function supportsIntegratedPlayback(mode: VideoProtocol, url: string): boolean {
+  if (mode === "webrtc") return false;
+  if (mode === "gb28181" && !/^([a-z][a-z0-9+.-]*):\/\//i.test(url)) return false;
+  return true;
+}
+
+function expectedPlayerUrl(mode: VideoProtocol, url: string): string {
+  return mode === "hls" ? `hls:${url}` : `tauri:${url}`;
+}
+
 export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<VideoProtocol>("onvif");
@@ -57,15 +89,45 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [streamUrl, setStreamUrl] = useState("");
+  const [rtspConfig, setRtspConfig] = useState<RtspConfig>(DEFAULT_RTSP_CONFIG);
+  const [rtmpConfig, setRtmpConfig] = useState<RtmpConfig>(DEFAULT_RTMP_CONFIG);
   const [streamInfo, setStreamInfo] = useState<StreamInfo | null>(null);
   const [stats, setStats] = useState<StreamStats | null>(null);
   const [messageMap, setMessageMap] = useState<Record<string, ProtocolMessage[]>>({});
   const filteredMessages = messageMap[mode] ?? [];
   const [, setPlaying] = useState(false); // kept for event handler compat
   const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);
+  const [ffmpegStatus, setFfmpegStatus] = useState<FfmpegStatus | null>(null);
+  const [ffmpegProgressText, setFfmpegProgressText] = useState("");
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [filteredMessages.length]);
+
+  useEffect(() => {
+    let disposed = false;
+    let unlistenProgress: (() => void) | null = null;
+
+    const loadStatus = async () => {
+      try {
+        const status = await vsSvc.ffmpegStatus();
+        if (!disposed) setFfmpegStatus(status);
+      } catch {
+        if (!disposed) setFfmpegStatus(null);
+      }
+    };
+
+    void loadStatus();
+    void vsSvc.onFfmpegDownloadProgress((progress) => {
+      if (disposed) return;
+      setFfmpegProgressText(progress.stage);
+      setFfmpegStatus((prev) => prev ? { ...prev, downloading: progress.progress < 1 } : prev);
+    }).then((fn) => { if (!disposed) unlistenProgress = fn; });
+
+    return () => {
+      disposed = true;
+      unlistenProgress?.();
+    };
+  }, []);
 
   // ── Events ──
   useEffect(() => {
@@ -79,7 +141,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
         switch (e.eventType) {
           case 'connected': setConnected(true); setConnecting(false); break;
           case 'disconnected': setConnected(false); setConnecting(false); setPlaying(false); setStreamInfo(null); setStats(null); break;
-          case 'error': setConnecting(false); break;
+          case 'error': setConnecting(false); setConnected(false); if (e.data) setPlayerError(e.data); break;
           case 'stream-info': if (e.data) { try { setStreamInfo(JSON.parse(e.data)); } catch { /* */ } } break;
         }
       });
@@ -103,6 +165,42 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const [showPlayer, setShowPlayer] = useState(false);
   const [playerUrl, setPlayerUrl] = useState<string | null>(null);
 
+  const refreshFfmpegStatus = useCallback(async () => {
+    try {
+      setFfmpegStatus(await vsSvc.ffmpegStatus());
+    } catch {
+      setFfmpegStatus(null);
+    }
+  }, []);
+
+  const handleDownloadFfmpeg = useCallback(async () => {
+    setPlayerError(null);
+    setFfmpegProgressText("准备下载 FFmpeg...");
+    try {
+      await vsSvc.ffmpegDownload();
+      await refreshFfmpegStatus();
+      setFfmpegProgressText("FFmpeg 安装完成");
+    } catch (error) {
+      setPlayerError(String(error));
+      await refreshFfmpegStatus();
+    }
+  }, [refreshFfmpegStatus]);
+
+  const buildConnectConfig = useCallback((activeUrl: string) => {
+    switch (mode) {
+      case "rtsp":
+        return { protocol: mode, config: { ...rtspConfig, url: activeUrl } };
+      case "rtmp":
+        return { protocol: mode, config: { ...rtmpConfig, url: activeUrl } };
+      case "http-flv":
+        return { protocol: mode, config: { url: activeUrl } };
+      case "hls":
+        return { protocol: mode, config: { url: activeUrl } };
+      default:
+        return null;
+    }
+  }, [mode, rtmpConfig, rtspConfig]);
+
   const handleConnect = useCallback(async () => {
     if (showPlayer) {
       // Stop playback and disconnect
@@ -114,37 +212,85 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
       setConnected(false);
       return;
     }
-    if (!streamUrl.trim()) return;
+    const activeUrl = streamUrl.trim();
+    if (!activeUrl) return;
+    if (!supportsIntegratedPlayback(mode, activeUrl)) {
+      setPlayerError(mode === "webrtc"
+        ? "当前内置播放器不直接处理 WebRTC 信令流。请先完成面板内的 SDP/ICE 协商，或接入媒体网关后再播放。"
+        : "GB28181 需要先通过媒体网关或设备目录拿到实际媒体地址，再启动播放。");
+      return;
+    }
+
+    if (mode !== "hls") {
+      const status = ffmpegStatus ?? await vsSvc.ffmpegStatus().catch(() => null);
+      if (status) setFfmpegStatus(status);
+      if (status && !status.available) {
+        setPlayerError("FFmpeg 未安装，当前模式无法启动内置播放器。");
+        return;
+      }
+    }
+
     setPlayerError(null);
-    saveRecentStream(streamUrl, mode);
+    saveRecentStream(activeUrl, mode);
     setRecentStreams(loadRecentStreams());
-    // Set player URL first so listeners are ready before FFmpeg starts
-    const tauriUrl = `tauri:${streamUrl}`;
-    setPlayerUrl(tauriUrl);
+
+    const connectPayload = buildConnectConfig(activeUrl);
+    if (connectPayload) {
+      try {
+        await vsSvc.connectStream(sessionKey, connectPayload.protocol, connectPayload.config);
+      } catch (error) {
+        setPlayerError(String(error));
+        return;
+      }
+    }
+
+    // Set the expected player URL first so listeners are mounted before backend emits data.
+    setPlayerUrl(expectedPlayerUrl(mode, activeUrl));
     setShowPlayer(true);
     setPlaying(true);
     setConnecting(true);
-    // Wait for React render cycle to complete
+    // Wait for React render cycle to complete before starting the backend pipeline.
     await new Promise(r => requestAnimationFrame(() => setTimeout(r, 50)));
     try {
-      await vsSvc.playerLoad(sessionKey, streamUrl);
-      setConnected(true);
+      const resolvedUrl = await vsSvc.playerLoad(sessionKey, mode, activeUrl, connectPayload?.config);
+      setPlayerUrl(resolvedUrl);
     } catch (e) {
       setPlayerError(String(e));
       setPlaying(false);
       setShowPlayer(false);
       setPlayerUrl(null);
+      await vsSvc.disconnectStream(sessionKey).catch(() => {});
     }
     setConnecting(false);
-  }, [showPlayer, sessionKey, mode, streamUrl]);
+  }, [showPlayer, streamUrl, mode, ffmpegStatus, buildConnectConfig, sessionKey]);
 
   const selectedMsg = selectedMsgId ? filteredMessages.find(m => m.id === selectedMsgId) : null;
 
   // ── Protocol config panel ──
   const renderProtocolConfig = () => {
     switch (mode) {
-      case 'rtsp': return <RtspPanel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} onStreamUrlChange={setStreamUrl} />;
-      case 'rtmp': return <RtmpPanel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} onStreamUrlChange={setStreamUrl} />;
+      case 'rtsp':
+        return (
+          <RtspPanel
+            sessionKey={sessionKey}
+            connected={connected}
+            streamUrl={streamUrl}
+            onStreamUrlChange={setStreamUrl}
+            config={rtspConfig}
+            onConfigChange={setRtspConfig}
+          />
+        );
+      case 'rtmp':
+        return (
+          <RtmpPanel
+            sessionKey={sessionKey}
+            connected={connected}
+            streamUrl={streamUrl}
+            onStreamUrlChange={setStreamUrl}
+            config={rtmpConfig}
+            onConfigChange={setRtmpConfig}
+          />
+        );
       case 'http-flv': return <HttpFlvPanel sessionKey={sessionKey} connected={connected} />;
       case 'hls': return <HlsPanel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} />;
       case 'webrtc': return <WebRtcPanel sessionKey={sessionKey} connected={connected} />;
@@ -233,6 +379,22 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
         </div>
       )}
 
+      {mode !== "hls" && ffmpegStatus && !ffmpegStatus.available && (
+        <div className="shrink-0 flex items-center gap-2 rounded-[var(--radius-sm)] border border-warning/20 bg-warning/8 px-3 py-2 mt-2">
+          <span className="text-[var(--fs-xxs)] text-warning flex-1">
+            内置播放器依赖 FFmpeg。当前未检测到可用安装{ffmpegProgressText ? `，${ffmpegProgressText}` : "。"}
+          </span>
+          <button
+            onClick={handleDownloadFfmpeg}
+            disabled={ffmpegStatus.downloading}
+            className="h-7 px-2.5 rounded-[var(--radius-sm)] bg-warning text-white text-[var(--fs-xxs)] font-semibold hover:bg-warning/90 disabled:opacity-60"
+          >
+            <Download className="w-3 h-3" />
+            {ffmpegStatus.downloading ? "下载中..." : "下载 FFmpeg"}
+          </button>
+        </div>
+      )}
+
       {/* ── Player error toast ── */}
       {playerError && (
         <div className="shrink-0 flex items-center gap-2 rounded-[var(--radius-sm)] bg-error/10 border border-error/20 px-3 py-1.5 mt-2">
@@ -277,7 +439,15 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                   <div className="flex-1 w-full bg-[#0a0a0a] flex flex-col items-center justify-center relative overflow-hidden">
                     {showPlayer ? (
                       <div className="absolute inset-0 w-full h-full flex flex-col">
-                        <VideoPlayer url={playerUrl} sessionId={sessionKey} onError={(e) => setPlayerError(e)} />
+                        <VideoPlayer
+                          url={playerUrl}
+                          sessionId={sessionKey}
+                          liveMode={mode !== "hls"}
+                          onError={(error) => {
+                            setConnected(false);
+                            setPlayerError(error);
+                          }}
+                        />
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-3 text-text-disabled/40">

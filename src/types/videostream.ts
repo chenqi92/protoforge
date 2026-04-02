@@ -139,12 +139,14 @@ export interface FlvTag {
 }
 
 export interface HlsPlaylistInfo {
-  type: 'master' | 'media';
+  playlistType: 'master' | 'media';
   version?: number;
   targetDuration?: number;
   mediaSequence?: number;
-  variants?: HlsVariant[];
-  segments?: HlsSegment[];
+  isLive: boolean;
+  totalDuration: number;
+  variants: HlsVariant[];
+  segments: HlsSegment[];
 }
 
 export interface HlsVariant {
@@ -159,6 +161,20 @@ export interface HlsSegment {
   uri: string;
   sequence: number;
   byteRange?: string;
+}
+
+export interface FfmpegStatus {
+  available: boolean;
+  path?: string | null;
+  source: string;
+  downloading: boolean;
+}
+
+export interface FfmpegDownloadProgress {
+  progress: number;
+  downloaded: number;
+  total: number;
+  stage: string;
 }
 
 // ── SDP 解析 ──

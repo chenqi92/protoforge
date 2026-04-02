@@ -1939,7 +1939,7 @@ pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String>
     if lower.starts_with("rtsp://") {
         // RTSP probe: send DESCRIBE and parse SDP
         let resp = crate::video_streaming::rtsp::send_rtsp_request(
-            "probe", &url, "DESCRIBE", None, "", &app,
+            "probe", &url, "DESCRIBE", None, "tcp", "", &app,
         ).await?;
 
         // Parse SDP from DESCRIBE response
@@ -2027,18 +2027,20 @@ pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String>
 #[tauri::command]
 pub async fn vs_player_load(
     session_id: String,
+    protocol: String,
     url: String,
+    config: Option<String>,
     app: AppHandle,
 ) -> Result<String, String> {
-    log::info!("Player load: session={} url={}", session_id, url);
+    log::info!("Player load: session={} protocol={} url={}", session_id, protocol, url);
 
     // HLS 可直接在前端用 hls.js 播放
-    if url.to_lowercase().contains(".m3u8") {
+    if protocol == "hls" || url.to_lowercase().contains(".m3u8") {
         return Ok(format!("hls:{}", url));
     }
 
     // 其他格式通过 FFmpeg CLI 子进程读取 -> Tauri 事件推送帧数据
-    crate::video_streaming::player::start_player(session_id.clone(), url.clone(), app).await
+    crate::video_streaming::player::start_player(session_id.clone(), protocol, url.clone(), config, app).await
         .map(|_| format!("tauri:{}", url))
 }
 
@@ -2100,13 +2102,38 @@ pub async fn vs_rtsp_command(
         return Err("No RTSP URL configured".to_string());
     }
 
+    let sessions = state.sessions.lock().await;
+    let cfg: serde_json::Value = sessions.get(&session_id)
+        .and_then(|session| serde_json::from_str(&session.config).ok())
+        .unwrap_or_default();
+    drop(sessions);
+
+    let transport = cfg.get("transport")
+        .and_then(|v| v.as_str())
+        .unwrap_or("tcp")
+        .to_string();
+    let auth_method = cfg.get("authMethod")
+        .and_then(|v| v.as_str())
+        .unwrap_or("none");
+    let username = cfg.get("username").and_then(|v| v.as_str()).unwrap_or("");
+    let password = cfg.get("password").and_then(|v| v.as_str()).unwrap_or("");
+    let mut extra_headers = String::new();
+    if auth_method == "basic" && !username.is_empty() {
+        use base64::Engine;
+        let token = base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", username, password));
+        extra_headers.push_str(&format!("Authorization: Basic {}\r\n", token));
+    } else if auth_method == "digest" {
+        return Err("当前 RTSP 调试面板暂未实现 Digest 挑战应答，仅内置播放器会通过 FFmpeg 自动处理。".to_string());
+    }
+
     // Use real RTSP client
     crate::video_streaming::rtsp::send_rtsp_request(
         &session_id,
         &url,
         &method,
         None,
-        "",
+        &transport,
+        &extra_headers,
         &app,
     ).await
 }

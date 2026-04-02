@@ -2453,18 +2453,110 @@ function VariableHoverPopover({
       : preview.value;
   const canSaveToCollection = Boolean(collectionId) && preview.source !== "dynamic";
 
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    const textToCopy = canSaveToCollection ? draft : displayValue;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    });
+  };
+
+  // ── Resizable popover size with localStorage persistence ──
+  const STORAGE_KEY = "protoforge:var-popover-size";
+  const DEFAULT_W = compact ? 340 : 420;
+  const DEFAULT_H = 0; // 0 = auto height
+  const MIN_W = 280;
+  const MIN_H = 140;
+  const MAX_W = 640;
+  const MAX_H = 480;
+
+  const readStoredSize = (): { w: number; h: number } => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.w === "number" && typeof parsed.h === "number") {
+          return { w: Math.max(MIN_W, Math.min(MAX_W, parsed.w)), h: Math.max(MIN_H, Math.min(MAX_H, parsed.h)) };
+        }
+      }
+    } catch { /* ignore */ }
+    return { w: DEFAULT_W, h: DEFAULT_H };
+  };
+
+  const stored = readStoredSize();
+  const [popoverW, setPopoverW] = useState(stored.w);
+  const [popoverH, setPopoverH] = useState(stored.h);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const resizingRef = useRef(false);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = true;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = popoverRef.current?.offsetWidth ?? popoverW;
+    const startH = popoverRef.current?.offsetHeight ?? (popoverH || 200);
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const newW = Math.max(MIN_W, Math.min(MAX_W, startW + (ev.clientX - startX)));
+      const newH = Math.max(MIN_H, Math.min(MAX_H, startH + (ev.clientY - startY)));
+      setPopoverW(newW);
+      setPopoverH(newH);
+    };
+
+    const onUp = () => {
+      resizingRef.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      // Persist to localStorage
+      const el = popoverRef.current;
+      if (el) {
+        const finalW = el.offsetWidth;
+        const finalH = el.offsetHeight;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ w: finalW, h: finalH }));
+      }
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [popoverW, popoverH]);
+
+  const popoverStyle: React.CSSProperties = {
+    top: rect.bottom + 10,
+    left: Math.min(window.innerWidth - popoverW - 12, Math.max(12, rect.left - 8)),
+    width: popoverW,
+    ...(popoverH > 0 ? { height: popoverH } : {}),
+  };
+
   return (
     <div
+      ref={popoverRef}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
         "fixed z-[var(--z-toast)] rounded-[var(--radius-xl)] border border-border-default/85 bg-bg-primary/98 shadow-[0_18px_46px_rgba(15,23,42,0.14)] backdrop-blur-xl",
-        compact ? "w-[296px]" : "w-[340px]"
+        "animate-[varPopIn_0.15s_ease-out]",
+        "var-popover-resizable group/popover"
       )}
-      style={{ top: rect.bottom + 10, left: Math.min(window.innerWidth - (compact ? 308 : 352), Math.max(12, rect.left - 8)) }}
+      style={popoverStyle}
     >
-      <div className="border-b border-border-subtle/80 px-4 py-3">
-        <div className="flex items-start justify-between gap-3">
+      {/* Floating copy button - top right */}
+      <button
+        type="button"
+        onClick={handleCopy}
+        className={cn("var-popover-copy-float", copied && "var-popover-copy-float-ok")}
+        title={t('http.copyValue')}
+      >
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+
+      {/* Header: variable name + source badge */}
+      <div className="px-4 py-3 shrink-0">
+        <div className="flex items-start justify-between gap-3 pr-7">
           <div className="min-w-0">
             <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
               {t('http.variablePreview')}
@@ -2473,76 +2565,80 @@ function VariableHoverPopover({
               {`{{${preview.key}}}`}
             </div>
           </div>
-          <div className="inline-flex shrink-0 rounded-full bg-bg-hover px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-secondary">
-            {sourceLabelMap[preview.source]}
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3 px-4 py-3">
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[var(--fs-xxs)] font-medium text-text-tertiary">
-              {t('http.variableResolvedValue')}
-            </span>
+          <div className="flex items-center gap-1.5 shrink-0">
             {preview.isSecret && preview.source !== "missing" && (
               <button
                 type="button"
                 onClick={() => setRevealed((current) => !current)}
-                className="text-text-disabled transition-colors hover:text-text-secondary"
+                className="var-popover-toolbar-btn"
+                title={revealed ? t('http.hideValue') : t('http.revealValue')}
               >
                 {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               </button>
             )}
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-border-subtle/75 bg-bg-secondary/55 px-3 py-2 font-mono text-[var(--fs-sm)] leading-6 text-text-primary">
-            {displayValue}
+            <div className="inline-flex rounded-full bg-bg-hover px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-secondary">
+              {sourceLabelMap[preview.source]}
+            </div>
           </div>
         </div>
+      </div>
 
+      {/* Value area */}
+      <div className="var-popover-body">
+        <div className="var-popover-value-block group/block">
+          {canSaveToCollection ? (
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder={t('http.variableEditPlaceholder')}
+              spellCheck={false}
+              className="var-popover-textarea"
+            />
+          ) : (
+            <div className={cn(
+              "var-popover-display",
+              preview.source === "missing" && "var-popover-display-missing"
+            )}>
+              {displayValue}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer: save button or status hint */}
+      <div className="shrink-0 px-3 pb-3">
         {canSaveToCollection ? (
-          <div className="space-y-1.5">
-            <div className="text-[var(--fs-xxs)] font-medium text-text-tertiary">
-              {t('http.variableSaveToCollection')}
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder={t('http.variableEditPlaceholder')}
-                className="wb-field h-9 w-full px-3 text-[var(--fs-sm)] font-mono"
-              />
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!collectionId) return;
-                  setSaving(true);
-                  try {
-                    await upsertCollectionVariable(collectionId, preview.key, draft);
-                    setSaved(true);
-                    window.setTimeout(() => setSaved(false), 1200);
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
-                className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[var(--radius-md)] bg-accent px-3 text-[var(--fs-xs)] font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-wait disabled:opacity-70"
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-                {saved ? t('http.variableSaved') : t('http.variableSave')}
-              </button>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!collectionId) return;
+              setSaving(true);
+              try {
+                await upsertCollectionVariable(collectionId, preview.key, draft);
+                setSaved(true);
+                window.setTimeout(() => setSaved(false), 1200);
+              } finally {
+                setSaving(false);
+              }
+            }}
+            className={cn("var-popover-save-btn", saved && "var-popover-save-btn-ok")}
+            disabled={saving}
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+            {saved ? t('http.variableSaved') : t('http.variableSave')}
+          </button>
         ) : !collectionId ? (
-          <div className="rounded-[var(--radius-md)] bg-bg-secondary/45 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary">
-            {t('http.variableNoCollection')}
-          </div>
+          <div className="text-[var(--fs-xxs)] text-text-disabled text-center py-0.5 select-none">{t('http.variableNoCollection')}</div>
         ) : preview.source === "dynamic" ? (
-          <div className="rounded-[var(--radius-md)] bg-bg-secondary/45 px-3 py-2 text-[var(--fs-xs)] text-text-tertiary">
-            {t('http.variableDynamicReadonly')}
-          </div>
+          <div className="text-[var(--fs-xxs)] text-text-disabled text-center py-0.5 select-none">{t('http.variableDynamicReadonly')}</div>
         ) : null}
       </div>
+
+      {/* Resize handle */}
+      <div
+        className="var-popover-resize-handle"
+        onMouseDown={handleResizeStart}
+      />
     </div>
   );
 }

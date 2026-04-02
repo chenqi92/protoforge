@@ -11,6 +11,7 @@ interface VideoPlayerProps {
   url: string | null; // "hls:https://..." or "tauri:rtsp://..." or direct URL
   sessionId: string;
   onError?: (msg: string) => void;
+  liveMode?: boolean;
 }
 
 interface InitEvent {
@@ -41,7 +42,7 @@ function codecToMime(codec: string, hasAudio: boolean): string {
   return `video/mp4; codecs="avc1.42E01E${audio}"`;
 }
 
-export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
+export function VideoPlayer({ url, sessionId, onError, liveMode = true }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -85,6 +86,30 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
       });
       return () => { hls.destroy(); hlsRef.current = null; };
     }
+
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      setLoading(true);
+      setStatus("加载 HLS...");
+      video.src = hlsUrl;
+      const onLoaded = () => {
+        setLoading(false);
+        setStatus("");
+        void video.play().then(() => setPlaying(true)).catch(() => {});
+      };
+      const onNativeError = () => {
+        setLoading(false);
+        onErrorRef.current?.("HLS: 浏览器原生播放失败");
+      };
+      video.addEventListener("loadedmetadata", onLoaded);
+      video.addEventListener("error", onNativeError);
+      return () => {
+        video.removeEventListener("loadedmetadata", onLoaded);
+        video.removeEventListener("error", onNativeError);
+      };
+    }
+
+    setLoading(false);
+    onErrorRef.current?.("HLS: 当前运行环境不支持 hls.js 或原生 HLS");
   }, [url, isHls]);
 
   // ── Tauri event playback (FFmpeg fMP4 → MSE direct append) ──
@@ -106,6 +131,42 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
     setLoading(true);
     setStatus("等待流数据...");
 
+    function trimBufferedRanges() {
+      if (!sourceBuffer || sourceBuffer.updating || !video || video.buffered.length === 0) return;
+      try {
+        const bufferedStart = video.buffered.start(0);
+        const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+        const safeTail = liveMode ? 8 : 30;
+        const removeEnd = Math.min(video.currentTime - safeTail, bufferedEnd - safeTail);
+        if (removeEnd - bufferedStart > 2) {
+          sourceBuffer.remove(bufferedStart, removeEnd);
+        }
+      } catch {
+        // Ignore transient buffered range errors.
+      }
+    }
+
+    function syncToPlaybackTarget() {
+      if (!video || video.buffered.length === 0 || video.paused || !liveMode) {
+        if (video) video.playbackRate = 1;
+        return;
+      }
+      try {
+        const bufferEnd = video.buffered.end(video.buffered.length - 1);
+        const lag = bufferEnd - video.currentTime;
+        if (lag > 8) {
+          video.currentTime = Math.max(bufferEnd - 1, 0);
+          video.playbackRate = 1;
+        } else if (lag > 2.5) {
+          video.playbackRate = 1.03;
+        } else {
+          video.playbackRate = 1;
+        }
+      } catch {
+        video.playbackRate = 1;
+      }
+    }
+
     /** Flush pending buffers when SourceBuffer is ready */
     function flushPending() {
       if (!sourceBuffer || sourceBuffer.updating || pendingBuffers.length === 0) return;
@@ -118,12 +179,15 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
           try {
             const start = sourceBuffer.buffered.start(0);
             const end = sourceBuffer.buffered.end(sourceBuffer.buffered.length - 1);
-            if (end - start > 5) {
-              sourceBuffer.remove(start, end - 2);
+            const removeEnd = Math.min(video?.currentTime ?? end - 4, end - 4);
+            if (removeEnd - start > 2) {
+              sourceBuffer.remove(start, removeEnd);
               // Re-queue the chunk for retry after remove completes
               pendingBuffers.unshift(chunk);
             }
           } catch { /* ignore */ }
+        } else {
+          onErrorRef.current?.(`MSE append 失败: ${String(e)}`);
         }
       }
     }
@@ -176,15 +240,12 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
             sourceBuffer = mediaSource!.addSourceBuffer(mime);
             sourceBuffer.mode = "segments";
             sourceBuffer.addEventListener("updateend", () => {
+              trimBufferedRanges();
               flushPending();
               // Auto-play once we have some buffered data
               if (video && video.buffered.length > 0) {
                 if (!playAttempted) tryPlay();
-                // Keep video currentTime near live edge to avoid growing buffer lag
-                const buffEnd = video.buffered.end(video.buffered.length - 1);
-                if (buffEnd - video.currentTime > 3) {
-                  video.currentTime = buffEnd - 0.5;
-                }
+                syncToPlaybackTarget();
               }
             });
             sbReady = true;
@@ -214,14 +275,7 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
         if (!sbReady || !sourceBuffer) {
           // Buffer data until SourceBuffer is ready
           pendingBuffers.push(buf);
-          // Prevent unbounded buffering before init
-          if (pendingBuffers.length > 100) pendingBuffers.splice(0, 50);
           return;
-        }
-
-        // Drop oldest pending data if queue grows too large (keep low latency)
-        if (pendingBuffers.length > 30) {
-          pendingBuffers.splice(0, pendingBuffers.length - 10);
         }
 
         if (!sourceBuffer.updating) {
@@ -232,8 +286,10 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
           }
         } else {
           pendingBuffers.push(buf);
-          // Limit pending queue to prevent memory blowup
-          if (pendingBuffers.length > 60) pendingBuffers.splice(0, 30);
+        }
+
+        if (pendingBuffers.length > 120) {
+          setStatus("前端缓冲繁忙，正在追赶实时流...");
         }
       });
 
@@ -253,9 +309,13 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
       unlistenInit?.();
       unlistenData?.();
       unlistenError?.();
+      video.pause();
+      video.playbackRate = 1;
+      video.removeAttribute("src");
+      video.load();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, isTauri, sessionId]);
+  }, [url, isTauri, liveMode, sessionId]);
 
   const handlePlayPause = useCallback(() => {
     const v = videoRef.current;
@@ -301,11 +361,24 @@ export function VideoPlayer({ url, sessionId, onError }: VideoPlayerProps) {
           className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/80 hover:text-white hover:bg-white/10 transition-colors"
         ><Square className="w-3 h-3" /></button>
 
-        <button onClick={() => { setMuted(v => !v); if (videoRef.current) videoRef.current.muted = !muted; }}
+        <button onClick={() => {
+          const nextMuted = !muted;
+          setMuted(nextMuted);
+          if (videoRef.current) videoRef.current.muted = nextMuted;
+        }}
           className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/60 hover:text-white transition-colors ml-1"
         >{muted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}</button>
         <input type="range" min={0} max={100} value={volume}
-          onChange={(e) => { const v = Number(e.target.value); setVolume(v); if (videoRef.current) { videoRef.current.volume = v / 100; setMuted(v === 0); } }}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            const nextMuted = v === 0;
+            setVolume(v);
+            setMuted(nextMuted);
+            if (videoRef.current) {
+              videoRef.current.volume = v / 100;
+              videoRef.current.muted = nextMuted;
+            }
+          }}
           className="w-14 h-0.5 accent-white rounded-full appearance-none bg-white/20 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:h-2 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
         />
         <div className="flex-1" />

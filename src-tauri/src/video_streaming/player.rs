@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, oneshot};
 use tauri::{AppHandle, Emitter};
 use base64::Engine;
+use serde_json::Value;
 
 use super::state::ProtocolMessage;
 use super::ffmpeg_manager;
@@ -37,6 +38,18 @@ struct PlayerErrorEvent {
     error: String,
 }
 
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PlayerStatsEvent {
+    session_id: String,
+    bytes_received: u64,
+    packets_received: u64,
+    packets_lost: u64,
+    bitrate: u64,
+    fps: f64,
+    uptime: u64,
+}
+
 pub struct PlayerSession {
     pub shutdown_tx: Option<oneshot::Sender<()>>,
 }
@@ -46,7 +59,9 @@ pub static PLAYER_SESSIONS: std::sync::LazyLock<Arc<Mutex<HashMap<String, Player
 
 pub async fn start_player(
     session_id: String,
+    protocol: String,
     url: String,
+    config: Option<String>,
     app: AppHandle,
 ) -> Result<(), String> {
     stop_player(&session_id).await;
@@ -74,10 +89,20 @@ pub async fn start_player(
 
     let sid = session_id.clone();
     let app_clone = app.clone();
+    let protocol_clone = protocol.clone();
 
     // Run FFmpeg CLI pipeline in a blocking thread
     std::thread::spawn(move || {
-        let result = run_fmp4_pipeline(&sid, &url, &ffmpeg_path, ffprobe_path.as_deref(), &app_clone, shutdown_rx);
+        let result = run_fmp4_pipeline(
+            &sid,
+            &protocol_clone,
+            &url,
+            config.as_deref(),
+            &ffmpeg_path,
+            ffprobe_path.as_deref(),
+            &app_clone,
+            shutdown_rx,
+        );
         if let Err(e) = &result {
             log::warn!("Player {} error: {}", sid, e);
             // Emit player-error so frontend VideoPlayer can show the error
@@ -152,28 +177,47 @@ struct ProbeResult {
 
 /// 使用 ffprobe 获取视频流元信息（带超时，防止阻塞）
 /// 同时检测是否存在音频流，用于决定 FFmpeg 输出是否包含音频
-fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> ProbeResult {
+fn probe_stream(
+    ffprobe_path: &std::path::Path,
+    protocol: &str,
+    url: &str,
+    config: &Value,
+) -> ProbeResult {
     let mut cmd = std::process::Command::new(ffprobe_path);
 
     // 为流媒体 URL 添加超时参数
     let lower_url = url.to_lowercase();
-    if lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://") {
-        cmd.args(["-rw_timeout", "5000000"]);
-    } else if lower_url.starts_with("rtsp://") {
-        cmd.args(["-rtsp_transport", "tcp"]);
+    let is_rtmp = protocol == "rtmp" || lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://");
+    if is_rtmp {
+        // RTMP 需要完成握手+connect+play协商后才有数据，远程服务器可能需要更长时间
+        cmd.args(["-rw_timeout", "15000000"]);
+    } else if protocol == "rtsp" || lower_url.starts_with("rtsp://") {
+        let transport = config.get("transport")
+            .and_then(|v| v.as_str())
+            .unwrap_or("tcp");
+        cmd.args(["-rtsp_transport", if transport == "udp" { "udp" } else { "tcp" }]);
         let flag = detect_rtsp_timeout_flag(ffprobe_path);
         cmd.args([flag, "5000000"]);
+    } else if protocol == "srt" || lower_url.starts_with("srt://") {
+        cmd.args(["-rw_timeout", "15000000"]);
     } else {
         cmd.args(["-rw_timeout", "5000000"]);
     }
+
+    // RTMP 流远程探测需要更大的分析时间和缓冲
+    let (analyze_dur, probe_sz) = if is_rtmp {
+        ("8000000", "5000000")
+    } else {
+        ("3000000", "2000000")
+    };
 
     // Probe ALL streams (not just video) so we can detect audio
     cmd.args([
         "-v", "quiet",
         "-print_format", "json",
         "-show_streams",
-        "-analyzeduration", "3000000",
-        "-probesize", "2000000",
+        "-analyzeduration", analyze_dur,
+        "-probesize", probe_sz,
         url,
     ]);
     cmd.stdin(std::process::Stdio::null());
@@ -186,9 +230,11 @@ fn probe_stream(ffprobe_path: &std::path::Path, url: &str) -> ProbeResult {
         cmd.creation_flags(0x08000000);
     }
 
+    // RTMP 远程服务器的完整探测可能需要更长时间
+    let probe_deadline_secs = if is_rtmp { 18 } else { 8 };
     match cmd.spawn() {
         Ok(mut child) => {
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(probe_deadline_secs);
             let status = loop {
                 match child.try_wait() {
                     Ok(Some(status)) => break Some(status),
@@ -257,20 +303,95 @@ fn parse_ffprobe_output(output: &[u8]) -> ProbeResult {
     result
 }
 
-/// Blocking pipeline: spawn FFmpeg CLI → output fMP4 to stdout → read chunks → emit via Tauri events
+fn parse_player_config(config: Option<&str>) -> Value {
+    config
+        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+        .unwrap_or_default()
+}
+
+fn inject_url_credentials(url: &str, username: &str, password: &str) -> String {
+    if username.is_empty() && password.is_empty() {
+        return url.to_string();
+    }
+    match url::Url::parse(url) {
+        Ok(mut parsed) if parsed.username().is_empty() => {
+            let _ = parsed.set_username(username);
+            let _ = parsed.set_password(Some(password));
+            parsed.to_string()
+        }
+        _ => url.to_string(),
+    }
+}
+
+fn prepare_input_url(protocol: &str, url: &str, config: &Value) -> String {
+    match protocol {
+        "rtsp" => {
+            let username = config.get("username").and_then(|v| v.as_str()).unwrap_or("");
+            let password = config.get("password").and_then(|v| v.as_str()).unwrap_or("");
+            inject_url_credentials(url, username, password)
+        }
+        "srt" => {
+            let mut parsed = match url::Url::parse(url) {
+                Ok(parsed) => parsed,
+                Err(_) => return url.to_string(),
+            };
+            let mut params: Vec<(String, String)> = parsed.query_pairs()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect();
+            let mut push_if_missing = |key: &str, value: Option<String>| {
+                if value.as_deref().map(str::is_empty).unwrap_or(true) {
+                    return;
+                }
+                if params.iter().all(|(existing, _)| existing != key) {
+                    params.push((key.to_string(), value.unwrap()));
+                }
+            };
+            push_if_missing(
+                "latency",
+                config.get("latency").and_then(|v| v.as_u64()).map(|v| v.to_string()),
+            );
+            push_if_missing(
+                "streamid",
+                config.get("streamId").and_then(|v| v.as_str()).map(str::to_string),
+            );
+            push_if_missing(
+                "passphrase",
+                config.get("passphrase").and_then(|v| v.as_str()).map(str::to_string),
+            );
+            push_if_missing(
+                "mode",
+                config.get("mode").and_then(|v| v.as_str()).map(str::to_string),
+            );
+            parsed.set_query(None);
+            let mut qp = parsed.query_pairs_mut();
+            for (key, value) in params {
+                qp.append_pair(&key, &value);
+            }
+            drop(qp);
+            parsed.to_string()
+        }
+        _ => url.to_string(),
+    }
+}
+
 fn run_fmp4_pipeline(
     session_id: &str,
+    protocol: &str,
     url: &str,
+    config: Option<&str>,
     ffmpeg_path: &std::path::Path,
     ffprobe_path: Option<&std::path::Path>,
     app: &AppHandle,
     shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<(), String> {
-    log::info!("Player {}: opening {} via fMP4 pipeline", session_id, url);
+    let config = parse_player_config(config);
+    let prepared_url = prepare_input_url(protocol, url, &config);
+
+    log::info!("Player {}: opening {} via fMP4 pipeline", session_id, prepared_url);
 
     // Probe stream info (video codec + audio detection)
     let probe = if let Some(probe_path) = ffprobe_path {
-        probe_stream(probe_path, url)
+        probe_stream(probe_path, protocol, &prepared_url, &config)
     } else {
         ProbeResult { width: 0, height: 0, codec: "h264".to_string(), has_audio: false }
     };
@@ -303,26 +424,48 @@ fn run_fmp4_pipeline(
     cmd.args(["-hide_banner", "-loglevel", "warning"]);
 
     // Protocol-specific input options
-    let lower_url = url.to_lowercase();
-    if lower_url.starts_with("rtsp://") {
-        cmd.args(["-rtsp_transport", "tcp"]);
+    let lower_url = prepared_url.to_lowercase();
+    let is_rtmp = protocol == "rtmp" || lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://");
+    if protocol == "rtsp" || lower_url.starts_with("rtsp://") {
+        let transport = config.get("transport")
+            .and_then(|v| v.as_str())
+            .unwrap_or("tcp");
+        cmd.args(["-rtsp_transport", if transport == "udp" { "udp" } else { "tcp" }]);
         let rtsp_timeout_flag = detect_rtsp_timeout_flag(ffmpeg_path);
         cmd.args([rtsp_timeout_flag, "5000000"]);
-    } else if lower_url.starts_with("rtmp://") || lower_url.starts_with("rtmps://") {
+    } else if is_rtmp {
         cmd.args(["-rtmp_live", "live"]);
-        cmd.args(["-rw_timeout", "5000000"]);
+        // RTMP 握手+connect+play 协商完成后才有数据流，远程服务器需要更长超时
+        cmd.args(["-rw_timeout", "15000000"]);
+    } else if protocol == "srt" || lower_url.starts_with("srt://") {
+        cmd.args(["-rw_timeout", "15000000"]);
     } else {
         cmd.args(["-rw_timeout", "5000000"]);
     }
 
+    // RTMP 流需要缓冲来解析 FLV 容器的初始化数据（onMetaData + 第一个关键帧）
+    // 使用 nobuffer 会导致初始化数据丢失，FFmpeg 无法解码
+    let (analyze_dur, probe_sz) = if is_rtmp {
+        ("8000000", "5000000")
+    } else {
+        ("3000000", "2000000")
+    };
+
     // Common input options
     cmd.args([
-        "-analyzeduration", "3000000",
-        "-probesize", "2000000",
-        "-fflags", "nobuffer",
-        "-flags", "low_delay",
-        "-i", url,
+        "-analyzeduration", analyze_dur,
+        "-probesize", probe_sz,
     ]);
+
+    // RTMP 不使用 nobuffer — 需要缓冲来完成 FLV 初始化解析
+    // 其他协议可以用 nobuffer + low_delay 降低延迟
+    if !is_rtmp {
+        cmd.args(["-fflags", "nobuffer", "-flags", "low_delay"]);
+    } else {
+        cmd.args(["-fflags", "+discardcorrupt"]);
+    }
+
+    cmd.args(["-i", &prepared_url]);
 
     // ── Video output ──
     if needs_transcode {
@@ -373,6 +516,7 @@ fn run_fmp4_pipeline(
     // If stderr fills up and nobody reads it, FFmpeg blocks on write() and hangs.
     let stderr = child.stderr.take();
     let stderr_sid = session_id.to_string();
+    let stderr_protocol = protocol.to_string();
     let stderr_app = app.clone();
     let stderr_handle = std::thread::spawn(move || {
         if let Some(stderr) = stderr {
@@ -391,11 +535,12 @@ fn run_fmp4_pipeline(
                 }
             }
             // Emit aggregated stderr as a protocol message for debugging
+            // Use the detected stream protocol so messages appear in the correct tab
             if !lines.is_empty() {
                 let msg = super::state::ProtocolMessage {
                     id: uuid::Uuid::new_v4().to_string(),
                     direction: "info".to_string(),
-                    protocol: "player".to_string(),
+                    protocol: stderr_protocol.clone(),
                     summary: format!("FFmpeg stderr ({} lines)", lines.len()),
                     detail: lines.join("\n"),
                     timestamp: chrono::Utc::now().to_rfc3339(),
@@ -412,6 +557,9 @@ fn run_fmp4_pipeline(
     let mut seq = 0u32;
     let mut total_bytes = 0u64;
     let mut errors = 0;
+    let start_time = std::time::Instant::now();
+    let mut last_stats_at = start_time;
+    let mut stats_bytes_window = 0u64;
 
     // Check shutdown in a non-blocking way
     let shutdown_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -479,6 +627,7 @@ fn run_fmp4_pipeline(
 
         seq += 1;
         total_bytes += n as u64;
+        stats_bytes_window += n as u64;
 
         let data_event = PlayerDataEvent {
             session_id: session_id.to_string(),
@@ -495,10 +644,25 @@ fn run_fmp4_pipeline(
             }
         }
 
-        // Pace output to avoid overwhelming IPC
-        // ~30fps at 64KB chunks ≈ ~15Mbps throughput, sufficient for most streams
-        if seq % 3 == 0 {
-            std::thread::sleep(std::time::Duration::from_millis(10));
+        // Keep IPC bursts bounded without capping throughput too aggressively.
+        if seq % 8 == 0 {
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+
+        if last_stats_at.elapsed() >= std::time::Duration::from_secs(1) {
+            let elapsed = last_stats_at.elapsed().as_secs_f64().max(0.001);
+            let stats_event = PlayerStatsEvent {
+                session_id: session_id.to_string(),
+                bytes_received: total_bytes,
+                packets_received: seq as u64,
+                packets_lost: 0,
+                bitrate: ((stats_bytes_window as f64 * 8.0) / 1000.0 / elapsed) as u64,
+                fps: 0.0,
+                uptime: start_time.elapsed().as_secs(),
+            };
+            let _ = app.emit("videostream-stats", &stats_event);
+            stats_bytes_window = 0;
+            last_stats_at = std::time::Instant::now();
         }
     }
 

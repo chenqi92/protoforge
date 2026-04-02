@@ -1,7 +1,15 @@
 // 视频流调试服务层 — Tauri IPC 包装
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { StreamInfo, StreamStats, StreamEvent, ProtocolMessage, VideoProtocol } from '@/types/videostream';
+import type {
+  FfmpegDownloadProgress,
+  FfmpegStatus,
+  StreamInfo,
+  StreamStats,
+  StreamEvent,
+  ProtocolMessage,
+  VideoProtocol,
+} from '@/types/videostream';
 
 // ── 连接控制 ──
 
@@ -19,8 +27,8 @@ export async function probeStream(url: string): Promise<StreamInfo> {
 
 // ── 播放器控制 ──
 
-export async function playerLoad(sessionId: string, url: string): Promise<string> {
-  return invoke('vs_player_load', { sessionId, url });
+export async function playerLoad(sessionId: string, protocol: VideoProtocol, url: string, config?: object): Promise<string> {
+  return invoke('vs_player_load', { sessionId, protocol, url, config: config ? JSON.stringify(config) : null });
 }
 
 export async function playerControl(sessionId: string, action: 'play' | 'pause' | 'stop'): Promise<void> {
@@ -29,6 +37,14 @@ export async function playerControl(sessionId: string, action: 'play' | 'pause' 
 
 export async function playerSetVolume(sessionId: string, volume: number): Promise<void> {
   return invoke('vs_player_set_volume', { sessionId, volume });
+}
+
+export async function ffmpegStatus(): Promise<FfmpegStatus> {
+  return invoke('vs_ffmpeg_status');
+}
+
+export async function ffmpegDownload(): Promise<string> {
+  return invoke('vs_ffmpeg_download');
 }
 
 // ── RTSP 专用 ──
@@ -153,4 +169,8 @@ export async function onStreamStats(cb: (s: { sessionId: string } & StreamStats)
 
 export async function onProtocolMessage(cb: (m: ProtocolMessage) => void): Promise<UnlistenFn> {
   return listen<ProtocolMessage>('videostream-protocol-msg', (event) => cb(event.payload));
+}
+
+export async function onFfmpegDownloadProgress(cb: (progress: FfmpegDownloadProgress) => void): Promise<UnlistenFn> {
+  return listen<FfmpegDownloadProgress>('ffmpeg-download-progress', (event) => cb(event.payload));
 }

@@ -179,6 +179,8 @@
     "variableDynamicReadonly": "Dynamic variables are computed at send time and cannot be edited directly.",
     "variableSave": "Save",
     "variableSaved": "Saved",
+    "copyValue": "Copy value",
+    "revealValue": "Reveal value",
     "requestMode": {
       "rest": "REST",
       "graphql": "GraphQL",

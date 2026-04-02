@@ -1,5 +1,5 @@
 // HLS 协议配置面板
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { ChevronRight, RefreshCw, ListVideo } from "lucide-react";
@@ -33,6 +33,14 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
 
   // Suppress unused variable warnings for props/state used only for future integration
   void connected;
+
+  useEffect(() => {
+    if (!autoRefresh || !streamUrl.trim()) return;
+    const timer = window.setInterval(() => {
+      void parsePlaylist();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [autoRefresh, parsePlaylist, streamUrl]);
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden">
@@ -68,10 +76,12 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
       {playlist && (
         <div className="space-y-3">
           <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-2 space-y-1 text-[var(--fs-xxs)] font-mono">
-            <div className="flex justify-between"><span className="text-text-disabled">Type</span><span className="text-text-primary">{playlist.type === 'master' ? 'Master Playlist' : 'Media Playlist'}</span></div>
+            <div className="flex justify-between"><span className="text-text-disabled">Type</span><span className="text-text-primary">{playlist.playlistType === 'master' ? 'Master Playlist' : 'Media Playlist'}</span></div>
             {playlist.version && <div className="flex justify-between"><span className="text-text-disabled">Version</span><span className="text-text-primary">{playlist.version}</span></div>}
             {playlist.targetDuration && <div className="flex justify-between"><span className="text-text-disabled">Target Duration</span><span className="text-text-primary">{playlist.targetDuration}s</span></div>}
             {playlist.mediaSequence !== undefined && <div className="flex justify-between"><span className="text-text-disabled">Media Sequence</span><span className="text-text-primary">{playlist.mediaSequence}</span></div>}
+            <div className="flex justify-between"><span className="text-text-disabled">Live</span><span className="text-text-primary">{playlist.isLive ? 'Yes' : 'No'}</span></div>
+            <div className="flex justify-between"><span className="text-text-disabled">Total</span><span className="text-text-primary">{playlist.totalDuration.toFixed(1)}s</span></div>
           </div>
 
           {/* Variants (Master Playlist) */}

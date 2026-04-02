@@ -132,6 +132,7 @@ pub async fn send_rtsp_request(
     url: &str,
     method: &str,
     rtsp_session: Option<&str>,
+    transport: &str,
     extra_headers: &str,
     app: &AppHandle,
 ) -> Result<String, String> {
@@ -154,7 +155,11 @@ pub async fn send_rtsp_request(
     }
 
     if method.eq_ignore_ascii_case("SETUP") {
-        request.push_str("Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n");
+        if transport.eq_ignore_ascii_case("udp") {
+            request.push_str("Transport: RTP/AVP;unicast;client_port=8000-8001\r\n");
+        } else {
+            request.push_str("Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n");
+        }
     }
 
     if !extra_headers.is_empty() {

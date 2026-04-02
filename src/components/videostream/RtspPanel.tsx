@@ -5,20 +5,19 @@ import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ChevronDown, Lock, Unlock } from "lucide-react";
 import * as vsSvc from "@/services/videoStreamService";
+import type { RtspConfig } from "@/types/videostream";
 
 interface RtspPanelProps {
   sessionKey: string;
   connected: boolean;
   streamUrl: string;
   onStreamUrlChange: (url: string) => void;
+  config: RtspConfig;
+  onConfigChange: (config: RtspConfig) => void;
 }
 
-export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange }: RtspPanelProps) {
+export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStreamUrlChange: _onStreamUrlChange, config, onConfigChange }: RtspPanelProps) {
   const { t } = useTranslation();
-  const [transport, setTransport] = useState<'tcp' | 'udp'>('tcp');
-  const [authMethod, setAuthMethod] = useState<'none' | 'basic' | 'digest'>('none');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [sdpContent, setSdpContent] = useState('');
   const [sdpVisible, setSdpVisible] = useState(false);
@@ -50,10 +49,8 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
   }, [sessionKey]);
 
   const rtspMethods = ['DESCRIBE', 'SETUP', 'PLAY', 'PAUSE', 'TEARDOWN'];
-
-  // Suppress unused variable warnings for props used only for future integration
-  void streamUrl;
-  void onStreamUrlChange;
+  void _streamUrl;
+  void _onStreamUrlChange;
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden">
@@ -63,8 +60,8 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
           {t('videostream.rtsp.transport', '传输方式')}
         </label>
         <SegmentedControl
-          value={transport}
-          onChange={setTransport}
+          value={config.transport}
+          onChange={(transport) => onConfigChange({ ...config, transport: transport as RtspConfig["transport"] })}
           options={[
             { value: 'tcp', label: 'TCP' },
             { value: 'udp', label: 'UDP' },
@@ -80,8 +77,8 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
         </label>
         <div className="relative">
           <select
-            value={authMethod}
-            onChange={(e) => setAuthMethod(e.target.value as 'none' | 'basic' | 'digest')}
+            value={config.authMethod}
+            onChange={(e) => onConfigChange({ ...config, authMethod: e.target.value as RtspConfig["authMethod"] })}
             disabled={connected}
             className="h-7 w-full appearance-none rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-6 text-[var(--fs-xs)] text-text-primary outline-none cursor-pointer disabled:opacity-50"
           >
@@ -91,11 +88,11 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
           </select>
           <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-disabled" />
         </div>
-        {authMethod !== 'none' && (
+        {config.authMethod !== 'none' && (
           <div className="space-y-1.5 pt-1">
             <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={config.username}
+              onChange={(e) => onConfigChange({ ...config, username: e.target.value })}
               placeholder={t('videostream.rtsp.username', '用户名')}
               disabled={connected}
               className="wb-field-sm w-full font-mono disabled:opacity-50"
@@ -103,8 +100,8 @@ export function RtspPanel({ sessionKey, connected, streamUrl, onStreamUrlChange 
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={config.password}
+                onChange={(e) => onConfigChange({ ...config, password: e.target.value })}
                 placeholder={t('videostream.rtsp.password', '密码')}
                 disabled={connected}
                 className="wb-field-sm w-full pr-7 font-mono disabled:opacity-50"

@@ -4,18 +4,19 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import * as vsSvc from "@/services/videoStreamService";
+import type { RtmpConfig } from "@/types/videostream";
 
 interface RtmpPanelProps {
   sessionKey: string;
   connected: boolean;
   streamUrl: string;
   onStreamUrlChange: (url: string) => void;
+  config: RtmpConfig;
+  onConfigChange: (config: RtmpConfig) => void;
 }
 
-export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStreamUrlChange: _onStreamUrlChange }: RtmpPanelProps) {
+export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStreamUrlChange: _onStreamUrlChange, config, onConfigChange }: RtmpPanelProps) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<'pull' | 'push'>('pull');
-  const [streamKey, setStreamKey] = useState('');
   const [showHandshake, setShowHandshake] = useState(false);
   const [handshaking, setHandshaking] = useState(false);
   const [handshakePhases, setHandshakePhases] = useState([
@@ -51,10 +52,12 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
   }, [sessionKey]);
 
   const handlePlay = useCallback(async () => {
+    const fallbackStreamKey = _streamUrl.split('/').filter(Boolean).pop() ?? "";
+    const effectiveStreamKey = config.streamKey || fallbackStreamKey;
     try {
-      await vsSvc.rtmpPlay(sessionKey, streamKey);
+      await vsSvc.rtmpPlay(sessionKey, effectiveStreamKey);
     } catch { /* */ }
-  }, [sessionKey, streamKey]);
+  }, [_streamUrl, config.streamKey, sessionKey]);
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden">
@@ -64,8 +67,8 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
           {t('videostream.rtmp.mode', '模式')}
         </label>
         <SegmentedControl
-          value={mode}
-          onChange={setMode}
+          value={config.mode}
+          onChange={(mode) => onConfigChange({ ...config, mode: mode as RtmpConfig["mode"] })}
           options={[
             { value: 'pull', label: t('videostream.rtmp.pull', '拉流') },
             { value: 'push', label: t('videostream.rtmp.push', '推流') },
@@ -75,14 +78,14 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
       </div>
 
       {/* Stream Key (Push mode) */}
-      {mode === 'push' && (
+      {config.mode === 'push' && (
         <div className="space-y-1.5">
           <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('videostream.rtmp.streamKey', '推流密钥')}
           </label>
           <input
-            value={streamKey}
-            onChange={(e) => setStreamKey(e.target.value)}
+            value={config.streamKey}
+            onChange={(e) => onConfigChange({ ...config, streamKey: e.target.value })}
             placeholder="live_xxx"
             disabled={connected}
             className="wb-field-sm w-full font-mono disabled:opacity-50"

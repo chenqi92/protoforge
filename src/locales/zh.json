@@ -185,6 +185,8 @@
     "variableDynamicReadonly": "动态变量会在发送时即时计算，不能直接编辑。",
     "variableSave": "保存",
     "variableSaved": "已保存",
+    "copyValue": "复制值",
+    "revealValue": "显示值",
     "preScriptPass": "通过",
     "preScriptFail": "失败",
     "postScriptPass": "后置脚本通过",

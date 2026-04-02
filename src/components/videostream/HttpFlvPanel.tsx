@@ -1,9 +1,10 @@
 // HTTP-FLV 协议配置面板
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { FlvTag } from "@/types/videostream";
+import * as vsSvc from "@/services/videoStreamService";
 
 interface HttpFlvPanelProps {
   sessionKey: string;
@@ -18,10 +19,46 @@ export function HttpFlvPanel({ sessionKey, connected }: HttpFlvPanelProps) {
 
   const filtered = filter === 'all' ? tags : tags.filter(tag => tag.type === filter);
 
-  // Suppress unused variable warnings for props/state used only for future integration
-  void sessionKey;
-  void setTags;
-  void selectedTag;
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    void vsSvc.onProtocolMessage((message) => {
+      if (message.protocol !== "http-flv" || !message.summary.startsWith("FLV Tag #")) return;
+      try {
+        const detail = JSON.parse(message.detail) as {
+          tagType?: FlvTag["type"];
+          dataSize?: number;
+          timestamp?: number;
+          codecInfo?: string;
+          keyframe?: boolean;
+        };
+        setTags((prev) => {
+          const nextTag: FlvTag = {
+            id: prev.length + 1,
+            type: detail.tagType ?? "script",
+            size: detail.dataSize ?? 0,
+            timestamp: detail.timestamp ?? 0,
+            codecInfo: detail.codecInfo,
+            keyframe: detail.keyframe,
+          };
+          return [...prev.slice(-199), nextTag];
+        });
+      } catch {
+        // Ignore malformed debug payloads.
+      }
+    }).then((fn) => { unlisten = fn; });
+
+    return () => {
+      unlisten?.();
+    };
+  }, [sessionKey]);
+
+  useEffect(() => {
+    if (!connected) {
+      setTags([]);
+      setSelectedTag(null);
+    }
+  }, [connected]);
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden">
