@@ -259,18 +259,22 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
     }
   }, [mode, rtmpConfig, rtspConfig, srtConfig]);
 
+  const handleDisconnectPlayer = useCallback(async () => {
+    await vsSvc.disconnectStream(sessionKey).catch(() => {});
+    setShowPlayer(false);
+    setPlaying(false);
+    setConnecting(false);
+    setPlaybackReady(false);
+    setPlaybackPathLabel(null);
+    setPlayerUrl(null);
+    setConnected(false);
+    setStreamInfo(null);
+    setStats(null);
+  }, [sessionKey]);
+
   const handleConnect = useCallback(async () => {
     if (showPlayer) {
-      // Stop playback and disconnect
-      await vsSvc.playerControl(sessionKey, 'stop').catch(() => {});
-      await vsSvc.disconnectStream(sessionKey).catch(() => {});
-      setShowPlayer(false);
-      setPlaying(false);
-      setConnecting(false);
-      setPlaybackReady(false);
-      setPlaybackPathLabel(null);
-      setPlayerUrl(null);
-      setConnected(false);
+      await handleDisconnectPlayer();
       return;
     }
     const activeUrl = resolveActiveUrl();
@@ -331,7 +335,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
         await vsSvc.disconnectStream(sessionKey).catch(() => {});
       }
     }
-  }, [showPlayer, resolveActiveUrl, mode, ffmpegStatus, buildConnectConfig, sessionKey]);
+  }, [showPlayer, resolveActiveUrl, mode, ffmpegStatus, buildConnectConfig, sessionKey, handleDisconnectPlayer]);
 
   const selectedMsg = selectedMsgId ? filteredMessages.find(m => m.id === selectedMsgId) : null;
 
@@ -525,6 +529,9 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                           url={playerUrl}
                           sessionId={sessionKey}
                           liveMode={mode !== "hls"}
+                          onStop={() => {
+                            void handleDisconnectPlayer();
+                          }}
                           onReady={() => {
                             setConnecting(false);
                             setConnected(true);

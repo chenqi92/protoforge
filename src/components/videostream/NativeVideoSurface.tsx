@@ -18,6 +18,7 @@ interface NativeVideoSurfaceProps {
   sessionId: string;
   onError?: (msg: string) => void;
   onReady?: () => void;
+  onStop?: () => void;
   liveMode?: boolean;
 }
 
@@ -84,7 +85,7 @@ function preferredRecorderMimeType(): string | undefined {
   return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
 }
 
-export function NativeVideoSurface({ url, sessionId, onError, onReady, liveMode = true }: NativeVideoSurfaceProps) {
+export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, liveMode = true }: NativeVideoSurfaceProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -400,9 +401,13 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, liveMode 
   }, []);
 
   const handleStop = useCallback(() => {
+    if (onStop) {
+      onStop();
+      return;
+    }
     videoRef.current?.pause();
     setPlaying(false);
-  }, []);
+  }, [onStop]);
 
   const handleMute = useCallback(() => {
     const nextMuted = !muted;

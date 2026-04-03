@@ -2323,11 +2323,22 @@ pub async fn vs_ffmpeg_download(app: AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn vs_player_control(session_id: String, action: String) -> Result<(), String> {
+pub async fn vs_player_control(
+    session_id: String,
+    action: String,
+    app: AppHandle,
+) -> Result<(), String> {
     log::info!("Player control: session={} action={}", session_id, action);
     if action == "stop" {
         crate::video_streaming::player::stop_player(&session_id).await;
         crate::video_streaming::media_gateway::stop_hls_session(&session_id).await;
+        let event = crate::video_streaming::state::StreamEvent {
+            session_id,
+            event_type: "disconnected".to_string(),
+            data: None,
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        };
+        let _ = app.emit("videostream-event", &event);
     }
     Ok(())
 }

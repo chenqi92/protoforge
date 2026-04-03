@@ -1007,7 +1007,17 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
           <PanelResizeHandle className="http-workbench-divider" />
 
           {/* Response Panel */}
-          <Panel minSize="18" defaultSize={responseDefaultSize} className="http-workbench-section">
+          <Panel minSize="18" defaultSize={responseDefaultSize} className="http-workbench-section relative">
+            {/* Loading Overlay */}
+            {loading && !isSseMode && (
+              <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-bg-primary/50 backdrop-blur-[2px] transition-all duration-300">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-accent/20 bg-accent/10 shadow-[0_0_15px_rgba(var(--accent),0.15)] mb-4">
+                  <Loader2 className="w-7 h-7 animate-spin text-accent" />
+                </div>
+                <p className="text-[var(--fs-sm)] font-medium text-text-primary animate-pulse">{t('http.sending', '请求发送中...')}</p>
+              </div>
+            )}
+            
             {isSseMode ? (
               <HttpSseResponsePanel
                 status={sseStatus}

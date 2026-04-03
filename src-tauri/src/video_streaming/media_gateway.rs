@@ -151,7 +151,7 @@ pub async fn start_hls_session(
         }
     });
 
-    match tokio::time::timeout(std::time::Duration::from_secs(12), startup_rx).await {
+    match tokio::time::timeout(std::time::Duration::from_secs(30), startup_rx).await {
         Ok(Ok(Ok(()))) => {
             let event = StreamEvent {
                 session_id: session_id.clone(),

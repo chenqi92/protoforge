@@ -15,6 +15,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
   const playerRef = useRef<EasyPlayerInstance | null>(null);
   const onReadyRef = useRef(onReady);
   const onErrorRef = useRef(onError);
+  const statusTimerRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
 
@@ -29,9 +30,26 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
     let readyNotified = false;
     let cleanupHandlers: Array<() => void> = [];
 
+    const clearStatusTimer = () => {
+      if (statusTimerRef.current !== null) {
+        window.clearTimeout(statusTimerRef.current);
+        statusTimerRef.current = null;
+      }
+    };
+
+    const flashStatus = (message: string, duration = 1600) => {
+      clearStatusTimer();
+      setStatus(message);
+      statusTimerRef.current = window.setTimeout(() => {
+        statusTimerRef.current = null;
+        setStatus("");
+      }, duration);
+    };
+
     const destroyPlayer = async () => {
       cleanupHandlers.forEach((fn) => fn());
       cleanupHandlers = [];
+      clearStatusTimer();
 
       const player = playerRef.current;
       playerRef.current = null;
@@ -62,7 +80,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
         const EasyPlayerCtor = await loadEasyPlayer();
         if (cancelled || !containerRef.current) return;
 
-        const options: EasyPlayerOptions = {
+        const options: EasyPlayerOptions & Record<string, any> = {
           isLive: liveMode,
           hasAudio: true,
           muted: false,
@@ -80,6 +98,11 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
           supportDblclickFullscreen: true,
           hasControl: true,
           controlAutoHide: true,
+          WasmPath: '/vendor/easyplayer/',
+          wasm_dir: '/vendor/easyplayer/',
+          decoderPath: '/vendor/easyplayer/',
+          libpath: '/vendor/easyplayer/',
+          decoder: '/vendor/easyplayer/EasyPlayer-pro.wasm',
           operateBtns: {
             fullscreen: true,
             screenshot: true,
@@ -108,6 +131,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
 
         bind(player, "play", () => {
           if (cancelled) return;
+          clearStatusTimer();
           setLoading(false);
           setStatus("");
           if (!readyNotified) {
@@ -121,14 +145,24 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
         });
         bind(player, "recordStart", () => {
           if (cancelled) return;
+          clearStatusTimer();
           setStatus("录制中...");
         });
         bind(player, "recordEnd", () => {
           if (cancelled) return;
-          setStatus("");
+          flashStatus("录制已保存");
+        });
+        bind(player, "screenshot", () => {
+          if (cancelled) return;
+          flashStatus("截图已导出");
+        });
+        bind(player, "screenshots", () => {
+          if (cancelled) return;
+          flashStatus("截图已导出");
         });
         bind(player, "videoInfo", (payload) => {
           if (cancelled || typeof payload !== "object" || !payload) return;
+          clearStatusTimer();
           const info = payload as { width?: number; height?: number; encType?: string; fps?: number };
           const parts = [
             info.encType,

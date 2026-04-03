@@ -8,10 +8,11 @@ interface VideoPlayerProps {
   sessionId: string;
   onError?: (msg: string) => void;
   onReady?: () => void;
+  onStop?: () => void;
   liveMode?: boolean;
 }
 
-export function VideoPlayer({ url, sessionId, onError, onReady, liveMode = true }: VideoPlayerProps) {
+export function VideoPlayer({ url, sessionId, onError, onReady, onStop, liveMode = true }: VideoPlayerProps) {
   const [forceNativeFallback, setForceNativeFallback] = useState(false);
 
   const normalizedUrl = useMemo(() => {
@@ -30,7 +31,7 @@ export function VideoPlayer({ url, sessionId, onError, onReady, liveMode = true 
   }, [normalizedUrl]);
 
   if (!normalizedUrl) {
-    return <NativeVideoSurface url={null} sessionId={sessionId} onError={onError} onReady={onReady} liveMode={liveMode} />;
+    return <NativeVideoSurface url={null} sessionId={sessionId} onError={onError} onReady={onReady} onStop={onStop} liveMode={liveMode} />;
   }
 
   if (prefersEasyPlayer && !forceNativeFallback) {
@@ -57,5 +58,5 @@ export function VideoPlayer({ url, sessionId, onError, onReady, liveMode = true 
       ? `hls:${normalizedUrl}`
       : normalizedUrl;
 
-  return <NativeVideoSurface url={nativeUrl} sessionId={sessionId} onError={onError} onReady={onReady} liveMode={liveMode} />;
+  return <NativeVideoSurface url={nativeUrl} sessionId={sessionId} onError={onError} onReady={onReady} onStop={onStop} liveMode={liveMode} />;
 }

@@ -457,14 +457,16 @@ pub async fn save_global_variables(
         .map_err(|e| format!("清除全局变量失败: {}", e))?;
 
     for var in vars {
-        sqlx::query("INSERT INTO global_variables (id, key, value, enabled) VALUES (?, ?, ?, ?)")
-            .bind(&var.id)
-            .bind(&var.key)
-            .bind(&var.value)
-            .bind(var.enabled)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| format!("保存全局变量失败: {}", e))?;
+        sqlx::query(
+            "INSERT OR REPLACE INTO global_variables (id, key, value, enabled) VALUES (?, ?, ?, ?)",
+        )
+        .bind(&var.id)
+        .bind(&var.key)
+        .bind(&var.value)
+        .bind(var.enabled)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| format!("保存全局变量失败: {}", e))?;
     }
     tx.commit()
         .await
