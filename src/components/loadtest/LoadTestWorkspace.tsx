@@ -15,6 +15,15 @@ type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 type BodyMode = "none" | "json" | "raw";
 type AuthMode = "none" | "bearer" | "basic";
 
+const LOAD_TEST_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH"];
+const LOAD_TEST_METHOD_CLASSES: Record<HttpMethod, string> = {
+  GET: "bg-emerald-500",
+  POST: "bg-amber-500",
+  PUT: "bg-blue-500",
+  DELETE: "bg-red-500",
+  PATCH: "bg-violet-500",
+};
+
 export const LoadTestWorkspace = memo(function LoadTestWorkspace({ sessionId }: { sessionId?: string }) {
   const testId = useRef(sessionId ?? crypto.randomUUID()).current;
   return <LoadTestPanel tabId={testId} />;
@@ -40,6 +49,8 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
   // Advanced config
   const [showConfig, setShowConfig] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showMethodMenu, setShowMethodMenu] = useState(false);
+  const [methodMenuPos, setMethodMenuPos] = useState({ top: 0, left: 0 });
   const [headers, setHeaders] = useState<{ key: string; value: string }[]>([{ key: "", value: "" }]);
   const [bodyMode, setBodyMode] = useState<BodyMode>("none");
   const [bodyContent, setBodyContent] = useState("");
@@ -56,6 +67,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
   const [latestMetrics, setLatestMetrics] = useState<MetricsSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chartTab, setChartTab] = useState<"rps" | "latency" | "error" | "throughput" | "concurrency" | "scatter" | "errorSamples">("rps");
+  const methodMenuAnchorRef = useRef<HTMLButtonElement>(null);
 
   const applyPrefill = useCallback((prefill: Partial<LoadTestConfig> | null) => {
     if (!prefill) return;
@@ -232,33 +244,50 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
       : "0.0"
     : "—";
 
+  const toggleMethodMenu = useCallback((anchor?: HTMLElement | null) => {
+    const anchorEl = anchor ?? methodMenuAnchorRef.current;
+    if (anchorEl) {
+      const rect = anchorEl.getBoundingClientRect();
+      setMethodMenuPos({ top: rect.bottom + 6, left: Math.max(12, rect.right - 200) });
+    }
+    setShowMethodMenu((prev) => !prev);
+  }, []);
+
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-transparent p-3">
-      <div className="shrink-0">
-        <div className="wb-tool-strip">
-          <div className="wb-tool-strip-main flex-1 flex-nowrap">
-            <div className="wb-target-bar">
-              <div className="wb-target-chip bg-accent">
-                <span className="wb-target-chip-icon">
-                  <Flame className="h-3.5 w-3.5" />
-                </span>
-                {t('loadtest.title')}
-              </div>
-              <div className="wb-target-field">
-                <span className="wb-target-field-label">{t('loadtest.targetUrl')}</span>
-                <input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder={t('loadtest.urlPlaceholder')}
-                  disabled={running}
-                  className="wb-target-field-input"
-                />
-              </div>
-            </div>
+      <div className="shrink-0 space-y-2">
+        <div className="wb-request-shell">
+          <button
+            ref={methodMenuAnchorRef}
+            onClick={(event) => toggleMethodMenu(event.currentTarget)}
+            className="wb-protocol-dropdown"
+            title={t('loadtest.method')}
+          >
+            <span className={cn("wb-protocol-dropdown-icon text-white", LOAD_TEST_METHOD_CLASSES[method])}>
+              <Flame className="h-3.5 w-3.5" />
+            </span>
+            <span className="wb-protocol-dropdown-label">{method}</span>
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+          <div className="wb-request-main">
+            <span className="wb-request-label">{t('loadtest.targetUrl')}</span>
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={t('loadtest.urlPlaceholder')}
+              disabled={running}
+              className="wb-request-input disabled:opacity-60"
+            />
           </div>
-
-          <div className="wb-tool-strip-actions flex-nowrap">
-            <span className="wb-tool-chip">{running ? t('loadtest.running') : t('loadtest.idle')}</span>
+          <div className="wb-request-actions">
+            <button
+              onClick={() => setShowConfig(!showConfig)}
+              className="wb-ghost-btn"
+              title={t('loadtest.configTitle')}
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              {showConfig ? t('common.hide', { defaultValue: '收起' }) : t('common.show', { defaultValue: '展开' })}
+            </button>
             <button
               onClick={running ? handleStop : handleStart}
               disabled={!url.trim()}
@@ -275,56 +304,88 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
           </div>
         </div>
 
-        <div className="wb-panel mt-3 p-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <button
-              onClick={() => setShowConfig(!showConfig)}
-              className="flex items-center gap-2 group"
-            >
-              <div className="flex items-center gap-2 pf-text-sm font-semibold text-text-primary">
-                <Settings2 className="h-3.5 w-3.5 text-accent" />
-                {t('loadtest.configTitle')}
-              </div>
-              {showConfig ? <ChevronUp className="w-3.5 h-3.5 text-text-tertiary" /> : <ChevronDown className="w-3.5 h-3.5 text-text-tertiary" />}
-            </button>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="wb-ghost-btn"
-              >
-                {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                {t('loadtest.advancedConfig')}
+        <div className="wb-request-secondary">
+          <span className="wb-request-meta">
+            <span className={cn("wb-request-meta-dot", running ? "bg-warning" : "bg-text-disabled")} />
+            {running ? t('loadtest.running') : t('loadtest.idle')}
+          </span>
+          <span className="wb-request-meta">
+            <Settings2 className="h-3 w-3" />
+            {t('loadtest.concurrency')} {concurrency}
+          </span>
+          <span className="wb-request-meta">
+            <Clock className="h-3 w-3" />
+            {durationMode === "duration"
+              ? `${durationSecs}s`
+              : `${totalRequests} ${t('loadtest.requests')}`}
+          </span>
+          {progress ? <span className="wb-request-meta">{progress.label}</span> : null}
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="wb-request-meta transition-colors hover:bg-bg-hover"
+          >
+            {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {t('loadtest.advancedConfig')}
+          </button>
+          {(summary || snapshots.length > 0) && (
+            <>
+              <button onClick={handleExportJson} className="wb-request-meta transition-colors hover:bg-bg-hover" title={t('loadtest.exportJson')}>
+                <Download className="w-3 h-3" /> JSON
               </button>
-              {(summary || snapshots.length > 0) && (
-                <>
-                  <button onClick={handleExportJson} className="wb-ghost-btn hover:text-accent hover:bg-accent-soft" title={t('loadtest.exportJson')}>
-                    <Download className="w-3 h-3" />JSON
+              <button onClick={handleExportCsv} className="wb-request-meta transition-colors hover:bg-bg-hover" title={t('loadtest.exportCsv')}>
+                <Download className="w-3 h-3" /> CSV
+              </button>
+            </>
+          )}
+        </div>
+
+        {showMethodMenu ? (
+          <>
+            <div className="fixed inset-0 z-[220]" onClick={() => setShowMethodMenu(false)} />
+            <div
+              className="wb-protocol-menu fixed z-[221] w-[200px]"
+              style={{ top: methodMenuPos.top, left: methodMenuPos.left }}
+            >
+              <div className="px-2.5 pb-0.5 pt-1.5 pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-disabled">
+                {t('loadtest.method')}
+              </div>
+              <div className="max-h-[260px] overflow-y-auto">
+                {LOAD_TEST_METHODS.map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => {
+                      setMethod(item);
+                      setShowMethodMenu(false);
+                    }}
+                    className={cn("wb-protocol-menu-item", item === method && "bg-bg-hover")}
+                  >
+                    <span className={cn("wb-protocol-menu-icon text-white", LOAD_TEST_METHOD_CLASSES[item])}>
+                      <Flame className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block pf-text-sm font-medium text-text-primary">{item}</span>
+                    </span>
                   </button>
-                  <button onClick={handleExportCsv} className="wb-ghost-btn hover:text-accent hover:bg-accent-soft" title={t('loadtest.exportCsv')}>
-                    <Download className="w-3 h-3" />CSV
-                  </button>
-                </>
-              )}
+                ))}
+              </div>
             </div>
+          </>
+        ) : null}
+
+        <div className="wb-panel p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-center gap-2 pf-text-sm font-semibold text-text-primary">
+              <Settings2 className="h-3.5 w-3.5 text-accent" />
+              {t('loadtest.configTitle')}
+            </div>
+            <span className="pf-text-xs text-text-tertiary">
+              {showAdvanced ? t('loadtest.advancedConfig') : t('loadtest.basicConfig', { defaultValue: '基础配置' })}
+            </span>
           </div>
 
           {showConfig && (
           <>
           <div className="grid gap-3 pt-3 sm:grid-cols-2 xl:grid-cols-5">
-            <ControlBlock label={t('loadtest.method')} icon={<Flame className="h-3 w-3" />}>
-              <select
-                value={method}
-                onChange={(e) => setMethod(e.target.value as HttpMethod)}
-                disabled={running}
-                className="cfg-select w-full font-semibold"
-              >
-                {(["GET", "POST", "PUT", "DELETE", "PATCH"] as const).map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </ControlBlock>
-
             <ControlBlock label={t('loadtest.concurrency')} icon={<Settings2 className="h-3 w-3" />}>
               <input type="number" value={concurrency} onChange={(e) => setConcurrency(Math.max(1, parseInt(e.target.value) || 1))} disabled={running} min={1} max={500} className="cfg-input w-full text-left" />
             </ControlBlock>

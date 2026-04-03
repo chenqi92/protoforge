@@ -1,6 +1,6 @@
 /**
  * ResponseViewer — 通用响应体展示组件
- * 支持多种视图模式：JSON（语法高亮 + 折叠）、Raw、预览（HTML）
+ * 支持多种视图模式：JSON（格式化 + 过滤）、Raw、预览（HTML）
  * 可复用于 HTTP 响应、WebSocket 消息、TCP 数据等
  * 支持插件渲染器（如 Excel）— 通过 contributes.responseRenderers 动态注入 Tab
  */
@@ -9,7 +9,7 @@ import { useState, useMemo, useCallback, useEffect, useDeferredValue } from 'rea
 import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive, Filter, ScanSearch, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
-import { CodeEditor } from '@/components/common/CodeEditor';
+import { JsonTreeViewer } from '@/components/common/JsonTreeViewer';
 import { usePluginStore } from '@/stores/pluginStore';
 import { invoke } from '@tauri-apps/api/core';
 import type { RendererContribution } from '@/types/plugin';
@@ -109,17 +109,36 @@ export function ReadonlyCodeBlock({
   value,
   language = 'json',
   minHeightClassName = 'min-h-[320px]',
-  stickyScroll = true,
+  wrapLines = true,
 }: {
   value: string;
   language?: string;
   minHeightClassName?: string;
-  stickyScroll?: boolean;
+  wrapLines?: boolean;
 }) {
+  if (language === 'json') {
+    return (
+      <div className={cn("flex h-full min-h-0 overflow-hidden", minHeightClassName)}>
+        <div className="flex-1 min-h-0">
+          <JsonTreeViewer
+            value={value}
+            className="h-full"
+            wrapLines={wrapLines}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex flex-col overflow-hidden pf-rounded-md border border-border-default/60 bg-bg-primary h-full", minHeightClassName)}>
-      <div className="flex-1 min-h-0">
-        <CodeEditor value={value} language={language} readOnly height="100%" stickyScroll={stickyScroll} />
+      <div className="flex-1 min-h-0 overflow-auto px-3 py-3">
+        <pre
+          className="font-mono whitespace-pre-wrap break-all text-text-primary"
+          style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6 }}
+        >
+          {value}
+        </pre>
       </div>
     </div>
   );
@@ -133,7 +152,6 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [isRegexMode, setIsRegexMode] = useState(false);
-  const [stickyScroll, setStickyScroll] = useState(true);
   const [jsonFilterKeys, setJsonFilterKeys] = useState<Set<string>>(new Set());
   const [showKeyFilter, setShowKeyFilter] = useState(false);
   const deferredSearchText = useDeferredValue(searchText);
@@ -416,20 +434,6 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
               <Search className="w-3 h-3" />
             </button>
 
-            {/* Sticky Scroll toggle — 仅 JSON 模式可见 */}
-            {activeBuiltinMode === 'json' && (
-              <button
-                onClick={() => setStickyScroll(!stickyScroll)}
-                className={cn(
-                  'h-6 w-6 flex items-center justify-center rounded-md transition-colors',
-                  stickyScroll ? 'text-accent bg-accent/10' : 'text-text-tertiary hover:bg-bg-hover'
-                )}
-                title={stickyScroll ? t('response.stickyScrollOff') : t('response.stickyScrollOn')}
-              >
-                {stickyScroll ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-              </button>
-            )}
-
             {/* Word wrap */}
             <button
               onClick={() => setWordWrap(!wordWrap)}
@@ -570,8 +574,8 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                 <ReadonlyCodeBlock
                   value={jsonFilterKeys.size > 0 ? filteredPrettyBody : prettyBody}
                   language={jsonData !== null ? 'json' : isXml ? 'xml' : 'plaintext'}
-                  stickyScroll={stickyScroll}
                   minHeightClassName=""
+                  wrapLines={wordWrap}
                 />
               </div>
             </div>
@@ -647,8 +651,6 @@ function Base64View({ body, isBinary, wordWrap, searchText }: {
   wordWrap: boolean;
   searchText: string;
 }) {
-  const [copied, setCopied] = useState(false);
-
   const base64Content = useMemo(() => {
     if (isBinary) return body; // already base64
     try {
@@ -662,32 +664,8 @@ function Base64View({ body, isBinary, wordWrap, searchText }: {
     }
   }, [body, isBinary]);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(base64Content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [base64Content]);
-
-  const sizeLabel = base64Content.length < 1024
-    ? `${base64Content.length} chars`
-    : `${(base64Content.length / 1024).toFixed(1)} KB`;
-
   return (
     <div className={cn("max-w-full", !wordWrap && "overflow-x-auto")}>
-      <div className="flex items-center gap-2 mb-2 pf-rounded-md border border-border-default/60 bg-bg-secondary/30 px-3 py-1.5" style={{ fontSize: 'var(--fs-xs)' }}>
-        <span className="font-medium text-text-secondary">Base64</span>
-        <span className="text-text-disabled">·</span>
-        <span className="text-text-tertiary tabular-nums">{sizeLabel}</span>
-        <div className="flex-1" />
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1 px-2 py-0.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-bg-hover transition-colors"
-          style={{ fontSize: 'var(--fs-xxs)' }}
-        >
-          {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
       <pre
         className={cn(
           'font-mono text-text-primary leading-[20px]',

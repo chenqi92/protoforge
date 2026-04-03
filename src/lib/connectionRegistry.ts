@@ -26,9 +26,17 @@ export function hasActiveConnections(sessionKey: string): boolean {
   return (registry.get(sessionKey)?.size ?? 0) > 0;
 }
 
+export function hasActiveConnectionsForKeys(sessionKeys: string[]): boolean {
+  return sessionKeys.some((sessionKey) => hasActiveConnections(sessionKey));
+}
+
 /** Returns a list of active connection labels for display in a warning. */
 export function getActiveConnectionLabels(sessionKey: string): string[] {
   const map = registry.get(sessionKey);
   if (!map) return [];
   return Array.from(map.values()).map((r) => r.label);
+}
+
+export function getActiveConnectionLabelsForKeys(sessionKeys: string[]): string[] {
+  return sessionKeys.flatMap((sessionKey) => getActiveConnectionLabels(sessionKey));
 }

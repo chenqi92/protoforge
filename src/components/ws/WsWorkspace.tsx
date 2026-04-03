@@ -1,4 +1,4 @@
-import { memo, useDeferredValue, useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { lazy, memo, Suspense, useDeferredValue, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Play, Loader2, ChevronDown, X, Trash2, ArrowUp, ArrowDown, Search, ChevronUp, Plug, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -6,13 +6,25 @@ import { useAppStore } from "@/stores/appStore";
 import type { WsMessage, WsEvent } from "@/types/ws";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
-import { CodeEditor } from "@/components/common/CodeEditor";
+import { JsonEditorLite } from "@/components/common/JsonEditorLite";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { KVEditor } from "@/components/http/HttpWorkspace";
 
 interface KVItem { key: string; value: string; enabled: boolean }
 
 const MAX_VISIBLE_WS_MESSAGES = 400;
+const LazyMonacoCodeEditor = lazy(() => import("@/components/common/CodeEditor").then((module) => ({ default: module.CodeEditor })));
+
+function EditorSurfaceFallback() {
+  return (
+    <div className="flex h-full min-h-0 items-center justify-center bg-bg-input/88 px-4">
+      <div className="flex items-center gap-2 pf-text-sm text-text-tertiary">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span>加载编辑器...</span>
+      </div>
+    </div>
+  );
+}
 
 export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string }) {
   const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
@@ -411,11 +423,21 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
               {configTab === "message" && (
                 <div className="h-full flex flex-col relative">
                   <div className="flex-1 min-h-0 relative">
-                    <CodeEditor
-                      value={message}
-                      onChange={(v: string) => setMessage(v)}
-                      language={sendMode === "json" ? "json" : "plaintext"}
-                    />
+                    {sendMode === "json" ? (
+                      <JsonEditorLite
+                        value={message}
+                        onChange={(v) => setMessage(v)}
+                        className="h-full"
+                      />
+                    ) : (
+                      <Suspense fallback={<EditorSurfaceFallback />}>
+                        <LazyMonacoCodeEditor
+                          value={message}
+                          onChange={(v: string) => setMessage(v)}
+                          language="plaintext"
+                        />
+                      </Suspense>
+                    )}
                   </div>
                   <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
                     <select

@@ -1,4 +1,4 @@
-import { memo, useDeferredValue, useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { lazy, memo, Suspense, useDeferredValue, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, FileIcon, X, Save, Search, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDownToLine, Trash2, Info, ChevronUp, Braces, FileOutput, Wand2, ClipboardCopy } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
@@ -17,8 +17,7 @@ import type { CollectionItem } from "@/types/collections";
 import type { ExportFormatContribution, GeneratorContribution } from "@/types/plugin";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { SaveRequestDialog } from "./SaveRequestDialog";
-import { ScriptEditor } from "./ScriptEditor";
-import { CodeEditor } from "@/components/common/CodeEditor";
+import { JsonEditorLite } from "@/components/common/JsonEditorLite";
 import { ResponseViewer } from "@/components/ui/ResponseViewer";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
@@ -28,6 +27,8 @@ import { recordRequestStat } from "@/components/plugins/RequestStatsPanel";
 import { buildRequestPayload, pickFile, pickFiles, resolveHttpConfig, sendHttpRequest, sendRequestWithScripts } from "@/services/httpService";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+const LazyMonacoCodeEditor = lazy(() => import("@/components/common/CodeEditor").then((module) => ({ default: module.CodeEditor })));
+const LazyScriptEditor = lazy(() => import("./ScriptEditor").then((module) => ({ default: module.ScriptEditor })));
 
 
 const methodTextColor: Record<string, string> = {
@@ -39,6 +40,49 @@ const methodDotColor: Record<string, string> = {
   GET: "bg-emerald-500", POST: "bg-amber-500", PUT: "bg-blue-500",
   DELETE: "bg-red-500", PATCH: "bg-violet-500", HEAD: "bg-cyan-500", OPTIONS: "bg-gray-400",
 };
+
+function EditorSurfaceFallback({ label = "加载编辑器..." }: { label?: string }) {
+  return (
+    <div className="flex h-full min-h-0 items-center justify-center bg-bg-input/88 px-4">
+      <div className="flex items-center gap-2 pf-text-sm text-text-tertiary">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span>{label}</span>
+      </div>
+    </div>
+  );
+}
+
+function MonacoEditorSurface({
+  value,
+  onChange,
+  language,
+  onMount,
+  readOnly = false,
+  height = "100%",
+  stickyScroll = true,
+}: {
+  value: string;
+  onChange?: (value: string) => void;
+  language?: string;
+  onMount?: (editor: any, monaco: any) => void;
+  readOnly?: boolean;
+  height?: string;
+  stickyScroll?: boolean;
+}) {
+  return (
+    <Suspense fallback={<EditorSurfaceFallback />}>
+      <LazyMonacoCodeEditor
+        value={value}
+        onChange={onChange}
+        language={language}
+        onMount={onMount}
+        readOnly={readOnly}
+        height={height}
+        stickyScroll={stickyScroll}
+      />
+    </Suspense>
+  );
+}
 
 function mergeScriptScopeUpdates(
   ...updates: Array<Record<string, string> | null | undefined>
@@ -846,10 +890,10 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                     ) : config.bodyType === "none" ? <div className="absolute inset-0 flex items-center justify-center text-text-disabled pf-text-base">{t('http.noBody')}</div> : null}
                     {!isGraphqlMode && config.bodyType === "json" && (
                       <div className="w-full h-full border border-border-default/80 pf-rounded-lg overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
-                        <CodeEditor
+                        <JsonEditorLite
                           value={config.jsonBody || ''}
                           onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
-                          language="json"
+                          className="h-full bg-transparent"
                         />
                       </div>
                     )}
@@ -875,7 +919,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                           <option value="text/css">CSS</option>
                         </select>
                         <div className="w-full flex-1 border border-border-default/80 pf-rounded-lg overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
-                          <CodeEditor
+                          <MonacoEditorSurface
                             value={config.rawBody || ''}
                             onChange={(v) => updateHttpConfig(tabId, { rawBody: v })}
                             language={config.rawContentType === 'application/javascript' ? 'javascript' : config.rawContentType === 'text/css' ? 'css' : config.rawContentType === 'text/html' ? 'html' : config.rawContentType === 'application/xml' ? 'xml' : 'plaintext'}
@@ -984,19 +1028,23 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
             )}
             
             {reqTab === "pre-script" && (
-                <ScriptEditor
-                  type="pre"
-                  value={config.preScript}
-                  onChange={(v) => updateHttpConfig(tabId, { preScript: v })}
-                />
+                <Suspense fallback={<EditorSurfaceFallback label="加载前置脚本编辑器..." />}>
+                  <LazyScriptEditor
+                    type="pre"
+                    value={config.preScript}
+                    onChange={(v) => updateHttpConfig(tabId, { preScript: v })}
+                  />
+                </Suspense>
               )}
             
               {reqTab === "post-script" && (
-                <ScriptEditor
-                  type="post"
-                  value={config.postScript}
-                  onChange={(v) => updateHttpConfig(tabId, { postScript: v })}
-                />
+                <Suspense fallback={<EditorSurfaceFallback label="加载后置脚本编辑器..." />}>
+                  <LazyScriptEditor
+                    type="post"
+                    value={config.postScript}
+                    onChange={(v) => updateHttpConfig(tabId, { postScript: v })}
+                  />
+                </Suspense>
               )}
             </div>
           </Panel>
@@ -1758,7 +1806,7 @@ function GraphQLBodyEditor({
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/60 bg-bg-input/88">
-            <CodeEditor
+            <MonacoEditorSurface
               value={query}
               onChange={onQueryChange}
               language="graphql"
@@ -1791,10 +1839,10 @@ function GraphQLBodyEditor({
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/60 bg-bg-input/88">
-            <CodeEditor
+            <JsonEditorLite
               value={variables}
               onChange={onVariablesChange}
-              language="json"
+              className="h-full bg-transparent"
             />
           </div>
         </div>

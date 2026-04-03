@@ -80,6 +80,12 @@ export async function saveRequestToCollection(item: CollectionItem): Promise<Col
   return invoke<CollectionItem>('save_request_to_collection', { item });
 }
 
+// ── Reorder ──
+
+export async function reorderCollectionItems(itemIds: string[]): Promise<void> {
+  await invoke('reorder_collection_items', { itemIds });
+}
+
 // ── Deduplicate ──
 
 export async function deduplicateCollectionItems(collectionId: string): Promise<number> {

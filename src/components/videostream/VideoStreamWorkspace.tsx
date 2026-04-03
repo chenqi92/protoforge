@@ -2,10 +2,11 @@
 // 布局：Tabs+URL 固定顶部 → 可拖拽分栏（上：视频+配置 | 下：协议报文）
 import { memo, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
-import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, GripHorizontal, GripVertical, History, X, Download, Loader } from "lucide-react";
+import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, GripHorizontal, GripVertical, History, X, Download, Loader, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { modeLikelyNeedsFfmpeg, resolvePlaybackTarget, supportsIntegratedPlayback } from "@/lib/videoPlayback";
+import { useAppStore } from "@/stores/appStore";
 import type {
   FfmpegStatus,
   ProtocolMessage,
@@ -16,6 +17,7 @@ import type {
   StreamStats,
   VideoProtocol,
 } from "@/types/videostream";
+import { DEFAULT_VIDEO_TOOL_MODE } from "@/types/toolSession";
 import * as vsSvc from "@/services/videoStreamService";
 import { VideoPlayer } from "./VideoPlayer";
 import { RtspPanel } from "./RtspPanel";
@@ -27,16 +29,23 @@ import { Gb28181Panel } from "./Gb28181Panel";
 import { SrtPanel } from "./SrtPanel";
 import { OnvifPanel } from "./OnvifPanel";
 
-const MODES: { value: VideoProtocol; labelKey: string; hintKey: string; icon: React.ReactNode }[] = [
-  { value: "onvif",    labelKey: "videostream.modes.onvif",   hintKey: "videostream.modes.onvifHint",   icon: <Aperture className="w-3.5 h-3.5" /> },
+const PLAYBACK_MODES: { value: VideoProtocol; labelKey: string; hintKey: string; icon: React.ReactNode }[] = [
   { value: "rtsp",     labelKey: "videostream.modes.rtsp",    hintKey: "videostream.modes.rtspHint",    icon: <Camera className="w-3.5 h-3.5" /> },
   { value: "rtmp",     labelKey: "videostream.modes.rtmp",    hintKey: "videostream.modes.rtmpHint",    icon: <Radio className="w-3.5 h-3.5" /> },
   { value: "http-flv", labelKey: "videostream.modes.httpFlv", hintKey: "videostream.modes.httpFlvHint", icon: <Film className="w-3.5 h-3.5" /> },
   { value: "hls",      labelKey: "videostream.modes.hls",     hintKey: "videostream.modes.hlsHint",     icon: <ListVideo className="w-3.5 h-3.5" /> },
   { value: "webrtc",   labelKey: "videostream.modes.webrtc",  hintKey: "videostream.modes.webrtcHint",  icon: <Webcam className="w-3.5 h-3.5" /> },
-  { value: "gb28181",  labelKey: "videostream.modes.gb28181", hintKey: "videostream.modes.gb28181Hint", icon: <Shield className="w-3.5 h-3.5" /> },
   { value: "srt",      labelKey: "videostream.modes.srt",     hintKey: "videostream.modes.srtHint",     icon: <Zap className="w-3.5 h-3.5" /> },
 ];
+
+const ASSISTANT_MODES: { value: VideoProtocol; labelKey: string; hintKey: string; icon: React.ReactNode }[] = [
+  { value: "onvif",    labelKey: "videostream.modes.onvif",   hintKey: "videostream.modes.onvifHint",   icon: <Aperture className="w-3.5 h-3.5" /> },
+  { value: "gb28181",  labelKey: "videostream.modes.gb28181", hintKey: "videostream.modes.gb28181Hint", icon: <Shield className="w-3.5 h-3.5" /> },
+];
+
+const MODES = [...PLAYBACK_MODES, ...ASSISTANT_MODES];
+const PLAYBACK_MODE_SET = new Set<VideoProtocol>(PLAYBACK_MODES.map((item) => item.value));
+const ASSISTANT_MODE_SET = new Set<VideoProtocol>(ASSISTANT_MODES.map((item) => item.value));
 
 const MODE_COLORS: Record<VideoProtocol, string> = {
   rtsp: 'bg-blue-500', rtmp: 'bg-rose-500', 'http-flv': 'bg-orange-500',
@@ -103,10 +112,82 @@ const DEFAULT_SRT_CONFIG: SrtConfig = {
   streamId: "",
 };
 
-export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
+function inferVideoModeFromUrl(url: string): VideoProtocol | null {
+  const normalized = url.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized.startsWith("rtsp://")) return "rtsp";
+  if (normalized.startsWith("rtmp://") || normalized.startsWith("rtmps://")) return "rtmp";
+  if (normalized.startsWith("srt://")) return "srt";
+  if (normalized.startsWith("webrtc://")) return "webrtc";
+  if (normalized.startsWith("gb28181+udp://")) return "gb28181";
+  if (normalized.endsWith(".m3u8")) return "hls";
+  if (normalized.endsWith(".flv")) return "http-flv";
+  return null;
+}
+
+function isPlaybackMode(value: VideoProtocol | null | undefined): value is VideoProtocol {
+  return !!value && PLAYBACK_MODE_SET.has(value);
+}
+
+function isAssistantMode(value: VideoProtocol | null | undefined): value is VideoProtocol {
+  return !!value && ASSISTANT_MODE_SET.has(value);
+}
+
+function getPlaybackTransportLabel(mode: VideoProtocol): string {
+  switch (mode) {
+    case "rtsp":
+      return "RTSP/RTP";
+    case "rtmp":
+      return "RTMP/FLV";
+    case "http-flv":
+      return "HTTP-FLV";
+    case "hls":
+      return "HLS/TS";
+    case "webrtc":
+      return "WebRTC/ICE";
+    case "srt":
+      return "SRT";
+    default:
+      return "RTSP/RTP";
+  }
+}
+
+function getVideoUrlPlaceholder(mode: VideoProtocol): string {
+  switch (mode) {
+    case "rtsp":
+      return "rtsp://admin:password@192.168.1.100:554/stream1";
+    case "rtmp":
+      return "rtmp://live.example.com/app/stream";
+    case "http-flv":
+      return "http://live.example.com/live/stream.flv";
+    case "hls":
+      return "https://example.com/live/index.m3u8";
+    case "webrtc":
+      return "webrtc:// / https:// / wss:// 媒体地址";
+    case "srt":
+      return "srt://live.example.com:9000";
+    default:
+      return "rtsp://admin:password@192.168.1.100:554/stream1";
+  }
+}
+
+export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
+  sessionId,
+  initialMode = DEFAULT_VIDEO_TOOL_MODE,
+}: {
+  sessionId?: string;
+  initialMode?: VideoProtocol;
+}) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<VideoProtocol>("onvif");
+  const updateToolSession = useAppStore((s) => s.updateToolSession);
+  const [mode, setMode] = useState<VideoProtocol>(initialMode);
+  const [lastPlaybackMode, setLastPlaybackMode] = useState<VideoProtocol>(
+    isPlaybackMode(initialMode) ? initialMode : DEFAULT_VIDEO_TOOL_MODE
+  );
+  const [showPlaybackMenu, setShowPlaybackMenu] = useState(false);
+  const [playbackMenuPos, setPlaybackMenuPos] = useState({ top: 0, left: 0 });
   const sessionKey = useRef(sessionId ?? crypto.randomUUID()).current;
+  const playbackMenuAnchorRef = useRef<HTMLButtonElement>(null);
   const activeMode = MODES.find((m) => m.value === mode) || MODES[0];
 
   // ── State ──
@@ -133,6 +214,48 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ session
   const [ffmpegStatus, setFfmpegStatus] = useState<FfmpegStatus | null>(null);
   const [ffmpegProgressText, setFfmpegProgressText] = useState("");
   const logEndRef = useRef<HTMLDivElement>(null);
+  const suggestedPlaybackMode = useMemo(() => inferVideoModeFromUrl(streamUrl), [streamUrl]);
+  const assistantActive = isAssistantMode(mode);
+  const effectivePlaybackMode = useMemo<VideoProtocol>(() => {
+    if (!assistantActive) {
+      return mode;
+    }
+    if (isPlaybackMode(suggestedPlaybackMode)) {
+      return suggestedPlaybackMode;
+    }
+    return lastPlaybackMode;
+  }, [assistantActive, lastPlaybackMode, mode, suggestedPlaybackMode]);
+  const activePlaybackMode = PLAYBACK_MODES.find((item) => item.value === effectivePlaybackMode) || PLAYBACK_MODES[0];
+  const activeAssistantMode = assistantActive
+    ? ASSISTANT_MODES.find((item) => item.value === mode) ?? null
+    : null;
+
+  useEffect(() => {
+    setMode(initialMode);
+    if (isPlaybackMode(initialMode)) {
+      setLastPlaybackMode(initialMode);
+    }
+  }, [initialMode]);
+
+  useEffect(() => {
+    if (isPlaybackMode(mode)) {
+      setLastPlaybackMode(mode);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    updateToolSession("videostream", sessionId, { videoMode: mode });
+  }, [mode, sessionId, updateToolSession]);
+
+  const togglePlaybackMenu = useCallback((anchor?: HTMLElement | null) => {
+    const anchorEl = anchor ?? playbackMenuAnchorRef.current;
+    if (anchorEl) {
+      const rect = anchorEl.getBoundingClientRect();
+      setPlaybackMenuPos({ top: rect.bottom + 6, left: Math.max(12, rect.right - 240) });
+    }
+    setShowPlaybackMenu((prev) => !prev);
+  }, []);
 
   useEffect(() => {
     if (!logEndRef.current || logEndRef.current.offsetParent === null) {
@@ -242,20 +365,20 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ session
   const resolveActiveUrl = useCallback(() => {
     const explicitUrl = streamUrl.trim();
     if (explicitUrl) return explicitUrl;
-    if (mode === "srt") return `srt://${srtConfig.host}:${srtConfig.port}`;
+    if (effectivePlaybackMode === "srt") return `srt://${srtConfig.host}:${srtConfig.port}`;
     return "";
-  }, [mode, srtConfig.host, srtConfig.port, streamUrl]);
+  }, [effectivePlaybackMode, srtConfig.host, srtConfig.port, streamUrl]);
 
-  const buildConnectConfig = useCallback((activeUrl: string) => {
-    switch (mode) {
+  const buildConnectConfig = useCallback((playbackMode: VideoProtocol, activeUrl: string) => {
+    switch (playbackMode) {
       case "rtsp":
-        return { protocol: mode, config: { ...rtspConfig, url: activeUrl } };
+        return { protocol: playbackMode, config: { ...rtspConfig, url: activeUrl } };
       case "rtmp":
-        return { protocol: mode, config: { ...rtmpConfig, url: activeUrl } };
+        return { protocol: playbackMode, config: { ...rtmpConfig, url: activeUrl } };
       case "http-flv":
-        return { protocol: mode, config: { url: activeUrl } };
+        return { protocol: playbackMode, config: { url: activeUrl } };
       case "hls":
-        return { protocol: mode, config: { url: activeUrl } };
+        return { protocol: playbackMode, config: { url: activeUrl } };
       case "srt": {
         let host = srtConfig.host;
         let port = srtConfig.port;
@@ -266,12 +389,12 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ session
         } catch {
           // Keep panel config if the URL is not parseable.
         }
-        return { protocol: mode, config: { ...srtConfig, host, port } };
+        return { protocol: playbackMode, config: { ...srtConfig, host, port } };
       }
       default:
         return null;
     }
-  }, [mode, rtmpConfig, rtspConfig, srtConfig]);
+  }, [rtmpConfig, rtspConfig, srtConfig]);
 
   const handleDisconnectPlayer = useCallback(async () => {
     await vsSvc.disconnectStream(sessionKey).catch(() => {});
@@ -293,14 +416,16 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ session
     }
     const activeUrl = resolveActiveUrl();
     if (!activeUrl) return;
-    if (!supportsIntegratedPlayback(mode, activeUrl)) {
-      setPlayerError(mode === "webrtc"
+    if (!supportsIntegratedPlayback(effectivePlaybackMode, activeUrl)) {
+      setPlayerError(effectivePlaybackMode === "webrtc"
         ? "当前仅支持直接输入可播放的 WebRTC 媒体地址，例如 webrtc/http/ws 网关地址；面板里的 SDP/ICE 调试流程本身不是播放器地址。"
-        : "GB28181 需要先拿到实际媒体地址，再启动播放。请在面板里的“媒体地址”或顶部 URL 栏填写 RTSP、HLS、HTTP-FLV 或 WebRTC 网关地址。");
+        : assistantActive
+          ? "当前助手会话需要先拿到实际媒体地址，再按对应播放协议启动播放。请填写 RTSP、HLS、HTTP-FLV、SRT 或 WebRTC 地址。"
+          : "GB28181 需要先拿到实际媒体地址，再启动播放。请在面板里的“媒体地址”或顶部 URL 栏填写 RTSP、HLS、HTTP-FLV 或 WebRTC 网关地址。");
       return;
     }
 
-    const playbackTarget = resolvePlaybackTarget(mode, activeUrl);
+    const playbackTarget = resolvePlaybackTarget(effectivePlaybackMode, activeUrl);
     if (playbackTarget.requiresFfmpeg) {
       const status = ffmpegStatus ?? await vsSvc.ffmpegStatus().catch(() => null);
       if (status) setFfmpegStatus(status);
@@ -311,10 +436,10 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ session
     }
 
     setPlayerError(null);
-    saveRecentStream(activeUrl, mode);
+    saveRecentStream(activeUrl, inferVideoModeFromUrl(activeUrl) ?? effectivePlaybackMode);
     setRecentStreams(loadRecentStreams());
 
-    const connectPayload = buildConnectConfig(activeUrl);
+    const connectPayload = buildConnectConfig(effectivePlaybackMode, activeUrl);
     if (connectPayload) {
       try {
         await vsSvc.connectStream(sessionKey, connectPayload.protocol, connectPayload.config);
@@ -336,7 +461,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ session
     }
     if (playbackTarget.requiresPlayerLoad) {
       try {
-        const resolvedUrl = await vsSvc.playerLoad(sessionKey, mode, activeUrl, connectPayload?.config);
+        const resolvedUrl = await vsSvc.playerLoad(sessionKey, effectivePlaybackMode, activeUrl, connectPayload?.config);
         setPlayerUrl(resolvedUrl);
       } catch (e) {
         setPlayerError(String(e));
@@ -349,7 +474,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ session
         await vsSvc.disconnectStream(sessionKey).catch(() => {});
       }
     }
-  }, [showPlayer, resolveActiveUrl, mode, ffmpegStatus, buildConnectConfig, sessionKey, handleDisconnectPlayer]);
+  }, [showPlayer, resolveActiveUrl, effectivePlaybackMode, ffmpegStatus, buildConnectConfig, sessionKey, handleDisconnectPlayer, assistantActive]);
 
   const selectedMsg = selectedMsgId ? filteredMessages.find(m => m.id === selectedMsgId) : null;
 
@@ -383,14 +508,24 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ session
       case 'webrtc': return <WebRtcPanel sessionKey={sessionKey} connected={connected} />;
       case 'gb28181': return <Gb28181Panel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} onStreamUrlChange={setStreamUrl} />;
       case 'srt': return <SrtPanel sessionKey={sessionKey} connected={connected} config={srtConfig} onConfigChange={setSrtConfig} />;
-      case 'onvif': return <OnvifPanel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} onStreamUrlChange={setStreamUrl} />;
+      case 'onvif':
+        return (
+          <OnvifPanel
+            sessionKey={sessionKey}
+            connected={connected}
+            streamUrl={streamUrl}
+            onStreamUrlChange={setStreamUrl}
+            suggestedPlaybackMode={suggestedPlaybackMode}
+            onActivatePlaybackMode={setMode}
+          />
+        );
     }
   };
 
   const activePlaybackUrl = resolveActiveUrl();
   const ffmpegRequired = activePlaybackUrl
-    ? resolvePlaybackTarget(mode, activePlaybackUrl).requiresFfmpeg
-    : modeLikelyNeedsFfmpeg(mode);
+    ? resolvePlaybackTarget(effectivePlaybackMode, activePlaybackUrl).requiresFfmpeg
+    : modeLikelyNeedsFfmpeg(effectivePlaybackMode);
   const playbackStateLabel = !showPlayer
     ? "未播放"
     : connecting
@@ -401,48 +536,134 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ session
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden bg-transparent p-3">
-      {/* ── Fixed: Mode Tabs ── */}
-      <div className="wb-tool-strip shrink-0">
-        <div className="wb-tool-strip-main">
-          <div className="wb-tool-segment">
-            {MODES.map((m) => (
-              <button key={m.value} onClick={() => setMode(m.value)} className={cn(mode === m.value && "is-active")}>
-                {m.icon}{t(m.labelKey)}
-              </button>
-            ))}
+      <div className="shrink-0 space-y-2">
+        <div className="wb-request-shell">
+          <button
+            ref={playbackMenuAnchorRef}
+            onClick={(event) => togglePlaybackMenu(event.currentTarget)}
+            className="wb-protocol-dropdown"
+            title={t('videostream.playbackModes', { defaultValue: '播放协议' })}
+          >
+            <span className={cn("wb-protocol-dropdown-icon text-white", MODE_COLORS[effectivePlaybackMode])}>
+              {activePlaybackMode.icon}
+            </span>
+            <span className="wb-protocol-dropdown-label">{t(activePlaybackMode.labelKey)}</span>
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+          <div className="wb-request-main">
+            <span className="wb-request-label">{t('videostream.mediaAddress', { defaultValue: '媒体地址' })}</span>
+            <input
+              value={streamUrl}
+              onChange={(e) => setStreamUrl(e.target.value)}
+              placeholder={
+                assistantActive
+                  ? t('videostream.assistantAddressPlaceholder', { defaultValue: '等待助手自动填充，或手动输入可播放媒体地址' })
+                  : getVideoUrlPlaceholder(effectivePlaybackMode)
+              }
+              disabled={showPlayer}
+              className="wb-request-input disabled:opacity-60"
+              onKeyDown={(e) => e.key === 'Enter' && !showPlayer && handleConnect()}
+            />
           </div>
-          <span className="wb-tool-inline-note">{t(activeMode.hintKey)}</span>
+          <div className="wb-request-actions">
+            <button
+              onClick={handleConnect}
+              disabled={connecting || (!activePlaybackUrl && !showPlayer)}
+              className={cn(
+                "wb-primary-btn",
+                showPlayer ? "bg-error hover:bg-error/90" : connecting ? "bg-warning cursor-wait opacity-70" : "bg-accent hover:bg-accent-hover hover:shadow-md"
+              )}
+            >
+              {showPlayer ? t('videostream.disconnect', '断开') : connecting ? t('videostream.connecting', '连接中...') : t('videostream.play', '播放')}
+            </button>
+          </div>
         </div>
-        <div className="wb-tool-strip-actions">
-          <span className="wb-tool-chip">
-            {mode === 'rtsp' ? 'RTSP/RTP' : mode === 'rtmp' ? 'RTMP/FLV' : mode === 'http-flv' ? 'HTTP-FLV'
-              : mode === 'hls' ? 'HLS/TS' : mode === 'webrtc' ? 'WebRTC/ICE' : mode === 'gb28181' ? 'GB/T 28181' : mode === 'onvif' ? 'ONVIF/SOAP' : 'SRT'}
+
+        <div className="wb-request-secondary">
+          <button
+            onClick={() => setMode(effectivePlaybackMode)}
+            className={cn(
+              "wb-request-meta transition-colors hover:bg-bg-hover",
+              !assistantActive && "bg-accent-soft text-accent border-accent/40"
+            )}
+            title={t(activePlaybackMode.hintKey)}
+          >
+            {activePlaybackMode.icon}
+            播放面板 · {t(activePlaybackMode.labelKey)}
+          </button>
+          {ASSISTANT_MODES.map((assistantMode) => (
+            <button
+              key={assistantMode.value}
+              onClick={() => setMode(assistantMode.value)}
+              className={cn(
+                "wb-request-meta transition-colors hover:bg-bg-hover",
+                mode === assistantMode.value && "bg-accent-soft text-accent border-accent/40"
+              )}
+              title={t(assistantMode.hintKey)}
+            >
+              {assistantMode.icon}
+              {t(assistantMode.labelKey)}
+            </button>
+          ))}
+          <span className="wb-request-meta">
+            <span className={cn("wb-request-meta-dot", showPlayer ? connecting ? "bg-warning" : playbackReady ? "bg-sky-400" : "bg-text-disabled/60" : "bg-text-disabled/40")} />
+            {playbackStateLabel}
           </span>
-          {playbackPathLabel && <span className="wb-tool-chip">{playbackPathLabel}</span>}
+          <span className="wb-request-meta">{getPlaybackTransportLabel(effectivePlaybackMode)}</span>
+          {activeAssistantMode ? (
+            <span className="wb-request-meta">
+              {t('videostream.assistantChip', { defaultValue: '辅助控制' })} · {t(activeAssistantMode.labelKey)}
+            </span>
+          ) : null}
+          {playbackPathLabel ? <span className="wb-request-meta">{playbackPathLabel}</span> : null}
+          <span className="pf-text-xs text-text-tertiary">
+            {assistantActive
+              ? t('videostream.assistantHint', { defaultValue: `当前助手会话负责发现/控制，播放仍按 ${t(activePlaybackMode.labelKey)} 执行` })
+              : t(activeMode.hintKey)}
+          </span>
         </div>
       </div>
 
-      {/* ── Fixed: URL Bar ── */}
-      <div className="shrink-0 pt-3">
-        <div className="flex min-h-[38px] items-center gap-2 pf-rounded-md border border-border-default/80 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
-          <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 pf-rounded-sm px-2.5 pf-text-xs font-semibold text-white shadow-sm", MODE_COLORS[mode])}>
-            {activeMode.icon}
-            <span>{mode === 'http-flv' ? 'FLV' : mode === 'gb28181' ? 'GB' : mode.toUpperCase()}</span>
-          </div>
-          <input
-            value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)}
-            placeholder={mode === 'rtsp' ? 'rtsp://admin:password@192.168.1.100:554/stream1' : mode === 'rtmp' ? 'rtmp://live.example.com/app/stream' : mode === 'http-flv' ? 'http://live.example.com/live/stream.flv' : mode === 'hls' ? 'https://example.com/live/index.m3u8' : mode === 'webrtc' ? 'wss://signal.example.com/ws' : mode === 'gb28181' ? 'rtsp:// / http(s):// / ws(s):// / webrtc:// 媒体地址' : 'srt://live.example.com:9000'}
-            disabled={showPlayer}
-            className="h-7 flex-1 bg-transparent pf-text-sm font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
-            onKeyDown={(e) => e.key === 'Enter' && !showPlayer && handleConnect()}
-          />
-          <button onClick={handleConnect} disabled={connecting || (!activePlaybackUrl && !showPlayer)}
-            className={cn("wb-primary-btn min-w-[80px] px-3", showPlayer ? "bg-error hover:bg-error/90" : connecting ? "bg-warning cursor-wait opacity-70" : "bg-accent hover:bg-accent-hover hover:shadow-md")}
+      {showPlaybackMenu ? (
+        <>
+          <div className="fixed inset-0 z-[220]" onClick={() => setShowPlaybackMenu(false)} />
+          <div
+            className="wb-protocol-menu fixed z-[221] w-[240px]"
+            style={{ top: playbackMenuPos.top, left: playbackMenuPos.left }}
           >
-            {showPlayer ? t('videostream.disconnect', '断开') : connecting ? t('videostream.connecting', '连接中...') : t('videostream.play', '播放')}
-          </button>
-        </div>
-      </div>
+            <div className="px-2.5 pb-0.5 pt-1.5 pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-disabled">
+              {t('videostream.playbackModes', { defaultValue: '播放协议' })}
+            </div>
+            <div className="max-h-[320px] overflow-y-auto">
+              {PLAYBACK_MODES.map((playbackMode) => (
+                <button
+                  key={playbackMode.value}
+                  onClick={() => {
+                    if (assistantActive) {
+                      setLastPlaybackMode(playbackMode.value);
+                    } else {
+                      setMode(playbackMode.value);
+                    }
+                    setShowPlaybackMenu(false);
+                  }}
+                  className={cn("wb-protocol-menu-item", playbackMode.value === effectivePlaybackMode && "bg-bg-hover")}
+                >
+                  <span className={cn(
+                    "wb-protocol-menu-icon text-white",
+                    playbackMode.value === effectivePlaybackMode ? MODE_COLORS[playbackMode.value] : "bg-bg-secondary text-text-secondary"
+                  )}>
+                    {playbackMode.icon}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block pf-text-sm font-medium text-text-primary">{t(playbackMode.labelKey)}</span>
+                    <span className="block pf-text-xxs text-text-tertiary">{t(playbackMode.hintKey)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : null}
 
       {/* ── Recent Streams ── */}
       {recentStreams.length > 0 && (
@@ -457,7 +678,14 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ session
             {recentStreams.slice(0, 8).map((r, i) => (
               <div key={i} className="group flex items-center pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
                 <button
-                  onClick={() => { setStreamUrl(r.url); setMode(r.protocol); }}
+                  onClick={() => {
+                    setStreamUrl(r.url);
+                    if (assistantActive && isPlaybackMode(r.protocol)) {
+                      setLastPlaybackMode(r.protocol);
+                    } else {
+                      setMode(r.protocol);
+                    }
+                  }}
                   className="h-[22px] px-2 pf-text-xxs font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors flex items-center gap-1"
                 >
                   <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", MODE_COLORS[r.protocol]?.replace('bg-', 'bg-') || 'bg-text-disabled')} />

@@ -26,6 +26,7 @@ interface CollectionStore {
   exportPostman: (id: string) => Promise<string>;
   renameItem: (id: string, collectionId: string, name: string) => Promise<void>;
   moveItem: (id: string, collectionId: string, newParentId: string | null) => Promise<void>;
+  reorderItems: (dragId: string, targetId: string, collectionId: string, position: 'before' | 'after') => Promise<void>;
   saveRequest: (item: CollectionItem) => Promise<CollectionItem>;
   loadItems: (collectionId: string) => Promise<void>;
   deduplicateItems: (collectionId: string) => Promise<number>;
@@ -207,6 +208,55 @@ export const useCollectionStore = create<CollectionStore>((set, get) => ({
         ),
       },
     }));
+  },
+
+  reorderItems: async (dragId: string, targetId: string, collectionId: string, position: 'before' | 'after') => {
+    const allItems = get().items[collectionId] || [];
+    const dragItem = allItems.find((i) => i.id === dragId);
+    const targetItem = allItems.find((i) => i.id === targetId);
+    if (!dragItem || !targetItem) return;
+
+    // Only reorder within the same parent
+    const parentId = targetItem.parentId;
+    const siblings = allItems
+      .filter((i) => i.parentId === parentId && i.id !== dragId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
+    // Insert dragItem at the target position
+    const targetIndex = siblings.findIndex((i) => i.id === targetId);
+    const insertAt = position === 'before' ? targetIndex : targetIndex + 1;
+    siblings.splice(insertAt, 0, dragItem);
+
+    // Build ordered ID list and update local sort_order
+    const orderedIds = siblings.map((i) => i.id);
+    const updatedItems = allItems.map((item) => {
+      const newIndex = orderedIds.indexOf(item.id);
+      if (newIndex !== -1) {
+        return { ...item, parentId: item.id === dragId ? parentId : item.parentId, sortOrder: newIndex };
+      }
+      return item;
+    });
+
+    // Optimistic update
+    set((s) => ({
+      items: { ...s.items, [collectionId]: updatedItems },
+    }));
+
+    // Persist to backend
+    try {
+      await svc.reorderCollectionItems(orderedIds);
+      // Also update parentId if it changed
+      if (dragItem.parentId !== parentId) {
+        const movedItem = updatedItems.find((i) => i.id === dragId)!;
+        await svc.updateCollectionItem(movedItem);
+      }
+    } catch (e) {
+      // Rollback on failure
+      set((s) => ({
+        items: { ...s.items, [collectionId]: allItems },
+        error: String(e),
+      }));
+    }
   },
 
   saveRequest: async (item: CollectionItem) => {

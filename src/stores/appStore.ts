@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import type { HttpRequestConfig, HttpResponse } from "@/types/http";
 import { createDefaultRequest } from "@/types/http";
+import type { SocketMode } from "@/types/tcp";
+import type { VideoProtocol } from "@/types/videostream";
+import {
+  DEFAULT_TCP_TOOL_MODE,
+  DEFAULT_VIDEO_TOOL_MODE,
+  type ToolSessionOptions,
+} from "@/types/toolSession";
 
 export type RequestProtocol = "http" | "ws" | "mqtt";
 export type ToolWorkbench = "tcpudp" | "loadtest" | "capture" | "videostream";
@@ -11,6 +18,8 @@ export interface ToolSession {
   id: string;
   tool: ToolWorkbench;
   customLabel?: string | null;
+  tcpMode?: SocketMode | null;
+  videoMode?: VideoProtocol | null;
 }
 
 export interface AppTab {
@@ -40,10 +49,11 @@ interface AppStore {
   activeToolSessionIds: Record<ToolWorkbench, string | null>;
 
   addTab: (protocol?: RequestProtocol) => string;
-  openToolTab: (tool: ToolWorkbench, sessionId?: string) => string;
-  addToolSession: (tool: ToolWorkbench) => string;
+  openToolTab: (tool: ToolWorkbench, sessionId?: string, options?: ToolSessionOptions) => string;
+  addToolSession: (tool: ToolWorkbench, options?: ToolSessionOptions) => string;
   setActiveToolSession: (tool: ToolWorkbench, sessionId: string) => void;
   closeToolSession: (tool: ToolWorkbench, sessionId: string) => void;
+  updateToolSession: (tool: ToolWorkbench, sessionId: string, updates: ToolSessionOptions) => void;
   openCollectionPanel: (collectionId: string) => void;
   closeCollectionPanel: () => void;
   closeTab: (id: string) => void;
@@ -74,11 +84,13 @@ const requestLabels: Record<RequestProtocol, string> = {
   mqtt: "MQTT Client",
 };
 
-function createToolSession(tool: ToolWorkbench, id?: string): ToolSession {
+function createToolSession(tool: ToolWorkbench, id?: string, options?: ToolSessionOptions): ToolSession {
   return {
     id: id ?? crypto.randomUUID(),
     tool,
-    customLabel: null,
+    customLabel: options?.customLabel ?? null,
+    tcpMode: tool === "tcpudp" ? options?.tcpMode ?? DEFAULT_TCP_TOOL_MODE : null,
+    videoMode: tool === "videostream" ? options?.videoMode ?? DEFAULT_VIDEO_TOOL_MODE : null,
   };
 }
 
@@ -130,11 +142,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return id;
   },
 
-  openToolTab: (tool, sessionId) => {
+  openToolTab: (tool, sessionId, options) => {
     const state = get();
     const existingSessions = state.toolSessions[tool];
     const requestedSession = sessionId
-      ? existingSessions.find((item) => item.id === sessionId) ?? createToolSession(tool, sessionId)
+      ? existingSessions.find((item) => item.id === sessionId) ?? createToolSession(tool, sessionId, options)
       : null;
 
     if (requestedSession && existingSessions.some((item) => item.id === requestedSession.id)) {
@@ -181,7 +193,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return nextActiveId;
     }
 
-    const session = createToolSession(tool);
+    const session = createToolSession(tool, undefined, options);
     set((current) => ({
       activeWorkbench: tool,
       activeCollectionId: null,
@@ -197,8 +209,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return session.id;
   },
 
-  addToolSession: (tool) => {
-    const session = createToolSession(tool);
+  addToolSession: (tool, options) => {
+    const session = createToolSession(tool, undefined, options);
     set((state) => ({
       activeWorkbench: tool,
       activeCollectionId: null,
@@ -267,6 +279,28 @@ export const useAppStore = create<AppStore>((set, get) => ({
         },
       };
     });
+  },
+
+  updateToolSession: (tool, sessionId, updates) => {
+    set((state) => ({
+      toolSessions: {
+        ...state.toolSessions,
+        [tool]: state.toolSessions[tool].map((session) => (
+          session.id === sessionId
+            ? {
+                ...session,
+                customLabel: updates.customLabel === undefined ? session.customLabel : updates.customLabel,
+                tcpMode: tool === "tcpudp"
+                  ? (updates.tcpMode ?? session.tcpMode ?? DEFAULT_TCP_TOOL_MODE)
+                  : session.tcpMode,
+                videoMode: tool === "videostream"
+                  ? (updates.videoMode ?? session.videoMode ?? DEFAULT_VIDEO_TOOL_MODE)
+                  : session.videoMode,
+              }
+            : session
+        )),
+      },
+    }));
   },
 
   openCollectionPanel: (collectionId) => {

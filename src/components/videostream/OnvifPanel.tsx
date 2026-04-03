@@ -4,16 +4,25 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Search, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ZoomIn, ZoomOut, RotateCcw, Star, Plus, Play } from "lucide-react";
 import * as vsSvc from "@/services/videoStreamService";
-import type { OnvifDeviceInfo, OnvifProfile, OnvifPreset } from "@/types/videostream";
+import type { OnvifDeviceInfo, OnvifProfile, OnvifPreset, VideoProtocol } from "@/types/videostream";
 
 interface OnvifPanelProps {
   sessionKey: string;
   connected: boolean;
   streamUrl: string;
   onStreamUrlChange: (url: string) => void;
+  suggestedPlaybackMode?: VideoProtocol | null;
+  onActivatePlaybackMode?: (mode: VideoProtocol) => void;
 }
 
-export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _streamUrl, onStreamUrlChange }: OnvifPanelProps) {
+export function OnvifPanel({
+  sessionKey,
+  connected: _connected,
+  streamUrl: _streamUrl,
+  onStreamUrlChange,
+  suggestedPlaybackMode,
+  onActivatePlaybackMode,
+}: OnvifPanelProps) {
   const { t } = useTranslation();
   const [host, setHost] = useState('192.168.1.100');
   const [port, setPort] = useState(80);
@@ -30,6 +39,15 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
   const [showPresetInput, setShowPresetInput] = useState(false);
   const [useProxy, setUseProxy] = useState(false);
   const [selectedXaddr, setSelectedXaddr] = useState<string | null>(null);
+  const playbackModeLabel =
+    suggestedPlaybackMode === "rtsp" ? "RTSP"
+    : suggestedPlaybackMode === "rtmp" ? "RTMP"
+    : suggestedPlaybackMode === "hls" ? "HLS"
+    : suggestedPlaybackMode === "http-flv" ? "HTTP-FLV"
+    : suggestedPlaybackMode === "webrtc" ? "WebRTC"
+    : suggestedPlaybackMode === "srt" ? "SRT"
+    : suggestedPlaybackMode === "gb28181" ? "GB28181"
+    : null;
 
   const handleDiscover = useCallback(async () => {
     setDiscovering(true);
@@ -243,9 +261,19 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
             {_streamUrl || t('videostream.onvif.noUri', '未获取到流地址')}
           </div>
           {_streamUrl && (
-            <p className="pf-text-3xs text-text-disabled">
-              {t('videostream.onvif.streamHint', '流地址已填入顶部 URL 栏，可切换到 RTSP 标签页查看详细协议交互')}
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="pf-text-3xs text-text-disabled">
+                {t('videostream.onvif.streamHint', '流地址已填入当前会话的播放地址，建议切到对应播放协议继续调试')}
+              </p>
+              {suggestedPlaybackMode && suggestedPlaybackMode !== "onvif" && playbackModeLabel && onActivatePlaybackMode ? (
+                <button
+                  onClick={() => onActivatePlaybackMode(suggestedPlaybackMode)}
+                  className="shrink-0 h-6 px-2.5 pf-rounded-sm bg-accent/10 text-accent pf-text-3xs font-semibold hover:bg-accent/20 transition-colors"
+                >
+                  切到 {playbackModeLabel}
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
       )}

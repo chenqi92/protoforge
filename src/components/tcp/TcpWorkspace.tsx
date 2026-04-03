@@ -1,7 +1,7 @@
 // TCP/UDP 工作区 — 上下分栏布局
 // 上方消息日志（主区域） + 下方紧凑发送栏
 import { memo, useState, useEffect, useRef, useCallback } from "react";
-import { Server, Radio, Square, Monitor, History, X, Usb, Cpu, Columns2 } from "lucide-react";
+import { Server, Radio, Square, Monitor, History, X, Usb, Cpu, Columns2, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { ConnectionBar } from "./ConnectionBar";
@@ -14,12 +14,19 @@ import { ModbusSlavePanel } from "./ModbusSlavePanel";
 import { ProtocolSidebarSection, ProtocolWorkbench } from "./ProtocolWorkbench";
 import * as svc from "@/services/tcpService";
 import { useActivityLogStore } from "@/stores/activityLogStore";
+import { useAppStore } from "@/stores/appStore";
 import type {
   SocketMode, DataFormat, TcpMessage, TcpEvent,
   TcpServerClient, ConnectionStats, SendHistoryItem, QuickCommand,
 } from "@/types/tcp";
 import { LineEnding, LINE_ENDING_MAP } from "@/types/tcp";
-import { registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
+import { DEFAULT_TCP_TOOL_MODE } from "@/types/toolSession";
+import {
+  getActiveConnectionLabelsForKeys,
+  hasActiveConnectionsForKeys,
+  registerConnection,
+  unregisterConnection,
+} from '@/lib/connectionRegistry';
 
 // ═══════════════════════════════════════════
 //  Recent Connections — localStorage 存储
@@ -111,6 +118,15 @@ const SPLIT_PAIR: Partial<Record<SocketMode, SocketMode>> = {
   'modbus-slave': 'modbus',
 };
 
+function getModeCategoryLabel(mode: SocketMode, t: ReturnType<typeof useTranslation>["t"]) {
+  if (mode.startsWith("tcp")) return t('tcp.connectionOriented');
+  if (mode.startsWith("udp")) return t('tcp.connectionless');
+  if (mode === "serial") return t('tcp.serialPort', '串口通信');
+  if (mode === "modbus") return t('tcp.modbusBus', 'Modbus 总线');
+  if (mode === "modbus-slave") return t('tcp.modbusSlaveMode', '从站模式');
+  return "";
+}
+
 function ProtocolModePanel({
   mode,
   sessionKey,
@@ -144,120 +160,185 @@ function ProtocolModePanel({
   }
 }
 
-export const TcpWorkspace = memo(function TcpWorkspace({ sessionId }: { sessionId?: string }) {
+export const TcpWorkspace = memo(function TcpWorkspace({
+  sessionId,
+  initialMode = DEFAULT_TCP_TOOL_MODE,
+}: {
+  sessionId?: string;
+  initialMode?: SocketMode;
+}) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<SocketMode>("tcp-client");
+  const updateToolSession = useAppStore((s) => s.updateToolSession);
+  const [mode, setMode] = useState<SocketMode>(initialMode);
   const [splitView, setSplitView] = useState(false);
   const [udpPeerTargetAddr, setUdpPeerTargetAddr] = useState("127.0.0.1:9000");
+  const [showModeMenu, setShowModeMenu] = useState(false);
+  const [modeMenuPos, setModeMenuPos] = useState({ top: 0, left: 0 });
   const sessionKey = useRef(sessionId ?? crypto.randomUUID()).current;
   const splitKey = `${sessionKey}-split`;
-  const [mountedPrimaryModes, setMountedPrimaryModes] = useState<SocketMode[]>(["tcp-client"]);
-  const [mountedSecondaryModes, setMountedSecondaryModes] = useState<SocketMode[]>([]);
+  const modeMenuAnchorRef = useRef<HTMLButtonElement>(null);
   const activeMode = MODES.find((item) => item.value === mode) || MODES[0];
   const canSplit = mode in SPLIT_PAIR;
+  const pairedMode = canSplit ? MODES.find((item) => item.value === SPLIT_PAIR[mode]) ?? null : null;
 
   useEffect(() => {
-    setMountedPrimaryModes((prev) => (prev.includes(mode) ? prev : [...prev, mode]));
-  }, [mode]);
+    setMode(initialMode);
+  }, [initialMode]);
 
   useEffect(() => {
-    const peerMode = SPLIT_PAIR[mode];
-    if (!peerMode) return;
-    setMountedSecondaryModes((prev) => (prev.includes(peerMode) ? prev : [...prev, peerMode]));
-  }, [mode]);
+    if (!sessionId) return;
+    updateToolSession("tcpudp", sessionId, { tcpMode: mode });
+  }, [mode, sessionId, updateToolSession]);
+
+  const handleModeChange = useCallback((nextMode: SocketMode) => {
+    if (nextMode === mode) return;
+
+    const relatedSessionKeys = [sessionKey, splitKey];
+    if (hasActiveConnectionsForKeys(relatedSessionKeys)) {
+      const labels = getActiveConnectionLabelsForKeys(relatedSessionKeys);
+      const message = `当前会话存在活跃连接：\n${labels.join("\n")}\n\n切换类型会断开当前会话，是否继续？`;
+      if (!window.confirm(message)) {
+        return;
+      }
+    }
+
+    if (!(nextMode in SPLIT_PAIR)) {
+      setSplitView(false);
+    }
+    setMode(nextMode);
+  }, [mode, sessionKey, splitKey]);
+
+  const toggleModeMenu = useCallback((anchor?: HTMLElement | null) => {
+    const anchorEl = anchor ?? modeMenuAnchorRef.current;
+    if (anchorEl) {
+      const rect = anchorEl.getBoundingClientRect();
+      setModeMenuPos({ top: rect.bottom + 6, left: Math.max(12, rect.right - 240) });
+    }
+    setShowModeMenu((prev) => !prev);
+  }, []);
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-transparent p-3">
-      <div className="wb-tool-strip shrink-0">
-        <div className="wb-tool-strip-main">
-          <div className="wb-tool-segment">
-            {MODES.map((m) => (
-              <button
-                key={m.value}
-                onClick={() => setMode(m.value)}
-                className={cn(mode === m.value && "is-active")}
-              >
-                {m.icon}
-                {t(m.labelKey)}
-              </button>
-            ))}
+      <div className="shrink-0 space-y-2">
+        <div className="wb-request-shell">
+          <button
+            ref={modeMenuAnchorRef}
+            onClick={(event) => toggleModeMenu(event.currentTarget)}
+            className="wb-protocol-dropdown"
+            title={t('tcp.switchType', '切换类型')}
+          >
+            <span className="wb-protocol-dropdown-icon bg-accent text-white">
+              {activeMode.icon}
+            </span>
+            <span className="wb-protocol-dropdown-label">{t(activeMode.labelKey)}</span>
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+          <div className="wb-request-main">
+            <span className="wb-request-label">{t('common.description', { defaultValue: '说明' })}</span>
+            <div className="truncate pf-text-sm text-text-secondary">{t(activeMode.hintKey)}</div>
           </div>
-          <span className="wb-tool-inline-note">{t(activeMode.hintKey)}</span>
+          <div className="wb-request-actions">
+            {canSplit ? (
+              <button
+                onClick={() => setSplitView((v) => !v)}
+                className={cn(
+                  "wb-ghost-btn px-2.5",
+                  splitView && "bg-accent-soft text-accent border-accent/40"
+                )}
+                title={splitView ? t('tcp.splitViewActive', '双端') : t('tcp.splitView', '双端视图')}
+              >
+                <Columns2 className="w-3 h-3" />
+                {splitView ? t('tcp.splitViewActive', '双端') : t('tcp.splitView', '双端视图')}
+              </button>
+            ) : null}
+          </div>
         </div>
 
-        <div className="wb-tool-strip-actions">
-          {canSplit && (
-            <button
-              onClick={() => setSplitView((v) => !v)}
-              className={cn(
-                "wb-tool-chip cursor-pointer transition-colors",
-                splitView && "bg-accent-soft text-accent border-accent/40"
-              )}
-              title={splitView ? t('tcp.splitViewActive', '双端') : t('tcp.splitView', '双端视图')}
-            >
-              <Columns2 className="w-3 h-3" />
-              {splitView ? t('tcp.splitViewActive', '双端') : t('tcp.splitView', '双端视图')}
-            </button>
-          )}
-          <span className="wb-tool-chip">
-            {mode.startsWith("tcp")
-              ? t('tcp.connectionOriented')
-              : mode.startsWith("udp")
-                ? t('tcp.connectionless')
-                : mode === "serial"
-                  ? t('tcp.serialPort', '串口通信')
-                  : mode === "modbus"
-                    ? t('tcp.modbusBus', 'Modbus 总线')
-                    : mode === "modbus-slave" ? t('tcp.modbusSlaveMode', '从站模式') : ''}
+        <div className="wb-request-secondary">
+          <span className="wb-request-meta">
+            <span className="wb-request-meta-dot bg-accent" />
+            {getModeCategoryLabel(mode, t)}
           </span>
+          {pairedMode ? (
+            <span className="wb-request-meta">
+              <Columns2 className="h-3 w-3" />
+              双端配对 · {t(pairedMode.labelKey)}
+            </span>
+          ) : null}
+          {canSplit && (
+            <span className="pf-text-xs text-text-tertiary">
+              {splitView ? t('tcp.splitViewHint', { defaultValue: '当前已开启双端联调视图' }) : t('tcp.splitViewGuide', { defaultValue: '需要模拟双端链路时可开启双端视图' })}
+            </span>
+          )}
         </div>
       </div>
+
+      {showModeMenu ? (
+        <>
+          <div className="fixed inset-0 z-[220]" onClick={() => setShowModeMenu(false)} />
+          <div
+            className="wb-protocol-menu fixed z-[221] w-[240px]"
+            style={{ top: modeMenuPos.top, left: modeMenuPos.left }}
+          >
+            <div className="px-2.5 pb-0.5 pt-1.5 pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-disabled">
+              {t('tcp.switchType', '切换类型')}
+            </div>
+            <div className="max-h-[320px] overflow-y-auto">
+              {MODES.map((item) => (
+                <button
+                  key={item.value}
+                  onClick={() => {
+                    handleModeChange(item.value);
+                    setShowModeMenu(false);
+                  }}
+                  className={cn("wb-protocol-menu-item", item.value === mode && "bg-bg-hover")}
+                >
+                  <span className={cn(
+                    "wb-protocol-menu-icon",
+                    item.value === mode ? "bg-accent-soft text-accent" : "bg-bg-secondary text-text-secondary"
+                  )}>
+                    {item.icon}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block pf-text-sm font-medium text-text-primary">{t(item.labelKey)}</span>
+                    <span className="block pf-text-xxs text-text-tertiary">{t(item.hintKey)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <div className={cn(
         "flex min-h-0 flex-1 pt-3",
         splitView && canSplit ? "flex-row gap-0" : "flex-col"
       )}>
-        {/* Primary panel */}
         <div className={cn("flex min-h-0 min-w-0 flex-col", splitView && canSplit ? "basis-[56%]" : "flex-1")}>
-          {mountedPrimaryModes.map((panelMode) => (
-            <div
-              key={panelMode}
-              className={cn("flex min-h-0 min-w-0 flex-1 flex-col", panelMode !== mode && "hidden")}
-            >
-              <ProtocolModePanel
-                mode={panelMode}
-                sessionKey={sessionKey}
-                udpPeerTargetAddr={udpPeerTargetAddr}
-                onUdpServerTargetChange={setUdpPeerTargetAddr}
-              />
-            </div>
-          ))}
+          <ProtocolModePanel
+            mode={mode}
+            sessionKey={sessionKey}
+            udpPeerTargetAddr={udpPeerTargetAddr}
+            onUdpServerTargetChange={setUdpPeerTargetAddr}
+          />
         </div>
 
         {(() => {
           const splitActive = splitView && canSplit;
           const secondMode = SPLIT_PAIR[mode] ?? mode;
-          if (mountedSecondaryModes.length === 0) return null;
+          if (!splitActive) {
+            return null;
+          }
           return (
-            <div className={cn(
-              "flex min-h-0 min-w-0 basis-[44%] flex-col overflow-hidden border-l border-border-default/40",
-              !splitActive && "hidden"
-            )}>
+            <div className="flex min-h-0 min-w-0 basis-[44%] flex-col overflow-hidden border-l border-border-default/40">
               <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2.5 pb-2.5 pt-0">
-                {mountedSecondaryModes.map((panelMode) => (
-                  <div
-                    key={panelMode}
-                    className={cn("flex min-h-0 min-w-0 flex-1 flex-col", panelMode !== secondMode && "hidden")}
-                  >
-                    <ProtocolModePanel
-                      mode={panelMode}
-                      sessionKey={splitKey}
-                      compact
-                      udpPeerTargetAddr={udpPeerTargetAddr}
-                      onUdpServerTargetChange={setUdpPeerTargetAddr}
-                    />
-                  </div>
-                ))}
+                <ProtocolModePanel
+                  mode={secondMode}
+                  sessionKey={splitKey}
+                  compact
+                  udpPeerTargetAddr={udpPeerTargetAddr}
+                  onUdpServerTargetChange={setUdpPeerTargetAddr}
+                />
               </div>
             </div>
           );

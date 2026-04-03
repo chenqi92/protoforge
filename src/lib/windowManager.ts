@@ -2,6 +2,7 @@
 // 封装独立工具窗口的创建、聚焦和关闭逻辑
 
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import type { ToolSessionOptions } from "@/types/toolSession";
 
 export type ToolWindowType = "capture" | "loadtest" | "tcpudp" | "videostream";
 
@@ -71,7 +72,11 @@ async function getToolWindows(tool?: ToolWindowType) {
 /**
  * 打开工具窗口（按会话实例管理）
  */
-export async function openToolWindow(tool: ToolWindowType, sessionId: string = crypto.randomUUID()): Promise<string> {
+export async function openToolWindow(
+  tool: ToolWindowType,
+  sessionId: string = crypto.randomUUID(),
+  options?: ToolSessionOptions,
+): Promise<string> {
   const label = getToolWindowLabel(tool, sessionId);
 
   const existing = await WebviewWindow.getByLabel(label);
@@ -82,8 +87,19 @@ export async function openToolWindow(tool: ToolWindowType, sessionId: string = c
 
   const config = toolConfigs[tool];
 
+  const params = new URLSearchParams({
+    window: tool,
+    session: sessionId,
+  });
+  if (options?.tcpMode) {
+    params.set("tcpMode", options.tcpMode);
+  }
+  if (options?.videoMode) {
+    params.set("videoMode", options.videoMode);
+  }
+
   new WebviewWindow(label, {
-    url: `/?window=${tool}&session=${encodeURIComponent(sessionId)}`,
+    url: `/?${params.toString()}`,
     title: config.title,
     width: config.width,
     height: config.height,

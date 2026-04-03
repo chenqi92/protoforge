@@ -14,7 +14,7 @@ import { useAppStore, type RequestProtocol, type ToolSession, type ToolWorkbench
 import { useSettingsStore } from "@/stores/settingsStore";
 import { usePluginStore } from "@/stores/pluginStore";
 import { closeWindowByLabel, listOpenToolWindowSessions, openToolWindow } from "@/lib/windowManager";
-import { hasActiveConnections, getActiveConnectionLabels } from '@/lib/connectionRegistry';
+import { getActiveConnectionLabelsForKeys, hasActiveConnectionsForKeys } from '@/lib/connectionRegistry';
 import { CommandPalette } from "@/components/ui/CommandPalette";
 
 import { CryptoContextMenu } from "@/components/plugins/CryptoContextMenu";
@@ -24,6 +24,13 @@ import { RightSidebar } from "@/components/layout/RightSidebar";
 import { subscribeDockToolRequests } from "@/lib/toolDocking";
 import { cn } from "@/lib/utils";
 import type { HttpRequestMode } from "@/types/http";
+import type { SocketMode } from "@/types/tcp";
+import type { VideoProtocol } from "@/types/videostream";
+import {
+  DEFAULT_TCP_TOOL_MODE,
+  DEFAULT_VIDEO_TOOL_MODE,
+  type ToolSessionOptions,
+} from "@/types/toolSession";
 
 const HttpWorkspace = lazy(() => import("@/components/http/HttpWorkspace").then((module) => ({ default: module.HttpWorkspace })));
 const RequestsOverview = lazy(() => import("@/components/http/RequestsOverview").then((module) => ({ default: module.RequestsOverview })));
@@ -94,6 +101,79 @@ const toolWorkbenchMeta: Record<ToolWorkbench, {
   },
 };
 
+interface ToolSessionPreset {
+  id: string;
+  label: string;
+  description: string;
+  group?: "playback" | "assistant";
+  options?: ToolSessionOptions;
+}
+
+const TCP_SESSION_LABELS: Record<SocketMode, string> = {
+  "tcp-client": "TCP 客户端",
+  "tcp-server": "TCP 服务端",
+  "udp-client": "UDP 客户端",
+  "udp-server": "UDP 服务端",
+  serial: "串口",
+  modbus: "Modbus 主站",
+  "modbus-slave": "Modbus 从站",
+};
+
+const VIDEO_SESSION_LABELS: Record<VideoProtocol, string> = {
+  rtsp: "RTSP",
+  rtmp: "RTMP",
+  "http-flv": "HTTP-FLV",
+  hls: "HLS",
+  webrtc: "WebRTC",
+  srt: "SRT",
+  onvif: "ONVIF 助手",
+  gb28181: "GB28181 助手",
+};
+
+const TCP_SESSION_PRESETS: ToolSessionPreset[] = [
+  { id: "tcp-client", label: "TCP 客户端", description: "主动连接远端 Socket", options: { tcpMode: "tcp-client" } },
+  { id: "tcp-server", label: "TCP 服务端", description: "本地监听并接收客户端", options: { tcpMode: "tcp-server" } },
+  { id: "udp-client", label: "UDP 客户端", description: "向固定目标发送 Datagram", options: { tcpMode: "udp-client" } },
+  { id: "udp-server", label: "UDP 服务端", description: "本地绑定端口收发 Datagram", options: { tcpMode: "udp-server" } },
+  { id: "serial", label: "串口", description: "串口调试与透传", options: { tcpMode: "serial" } },
+  { id: "modbus", label: "Modbus 主站", description: "主站轮询与报文调试", options: { tcpMode: "modbus" } },
+  { id: "modbus-slave", label: "Modbus 从站", description: "从站寄存器模拟", options: { tcpMode: "modbus-slave" } },
+];
+
+const VIDEO_SESSION_PRESETS: ToolSessionPreset[] = [
+  { id: "rtsp", label: "RTSP", description: "摄像头与网关拉流", group: "playback", options: { videoMode: "rtsp" } },
+  { id: "rtmp", label: "RTMP", description: "推拉流与 CDN 接入", group: "playback", options: { videoMode: "rtmp" } },
+  { id: "http-flv", label: "HTTP-FLV", description: "浏览器友好的低延迟 FLV", group: "playback", options: { videoMode: "http-flv" } },
+  { id: "hls", label: "HLS", description: "m3u8 播放与切片分析", group: "playback", options: { videoMode: "hls" } },
+  { id: "webrtc", label: "WebRTC", description: "实时媒体与信令调试", group: "playback", options: { videoMode: "webrtc" } },
+  { id: "srt", label: "SRT", description: "低时延可靠传输", group: "playback", options: { videoMode: "srt" } },
+  { id: "onvif", label: "ONVIF 助手", description: "发现设备、取 RTSP、做 PTZ", group: "assistant", options: { videoMode: "onvif" } },
+  { id: "gb28181", label: "GB28181 助手", description: "SIP 注册、目录查询与实况", group: "assistant", options: { videoMode: "gb28181" } },
+];
+
+function getToolSessionPresets(tool: ToolWorkbench): ToolSessionPreset[] {
+  if (tool === "tcpudp") return TCP_SESSION_PRESETS;
+  if (tool === "videostream") return VIDEO_SESSION_PRESETS;
+  return [];
+}
+
+function getToolSessionBaseLabel(tool: ToolWorkbench, session: ToolSession, fallbackLabel: string): string {
+  if (tool === "tcpudp") {
+    return TCP_SESSION_LABELS[session.tcpMode ?? DEFAULT_TCP_TOOL_MODE];
+  }
+  if (tool === "videostream") {
+    return VIDEO_SESSION_LABELS[session.videoMode ?? DEFAULT_VIDEO_TOOL_MODE];
+  }
+  return fallbackLabel;
+}
+
+function getToolSessionConnectionKeys(tool: ToolWorkbench, sessionId: string): string[] {
+  if (tool === "tcpudp") {
+    return [sessionId, `${sessionId}-split`];
+  }
+  return [sessionId];
+}
+
 function ToolWorkbenchPanel({
   tool,
   sessions,
@@ -109,7 +189,7 @@ function ToolWorkbenchPanel({
   sessions: ToolSession[];
   activeSessionId: string | null;
   detachedSessionIds: string[];
-  onAddSession: (tool: ToolWorkbench) => void;
+  onAddSession: (tool: ToolWorkbench, options?: ToolSessionOptions) => void;
   onSelectSession: (tool: ToolWorkbench, sessionId: string) => void;
   onCloseSession: (tool: ToolWorkbench, sessionId: string) => void;
   onPopout: (tool: ToolWorkbench, sessionId: string) => void;
@@ -118,6 +198,7 @@ function ToolWorkbenchPanel({
   const { t } = useTranslation();
   const meta = toolWorkbenchMeta[tool];
   const Icon = meta.icon;
+  const sessionPresets = getToolSessionPresets(tool);
 
   // Filter out detached sessions from visible tab list
   const visibleSessions = sessions.filter((s) => !detachedSessionIds.includes(s.id));
@@ -126,10 +207,13 @@ function ToolWorkbenchPanel({
   const sessionScrollRef = useRef<HTMLDivElement>(null);
   const sessionBarRef = useRef<HTMLDivElement>(null);
   const sessionMenuAnchorRef = useRef<HTMLDivElement>(null);
+  const createMenuAnchorRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [showSessionMenu, setShowSessionMenu] = useState(false);
   const [sessionMenuPos, setSessionMenuPos] = useState({ top: 0, left: 0 });
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const [createMenuPos, setCreateMenuPos] = useState({ top: 0, left: 0 });
 
   // Drag-to-popout state for session tabs
   const dragStateRef = useRef<{
@@ -244,10 +328,33 @@ function ToolWorkbenchPanel({
     setShowSessionMenu((prev) => !prev);
   };
 
-  // Use a stable label counter that counts only within all sessions (not just visible)
+  const toggleCreateMenu = (anchor?: HTMLElement | null) => {
+    if (sessionPresets.length === 0) {
+      onAddSession(tool);
+      return;
+    }
+    const anchorEl = anchor ?? createMenuAnchorRef.current;
+    if (anchorEl) {
+      const rect = anchorEl.getBoundingClientRect();
+      setCreateMenuPos({ top: rect.bottom + 6, left: Math.max(12, rect.right - 260) });
+    }
+    setShowCreateMenu((prev) => !prev);
+  };
+
   const sessionLabelMap = new Map<string, string>();
-  sessions.forEach((session, index) => {
-    sessionLabelMap.set(session.id, session.customLabel?.trim() || `${t(meta.shortTitleKey)} ${index + 1}`);
+  const fallbackLabel = t(meta.shortTitleKey);
+  const labelCounts = new Map<string, number>();
+  sessions.forEach((session) => {
+    const customLabel = session.customLabel?.trim();
+    if (customLabel) {
+      sessionLabelMap.set(session.id, customLabel);
+      return;
+    }
+
+    const baseLabel = getToolSessionBaseLabel(tool, session, fallbackLabel);
+    const nextIndex = (labelCounts.get(baseLabel) ?? 0) + 1;
+    labelCounts.set(baseLabel, nextIndex);
+    sessionLabelMap.set(session.id, `${baseLabel} ${nextIndex}`);
   });
 
   return (
@@ -297,8 +404,9 @@ function ToolWorkbenchPanel({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (hasActiveConnections(session.id)) {
-                        const labels = getActiveConnectionLabels(session.id);
+                      const sessionKeys = getToolSessionConnectionKeys(tool, session.id);
+                      if (hasActiveConnectionsForKeys(sessionKeys)) {
+                        const labels = getActiveConnectionLabelsForKeys(sessionKeys);
                         const msg = `此会话存在活跃连接：\n${labels.join('\n')}\n\n确定要关闭吗？`;
                         if (!window.confirm(msg)) return;
                       }
@@ -347,14 +455,16 @@ function ToolWorkbenchPanel({
             </>
           ) : null}
 
-          <button
-            onClick={() => onAddSession(tool)}
-            className="wb-ghost-btn px-2.5"
-            title={t('toolWorkbench.newInstance')}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t('toolWorkbench.newInstance')}
-          </button>
+          <div ref={createMenuAnchorRef}>
+            <button
+              onClick={(event) => toggleCreateMenu(event.currentTarget)}
+              className="wb-ghost-btn px-2.5"
+              title={sessionPresets.length > 0 ? t('toolWorkbench.newTypedInstance', { defaultValue: '按类型新建实例' }) : t('toolWorkbench.newInstance')}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t('toolWorkbench.newInstance')}
+            </button>
+          </div>
 
           <button
             onClick={() => activeSessionId && activeVisible && onPopout(tool, activeSessionId)}
@@ -412,13 +522,63 @@ function ToolWorkbenchPanel({
         </>
       ) : null}
 
+      {showCreateMenu ? (
+        <>
+          <div className="fixed inset-0 z-[220]" onClick={() => setShowCreateMenu(false)} />
+          <div
+            className="fixed z-[221] w-[260px] overflow-hidden rounded-[12px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+            style={{ top: createMenuPos.top, left: createMenuPos.left }}
+          >
+            <div className="px-2.5 pb-0.5 pt-1.5 pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-disabled">
+              {t('toolWorkbench.newInstance')}
+            </div>
+            {sessionPresets.some((preset) => preset.group === "playback") && (
+              <div className="px-2.5 pb-0.5 pt-1.5 pf-text-3xs font-semibold uppercase tracking-[0.14em] text-text-disabled">
+                播放协议
+              </div>
+            )}
+            <div className="max-h-[360px] overflow-y-auto">
+              {sessionPresets.map((preset) => {
+                const showGroupDivider =
+                  preset.group === "assistant" &&
+                  sessionPresets.some((item) => item.group === "playback") &&
+                  sessionPresets.findIndex((item) => item.id === preset.id) === sessionPresets.findIndex((item) => item.group === "assistant");
+
+                return (
+                  <div key={preset.id}>
+                    {showGroupDivider ? (
+                      <div className="px-2.5 pb-0.5 pt-2 pf-text-3xs font-semibold uppercase tracking-[0.14em] text-text-disabled">
+                        辅助协议
+                      </div>
+                    ) : null}
+                    <button
+                      onClick={() => {
+                        onAddSession(tool, preset.options);
+                        setShowCreateMenu(false);
+                      }}
+                      className="flex w-full items-start gap-2 rounded-[10px] px-2.5 py-[9px] text-left transition-colors hover:bg-bg-hover/70"
+                    >
+                      <span className={cn("mt-1 h-[6px] w-[6px] shrink-0 rounded-full", meta.accentDotClassName)} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block pf-text-sm font-medium text-text-primary">{preset.label}</span>
+                        <span className="block pf-text-xxs text-text-tertiary">{preset.description}</span>
+                      </span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      ) : null}
+
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         {visibleSessions.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-text-tertiary">
             <ArrowUpRight className="h-8 w-8 text-text-disabled" />
             <div className="pf-text-sm">{t('toolWorkbench.allSessionsDetached')}</div>
             <button
-              onClick={() => onAddSession(tool)}
+              onClick={(event) => toggleCreateMenu(event.currentTarget)}
               className="wb-ghost-btn mt-1 px-3"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -624,7 +784,11 @@ function App() {
   }, [activeCollectionId, activeTabId, closeCollectionPanel, openToolTab, setActiveWorkbench]);
 
   const handlePopoutWorkbench = useCallback(async (tool: ToolWorkbench, sessionId: string) => {
-    const detachedSessionId = await openToolWindow(tool, sessionId);
+    const session = useAppStore.getState().toolSessions[tool].find((item) => item.id === sessionId);
+    const detachedSessionId = await openToolWindow(tool, sessionId, {
+      tcpMode: session?.tcpMode ?? undefined,
+      videoMode: session?.videoMode ?? undefined,
+    });
     setDetachedToolSessions((prev) => {
       const nextDetached = prev[tool].includes(detachedSessionId) ? prev[tool] : [...prev[tool], detachedSessionId];
 
@@ -824,7 +988,7 @@ function App() {
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.tcpudp ? "block" : "hidden")}
               >
                 <Suspense fallback={<LazyPaneFallback label="加载 TCP/UDP 工作区..." />}>
-                  <TcpWorkspace sessionId={session.id} />
+                  <TcpWorkspace sessionId={session.id} initialMode={session.tcpMode ?? DEFAULT_TCP_TOOL_MODE} />
                 </Suspense>
               </div>
             ))}
@@ -896,7 +1060,7 @@ function App() {
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.videostream ? "block" : "hidden")}
               >
                 <Suspense fallback={<LazyPaneFallback label="加载视频流工作区..." />}>
-                  <VideoStreamWorkspace sessionId={session.id} />
+                  <VideoStreamWorkspace sessionId={session.id} initialMode={session.videoMode ?? DEFAULT_VIDEO_TOOL_MODE} />
                 </Suspense>
               </div>
             ))}

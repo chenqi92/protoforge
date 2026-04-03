@@ -250,12 +250,14 @@ function CollectionsView({ search, expanded, setExpanded }: {
   const createItem = useCollectionStore((s) => s.createItem);
   const deleteItem = useCollectionStore((s) => s.deleteItem);
   const moveItem = useCollectionStore((s) => s.moveItem);
+  const reorderItems = useCollectionStore((s) => s.reorderItems);
   const deduplicateItems = useCollectionStore((s) => s.deduplicateItems);
 
   // Drag-and-drop state
   const [dragItemId, setDragItemId] = useState<string | null>(null);
   const [dragCollectionId, setDragCollectionId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null);
 
   const startRename = (id: string, currentName: string) => {
     setRenamingId(id);
@@ -684,13 +686,33 @@ function CollectionsView({ search, expanded, setExpanded }: {
           handleOpenItem={handleOpenItem}
           handleItemContextMenu={handleItemContextMenu}
           dragItemId={dragItemId}
+          dropTargetId={dropTargetId}
+          dropPosition={dropPosition}
           onDragStart={(e: React.DragEvent) => {
             e.dataTransfer.setData('text/plain', item.id);
             e.dataTransfer.effectAllowed = 'move';
             setDragItemId(item.id);
             setDragCollectionId(item.collectionId);
           }}
-          onDragEnd={() => { setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); }}
+          onDragEnd={() => { setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); setDropPosition(null); }}
+          onDragOver={(e: React.DragEvent) => {
+            if (!dragItemId || dragItemId === item.id || dragCollectionId !== item.collectionId) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            const pos = e.clientY < midY ? 'before' : 'after';
+            setDropTargetId(item.id);
+            setDropPosition(pos);
+          }}
+          onDragLeave={() => { if (dropTargetId === item.id) { setDropTargetId(null); setDropPosition(null); } }}
+          onDrop={(e: React.DragEvent) => {
+            e.preventDefault();
+            if (dragItemId && dragCollectionId === item.collectionId && dragItemId !== item.id && dropPosition) {
+              reorderItems(dragItemId, item.id, item.collectionId, dropPosition);
+            }
+            setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); setDropPosition(null);
+          }}
         />
       );
     });
@@ -804,7 +826,8 @@ function RequestItemWithTooltip({
   item, method, color, depth, isRenamingItem,
   renameValue, setRenameValue, commitItemRename, setRenamingId,
   handleOpenItem, handleItemContextMenu,
-  dragItemId, onDragStart, onDragEnd,
+  dragItemId, dropTargetId, dropPosition,
+  onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
 }: {
   item: CollectionItem;
   method: string;
@@ -818,8 +841,13 @@ function RequestItemWithTooltip({
   handleOpenItem: (item: CollectionItem) => void;
   handleItemContextMenu: (e: React.MouseEvent, item: CollectionItem) => void;
   dragItemId: string | null;
+  dropTargetId: string | null;
+  dropPosition: 'before' | 'after' | null;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (e: React.DragEvent) => void;
 }) {
   const { t } = useTranslation();
   const [showTooltip, setShowTooltip] = useState(false);
@@ -891,13 +919,18 @@ function RequestItemWithTooltip({
         draggable={!isRenamingItem}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
         onClick={() => isRenamingItem ? undefined : handleOpenItem(item)}
         onContextMenu={(e) => handleItemContextMenu(e, item)}
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
         className={cn(
           "w-full flex items-center gap-2 pr-2 py-[4px] pf-rounded-sm text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group/item",
-          dragItemId === item.id && "opacity-40"
+          dragItemId === item.id && "opacity-40",
+          dropTargetId === item.id && dropPosition === 'before' && "border-t-2 border-t-accent",
+          dropTargetId === item.id && dropPosition === 'after' && "border-b-2 border-b-accent"
         )}
         style={{ paddingLeft: `${12 + depth * 14}px` }}
       >

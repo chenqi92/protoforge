@@ -124,7 +124,6 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
   const handleDragStart = (id: string) => { dragItemRef.current = id; };
   const handleDragOver = (_e: React.DragEvent, id: string) => { setDragOverId(id); };
   const handleDrop = (_e: React.DragEvent, _targetId: string) => {
-    // TODO: reorder items in store when collection store has reorder support
     dragItemRef.current = null;
     setDragOverId(null);
   };

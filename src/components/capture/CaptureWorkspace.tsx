@@ -212,21 +212,14 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
 
   return (
     <div className="flex h-full flex-col overflow-hidden p-3">
-      <div className="wb-tool-strip shrink-0">
-        <div className="wb-tool-strip-main">
-          <span
-            className={cn(
-              "wb-tool-chip",
-              running
-                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600"
-                : "text-text-tertiary"
-            )}
-          >
-          <span className={cn("h-2 w-2 pf-rounded-xs", running ? "bg-emerald-500" : "bg-text-disabled")} />
+      <div className="shrink-0 space-y-2">
+        <div className="wb-request-shell">
+          <span className={cn("wb-request-prefix", running ? "bg-emerald-500" : "bg-slate-400")}>
+            {running ? <Play className="h-3.5 w-3.5" fill="currentColor" /> : <Square className="h-3.5 w-3.5" fill="currentColor" />}
             {running ? t('capture.proxyRunning') : t('capture.proxyStopped')}
           </span>
 
-          <div className="wb-tool-field w-[110px]">
+          <div className="wb-inline-field w-[110px]">
             <span>{t('capture.port')}</span>
             <input
               value={portInput}
@@ -236,69 +229,92 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
             />
           </div>
 
-          <div className="wb-search w-[220px]">
+          <div className="wb-request-main">
+            <span className="wb-request-label">{t('capture.filter', { defaultValue: '过滤' })}</span>
             <Search className="h-3.5 w-3.5 text-text-disabled" />
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder={t('capture.filterPlaceholder')}
+              className="wb-request-input"
             />
+          </div>
+
+          <div className="wb-request-actions">
+            <button
+              onClick={clearEntries}
+              className="wb-icon-btn"
+              title={t('capture.clear')}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={handleExportCA}
+              className="wb-ghost-btn"
+              title={t('capture.caCert')}
+            >
+              <Shield className="h-3.5 w-3.5" />
+              {t('capture.caCert')}
+            </button>
+            <div className="relative">
+              <button
+                onClick={() => running ? setShowBrowserInput(!showBrowserInput) : undefined}
+                className={cn("wb-ghost-btn", !running && "opacity-50 cursor-not-allowed")}
+                title={running ? t('capture.openBrowserHint') : t('capture.browserProxyNotRunning')}
+              >
+                <Globe className="h-3.5 w-3.5" />
+                {t('capture.openBrowser')}
+              </button>
+              {showBrowserInput && running && (
+                <div className="absolute right-0 top-full mt-1 z-50 flex items-center gap-1.5 rounded-lg border border-border-default bg-bg-primary p-1.5 shadow-lg">
+                  <input
+                    value={browserUrl}
+                    onChange={(e) => setBrowserUrl(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleOpenBrowser(); if (e.key === "Escape") setShowBrowserInput(false); }}
+                    placeholder={t('capture.browserUrlPlaceholder')}
+                    className="wb-field h-7 w-[280px] pf-text-xs font-mono px-2"
+                    autoFocus
+                  />
+                  <button onClick={handleOpenBrowser} className="wb-primary-btn h-7 px-3 pf-text-xs">
+                    <Play className="h-3 w-3" fill="currentColor" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleToggleCapture}
+              className={cn(
+                "wb-primary-btn",
+                running ? "bg-error hover:bg-error/90" : "bg-accent hover:bg-accent-hover"
+              )}
+            >
+              {running ? <Square className="h-3.5 w-3.5" fill="currentColor" /> : <Play className="h-3.5 w-3.5" fill="currentColor" />}
+              {running ? t('capture.stopCapture') : t('capture.startCapture')}
+            </button>
           </div>
         </div>
 
-        <div className="wb-tool-strip-actions">
-          <span className="wb-tool-chip">{t('capture.requestCount', { count: filteredEntries.length })}</span>
-          <button
-            onClick={clearEntries}
-            className="wb-ghost-btn"
-            title={t('capture.clear')}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            {t('capture.clear')}
-          </button>
-          <button
-            onClick={handleExportCA}
-            className="wb-ghost-btn"
-            title={t('capture.caCert')}
-          >
-            <Shield className="h-3.5 w-3.5" />
-            {t('capture.caCert')}
-          </button>
-          <div className="relative">
-            <button
-              onClick={() => running ? setShowBrowserInput(!showBrowserInput) : undefined}
-              className={cn("wb-ghost-btn", !running && "opacity-50 cursor-not-allowed")}
-              title={running ? t('capture.openBrowserHint') : t('capture.browserProxyNotRunning')}
-            >
-              <Globe className="h-3.5 w-3.5" />
-              {t('capture.openBrowser')}
-            </button>
-            {showBrowserInput && running && (
-              <div className="absolute right-0 top-full mt-1 z-50 flex items-center gap-1.5 rounded-lg border border-border-default bg-bg-primary p-1.5 shadow-lg">
-                <input
-                  value={browserUrl}
-                  onChange={(e) => setBrowserUrl(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleOpenBrowser(); if (e.key === "Escape") setShowBrowserInput(false); }}
-                  placeholder={t('capture.browserUrlPlaceholder')}
-                  className="wb-field h-7 w-[280px] pf-text-xs font-mono px-2"
-                  autoFocus
-                />
-                <button onClick={handleOpenBrowser} className="wb-primary-btn h-7 px-3 pf-text-xs">
-                  <Play className="h-3 w-3" fill="currentColor" />
-                </button>
-              </div>
-            )}
-          </div>
-          <button
-            onClick={handleToggleCapture}
-            className={cn(
-              "wb-primary-btn",
-              running ? "bg-error hover:bg-error/90" : "bg-accent hover:bg-accent-hover"
-            )}
-          >
-            {running ? <Square className="h-3.5 w-3.5" fill="currentColor" /> : <Play className="h-3.5 w-3.5" fill="currentColor" />}
-            {running ? t('capture.stopCapture') : t('capture.startCapture')}
-          </button>
+        <div className="wb-request-secondary">
+          <span className="wb-request-meta">
+            <span className={cn("wb-request-meta-dot", running ? "bg-emerald-500" : "bg-text-disabled")} />
+            {t('capture.requestCount', { count: filteredEntries.length })}
+          </span>
+          <span className="wb-request-meta">
+            <Clock className="h-3 w-3" />
+            {t('capture.port')} {port}
+          </span>
+          {running ? (
+            <span className="wb-request-meta">
+              <Globe className="h-3 w-3" />
+              {t('capture.browserProxyReady', { defaultValue: '浏览器代理可用' })}
+            </span>
+          ) : null}
+          {caTrusted !== null ? (
+            <span className="wb-request-meta">
+              <Shield className={cn("h-3 w-3", caTrusted ? "text-emerald-600" : "text-orange-600")} />
+              {caTrusted ? t('capture.caTrustedTitle') : t('capture.caNotTrustedTitle')}
+            </span>
+          ) : null}
         </div>
       </div>
 
