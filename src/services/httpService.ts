@@ -239,6 +239,7 @@ function buildFinalPayload(payload: ReturnType<typeof buildRequestPayload>) {
     ...payload,
     timeoutMs: payload.timeoutMs || settings.defaultTimeoutMs,
     followRedirects: payload.followRedirects ?? settings.followRedirects,
+    maxRedirects: settings.maxRedirects,
     sslVerify: settings.sslVerify,
     proxy: settings.proxyEnabled ? {
       type: settings.proxyType,

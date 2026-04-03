@@ -721,8 +721,8 @@ pub async fn save_global_variables(
 // ═══════════════════════════════════════════
 
 #[tauri::command]
-pub async fn add_history(pool: State<'_, SqlitePool>, entry: HistoryEntry) -> Result<(), String> {
-    collections::add_history(&pool, entry).await
+pub async fn add_history(pool: State<'_, SqlitePool>, entry: HistoryEntry, max_count: Option<i64>) -> Result<(), String> {
+    collections::add_history(&pool, entry, max_count.unwrap_or(200)).await
 }
 
 #[tauri::command]
@@ -1657,6 +1657,7 @@ pub async fn run_collection(
                 auth,
                 timeout_ms: Some(30_000), // 每个请求强制 30s 超时
                 follow_redirects: None,
+                max_redirects: None,
                 ssl_verify: None,
                 proxy: None,
             };

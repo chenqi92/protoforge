@@ -478,7 +478,7 @@ pub async fn save_global_variables(
 //  History CRUD
 // ═══════════════════════════════════════════
 
-pub async fn add_history(pool: &SqlitePool, entry: HistoryEntry) -> Result<(), String> {
+pub async fn add_history(pool: &SqlitePool, entry: HistoryEntry, max_count: i64) -> Result<(), String> {
     sqlx::query(
         "INSERT INTO history (id, method, url, status, duration_ms, body_size, request_config, response_summary, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -488,10 +488,11 @@ pub async fn add_history(pool: &SqlitePool, entry: HistoryEntry) -> Result<(), S
     .bind(&entry.request_config).bind(&entry.response_summary).bind(&entry.created_at)
     .execute(pool).await.map_err(|e| format!("保存历史失败: {}", e))?;
 
-    // 自动清理超过 500 条的旧记录
+    // 自动清理超过上限的旧记录
     sqlx::query(
-        "DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY created_at DESC LIMIT 500)"
+        "DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY created_at DESC LIMIT ?)"
     )
+    .bind(max_count)
     .execute(pool).await.map_err(|e| format!("清理历史失败: {}", e))?;
 
     Ok(())

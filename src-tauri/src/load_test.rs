@@ -183,6 +183,7 @@ fn spawn_worker(
                 auth: config.auth.clone(),
                 timeout_ms: config.timeout_ms.or(Some(30000)),
                 follow_redirects: Some(true),
+                max_redirects: None,
                 ssl_verify: None,
                 proxy: None,
             };

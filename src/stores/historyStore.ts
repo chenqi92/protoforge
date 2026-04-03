@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import type { HistoryEntry, HistoryEntrySummary } from '@/types/collections';
 import * as svc from '@/services/historyService';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface HistoryStore {
   entries: HistoryEntrySummary[];
@@ -35,6 +36,8 @@ export const useHistoryStore = create<HistoryStore>((set) => ({
   },
 
   addEntry: (entry: HistoryEntry) => {
+    // 从 settings 获取历史记录上限
+    const maxCount = useSettingsStore.getState().settings.maxHistoryCount;
     // 乐观更新：只存摘要到内存
     const summary: HistoryEntrySummary = {
       id: entry.id,
@@ -46,10 +49,10 @@ export const useHistoryStore = create<HistoryStore>((set) => ({
       createdAt: entry.createdAt,
     };
     set((s) => ({
-      entries: [summary, ...s.entries].slice(0, 500),
+      entries: [summary, ...s.entries].slice(0, maxCount),
     }));
     // 异步写入完整记录到 SQLite
-    svc.addHistory(entry).catch((e) => {
+    svc.addHistory(entry, maxCount).catch((e) => {
       console.error('Failed to save history:', e);
     });
   },

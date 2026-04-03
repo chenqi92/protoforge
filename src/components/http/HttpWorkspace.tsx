@@ -1,20 +1,16 @@
-import { lazy, memo, Suspense, useDeferredValue, useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { lazy, memo, Suspense, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, FileIcon, X, Save, Search, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDownToLine, Trash2, Info, ChevronUp, Braces, FileOutput, Wand2, ClipboardCopy } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Square, Braces } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from "@/stores/appStore";
 import { useCollectionStore } from "@/stores/collectionStore";
-import { useEnvStore } from "@/stores/envStore";
 import { useHistoryStore } from "@/stores/historyStore";
-import { usePluginStore } from "@/stores/pluginStore";
-import * as pluginService from "@/services/pluginService";
-import type { HttpMethod, KeyValue, FormDataField, ScriptResult, HttpRequestMode } from "@/types/http";
-import { ensureAutoHeaders, type OAuth2Config } from "@/types/http";
+import type { HttpMethod, ScriptResult, HttpRequestMode } from "@/types/http";
+import { ensureAutoHeaders } from "@/types/http";
 import type { CollectionItem } from "@/types/collections";
-import type { ExportFormatContribution, GeneratorContribution } from "@/types/plugin";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { SaveRequestDialog } from "./SaveRequestDialog";
 import { JsonEditorLite } from "@/components/common/JsonEditorLite";
@@ -22,14 +18,21 @@ import { ResponseViewer } from "@/components/ui/ResponseViewer";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
 import { buildCollectionItemFromHttpConfig, getCollectionRequestSignatureFromConfig, getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
-import { extractVariableKeys, getVariablePreview, persistScriptVariableUpdates, upsertCollectionVariable } from "@/lib/requestVariables";
+import { persistScriptVariableUpdates } from "@/lib/requestVariables";
 import { recordRequestStat } from "@/components/plugins/RequestStatsPanel";
-import { buildRequestPayload, pickFile, pickFiles, resolveHttpConfig, sendHttpRequest, sendRequestWithScripts } from "@/services/httpService";
+import { buildRequestPayload, resolveHttpConfig, sendHttpRequest, sendRequestWithScripts } from "@/services/httpService";
+import { parseQueryStringToParams, joinUrlWithParams } from "@/lib/urlQuerySync";
+import { KVEditor, FormDataEditor } from "./KVEditor";
+import { VariableInlineInput } from "./VariableInlineInput";
+import { AuthPanel } from "./AuthPanel";
+import { HttpSseResponsePanel, type SseEvent } from "./HttpSsePanel";
+import { GraphQLBodyEditor, MonacoEditorSurface, EditorSurfaceFallback } from "./GraphQLBodyEditor";
+import { ResponseMetaPill, HttpRequestErrorPanel, ResponseHeaderMetric } from "./HttpResponseParts";
+import { ExportPluginDropdown } from "./ExportPluginDropdown";
+import { BinaryPicker } from "./BinaryPicker";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
-const LazyMonacoCodeEditor = lazy(() => import("@/components/common/CodeEditor").then((module) => ({ default: module.CodeEditor })));
 const LazyScriptEditor = lazy(() => import("./ScriptEditor").then((module) => ({ default: module.ScriptEditor })));
-
 
 const methodTextColor: Record<string, string> = {
   GET: "text-emerald-600", POST: "text-amber-600", PUT: "text-blue-600",
@@ -41,49 +44,6 @@ const methodDotColor: Record<string, string> = {
   DELETE: "bg-red-500", PATCH: "bg-violet-500", HEAD: "bg-cyan-500", OPTIONS: "bg-gray-400",
 };
 
-function EditorSurfaceFallback({ label = "加载编辑器..." }: { label?: string }) {
-  return (
-    <div className="flex h-full min-h-0 items-center justify-center bg-bg-input/88 px-4">
-      <div className="flex items-center gap-2 pf-text-sm text-text-tertiary">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span>{label}</span>
-      </div>
-    </div>
-  );
-}
-
-function MonacoEditorSurface({
-  value,
-  onChange,
-  language,
-  onMount,
-  readOnly = false,
-  height = "100%",
-  stickyScroll = true,
-}: {
-  value: string;
-  onChange?: (value: string) => void;
-  language?: string;
-  onMount?: (editor: any, monaco: any) => void;
-  readOnly?: boolean;
-  height?: string;
-  stickyScroll?: boolean;
-}) {
-  return (
-    <Suspense fallback={<EditorSurfaceFallback />}>
-      <LazyMonacoCodeEditor
-        value={value}
-        onChange={onChange}
-        language={language}
-        onMount={onMount}
-        readOnly={readOnly}
-        height={height}
-        stickyScroll={stickyScroll}
-      />
-    </Suspense>
-  );
-}
-
 function mergeScriptScopeUpdates(
   ...updates: Array<Record<string, string> | null | undefined>
 ): Record<string, string> {
@@ -93,51 +53,20 @@ function mergeScriptScopeUpdates(
   }, {});
 }
 
-function decodeQueryComponent(raw: string): string {
-  try {
-    return decodeURIComponent(raw.replace(/\+/g, " "));
-  } catch {
-    return raw;
-  }
+function getHttpStatusTone(status: number) {
+  if (status < 200) return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-300";
+  if (status < 300) return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300";
+  if (status < 400) return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300";
+  if (status < 500) return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-300";
+  return "border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300";
 }
 
-function parseQueryStringToParams(query: string): KeyValue[] {
-  if (!query) return [];
-
-  return query
-    .split("&")
-    .filter((segment) => segment.length > 0)
-    .map((segment) => {
-      const equalsIndex = segment.indexOf("=");
-      const rawKey = equalsIndex >= 0 ? segment.slice(0, equalsIndex) : segment;
-      const rawValue = equalsIndex >= 0 ? segment.slice(equalsIndex + 1) : "";
-      return {
-        key: decodeQueryComponent(rawKey),
-        value: decodeQueryComponent(rawValue),
-        enabled: true,
-      };
-    });
-}
-
-function buildRawQueryString(params: KeyValue[]): string {
-  return params
-    .filter((param) => param.key.trim() && param.enabled)
-    .map((param) => `${param.key}=${param.value}`)
-    .join("&");
-}
-
-function joinUrlWithParams(url: string, params: KeyValue[]): string {
-  const qIndex = url.indexOf("?");
-  const baseUrl = qIndex >= 0 ? url.slice(0, qIndex) : url;
-  const query = buildRawQueryString(params);
-  return query ? `${baseUrl}?${query}` : baseUrl;
-}
-
-interface SseEvent {
-  id: string | null;
-  eventType: string;
-  data: string;
-  timestamp: string;
+function getHttpStatusDotTone(status: number) {
+  if (status < 200) return "bg-sky-500";
+  if (status < 300) return "bg-emerald-500";
+  if (status < 400) return "bg-amber-500";
+  if (status < 500) return "bg-orange-500";
+  return "bg-red-500";
 }
 
 export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: string }) {
@@ -160,11 +89,9 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
   const [scriptResults, setScriptResults] = useState<{ pre: ScriptResult | null; post: ScriptResult | null }>({ pre: null, post: null });
   const [urlFocused, setUrlFocused] = useState(false);
   const [urlHighlight, setUrlHighlight] = useState(-1);
-  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [sseStatus, setSseStatus] = useState<'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'>('idle');
   const [sseEvents, setSseEvents] = useState<SseEvent[]>([]);
   const [sseError, setSseError] = useState('');
-  const toggleSecret = (field: string) => setShowSecrets(prev => ({ ...prev, [field]: !prev[field] }));
   const urlInputRef = useRef<HTMLInputElement>(null);
   const urlRectRef = useRef<DOMRect | null>(null);
   const sseListRef = useRef<HTMLDivElement>(null);
@@ -173,8 +100,6 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
   const requestIdRef = useRef(0);
 
   // 初次加载 tab 时：双向同步 URL ↔ queryParams
-  // 1) URL 含 ?query 但 params 为空 → 解析 URL 填充 params
-  // 2) params 有值 → 以 params 为准回写规范化 URL，避免模板变量被编码
   useEffect(() => {
     const httpConfig = activeTab?.httpConfig;
     if (!httpConfig || !tabId) return;
@@ -189,7 +114,6 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
     const parsedUrlParams = hasUrlQuery ? parseQueryStringToParams(url.slice(qIndex + 1)) : [];
 
     if (hasUrlQuery && !hasRealParams) {
-      // Case 1: URL 有 query string，但 params 表格为空 → 解析 URL 填充 params
       if (parsedUrlParams.length > 0) {
         const nextParams = [...parsedUrlParams, { key: '', value: '', enabled: true }];
         updateHttpConfig(tabId, {
@@ -198,8 +122,6 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
         });
       }
     } else if (hasRealParams) {
-      // Case 2: params 表格已有值时，始终以 params 为准规范化 URL，
-      // 避免 {{token}} 之类模板变量被意外保存为 %7B%7Btoken%7D%7D。
       const normalizedUrl = joinUrlWithParams(url, enabledParams);
       if (normalizedUrl !== url) {
         updateHttpConfig(tabId, { url: normalizedUrl });
@@ -423,7 +345,6 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
       const hasScripts = (config.preScript?.trim() || config.postScript?.trim());
       if (hasScripts) {
         const result = await sendRequestWithScripts(config);
-        // 请求已被取消，丢弃响应
         if (requestIdRef.current !== currentRequestId) return;
         await persistScriptVariableUpdates(activeTab.linkedCollectionId, activeTab.linkedCollectionItemId, {
           envUpdates: mergeScriptScopeUpdates(
@@ -448,30 +369,23 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
         setScriptResults({ pre: result.preScriptResult, post: result.postScriptResult });
       } else {
         const res = await sendHttpRequest(config);
-        // 请求已被取消，丢弃响应
         if (requestIdRef.current !== currentRequestId) return;
         finalResponse = res;
         setHttpResponse(tabId, res);
       }
 
-      // 自动检测 SSE 事件流：当响应 Content-Type 为 text/event-stream 时自动切换
       if (finalResponse?.isEventStream) {
         updateHttpConfig(tabId, { requestMode: 'sse' });
         setHttpResponse(tabId, null);
-        // 延迟一帧让模式切换生效后启动 SSE 连接
         setTimeout(() => void handleSseConnect(), 0);
       }
     } catch (err: any) {
-      // 请求已被取消，忽略错误
       if (requestIdRef.current !== currentRequestId) return;
       setError(tabId, err.message || String(err));
     } finally {
-      // 仅当此请求仍是活跃请求时才更新 UI 状态
       if (requestIdRef.current === currentRequestId) {
         setLoading(tabId, false);
       }
-      // 记录到历史（即使被取消也记录，因为请求已实际发出）
-      // 历史记录不关联集合/分组，无法解析变量模板，因此存储解析后的值
       if (finalResponse) {
         const resolvedConfig = resolveHttpConfig(config);
         useHistoryStore.getState().addEntry({
@@ -485,7 +399,6 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
           responseSummary: null,
           createdAt: new Date().toISOString(),
         });
-        // 记录到插件统计面板
         recordRequestStat({
           method: resolvedConfig.method,
           url: resolvedConfig.url,
@@ -494,7 +407,6 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
           timestamp: Date.now(),
           size: finalResponse.bodySize,
         });
-        // 记录到全局活动日志
         const { useActivityLogStore: logStore } = await import("@/stores/activityLogStore");
         logStore.getState().addEntry({
           source: 'http',
@@ -582,7 +494,6 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
     setSavingRequest(true);
     try {
       const now = new Date().toISOString();
-      // Preserve existing responseExample from the linked collection item
       const linkedItems = useCollectionStore.getState().items[activeTab.linkedCollectionId!] || [];
       const existingItem = linkedItems.find(i => i.id === activeTab.linkedCollectionItemId);
       const item = buildCollectionItemFromHttpConfig({
@@ -702,22 +613,18 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 onChange={(e) => {
                   const newUrl = e.target.value;
                   setUrlHighlight(-1);
-                  // 防止循环：如果是 params 触发的 URL 变更，跳过解析
                   if (syncingFromRef.current === 'params') {
                     updateHttpConfig(tabId, { url: newUrl });
                     return;
                   }
                   syncingFromRef.current = 'url';
                   try {
-                    // 解析 URL 中的查询参数
                     const qIndex = newUrl.indexOf('?');
                     if (qIndex >= 0) {
                       const newParams = parseQueryStringToParams(newUrl.slice(qIndex + 1));
-                      // 保留一行空行供继续输入
                       newParams.push({ key: '', value: '', enabled: true });
                       updateHttpConfig(tabId, { url: newUrl, queryParams: newParams });
                     } else {
-                      // 没有 ? 号时，清空参数（保留空行）
                       updateHttpConfig(tabId, { url: newUrl, queryParams: [{ key: '', value: '', enabled: true }] });
                     }
                   } finally {
@@ -824,7 +731,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
       <div className="flex-1 min-h-0 overflow-hidden pb-3 pt-1.5">
         <div className="http-workbench-shell">
           <PanelGroup orientation="vertical" key={`request-layout-${requestLayoutMode}`}>
-        
+
           {/* Request Panel */}
           <Panel minSize="12" defaultSize={requestDefaultSize} className="http-workbench-section">
             <div className="wb-tabs shrink-0 scrollbar-hide">
@@ -842,24 +749,22 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 </button>
               ))}
             </div>
-          
+
             <div className="http-workbench-body">
               {reqTab === "params" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={params} showMockGenerator onChange={(v) => {
-                // 防止循环：如果是 URL 触发的参数变更，跳过
                 if (syncingFromRef.current === 'url') {
                   updateHttpConfig(tabId, { queryParams: v });
                   return;
                 }
                 syncingFromRef.current = 'params';
                 try {
-                  // 从参数表格同步回 URL
                   updateHttpConfig(tabId, { queryParams: v, url: joinUrlWithParams(config.url, v) });
                 } finally {
                   syncingFromRef.current = null;
                 }
               }} kp="Query Param" vp="Value" collectionId={activeTab.linkedCollectionId} itemId={activeTab.linkedCollectionItemId} /></div>}
               {reqTab === "headers" && <div className="px-3 py-0 flex-1 min-h-0 flex flex-col"><KVEditor items={headers} showMockGenerator onChange={(v) => updateHttpConfig(tabId, { headers: v })} kp="Header" vp="Value" showPresets showAutoToggle collectionId={activeTab.linkedCollectionId} itemId={activeTab.linkedCollectionItemId} /></div>}
-            
+
               {reqTab === "body" && (
                 <div className="p-4 flex flex-col flex-1 min-h-0">
                   {!isGraphqlMode && (
@@ -878,7 +783,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                       ))}
                     </div>
                   )}
-                
+
                   <div className="flex-1 min-h-0 relative">
                     {isGraphqlMode ? (
                       <GraphQLBodyEditor
@@ -933,100 +838,15 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                   </div>
                 </div>
               )}
-            
+
               {reqTab === "auth" && (
-                <div className="flex h-full flex-1 min-h-0">
-                  <div className="w-[140px] shrink-0 border-r border-border-default/60 bg-bg-secondary/20 p-3 overflow-y-auto">
-                    <div className="flex flex-col gap-0.5">
-                      {(["none", "bearer", "basic", "apiKey", "oauth2"] as const).map((at) => (
-                        <button
-                          key={at}
-                          onClick={() => updateHttpConfig(tabId, { authType: at })}
-                          className={cn(
-                            "flex items-center w-full px-3 py-2 rounded-md text-left pf-text-xs transition-colors",
-                            config.authType === at
-                              ? "bg-accent/10 text-text-primary font-medium"
-                              : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                          )}
-                        >
-                          {at === "none" ? "No Auth" : at === "bearer" ? "Bearer Token" : at === "basic" ? "Basic Auth" : at === "apiKey" ? "API Key" : "OAuth 2.0"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1 min-w-0 p-5 overflow-y-auto">
-                    <div className="max-w-2xl">
-                      {config.authType === "none" && <p className="pf-text-xs text-text-disabled mt-2">{t('http.noAuth')}</p>}
-                    {config.authType === "bearer" && (
-                      <div className="space-y-2">
-                        <label className="pf-text-xs font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
-                        <div className="relative">
-                          <input
-                            value={config.bearerToken}
-                            onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
-                            type={showSecrets['bearer'] ? 'text' : 'password'}
-                            placeholder="ey..."
-                            className="wb-field w-full font-mono pf-text-xs pr-9"
-                          />
-                          <button type="button" onClick={() => toggleSecret('bearer')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
-                            {showSecrets['bearer'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {config.authType === "basic" && (
-                      <div className="space-y-3">
-                        <div className="space-y-1.5">
-                          <label className="pf-text-xs font-medium text-text-secondary">Username</label>
-                          <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full pf-text-xs" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="pf-text-xs font-medium text-text-secondary">Password</label>
-                          <div className="relative">
-                            <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full pf-text-xs pr-9" />
-                            <button type="button" onClick={() => toggleSecret('basicPwd')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
-                              {showSecrets['basicPwd'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {config.authType === "apiKey" && (
-                      <div className="space-y-3">
-                        <div className="space-y-1.5">
-                          <label className="pf-text-xs font-medium text-text-secondary">{t('http.addTo')}</label>
-                          <div className="wb-segmented w-fit">
-                            {(["header", "query"] as const).map((a) => (
-                              <button key={a} onClick={() => updateHttpConfig(tabId, { apiKeyAddTo: a })} className={cn("wb-segment", config.apiKeyAddTo === a && "wb-segment-active")}>
-                                {a === "header" ? "Header" : "Query Param"}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="pf-text-xs font-medium text-text-secondary">Key</label>
-                          <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono pf-text-xs" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="pf-text-xs font-medium text-text-secondary">Value</label>
-                          <div className="relative">
-                            <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono pf-text-xs pr-9" />
-                            <button type="button" onClick={() => toggleSecret('apiKey')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
-                              {showSecrets['apiKey'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {config.authType === "oauth2" && (
-                      <OAuth2Panel config={config.oauth2Config} onChange={(updates) => updateHttpConfig(tabId, { oauth2Config: { ...config.oauth2Config, ...updates } })} />
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            
+                <AuthPanel
+                  config={config}
+                  tabId={tabId}
+                  updateHttpConfig={updateHttpConfig}
+                />
+              )}
+
             {reqTab === "pre-script" && (
                 <Suspense fallback={<EditorSurfaceFallback label="加载前置脚本编辑器..." />}>
                   <LazyScriptEditor
@@ -1036,7 +856,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                   />
                 </Suspense>
               )}
-            
+
               {reqTab === "post-script" && (
                 <Suspense fallback={<EditorSurfaceFallback label="加载后置脚本编辑器..." />}>
                   <LazyScriptEditor
@@ -1062,7 +882,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 <p className="pf-text-sm font-medium text-text-primary animate-pulse">{t('http.sending', '请求发送中...')}</p>
               </div>
             )}
-            
+
             {isSseMode ? (
               <HttpSseResponsePanel
                 status={sseStatus}
@@ -1118,7 +938,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                       </button>
                     ))}
                   </div>
-                  
+
                   <div className="http-response-meta">
                     <span className={cn("http-response-status", getHttpStatusTone(response.status))}>
                       <span className={cn("http-response-status-dot", getHttpStatusDotTone(response.status))} />
@@ -1137,7 +957,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="flex-1 overflow-hidden">
                   {resTab === "headers" ? (
                     <div className="selectable h-full overflow-auto p-3">
@@ -1263,7 +1083,6 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                               {timingCards.slice(0, 3).map(({ label, value, color }) => {
                                 const total = response.timing.totalMs || 1;
                                 const widthPct = value ? Math.max(4, (value / total) * 100) : 0;
-                                // 计算偏移量 (waterfall offset)
                                 const offsetPct = label === t('http.connectTime')
                                   ? 0
                                   : label === t('http.ttfb')
@@ -1358,13 +1177,12 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 </div>
               </>
             ) : (() => {
-              // 查找当前关联的集合项的 responseExample
               const linkedItem = (activeTab.linkedCollectionItemId && activeTab.linkedCollectionId)
                 ? (useCollectionStore.getState().items[activeTab.linkedCollectionId] || [])
                     .find(i => i.id === activeTab.linkedCollectionItemId)
                 : null;
               const respExample = linkedItem?.responseExample || '';
-              
+
               return respExample ? (
                 <div className="h-full flex flex-col overflow-hidden">
                   <div className="flex items-center gap-2 px-4 py-2 border-b border-border-default/50 shrink-0">
@@ -1387,7 +1205,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
               );
             })()}
           </Panel>
-          
+
           </PanelGroup>
         </div>
       </div>
@@ -1404,1967 +1222,3 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
 });
 
 HttpWorkspace.displayName = "HttpWorkspace";
-
-function ResponseMetaPill({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="http-response-meta-pill">
-      <span className="http-response-meta-label">{label}</span>
-      <span className="http-response-meta-value font-mono">{value}</span>
-    </span>
-  );
-}
-
-function HttpRequestErrorPanel({
-  error,
-  onDismiss,
-}: {
-  error: string;
-  onDismiss: () => void;
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="http-response-head shrink-0">
-        <div className="http-response-tabs scrollbar-hide">
-          <span className="http-response-tab is-active">{t('http.errorResult')}</span>
-        </div>
-
-        <div className="http-response-meta">
-          <span className="http-response-status border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300">
-            <span className="http-response-status-dot bg-red-500" />
-            {t('http.requestFailed')}
-          </span>
-          <button type="button" onClick={onDismiss} className="wb-icon-btn" title={t('common.delete')}>
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-auto bg-bg-primary px-6 py-6">
-        <div className="mx-auto flex h-full max-w-3xl flex-col items-center justify-center text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-red-200/80 bg-red-50 text-red-500 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300">
-            <XCircle className="h-8 w-8" />
-          </div>
-          <p className="pf-text-3xl font-semibold text-text-primary">{t('http.requestFailed')}</p>
-          <p className="mt-2 max-w-[520px] pf-text-sm leading-6 text-text-secondary">
-            {t('http.requestFailedDesc')}
-          </p>
-
-          <div className="mt-5 w-full overflow-hidden pf-rounded-xl border border-border-default/80 bg-bg-secondary/30 text-left">
-            <div className="border-b border-border-default/80 px-4 py-2 pf-text-xs font-semibold uppercase tracking-[0.08em] text-text-disabled">
-              {t('http.errorDetails')}
-            </div>
-            <pre className="selectable overflow-auto px-4 py-4 pf-text-sm leading-6 text-text-secondary whitespace-pre-wrap break-all">
-              {error}
-            </pre>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── SSE 事件类型颜色映射 ─────────────────────────────────────
-const SSE_EVENT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  message: { bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", border: "border-blue-500/20" },
-  data:    { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", border: "border-emerald-500/20" },
-  status:  { bg: "bg-slate-500/10", text: "text-slate-600 dark:text-slate-400", border: "border-slate-500/20" },
-  heartbeat: { bg: "bg-purple-500/10", text: "text-purple-600 dark:text-purple-400", border: "border-purple-500/20" },
-  metric:  { bg: "bg-orange-500/10", text: "text-orange-600 dark:text-orange-400", border: "border-orange-500/20" },
-  error:   { bg: "bg-red-500/10", text: "text-red-600 dark:text-red-400", border: "border-red-500/20" },
-};
-const SSE_DEFAULT_COLOR = { bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", border: "border-blue-500/20" };
-
-function getSseEventColor(eventType: string) {
-  return SSE_EVENT_COLORS[eventType.toLowerCase()] || SSE_DEFAULT_COLOR;
-}
-
-function tryFormatJson(data: string): { isJson: boolean; formatted: string } {
-  try {
-    const parsed = JSON.parse(data);
-    return { isJson: true, formatted: JSON.stringify(parsed, null, 2) };
-  } catch {
-    return { isJson: false, formatted: data };
-  }
-}
-
-function SseEventRow({ event }: { event: SseEvent }) {
-  const [expanded, setExpanded] = useState(false);
-  const color = getSseEventColor(event.eventType);
-  const { isJson, formatted } = useMemo(() => tryFormatJson(event.data), [event.data]);
-
-  // 单行截断的内容预览
-  const preview = event.data.replace(/\n/g, ' ').slice(0, 200);
-
-  return (
-    <div className="group">
-      {/* 主行 */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className={cn(
-          "flex w-full items-center gap-2.5 px-4 py-2 text-left transition-colors hover:bg-bg-hover/50",
-          expanded && "bg-bg-hover/30"
-        )}
-      >
-        {/* 方向箭头 */}
-        <ArrowDownToLine className="h-3.5 w-3.5 shrink-0 text-text-disabled" />
-
-        {/* 事件类型标签 */}
-        <span className={cn(
-          "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 pf-text-xxs font-bold leading-none",
-          color.bg, color.text, color.border
-        )}>
-          {event.eventType}
-        </span>
-
-        {/* 内容摘要 */}
-        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text-secondary">
-          {preview}
-        </span>
-
-        {/* 时间戳 */}
-        <span className="shrink-0 font-mono pf-text-xxs text-text-disabled">
-          {new Date(event.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' } as Intl.DateTimeFormatOptions)}
-        </span>
-
-        {/* 展开/收起 */}
-        {expanded
-          ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-text-disabled" />
-          : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-text-disabled" />
-        }
-      </button>
-
-      {/* 展开详情 */}
-      {expanded && (
-        <div className="mx-4 mb-2 mt-0.5 rounded-lg border border-border-default/60 bg-bg-secondary/20 overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-border-default/40 px-3 py-1.5 pf-text-xxs text-text-tertiary">
-            <span className="font-semibold">{isJson ? 'JSON' : 'TEXT'}</span>
-            {event.id && <span className="ml-auto">Event ID: {event.id}</span>}
-          </div>
-          <pre className={cn(
-            "selectable overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11.5px] leading-[1.6] text-text-primary max-h-[320px]",
-          )}>
-            {formatted}
-          </pre>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SseSystemMessage({ message, timestamp }: { message: string; timestamp?: string }) {
-  return (
-    <div className="flex items-center gap-2.5 px-4 py-2 pf-text-xs text-text-tertiary">
-      <Info className="h-3.5 w-3.5 shrink-0 opacity-60" />
-      <span className="flex-1">{message}</span>
-      {timestamp && (
-        <span className="shrink-0 font-mono pf-text-xxs text-text-disabled">
-          {new Date(timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' } as Intl.DateTimeFormatOptions)}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function HttpSseResponsePanel({
-  status,
-  error,
-  events,
-  onClear,
-  listRef,
-}: {
-  status: 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
-  error: string;
-  events: SseEvent[];
-  onClear: () => void;
-  listRef: { current: HTMLDivElement | null };
-}) {
-  const { t } = useTranslation();
-  const [searchQuery, setSearchQuery] = useState("");
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-  const MAX_VISIBLE_SSE_EVENTS = 400;
-
-  const filteredEvents = useMemo(() => {
-    if (!deferredSearchQuery) return events;
-    const normalized = deferredSearchQuery.toLowerCase();
-    return events.filter(e => {
-      const haystack = `${e.eventType} ${e.data} ${e.id || ""}`.toLowerCase();
-      return haystack.includes(normalized);
-    });
-  }, [events, deferredSearchQuery]);
-
-  // 倒序显示：最新事件在最上方
-  const reversedEvents = useMemo(() => [...filteredEvents].reverse(), [filteredEvents]);
-  const visibleEvents = useMemo(
-    () => reversedEvents.slice(0, MAX_VISIBLE_SSE_EVENTS),
-    [reversedEvents],
-  );
-
-  return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="http-response-head shrink-0">
-        <div className="http-response-tabs scrollbar-hide">
-          <span className="http-response-tab is-active">{t('sse.events')}</span>
-        </div>
-
-        <div className="http-response-meta">
-          <div className="wb-search w-[200px] max-w-full">
-            <Search className="w-3.5 h-3.5 text-text-disabled" />
-            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('ws.searchMessages')} className="min-w-0 flex-1" />
-            {searchQuery && <button type="button" onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>}
-          </div>
-
-          <span className={cn("http-response-status",
-            status === 'connected'
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300"
-              : status === 'connecting'
-                ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300"
-                : status === 'error'
-                  ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300"
-                  : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-300"
-          )}>
-            <span className={cn("http-response-status-dot",
-              status === 'connected' ? "bg-emerald-500" : status === 'connecting' ? "bg-amber-500" : status === 'error' ? "bg-red-500" : "bg-slate-400"
-            )} />
-            {status === 'idle' ? t('sse.idle') : status === 'connecting' ? t('sse.connecting') : status === 'connected' ? t('sse.connected') : status === 'disconnected' ? t('sse.disconnected') : t('sse.error')}
-          </span>
-          <ResponseMetaPill label={t('sse.events')} value={`${events.length}`} />
-          <button type="button" onClick={onClear} className="wb-icon-btn" title={t('common.delete')}>
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {error ? (
-        <div className="border-b border-red-200 bg-red-50/80 px-4 py-2 pf-text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
-          {error}
-        </div>
-      ) : null}
-
-      <div ref={listRef} className="selectable flex-1 overflow-auto bg-bg-secondary/8">
-        {events.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary/35">
-              <Waves className="h-7 w-7 text-orange-500/40" />
-            </div>
-            <div className="pf-text-md font-semibold text-text-secondary">{t('sse.emptyTitle')}</div>
-            <div className="mt-2 max-w-xl pf-text-sm leading-6 text-text-tertiary">{t('sse.emptyDesc')}</div>
-          </div>
-        ) : (
-          <div className="divide-y divide-border-default/30">
-            {/* 顶部：连接状态系统消息 */}
-            {status === 'disconnected' && (
-              <SseSystemMessage message="Connection closed" timestamp={reversedEvents[0]?.timestamp} />
-            )}
-
-            {/* 事件列表（倒序：最新在上） */}
-            {visibleEvents.map((event, index) => (
-              <SseEventRow key={`${event.timestamp}-${events.length - 1 - index}`} event={event} />
-            ))}
-            {reversedEvents.length > MAX_VISIBLE_SSE_EVENTS && (
-              <div className="px-4 py-2 text-center pf-text-xxs text-text-disabled">
-                仅渲染最近 {MAX_VISIBLE_SSE_EVENTS} 条事件，共 {reversedEvents.length} 条
-              </div>
-            )}
-
-            {/* 底部：Connected 提示 */}
-            {events.length > 0 && (
-              <SseSystemMessage
-                message={`Connected to ${events[0]?.data ? 'server' : 'event stream'}`}
-                timestamp={events[0]?.timestamp}
-              />
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function getHttpStatusTone(status: number) {
-  if (status < 200) return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-300";
-  if (status < 300) return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300";
-  if (status < 400) return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300";
-  if (status < 500) return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-300";
-  return "border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300";
-}
-
-function getHttpStatusDotTone(status: number) {
-  if (status < 200) return "bg-sky-500";
-  if (status < 300) return "bg-emerald-500";
-  if (status < 400) return "bg-amber-500";
-  if (status < 500) return "bg-orange-500";
-  return "bg-red-500";
-}
-
-function ResponseHeaderMetric({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="response-summary-card">
-      <div className="response-summary-label">{label}</div>
-      <div className="response-summary-value">{value}</div>
-      {hint ? <div className="response-summary-hint">{hint}</div> : null}
-    </div>
-  );
-}
-
-function GraphQLBodyEditor({
-  query,
-  variables,
-  onQueryChange,
-  onVariablesChange,
-}: {
-  query: string;
-  variables: string;
-  onQueryChange: (value: string) => void;
-  onVariablesChange: (value: string) => void;
-}) {
-  const { t } = useTranslation();
-  const trimmedVariables = variables.trim();
-  const hasVariables = trimmedVariables.length > 0 && trimmedVariables !== "{}";
-  const variableState = useMemo(() => {
-    if (!trimmedVariables) {
-      return { valid: true, label: t('http.graphql.variablesOptional'), detail: t('http.graphql.variablesOptionalDetail') };
-    }
-
-    try {
-      const parsed = JSON.parse(variables);
-      const count = parsed && typeof parsed === "object" && !Array.isArray(parsed)
-        ? Object.keys(parsed as Record<string, unknown>).length
-        : 0;
-      return {
-        valid: true,
-        label: count > 0 ? t('http.graphql.variablesCount', { count }) : t('http.graphql.variablesValid'),
-        detail: count > 0 ? t('http.graphql.variablesValidDetail') : t('http.graphql.variablesValidEmpty'),
-      };
-    } catch {
-      return {
-        valid: false,
-        label: t('http.graphql.variablesInvalid'),
-        detail: t('http.graphql.variablesInvalidDetail'),
-      };
-    }
-  }, [trimmedVariables, variables]);
-
-  const handleInsertTemplate = useCallback(() => {
-    if (!query.trim()) {
-      onQueryChange(
-        [
-          "query ExampleQuery($id: ID!) {",
-          "  user(id: $id) {",
-          "    id",
-          "    name",
-          "    email",
-          "  }",
-          "}",
-        ].join("\n")
-      );
-    }
-
-    if (!trimmedVariables) {
-      onVariablesChange('{\n  "id": "123"\n}');
-    }
-  }, [onQueryChange, onVariablesChange, query, trimmedVariables]);
-
-  const handleFormatVariables = useCallback(() => {
-    if (!trimmedVariables) {
-      onVariablesChange("{\n  \n}");
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(variables);
-      onVariablesChange(JSON.stringify(parsed, null, 2));
-    } catch {
-      // Keep current text when invalid; header already highlights the issue.
-    }
-  }, [onVariablesChange, trimmedVariables, variables]);
-
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.95fr)]">
-        <div className="wb-panel flex min-h-[320px] min-w-0 flex-col overflow-hidden">
-          <div className="wb-panel-header shrink-0">
-            <div>
-              <div className="pf-text-sm font-semibold text-text-primary">Query</div>
-              <div className="mt-1 pf-text-xs text-text-tertiary">{t('http.graphql.queryDesc')}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="wb-tool-chip">GraphQL</span>
-              <button onClick={handleInsertTemplate} className="wb-ghost-btn">
-                {t('http.graphql.insertTemplate')}
-              </button>
-            </div>
-          </div>
-          <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/60 bg-bg-input/88">
-            <MonacoEditorSurface
-              value={query}
-              onChange={onQueryChange}
-              language="graphql"
-            />
-          </div>
-        </div>
-
-        <div className="wb-panel flex min-h-[320px] min-w-0 flex-col overflow-hidden">
-          <div className="wb-panel-header shrink-0">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="pf-text-sm font-semibold text-text-primary">Variables</span>
-                <span className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 pf-text-xxs font-semibold",
-                  variableState.valid
-                    ? "bg-emerald-500/10 text-emerald-600"
-                    : "bg-red-500/10 text-red-500"
-                )}>
-                  {variableState.valid ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                  {variableState.label}
-                </span>
-              </div>
-              <div className="mt-1 pf-text-xs text-text-tertiary">{variableState.detail}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              {hasVariables ? <span className="wb-tool-chip">JSON</span> : null}
-              <button onClick={handleFormatVariables} className="wb-ghost-btn">
-                {t('http.graphql.formatVariables')}
-              </button>
-            </div>
-          </div>
-          <div className="min-h-0 flex-1 overflow-hidden border-t border-border-default/60 bg-bg-input/88">
-            <JsonEditorLite
-              value={variables}
-              onChange={onVariablesChange}
-              className="h-full bg-transparent"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Header Dictionary: key → possible values ── */
-const HEADER_DICT: Record<string, string[]> = {
-  "Content-Type": [
-    "application/json",
-    "application/x-www-form-urlencoded",
-    "multipart/form-data",
-    "text/plain",
-    "text/html",
-    "application/xml",
-    "application/octet-stream",
-    "application/javascript",
-    "text/css",
-    "image/png",
-    "image/jpeg",
-  ],
-  "Accept": [
-    "application/json",
-    "*/*",
-    "text/html",
-    "application/xml",
-    "text/plain",
-    "image/*",
-  ],
-  "Authorization": ["Bearer ", "Basic "],
-  "Cache-Control": ["no-cache", "no-store", "max-age=0", "max-age=3600", "public", "private"],
-  "Accept-Encoding": ["gzip, deflate, br", "gzip, deflate", "identity"],
-  "Accept-Language": ["zh-CN,zh;q=0.9,en;q=0.8", "en-US,en;q=0.9", "*"],
-  "User-Agent": ["ProtoForge/1.0", "Mozilla/5.0"],
-  "X-Requested-With": ["XMLHttpRequest"],
-  "Origin": [""],
-  "Referer": [""],
-  "Cookie": [""],
-  "If-None-Match": [""],
-  "If-Modified-Since": [""],
-  "X-Forwarded-For": [""],
-  "X-Real-IP": [""],
-  "X-CSRF-Token": [""],
-  "X-API-Key": [""],
-  "Connection": ["keep-alive", "close"],
-  "Transfer-Encoding": ["chunked"],
-  "Content-Length": [""],
-  "Content-Disposition": ["attachment; filename=\"\"", "inline"],
-  "Access-Control-Allow-Origin": ["*"],
-  "Access-Control-Allow-Methods": ["GET, POST, PUT, DELETE, OPTIONS"],
-  "Access-Control-Allow-Headers": ["Content-Type, Authorization"],
-  "Pragma": ["no-cache"],
-  "Expires": ["0"],
-  "Range": ["bytes=0-"],
-  "Host": [""],
-  "DNT": ["1"],
-};
-
-const ALL_HEADER_KEYS = Object.keys(HEADER_DICT);
-
-const createEmptyKeyValue = (): KeyValue => ({ key: "", value: "", description: "", enabled: true });
-const isEmptyKeyValueRow = (item: KeyValue) => !item.key.trim() && !item.value.trim() && !(item.description || "").trim();
-
-function normalizeKeyValueRows(items: KeyValue[]) {
-  const autoRows = items.filter((item) => item.isAuto);
-  const customRows = items.filter((item) => !item.isAuto);
-  const normalizedCustomRows = [...customRows];
-
-  while (
-    normalizedCustomRows.length > 1 &&
-    isEmptyKeyValueRow(normalizedCustomRows[normalizedCustomRows.length - 1]) &&
-    isEmptyKeyValueRow(normalizedCustomRows[normalizedCustomRows.length - 2])
-  ) {
-    normalizedCustomRows.pop();
-  }
-
-  if (normalizedCustomRows.length === 0 || !isEmptyKeyValueRow(normalizedCustomRows[normalizedCustomRows.length - 1])) {
-    normalizedCustomRows.push(createEmptyKeyValue());
-  }
-
-  return [...autoRows, ...normalizedCustomRows];
-}
-
-const createEmptyFormDataField = (): FormDataField => ({ key: "", value: "", fieldType: "text", enabled: true });
-const isEmptyFormDataRow = (field: FormDataField) => !field.key.trim() && !field.value.trim() && !field.fileName && !(field.description || "").trim();
-
-function normalizeFormDataRows(fields: FormDataField[]) {
-  const normalizedFields = [...fields];
-
-  while (
-    normalizedFields.length > 1 &&
-    isEmptyFormDataRow(normalizedFields[normalizedFields.length - 1]) &&
-    isEmptyFormDataRow(normalizedFields[normalizedFields.length - 2])
-  ) {
-    normalizedFields.pop();
-  }
-
-  if (normalizedFields.length === 0 || !isEmptyFormDataRow(normalizedFields[normalizedFields.length - 1])) {
-    normalizedFields.push(createEmptyFormDataField());
-  }
-
-  return normalizedFields;
-}
-
-/* ── KV Editor (table-based, for params, headers, form-urlencoded) ── */
-export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle, showMockGenerator, collectionId, itemId }: {
-  items: KeyValue[];
-  onChange: (v: KeyValue[]) => void;
-  kp: string;
-  vp: string;
-  showPresets?: boolean;
-  showAutoToggle?: boolean;
-  showMockGenerator?: boolean;
-  collectionId?: string | null;
-  itemId?: string | null;
-}) {
-  const { t } = useTranslation();
-  const [showAuto, setShowAuto] = useState(false);
-  const [activeKeySuggest, setActiveKeySuggest] = useState<number | null>(null);
-  const [activeValueSuggest, setActiveValueSuggest] = useState<number | null>(null);
-  const [highlightIdx, setHighlightIdx] = useState(-1);
-  const frameRef = useRef<HTMLDivElement>(null);
-  const safe = useMemo(() => normalizeKeyValueRows(items || []), [items]);
-  const customRowCount = safe.filter((item) => !item.isAuto).length;
-  const previousCustomRowCountRef = useRef(customRowCount);
-
-  const autoCount = safe.filter(h => h.isAuto).length;
-  const hasAuto = showAutoToggle && autoCount > 0;
-
-  const update = (i: number, f: "key" | "value" | "description", v: string) => {
-    const n = [...safe]; n[i] = { ...n[i], [f]: v }; onChange(normalizeKeyValueRows(n));
-  };
-  const toggle = (i: number) => {
-    const n = [...safe]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(normalizeKeyValueRows(n));
-  };
-  const remove = (i: number) => onChange(normalizeKeyValueRows(safe.filter((_, j) => j !== i)));
-
-  const selectKeySuggestion = (i: number, key: string) => {
-    const n = [...safe]; n[i] = { ...n[i], key };
-    const vals = HEADER_DICT[key];
-    if (vals && vals.length > 0 && !n[i].value) n[i].value = vals[0];
-    onChange(normalizeKeyValueRows(n)); setActiveKeySuggest(null); setHighlightIdx(-1);
-    if (vals && vals.length > 1) setActiveValueSuggest(i);
-  };
-  const selectValueSuggestion = (i: number, value: string) => {
-    update(i, "value", value); setActiveValueSuggest(null); setHighlightIdx(-1);
-  };
-  const getKeySuggestions = (input: string): string[] => {
-    if (!showPresets) return [];
-    if (!input) return ALL_HEADER_KEYS.slice(0, 12);
-    return ALL_HEADER_KEYS.filter(k => k.toLowerCase().includes(input.toLowerCase())).slice(0, 10);
-  };
-  const getValueSuggestions = (key: string): string[] => (!showPresets ? [] : HEADER_DICT[key] || []);
-  const handleKeyDown = (e: React.KeyboardEvent, sugs: string[], onSel: (v: string) => void, onCls: () => void) => {
-    if (!sugs.length) return;
-    if (e.key === "ArrowDown") { e.preventDefault(); setHighlightIdx(p => (p + 1) % sugs.length); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setHighlightIdx(p => (p <= 0 ? sugs.length - 1 : p - 1)); }
-    else if (e.key === "Enter" && highlightIdx >= 0 && highlightIdx < sugs.length) { e.preventDefault(); onSel(sugs[highlightIdx]); }
-    else if (e.key === "Escape") { e.preventDefault(); onCls(); setHighlightIdx(-1); }
-  };
-
-  const cellInput = "editor-table-input";
-
-  // 可见行的全选/取消逻辑仅对可见行生效
-  const visibleItems = safe.filter(item => !item.isAuto || showAuto);
-  const selectableVisibleItems = visibleItems.filter(item => item.key.trim().length > 0);
-  const allVisibleEnabled = selectableVisibleItems.length > 0 && selectableVisibleItems.every(item => item.enabled);
-
-  useEffect(() => {
-    if (customRowCount > previousCustomRowCountRef.current) {
-      requestAnimationFrame(() => {
-        frameRef.current?.scrollTo({ top: frameRef.current.scrollHeight, behavior: "smooth" });
-      });
-    }
-    previousCustomRowCountRef.current = customRowCount;
-  }, [customRowCount]);
-
-  const renderRow = (item: KeyValue, i: number) => {
-    const isSelectable = item.key.trim().length > 0;
-    const keySugs = activeKeySuggest === i ? getKeySuggestions(item.key) : [];
-    const valSugs = activeValueSuggest === i ? getValueSuggestions(item.key) : [];
-    return (
-      <tr key={i} className={cn("group", item.isAuto && "bg-bg-secondary/18")}>
-        <td className="editor-table-check relative">
-          {isSelectable ? (
-            <input type="checkbox" checked={item.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer m-0 align-middle block mx-auto" />
-          ) : (
-            <span className="editor-table-empty-check block mx-auto" aria-hidden="true" />
-          )}
-        </td>
-        <td>
-          <TableCellInput value={item.key} onChange={v => update(i, "key", v)}
-            onFocus={() => { if (showPresets) { setActiveKeySuggest(i); setActiveValueSuggest(null); setHighlightIdx(-1); } }}
-            onBlur={() => setTimeout(() => { setActiveKeySuggest(null); setHighlightIdx(-1); }, 150)}
-            onKeyDown={e => handleKeyDown(e, keySugs, k => selectKeySuggestion(i, k), () => setActiveKeySuggest(null))}
-            placeholder={kp} disabled={!item.enabled} suggestions={keySugs} highlightIdx={highlightIdx}
-            onSelectSuggestion={k => selectKeySuggestion(i, k)} className={cellInput} collectionId={collectionId} itemId={itemId} />
-        </td>
-        <td>
-          <div className="flex items-center gap-0">
-            <TableCellInput value={item.value} onChange={v => update(i, "value", v)}
-              onFocus={() => { if (showPresets && HEADER_DICT[item.key]) { setActiveValueSuggest(i); setActiveKeySuggest(null); setHighlightIdx(-1); } }}
-              onBlur={() => setTimeout(() => { setActiveValueSuggest(null); setHighlightIdx(-1); }, 150)}
-              onKeyDown={e => handleKeyDown(e, valSugs, v => selectValueSuggestion(i, v), () => setActiveValueSuggest(null))}
-              placeholder={vp} disabled={!item.enabled} suggestions={valSugs} highlightIdx={highlightIdx}
-              onSelectSuggestion={v => selectValueSuggestion(i, v)} className={cn(cellInput, "flex-1 min-w-0")} collectionId={collectionId} itemId={itemId} />
-            {showMockGenerator && <InlineMockButton onInsert={(v: string) => update(i, "value", v)} />}
-          </div>
-        </td>
-        <td>
-          <input value={item.description || ""} onChange={e => update(i, "description", e.target.value)} placeholder="Description"
-            className={cn("editor-table-input editor-table-description", !item.enabled && "editor-table-muted")} />
-        </td>
-        <td className="editor-table-actions">
-          {isSelectable ? (
-            <button onClick={() => remove(i)} className="editor-table-delete">
-              <Trash2 className="h-3 w-3" />
-              <span>{t('contextMenu.delete')}</span>
-            </button>
-          ) : (
-            <span className="editor-table-empty-action" aria-hidden="true" />
-          )}
-        </td>
-      </tr>
-    );
-  };
-
-  return (
-    <div className="editor-table-shell">
-      <div ref={frameRef} className="editor-table-frame">
-        {hasAuto && (
-          <div className="editor-table-banner">
-            <button type="button" className="editor-table-banner-toggle" onClick={() => setShowAuto(!showAuto)}>
-              {showAuto ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              <span className="font-medium">{autoCount} auto headers</span>
-              <span className="text-text-disabled">{showAuto ? '点击隐藏' : '点击展示默认请求头'}</span>
-            </button>
-          </div>
-        )}
-
-        <table className="editor-table">
-          <colgroup>
-            <col style={{ width: '32px' }} />
-            <col style={{ width: '33%' }} />
-            <col style={{ width: '39%' }} />
-            <col style={{ width: '22%' }} />
-            <col style={{ width: '72px' }} />
-          </colgroup>
-        <thead>
-          <tr>
-            <th className="editor-table-check relative">
-              <input
-                type="checkbox"
-                checked={allVisibleEnabled}
-                onChange={() => {
-                  onChange(safe.map(item => {
-                    if (item.isAuto && !showAuto) return item;
-                    if (!item.key.trim()) return item;
-                    return { ...item, enabled: !allVisibleEnabled };
-                  }));
-                }}
-                className="w-3 h-3 rounded accent-accent cursor-pointer m-0 align-middle block mx-auto"
-                title={allVisibleEnabled ? t('import.deselectAll') : t('import.selectAll')}
-                disabled={selectableVisibleItems.length === 0}
-              />
-            </th>
-            <th>{kp}</th>
-            <th>{vp}</th>
-            <th>Description</th>
-            <th className="editor-table-actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {hasAuto && showAuto && safe.map((item, i) => {
-            if (!item.isAuto) return null;
-            return renderRow(item, i);
-          })}
-          {safe.map((item, i) => {
-            if (item.isAuto) return null;
-            return renderRow(item, i);
-          })}
-        </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-/* ── TableCellInput: borderless input with portal suggestion dropdown ── */
-function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placeholder, disabled, suggestions, highlightIdx, onSelectSuggestion, className: cls, collectionId, itemId }: {
-  value: string; onChange: (v: string) => void; onFocus: () => void; onBlur: () => void;
-  onKeyDown: (e: React.KeyboardEvent) => void; placeholder: string; disabled: boolean;
-  suggestions?: string[]; highlightIdx?: number; onSelectSuggestion?: (v: string) => void; className?: string;
-  collectionId?: string | null;
-  itemId?: string | null;
-}) {
-  const { t } = useTranslation();
-  const ref = useRef<HTMLInputElement>(null);
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const hasSugs = suggestions && suggestions.length > 0;
-  useEffect(() => { if (hasSugs && ref.current) setRect(ref.current.getBoundingClientRect()); }, [hasSugs, value]);
-
-  return (
-    <>
-      <VariableInlineInput
-        inputRef={ref}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        disabled={disabled}
-        collectionId={collectionId}
-        itemId={itemId}
-        className={cn(cls, disabled && "editor-table-muted")}
-        overlayClassName={cn(cls, disabled && "editor-table-muted")}
-        compactPopover
-      />
-      {hasSugs && rect && onSelectSuggestion && createPortal(
-        <div className="fixed bg-bg-elevated border border-border-default rounded-lg shadow-xl max-h-[220px] overflow-y-auto py-0.5"
-          style={{ top: rect.bottom + 2, left: rect.left, width: rect.width, zIndex: 9999 }}>
-          {suggestions!.map((s, si) => (
-            <button key={si} onMouseDown={e => { e.preventDefault(); onSelectSuggestion!(s); }}
-              className={cn("w-full px-3 py-1.5 text-left pf-text-sm font-mono transition-colors",
-                si === (highlightIdx ?? -1) ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover",
-                value === s && si !== (highlightIdx ?? -1) && "text-accent font-semibold")}>
-              {s || <span className="text-text-disabled italic">{t('http.emptyValue')}</span>}
-            </button>
-          ))}
-        </div>, document.body
-      )}
-    </>
-  );
-}
-
-interface VariableSegment {
-  kind: "text" | "token";
-  text: string;
-  key?: string;
-}
-
-function splitVariableSegments(value: string): VariableSegment[] {
-  if (!value) return [];
-
-  const segments: VariableSegment[] = [];
-  let lastIndex = 0;
-
-  for (const match of value.matchAll(/(\{\{\s*([\w.$-]+)\s*\}\})/g)) {
-    const full = match[1];
-    const key = match[2]?.trim();
-    const index = match.index ?? 0;
-
-    if (index > lastIndex) {
-      segments.push({ kind: "text", text: value.slice(lastIndex, index) });
-    }
-
-    if (full && key) {
-      segments.push({ kind: "token", text: full, key });
-    }
-
-    lastIndex = index + full.length;
-  }
-
-  if (lastIndex < value.length) {
-    segments.push({ kind: "text", text: value.slice(lastIndex) });
-  }
-
-  return segments;
-}
-
-function VariableInlineInput({
-  inputRef,
-  value,
-  collectionId,
-  itemId,
-  className,
-  overlayClassName: _overlayClassName,
-  compactPopover,
-  onChange,
-  onKeyDown,
-  onFocus,
-  onBlur,
-  placeholder,
-  disabled,
-  ...rest
-}: React.InputHTMLAttributes<HTMLInputElement> & {
-  inputRef?: React.RefObject<HTMLInputElement | null>;
-  collectionId?: string | null;
-  itemId?: string | null;
-  overlayClassName?: string;
-  compactPopover?: boolean;
-}) {
-  const { t } = useTranslation();
-  const collections = useCollectionStore((state) => state.collections);
-  const activeEnvId = useEnvStore((state) => state.activeEnvId);
-  const envVars = useEnvStore((state) => state.variables);
-  const globalVars = useEnvStore((state) => state.globalVariables);
-  const strValue = String(value ?? '');
-  const variableKeys = useMemo(() => extractVariableKeys(strValue), [strValue]);
-  const segments = useMemo(() => splitVariableSegments(strValue), [strValue]);
-  const previews = useMemo(
-    () => new Map(variableKeys.map((key) => [key, getVariablePreview(key, collectionId, itemId)])),
-    [collectionId, itemId, collections, envVars, globalVars, activeEnvId, variableKeys]
-  );
-  const divRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<number | null>(null);
-  const composingRef = useRef(false);
-  const [open, setOpen] = useState(false);
-  const [activeKey, setActiveKey] = useState<string | null>(null);
-  const [rect, setRect] = useState<DOMRect | null>(null);
-
-  // ── Helpers for popover ──
-  const cancelClose = () => {
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  };
-  const scheduleClose = () => {
-    cancelClose();
-    closeTimerRef.current = window.setTimeout(() => setOpen(false), 120);
-  };
-  useEffect(() => () => cancelClose(), []);
-
-  // ── Expose ref to callers (they expect HTMLInputElement but we provide HTMLElement) ──
-  useEffect(() => {
-    if (inputRef) {
-      (inputRef as React.MutableRefObject<any>).current = divRef.current;
-    }
-  });
-
-  // ── Cursor save / restore helpers ──
-  const getCaretOffset = (): number => {
-    const el = divRef.current;
-    if (!el) return 0;
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return 0;
-    const range = sel.getRangeAt(0);
-    const preRange = document.createRange();
-    preRange.selectNodeContents(el);
-    preRange.setEnd(range.startContainer, range.startOffset);
-    return preRange.toString().length;
-  };
-
-  const setCaretOffset = (offset: number) => {
-    const el = divRef.current;
-    if (!el) return;
-    const sel = window.getSelection();
-    if (!sel) return;
-
-    let remaining = offset;
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-    let node: Text | null;
-    while ((node = walker.nextNode() as Text | null)) {
-      const len = node.textContent?.length ?? 0;
-      if (remaining <= len) {
-        const range = document.createRange();
-        range.setStart(node, remaining);
-        range.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(range);
-        return;
-      }
-      remaining -= len;
-    }
-    // If offset is beyond all text, place cursor at the end
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  };
-
-  // ── Build highlighted innerHTML from segments ──
-  const buildInnerHTML = useCallback((segs: VariableSegment[], pvs: Map<string, ReturnType<typeof getVariablePreview>>) => {
-    return segs.map((seg) => {
-      if (seg.kind === 'token' && seg.key) {
-        const p = pvs.get(seg.key);
-        const source = p?.source ?? 'missing';
-        // Use data-var-key so we can attach popover listeners via event delegation
-        return `<span class="variable-inline-token" data-source="${source}" data-var-key="${seg.key}">${escapeHtml(seg.text)}</span>`;
-      }
-      return escapeHtml(seg.text);
-    }).join('');
-  }, []);
-
-  // ── Sync DOM when value changes (not during IME composition) ──
-  // We need to rebuild innerHTML whenever strValue/segments/previews change,
-  // but skip during IME composition to avoid breaking input.
-  const expectedHTML = useMemo(() => buildInnerHTML(segments, previews), [segments, previews, buildInnerHTML]);
-
-  useEffect(() => {
-    const el = divRef.current;
-    if (!el || composingRef.current) return;
-
-    // Skip if DOM already matches expected HTML
-    if (el.innerHTML === expectedHTML) return;
-
-    const hasFocus = document.activeElement === el;
-    const savedOffset = hasFocus ? getCaretOffset() : -1;
-
-    el.innerHTML = expectedHTML;
-
-    if (hasFocus && savedOffset >= 0) {
-      setCaretOffset(savedOffset);
-    }
-  }, [expectedHTML]);
-
-  // ── Fire synthetic onChange ──
-  const fireChange = useCallback((newText: string) => {
-    if (!onChange) return;
-    // Synthesize a fake event that has `target.value`
-    const fakeEvent = {
-      target: { value: newText },
-      currentTarget: { value: newText },
-      preventDefault: () => {},
-      stopPropagation: () => {},
-    } as unknown as React.ChangeEvent<HTMLInputElement>;
-    onChange(fakeEvent);
-  }, [onChange]);
-
-  // ── Event handlers ──
-  const handleInput = useCallback(() => {
-    const el = divRef.current;
-    if (!el) return;
-    const newText = el.textContent ?? '';
-    // Do NOT update lastValueRef here; let the useEffect handle it
-    // so the innerHTML gets rebuilt with highlighting on next render
-    fireChange(newText);
-  }, [fireChange]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-    }
-    // Forward to caller's onKeyDown
-    if (onKeyDown) {
-      onKeyDown(e as unknown as React.KeyboardEvent<HTMLInputElement>);
-    }
-  }, [onKeyDown]);
-
-  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertText', false, text);
-  }, []);
-
-  const handleCompositionStart = useCallback(() => {
-    composingRef.current = true;
-  }, []);
-
-  const handleCompositionEnd = useCallback(() => {
-    composingRef.current = false;
-    // After IME finishes, sync the value
-    handleInput();
-  }, [handleInput]);
-
-  const handleMouseOver = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-var-key]');
-    if (target) {
-      cancelClose();
-      setActiveKey(target.getAttribute('data-var-key'));
-      setRect(target.getBoundingClientRect());
-      setOpen(true);
-    }
-  }, []);
-
-  const handleMouseOut = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-var-key]');
-    if (target) {
-      scheduleClose();
-    }
-  }, []);
-
-  const handleFocus = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
-    if (onFocus) onFocus(e as unknown as React.FocusEvent<HTMLInputElement>);
-  }, [onFocus]);
-
-  const handleBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
-    if (onBlur) onBlur(e as unknown as React.FocusEvent<HTMLInputElement>);
-  }, [onBlur]);
-
-  // Copy over passthrough attributes
-  const passthroughAttrs: Record<string, any> = {};
-  for (const [k, v] of Object.entries(rest)) {
-    if (k.startsWith('data-') || k.startsWith('aria-')) {
-      passthroughAttrs[k] = v;
-    }
-  }
-
-  return (
-    <>
-      <div
-        ref={divRef}
-        contentEditable={!disabled}
-        suppressContentEditableWarning
-        role="textbox"
-        aria-placeholder={placeholder || t('http.urlPlaceholder')}
-        className={cn('variable-inline-editable', className)}
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
-        onCompositionStart={handleCompositionStart}
-        onCompositionEnd={handleCompositionEnd}
-        onMouseOver={handleMouseOver}
-        onMouseOut={handleMouseOut}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        data-placeholder={placeholder || t('http.urlPlaceholder')}
-        {...passthroughAttrs}
-      />
-
-      {open && rect && activeKey && previews.get(activeKey) && createPortal(
-        <VariableHoverPopover
-          rect={rect}
-          preview={previews.get(activeKey)!}
-          collectionId={collectionId}
-          compact={compactPopover}
-          onMouseEnter={cancelClose}
-          onMouseLeave={scheduleClose}
-        />,
-        document.body
-      )}
-    </>
-  );
-}
-
-/** Escape HTML special characters for safe innerHTML insertion */
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function VariableHoverPopover({
-  rect,
-  preview,
-  collectionId,
-  compact,
-  onMouseEnter,
-  onMouseLeave,
-}: {
-  rect: DOMRect;
-  preview: ReturnType<typeof getVariablePreview>;
-  collectionId?: string | null;
-  compact?: boolean;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-}) {
-  const { t } = useTranslation();
-  const [draft, setDraft] = useState(preview.source === "missing" ? "" : preview.rawValue);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [revealed, setRevealed] = useState(false);
-
-  useEffect(() => {
-    setDraft(preview.source === "missing" ? "" : preview.rawValue);
-    setSaved(false);
-  }, [preview.key, preview.rawValue, preview.source]);
-
-  const sourceLabelMap: Record<string, string> = {
-    collection: t('http.variableSourceCollection'),
-    folder: t('http.variableSourceFolder'),
-    environment: t('http.variableSourceEnvironment'),
-    global: t('http.variableSourceGlobal'),
-    dynamic: t('http.variableSourceDynamic'),
-    missing: t('http.variableSourceMissing'),
-  };
-
-  const isSecretHidden = preview.isSecret && !revealed;
-  const displayValue = preview.source === "missing"
-    ? t('http.variableMissing')
-    : isSecretHidden
-      ? "••••••••"
-      : preview.value;
-  const canSaveToCollection = Boolean(collectionId) && preview.source !== "dynamic";
-
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    const textToCopy = canSaveToCollection ? draft : displayValue;
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1200);
-    });
-  };
-
-  // ── Resizable popover size with localStorage persistence ──
-  const STORAGE_KEY = "protoforge:var-popover-size";
-  const DEFAULT_W = compact ? 340 : 420;
-  const DEFAULT_H = 0; // 0 = auto height
-  const MIN_W = 280;
-  const MIN_H = 140;
-  const MAX_W = 640;
-  const MAX_H = 480;
-
-  const readStoredSize = (): { w: number; h: number } => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed.w === "number" && typeof parsed.h === "number") {
-          return { w: Math.max(MIN_W, Math.min(MAX_W, parsed.w)), h: Math.max(MIN_H, Math.min(MAX_H, parsed.h)) };
-        }
-      }
-    } catch { /* ignore */ }
-    return { w: DEFAULT_W, h: DEFAULT_H };
-  };
-
-  const stored = readStoredSize();
-  const [popoverW, setPopoverW] = useState(stored.w);
-  const [popoverH, setPopoverH] = useState(stored.h);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const resizingRef = useRef(false);
-
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    resizingRef.current = true;
-
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startW = popoverRef.current?.offsetWidth ?? popoverW;
-    const startH = popoverRef.current?.offsetHeight ?? (popoverH || 200);
-
-    const onMove = (ev: MouseEvent) => {
-      if (!resizingRef.current) return;
-      const newW = Math.max(MIN_W, Math.min(MAX_W, startW + (ev.clientX - startX)));
-      const newH = Math.max(MIN_H, Math.min(MAX_H, startH + (ev.clientY - startY)));
-      setPopoverW(newW);
-      setPopoverH(newH);
-    };
-
-    const onUp = () => {
-      resizingRef.current = false;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      // Persist to localStorage
-      const el = popoverRef.current;
-      if (el) {
-        const finalW = el.offsetWidth;
-        const finalH = el.offsetHeight;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ w: finalW, h: finalH }));
-      }
-    };
-
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }, [popoverW, popoverH]);
-
-  const popoverStyle: React.CSSProperties = {
-    top: rect.bottom + 10,
-    left: Math.min(window.innerWidth - popoverW - 12, Math.max(12, rect.left - 8)),
-    width: popoverW,
-    ...(popoverH > 0 ? { height: popoverH } : {}),
-  };
-
-  return (
-    <div
-      ref={popoverRef}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      className={cn(
-        "fixed z-[var(--z-toast)] pf-rounded-xl border border-border-default/85 bg-bg-primary/98 shadow-[0_18px_46px_rgba(15,23,42,0.14)] backdrop-blur-xl",
-        "animate-[varPopIn_0.15s_ease-out]",
-        "var-popover-resizable group/popover"
-      )}
-      style={popoverStyle}
-    >
-      {/* Floating copy button - top right */}
-      <button
-        type="button"
-        onClick={handleCopy}
-        className={cn("var-popover-copy-float", copied && "var-popover-copy-float-ok")}
-        title={t('http.copyValue')}
-      >
-        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-      </button>
-
-      {/* Header: variable name + source badge */}
-      <div className="px-4 py-3 shrink-0">
-        <div className="flex items-start justify-between gap-3 pr-7">
-          <div className="min-w-0">
-            <div className="pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-              {t('http.variablePreview')}
-            </div>
-            <div className="mt-1 font-mono pf-text-sm font-semibold text-text-primary">
-              {`{{${preview.key}}}`}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {preview.isSecret && preview.source !== "missing" && (
-              <button
-                type="button"
-                onClick={() => setRevealed((current) => !current)}
-                className="var-popover-toolbar-btn"
-                title={revealed ? t('http.hideValue') : t('http.revealValue')}
-              >
-                {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              </button>
-            )}
-            <div className="inline-flex rounded-full bg-bg-hover px-2 py-0.5 pf-text-xxs font-medium text-text-secondary">
-              {sourceLabelMap[preview.source]}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Value area */}
-      <div className="var-popover-body">
-        <div className="var-popover-value-block group/block">
-          {canSaveToCollection ? (
-            <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder={t('http.variableEditPlaceholder')}
-              spellCheck={false}
-              className="var-popover-textarea"
-            />
-          ) : (
-            <div className={cn(
-              "var-popover-display",
-              preview.source === "missing" && "var-popover-display-missing"
-            )}>
-              {displayValue}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Footer: save button or status hint */}
-      <div className="shrink-0 px-3 pb-3">
-        {canSaveToCollection ? (
-          <button
-            type="button"
-            onClick={async () => {
-              if (!collectionId) return;
-              setSaving(true);
-              try {
-                await upsertCollectionVariable(collectionId, preview.key, draft);
-                setSaved(true);
-                window.setTimeout(() => setSaved(false), 1200);
-              } finally {
-                setSaving(false);
-              }
-            }}
-            className={cn("var-popover-save-btn", saved && "var-popover-save-btn-ok")}
-            disabled={saving}
-          >
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-            {saved ? t('http.variableSaved') : t('http.variableSave')}
-          </button>
-        ) : !collectionId ? (
-          <div className="pf-text-xxs text-text-disabled text-center py-0.5 select-none">{t('http.variableNoCollection')}</div>
-        ) : preview.source === "dynamic" ? (
-          <div className="pf-text-xxs text-text-disabled text-center py-0.5 select-none">{t('http.variableDynamicReadonly')}</div>
-        ) : null}
-      </div>
-
-      {/* Resize handle */}
-      <div
-        className="var-popover-resize-handle"
-        onMouseDown={handleResizeStart}
-      />
-    </div>
-  );
-}
-
-/* ── FormData Editor (table-based, text + file fields) ── */
-function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChange: (v: FormDataField[]) => void }) {
-  const { t } = useTranslation();
-  const frameRef = useRef<HTMLDivElement>(null);
-  const safe = useMemo(() => normalizeFormDataRows(fields || []), [fields]);
-  const selectableFields = safe.filter((field) => field.key.trim().length > 0);
-  const previousFieldCountRef = useRef(safe.length);
-  const update = (i: number, u: Partial<FormDataField>) => { const n = [...safe]; n[i] = { ...n[i], ...u }; onChange(normalizeFormDataRows(n)); };
-  const toggle = (i: number) => { const n = [...safe]; n[i] = { ...n[i], enabled: !n[i].enabled }; onChange(normalizeFormDataRows(n)); };
-  const remove = (i: number) => onChange(normalizeFormDataRows(safe.filter((_, j) => j !== i)));
-
-  /** Get effective file paths/names (compat with legacy comma-separated data) */
-  const getFilePaths = (field: FormDataField): string[] => {
-    if (field.filePaths && field.filePaths.length > 0) return field.filePaths;
-    if (field.value) return field.value.split(',').map(p => p.trim()).filter(Boolean);
-    return [];
-  };
-  const getFileNames = (field: FormDataField): string[] => {
-    if (field.fileNames && field.fileNames.length > 0) return field.fileNames;
-    if (field.fileName) return field.fileName.split(',').map(n => n.trim()).filter(Boolean);
-    // fallback: extract names from paths
-    return getFilePaths(field).map(p => p.split(/[\\/]/).pop() || 'file');
-  };
-
-  const handleFilePick = async (i: number) => {
-    const r = await pickFiles();
-    if (!r) return;
-    const field = safe[i];
-    const existingPaths = getFilePaths(field);
-    const existingNames = getFileNames(field);
-    // Append new files to existing list
-    const newPaths = [...existingPaths, ...r.paths];
-    const newNames = [...existingNames, ...r.names];
-    update(i, {
-      filePaths: newPaths,
-      fileNames: newNames,
-      value: newPaths.join(','),
-      fileName: newNames.join(', '),
-    });
-  };
-
-  const handleRemoveFile = (fieldIdx: number, fileIdx: number) => {
-    const field = safe[fieldIdx];
-    const paths = [...getFilePaths(field)];
-    const names = [...getFileNames(field)];
-    paths.splice(fileIdx, 1);
-    names.splice(fileIdx, 1);
-    update(fieldIdx, {
-      filePaths: paths,
-      fileNames: names,
-      value: paths.join(','),
-      fileName: names.join(', '),
-    });
-  };
-
-  useEffect(() => {
-    if (safe.length > previousFieldCountRef.current) {
-      requestAnimationFrame(() => {
-        frameRef.current?.scrollTo({ top: frameRef.current.scrollHeight, behavior: "smooth" });
-      });
-    }
-    previousFieldCountRef.current = safe.length;
-  }, [safe.length]);
-
-  return (
-    <div className="editor-table-shell">
-      <div ref={frameRef} className="editor-table-frame">
-      <table className="editor-table table-fixed">
-        <colgroup>
-          <col style={{ width: '32px' }} />
-          <col style={{ width: '80px' }} />
-          <col style={{ width: '26%' }} />
-          <col style={{ width: '34%' }} />
-          <col style={{ width: '24%' }} />
-          <col style={{ width: '72px' }} />
-        </colgroup>
-        <thead>
-          <tr>
-            <th className="editor-table-check relative">
-              <input
-                type="checkbox"
-                checked={selectableFields.length > 0 && selectableFields.every(f => f.enabled)}
-                onChange={() => {
-                  const allEnabled = selectableFields.length > 0 && selectableFields.every(f => f.enabled);
-                  onChange(safe.map(f => f.key.trim() ? { ...f, enabled: !allEnabled } : f));
-                }}
-                className="w-3 h-3 rounded accent-accent cursor-pointer m-0 align-middle block mx-auto"
-                title={(selectableFields.length > 0 && selectableFields.every(f => f.enabled)) ? t('import.deselectAll') : t('import.selectAll')}
-                disabled={selectableFields.length === 0}
-              />
-            </th>
-            <th>{t('http.type')}</th>
-            <th>Key</th>
-            <th>Value</th>
-            <th>Description</th>
-            <th className="editor-table-actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {safe.map((field, i) => (
-            <tr key={i} className="group">
-              <td className="editor-table-check relative">
-                {field.key.trim() ? (
-                  <input type="checkbox" checked={field.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer m-0 align-middle block mx-auto" />
-                ) : (
-                  <span className="editor-table-empty-check block mx-auto" aria-hidden="true" />
-                )}
-              </td>
-              <td>
-                <select value={field.fieldType}
-                  onChange={e => update(i, { fieldType: e.target.value as 'text' | 'file', value: '', fileName: undefined, filePaths: [], fileNames: [] })}
-                  className={cn("editor-table-select pf-text-xs text-text-secondary", !field.enabled && "editor-table-muted")}>
-                  <option value="text">Text</option>
-                  <option value="file">File</option>
-                </select>
-              </td>
-              <td>
-                <input value={field.key} onChange={e => update(i, { key: e.target.value })} placeholder="Key"
-                  className={cn("editor-table-input", !field.enabled && "editor-table-muted")} />
-              </td>
-              <td>
-                {field.fieldType === "text" ? (
-                  <input value={field.value} onChange={e => update(i, { value: e.target.value })} placeholder="Value"
-                    className={cn("editor-table-input", !field.enabled && "editor-table-muted")} />
-                ) : (
-                  <div className={cn("flex items-start w-full min-h-[34px]", !field.enabled && "editor-table-muted")}>
-                    <button onClick={() => handleFilePick(i)}
-                      className="shrink-0 h-[34px] px-2 flex items-center gap-1 bg-transparent pf-text-xs cursor-pointer hover:bg-bg-hover transition-colors rounded"
-                      title={getFilePaths(field).length > 0 ? "添加更多文件" : t('http.selectFile')}>
-                      <Upload className="w-3 h-3 text-text-disabled shrink-0" />
-                      <span className="text-text-tertiary whitespace-nowrap">{getFilePaths(field).length > 0 ? "+" : t('http.selectFile')}</span>
-                    </button>
-                    {getFilePaths(field).length > 0 && (
-                      <div className="flex-1 min-w-0 max-h-[68px] overflow-y-auto flex flex-wrap gap-1 py-1 px-1">
-                        {getFileNames(field).map((name, fi) => (
-                          <span
-                            key={fi}
-                            title={getFilePaths(field)[fi] || name}
-                            className="inline-flex items-center gap-0.5 max-w-[160px] px-1.5 py-0.5 rounded bg-bg-hover pf-text-xxs text-text-secondary border border-border-subtle cursor-default group/chip"
-                          >
-                            <span className="truncate">{name}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleRemoveFile(i, fi); }}
-                              className="shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-red-500/15 hover:text-red-500 text-text-disabled transition-colors"
-                              title={`移除 ${name}`}
-                            >
-                              <X className="w-2.5 h-2.5" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </td>
-              <td>
-                <input value={field.description || ''} onChange={e => update(i, { description: e.target.value })} placeholder="Description"
-                  className={cn("editor-table-input editor-table-description", !field.enabled && "editor-table-muted")} />
-              </td>
-              <td className="editor-table-actions">
-                {field.key.trim() ? (
-                  <button onClick={() => remove(i)} className="editor-table-delete">
-                    <Trash2 className="h-3 w-3" />
-                    <span>{t('contextMenu.delete')}</span>
-                  </button>
-                ) : (
-                  <span className="editor-table-empty-action" aria-hidden="true" />
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
-    </div>
-  );
-}
-
-
-
-/* ── OAuth 2.0 Panel ── */
-function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (updates: Partial<OAuth2Config>) => void }) {
-  const { t } = useTranslation();
-  const [loading, setLoading] = useState(false);
-  const [authorizing, setAuthorizing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [tokenMeta, setTokenMeta] = useState<{ tokenType?: string; expiresIn?: number; scope?: string } | null>(null);
-
-  const canFetchToken = config.accessTokenUrl && config.clientId && (
-    config.grantType === "client_credentials" ||
-    (config.grantType === "password" && config.username) ||
-    (config.grantType === "authorization_code" && config.authUrl && config.redirectUri)
-  );
-
-  const exchangeCodeForToken = async (code: string) => {
-    return invoke<{
-      accessToken: string;
-      tokenType?: string;
-      expiresIn?: number;
-      refreshToken?: string;
-      scope?: string;
-    }>("fetch_oauth2_token", {
-      req: {
-        grantType: config.grantType,
-        accessTokenUrl: config.accessTokenUrl,
-        clientId: config.clientId,
-        clientSecret: config.clientSecret,
-        scope: config.scope || null,
-        username: config.username || null,
-        password: config.password || null,
-        code,
-        redirectUri: config.redirectUri || null,
-      },
-    });
-  };
-
-  const handleFetchToken = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      if (config.grantType === "authorization_code") {
-        // Step 1: Open OAuth window to get authorization code
-        setAuthorizing(true);
-        const { openOAuthWindow } = await import("@/lib/oauthWindow");
-        let oauthResult;
-        try {
-          oauthResult = await openOAuthWindow({
-            authUrl: config.authUrl,
-            clientId: config.clientId,
-            redirectUri: config.redirectUri,
-            scope: config.scope,
-          });
-        } finally {
-          setAuthorizing(false);
-        }
-
-        // Step 2: Exchange code for token
-        const result = await exchangeCodeForToken(oauthResult.code);
-        onChange({ accessToken: result.accessToken });
-        setTokenMeta({
-          tokenType: result.tokenType,
-          expiresIn: result.expiresIn,
-          scope: result.scope,
-        });
-      } else {
-        // client_credentials or password: direct token request
-        const result = await invoke<{
-          accessToken: string;
-          tokenType?: string;
-          expiresIn?: number;
-          refreshToken?: string;
-          scope?: string;
-        }>("fetch_oauth2_token", {
-          req: {
-            grantType: config.grantType,
-            accessTokenUrl: config.accessTokenUrl,
-            clientId: config.clientId,
-            clientSecret: config.clientSecret,
-            scope: config.scope || null,
-            username: config.username || null,
-            password: config.password || null,
-            code: null,
-            redirectUri: null,
-          },
-        });
-        onChange({ accessToken: result.accessToken });
-        setTokenMeta({
-          tokenType: result.tokenType,
-          expiresIn: result.expiresIn,
-          scope: result.scope,
-        });
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-      setAuthorizing(false);
-    }
-  };
-
-  const buttonLabel = authorizing
-    ? t('http.oauth2.authorizing')
-    : loading
-      ? t('http.oauth2.fetchingToken')
-      : config.grantType === "authorization_code"
-        ? t('http.oauth2.authorize')
-        : t('http.oauth2.fetchToken');
-
-  return (
-    <div className="space-y-3">
-      <div className="space-y-1.5">
-        <label className="pf-text-xs font-medium text-text-secondary">{t('http.authType')}</label>
-        <div className="wb-segmented w-fit">
-          {(["client_credentials", "authorization_code", "password"] as const).map((gt) => (
-            <button
-              key={gt}
-              onClick={() => { onChange({ grantType: gt }); setError(null); setTokenMeta(null); }}
-              className={cn("wb-segment", config.grantType === gt && "wb-segment-active")}
-            >
-              {gt === "client_credentials" ? "Client Credentials" : gt === "authorization_code" ? "Authorization Code" : "Password"}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-1.5">
-        <label className="pf-text-xs font-medium text-text-secondary">Access Token URL</label>
-        <input value={config.accessTokenUrl} onChange={(e) => onChange({ accessTokenUrl: e.target.value })} placeholder="https://auth.example.com/oauth/token" className="wb-field w-full font-mono pf-text-xs" />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label className="pf-text-xs font-medium text-text-secondary">Client ID</label>
-          <input value={config.clientId} onChange={(e) => onChange({ clientId: e.target.value })} className="wb-field w-full font-mono pf-text-xs" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="pf-text-xs font-medium text-text-secondary">Client Secret</label>
-          <input value={config.clientSecret} onChange={(e) => onChange({ clientSecret: e.target.value })} type="password" className="wb-field w-full font-mono pf-text-xs" />
-        </div>
-      </div>
-      {config.grantType === "authorization_code" && (
-        <>
-          <div className="space-y-1.5">
-            <label className="pf-text-xs font-medium text-text-secondary">Auth URL</label>
-            <input value={config.authUrl} onChange={(e) => onChange({ authUrl: e.target.value })} placeholder="https://auth.example.com/authorize" className="wb-field w-full font-mono pf-text-xs" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="pf-text-xs font-medium text-text-secondary">Redirect URI</label>
-            <input value={config.redirectUri} onChange={(e) => onChange({ redirectUri: e.target.value })} className="wb-field w-full font-mono pf-text-xs" />
-          </div>
-        </>
-      )}
-      {config.grantType === "password" && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="pf-text-xs font-medium text-text-secondary">Username</label>
-            <input value={config.username} onChange={(e) => onChange({ username: e.target.value })} className="wb-field w-full pf-text-xs" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="pf-text-xs font-medium text-text-secondary">Password</label>
-            <input value={config.password} onChange={(e) => onChange({ password: e.target.value })} type="password" className="wb-field w-full pf-text-xs" />
-          </div>
-        </div>
-      )}
-      <div className="space-y-1.5">
-        <label className="pf-text-xs font-medium text-text-secondary">Scope</label>
-        <input value={config.scope} onChange={(e) => onChange({ scope: e.target.value })} placeholder="read write" className="wb-field w-full font-mono pf-text-xs" />
-      </div>
-
-      {/* Get Token + Access Token */}
-      <div className="pt-2 border-t border-border-default">
-        <div className="flex items-center gap-3 mb-3">
-          <button
-            onClick={handleFetchToken}
-            disabled={loading || !canFetchToken}
-            className={cn(
-              "px-4 py-2 pf-text-sm font-semibold rounded-lg transition-all flex items-center gap-2",
-              loading
-                ? "bg-warning cursor-wait opacity-70 text-white"
-                : canFetchToken
-                  ? "bg-accent hover:bg-accent-hover text-white shadow-sm"
-                  : "bg-bg-tertiary text-text-disabled cursor-not-allowed"
-            )}
-          >
-            {(loading || authorizing) && (
-              <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="31.4 31.4" />
-              </svg>
-            )}
-            {buttonLabel}
-          </button>
-          {tokenMeta && (
-            <div className="flex items-center gap-2 pf-text-xs text-text-tertiary">
-              {tokenMeta.tokenType && <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded pf-text-xxs font-medium">{tokenMeta.tokenType}</span>}
-              {tokenMeta.expiresIn && <span>{t('http.tokenExpiry', { time: tokenMeta.expiresIn })}</span>}
-              {tokenMeta.scope && <span>scope: {tokenMeta.scope}</span>}
-            </div>
-          )}
-        </div>
-        {authorizing && (
-          <div className="mb-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 pf-text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
-            <svg className="w-4 h-4 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            {t('http.oauth2.authorizingHint')}
-          </div>
-        )}
-        {error && (
-          <div className="mb-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 pf-text-xs text-red-600 dark:text-red-400 break-all">
-            {error}
-          </div>
-        )}
-        <div className="space-y-1.5">
-          <label className="pf-text-xs font-medium text-text-secondary">Access Token</label>
-          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder={t('http.oauth2.accessTokenPlaceholder')} className="wb-field w-full font-mono pf-text-xs" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Binary File Picker ── */
-function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; fileName: string; onChange: (path: string, name: string) => void }) {
-  const { t } = useTranslation();
-  const handlePick = async () => {
-    const result = await pickFile();
-    if (result) {
-      onChange(result.path, result.name);
-    }
-  };
-
-  return (
-    <div className="absolute inset-0 flex items-center justify-center">
-      {filePath ? (
-        <div className="flex items-center gap-3 p-4 rounded-lg border border-border-default bg-bg-secondary/50">
-          <FileIcon className="w-8 h-8 text-accent/60" />
-          <div className="min-w-0">
-            <p className="pf-text-base font-medium text-text-primary truncate max-w-xs">{fileName}</p>
-            <p className="pf-text-xs text-text-disabled font-mono truncate max-w-xs">{filePath}</p>
-          </div>
-          <button onClick={() => onChange('', '')} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-red-500 transition-colors" title={t('http.removeFile')}>
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={handlePick}
-          className="flex flex-col items-center gap-2 p-6 rounded-lg border-2 border-dashed border-border-default hover:border-accent text-text-disabled hover:text-accent transition-colors cursor-pointer"
-        >
-          <Upload className="w-8 h-8" />
-          <span className="pf-text-base font-medium">{t('http.selectFile')}</span>
-          <span className="pf-text-xs">{t('http.binaryDesc')}</span>
-        </button>
-      )}
-    </div>
-  );
-}
-
-/* ── Export Plugin Dropdown (cURL 导出等) ── */
-function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpRequestConfig }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<{ content: string; filename: string } | null>(null);
-  const [copying, setCopying] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-
-  const installedPlugins = usePluginStore((s) => s.installedPlugins);
-  const exportPlugins = useMemo(() => installedPlugins.filter(p => p.pluginType === 'export-format'), [installedPlugins]);
-
-  // 聚合所有导出格式
-  const formats = useMemo(() => {
-    const items: { pluginId: string; pluginName: string; format: ExportFormatContribution }[] = [];
-    for (const p of exportPlugins) {
-      for (const fmt of (p.contributes?.exportFormats || [])) {
-        items.push({ pluginId: p.id, pluginName: p.name, format: fmt });
-      }
-    }
-    return items;
-  }, [exportPlugins]);
-
-  // 点击外部关闭
-  useEffect(() => {
-    if (!open) return;
-    const handleClick = (e: MouseEvent) => {
-      if (
-        btnRef.current?.contains(e.target as Node) ||
-        panelRef.current?.contains(e.target as Node)
-      ) return;
-      setOpen(false);
-      setResult(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-
-  if (formats.length === 0) return null;
-
-  const handleToggle = () => {
-    if (!open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
-    }
-    setOpen(!open);
-    setResult(null);
-  };
-
-  const handleExport = async (pluginId: string) => {
-    setLoading(true);
-    try {
-      const resolved = resolveHttpConfig(config);
-      const payload = buildRequestPayload(resolved);
-      const requestJson = JSON.stringify(payload);
-      const res = await pluginService.runExport(pluginId, requestJson);
-      if (res.error) {
-        console.warn('[ProtoForge] export plugin error:', res.error);
-      } else {
-        setResult({ content: res.content, filename: res.filename });
-      }
-    } catch (e) {
-      console.warn('[ProtoForge] export plugin failed:', e);
-    }
-    setLoading(false);
-  };
-
-  const handleCopy = async () => {
-    if (!result) return;
-    await navigator.clipboard.writeText(result.content);
-    setCopying(true);
-    setTimeout(() => setCopying(false), 2000);
-  };
-
-  return (
-    <>
-      <button
-        ref={btnRef}
-        onClick={handleToggle}
-        className="wb-icon-btn hover:text-indigo-600"
-        title={t('http.export', '导出')}
-        disabled={!config.url.trim()}
-      >
-        <FileOutput className="w-3.5 h-3.5" />
-      </button>
-
-      {open && pos && createPortal(
-        <div
-          ref={panelRef}
-          className="fixed z-[var(--z-toast)] min-w-[320px] max-w-[480px] pf-rounded-md border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden"
-          style={{ top: pos.top, right: pos.right }}
-        >
-          {!result ? (
-            <div className="p-1.5">
-              <div className="px-3 py-2 pf-text-xxs font-semibold uppercase tracking-[0.08em] text-text-disabled">
-                {t('http.exportAs', '导出为')}
-              </div>
-              {formats.map((item) => (
-                <button
-                  key={`${item.pluginId}:${item.format.formatId}`}
-                  onClick={() => handleExport(item.pluginId)}
-                  disabled={loading}
-                  className="w-full flex items-center gap-2 pf-rounded-sm px-3 py-2 text-left pf-text-sm text-text-primary hover:bg-bg-hover transition-colors"
-                >
-                  <FileOutput className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
-                  <span className="font-medium">{item.format.name}</span>
-                  <span className="pf-text-xxs text-text-disabled ml-auto">.{item.format.fileExtension}</span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60">
-                <span className="pf-text-sm font-semibold text-text-primary">{result.filename}</span>
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md pf-text-xs text-accent hover:bg-accent-soft transition-colors"
-                >
-                  {copying ? <Check className="w-3 h-3" /> : <ClipboardCopy className="w-3 h-3" />}
-                  {copying ? t('sidebar.copied', '已复制') : t('response.copy', '复制')}
-                </button>
-              </div>
-              <pre className="selectable p-3 max-h-[280px] overflow-auto font-mono pf-text-xs text-text-primary leading-5 whitespace-pre-wrap break-all bg-bg-secondary/30">
-                {result.content}
-              </pre>
-            </div>
-          )}
-        </div>,
-        document.body
-      )}
-    </>
-  );
-}
-
-/* ── Inline Mock Button: small wand icon that opens a generator menu ── */
-function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (data: string) => void; label?: boolean }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-
-  const installedPlugins2 = usePluginStore((s) => s.installedPlugins);
-  const generators = useMemo(() => {
-    const items: { pluginId: string; generator: GeneratorContribution }[] = [];
-    for (const p of installedPlugins2.filter(p => p.pluginType === 'data-generator')) {
-      for (const gen of (p.contributes?.generators || [])) {
-        items.push({ pluginId: p.id, generator: gen });
-      }
-    }
-    return items;
-  }, [installedPlugins2]);
-
-  if (generators.length === 0) return null;
-
-  const handleOpen = () => {
-    if (btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 4, left: Math.max(8, rect.right - 260) });
-    }
-    setOpen(true);
-  };
-
-  const handleGenerate = async (pluginId: string, generatorId: string) => {
-    setLoading(true);
-    try {
-      const result = await pluginService.runGenerator(pluginId, generatorId, '{}');
-      if (!result.error && result.data) {
-        onInsert(result.data);
-        setOpen(false);
-      }
-    } catch (e) {
-      console.warn('[ProtoForge] generator failed:', e);
-    }
-    setLoading(false);
-  };
-
-  return (
-    <>
-      <button
-        ref={btnRef}
-        onClick={handleOpen}
-        className={cn(
-          "shrink-0 pf-rounded-sm text-text-disabled transition-colors hover:bg-bg-hover hover:text-purple-500",
-          showLabel ? "flex items-center gap-1 px-2 py-1 pf-text-xs" : "p-1"
-        )}
-        title={t('http.mockGenerator', '数据生成')}
-        type="button"
-      >
-        <Wand2 className="w-3 h-3" />
-        {showLabel && <span className="font-medium">{t('http.mockGenerator', '数据生成')}</span>}
-      </button>
-
-      {open && createPortal(
-        <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)}>
-          <div
-            className="absolute min-w-[180px] pf-rounded-md border border-border-default bg-bg-primary shadow-lg shadow-black/8 overflow-hidden"
-            style={pos ? { top: pos.top, left: pos.left } : undefined}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-1">
-              {generators.map((item) => (
-                <button
-                  key={`${item.pluginId}:${item.generator.generatorId}`}
-                  onClick={() => handleGenerate(item.pluginId, item.generator.generatorId)}
-                  disabled={loading}
-                  className="w-full flex items-center gap-1.5 pf-rounded-sm px-2.5 py-1.5 text-left pf-text-xs text-text-primary hover:bg-bg-hover transition-colors"
-                >
-                  <Wand2 className="w-3 h-3 text-purple-500/60 shrink-0" />
-                  <span className="font-medium truncate">{item.generator.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-    </>
-  );
-}

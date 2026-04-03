@@ -8,7 +8,7 @@ import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHea
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
 import { JsonEditorLite } from "@/components/common/JsonEditorLite";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
-import { KVEditor } from "@/components/http/HttpWorkspace";
+import { KVEditor } from "@/components/http/KVEditor";
 
 interface KVItem { key: string; value: string; enabled: boolean }
 

@@ -17,8 +17,8 @@ export async function getHistoryEntry(id: string): Promise<HistoryEntry> {
   return invoke<HistoryEntry>('get_history_entry', { id });
 }
 
-export async function addHistory(entry: HistoryEntry): Promise<void> {
-  await invoke('add_history', { entry });
+export async function addHistory(entry: HistoryEntry, maxCount: number = 200): Promise<void> {
+  await invoke('add_history', { entry, maxCount });
 }
 
 export async function deleteHistoryEntry(id: string): Promise<void> {

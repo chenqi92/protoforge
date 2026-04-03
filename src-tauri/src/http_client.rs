@@ -22,6 +22,7 @@ pub struct HttpRequest {
     pub auth: Option<AuthConfig>,
     pub timeout_ms: Option<u64>,
     pub follow_redirects: Option<bool>,
+    pub max_redirects: Option<usize>,
     pub ssl_verify: Option<bool>,
     pub proxy: Option<ProxyConfig>,
 }
@@ -254,8 +255,15 @@ pub async fn execute_request(req: HttpRequest) -> Result<HttpResponse, String> {
         client_builder = client_builder.timeout(std::time::Duration::from_secs(30));
     }
 
-    if let Some(false) = req.follow_redirects {
-        client_builder = client_builder.redirect(reqwest::redirect::Policy::none());
+    match req.follow_redirects {
+        Some(false) => {
+            client_builder = client_builder.redirect(reqwest::redirect::Policy::none());
+        }
+        _ => {
+            if let Some(max) = req.max_redirects {
+                client_builder = client_builder.redirect(reqwest::redirect::Policy::limited(max));
+            }
+        }
     }
 
     let client = client_builder
