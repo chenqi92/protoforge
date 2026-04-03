@@ -65,6 +65,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   const tabBarRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevTabCount = useRef(tabs.length);
+  const tabRefs = useRef(new Map<string, HTMLDivElement>());
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragIndexRef = useRef<number | null>(null);
   const tabMenuAnchorRef = useRef<HTMLDivElement>(null);
@@ -73,6 +74,26 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const createProtocol: RequestProtocol = "http";
+
+  const registerTabRef = useCallback((tabId: string, node: HTMLDivElement | null) => {
+    if (node) {
+      tabRefs.current.set(tabId, node);
+      return;
+    }
+
+    tabRefs.current.delete(tabId);
+  }, []);
+
+  const ensureTabVisible = useCallback((tabId: string, behavior: ScrollBehavior = "smooth") => {
+    const tabElement = tabRefs.current.get(tabId);
+    if (!tabElement) return;
+
+    tabElement.scrollIntoView({
+      behavior,
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, []);
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
@@ -93,6 +114,24 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
     }
     prevTabCount.current = tabs.length;
   }, [tabs.length, updateScrollState]);
+
+  useEffect(() => {
+    if (!activeTabId) return;
+
+    requestAnimationFrame(() => {
+      ensureTabVisible(activeTabId);
+      updateScrollState();
+    });
+
+    const timer = window.setTimeout(() => {
+      ensureTabVisible(activeTabId, "auto");
+      updateScrollState();
+    }, 80);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [activeTabId, ensureTabVisible, updateScrollState]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -182,6 +221,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
                 dragIndexRef.current = null;
                 setDragOverIndex(null);
               }}
+              registerRef={registerTabRef}
             />
           ))}
         </AnimatePresence>
@@ -295,6 +335,7 @@ function TabItem({
   onDragOver,
   onDrop,
   onDragEnd,
+  registerRef,
 }: {
   tab: Tab;
   isActive: boolean;
@@ -306,6 +347,7 @@ function TabItem({
   onDragOver: (event: React.DragEvent) => void;
   onDrop: () => void;
   onDragEnd: () => void;
+  registerRef: (tabId: string, node: HTMLDivElement | null) => void;
 }) {
   const { t } = useTranslation();
   const [isRenaming, setIsRenaming] = useState(false);
@@ -391,6 +433,7 @@ function TabItem({
   return (
     <>
       <motion.div
+        ref={(node) => registerRef(tab.id, node)}
         layoutId={tab.id}
         initial={{ opacity: 0, scale: 0.92 }}
         animate={{ opacity: 1, scale: 1 }}

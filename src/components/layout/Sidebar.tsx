@@ -236,6 +236,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const addTab = useAppStore((s) => s.addTab);
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const openCollectionPanel = useAppStore((s) => s.openCollectionPanel);
   const { showMenu, MenuComponent } = useContextMenu();
@@ -294,12 +295,21 @@ function CollectionsView({ search, expanded, setExpanded }: {
     setExpanded((e) => ({ ...e, [key]: !e[key] }));
   };
 
-  // 双击打开集合请求项
-  const handleOpenItem = (item: CollectionItem) => {
+  const handleOpenItem = (item: CollectionItem, options?: { forceNewTab?: boolean }) => {
     if (item.itemType !== 'request') return;
     if (!item.method && !item.url) return;
 
-    // addTab 返回新 tab 的 ID，直接使用——不依赖旧快照
+    if (!options?.forceNewTab) {
+      const existingTab = useAppStore.getState().tabs.find(
+        (tab) => tab.protocol === 'http' && tab.linkedCollectionItemId === item.id,
+      );
+      if (existingTab) {
+        setActiveTab(existingTab.id);
+        return;
+      }
+    }
+
+    // addTab 返回新 tab 的 ID，直接使用
     const tabId = addTab('http');
 
     // Parse data
@@ -493,9 +503,9 @@ function CollectionsView({ search, expanded, setExpanded }: {
     showMenu(e, menuItems);
   };
 
-  const handleItemContextMenu = (e: React.MouseEvent, item: { id: string; name: string; url: string | null; collectionId: string }) => {
+  const handleItemContextMenu = (e: React.MouseEvent, item: CollectionItem) => {
     const menuItems: ContextMenuEntry[] = [
-      { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => addTab("http") },
+      { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => handleOpenItem(item, { forceNewTab: true }) },
       { id: "rename", label: t('contextMenu.rename'), icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(item.id, item.name) },
       { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { if (item.url) void copyTextToClipboard(item.url); } },
       { type: "divider" },
@@ -806,7 +816,7 @@ function RequestItemWithTooltip({
   commitItemRename: (id: string, colId: string) => void;
   setRenamingId: (id: string | null) => void;
   handleOpenItem: (item: CollectionItem) => void;
-  handleItemContextMenu: (e: React.MouseEvent, item: { id: string; name: string; url: string | null; collectionId: string }) => void;
+  handleItemContextMenu: (e: React.MouseEvent, item: CollectionItem) => void;
   dragItemId: string | null;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
@@ -882,7 +892,7 @@ function RequestItemWithTooltip({
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
         onClick={() => isRenamingItem ? undefined : handleOpenItem(item)}
-        onContextMenu={(e) => handleItemContextMenu(e, { ...item, name: item.name, url: item.url, collectionId: item.collectionId })}
+        onContextMenu={(e) => handleItemContextMenu(e, item)}
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
         className={cn(
