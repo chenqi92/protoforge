@@ -78,10 +78,10 @@ export function RequestProtocolSwitcher({
                     <Icon className="h-3 w-3" />
                   </span>
                   <span className="min-w-0 flex-1 text-left">
-                    <span className={cn("block text-[var(--fs-xs)] font-medium", active ? "text-text-primary" : "text-text-secondary")}>
+                    <span className={cn("block pf-text-xs font-medium", active ? "text-text-primary" : "text-text-secondary")}>
                       {option.label}
                     </span>
-                    <span className="block text-[var(--fs-3xs)] text-text-disabled">{option.description}</span>
+                    <span className="block pf-text-3xs text-text-disabled">{option.description}</span>
                   </span>
                 </button>
               );

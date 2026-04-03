@@ -44,27 +44,27 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start gap-3 mb-3">
-          <div className="w-10 h-10 rounded-lg bg-bg-secondary border border-border-default flex items-center justify-center text-[var(--fs-xl)] shrink-0 shadow-sm">
+          <div className="w-10 h-10 rounded-lg bg-bg-secondary border border-border-default flex items-center justify-center pf-text-xl shrink-0 shadow-sm">
             {plugin.icon}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="text-[var(--fs-base)] font-semibold text-text-primary truncate">
+              <h3 className="pf-text-base font-semibold text-text-primary truncate">
                 {pluginT(plugin, 'name')}
               </h3>
-              <span className={cn("text-[var(--fs-xxs)] font-medium px-1.5 py-0.5 rounded-full shrink-0", typeInfo.color)}>
+              <span className={cn("pf-text-xxs font-medium px-1.5 py-0.5 rounded-full shrink-0", typeInfo.color)}>
                 {typeInfo.label}
               </span>
             </div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[var(--fs-xs)] text-text-tertiary">{plugin.author}</span>
-              <span className="text-[var(--fs-xxs)] text-text-disabled">v{plugin.version}</span>
+              <span className="pf-text-xs text-text-tertiary">{plugin.author}</span>
+              <span className="pf-text-xxs text-text-disabled">v{plugin.version}</span>
             </div>
           </div>
         </div>
 
         {/* Description */}
-        <p className="text-[var(--fs-sm)] text-text-secondary leading-relaxed line-clamp-2 mb-3">
+        <p className="pf-text-sm text-text-secondary leading-relaxed line-clamp-2 mb-3">
           {pluginT(plugin, 'description')}
         </p>
 
@@ -75,7 +75,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
             {plugin.tags.map((tag) => (
               <span
                 key={tag}
-                className="text-[var(--fs-xxs)] font-medium text-text-tertiary bg-bg-secondary px-1.5 py-0.5 rounded-md border border-border-subtle"
+                className="pf-text-xxs font-medium text-text-tertiary bg-bg-secondary px-1.5 py-0.5 rounded-md border border-border-subtle"
               >
               {tag}
               </span>
@@ -88,7 +88,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
           onClick={handleAction}
           disabled={loading}
           className={cn(
-            "w-full h-8 rounded-lg flex items-center justify-center gap-1.5 text-[var(--fs-sm)] font-semibold transition-all active:scale-[0.98] disabled:cursor-wait",
+            "w-full h-8 rounded-lg flex items-center justify-center gap-1.5 pf-text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-wait",
             plugin.installed
               ? "text-red-500 border border-red-200 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/10"
               : "text-white bg-accent hover:bg-accent-hover shadow-sm hover:shadow-md"

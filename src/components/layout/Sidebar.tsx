@@ -111,7 +111,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
               key={id}
               onClick={() => handleNavClick(id)}
               className={cn(
-                "relative flex h-[34px] w-[34px] items-center justify-center rounded-[var(--radius-sm)] transition-all duration-150",
+                "relative flex h-[34px] w-[34px] items-center justify-center pf-rounded-sm transition-all duration-150",
                 isActive
                   ? "text-accent bg-accent-soft"
                   : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
@@ -121,7 +121,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
               {isActive && (
                 <motion.div
                   layoutId="sidebar-active-indicator"
-                  className="absolute inset-0 rounded-[var(--radius-sm)] bg-accent-soft"
+                  className="absolute inset-0 pf-rounded-sm bg-accent-soft"
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
@@ -140,7 +140,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
           <div className="shrink-0 border-b border-border-sidebar px-3 pt-3 pb-2.5">
             <div className="flex items-center justify-between mb-2">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-tertiary">
+                <span className="truncate pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-tertiary">
                   {t(allNavItems.find(n => n.id === activeView)?.labelKey || '')}
                 </span>
               </div>
@@ -149,7 +149,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                   <>
                     <button
                       onClick={handleNewCollection}
-                      className="flex h-[26px] items-center gap-1 rounded-[var(--radius-sm)] px-2 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft/80 active:scale-[0.97]"
+                      className="flex h-[26px] items-center gap-1 pf-rounded-sm px-2 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft/80 active:scale-[0.97]"
                       title={t('sidebar.new')}
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -157,7 +157,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                     </button>
                     <button
                       onClick={handleImport}
-                      className="flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                      className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
                       title={t('sidebar.import')}
                     >
                       <Download className="w-3 h-3" />
@@ -168,7 +168,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                 {activeView === "environments" && (
                   <button
                     onClick={handleNewEnvironment}
-                    className="flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
+                    className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
                     title={t('sidebar.addEnv')}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -178,7 +178,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                 {activeView === "history" && hasHistoryItems && (
                   <button
                     onClick={() => useHistoryStore.getState().clearAll()}
-                    className="flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
+                    className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
                     title={t('sidebar.clearAll', '清空历史')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -195,7 +195,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`${t('common.search')}${t(navItems.find(n => n.id === activeView)?.labelKey || '')}...`}
-                className="h-[30px] w-full rounded-[var(--radius-sm)] border border-border-sidebar bg-bg-inset pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all shadow-inset placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
+                className="h-[30px] w-full pf-rounded-sm border border-border-sidebar bg-bg-inset pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all shadow-inset placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
               />
             </div>
           </div>
@@ -648,7 +648,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
                 <span className="truncate text-[length:var(--fs-sidebar)] font-medium">{item.name}</span>
               )}
               {childCount > 0 && (
-                <span className="text-[var(--fs-3xs)] text-text-disabled ml-auto tabular-nums">{childCount}</span>
+                <span className="pf-text-3xs text-text-disabled ml-auto tabular-nums">{childCount}</span>
               )}
             </button>
             <AnimatePresence>
@@ -700,7 +700,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
     <div className="py-0.5">
       {filteredCollections.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[var(--radius-lg)] border border-border-subtle bg-bg-hover shadow-sm">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-hover shadow-sm">
             <FolderOpen className="w-6 h-6 text-text-tertiary" />
           </div>
           <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">{search ? t('sidebar.noMatch') : t('sidebar.noCollections')}</p>
@@ -734,7 +734,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
                 setDragCollectionId(null);
               }}
               className={cn(
-                "w-full flex items-center gap-1.5 px-2 py-[5px] rounded-[var(--radius-sm)] text-[length:var(--fs-sidebar)] font-semibold text-text-primary hover:bg-bg-hover transition-colors group",
+                "w-full flex items-center gap-1.5 px-2 py-[5px] pf-rounded-sm text-[length:var(--fs-sidebar)] font-semibold text-text-primary hover:bg-bg-hover transition-colors group",
                 isColDropTarget && "ring-1 ring-accent bg-accent/5"
               )}
             >
@@ -764,7 +764,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
               )}
               {renamingId !== col.id && (
                 <>
-                  <span className="text-[var(--fs-3xs)] text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
+                  <span className="pf-text-3xs text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
                   <span
                     role="button"
                     onClick={(e) => { e.stopPropagation(); handleFolderContextMenu(e, col); }}
@@ -896,13 +896,13 @@ function RequestItemWithTooltip({
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
         className={cn(
-          "w-full flex items-center gap-2 pr-2 py-[4px] rounded-[var(--radius-sm)] text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group/item",
+          "w-full flex items-center gap-2 pr-2 py-[4px] pf-rounded-sm text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group/item",
           dragItemId === item.id && "opacity-40"
         )}
         style={{ paddingLeft: `${12 + depth * 14}px` }}
       >
         <span className={cn(
-          "text-[var(--fs-xxs)] font-bold px-[4px] py-[1px] rounded-[var(--radius-xs)] shrink-0 min-w-[28px] text-center leading-tight tracking-wide",
+          "pf-text-xxs font-bold px-[4px] py-[1px] pf-rounded-xs shrink-0 min-w-[28px] text-center leading-tight tracking-wide",
           color.text, color.bg
         )}>
           {method}
@@ -935,12 +935,12 @@ function RequestItemWithTooltip({
           {/* 顶部: Method + Name */}
           <div className="flex items-center gap-2 mb-2">
             <span className={cn(
-              "text-[var(--fs-xxs)] font-bold px-1.5 py-[2px] rounded shrink-0",
+              "pf-text-xxs font-bold px-1.5 py-[2px] rounded shrink-0",
               color.text, color.bg
             )}>
               {method}
             </span>
-            <span className="text-[var(--fs-sm)] font-semibold text-text-primary truncate">{item.name}</span>
+            <span className="pf-text-sm font-semibold text-text-primary truncate">{item.name}</span>
           </div>
 
           {/* 接口描述（如果有 — 使用 URL 作为补充说明） */}
@@ -949,7 +949,7 @@ function RequestItemWithTooltip({
           {requestSummary.length > 0 && (
             <div className="mb-3 space-y-1.5">
               {requestSummary.map((s: { label: string; value: string; accent?: string }, i: number) => (
-                <div key={i} className="flex items-start gap-2 text-[var(--fs-xs)]">
+                <div key={i} className="flex items-start gap-2 pf-text-xs">
                   <span className="shrink-0 text-text-disabled font-medium min-w-[52px]">{s.label}</span>
                   <span className={cn("text-text-secondary break-all", s.accent)}>{s.value}</span>
                 </div>
@@ -966,12 +966,12 @@ function RequestItemWithTooltip({
                   <span className="h-[7px] w-[7px] rounded-full bg-[#febc2e] opacity-60" />
                   <span className="h-[7px] w-[7px] rounded-full bg-[#28c840] opacity-60" />
                 </div>
-                <span className="text-[var(--fs-xxs)] font-semibold ml-1.5" style={{ color: 'var(--shell-accent)' }}>cURL</span>
+                <span className="pf-text-xxs font-semibold ml-1.5" style={{ color: 'var(--shell-accent)' }}>cURL</span>
               </div>
               <button
                 onClick={handleCopy}
                 className={cn(
-                  "flex items-center gap-1 px-1.5 py-[2px] rounded text-[var(--fs-xxs)] font-medium transition-colors",
+                  "flex items-center gap-1 px-1.5 py-[2px] rounded pf-text-xxs font-medium transition-colors",
                   copied ? "text-emerald-500" : "hover:opacity-80"
                 )}
                 style={{ color: copied ? undefined : 'var(--shell-copy)' }}
@@ -1081,7 +1081,7 @@ function HistoryView({ search }: { search: string }) {
     <div className="py-0.5">
       {groups.map((group) => (
         <div key={group.label} className="mb-2">
-          <div className="px-2 py-1 text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider">
+          <div className="px-2 py-1 pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider">
             {group.label}
           </div>
           {group.items.map((h) => {
@@ -1097,12 +1097,12 @@ function HistoryView({ search }: { search: string }) {
               >
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <span className={cn(
-                    "text-[var(--fs-3xs)] font-bold px-1 py-[1px] rounded shrink-0 min-w-[28px] text-center",
+                    "pf-text-3xs font-bold px-1 py-[1px] rounded shrink-0 min-w-[28px] text-center",
                     color.text, color.bg
                   )}>
                     {h.method}
                   </span>
-                  <div className="flex items-center min-w-0 font-mono text-[var(--fs-sidebar-sm)] flex-1">
+                      <div className="flex items-center min-w-0 font-mono pf-text-sidebar-sm flex-1">
                     {origin ? (
                       <>
                         <span className="text-accent hidden group-hover:block truncate shrink-0 max-w-full pr-0.5">
@@ -1123,13 +1123,13 @@ function HistoryView({ search }: { search: string }) {
                   <div className="flex items-center shrink-0 gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
                     {h.status ? (
                       <span className={cn(
-                        "text-[var(--fs-3xs)] tabular-nums font-bold",
+                        "pf-text-3xs tabular-nums font-bold",
                         h.status < 400 ? "text-emerald-500" : "text-red-500"
                       )}>
                         {h.status}
                       </span>
                     ) : null}
-                    <span className="text-[var(--fs-[10px])] text-text-disabled hidden group-hover:inline pr-0.5">
+                    <span className="pf-text-xxs text-text-disabled hidden group-hover:inline pr-0.5">
                       {formatTime(h.createdAt)}
                     </span>
                   </div>
@@ -1141,11 +1141,11 @@ function HistoryView({ search }: { search: string }) {
       ))}
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[var(--radius-lg)] border border-border-subtle bg-bg-hover shadow-sm">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-hover shadow-sm">
             <Clock className="w-6 h-6 text-text-tertiary" />
           </div>
-          <p className="text-[var(--fs-sm)] font-medium text-text-secondary">{search ? t('sidebar.noHistoryMatch') : t('sidebar.noHistory')}</p>
-          <p className="text-[var(--fs-xxs)] mt-1 text-text-disabled leading-relaxed">{t('sidebar.noHistoryHint')}</p>
+          <p className="pf-text-sm font-medium text-text-secondary">{search ? t('sidebar.noHistoryMatch') : t('sidebar.noHistory')}</p>
+          <p className="pf-text-xxs mt-1 text-text-disabled leading-relaxed">{t('sidebar.noHistoryHint')}</p>
         </div>
       )}
       {MenuComponent}
@@ -1186,13 +1186,13 @@ function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
               )}
             >
               <div className={cn(
-                "w-[6px] h-[6px] rounded-[var(--radius-xs)] shrink-0",
+                "w-[6px] h-[6px] pf-rounded-xs shrink-0",
                 isActive ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" : "bg-border-strong"
               )} />
               <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-emerald-600" : "text-text-disabled")} />
               <span className={cn("truncate flex-1 text-left", isActive && "font-medium")}>{env.name}</span>
               {isActive && (
-                <span className="rounded-[var(--radius-sm)] bg-emerald-500/10 px-1.5 py-0.5 text-[var(--fs-3xs)] font-semibold text-emerald-600 shrink-0">{t('sidebar.active')}</span>
+                <span className="pf-rounded-sm bg-emerald-500/10 px-1.5 py-0.5 pf-text-3xs font-semibold text-emerald-600 shrink-0">{t('sidebar.active')}</span>
               )}
             </button>
           </div>

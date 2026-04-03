@@ -1,6 +1,6 @@
 // ProtoForge MQTT Workspace Component
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Play, Square, Trash2, Send, Plus, X, Radio, ArrowDown } from 'lucide-react';
@@ -19,7 +19,9 @@ interface MqttMessage {
   direction: string;
 }
 
-export function MqttWorkspace({ tabId }: { tabId: string }) {
+const MAX_VISIBLE_MQTT_MESSAGES = 400;
+
+export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: string }) {
   const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
@@ -133,6 +135,10 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
   }, [connId, pubTopic, pubPayload, pubQos, pubRetain]);
 
   const isConnected = status === 'connected';
+  const visibleMessages = useMemo(
+    () => messages.slice(-MAX_VISIBLE_MQTT_MESSAGES),
+    [messages],
+  );
 
   const handleRequestKindChange = useCallback(async (kind: RequestKind) => {
     if (!activeTab || kind === activeTab.protocol) return;
@@ -210,7 +216,7 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
               )} />
               {status === 'idle' ? t('mqtt.idle') : status === 'connecting' ? t('mqtt.connecting') : status === 'connected' ? t('mqtt.connected') : status === 'disconnected' ? t('mqtt.disconnected') : t('mqtt.error')}
             </span>
-            {errorMsg ? <span className="text-[var(--fs-xs)] text-red-500">{errorMsg}</span> : null}
+            {errorMsg ? <span className="pf-text-xs text-red-500">{errorMsg}</span> : null}
           </>
         )}
       />
@@ -220,8 +226,8 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
           <div className="wb-workbench-sidebar">
             <div className="flex shrink-0 flex-col p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-[var(--fs-xxs)] font-bold uppercase tracking-wider text-text-disabled">{t('mqtt.subscriptions')}</h3>
-                <span className="text-[var(--fs-xxs)] text-text-disabled">{t('mqtt.subscriptionCount', { count: subscriptions.length })}</span>
+                <h3 className="pf-text-xxs font-bold uppercase tracking-wider text-text-disabled">{t('mqtt.subscriptions')}</h3>
+                <span className="pf-text-xxs text-text-disabled">{t('mqtt.subscriptionCount', { count: subscriptions.length })}</span>
               </div>
               <div className="mb-2 flex items-center gap-2">
                 <input value={newSubTopic} onChange={(e) => setNewSubTopic(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSubscribe()}
@@ -238,16 +244,16 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
               </div>
               <div className="max-h-28 space-y-1 overflow-auto">
                 {subscriptions.length === 0 ? (
-                  <div className="border-t border-border-default/60 pt-3 text-[var(--fs-xs)] text-text-disabled">
+                  <div className="border-t border-border-default/60 pt-3 pf-text-xs text-text-disabled">
                     {t('mqtt.subscriptionHint')}
                   </div>
                 ) : (
                   subscriptions.map((sub, i) => (
-                    <div key={i} className="flex items-center justify-between border-t border-border-default/60 py-2 text-[var(--fs-xs)]">
+                    <div key={i} className="flex items-center justify-between border-t border-border-default/60 py-2 pf-text-xs">
                       <span className="truncate font-mono text-text-secondary">{sub.topic}</span>
                       <div className="flex shrink-0 items-center gap-1.5">
-                        <span className="rounded-[var(--radius-sm)] bg-bg-primary px-1.5 py-0.5 text-[var(--fs-xxs)] text-text-tertiary">Q{sub.qos}</span>
-                        <button onClick={() => handleUnsubscribe(sub.topic)} className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-sm)] text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"><X className="w-3 h-3" /></button>
+                        <span className="pf-rounded-sm bg-bg-primary px-1.5 py-0.5 pf-text-xxs text-text-tertiary">Q{sub.qos}</span>
+                        <button onClick={() => handleUnsubscribe(sub.topic)} className="flex h-6 w-6 items-center justify-center pf-rounded-sm text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500"><X className="w-3 h-3" /></button>
                       </div>
                     </div>
                   ))
@@ -259,13 +265,13 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
 
             <div className="flex min-h-0 flex-1 flex-col p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-[var(--fs-xxs)] font-bold uppercase tracking-wider text-text-disabled">{t('mqtt.publish')}</h3>
-                <span className="text-[var(--fs-xxs)] text-text-disabled">{t('mqtt.publishDesc')}</span>
+                <h3 className="pf-text-xxs font-bold uppercase tracking-wider text-text-disabled">{t('mqtt.publish')}</h3>
+                <span className="pf-text-xxs text-text-disabled">{t('mqtt.publishDesc')}</span>
               </div>
               <input value={pubTopic} onChange={(e) => setPubTopic(e.target.value)} placeholder="topic/path" disabled={!isConnected}
                 className="wb-field-sm mb-2 font-mono disabled:opacity-50" />
               <textarea value={pubPayload} onChange={(e) => setPubPayload(e.target.value)} placeholder={t('mqtt.messagePlaceholder')} disabled={!isConnected}
-                className="wb-textarea mb-2 flex-1 min-h-[160px] text-[var(--fs-sm)] text-text-secondary disabled:opacity-50" />
+                className="wb-textarea mb-2 flex-1 min-h-[160px] pf-text-sm text-text-secondary disabled:opacity-50" />
               <div className="flex flex-wrap items-center gap-2 border-t border-border-default/60 pt-2">
                 <select value={pubQos} onChange={(e) => setPubQos(Number(e.target.value))} disabled={!isConnected}
                   className="wb-field-sm wb-native-select w-[86px] shrink-0 disabled:opacity-50">
@@ -273,7 +279,7 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
                   <option value={1}>QoS 1</option>
                   <option value={2}>QoS 2</option>
                 </select>
-                <label className={cn("flex shrink-0 items-center gap-1 text-[var(--fs-xs)] cursor-pointer", !isConnected && "opacity-50")}>
+                <label className={cn("flex shrink-0 items-center gap-1 pf-text-xs cursor-pointer", !isConnected && "opacity-50")}>
                   <input type="checkbox" checked={pubRetain} onChange={(e) => setPubRetain(e.target.checked)} disabled={!isConnected} className="accent-accent" /> Retain
                 </label>
                 <button onClick={handlePublish} disabled={!isConnected || !pubTopic.trim()} className="wb-primary-btn ml-auto min-w-[84px] bg-accent hover:bg-accent-hover disabled:opacity-50">
@@ -285,12 +291,12 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
 
           <div className="wb-workbench-main">
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-bg-primary">
-              <div className="wb-pane-header shrink-0 text-[var(--fs-xs)]">
+              <div className="wb-pane-header shrink-0 pf-text-xs">
                 <div className="min-w-0 flex flex-1 items-center">
                   <span className="text-text-disabled">{t('mqtt.messageCount', { count: messages.length })}</span>
                 </div>
                 <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-                  <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn px-2.5 text-[var(--fs-xs)]", autoScroll && "text-accent")}>
+                  <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn px-2.5 pf-text-xs", autoScroll && "text-accent")}>
                     <ArrowDown className="w-3 h-3" /> {t('mqtt.autoScroll')}
                   </button>
                   <button onClick={() => setMessages([])} className="wb-icon-btn hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
@@ -299,28 +305,33 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
               <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/10">
                 {messages.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-border-default/60 bg-bg-primary/78">
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
                       <Radio className="w-8 h-8 opacity-20 text-violet-500" />
                     </div>
-                    <p className="text-[var(--fs-base)] font-medium">{t('mqtt.emptyTitle')}</p>
-                    <p className="mt-1 text-[var(--fs-xs)]">{t('mqtt.emptyDesc')}</p>
+                    <p className="pf-text-base font-medium">{t('mqtt.emptyTitle')}</p>
+                    <p className="mt-1 pf-text-xs">{t('mqtt.emptyDesc')}</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-border-default/55">
-                    {messages.map((msg, i) => (
+                    {visibleMessages.map((msg, i) => (
                       <div key={i} className={cn("px-4 py-3 transition-colors hover:bg-bg-hover/35", msg.direction === 'out' && "bg-violet-500/[0.035]")}>
                         <div className="mb-1 flex items-center gap-2">
-                          <span className={cn("rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[var(--fs-xxs)] font-bold", msg.direction === 'out' ? "bg-violet-500/20 text-violet-600" : "bg-emerald-500/20 text-emerald-600")}>
+                          <span className={cn("pf-rounded-sm px-1.5 py-0.5 pf-text-xxs font-bold", msg.direction === 'out' ? "bg-violet-500/20 text-violet-600" : "bg-emerald-500/20 text-emerald-600")}>
                             {msg.direction === 'out' ? t('mqtt.sent') : t('mqtt.received')}
                           </span>
-                          <span className="min-w-0 truncate text-[var(--fs-xxs)] font-mono text-accent">{msg.topic}</span>
-                          <span className="ml-auto text-[var(--fs-xxs)] text-text-disabled">Q{msg.qos}</span>
-                          {msg.retain && <span className="rounded-[var(--radius-sm)] bg-amber-500/10 px-1.5 py-0.5 text-[var(--fs-3xs)] text-amber-600">R</span>}
-                          <span className="text-[var(--fs-xxs)] font-mono text-text-disabled">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                          <span className="min-w-0 truncate pf-text-xxs font-mono text-accent">{msg.topic}</span>
+                          <span className="ml-auto pf-text-xxs text-text-disabled">Q{msg.qos}</span>
+                          {msg.retain && <span className="pf-rounded-sm bg-amber-500/10 px-1.5 py-0.5 pf-text-3xs text-amber-600">R</span>}
+                          <span className="pf-text-xxs font-mono text-text-disabled">{new Date(msg.timestamp).toLocaleTimeString()}</span>
                         </div>
-                        <pre className="whitespace-pre-wrap break-all text-[var(--fs-sm)] font-mono text-text-secondary">{msg.payload}</pre>
+                        <pre className="whitespace-pre-wrap break-all pf-text-sm font-mono text-text-secondary">{msg.payload}</pre>
                       </div>
                     ))}
+                    {messages.length > MAX_VISIBLE_MQTT_MESSAGES && (
+                      <div className="px-4 py-2 text-center pf-text-xxs text-text-disabled">
+                        仅渲染最近 {MAX_VISIBLE_MQTT_MESSAGES} 条消息，共 {messages.length} 条
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -330,4 +341,6 @@ export function MqttWorkspace({ tabId }: { tabId: string }) {
       </div>
     </div>
   );
-}
+});
+
+MqttWorkspace.displayName = "MqttWorkspace";

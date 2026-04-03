@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { memo, useDeferredValue, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Play, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, FileIcon, X, Save, Search, Flame, Cookie, CheckCircle2, XCircle, Terminal, Eye, EyeOff, Square, Waves, ArrowDownToLine, Trash2, Info, ChevronUp, Braces, FileOutput, Wand2, ClipboardCopy } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
@@ -25,7 +25,7 @@ import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/
 import { buildCollectionItemFromHttpConfig, getCollectionRequestSignatureFromConfig, getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
 import { extractVariableKeys, getVariablePreview, persistScriptVariableUpdates, upsertCollectionVariable } from "@/lib/requestVariables";
 import { recordRequestStat } from "@/components/plugins/RequestStatsPanel";
-import { buildRequestPayload, resolveHttpConfig } from "@/services/httpService";
+import { buildRequestPayload, pickFile, pickFiles, resolveHttpConfig, sendHttpRequest, sendRequestWithScripts } from "@/services/httpService";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -96,7 +96,7 @@ interface SseEvent {
   timestamp: string;
 }
 
-export function HttpWorkspace({ tabId }: { tabId: string }) {
+export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: string }) {
   const { t } = useTranslation();
   const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
@@ -277,7 +277,6 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
   }, [isSseConnected, isSseMode, sseConnId]);
 
   const resolveSseRequest = useCallback(async () => {
-    const { resolveHttpConfig, buildRequestPayload } = await import("@/services/httpService");
     const resolved = resolveHttpConfig(config);
     const payload = buildRequestPayload(resolved);
     const targetUrl = new URL(payload.url);
@@ -379,7 +378,6 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
     try {
       const hasScripts = (config.preScript?.trim() || config.postScript?.trim());
       if (hasScripts) {
-        const { sendRequestWithScripts } = await import("@/services/httpService");
         const result = await sendRequestWithScripts(config);
         // 请求已被取消，丢弃响应
         if (requestIdRef.current !== currentRequestId) return;
@@ -405,7 +403,6 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
         setHttpResponse(tabId, result.response);
         setScriptResults({ pre: result.preScriptResult, post: result.postScriptResult });
       } else {
-        const { sendHttpRequest } = await import("@/services/httpService");
         const res = await sendHttpRequest(config);
         // 请求已被取消，丢弃响应
         if (requestIdRef.current !== currentRequestId) return;
@@ -636,13 +633,13 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               {showMethods && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowMethods(false)} />
-                  <div className="absolute left-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden rounded-[var(--radius-lg)] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+                  <div className="absolute left-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden pf-rounded-lg border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl">
                     {METHODS.map((m) => (
                       <button
                         key={m}
                         onClick={() => { updateHttpConfig(tabId, { method: m }); setShowMethods(false); }}
                         className={cn(
-                          "flex w-full items-center gap-2.5 rounded-[var(--radius-md)] px-3 py-2 text-[var(--fs-sm)] font-semibold transition-colors hover:bg-bg-hover",
+                          "flex w-full items-center gap-2.5 pf-rounded-md px-3 py-2 pf-text-sm font-semibold transition-colors hover:bg-bg-hover",
                           config.method === m && "bg-bg-hover"
                         )}
                       >
@@ -703,11 +700,11 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               />
             </div>
             {urlSuggestions.length > 0 && urlFocused && urlRectRef.current && createPortal(
-              <div className="fixed z-[var(--z-toast)] max-h-[220px] overflow-y-auto rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_20px_48px_rgba(15,23,42,0.14)]"
+              <div className="fixed z-[var(--z-toast)] max-h-[220px] overflow-y-auto pf-rounded-xl border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_20px_48px_rgba(15,23,42,0.14)]"
                 style={{ top: (urlRectRef.current.bottom + 2), left: urlRectRef.current.left, width: urlRectRef.current.width }}>
                 {urlSuggestions.map((u, i) => (
                   <button key={u} onMouseDown={(e) => { e.preventDefault(); updateHttpConfig(tabId, { url: u }); setUrlFocused(false); }}
-                    className={cn("w-full rounded-[var(--radius-md)] px-3 py-2 text-left text-[var(--fs-sm)] font-mono truncate transition-colors",
+                    className={cn("w-full pf-rounded-md px-3 py-2 text-left pf-text-sm font-mono truncate transition-colors",
                       i === urlHighlight ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover")}>
                     {u}
                   </button>
@@ -846,9 +843,9 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                         onQueryChange={(v) => updateHttpConfig(tabId, { graphqlQuery: v })}
                         onVariablesChange={(v) => updateHttpConfig(tabId, { graphqlVariables: v })}
                       />
-                    ) : config.bodyType === "none" ? <div className="absolute inset-0 flex items-center justify-center text-text-disabled text-[var(--fs-base)]">{t('http.noBody')}</div> : null}
+                    ) : config.bodyType === "none" ? <div className="absolute inset-0 flex items-center justify-center text-text-disabled pf-text-base">{t('http.noBody')}</div> : null}
                     {!isGraphqlMode && config.bodyType === "json" && (
-                      <div className="w-full h-full border border-border-default/80 rounded-[var(--radius-lg)] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
+                      <div className="w-full h-full border border-border-default/80 pf-rounded-lg overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                         <CodeEditor
                           value={config.jsonBody || ''}
                           onChange={(v) => updateHttpConfig(tabId, { jsonBody: v })}
@@ -877,7 +874,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           <option value="application/javascript">JavaScript</option>
                           <option value="text/css">CSS</option>
                         </select>
-                        <div className="w-full flex-1 border border-border-default/80 rounded-[var(--radius-lg)] overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
+                        <div className="w-full flex-1 border border-border-default/80 pf-rounded-lg overflow-hidden bg-bg-input/88 focus-within:border-accent transition-colors">
                           <CodeEditor
                             value={config.rawBody || ''}
                             onChange={(v) => updateHttpConfig(tabId, { rawBody: v })}
@@ -902,7 +899,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           key={at}
                           onClick={() => updateHttpConfig(tabId, { authType: at })}
                           className={cn(
-                            "flex items-center w-full px-3 py-2 rounded-md text-left text-[var(--fs-xs)] transition-colors",
+                            "flex items-center w-full px-3 py-2 rounded-md text-left pf-text-xs transition-colors",
                             config.authType === at
                               ? "bg-accent/10 text-text-primary font-medium"
                               : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
@@ -916,17 +913,17 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                   
                   <div className="flex-1 min-w-0 p-5 overflow-y-auto">
                     <div className="max-w-2xl">
-                      {config.authType === "none" && <p className="text-[var(--fs-xs)] text-text-disabled mt-2">{t('http.noAuth')}</p>}
+                      {config.authType === "none" && <p className="pf-text-xs text-text-disabled mt-2">{t('http.noAuth')}</p>}
                     {config.authType === "bearer" && (
                       <div className="space-y-2">
-                        <label className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
+                        <label className="pf-text-xs font-medium text-text-secondary">{t('http.bearerTokenLabel')}</label>
                         <div className="relative">
                           <input
                             value={config.bearerToken}
                             onChange={(e) => updateHttpConfig(tabId, { bearerToken: e.target.value })}
                             type={showSecrets['bearer'] ? 'text' : 'password'}
                             placeholder="ey..."
-                            className="wb-field w-full font-mono text-[var(--fs-xs)] pr-9"
+                            className="wb-field w-full font-mono pf-text-xs pr-9"
                           />
                           <button type="button" onClick={() => toggleSecret('bearer')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                             {showSecrets['bearer'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -937,13 +934,13 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                     {config.authType === "basic" && (
                       <div className="space-y-3">
                         <div className="space-y-1.5">
-                          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Username</label>
-                          <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full text-[var(--fs-xs)]" />
+                          <label className="pf-text-xs font-medium text-text-secondary">Username</label>
+                          <input value={config.basicUsername} onChange={(e) => updateHttpConfig(tabId, { basicUsername: e.target.value })} className="wb-field w-full pf-text-xs" />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Password</label>
+                          <label className="pf-text-xs font-medium text-text-secondary">Password</label>
                           <div className="relative">
-                            <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full text-[var(--fs-xs)] pr-9" />
+                            <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full pf-text-xs pr-9" />
                             <button type="button" onClick={() => toggleSecret('basicPwd')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                               {showSecrets['basicPwd'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
@@ -954,7 +951,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                     {config.authType === "apiKey" && (
                       <div className="space-y-3">
                         <div className="space-y-1.5">
-                          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('http.addTo')}</label>
+                          <label className="pf-text-xs font-medium text-text-secondary">{t('http.addTo')}</label>
                           <div className="wb-segmented w-fit">
                             {(["header", "query"] as const).map((a) => (
                               <button key={a} onClick={() => updateHttpConfig(tabId, { apiKeyAddTo: a })} className={cn("wb-segment", config.apiKeyAddTo === a && "wb-segment-active")}>
@@ -964,13 +961,13 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           </div>
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Key</label>
-                          <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono text-[var(--fs-xs)]" />
+                          <label className="pf-text-xs font-medium text-text-secondary">Key</label>
+                          <input value={config.apiKeyName} onChange={(e) => updateHttpConfig(tabId, { apiKeyName: e.target.value })} placeholder="X-API-Key" className="wb-field w-full font-mono pf-text-xs" />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Value</label>
+                          <label className="pf-text-xs font-medium text-text-secondary">Value</label>
                           <div className="relative">
-                            <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono text-[var(--fs-xs)] pr-9" />
+                            <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono pf-text-xs pr-9" />
                             <button type="button" onClick={() => toggleSecret('apiKey')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
                               {showSecrets['apiKey'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
@@ -1014,7 +1011,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                 <div className="flex h-14 w-14 items-center justify-center rounded-full border border-accent/20 bg-accent/10 shadow-[0_0_15px_rgba(var(--accent),0.15)] mb-4">
                   <Loader2 className="w-7 h-7 animate-spin text-accent" />
                 </div>
-                <p className="text-[var(--fs-sm)] font-medium text-text-primary animate-pulse">{t('http.sending', '请求发送中...')}</p>
+                <p className="pf-text-sm font-medium text-text-primary animate-pulse">{t('http.sending', '请求发送中...')}</p>
               </div>
             )}
             
@@ -1035,7 +1032,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
               <>
                 {/* Script results notification */}
                 {(scriptResults.pre || scriptResults.post) && (
-                  <div className="px-3 py-1.5 bg-bg-secondary/60 border-b border-border-default flex items-center gap-3 text-[var(--fs-xs)] flex-wrap shrink-0">
+                  <div className="px-3 py-1.5 bg-bg-secondary/60 border-b border-border-default flex items-center gap-3 pf-text-xs flex-wrap shrink-0">
                     {scriptResults.pre && (
                       <span className={cn("flex items-center gap-1 font-medium", scriptResults.pre.success ? "text-emerald-600" : "text-red-500")}>
                         {scriptResults.pre.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
@@ -1181,7 +1178,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center h-full text-text-disabled text-[var(--fs-base)]"><Cookie className="w-4 h-4 mr-2 opacity-40" />{t('http.noCookies')}</div>
+                        <div className="flex items-center justify-center h-full text-text-disabled pf-text-base"><Cookie className="w-4 h-4 mr-2 opacity-40" />{t('http.noCookies')}</div>
                       )}
                     </div>
                   ) : resTab === "timing" ? (
@@ -1189,30 +1186,30 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                       <div className="flex min-h-full flex-col gap-3">
                         {/* 上方：总耗时 + 请求概要 */}
                         <div className="grid gap-3 xl:grid-cols-[minmax(220px,0.7fr)_minmax(0,1.3fr)]">
-                          <div className="rounded-[var(--radius-xl)] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                            <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.totalTime')}</div>
-                            <div className="mt-3 text-[var(--fs-6xl)] font-semibold tracking-tight text-text-primary">{Number(response.durationMs).toFixed(2)} ms</div>
+                          <div className="pf-rounded-xl border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                            <div className="pf-text-xxs font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.totalTime')}</div>
+                            <div className="mt-3 pf-text-6xl font-semibold tracking-tight text-text-primary">{Number(response.durationMs).toFixed(2)} ms</div>
                             <div className="mt-3 grid grid-cols-3 gap-2">
                               <div>
-                                <div className="text-[var(--fs-xxs)] text-text-disabled">{t('http.statusCode', { defaultValue: '状态码' })}</div>
-                                <div className="mt-0.5 font-mono text-[var(--fs-sm)] font-semibold text-text-primary">{response.status} {response.statusText}</div>
+                                <div className="pf-text-xxs text-text-disabled">{t('http.statusCode', { defaultValue: '状态码' })}</div>
+                                <div className="mt-0.5 font-mono pf-text-sm font-semibold text-text-primary">{response.status} {response.statusText}</div>
                               </div>
                               <div>
-                                <div className="text-[var(--fs-xxs)] text-text-disabled">{t('http.responseSize', { defaultValue: '响应大小' })}</div>
-                                <div className="mt-0.5 font-mono text-[var(--fs-sm)] font-semibold text-text-primary">{responseSizeLabel}</div>
+                                <div className="pf-text-xxs text-text-disabled">{t('http.responseSize', { defaultValue: '响应大小' })}</div>
+                                <div className="mt-0.5 font-mono pf-text-sm font-semibold text-text-primary">{responseSizeLabel}</div>
                               </div>
                               <div>
-                                <div className="text-[var(--fs-xxs)] text-text-disabled">{t('http.method', { defaultValue: '方法' })}</div>
-                                <div className="mt-0.5 font-mono text-[var(--fs-sm)] font-semibold text-text-primary">{config.method}</div>
+                                <div className="pf-text-xxs text-text-disabled">{t('http.method', { defaultValue: '方法' })}</div>
+                                <div className="mt-0.5 font-mono pf-text-sm font-semibold text-text-primary">{config.method}</div>
                               </div>
                             </div>
                           </div>
 
                           {/* 瀑布流时间线 */}
-                          <div className="rounded-[var(--radius-xl)] border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                          <div className="pf-rounded-xl border border-border-default bg-bg-primary/92 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                             <div className="flex items-center justify-between gap-3 mb-4">
-                              <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.waterfall', { defaultValue: '请求瀑布流' })}</div>
-                              <div className="text-[var(--fs-xs)] font-mono text-text-tertiary">{Number(response.durationMs).toFixed(2)} ms</div>
+                              <div className="pf-text-xxs font-semibold uppercase tracking-[0.08em] text-text-tertiary">{t('http.waterfall', { defaultValue: '请求瀑布流' })}</div>
+                              <div className="pf-text-xs font-mono text-text-tertiary">{Number(response.durationMs).toFixed(2)} ms</div>
                             </div>
                             <div className="space-y-3">
                               {timingCards.slice(0, 3).map(({ label, value, color }) => {
@@ -1227,7 +1224,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                                 return (
                                   <div key={label} className="flex items-center gap-3">
                                     <div className="w-[100px] shrink-0 text-right">
-                                      <span className="text-[var(--fs-xs)] font-medium text-text-secondary">{label}</span>
+                                      <span className="pf-text-xs font-medium text-text-secondary">{label}</span>
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="h-6 rounded-lg bg-bg-secondary/60 relative overflow-hidden">
@@ -1244,7 +1241,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                                       </div>
                                     </div>
                                     <div className="w-[72px] shrink-0 text-right">
-                                      <span className="font-mono text-[var(--fs-xs)] font-semibold text-text-primary">
+                                      <span className="font-mono pf-text-xs font-semibold text-text-primary">
                                         {value != null ? `${Number(value).toFixed(2)}` : '—'} ms
                                       </span>
                                     </div>
@@ -1254,7 +1251,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                               {/* 总耗时行 */}
                               <div className="flex items-center gap-3 border-t border-border-default/50 pt-3">
                                 <div className="w-[100px] shrink-0 text-right">
-                                  <span className="text-[var(--fs-xs)] font-semibold text-text-primary">{t('http.totalTime')}</span>
+                                  <span className="pf-text-xs font-semibold text-text-primary">{t('http.totalTime')}</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="h-6 rounded-lg bg-bg-secondary/60 relative overflow-hidden">
@@ -1266,7 +1263,7 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                                   </div>
                                 </div>
                                 <div className="w-[72px] shrink-0 text-right">
-                                  <span className="font-mono text-[var(--fs-xs)] font-bold text-text-primary">
+                                  <span className="font-mono pf-text-xs font-bold text-text-primary">
                                     {Number(response.durationMs).toFixed(2)} ms
                                   </span>
                                 </div>
@@ -1277,30 +1274,30 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
 
                         {/* 各阶段说明卡片 */}
                         <div className="grid gap-3 md:grid-cols-3">
-                          <div className="rounded-[var(--radius-lg)] border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
+                          <div className="pf-rounded-lg border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
-                              <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.connectTime')}</span>
+                              <span className="pf-text-sm font-semibold text-text-primary">{t('http.connectTime')}</span>
                             </div>
-                            <p className="text-[var(--fs-xs)] text-text-tertiary leading-relaxed">
+                            <p className="pf-text-xs text-text-tertiary leading-relaxed">
                               {t('http.connectTimeDesc', { defaultValue: 'TCP 连接建立耗时，包括 DNS 解析和 TLS 握手。' })}
                             </p>
                           </div>
-                          <div className="rounded-[var(--radius-lg)] border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
+                          <div className="pf-rounded-lg border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                              <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.ttfb')}</span>
+                              <span className="pf-text-sm font-semibold text-text-primary">{t('http.ttfb')}</span>
                             </div>
-                            <p className="text-[var(--fs-xs)] text-text-tertiary leading-relaxed">
+                            <p className="pf-text-xs text-text-tertiary leading-relaxed">
                               {t('http.ttfbDesc', { defaultValue: '从请求发出到接收到第一个字节的等待时间，反映服务器处理速度。' })}
                             </p>
                           </div>
-                          <div className="rounded-[var(--radius-lg)] border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
+                          <div className="pf-rounded-lg border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                              <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('http.download')}</span>
+                              <span className="pf-text-sm font-semibold text-text-primary">{t('http.download')}</span>
                             </div>
-                            <p className="text-[var(--fs-xs)] text-text-tertiary leading-relaxed">
+                            <p className="pf-text-xs text-text-tertiary leading-relaxed">
                               {t('http.downloadDesc', { defaultValue: '响应体下载耗时，受带宽和响应体大小影响。' })}
                             </p>
                           </div>
@@ -1324,11 +1321,11 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                 <div className="h-full flex flex-col overflow-hidden">
                   <div className="flex items-center gap-2 px-4 py-2 border-b border-border-default/50 shrink-0">
                     <Braces className="h-4 w-4 text-accent opacity-70" />
-                    <span className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('http.responseExample', { defaultValue: '响应示例' })}</span>
-                    <span className="text-[var(--fs-xs)] text-text-tertiary ml-auto">{t('http.fromSwagger', { defaultValue: '来自 Swagger 文档' })}</span>
+                    <span className="pf-text-sm font-medium text-text-secondary">{t('http.responseExample', { defaultValue: '响应示例' })}</span>
+                    <span className="pf-text-xs text-text-tertiary ml-auto">{t('http.fromSwagger', { defaultValue: '来自 Swagger 文档' })}</span>
                   </div>
                   <div className="flex-1 overflow-auto p-4">
-                    <pre className="text-[var(--fs-xs)] font-mono text-text-secondary whitespace-pre-wrap break-all bg-bg-secondary/40 rounded-lg p-4 border border-border-default/30">{respExample}</pre>
+                    <pre className="pf-text-xs font-mono text-text-secondary whitespace-pre-wrap break-all bg-bg-secondary/40 rounded-lg p-4 border border-border-default/30">{respExample}</pre>
                   </div>
                 </div>
               ) : (
@@ -1336,8 +1333,8 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
                   <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary shadow-sm">
                     <Braces className="h-7 w-7 opacity-20" />
                   </div>
-                  <p className="text-[var(--fs-base)] font-medium text-text-secondary">{t('http.ready')}</p>
-                  <p className="mt-1 text-[var(--fs-xs)]">{t('http.readyDesc')}</p>
+                  <p className="pf-text-base font-medium text-text-secondary">{t('http.ready')}</p>
+                  <p className="mt-1 pf-text-xs">{t('http.readyDesc')}</p>
                 </div>
               );
             })()}
@@ -1356,7 +1353,9 @@ export function HttpWorkspace({ tabId }: { tabId: string }) {
       />
     </div>
   );
-}
+});
+
+HttpWorkspace.displayName = "HttpWorkspace";
 
 function ResponseMetaPill({ label, value }: { label: string; value: string }) {
   return (
@@ -1399,16 +1398,16 @@ function HttpRequestErrorPanel({
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-red-200/80 bg-red-50 text-red-500 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300">
             <XCircle className="h-8 w-8" />
           </div>
-          <p className="text-[var(--fs-3xl)] font-semibold text-text-primary">{t('http.requestFailed')}</p>
-          <p className="mt-2 max-w-[520px] text-[var(--fs-sm)] leading-6 text-text-secondary">
+          <p className="pf-text-3xl font-semibold text-text-primary">{t('http.requestFailed')}</p>
+          <p className="mt-2 max-w-[520px] pf-text-sm leading-6 text-text-secondary">
             {t('http.requestFailedDesc')}
           </p>
 
-          <div className="mt-5 w-full overflow-hidden rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-secondary/30 text-left">
-            <div className="border-b border-border-default/80 px-4 py-2 text-[var(--fs-xs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">
+          <div className="mt-5 w-full overflow-hidden pf-rounded-xl border border-border-default/80 bg-bg-secondary/30 text-left">
+            <div className="border-b border-border-default/80 px-4 py-2 pf-text-xs font-semibold uppercase tracking-[0.08em] text-text-disabled">
               {t('http.errorDetails')}
             </div>
-            <pre className="selectable overflow-auto px-4 py-4 text-[var(--fs-sm)] leading-6 text-text-secondary whitespace-pre-wrap break-all">
+            <pre className="selectable overflow-auto px-4 py-4 pf-text-sm leading-6 text-text-secondary whitespace-pre-wrap break-all">
               {error}
             </pre>
           </div>
@@ -1466,7 +1465,7 @@ function SseEventRow({ event }: { event: SseEvent }) {
 
         {/* 事件类型标签 */}
         <span className={cn(
-          "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[var(--fs-xxs)] font-bold leading-none",
+          "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 pf-text-xxs font-bold leading-none",
           color.bg, color.text, color.border
         )}>
           {event.eventType}
@@ -1478,7 +1477,7 @@ function SseEventRow({ event }: { event: SseEvent }) {
         </span>
 
         {/* 时间戳 */}
-        <span className="shrink-0 font-mono text-[var(--fs-xxs)] text-text-disabled">
+        <span className="shrink-0 font-mono pf-text-xxs text-text-disabled">
           {new Date(event.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' } as Intl.DateTimeFormatOptions)}
         </span>
 
@@ -1492,7 +1491,7 @@ function SseEventRow({ event }: { event: SseEvent }) {
       {/* 展开详情 */}
       {expanded && (
         <div className="mx-4 mb-2 mt-0.5 rounded-lg border border-border-default/60 bg-bg-secondary/20 overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-border-default/40 px-3 py-1.5 text-[var(--fs-xxs)] text-text-tertiary">
+          <div className="flex items-center gap-2 border-b border-border-default/40 px-3 py-1.5 pf-text-xxs text-text-tertiary">
             <span className="font-semibold">{isJson ? 'JSON' : 'TEXT'}</span>
             {event.id && <span className="ml-auto">Event ID: {event.id}</span>}
           </div>
@@ -1509,11 +1508,11 @@ function SseEventRow({ event }: { event: SseEvent }) {
 
 function SseSystemMessage({ message, timestamp }: { message: string; timestamp?: string }) {
   return (
-    <div className="flex items-center gap-2.5 px-4 py-2 text-[var(--fs-xs)] text-text-tertiary">
+    <div className="flex items-center gap-2.5 px-4 py-2 pf-text-xs text-text-tertiary">
       <Info className="h-3.5 w-3.5 shrink-0 opacity-60" />
       <span className="flex-1">{message}</span>
       {timestamp && (
-        <span className="shrink-0 font-mono text-[var(--fs-xxs)] text-text-disabled">
+        <span className="shrink-0 font-mono pf-text-xxs text-text-disabled">
           {new Date(timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' } as Intl.DateTimeFormatOptions)}
         </span>
       )}
@@ -1536,18 +1535,24 @@ function HttpSseResponsePanel({
 }) {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const MAX_VISIBLE_SSE_EVENTS = 400;
 
   const filteredEvents = useMemo(() => {
-    if (!searchQuery) return events;
-    const normalized = searchQuery.toLowerCase();
+    if (!deferredSearchQuery) return events;
+    const normalized = deferredSearchQuery.toLowerCase();
     return events.filter(e => {
       const haystack = `${e.eventType} ${e.data} ${e.id || ""}`.toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [events, searchQuery]);
+  }, [events, deferredSearchQuery]);
 
   // 倒序显示：最新事件在最上方
   const reversedEvents = useMemo(() => [...filteredEvents].reverse(), [filteredEvents]);
+  const visibleEvents = useMemo(
+    () => reversedEvents.slice(0, MAX_VISIBLE_SSE_EVENTS),
+    [reversedEvents],
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -1585,7 +1590,7 @@ function HttpSseResponsePanel({
       </div>
 
       {error ? (
-        <div className="border-b border-red-200 bg-red-50/80 px-4 py-2 text-[var(--fs-sm)] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+        <div className="border-b border-red-200 bg-red-50/80 px-4 py-2 pf-text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
           {error}
         </div>
       ) : null}
@@ -1596,8 +1601,8 @@ function HttpSseResponsePanel({
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary/35">
               <Waves className="h-7 w-7 text-orange-500/40" />
             </div>
-            <div className="text-[var(--fs-md)] font-semibold text-text-secondary">{t('sse.emptyTitle')}</div>
-            <div className="mt-2 max-w-xl text-[var(--fs-sm)] leading-6 text-text-tertiary">{t('sse.emptyDesc')}</div>
+            <div className="pf-text-md font-semibold text-text-secondary">{t('sse.emptyTitle')}</div>
+            <div className="mt-2 max-w-xl pf-text-sm leading-6 text-text-tertiary">{t('sse.emptyDesc')}</div>
           </div>
         ) : (
           <div className="divide-y divide-border-default/30">
@@ -1607,9 +1612,14 @@ function HttpSseResponsePanel({
             )}
 
             {/* 事件列表（倒序：最新在上） */}
-            {reversedEvents.map((event, index) => (
+            {visibleEvents.map((event, index) => (
               <SseEventRow key={`${event.timestamp}-${events.length - 1 - index}`} event={event} />
             ))}
+            {reversedEvents.length > MAX_VISIBLE_SSE_EVENTS && (
+              <div className="px-4 py-2 text-center pf-text-xxs text-text-disabled">
+                仅渲染最近 {MAX_VISIBLE_SSE_EVENTS} 条事件，共 {reversedEvents.length} 条
+              </div>
+            )}
 
             {/* 底部：Connected 提示 */}
             {events.length > 0 && (
@@ -1737,8 +1747,8 @@ function GraphQLBodyEditor({
         <div className="wb-panel flex min-h-[320px] min-w-0 flex-col overflow-hidden">
           <div className="wb-panel-header shrink-0">
             <div>
-              <div className="text-[var(--fs-sm)] font-semibold text-text-primary">Query</div>
-              <div className="mt-1 text-[var(--fs-xs)] text-text-tertiary">{t('http.graphql.queryDesc')}</div>
+              <div className="pf-text-sm font-semibold text-text-primary">Query</div>
+              <div className="mt-1 pf-text-xs text-text-tertiary">{t('http.graphql.queryDesc')}</div>
             </div>
             <div className="flex items-center gap-2">
               <span className="wb-tool-chip">GraphQL</span>
@@ -1760,9 +1770,9 @@ function GraphQLBodyEditor({
           <div className="wb-panel-header shrink-0">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-[var(--fs-sm)] font-semibold text-text-primary">Variables</span>
+                <span className="pf-text-sm font-semibold text-text-primary">Variables</span>
                 <span className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[var(--fs-xxs)] font-semibold",
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 pf-text-xxs font-semibold",
                   variableState.valid
                     ? "bg-emerald-500/10 text-emerald-600"
                     : "bg-red-500/10 text-red-500"
@@ -1771,7 +1781,7 @@ function GraphQLBodyEditor({
                   {variableState.label}
                 </span>
               </div>
-              <div className="mt-1 text-[var(--fs-xs)] text-text-tertiary">{variableState.detail}</div>
+              <div className="mt-1 pf-text-xs text-text-tertiary">{variableState.detail}</div>
             </div>
             <div className="flex items-center gap-2">
               {hasVariables ? <span className="wb-tool-chip">JSON</span> : null}
@@ -2111,7 +2121,7 @@ function TableCellInput({ value, onChange, onFocus, onBlur, onKeyDown, placehold
           style={{ top: rect.bottom + 2, left: rect.left, width: rect.width, zIndex: 9999 }}>
           {suggestions!.map((s, si) => (
             <button key={si} onMouseDown={e => { e.preventDefault(); onSelectSuggestion!(s); }}
-              className={cn("w-full px-3 py-1.5 text-left text-[var(--fs-sm)] font-mono transition-colors",
+              className={cn("w-full px-3 py-1.5 text-left pf-text-sm font-mono transition-colors",
                 si === (highlightIdx ?? -1) ? "bg-accent/10 text-accent" : "text-text-secondary hover:bg-bg-hover",
                 value === s && si !== (highlightIdx ?? -1) && "text-accent font-semibold")}>
               {s || <span className="text-text-disabled italic">{t('http.emptyValue')}</span>}
@@ -2548,7 +2558,7 @@ function VariableHoverPopover({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        "fixed z-[var(--z-toast)] rounded-[var(--radius-xl)] border border-border-default/85 bg-bg-primary/98 shadow-[0_18px_46px_rgba(15,23,42,0.14)] backdrop-blur-xl",
+        "fixed z-[var(--z-toast)] pf-rounded-xl border border-border-default/85 bg-bg-primary/98 shadow-[0_18px_46px_rgba(15,23,42,0.14)] backdrop-blur-xl",
         "animate-[varPopIn_0.15s_ease-out]",
         "var-popover-resizable group/popover"
       )}
@@ -2568,10 +2578,10 @@ function VariableHoverPopover({
       <div className="px-4 py-3 shrink-0">
         <div className="flex items-start justify-between gap-3 pr-7">
           <div className="min-w-0">
-            <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
+            <div className="pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-tertiary">
               {t('http.variablePreview')}
             </div>
-            <div className="mt-1 font-mono text-[var(--fs-sm)] font-semibold text-text-primary">
+            <div className="mt-1 font-mono pf-text-sm font-semibold text-text-primary">
               {`{{${preview.key}}}`}
             </div>
           </div>
@@ -2586,7 +2596,7 @@ function VariableHoverPopover({
                 {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
               </button>
             )}
-            <div className="inline-flex rounded-full bg-bg-hover px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-secondary">
+            <div className="inline-flex rounded-full bg-bg-hover px-2 py-0.5 pf-text-xxs font-medium text-text-secondary">
               {sourceLabelMap[preview.source]}
             </div>
           </div>
@@ -2638,9 +2648,9 @@ function VariableHoverPopover({
             {saved ? t('http.variableSaved') : t('http.variableSave')}
           </button>
         ) : !collectionId ? (
-          <div className="text-[var(--fs-xxs)] text-text-disabled text-center py-0.5 select-none">{t('http.variableNoCollection')}</div>
+          <div className="pf-text-xxs text-text-disabled text-center py-0.5 select-none">{t('http.variableNoCollection')}</div>
         ) : preview.source === "dynamic" ? (
-          <div className="text-[var(--fs-xxs)] text-text-disabled text-center py-0.5 select-none">{t('http.variableDynamicReadonly')}</div>
+          <div className="pf-text-xxs text-text-disabled text-center py-0.5 select-none">{t('http.variableDynamicReadonly')}</div>
         ) : null}
       </div>
 
@@ -2678,7 +2688,6 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
   };
 
   const handleFilePick = async (i: number) => {
-    const { pickFiles } = await import("@/services/httpService");
     const r = await pickFiles();
     if (!r) return;
     const field = safe[i];
@@ -2765,7 +2774,7 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
               <td>
                 <select value={field.fieldType}
                   onChange={e => update(i, { fieldType: e.target.value as 'text' | 'file', value: '', fileName: undefined, filePaths: [], fileNames: [] })}
-                  className={cn("editor-table-select text-[var(--fs-xs)] text-text-secondary", !field.enabled && "editor-table-muted")}>
+                  className={cn("editor-table-select pf-text-xs text-text-secondary", !field.enabled && "editor-table-muted")}>
                   <option value="text">Text</option>
                   <option value="file">File</option>
                 </select>
@@ -2781,7 +2790,7 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
                 ) : (
                   <div className={cn("flex items-start w-full min-h-[34px]", !field.enabled && "editor-table-muted")}>
                     <button onClick={() => handleFilePick(i)}
-                      className="shrink-0 h-[34px] px-2 flex items-center gap-1 bg-transparent text-[var(--fs-xs)] cursor-pointer hover:bg-bg-hover transition-colors rounded"
+                      className="shrink-0 h-[34px] px-2 flex items-center gap-1 bg-transparent pf-text-xs cursor-pointer hover:bg-bg-hover transition-colors rounded"
                       title={getFilePaths(field).length > 0 ? "添加更多文件" : t('http.selectFile')}>
                       <Upload className="w-3 h-3 text-text-disabled shrink-0" />
                       <span className="text-text-tertiary whitespace-nowrap">{getFilePaths(field).length > 0 ? "+" : t('http.selectFile')}</span>
@@ -2792,7 +2801,7 @@ function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; onChang
                           <span
                             key={fi}
                             title={getFilePaths(field)[fi] || name}
-                            className="inline-flex items-center gap-0.5 max-w-[160px] px-1.5 py-0.5 rounded bg-bg-hover text-[var(--fs-xxs)] text-text-secondary border border-border-subtle cursor-default group/chip"
+                            className="inline-flex items-center gap-0.5 max-w-[160px] px-1.5 py-0.5 rounded bg-bg-hover pf-text-xxs text-text-secondary border border-border-subtle cursor-default group/chip"
                           >
                             <span className="truncate">{name}</span>
                             <button
@@ -2850,7 +2859,6 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
   );
 
   const exchangeCodeForToken = async (code: string) => {
-    const { invoke } = await import("@tauri-apps/api/core");
     return invoke<{
       accessToken: string;
       tokenType?: string;
@@ -2902,7 +2910,6 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
         });
       } else {
         // client_credentials or password: direct token request
-        const { invoke } = await import("@tauri-apps/api/core");
         const result = await invoke<{
           accessToken: string;
           tokenType?: string;
@@ -2948,7 +2955,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('http.authType')}</label>
+        <label className="pf-text-xs font-medium text-text-secondary">{t('http.authType')}</label>
         <div className="wb-segmented w-fit">
           {(["client_credentials", "authorization_code", "password"] as const).map((gt) => (
             <button
@@ -2962,46 +2969,46 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
         </div>
       </div>
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Access Token URL</label>
-        <input value={config.accessTokenUrl} onChange={(e) => onChange({ accessTokenUrl: e.target.value })} placeholder="https://auth.example.com/oauth/token" className="wb-field w-full font-mono text-[var(--fs-xs)]" />
+        <label className="pf-text-xs font-medium text-text-secondary">Access Token URL</label>
+        <input value={config.accessTokenUrl} onChange={(e) => onChange({ accessTokenUrl: e.target.value })} placeholder="https://auth.example.com/oauth/token" className="wb-field w-full font-mono pf-text-xs" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Client ID</label>
-          <input value={config.clientId} onChange={(e) => onChange({ clientId: e.target.value })} className="wb-field w-full font-mono text-[var(--fs-xs)]" />
+          <label className="pf-text-xs font-medium text-text-secondary">Client ID</label>
+          <input value={config.clientId} onChange={(e) => onChange({ clientId: e.target.value })} className="wb-field w-full font-mono pf-text-xs" />
         </div>
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Client Secret</label>
-          <input value={config.clientSecret} onChange={(e) => onChange({ clientSecret: e.target.value })} type="password" className="wb-field w-full font-mono text-[var(--fs-xs)]" />
+          <label className="pf-text-xs font-medium text-text-secondary">Client Secret</label>
+          <input value={config.clientSecret} onChange={(e) => onChange({ clientSecret: e.target.value })} type="password" className="wb-field w-full font-mono pf-text-xs" />
         </div>
       </div>
       {config.grantType === "authorization_code" && (
         <>
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Auth URL</label>
-            <input value={config.authUrl} onChange={(e) => onChange({ authUrl: e.target.value })} placeholder="https://auth.example.com/authorize" className="wb-field w-full font-mono text-[var(--fs-xs)]" />
+            <label className="pf-text-xs font-medium text-text-secondary">Auth URL</label>
+            <input value={config.authUrl} onChange={(e) => onChange({ authUrl: e.target.value })} placeholder="https://auth.example.com/authorize" className="wb-field w-full font-mono pf-text-xs" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Redirect URI</label>
-            <input value={config.redirectUri} onChange={(e) => onChange({ redirectUri: e.target.value })} className="wb-field w-full font-mono text-[var(--fs-xs)]" />
+            <label className="pf-text-xs font-medium text-text-secondary">Redirect URI</label>
+            <input value={config.redirectUri} onChange={(e) => onChange({ redirectUri: e.target.value })} className="wb-field w-full font-mono pf-text-xs" />
           </div>
         </>
       )}
       {config.grantType === "password" && (
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Username</label>
-            <input value={config.username} onChange={(e) => onChange({ username: e.target.value })} className="wb-field w-full text-[var(--fs-xs)]" />
+            <label className="pf-text-xs font-medium text-text-secondary">Username</label>
+            <input value={config.username} onChange={(e) => onChange({ username: e.target.value })} className="wb-field w-full pf-text-xs" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Password</label>
-            <input value={config.password} onChange={(e) => onChange({ password: e.target.value })} type="password" className="wb-field w-full text-[var(--fs-xs)]" />
+            <label className="pf-text-xs font-medium text-text-secondary">Password</label>
+            <input value={config.password} onChange={(e) => onChange({ password: e.target.value })} type="password" className="wb-field w-full pf-text-xs" />
           </div>
         </div>
       )}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Scope</label>
-        <input value={config.scope} onChange={(e) => onChange({ scope: e.target.value })} placeholder="read write" className="wb-field w-full font-mono text-[var(--fs-xs)]" />
+        <label className="pf-text-xs font-medium text-text-secondary">Scope</label>
+        <input value={config.scope} onChange={(e) => onChange({ scope: e.target.value })} placeholder="read write" className="wb-field w-full font-mono pf-text-xs" />
       </div>
 
       {/* Get Token + Access Token */}
@@ -3011,7 +3018,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
             onClick={handleFetchToken}
             disabled={loading || !canFetchToken}
             className={cn(
-              "px-4 py-2 text-[var(--fs-sm)] font-semibold rounded-lg transition-all flex items-center gap-2",
+              "px-4 py-2 pf-text-sm font-semibold rounded-lg transition-all flex items-center gap-2",
               loading
                 ? "bg-warning cursor-wait opacity-70 text-white"
                 : canFetchToken
@@ -3027,27 +3034,27 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
             {buttonLabel}
           </button>
           {tokenMeta && (
-            <div className="flex items-center gap-2 text-[var(--fs-xs)] text-text-tertiary">
-              {tokenMeta.tokenType && <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded text-[var(--fs-xxs)] font-medium">{tokenMeta.tokenType}</span>}
+            <div className="flex items-center gap-2 pf-text-xs text-text-tertiary">
+              {tokenMeta.tokenType && <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded pf-text-xxs font-medium">{tokenMeta.tokenType}</span>}
               {tokenMeta.expiresIn && <span>{t('http.tokenExpiry', { time: tokenMeta.expiresIn })}</span>}
               {tokenMeta.scope && <span>scope: {tokenMeta.scope}</span>}
             </div>
           )}
         </div>
         {authorizing && (
-          <div className="mb-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-[var(--fs-xs)] text-blue-600 dark:text-blue-400 flex items-center gap-2">
+          <div className="mb-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 pf-text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
             <svg className="w-4 h-4 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" strokeLinecap="round" strokeLinejoin="round"/></svg>
             {t('http.oauth2.authorizingHint')}
           </div>
         )}
         {error && (
-          <div className="mb-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-[var(--fs-xs)] text-red-600 dark:text-red-400 break-all">
+          <div className="mb-3 p-2.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 pf-text-xs text-red-600 dark:text-red-400 break-all">
             {error}
           </div>
         )}
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-xs)] font-medium text-text-secondary">Access Token</label>
-          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder={t('http.oauth2.accessTokenPlaceholder')} className="wb-field w-full font-mono text-[var(--fs-xs)]" />
+          <label className="pf-text-xs font-medium text-text-secondary">Access Token</label>
+          <input value={config.accessToken} onChange={(e) => onChange({ accessToken: e.target.value })} placeholder={t('http.oauth2.accessTokenPlaceholder')} className="wb-field w-full font-mono pf-text-xs" />
         </div>
       </div>
     </div>
@@ -3058,7 +3065,6 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
 function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; fileName: string; onChange: (path: string, name: string) => void }) {
   const { t } = useTranslation();
   const handlePick = async () => {
-    const { pickFile } = await import("@/services/httpService");
     const result = await pickFile();
     if (result) {
       onChange(result.path, result.name);
@@ -3071,8 +3077,8 @@ function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; file
         <div className="flex items-center gap-3 p-4 rounded-lg border border-border-default bg-bg-secondary/50">
           <FileIcon className="w-8 h-8 text-accent/60" />
           <div className="min-w-0">
-            <p className="text-[var(--fs-base)] font-medium text-text-primary truncate max-w-xs">{fileName}</p>
-            <p className="text-[var(--fs-xs)] text-text-disabled font-mono truncate max-w-xs">{filePath}</p>
+            <p className="pf-text-base font-medium text-text-primary truncate max-w-xs">{fileName}</p>
+            <p className="pf-text-xs text-text-disabled font-mono truncate max-w-xs">{filePath}</p>
           </div>
           <button onClick={() => onChange('', '')} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-red-500 transition-colors" title={t('http.removeFile')}>
             <X className="w-4 h-4" />
@@ -3084,8 +3090,8 @@ function BinaryPicker({ filePath, fileName, onChange }: { filePath: string; file
           className="flex flex-col items-center gap-2 p-6 rounded-lg border-2 border-dashed border-border-default hover:border-accent text-text-disabled hover:text-accent transition-colors cursor-pointer"
         >
           <Upload className="w-8 h-8" />
-          <span className="text-[var(--fs-base)] font-medium">{t('http.selectFile')}</span>
-          <span className="text-[var(--fs-xs)]">{t('http.binaryDesc')}</span>
+          <span className="pf-text-base font-medium">{t('http.selectFile')}</span>
+          <span className="pf-text-xs">{t('http.binaryDesc')}</span>
         </button>
       )}
     </div>
@@ -3183,12 +3189,12 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
       {open && pos && createPortal(
         <div
           ref={panelRef}
-          className="fixed z-[var(--z-toast)] min-w-[320px] max-w-[480px] rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden"
+          className="fixed z-[var(--z-toast)] min-w-[320px] max-w-[480px] pf-rounded-md border border-border-default bg-bg-primary shadow-xl shadow-black/8 overflow-hidden"
           style={{ top: pos.top, right: pos.right }}
         >
           {!result ? (
             <div className="p-1.5">
-              <div className="px-3 py-2 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-disabled">
+              <div className="px-3 py-2 pf-text-xxs font-semibold uppercase tracking-[0.08em] text-text-disabled">
                 {t('http.exportAs', '导出为')}
               </div>
               {formats.map((item) => (
@@ -3196,27 +3202,27 @@ function ExportPluginDropdown({ config }: { config: import("@/types/http").HttpR
                   key={`${item.pluginId}:${item.format.formatId}`}
                   onClick={() => handleExport(item.pluginId)}
                   disabled={loading}
-                  className="w-full flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-left text-[var(--fs-sm)] text-text-primary hover:bg-bg-hover transition-colors"
+                  className="w-full flex items-center gap-2 pf-rounded-sm px-3 py-2 text-left pf-text-sm text-text-primary hover:bg-bg-hover transition-colors"
                 >
                   <FileOutput className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
                   <span className="font-medium">{item.format.name}</span>
-                  <span className="text-[var(--fs-xxs)] text-text-disabled ml-auto">.{item.format.fileExtension}</span>
+                  <span className="pf-text-xxs text-text-disabled ml-auto">.{item.format.fileExtension}</span>
                 </button>
               ))}
             </div>
           ) : (
             <div className="flex flex-col">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60">
-                <span className="text-[var(--fs-sm)] font-semibold text-text-primary">{result.filename}</span>
+                <span className="pf-text-sm font-semibold text-text-primary">{result.filename}</span>
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[var(--fs-xs)] text-accent hover:bg-accent-soft transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 rounded-md pf-text-xs text-accent hover:bg-accent-soft transition-colors"
                 >
                   {copying ? <Check className="w-3 h-3" /> : <ClipboardCopy className="w-3 h-3" />}
                   {copying ? t('sidebar.copied', '已复制') : t('response.copy', '复制')}
                 </button>
               </div>
-              <pre className="selectable p-3 max-h-[280px] overflow-auto font-mono text-[var(--fs-xs)] text-text-primary leading-5 whitespace-pre-wrap break-all bg-bg-secondary/30">
+              <pre className="selectable p-3 max-h-[280px] overflow-auto font-mono pf-text-xs text-text-primary leading-5 whitespace-pre-wrap break-all bg-bg-secondary/30">
                 {result.content}
               </pre>
             </div>
@@ -3277,8 +3283,8 @@ function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (data: str
         ref={btnRef}
         onClick={handleOpen}
         className={cn(
-          "shrink-0 rounded-[var(--radius-sm)] text-text-disabled transition-colors hover:bg-bg-hover hover:text-purple-500",
-          showLabel ? "flex items-center gap-1 px-2 py-1 text-[var(--fs-xs)]" : "p-1"
+          "shrink-0 pf-rounded-sm text-text-disabled transition-colors hover:bg-bg-hover hover:text-purple-500",
+          showLabel ? "flex items-center gap-1 px-2 py-1 pf-text-xs" : "p-1"
         )}
         title={t('http.mockGenerator', '数据生成')}
         type="button"
@@ -3290,7 +3296,7 @@ function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (data: str
       {open && createPortal(
         <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)}>
           <div
-            className="absolute min-w-[180px] rounded-[var(--radius-md)] border border-border-default bg-bg-primary shadow-lg shadow-black/8 overflow-hidden"
+            className="absolute min-w-[180px] pf-rounded-md border border-border-default bg-bg-primary shadow-lg shadow-black/8 overflow-hidden"
             style={pos ? { top: pos.top, left: pos.left } : undefined}
             onClick={(e) => e.stopPropagation()}
           >
@@ -3300,7 +3306,7 @@ function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (data: str
                   key={`${item.pluginId}:${item.generator.generatorId}`}
                   onClick={() => handleGenerate(item.pluginId, item.generator.generatorId)}
                   disabled={loading}
-                  className="w-full flex items-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 py-1.5 text-left text-[var(--fs-xs)] text-text-primary hover:bg-bg-hover transition-colors"
+                  className="w-full flex items-center gap-1.5 pf-rounded-sm px-2.5 py-1.5 text-left pf-text-xs text-text-primary hover:bg-bg-hover transition-colors"
                 >
                   <Wand2 className="w-3 h-3 text-purple-500/60 shrink-0" />
                   <span className="font-medium truncate">{item.generator.name}</span>

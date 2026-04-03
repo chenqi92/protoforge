@@ -101,7 +101,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-[var(--z-tooltip)]" onClick={onClose} />
-      <div className="fixed left-1/2 top-[15%] z-[var(--z-tooltip)] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden rounded-[var(--radius-xl)] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
+      <div className="fixed left-1/2 top-[15%] z-[var(--z-tooltip)] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden pf-rounded-xl border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
         {/* Search Input */}
         <div className="flex items-center gap-3 border-b border-border-default/80 bg-bg-primary/78 px-5 py-3">
           <Search className="w-4 h-4 text-text-disabled shrink-0" />
@@ -111,9 +111,9 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
             onChange={(e) => { setQuery(e.target.value); setSelectedIdx(0); }}
             onKeyDown={handleKeyDown}
             placeholder={t('commandPalette.placeholder')}
-            className="h-10 flex-1 bg-transparent text-[var(--fs-md)] text-text-primary outline-none placeholder:text-text-disabled"
+            className="h-10 flex-1 bg-transparent pf-text-md text-text-primary outline-none placeholder:text-text-disabled"
           />
-          <button onClick={onClose} className="rounded-[var(--radius-md)] p-1.5 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
+          <button onClick={onClose} className="pf-rounded-md p-1.5 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -121,7 +121,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
         {/* Results */}
         <div className="flex-1 overflow-auto bg-bg-secondary/18 py-2.5">
           {items.length === 0 ? (
-            <div className="flex items-center justify-center h-20 text-text-disabled text-[var(--fs-base)]">
+            <div className="flex items-center justify-center h-20 text-text-disabled pf-text-base">
               {t('commandPalette.noResults')}
             </div>
           ) : (
@@ -133,18 +133,18 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
                   onClick={item.action}
                   onMouseEnter={() => setSelectedIdx(i)}
                   className={cn(
-                    "mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-[var(--radius-lg)] px-4 py-3 text-left transition-colors",
+                    "mx-2 flex w-[calc(100%-1rem)] items-center gap-3 pf-rounded-lg px-4 py-3 text-left transition-colors",
                     i === selectedIdx ? "bg-bg-primary/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]" : "hover:bg-bg-hover/70"
                   )}
                 >
                   <Icon className={cn("w-4 h-4 shrink-0", i === selectedIdx ? "text-accent" : "text-text-disabled")} />
                   <div className="flex-1 min-w-0">
-                    <p className={cn("text-[var(--fs-base)] font-medium truncate", i === selectedIdx ? "text-accent" : "text-text-primary")}>
+                    <p className={cn("pf-text-base font-medium truncate", i === selectedIdx ? "text-accent" : "text-text-primary")}>
                       {item.label}
                     </p>
-                    {item.description && <p className="text-[var(--fs-xs)] text-text-disabled truncate">{item.description}</p>}
+                    {item.description && <p className="pf-text-xs text-text-disabled truncate">{item.description}</p>}
                   </div>
-                  <span className={cn("text-[var(--fs-xxs)] uppercase tracking-wider shrink-0",
+                  <span className={cn("pf-text-xxs uppercase tracking-wider shrink-0",
                     item.type === 'action' ? "text-accent/60" :
                     item.type === 'collection' ? "text-blue-500/60" :
                     item.type === 'environment' ? "text-emerald-500/60" :
@@ -159,10 +159,10 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
         </div>
 
         {/* Footer hint */}
-        <div className="flex items-center gap-4 border-t border-border-default/80 bg-bg-primary/78 px-4 py-2.5 text-[var(--fs-xxs)] text-text-disabled">
-          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[var(--fs-3xs)]">↑↓</kbd> {t('commandPalette.select')}</span>
-          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[var(--fs-3xs)]">Enter</kbd> {t('commandPalette.confirm')}</span>
-          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default text-[var(--fs-3xs)]">Esc</kbd> {t('commandPalette.closeLabel')}</span>
+        <div className="flex items-center gap-4 border-t border-border-default/80 bg-bg-primary/78 px-4 py-2.5 pf-text-xxs text-text-disabled">
+          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default pf-text-3xs">↑↓</kbd> {t('commandPalette.select')}</span>
+          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default pf-text-3xs">Enter</kbd> {t('commandPalette.confirm')}</span>
+          <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default pf-text-3xs">Esc</kbd> {t('commandPalette.closeLabel')}</span>
         </div>
       </div>
     </>

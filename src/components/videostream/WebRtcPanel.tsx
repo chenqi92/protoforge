@@ -73,7 +73,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
     <div className="min-w-0 space-y-4 overflow-x-hidden">
       {/* Mode: Offer vs Answer */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.webrtc.role', '角色')}
         </label>
         <SegmentedControl
@@ -89,13 +89,13 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
 
       {/* STUN Servers */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           STUN {t('videostream.webrtc.servers', '服务器')}
         </label>
         <div className="space-y-1">
           {stunServers.map((s, i) => (
             <div key={i} className="flex min-w-0 items-center gap-1">
-              <span className="min-w-0 flex-1 truncate rounded bg-bg-secondary/30 px-2 py-1 text-[var(--fs-xxs)] font-mono text-text-secondary">{s}</span>
+              <span className="min-w-0 flex-1 truncate rounded bg-bg-secondary/30 px-2 py-1 pf-text-xxs font-mono text-text-secondary">{s}</span>
               <button onClick={() => setStunServers(prev => prev.filter((_, j) => j !== i))} className="text-text-disabled hover:text-red-500 p-0.5">
                 <Trash2 className="w-3 h-3" />
               </button>
@@ -106,14 +106,14 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
               onKeyDown={(e) => e.key === 'Enter' && addStun()}
               className="wb-field-xs min-w-0 flex-1 font-mono"
             />
-            <button onClick={addStun} className="h-6 w-6 flex items-center justify-center rounded-[var(--radius-xs)] bg-accent/10 text-accent hover:bg-accent/20"><Plus className="w-3 h-3" /></button>
+            <button onClick={addStun} className="h-6 w-6 flex items-center justify-center pf-rounded-xs bg-accent/10 text-accent hover:bg-accent/20"><Plus className="w-3 h-3" /></button>
           </div>
         </div>
       </div>
 
       {/* TURN Server */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           TURN {t('videostream.webrtc.servers', '服务器')}
         </label>
         <input value={turnUrl} onChange={(e) => setTurnUrl(e.target.value)} placeholder="turn:host:port" disabled={connected}
@@ -143,37 +143,37 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
 
       {/* SDP Editor */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {mode === 'offer' ? 'Local SDP (Offer)' : 'Local SDP (Answer)'}
         </label>
         <textarea value={localSdp} onChange={(e) => setLocalSdp(e.target.value)} rows={4} placeholder="v=0\no=- ..."
-          className="wb-textarea resize-none text-[var(--fs-xxs)]"
+          className="wb-textarea resize-none pf-text-xxs"
         />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           Remote SDP
         </label>
         <textarea value={remoteSdp} onChange={(e) => setRemoteSdp(e.target.value)} rows={4} placeholder="v=0\no=- ..."
-          className="wb-textarea resize-none text-[var(--fs-xxs)]"
+          className="wb-textarea resize-none pf-text-xxs"
         />
       </div>
 
       {/* ICE Candidates */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           ICE Candidates ({iceCandidates.length})
         </label>
-        <div className="max-h-[120px] overflow-y-auto rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
+        <div className="max-h-[120px] overflow-y-auto pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-1">
           {iceCandidates.length === 0 ? (
-            <div className="text-[var(--fs-xs)] text-text-disabled text-center py-4">
+            <div className="pf-text-xs text-text-disabled text-center py-4">
               {t('videostream.webrtc.connectFirst', '点击 Create Offer 开始 ICE 收集')}
             </div>
           ) : (
             iceCandidates.map((c, i) => (
-              <div key={i} className="flex min-w-0 items-center gap-2 px-2 py-1 text-[var(--fs-xxs)] font-mono">
-                <span className={cn("px-1 rounded text-[var(--fs-3xs)] font-bold",
+              <div key={i} className="flex min-w-0 items-center gap-2 px-2 py-1 pf-text-xxs font-mono">
+                <span className={cn("px-1 rounded pf-text-3xs font-bold",
                   c.type === 'host' ? 'bg-blue-500/10 text-blue-500' : c.type === 'srflx' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
                 )}>{c.type}</span>
                 <span className="min-w-0 flex-1 truncate text-text-primary">{c.address}:{c.port}</span>

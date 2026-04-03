@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@source not "../dist";
+@source not "../docs";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -250,6 +252,27 @@
 }
 
 @layer utilities {
+  .pf-text-base { font-size: var(--fs-base); }
+  .pf-text-sm { font-size: var(--fs-sm); }
+  .pf-text-xs { font-size: var(--fs-xs); }
+  .pf-text-xxs { font-size: var(--fs-xxs); }
+  .pf-text-3xs { font-size: var(--fs-3xs); }
+  .pf-text-md { font-size: var(--fs-md); }
+  .pf-text-lg { font-size: var(--fs-lg); }
+  .pf-text-xl { font-size: var(--fs-xl); }
+  .pf-text-2xl { font-size: var(--fs-2xl); }
+  .pf-text-3xl { font-size: var(--fs-3xl); }
+  .pf-text-4xl { font-size: var(--fs-4xl); }
+  .pf-text-5xl { font-size: var(--fs-5xl); }
+  .pf-text-6xl { font-size: var(--fs-6xl); }
+  .pf-text-sidebar-sm { font-size: var(--fs-sidebar-sm); }
+
+  .pf-rounded-xs { border-radius: var(--radius-xs); }
+  .pf-rounded-sm { border-radius: var(--radius-sm); }
+  .pf-rounded-md { border-radius: var(--radius-md); }
+  .pf-rounded-lg { border-radius: var(--radius-lg); }
+  .pf-rounded-xl { border-radius: var(--radius-xl); }
+
   .panel {
     background: var(--color-bg-primary);
   }

@@ -1,6 +1,6 @@
 // TCP/UDP 工作区 — 上下分栏布局
 // 上方消息日志（主区域） + 下方紧凑发送栏
-import { useState, useEffect, useRef, useCallback } from "react";
+import { memo, useState, useEffect, useRef, useCallback } from "react";
 import { Server, Radio, Square, Monitor, History, X, Usb, Cpu, Columns2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -67,14 +67,14 @@ function RecentConnections({recent, onLoad, onRemove,
     <div className="flex items-center gap-2 flex-wrap px-0.5">
       <div className="flex items-center gap-1 text-text-disabled shrink-0">
         <History className="w-3 h-3" />
-        <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide">{t('tcp.recentConnections', '最近')}</span>
+        <span className="pf-text-xxs font-semibold uppercase tracking-wide">{t('tcp.recentConnections', '最近')}</span>
       </div>
       <div className="flex items-center gap-1 flex-wrap min-w-0">
         {recent.map((r, i) => (
-          <div key={i} className="group flex items-center rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
+          <div key={i} className="group flex items-center pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
             <button
               onClick={() => onLoad(r.host, r.port)}
-              className="h-[22px] px-2 text-[var(--fs-xxs)] font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors"
+              className="h-[22px] px-2 pf-text-xxs font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors"
             >
               {r.host}:{r.port}
             </button>
@@ -144,7 +144,7 @@ function ProtocolModePanel({
   }
 }
 
-export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
+export const TcpWorkspace = memo(function TcpWorkspace({ sessionId }: { sessionId?: string }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<SocketMode>("tcp-client");
   const [splitView, setSplitView] = useState(false);
@@ -265,7 +265,9 @@ export function TcpWorkspace({ sessionId }: { sessionId?: string }) {
       </div>
     </div>
   );
-}
+});
+
+TcpWorkspace.displayName = "TcpWorkspace";
 
 function AddressField({
   label,
@@ -279,13 +281,13 @@ function AddressField({
   placeholder: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary px-3 py-2">
-      <span className="shrink-0 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">{label}</span>
+    <div className="flex items-center gap-2 pf-rounded-md border border-border-default/80 bg-bg-primary px-3 py-2">
+      <span className="shrink-0 pf-text-xxs font-semibold uppercase tracking-[0.08em] text-text-tertiary">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-7 flex-1 bg-transparent text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled"
+        className="h-7 flex-1 bg-transparent pf-text-sm font-mono text-text-primary outline-none placeholder:text-text-disabled"
       />
     </div>
   );
@@ -577,7 +579,7 @@ function TcpClientPanel({ sessionKey, compact = false }: { sessionKey: string; c
                     <button
                       onClick={() => setAutoReconnect((v) => !v)}
                       className={cn(
-                        "shrink-0 flex items-center gap-1.5 h-[22px] px-2 rounded-[var(--radius-sm)] border text-[var(--fs-xxs)] font-medium transition-all",
+                        "shrink-0 flex items-center gap-1.5 h-[22px] px-2 pf-rounded-sm border pf-text-xxs font-medium transition-all",
                         autoReconnect
                           ? "border-accent/40 bg-accent-soft text-accent"
                           : "border-border-default/60 bg-bg-secondary/40 text-text-tertiary hover:border-accent/30 hover:text-text-secondary"

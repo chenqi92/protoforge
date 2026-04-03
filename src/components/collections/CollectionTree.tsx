@@ -59,7 +59,7 @@ function TreeItem({ item, depth, onSelect, onDragStart, onDragOver, onDrop, drag
           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver?.(e, folder.id); }}
           onDrop={(e) => { e.preventDefault(); onDrop?.(e, folder.id); }}
           className={cn(
-            'flex items-center gap-1.5 px-2 py-1.5 cursor-pointer rounded-[var(--radius-sm)]',
+            'flex items-center gap-1.5 px-2 py-1.5 cursor-pointer pf-rounded-sm',
             'hover:bg-bg-hover transition-colors group',
             isDragOver && 'border-t-2 border-accent',
           )}
@@ -68,8 +68,8 @@ function TreeItem({ item, depth, onSelect, onDragStart, onDragOver, onDrop, drag
           <GripVertical className="w-3 h-3 text-text-disabled opacity-0 group-hover:opacity-50 cursor-grab shrink-0" />
           {expanded ? <ChevronDown className="w-3 h-3 text-text-disabled" /> : <ChevronRight className="w-3 h-3 text-text-disabled" />}
           <FolderOpen className="w-3.5 h-3.5 text-method-post shrink-0" />
-          <span className="text-[var(--fs-xs)] text-text-primary truncate flex-1">{folder.name}</span>
-          <span className="text-[var(--fs-xxs)] text-text-disabled">{folder.items.length}</span>
+          <span className="pf-text-xs text-text-primary truncate flex-1">{folder.name}</span>
+          <span className="pf-text-xxs text-text-disabled">{folder.items.length}</span>
         </div>
         <AnimatePresence>
           {expanded && (
@@ -99,17 +99,17 @@ function TreeItem({ item, depth, onSelect, onDragStart, onDragOver, onDrop, drag
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver?.(e, req.id); }}
       onDrop={(e) => { e.preventDefault(); onDrop?.(e, req.id); }}
       className={cn(
-        'flex items-center gap-1.5 px-2 py-1.5 cursor-pointer rounded-[var(--radius-sm)]',
+        'flex items-center gap-1.5 px-2 py-1.5 cursor-pointer pf-rounded-sm',
         'hover:bg-bg-hover transition-colors group',
         isDragOver && 'border-t-2 border-accent',
       )}
       style={{ paddingLeft: `${depth * 16 + 8}px` }}
     >
       <GripVertical className="w-3 h-3 text-text-disabled opacity-0 group-hover:opacity-50 cursor-grab shrink-0" />
-      <span className={cn('text-[var(--fs-xxs)] font-bold w-8 shrink-0', getMethodColor(req.method))}>
+      <span className={cn('pf-text-xxs font-bold w-8 shrink-0', getMethodColor(req.method))}>
         {req.method.slice(0, 3)}
       </span>
-      <span className="text-[var(--fs-xs)] text-text-secondary truncate flex-1">{req.name}</span>
+      <span className="pf-text-xs text-text-secondary truncate flex-1">{req.name}</span>
     </div>
   );
 }
@@ -141,9 +141,9 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
     return (
       <div className="h-full flex flex-col items-center justify-center text-text-disabled px-4">
         <FolderOpen className="w-10 h-10 mb-3 opacity-30" />
-        <p className="text-[var(--fs-sm)]">{t('sidebar.noCollections')}</p>
-        <p className="text-[var(--fs-xs)] mt-1 text-center">{t('sidebar.noCollectionsHint')}</p>
-        <button className="mt-4 flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-sm)] gradient-accent text-white text-[var(--fs-xs)] font-medium">
+        <p className="pf-text-sm">{t('sidebar.noCollections')}</p>
+        <p className="pf-text-xs mt-1 text-center">{t('sidebar.noCollectionsHint')}</p>
+        <button className="mt-4 flex items-center gap-1.5 px-3 py-1.5 pf-rounded-sm gradient-accent text-white pf-text-xs font-medium">
           <FolderPlus className="w-3.5 h-3.5" />
           {t('contextMenu.newFolder')}
         </button>
@@ -155,7 +155,7 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle">
-        <span className="text-[var(--fs-xs)] font-medium text-text-secondary">{t('sidebar.collections')}</span>
+        <span className="pf-text-xs font-medium text-text-secondary">{t('sidebar.collections')}</span>
         <div className="flex items-center gap-1">
           <button className="p-1 text-text-tertiary hover:text-text-secondary transition-colors" title={t('contextMenu.newFolder')}>
             <FolderPlus className="w-3.5 h-3.5" />
@@ -179,7 +179,7 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
                 : <ChevronRight className="w-3 h-3 text-text-disabled" />
               }
               <FolderOpen className="w-3.5 h-3.5 text-accent shrink-0" />
-              <span className="text-[var(--fs-xs)] font-medium text-text-primary truncate flex-1">{col.name}</span>
+              <span className="pf-text-xs font-medium text-text-primary truncate flex-1">{col.name}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); onRunCollection?.(col.id, col.name); }}
                 className="p-0.5 opacity-0 group-hover:opacity-100 text-emerald-500 hover:text-emerald-600 transition-all"

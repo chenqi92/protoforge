@@ -121,7 +121,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       }}
     >
       <DialogContent
-        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden rounded-[var(--radius-xl)] border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[920px]"
+        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden pf-rounded-xl border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[920px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
@@ -129,13 +129,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         <div className="flex h-full min-h-0 flex-1 flex-col">
           <div className="flex shrink-0 items-center justify-between border-b border-border-default/80 px-6 py-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-xl)] bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
+              <div className="flex h-11 w-11 items-center justify-center pf-rounded-xl bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
                 <Settings className="h-5 w-5 text-white" />
               </div>
 
               <div className="min-w-0">
-                <p className="text-[var(--fs-xl)] font-semibold tracking-tight text-text-primary">{t('settings.title')}</p>
-                <p className="mt-1 text-[var(--fs-sm)] leading-5 text-text-secondary">
+                <p className="pf-text-xl font-semibold tracking-tight text-text-primary">{t('settings.title')}</p>
+                <p className="mt-1 pf-text-sm leading-5 text-text-secondary">
                   {t('settings.subtitle')}
                 </p>
               </div>
@@ -144,7 +144,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-lg)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                className="flex h-9 w-9 items-center justify-center pf-rounded-lg text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="h-4 w-4" />
                 <span className="sr-only">{t('settings.close')}</span>
@@ -155,10 +155,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)]">
             <aside className="flex min-h-0 flex-col border-r border-border-default/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
               <div className="shrink-0 px-4 pb-3 pt-4">
-                <p className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.18em] text-text-disabled">
+                <p className="pf-text-xxs font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('settings.categoryNav')}
                 </p>
-                <p className="mt-2 text-[var(--fs-xs)] leading-5 text-text-tertiary">
+                <p className="mt-2 pf-text-xs leading-5 text-text-tertiary">
                   {t('settings.categoryNavDesc')}
                 </p>
               </div>
@@ -174,7 +174,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       key={item.id}
                       onClick={() => setSection(item.id)}
                       className={cn(
-                        "group flex w-full items-center gap-3 rounded-[var(--radius-xl)] px-3.5 py-3 text-left transition-all",
+                        "group flex w-full items-center gap-3 pf-rounded-xl px-3.5 py-3 text-left transition-all",
                         isActive
                           ? "bg-bg-primary/86 shadow-xs ring-1 ring-border-default"
                           : "text-text-tertiary hover:bg-bg-primary/68 hover:text-text-primary"
@@ -182,7 +182,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     >
                       <div
                         className={cn(
-                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-lg)] transition-colors",
+                          "flex h-9 w-9 shrink-0 items-center justify-center pf-rounded-lg transition-colors",
                           isActive ? item.accentClassName : "bg-bg-secondary/80 text-text-disabled"
                         )}
                       >
@@ -190,8 +190,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="text-[var(--fs-base)] font-semibold text-text-primary">{t(item.labelKey)}</div>
-                        <div className="mt-1 text-[var(--fs-xs)] leading-5 text-text-tertiary">{t(item.descKey)}</div>
+                        <div className="pf-text-base font-semibold text-text-primary">{t(item.labelKey)}</div>
+                        <div className="mt-1 pf-text-xs leading-5 text-text-tertiary">{t(item.descKey)}</div>
                       </div>
 
                       <ChevronRight
@@ -209,7 +209,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               <div className="shrink-0 border-t border-border-default/60 px-3 py-3">
                 <button
                   onClick={handleReset}
-                  className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/72 px-3.5 py-3 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
+                  className="flex w-full items-center gap-2 pf-rounded-xl border border-border-default/80 bg-bg-primary/72 px-3.5 py-3 pf-text-sm font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
                 >
                   <RotateCcw className="h-4 w-4" />
                   {t('settings.resetDefaults')}
@@ -219,18 +219,18 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
             <section className="flex min-w-0 min-h-0 flex-col bg-bg-primary/36">
               <div className="flex-1 overflow-y-auto p-5">
-                <div className="overflow-hidden rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/88 shadow-panel">
+                <div className="overflow-hidden pf-rounded-xl border border-border-default/80 bg-bg-primary/88 shadow-panel">
                   <div className="flex items-center gap-3 border-b border-border-default/60 px-6 py-4">
                     <div
                       className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)]",
+                        "flex h-9 w-9 shrink-0 items-center justify-center pf-rounded-md",
                         currentSection.accentClassName
                       )}
                     >
                       <CurrentSectionIcon className="h-4 w-4" />
                     </div>
                   <div className="min-w-0">
-                      <p className="text-[var(--fs-md)] font-semibold tracking-tight text-text-primary">
+                      <p className="pf-text-md font-semibold tracking-tight text-text-primary">
                         {t(currentSection.labelKey)}
                       </p>
                     </div>
@@ -276,9 +276,9 @@ function SettingRow({
   return (
     <div className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
       <div className="min-w-0">
-        <div className="text-[var(--fs-base)] font-semibold text-text-primary">{label}</div>
+        <div className="pf-text-base font-semibold text-text-primary">{label}</div>
         {desc ? (
-          <p className="mt-1.5 max-w-[520px] text-[var(--fs-xs)] leading-5 text-text-tertiary">
+          <p className="mt-1.5 max-w-[520px] pf-text-xs leading-5 text-text-tertiary">
             {desc}
           </p>
         ) : null}
@@ -299,7 +299,7 @@ function SegmentedControl<T extends string>({
   options: Array<{ value: T; label: string; icon?: LucideIcon }>;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-[var(--radius-lg)] border border-border-default/80 bg-bg-secondary/60 p-1">
+    <div className="flex items-center gap-1 pf-rounded-lg border border-border-default/80 bg-bg-secondary/60 p-1">
       {options.map((option) => {
         const Icon = option.icon;
         const isActive = option.value === value;
@@ -310,7 +310,7 @@ function SegmentedControl<T extends string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] px-3 text-[var(--fs-sm)] font-medium transition-all",
+              "flex h-8 items-center gap-1.5 pf-rounded-md px-3 pf-text-sm font-medium transition-all",
               isActive
                 ? "bg-bg-primary text-text-primary shadow-xs"
                 : "text-text-tertiary hover:bg-bg-hover/80 hover:text-text-primary"
@@ -503,12 +503,12 @@ function UpdateSettingRow() {
     >
       <div className="flex items-center gap-2">
         {hasUpdate && (
-          <span className="text-[var(--fs-xs)] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded">
+          <span className="pf-text-xs font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded">
             v{latestVersion}
           </span>
         )}
         {isUpToDate && (
-          <span className="flex items-center gap-1 text-[var(--fs-xs)] text-emerald-600">
+          <span className="flex items-center gap-1 pf-text-xs text-emerald-600">
             <CheckCircle className="h-3.5 w-3.5" />
             {t('update.upToDate')}
           </span>
@@ -517,7 +517,7 @@ function UpdateSettingRow() {
         {isReady ? (
           <button
             onClick={restartApp}
-            className="h-8 px-4 text-[var(--fs-sm)] font-semibold text-white bg-success hover:bg-success/90 rounded-lg transition-colors"
+            className="h-8 px-4 pf-text-sm font-semibold text-white bg-success hover:bg-success/90 rounded-lg transition-colors"
           >
             {t('update.restart')}
           </button>
@@ -525,7 +525,7 @@ function UpdateSettingRow() {
           <button
             onClick={installUpdate}
             disabled={isDownloading}
-            className="flex items-center gap-1.5 h-8 px-4 text-[var(--fs-sm)] font-semibold text-white bg-accent hover:bg-accent/90 rounded-lg transition-colors disabled:opacity-60"
+            className="flex items-center gap-1.5 h-8 px-4 pf-text-sm font-semibold text-white bg-accent hover:bg-accent/90 rounded-lg transition-colors disabled:opacity-60"
           >
             <Download className={cn("h-3.5 w-3.5", isDownloading && "animate-bounce")} />
             {isDownloading ? t('update.downloading') : t('update.install')}
@@ -534,7 +534,7 @@ function UpdateSettingRow() {
           <button
             onClick={checkForUpdate}
             disabled={isChecking}
-            className="flex items-center gap-1.5 h-8 px-4 text-[var(--fs-sm)] font-medium text-text-secondary border border-border-default/80 bg-bg-primary/72 hover:bg-bg-hover rounded-lg transition-colors disabled:opacity-60"
+            className="flex items-center gap-1.5 h-8 px-4 pf-text-sm font-medium text-text-secondary border border-border-default/80 bg-bg-primary/72 hover:bg-bg-hover rounded-lg transition-colors disabled:opacity-60"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", isChecking && "animate-spin")} />
             {isChecking ? t('update.checking') : t('settings.general.checkUpdateBtn')}
@@ -564,7 +564,7 @@ function RequestSection({ settings, update }: SectionProps) {
             min={1000}
             className={cn(inputClassName, "w-28 text-center font-mono")}
           />
-          <span className="text-[var(--fs-xs)] text-text-tertiary">{t('common.ms')}</span>
+          <span className="pf-text-xs text-text-tertiary">{t('common.ms')}</span>
         </div>
       </SettingRow>
 

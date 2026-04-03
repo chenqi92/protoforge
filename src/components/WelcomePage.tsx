@@ -54,8 +54,8 @@ function FeatureCard({ item, index, onAction }: { item: FeatureItem; index: numb
           <Icon className="h-[18px] w-[18px]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[var(--fs-sm)] font-semibold text-text-primary leading-tight">{t(item.labelKey)}</h3>
-          <p className="mt-1 text-[var(--fs-xs)] leading-relaxed text-text-tertiary line-clamp-2">{t(item.descKey)}</p>
+          <h3 className="pf-text-sm font-semibold text-text-primary leading-tight">{t(item.labelKey)}</h3>
+          <p className="mt-1 pf-text-xs leading-relaxed text-text-tertiary line-clamp-2">{t(item.descKey)}</p>
         </div>
         <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-disabled opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0.5" />
       </div>
@@ -78,14 +78,14 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
           transition={{ duration: 0.4, ease: "easeOut" }}
           className="flex flex-col items-center text-center"
         >
-          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-accent/8 px-3 py-1 text-[var(--fs-xs)] font-medium text-accent">
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-accent/8 px-3 py-1 pf-text-xs font-medium text-accent">
             <Sparkles className="h-3 w-3" />
             <span>{t('welcome.badge')}</span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-text-primary">
             {t('welcome.title')}
           </h1>
-          <p className="mt-2 max-w-lg text-[var(--fs-base)] leading-relaxed text-text-secondary">
+          <p className="mt-2 max-w-lg pf-text-base leading-relaxed text-text-secondary">
             {t('welcome.subtitle')}
           </p>
         </motion.div>
@@ -98,8 +98,8 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
             transition={{ delay: 0.06, duration: 0.35 }}
             className="mb-3"
           >
-            <h2 className="text-[var(--fs-base)] font-semibold text-text-primary">{t('welcome.requestFeatures')}</h2>
-            <p className="mt-0.5 text-[var(--fs-xs)] text-text-disabled">{t('welcome.requestFeaturesDesc')}</p>
+            <h2 className="pf-text-base font-semibold text-text-primary">{t('welcome.requestFeatures')}</h2>
+            <p className="mt-0.5 pf-text-xs text-text-disabled">{t('welcome.requestFeaturesDesc')}</p>
           </motion.div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {requestFeatures.map((item, index) => (
@@ -116,8 +116,8 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
             transition={{ delay: 0.18, duration: 0.35 }}
             className="mb-3"
           >
-            <h2 className="text-[var(--fs-base)] font-semibold text-text-primary">{t('welcome.toolFeatures')}</h2>
-            <p className="mt-0.5 text-[var(--fs-xs)] text-text-disabled">{t('welcome.toolFeaturesDesc')}</p>
+            <h2 className="pf-text-base font-semibold text-text-primary">{t('welcome.toolFeatures')}</h2>
+            <p className="mt-0.5 pf-text-xs text-text-disabled">{t('welcome.toolFeaturesDesc')}</p>
           </motion.div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
             {toolFeatures.map((item, index) => (
@@ -131,18 +131,18 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.35 }}
-          className="flex flex-wrap items-center justify-center gap-6 border-t border-border-subtle/60 pt-5 text-[var(--fs-xs)] text-text-disabled"
+          className="flex flex-wrap items-center justify-center gap-6 border-t border-border-subtle/60 pt-5 pf-text-xs text-text-disabled"
         >
           <div className="flex items-center gap-1.5">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[var(--fs-xxs)] font-mono shadow-sm">{mod}+N</kbd>
+            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 pf-text-xxs font-mono shadow-sm">{mod}+N</kbd>
             <span>{t('welcome.newRequest')}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[var(--fs-xxs)] font-mono shadow-sm">{mod}+K</kbd>
+            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 pf-text-xxs font-mono shadow-sm">{mod}+K</kbd>
             <span>{t('welcome.commandPalette')}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 text-[var(--fs-xxs)] font-mono shadow-sm">{mod}+,</kbd>
+            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 pf-text-xxs font-mono shadow-sm">{mod}+,</kbd>
             <span>{t('welcome.preferences')}</span>
           </div>
         </motion.div>

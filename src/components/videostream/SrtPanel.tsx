@@ -90,13 +90,13 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden">
-      <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 px-3 py-2 text-[var(--fs-xxs)] text-text-secondary leading-relaxed">
+      <div className="pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 px-3 py-2 pf-text-xxs text-text-secondary leading-relaxed">
         顶部播放按钮负责实际视频播放，这里用于 SRT 握手探测和会话统计。
         {connected && <span className="ml-1 text-accent">当前播放器链路已启动。</span>}
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.srt.target', '目标地址')}
         </label>
         <div className="grid grid-cols-[1fr_80px] gap-1.5">
@@ -119,7 +119,7 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.srt.mode', '连接模式')}
         </label>
         <SegmentedControl
@@ -132,7 +132,7 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
           ]}
           disabled={probeConnected}
         />
-        <p className="text-[var(--fs-3xs)] text-text-disabled">
+        <p className="pf-text-3xs text-text-disabled">
           {config.mode === 'caller' ? t('videostream.srt.callerDesc', 'Caller 主动连接到远端 Listener')
             : config.mode === 'listener' ? t('videostream.srt.listenerDesc', 'Listener 监听端口等待连接')
             : t('videostream.srt.rendezvousDesc', 'Rendezvous 双向同时建立连接')}
@@ -140,7 +140,7 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           Stream ID
         </label>
         <input
@@ -154,10 +154,10 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('videostream.srt.latency', '延迟')} (ms)
           </label>
-          <span className="text-[var(--fs-xxs)] font-mono text-accent">{config.latency}ms</span>
+          <span className="pf-text-xxs font-mono text-accent">{config.latency}ms</span>
         </div>
         <input
           type="range"
@@ -169,7 +169,7 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
           disabled={probeConnected}
           className="w-full h-1.5 accent-accent rounded-full appearance-none bg-bg-secondary/60"
         />
-        <div className="flex justify-between text-[var(--fs-3xs)] text-text-disabled">
+        <div className="flex justify-between pf-text-3xs text-text-disabled">
           <span>20ms</span><span>低延迟</span><span>8000ms</span>
         </div>
       </div>
@@ -177,7 +177,7 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
       <div className="space-y-1.5">
         <button
           onClick={() => setShowEncryption(v => !v)}
-          className="flex items-center gap-1.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled hover:text-text-secondary transition-colors"
+          className="flex items-center gap-1.5 pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled hover:text-text-secondary transition-colors"
         >
           <Lock className="w-3 h-3" />
           {t('videostream.srt.encryption', '加密设置')}
@@ -194,7 +194,7 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
               disabled={probeConnected}
               className="wb-field-sm w-full font-mono disabled:opacity-50"
             />
-            <p className="text-[var(--fs-3xs)] text-text-disabled">
+            <p className="pf-text-3xs text-text-disabled">
               {t('videostream.srt.encryptionHint', 'AES-128/192/256 加密，口令长度 10-79 字符')}
             </p>
           </div>
@@ -215,10 +215,10 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
 
       {probeConnected && (
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('videostream.srt.stats', '连接统计')}
           </label>
-          <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-2 grid grid-cols-2 gap-y-1.5 gap-x-3 text-[var(--fs-xxs)] font-mono">
+          <div className="pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-2 grid grid-cols-2 gap-y-1.5 gap-x-3 pf-text-xxs font-mono">
             <div className="flex justify-between"><span className="text-text-disabled">RTT</span><span className="text-text-primary">{srtStats.rtt}ms</span></div>
             <div className="flex justify-between"><span className="text-text-disabled">Bandwidth</span><span className="text-text-primary">{srtStats.bandwidth}Mbps</span></div>
             <div className="flex justify-between"><span className="text-text-disabled">Retransmit</span><span className="text-text-primary">{srtStats.retransmitRate}%</span></div>

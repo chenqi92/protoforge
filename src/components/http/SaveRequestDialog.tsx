@@ -92,14 +92,14 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[74vh] w-[520px] max-w-[92vw] flex-col overflow-hidden rounded-[var(--radius-xl)] border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
+      <div className="flex max-h-[74vh] w-[520px] max-w-[92vw] flex-col overflow-hidden pf-rounded-xl border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border-default/80 bg-bg-primary/78 px-5 py-4">
-          <h2 className="text-[var(--fs-lg)] font-semibold text-text-primary flex items-center gap-2">
+          <h2 className="pf-text-lg font-semibold text-text-primary flex items-center gap-2">
             <Save className="w-4 h-4 text-accent" />
             {t('saveDialog.title')}
           </h2>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary">
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center pf-rounded-md text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -108,11 +108,11 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
         <div className="flex-1 space-y-4 overflow-auto bg-bg-secondary/18 p-5">
           {/* Name */}
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('saveDialog.requestName')}</label>
+            <label className="pf-text-sm font-medium text-text-secondary">{t('saveDialog.requestName')}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="input-field w-full text-[var(--fs-base)]"
+              className="input-field w-full pf-text-base"
               placeholder={t('saveDialog.requestNamePlaceholder')}
               autoFocus
             />
@@ -121,10 +121,10 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
           {/* Collection Selector */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('saveDialog.saveToCollection')}</label>
+              <label className="pf-text-sm font-medium text-text-secondary">{t('saveDialog.saveToCollection')}</label>
               <button
                 onClick={() => setShowNewCollection(!showNewCollection)}
-                className="text-[var(--fs-xs)] text-accent hover:text-accent-hover flex items-center gap-1 font-medium"
+                className="pf-text-xs text-accent hover:text-accent-hover flex items-center gap-1 font-medium"
               >
                 <Plus className="w-3 h-3" /> {t('saveDialog.newCollection')}
               </button>
@@ -136,18 +136,18 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
                   value={newCollectionName}
                   onChange={(e) => setNewCollectionName(e.target.value)}
                   placeholder={t('saveDialog.collectionNamePlaceholder')}
-                  className="input-field flex-1 text-[var(--fs-sm)]"
+                  className="input-field flex-1 pf-text-sm"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateCollection()}
                 />
-                <button onClick={handleCreateCollection} className="h-7 px-3 bg-accent text-white rounded-md text-[var(--fs-xs)] font-medium hover:bg-accent-hover">
+                <button onClick={handleCreateCollection} className="h-7 px-3 bg-accent text-white rounded-md pf-text-xs font-medium hover:bg-accent-hover">
                   {t('saveDialog.create')}
                 </button>
               </div>
             )}
 
-            <div className="max-h-[220px] overflow-y-auto rounded-[var(--radius-xl)] border border-border-default/80 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
+            <div className="max-h-[220px] overflow-y-auto pf-rounded-xl border border-border-default/80 bg-bg-primary/78 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
               {collections.length === 0 ? (
-                <div className="p-4 text-center text-[var(--fs-sm)] text-text-disabled">{t('saveDialog.noCollections')}</div>
+                <div className="p-4 text-center pf-text-sm text-text-disabled">{t('saveDialog.noCollections')}</div>
               ) : (
                 collections.map((col) => (
                   <div key={col.id}>
@@ -158,7 +158,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
                         handleToggle(col.id);
                       }}
                       className={cn(
-                        'w-full flex items-center gap-2 px-3 py-2 text-[var(--fs-base)] text-left transition-colors hover:bg-bg-hover/70',
+                        'w-full flex items-center gap-2 px-3 py-2 pf-text-base text-left transition-colors hover:bg-bg-hover/70',
                         selectedCollectionId === col.id && !selectedParentId ? 'bg-accent/10 text-accent' : 'text-text-primary'
                       )}
                     >
@@ -173,7 +173,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
                             key={folder.id}
                             onClick={() => setSelectedParentId(folder.id)}
                             className={cn(
-                              'w-full flex items-center gap-2 px-3 py-1.5 text-[var(--fs-sm)] text-left transition-colors hover:bg-bg-hover/70',
+                              'w-full flex items-center gap-2 px-3 py-1.5 pf-text-sm text-left transition-colors hover:bg-bg-hover/70',
                               selectedParentId === folder.id ? 'bg-accent/10 text-accent' : 'text-text-secondary'
                             )}
                           >
@@ -194,14 +194,14 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border-default/80 bg-bg-primary/78 px-5 py-3">
           <button
             onClick={onClose}
-            className="h-8 rounded-[var(--radius-md)] px-4 text-[var(--fs-sm)] font-medium text-text-secondary transition-colors hover:bg-bg-hover"
+            className="h-8 pf-rounded-md px-4 pf-text-sm font-medium text-text-secondary transition-colors hover:bg-bg-hover"
           >
             {t('saveDialog.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!selectedCollectionId || !name.trim() || saving}
-            className="flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] bg-accent px-5 text-[var(--fs-sm)] font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-8 items-center gap-1.5 pf-rounded-md bg-accent px-5 pf-text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? t('saveDialog.saving') : t('saveDialog.save')}
           </button>

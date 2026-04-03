@@ -93,37 +93,37 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
     <div className="min-w-0 space-y-4 overflow-x-hidden">
       {/* SIP Config */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           SIP {t('videostream.gb.serverConfig', '服务器配置')}
         </label>
         <div className="grid grid-cols-2 gap-1.5">
           <div className="space-y-0.5">
-            <span className="text-[var(--fs-3xs)] text-text-disabled">SIP IP</span>
+            <span className="pf-text-3xs text-text-disabled">SIP IP</span>
             <input value={sipServerIp} onChange={(e) => setSipServerIp(e.target.value)} disabled={registered}
               className="wb-field-xs w-full font-mono disabled:opacity-50"
             />
           </div>
           <div className="space-y-0.5">
-            <span className="text-[var(--fs-3xs)] text-text-disabled">Port</span>
+            <span className="pf-text-3xs text-text-disabled">Port</span>
             <input type="number" value={sipServerPort} onChange={(e) => setSipServerPort(Number(e.target.value))} disabled={registered}
               className="wb-field-xs w-full font-mono disabled:opacity-50"
             />
           </div>
         </div>
         <div className="space-y-0.5">
-          <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.domain', 'SIP 域')}</span>
+          <span className="pf-text-3xs text-text-disabled">{t('videostream.gb.domain', 'SIP 域')}</span>
           <input value={sipDomain} onChange={(e) => setSipDomain(e.target.value)} disabled={registered}
             className="wb-field-xs w-full font-mono disabled:opacity-50"
           />
         </div>
         <div className="space-y-0.5">
-          <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.deviceId', '设备编码')}</span>
+          <span className="pf-text-3xs text-text-disabled">{t('videostream.gb.deviceId', '设备编码')}</span>
           <input value={deviceId} onChange={(e) => setDeviceId(e.target.value)} disabled={registered}
             className="wb-field-xs w-full font-mono disabled:opacity-50"
           />
         </div>
         <div className="space-y-0.5">
-          <span className="text-[var(--fs-3xs)] text-text-disabled">媒体地址</span>
+          <span className="pf-text-3xs text-text-disabled">媒体地址</span>
           <div className="flex gap-1.5">
             <input
               value={streamUrl}
@@ -134,31 +134,31 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
             <button
               onClick={() => void handleStartLive()}
               disabled={!registered || startingLive || sipTransport !== 'udp'}
-              className="shrink-0 h-7 px-2.5 rounded-[var(--radius-sm)] bg-accent/10 text-accent text-[var(--fs-xxs)] font-semibold hover:bg-accent/20 disabled:opacity-50"
+              className="shrink-0 h-7 px-2.5 pf-rounded-sm bg-accent/10 text-accent pf-text-xxs font-semibold hover:bg-accent/20 disabled:opacity-50"
             >
               {startingLive ? '取流中...' : '请求实况'}
             </button>
             <button
               onClick={() => void handleStopLive()}
               disabled={!registered || !liveActive}
-              className="shrink-0 h-7 px-2.5 rounded-[var(--radius-sm)] bg-error/10 text-error text-[var(--fs-xxs)] font-semibold hover:bg-error/20 disabled:opacity-50"
+              className="shrink-0 h-7 px-2.5 pf-rounded-sm bg-error/10 text-error pf-text-xxs font-semibold hover:bg-error/20 disabled:opacity-50"
             >
               停止实况
             </button>
           </div>
-          <p className="text-[var(--fs-3xs)] text-text-disabled leading-relaxed">
+          <p className="pf-text-3xs text-text-disabled leading-relaxed">
             现在可以直接向国标设备发起 `INVITE`，成功后会生成本地 `gb28181+udp://` 媒体入口，顶部播放按钮会把它接入内置网关。
           </p>
         </div>
         <div className="flex items-end gap-2">
           <div className="flex-1 space-y-0.5">
-            <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.localPort', '本地端口')}</span>
+            <span className="pf-text-3xs text-text-disabled">{t('videostream.gb.localPort', '本地端口')}</span>
             <input type="number" value={localPort} onChange={(e) => setLocalPort(Number(e.target.value))} disabled={registered}
               className="wb-field-xs w-full font-mono disabled:opacity-50"
             />
           </div>
           <div className="shrink-0 space-y-0.5">
-            <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.transport', '传输')}</span>
+            <span className="pf-text-3xs text-text-disabled">{t('videostream.gb.transport', '传输')}</span>
             <SegmentedControl
               value={sipTransport}
               onChange={setSipTransport}
@@ -172,7 +172,7 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
           </div>
         </div>
         {sipTransport === 'tcp' && !registered && (
-          <p className="text-[var(--fs-3xs)] text-warning leading-relaxed">
+          <p className="pf-text-3xs text-warning leading-relaxed">
             当前 GB28181 只实现了 UDP SIP 注册和 UDP 实况取流，TCP 传输还没有真正接通。
           </p>
         )}
@@ -192,26 +192,26 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <button onClick={() => setExpandedCatalog(v => !v)}
-              className="flex items-center gap-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled hover:text-text-secondary"
+              className="flex items-center gap-1 pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled hover:text-text-secondary"
             >
               {expandedCatalog ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               {t('videostream.gb.catalog', '设备目录')} ({catalogItems.length})
             </button>
             <button onClick={handleQueryCatalog}
-              className="text-[var(--fs-3xs)] text-accent hover:underline"
+              className="pf-text-3xs text-accent hover:underline"
             >
               {t('videostream.gb.query', '查询')}
             </button>
           </div>
           {expandedCatalog && (
-            <div className="max-h-[120px] overflow-y-auto rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
+            <div className="max-h-[120px] overflow-y-auto pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-1">
               {catalogItems.length === 0 ? (
-                <div className="text-[var(--fs-xs)] text-text-disabled text-center py-4">
+                <div className="pf-text-xs text-text-disabled text-center py-4">
                   {t('videostream.gb.noCatalog', '点击"查询"获取设备目录')}
                 </div>
               ) : (
                 catalogItems.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 px-2 py-1 text-[var(--fs-xxs)]">
+                  <div key={i} className="flex items-center gap-2 px-2 py-1 pf-text-xxs">
                     <Video className="w-3 h-3 text-accent shrink-0" />
                     <button
                       onClick={() => setSelectedChannelId(item.id)}
@@ -223,13 +223,13 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
                       {item.id}
                     </button>
                     <span className="text-text-tertiary truncate">{item.name}</span>
-                    <span className={cn("text-[var(--fs-3xs)] px-1 rounded", item.status === 'ON' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-400')}>
+                    <span className={cn("pf-text-3xs px-1 rounded", item.status === 'ON' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-400')}>
                       {item.status}
                     </span>
                     <button
                       onClick={() => void handleStartLive(item.id)}
                       disabled={startingLive || item.status !== 'ON'}
-                      className="ml-auto shrink-0 text-[var(--fs-3xs)] text-accent hover:underline disabled:opacity-50"
+                      className="ml-auto shrink-0 pf-text-3xs text-accent hover:underline disabled:opacity-50"
                     >
                       取流
                     </button>
@@ -244,43 +244,43 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
       {/* PTZ Control */}
       {registered && (
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             PTZ {t('videostream.gb.control', '控制')}
           </label>
           {/* Direction pad */}
           <div className="flex flex-col items-center gap-1">
             <button onMouseDown={() => handlePtz('up')} onMouseUp={() => handlePtz('stop')}
-              className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ArrowUp className="w-4 h-4" /></button>
             <div className="flex gap-1">
               <button onMouseDown={() => handlePtz('left')} onMouseUp={() => handlePtz('stop')}
-                className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+                className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowLeft className="w-4 h-4" /></button>
               <button onClick={() => handlePtz('stop')}
                 className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors"
               ><RotateCcw className="w-3.5 h-3.5" /></button>
               <button onMouseDown={() => handlePtz('right')} onMouseUp={() => handlePtz('stop')}
-                className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+                className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowRight className="w-4 h-4" /></button>
             </div>
             <button onMouseDown={() => handlePtz('down')} onMouseUp={() => handlePtz('stop')}
-              className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ArrowDown className="w-4 h-4" /></button>
           </div>
           {/* Zoom */}
           <div className="flex items-center justify-center gap-2">
             <button onMouseDown={() => handlePtz('zoom_in')} onMouseUp={() => handlePtz('stop')}
-              className="h-7 w-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-7 w-7 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ZoomIn className="w-3.5 h-3.5" /></button>
             <button onMouseDown={() => handlePtz('zoom_out')} onMouseUp={() => handlePtz('stop')}
-              className="h-7 w-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-7 w-7 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ZoomOut className="w-3.5 h-3.5" /></button>
             <div className="flex items-center gap-1.5 ml-2">
-              <span className="text-[var(--fs-3xs)] text-text-disabled">{t('videostream.gb.speed', '速度')}</span>
+              <span className="pf-text-3xs text-text-disabled">{t('videostream.gb.speed', '速度')}</span>
               <input type="range" min={1} max={15} value={ptzSpeed} onChange={(e) => setPtzSpeed(Number(e.target.value))}
                 className="w-16 h-1 accent-accent"
               />
-              <span className="text-[var(--fs-3xs)] text-text-disabled w-4">{ptzSpeed}</span>
+              <span className="pf-text-3xs text-text-disabled w-4">{ptzSpeed}</span>
             </div>
           </div>
         </div>

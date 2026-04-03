@@ -1,7 +1,7 @@
 // 抓包工作区 — 类似 Chrome DevTools Network 面板
 // 提供代理控制、请求列表、详情面板等功能
 
-import { useEffect, useCallback, useState, useRef } from "react";
+import { memo, useDeferredValue, useEffect, useCallback, useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play, Square, Trash2, Shield, Search,
@@ -24,6 +24,8 @@ const methodColors: Record<string, { text: string; bg: string }> = {
   HEAD: { text: "text-cyan-600", bg: "bg-cyan-500/15" },
   OPTIONS: { text: "text-gray-600", bg: "bg-gray-500/15" },
 };
+
+const MAX_VISIBLE_CAPTURE_ENTRIES = 500;
 
 // ── 状态码颜色 ──
 function statusColor(status?: number): string {
@@ -48,7 +50,7 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(2)} s`;
 }
 
-export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
+export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
   const running = useCaptureStore(sessionId, (s) => s.running);
   const entries = useCaptureStore(sessionId, (s) => s.entries);
@@ -108,7 +110,10 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
 
   // 自动滚动到底部
   useEffect(() => {
-    listEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!listEndRef.current || listEndRef.current.offsetParent === null) {
+      return;
+    }
+    listEndRef.current.scrollIntoView({ behavior: "smooth" });
   }, [entries.length]);
 
   // 代理启动后检查 CA 信任状态
@@ -162,6 +167,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
   const proxyServiceRef = useRef<string | null>(null);
   const [browserUrl, setBrowserUrl] = useState("");
   const [showBrowserInput, setShowBrowserInput] = useState(false);
+  const deferredFilter = useDeferredValue(filter);
 
   const handleOpenBrowser = useCallback(async () => {
     if (!running) return;
@@ -180,15 +186,27 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
   }, [running, browserUrl, portInput]);
 
   // 过滤后的条目
-  const filteredEntries = filter
-    ? entries.filter(
-        (e) =>
-          e.url.toLowerCase().includes(filter.toLowerCase()) ||
-          e.method.toLowerCase().includes(filter.toLowerCase()) ||
-          (e.status && String(e.status).includes(filter)) ||
-          e.host.toLowerCase().includes(filter.toLowerCase())
-      )
-    : entries;
+  const filteredEntries = useMemo(() => (
+    deferredFilter
+      ? entries.filter(
+          (e) =>
+            e.url.toLowerCase().includes(deferredFilter.toLowerCase()) ||
+            e.method.toLowerCase().includes(deferredFilter.toLowerCase()) ||
+            (e.status && String(e.status).includes(deferredFilter)) ||
+            e.host.toLowerCase().includes(deferredFilter.toLowerCase())
+        )
+      : entries
+  ), [deferredFilter, entries]);
+
+  const visibleEntries = useMemo(() => {
+    const latestEntries = [...filteredEntries].reverse().slice(0, MAX_VISIBLE_CAPTURE_ENTRIES);
+    if (!selectedEntryId || latestEntries.some((entry) => entry.id === selectedEntryId)) {
+      return latestEntries;
+    }
+
+    const selected = filteredEntries.find((entry) => entry.id === selectedEntryId);
+    return selected ? [...latestEntries, selected] : latestEntries;
+  }, [filteredEntries, selectedEntryId]);
 
   const selectedEntry = entries.find((e) => e.id === selectedEntryId) || null;
 
@@ -204,7 +222,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
                 : "text-text-tertiary"
             )}
           >
-          <span className={cn("h-2 w-2 rounded-[var(--radius-xs)]", running ? "bg-emerald-500" : "bg-text-disabled")} />
+          <span className={cn("h-2 w-2 pf-rounded-xs", running ? "bg-emerald-500" : "bg-text-disabled")} />
             {running ? t('capture.proxyRunning') : t('capture.proxyStopped')}
           </span>
 
@@ -262,10 +280,10 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
                   onChange={(e) => setBrowserUrl(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleOpenBrowser(); if (e.key === "Escape") setShowBrowserInput(false); }}
                   placeholder={t('capture.browserUrlPlaceholder')}
-                  className="wb-field h-7 w-[280px] text-[var(--fs-xs)] font-mono px-2"
+                  className="wb-field h-7 w-[280px] pf-text-xs font-mono px-2"
                   autoFocus
                 />
-                <button onClick={handleOpenBrowser} className="wb-primary-btn h-7 px-3 text-[var(--fs-xs)]">
+                <button onClick={handleOpenBrowser} className="wb-primary-btn h-7 px-3 pf-text-xs">
                   <Play className="h-3 w-3" fill="currentColor" />
                 </button>
               </div>
@@ -293,7 +311,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 rounded-[var(--radius-md)] border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-[var(--fs-xs)] text-red-600 flex items-center gap-2">
+            <div className="mt-2 pf-rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2.5 pf-text-xs text-red-600 flex items-center gap-2">
               <X className="w-3.5 h-3.5 shrink-0" />
               <span className="min-w-0 break-all">{storeError}</span>
             </div>
@@ -311,7 +329,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
             className="overflow-hidden"
           >
             <div className={cn(
-              "mt-3 rounded-[var(--radius-md)] border px-4 py-3 text-[var(--fs-xs)]",
+              "mt-3 pf-rounded-md border px-4 py-3 pf-text-xs",
               caTrusted
                 ? "border-emerald-500/20 bg-emerald-500/5"
                 : "border-orange-500/30 bg-gradient-to-r from-orange-500/10 to-amber-500/10"
@@ -327,12 +345,12 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
                   <div className={cn("font-semibold mb-1", caTrusted ? "text-emerald-700" : "text-orange-700")}>
                     {caTrusted ? t('capture.caTrustedTitle') : t('capture.caNotTrustedTitle')}
                   </div>
-                  <p className="text-text-tertiary text-[var(--fs-xxs)] mb-2 leading-relaxed">
+                  <p className="text-text-tertiary pf-text-xxs mb-2 leading-relaxed">
                     {caTrusted ? t('capture.caTrustedDesc') : t('capture.caNotTrustedDesc')}
                   </p>
                   {caPath && (
                     <code className={cn(
-                      "font-mono text-[var(--fs-xxs)] px-1.5 py-0.5 rounded break-all",
+                      "font-mono pf-text-xxs px-1.5 py-0.5 rounded break-all",
                       caTrusted ? "bg-emerald-500/10 text-emerald-700" : "bg-orange-500/10 text-orange-700"
                     )}>{caPath}</code>
                   )}
@@ -349,23 +367,23 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
                             setCaInstallStatus({ ok: false, msg: String(e) });
                           }
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-[var(--fs-xxs)] font-semibold transition-colors shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white pf-text-xxs font-semibold transition-colors shadow-sm"
                       >
                         <Shield className="w-3 h-3" />
                         {t('capture.installCaCert')}
                       </button>
                       <button
                         onClick={handleExportCA}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-hover text-text-secondary text-[var(--fs-xxs)] font-medium transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-hover text-text-secondary pf-text-xxs font-medium transition-colors"
                       >
                         {t('capture.exportCaCert')}
                       </button>
-                      <span className="text-text-disabled text-[var(--fs-xxs)]">{t('capture.installCaCertHint')}</span>
+                      <span className="text-text-disabled pf-text-xxs">{t('capture.installCaCertHint')}</span>
                     </div>
                   )}
                   {caInstallStatus && (
                     <div className={cn(
-                      "mt-2 px-2.5 py-1.5 rounded-lg text-[var(--fs-xxs)]",
+                      "mt-2 px-2.5 py-1.5 rounded-lg pf-text-xxs",
                       caInstallStatus.ok
                         ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
                         : "bg-red-500/10 text-red-500 border border-red-500/20"
@@ -410,8 +428,8 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
             <div className="flex h-full flex-col overflow-hidden">
               <div className="wb-pane-header shrink-0">
                 <div>
-                  <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t('capture.requestCount', { count: filteredEntries.length })}</div>
-                  <div className="text-[var(--fs-xs)] text-text-tertiary">{t('capture.emptyDesc')}</div>
+                  <div className="pf-text-sm font-semibold text-text-primary">{t('capture.requestCount', { count: filteredEntries.length })}</div>
+                  <div className="pf-text-xs text-text-tertiary">{t('capture.emptyDesc')}</div>
                 </div>
                 <span className="wb-tool-chip">{running ? t('capture.listening', { port: portInput }) : t('capture.awaitingStart')}</span>
               </div>
@@ -425,7 +443,7 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
               </div>
               {/* 请求列表 — 倒序排列，最新在最上方 */}
               <div className="flex-1 overflow-auto">
-                {[...filteredEntries].reverse().map((entry) => (
+                {visibleEntries.map((entry) => (
                   <RequestRow
                     key={entry.id}
                     entry={entry}
@@ -433,6 +451,11 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
                     onClick={() => setSelectedEntry(entry.id)}
                   />
                 ))}
+                {filteredEntries.length > MAX_VISIBLE_CAPTURE_ENTRIES && (
+                  <div className="px-3 py-2 text-center pf-text-xxs text-text-disabled">
+                    仅渲染最近 {MAX_VISIBLE_CAPTURE_ENTRIES} 条请求，共 {filteredEntries.length} 条
+                  </div>
+                )}
                 <div ref={listEndRef} />
               </div>
             </div>
@@ -458,7 +481,9 @@ export function CaptureWorkspace({ sessionId }: { sessionId: string }) {
       </div>
     </div>
   );
-}
+});
+
+CaptureWorkspace.displayName = "CaptureWorkspace";
 
 // ── 空状态 ──
 function EmptyState({ running, port, embedded = false }: { running: boolean; port: number; embedded?: boolean }) {
@@ -471,24 +496,24 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
         </div>
         {running ? (
           <>
-            <h3 className="text-[var(--fs-md)] font-semibold text-text-primary mb-1">
+            <h3 className="pf-text-md font-semibold text-text-primary mb-1">
               {t('capture.emptyTitle')}
             </h3>
-            <p className="text-[var(--fs-sm)] text-text-tertiary mb-4">
-              {t('capture.proxyRunning')} <code className="font-mono text-accent bg-accent/5 px-1.5 py-0.5 rounded text-[var(--fs-xs)]">127.0.0.1:{port}</code> {t('capture.proxyRunningOn')}
+            <p className="pf-text-sm text-text-tertiary mb-4">
+              {t('capture.proxyRunning')} <code className="font-mono text-accent bg-accent/5 px-1.5 py-0.5 rounded pf-text-xs">127.0.0.1:{port}</code> {t('capture.proxyRunningOn')}
             </p>
             <div className="grid gap-4 text-left sm:grid-cols-2">
-              <div className="border-t border-border-default/60 pt-3 text-[var(--fs-xs)] text-text-tertiary">
+              <div className="border-t border-border-default/60 pt-3 pf-text-xs text-text-tertiary">
                 <p className="font-medium text-text-secondary">{t('capture.general')}</p>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="rounded bg-bg-tertiary px-2 py-0.5 text-[var(--fs-xxs)] font-mono">{t('capture.httpProxy')}</span>
+                  <span className="rounded bg-bg-tertiary px-2 py-0.5 pf-text-xxs font-mono">{t('capture.httpProxy')}</span>
                   <span className="font-mono text-text-primary">127.0.0.1:{port}</span>
                 </div>
-                <p className="mt-2 text-[var(--fs-xxs)] text-text-disabled">{t('capture.proxyHint')}</p>
+                <p className="mt-2 pf-text-xxs text-text-disabled">{t('capture.proxyHint')}</p>
               </div>
-              <div className="border-t border-border-default/60 pt-3 text-[var(--fs-xs)] text-text-tertiary">
+              <div className="border-t border-border-default/60 pt-3 pf-text-xs text-text-tertiary">
                 <p className="font-medium text-text-secondary">{t('capture.general')}</p>
-                <div className="mt-2 flex items-start gap-1.5 text-[var(--fs-xxs)] text-text-disabled">
+                <div className="mt-2 flex items-start gap-1.5 pf-text-xxs text-text-disabled">
                   <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-[1px]" />
                   <span>{t('capture.httpsHint')}</span>
                 </div>
@@ -497,24 +522,24 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
           </>
         ) : (
           <>
-            <h3 className="text-[var(--fs-md)] font-semibold text-text-primary mb-1">
+            <h3 className="pf-text-md font-semibold text-text-primary mb-1">
               {t('capture.emptyTitle')}
             </h3>
-            <p className="text-[var(--fs-sm)] text-text-tertiary">
+            <p className="pf-text-sm text-text-tertiary">
               {t('capture.emptyState')}
             </p>
             <div className="mt-6 grid gap-4 text-left sm:grid-cols-3">
               <div className="border-t border-border-default/60 pt-3">
-                <div className="text-[var(--fs-xs)] font-semibold text-text-secondary">{t('capture.emptyStep1')}</div>
-                <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('capture.emptyStep1Desc')}</div>
+                <div className="pf-text-xs font-semibold text-text-secondary">{t('capture.emptyStep1')}</div>
+                <div className="mt-1 pf-text-xxs text-text-tertiary">{t('capture.emptyStep1Desc')}</div>
               </div>
               <div className="border-t border-border-default/60 pt-3">
-                <div className="text-[var(--fs-xs)] font-semibold text-text-secondary">{t('capture.emptyStep2')}</div>
-                <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('capture.emptyStep2Desc')}</div>
+                <div className="pf-text-xs font-semibold text-text-secondary">{t('capture.emptyStep2')}</div>
+                <div className="mt-1 pf-text-xxs text-text-tertiary">{t('capture.emptyStep2Desc')}</div>
               </div>
               <div className="border-t border-border-default/60 pt-3">
-                <div className="text-[var(--fs-xs)] font-semibold text-text-secondary">{t('capture.emptyStep3')}</div>
-                <div className="mt-1 text-[var(--fs-xxs)] text-text-tertiary">{t('capture.emptyStep3Desc')}</div>
+                <div className="pf-text-xs font-semibold text-text-secondary">{t('capture.emptyStep3')}</div>
+                <div className="mt-1 pf-text-xxs text-text-tertiary">{t('capture.emptyStep3Desc')}</div>
               </div>
             </div>
           </>
@@ -545,7 +570,7 @@ function RequestRow({
     <div
       onClick={onClick}
       className={cn(
-        "flex items-center h-[34px] px-3 text-[var(--fs-xs)] cursor-pointer transition-colors border-b border-border-subtle/40",
+        "flex items-center h-[34px] px-3 pf-text-xs cursor-pointer transition-colors border-b border-border-subtle/40",
         isSelected
           ? "bg-accent-soft text-text-primary"
           : entry.completed
@@ -554,23 +579,23 @@ function RequestRow({
       )}
     >
       <span className="w-[60px] shrink-0">
-        <span className={cn("text-[10px] font-bold px-[4px] py-[1px] rounded-[var(--radius-xs)] tracking-wide", mc.text, mc.bg)}>
+        <span className={cn("text-[10px] font-bold px-[4px] py-[1px] pf-rounded-xs tracking-wide", mc.text, mc.bg)}>
           {entry.method}
         </span>
       </span>
-      <span className="flex-1 min-w-0 truncate font-mono text-[var(--fs-xxs)]" title={entry.url}>
+      <span className="flex-1 min-w-0 truncate font-mono pf-text-xxs" title={entry.url}>
         {entry.path || entry.url}
       </span>
-      <span className={cn("w-[60px] shrink-0 text-center font-mono text-[var(--fs-xxs)] font-medium", statusColor(entry.status))}>
+      <span className={cn("w-[60px] shrink-0 text-center font-mono pf-text-xxs font-medium", statusColor(entry.status))}>
         {entry.status || <Clock className="w-3 h-3 text-text-disabled animate-pulse" />}
       </span>
-      <span className="w-[80px] shrink-0 text-right text-[var(--fs-xxs)] text-text-disabled truncate" title={entry.contentType || ""}>
+      <span className="w-[80px] shrink-0 text-right pf-text-xxs text-text-disabled truncate" title={entry.contentType || ""}>
         {shortType}
       </span>
-      <span className="w-[70px] shrink-0 text-right font-mono text-[var(--fs-xxs)] tabular-nums text-text-disabled">
+      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xxs tabular-nums text-text-disabled">
         {formatSize(entry.responseSize)}
       </span>
-      <span className="w-[70px] shrink-0 text-right font-mono text-[var(--fs-xxs)] tabular-nums text-text-disabled">
+      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xxs tabular-nums text-text-disabled">
         {formatDuration(entry.durationMs)}
       </span>
     </div>
@@ -598,27 +623,27 @@ function DetailPanel({
     <div className={cn("h-full flex flex-col overflow-hidden bg-bg-primary", !embedded && "wb-panel")}>
       {/* 顶部状态栏 */}
       <div className={cn("shrink-0 flex items-center justify-between", embedded ? "wb-pane-header" : "wb-panel-header")}>
-        <div className="flex items-center gap-2 text-[var(--fs-xs)]">
-          <span className={cn("font-mono text-[10px] font-bold px-[4px] py-[1px] rounded-[var(--radius-xs)] tracking-wide",
+        <div className="flex items-center gap-2 pf-text-xs">
+          <span className={cn("font-mono text-[10px] font-bold px-[4px] py-[1px] pf-rounded-xs tracking-wide",
             methodColors[entry.method]?.text || "text-text-tertiary",
             methodColors[entry.method]?.bg || "bg-gray-500/10"
           )}>
             {entry.method}
           </span>
-          <span className="font-mono text-[var(--fs-xxs)] text-text-secondary truncate max-w-[400px]" title={entry.url}>
+          <span className="font-mono pf-text-xxs text-text-secondary truncate max-w-[400px]" title={entry.url}>
             {entry.url}
           </span>
-          <span className={cn("font-mono text-[var(--fs-xxs)] font-medium", statusColor(entry.status))}>
+          <span className={cn("font-mono pf-text-xxs font-medium", statusColor(entry.status))}>
             {entry.status} {entry.statusText}
           </span>
-          <span className="text-text-disabled text-[var(--fs-xxs)]">·</span>
-          <span className="font-mono text-[var(--fs-xxs)] text-text-disabled">{formatDuration(entry.durationMs)}</span>
-          <span className="text-text-disabled text-[var(--fs-xxs)]">·</span>
-          <span className="font-mono text-[var(--fs-xxs)] text-text-disabled">{formatSize(entry.responseSize)}</span>
+          <span className="text-text-disabled pf-text-xxs">·</span>
+          <span className="font-mono pf-text-xxs text-text-disabled">{formatDuration(entry.durationMs)}</span>
+          <span className="text-text-disabled pf-text-xxs">·</span>
+          <span className="font-mono pf-text-xxs text-text-disabled">{formatSize(entry.responseSize)}</span>
         </div>
         <button
           onClick={onClose}
-          className="mr-1 flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          className="mr-1 flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
         >
           <X className="w-3 h-3" />
         </button>
@@ -669,13 +694,13 @@ function BurpTabStrip({
 
   return (
     <div className="shrink-0 flex items-center gap-0.5 border-b border-border-default/50 px-2 h-8 bg-bg-secondary/40">
-      <span className={cn("text-[var(--fs-xs)] font-bold mr-2", color)}>{label}</span>
+      <span className={cn("pf-text-xs font-bold mr-2", color)}>{label}</span>
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
-            "h-full px-2.5 text-[var(--fs-xxs)] font-medium transition-colors relative",
+            "h-full px-2.5 pf-text-xxs font-medium transition-colors relative",
             activeTab === tab.id
               ? "text-text-primary"
               : "text-text-disabled hover:text-text-secondary"
@@ -742,7 +767,7 @@ function RawView({ type, entry }: { type: "request" | "response"; entry: Capture
 
   return (
     <pre
-      className="p-3 text-[var(--fs-xxs)] font-mono text-text-secondary whitespace-pre-wrap break-all select-text leading-[1.6] cursor-text"
+      className="p-3 pf-text-xxs font-mono text-text-secondary whitespace-pre-wrap break-all select-text leading-[1.6] cursor-text"
       style={{ userSelect: "text", WebkitUserSelect: "text" }}
     >
       {raw || <span className="text-text-disabled italic">Empty</span>}
@@ -754,7 +779,7 @@ function RawView({ type, entry }: { type: "request" | "response"; entry: Capture
 function HeadersTableView({ headers }: { headers: [string, string][] }) {
   if (headers.length === 0) {
     return (
-      <div className="p-4 text-center text-text-disabled text-[var(--fs-xs)]">
+      <div className="p-4 text-center text-text-disabled pf-text-xs">
         No headers
       </div>
     );
@@ -766,7 +791,7 @@ function HeadersTableView({ headers }: { headers: [string, string][] }) {
         <div
           key={`${key}-${i}`}
           className={cn(
-            "flex text-[var(--fs-xxs)] font-mono px-3 py-1.5 select-text cursor-text",
+            "flex pf-text-xxs font-mono px-3 py-1.5 select-text cursor-text",
             i > 0 && "border-t border-border-subtle/40",
             i % 2 === 0 ? "bg-transparent" : "bg-bg-secondary/30"
           )}
@@ -784,7 +809,7 @@ function HeadersTableView({ headers }: { headers: [string, string][] }) {
 function HexView({ data }: { data?: string }) {
   if (!data) {
     return (
-      <div className="p-4 text-center text-text-disabled text-[var(--fs-xs)]">
+      <div className="p-4 text-center text-text-disabled pf-text-xs">
         No body data
       </div>
     );
@@ -840,7 +865,7 @@ function HexView({ data }: { data?: string }) {
 
   return (
     <pre
-      className="p-3 text-[var(--fs-xxs)] font-mono text-text-secondary leading-[1.6] select-text cursor-text whitespace-pre"
+      className="p-3 pf-text-xxs font-mono text-text-secondary leading-[1.6] select-text cursor-text whitespace-pre"
       style={{ userSelect: "text", WebkitUserSelect: "text" }}
     >
       {lines.join("\n")}

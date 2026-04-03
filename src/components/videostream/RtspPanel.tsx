@@ -56,7 +56,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
     <div className="min-w-0 space-y-4 overflow-x-hidden">
       {/* Transport */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.rtsp.transport', '传输方式')}
         </label>
         <SegmentedControl
@@ -72,7 +72,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
 
       {/* Authentication */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.rtsp.auth', '认证')}
         </label>
         <div className="relative">
@@ -80,7 +80,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
             value={config.authMethod}
             onChange={(e) => onConfigChange({ ...config, authMethod: e.target.value as RtspConfig["authMethod"] })}
             disabled={connected}
-            className="h-7 w-full appearance-none rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-6 text-[var(--fs-xs)] text-text-primary outline-none cursor-pointer disabled:opacity-50"
+            className="h-7 w-full appearance-none pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 pl-2 pr-6 pf-text-xs text-text-primary outline-none cursor-pointer disabled:opacity-50"
           >
             <option value="none">{t('videostream.rtsp.authNone', '无')}</option>
             <option value="basic">Basic</option>
@@ -119,7 +119,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
 
       {/* RTSP Commands */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.rtsp.commands', 'RTSP 命令')}
         </label>
         <div className="flex flex-wrap gap-1">
@@ -129,7 +129,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
               onClick={() => sendCommand(method)}
               disabled={!connected || executing === method}
               className={cn(
-                "h-7 px-2.5 rounded-[var(--radius-sm)] text-[var(--fs-xxs)] font-semibold transition-colors",
+                "h-7 px-2.5 pf-rounded-sm pf-text-xxs font-semibold transition-colors",
                 method === 'TEARDOWN'
                   ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
                   : "bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20",
@@ -146,19 +146,19 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
       {rtspResponses.length > 0 && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
               {t('videostream.rtsp.history', '命令历史')}
             </label>
             <button
               onClick={() => setRtspResponses([])}
-              className="text-[var(--fs-3xs)] text-text-disabled hover:text-red-500 transition-colors"
+              className="pf-text-3xs text-text-disabled hover:text-red-500 transition-colors"
             >
               {t('sidebar.clearAll', '清空')}
             </button>
           </div>
           <div className="max-h-[120px] overflow-y-auto space-y-0.5">
             {rtspResponses.map((r, i) => (
-              <div key={i} className="flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] bg-bg-secondary/30 text-[var(--fs-xxs)] font-mono">
+              <div key={i} className="flex items-center gap-2 px-2 py-1 pf-rounded-xs bg-bg-secondary/30 pf-text-xxs font-mono">
                 <span className="text-text-disabled">{r.time}</span>
                 <span className="text-accent font-semibold">{r.method}</span>
                 <span className={cn("flex-1 truncate", r.status.startsWith('200') ? 'text-emerald-500' : 'text-red-400')}>
@@ -174,17 +174,17 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
       {sdpVisible && sdpContent && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
               SDP
             </label>
             <button
               onClick={() => setSdpVisible(false)}
-              className="text-[var(--fs-3xs)] text-text-disabled hover:text-text-secondary"
+              className="pf-text-3xs text-text-disabled hover:text-text-secondary"
             >
               {t('videostream.rtsp.hide', '收起')}
             </button>
           </div>
-          <pre className="max-h-[200px] overflow-auto rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 p-2 text-[var(--fs-xxs)] font-mono text-text-secondary whitespace-pre-wrap break-all">
+          <pre className="max-h-[200px] overflow-auto pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 p-2 pf-text-xxs font-mono text-text-secondary whitespace-pre-wrap break-all">
             {sdpContent}
           </pre>
         </div>

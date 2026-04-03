@@ -163,7 +163,7 @@ export function StatusBar({
 
   return (
     <>
-      <div className="flex h-[var(--statusbar-height)] shrink-0 items-center justify-between border-t border-border-default/50 bg-bg-secondary px-4 text-[var(--fs-xs)] text-text-tertiary select-none">
+      <div className="flex h-[var(--statusbar-height)] shrink-0 items-center justify-between border-t border-border-default/50 bg-bg-secondary px-4 pf-text-xs text-text-tertiary select-none">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 font-medium text-text-secondary">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
@@ -239,10 +239,10 @@ export function StatusBar({
               <div className="p-6 space-y-5">
                 {/* 标题 */}
                 <div className="space-y-1">
-                  <h3 className="text-[var(--fs-lg)] font-bold text-text-primary">
+                  <h3 className="pf-text-lg font-bold text-text-primary">
                     {t('update.confirmTitle')}
                   </h3>
-                  <p className="text-[var(--fs-sm)] text-text-tertiary">
+                  <p className="pf-text-sm text-text-tertiary">
                     {t('update.confirmDesc', { version: updateInfo.version })}
                   </p>
                 </div>
@@ -250,19 +250,19 @@ export function StatusBar({
                 {/* 版本对比 */}
                 <div className="flex items-center gap-3 rounded-xl border border-border-default/60 bg-bg-secondary/60 px-4 py-3">
                   <div className="flex-1 text-center">
-                    <div className="text-[var(--fs-xxs)] text-text-disabled uppercase tracking-wider mb-1">
+                    <div className="pf-text-xxs text-text-disabled uppercase tracking-wider mb-1">
                       {t('update.currentVersion')}
                     </div>
-                    <div className="text-[var(--fs-base)] font-mono font-semibold text-text-secondary">
+                    <div className="pf-text-base font-mono font-semibold text-text-secondary">
                       v{currentVersion}
                     </div>
                   </div>
                   <ArrowRight className="h-4 w-4 text-text-disabled shrink-0" />
                   <div className="flex-1 text-center">
-                    <div className="text-[var(--fs-xxs)] text-violet-500/80 uppercase tracking-wider mb-1">
+                    <div className="pf-text-xxs text-violet-500/80 uppercase tracking-wider mb-1">
                       {t('update.latestVersion')}
                     </div>
-                    <div className="text-[var(--fs-base)] font-mono font-bold text-violet-500">
+                    <div className="pf-text-base font-mono font-bold text-violet-500">
                       v{updateInfo.version}
                     </div>
                   </div>
@@ -271,7 +271,7 @@ export function StatusBar({
                 {/* Release Notes */}
                 {updateInfo.body && (
                   <div className="rounded-xl border border-border-default/40 bg-bg-primary/60 p-3 max-h-[120px] overflow-y-auto">
-                    <p className="text-[var(--fs-xs)] text-text-secondary leading-relaxed whitespace-pre-wrap">
+                    <p className="pf-text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">
                       {updateInfo.body.replace(/^#+\s.*$/gm, '').trim().slice(0, 400)}
                     </p>
                   </div>
@@ -281,13 +281,13 @@ export function StatusBar({
                 <div className="flex items-center gap-3 pt-1">
                   <button
                     onClick={() => setShowConfirm(false)}
-                    className="flex-1 h-9 rounded-xl text-[var(--fs-sm)] font-medium text-text-tertiary hover:text-text-primary hover:bg-bg-hover border border-border-default/60 transition-colors"
+                    className="flex-1 h-9 rounded-xl pf-text-sm font-medium text-text-tertiary hover:text-text-primary hover:bg-bg-hover border border-border-default/60 transition-colors"
                   >
                     {t('update.later')}
                   </button>
                   <button
                     onClick={handleConfirmUpdate}
-                    className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl text-[var(--fs-sm)] font-semibold bg-accent hover:bg-accent-hover text-white shadow-sm transition-all active:scale-[0.97]"
+                    className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl pf-text-sm font-semibold bg-accent hover:bg-accent-hover text-white shadow-sm transition-all active:scale-[0.97]"
                   >
                     {updateInfo.isFallback ? (
                       <><ExternalLink className="w-3.5 h-3.5" /> {t('update.goDownload')}</>

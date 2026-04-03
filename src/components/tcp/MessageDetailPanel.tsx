@@ -74,16 +74,16 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
     return (
       <div className="flex h-full flex-col overflow-hidden">
         <div className="wb-pane-header shrink-0">
-          <span className="text-[var(--fs-sm)] font-semibold text-text-primary">
+          <span className="pf-text-sm font-semibold text-text-primary">
             {t("tcp.messageDetail.title", "消息详情")}
           </span>
         </div>
         <div className="flex flex-1 items-center justify-center px-6 text-center text-text-disabled">
           <div>
-            <div className="text-[var(--fs-md)] font-semibold text-text-secondary">
+            <div className="pf-text-md font-semibold text-text-secondary">
               {t("tcp.messageDetail.emptyTitle", "选中一条消息查看详情")}
             </div>
-            <p className="mt-2 text-[var(--fs-sm)] leading-6 text-text-tertiary">
+            <p className="mt-2 pf-text-sm leading-6 text-text-tertiary">
               {t("tcp.messageDetail.emptyDesc", "这里会展示完整载荷、原始十六进制、时间戳以及来源地址，便于逐帧分析协议数据。")}
             </p>
           </div>
@@ -98,7 +98,7 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
             <span className={cn(
-              "rounded-[var(--radius-sm)] px-2 py-0.5 text-[var(--fs-3xs)] font-bold uppercase",
+              "pf-rounded-sm px-2 py-0.5 pf-text-3xs font-bold uppercase",
               message.direction === "sent"
                 ? "bg-blue-500/10 text-blue-600"
                 : message.direction === "received"
@@ -107,11 +107,11 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
             )}>
               {messageDirectionLabel}
             </span>
-            <span className="truncate text-[var(--fs-sm)] font-semibold text-text-primary">
+            <span className="truncate pf-text-sm font-semibold text-text-primary">
               {t("tcp.messageDetail.title", "消息详情")}
             </span>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-[var(--fs-xs)] text-text-tertiary">
+          <div className="mt-1 flex flex-wrap items-center gap-2 pf-text-xs text-text-tertiary">
             <span>{formatTime(message.timestamp)}</span>
             {message.size > 0 ? <span>{message.size} B</span> : null}
             {message.remoteAddr ? <span>{message.remoteAddr}</span> : null}
@@ -145,21 +145,21 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
       )}>
         <section className="wb-subpanel flex min-h-[220px] flex-col overflow-hidden">
           <div className="wb-pane-header shrink-0">
-            <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
+            <span className="pf-text-xs font-semibold text-text-secondary">
               {t("tcp.messageDetail.payload", "解码内容")}
             </span>
-            <span className="rounded-[var(--radius-sm)] bg-bg-primary/70 px-2 py-0.5 text-[var(--fs-3xs)] font-semibold uppercase tracking-wide text-text-tertiary">
+            <span className="pf-rounded-sm bg-bg-primary/70 px-2 py-0.5 pf-text-3xs font-semibold uppercase tracking-wide text-text-tertiary">
               {displayFormat === "auto" ? t("tcp.messageLog.auto", "Auto") : displayFormat.toUpperCase()}
             </span>
           </div>
-          <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all bg-bg-primary/50 p-3 font-mono text-[var(--fs-sm)] leading-6 text-text-primary">
+          <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all bg-bg-primary/50 p-3 font-mono pf-text-sm leading-6 text-text-primary">
             {derived.rendered || " "}
           </pre>
         </section>
 
         <section className="wb-subpanel flex min-h-[220px] flex-col overflow-hidden">
           <div className="wb-pane-header shrink-0">
-            <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
+            <span className="pf-text-xs font-semibold text-text-secondary">
               {t("tcp.messageDetail.rawHex", "原始 HEX")}
             </span>
             <button
@@ -170,7 +170,7 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
               {copiedKey === "raw" ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
           </div>
-          <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all bg-bg-primary/50 p-3 font-mono text-[var(--fs-xs)] leading-6 text-text-secondary">
+          <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all bg-bg-primary/50 p-3 font-mono pf-text-xs leading-6 text-text-secondary">
             {normalizeHexBlocks(derived.rawHex) || " "}
           </pre>
         </section>

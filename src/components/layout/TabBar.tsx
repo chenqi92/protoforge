@@ -271,10 +271,10 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
         <>
           <div className="fixed inset-0 z-[220]" onClick={() => setShowTabMenu(false)} />
           <div
-            className="fixed z-[221] w-[240px] overflow-hidden rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+            className="fixed z-[221] w-[240px] overflow-hidden pf-rounded-md border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
             style={{ top: tabMenuPos.top, left: tabMenuPos.left }}
           >
-            <div className="px-2.5 pb-0.5 pt-1.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.14em] text-text-disabled">
+            <div className="px-2.5 pb-0.5 pt-1.5 pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-disabled">
               {t('tabBar.allTabs')}
             </div>
             <div className="max-h-[320px] overflow-y-auto">
@@ -294,13 +294,13 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
                       setShowTabMenu(false);
                     }}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-[var(--radius-md)] px-2.5 py-[7px] text-left transition-colors hover:bg-bg-hover/70",
+                      "flex w-full items-center gap-2 pf-rounded-md px-2.5 py-[7px] text-left transition-colors hover:bg-bg-hover/70",
                       isActive && "bg-bg-hover/45"
                     )}
                   >
                     <span
                       className={cn(
-                        "rounded-[var(--radius-xs)] px-1.5 py-[1px] text-[var(--fs-xxs)] font-bold leading-none",
+                        "pf-rounded-xs px-1.5 py-[1px] pf-text-xxs font-bold leading-none",
                         tab.protocol === "http"
                           ? tab.requestMode && tab.requestMode !== "rest"
                             ? modeBadgeColors[tab.requestMode]
@@ -312,7 +312,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
                     >
                       {badgeLabel}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[var(--fs-sm)] font-medium text-text-primary">{tab.label}</span>
+                    <span className="min-w-0 flex-1 truncate pf-text-sm font-medium text-text-primary">{tab.label}</span>
                   </button>
                 );
               })}
@@ -449,7 +449,7 @@ function TabItem({
         onDrop={onDrop}
         onDragEnd={onDragEnd}
         className={cn(
-          "group relative flex h-8 min-w-[112px] max-w-[228px] shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] px-2 no-drag",
+          "group relative flex h-8 min-w-[112px] max-w-[228px] shrink-0 items-center gap-1.5 pf-rounded-sm px-2 no-drag",
           "cursor-pointer transition-all duration-[var(--transition-fast)]",
           isActive
             ? "z-10 bg-bg-primary font-medium text-text-primary shadow-xs border border-border-default/50"
@@ -458,7 +458,7 @@ function TabItem({
         )}
       >
         <span className={cn(
-          "shrink-0 rounded-[var(--radius-xs)] px-1.5 py-[3px] text-[var(--fs-xxs)] font-bold leading-none",
+          "shrink-0 pf-rounded-xs px-1.5 py-[3px] pf-text-xxs font-bold leading-none",
           badgeColor,
           !isActive && "opacity-60"
         )}>
@@ -490,11 +490,11 @@ function TabItem({
             }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
-            className="min-w-0 flex-1 border-b border-accent bg-transparent px-0.5 py-0 text-[var(--fs-sm)] text-text-primary outline-none"
+            className="min-w-0 flex-1 border-b border-accent bg-transparent px-0.5 py-0 pf-text-sm text-text-primary outline-none"
             autoFocus
           />
         ) : (
-          <span className="min-w-0 flex-1 truncate text-[var(--fs-sm)] leading-none">{tab.label}</span>
+          <span className="min-w-0 flex-1 truncate pf-text-sm leading-none">{tab.label}</span>
         )}
 
         <button
@@ -503,7 +503,7 @@ function TabItem({
             onClose();
           }}
           className={cn(
-            "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[var(--radius-xs)] transition-colors",
+            "flex h-[18px] w-[18px] shrink-0 items-center justify-center pf-rounded-xs transition-colors",
             isActive
               ? "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
               : "text-text-disabled/40 hover:text-text-primary hover:bg-bg-hover group-hover:text-text-disabled"

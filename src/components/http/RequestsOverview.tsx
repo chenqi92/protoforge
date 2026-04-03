@@ -85,10 +85,10 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
       <div className="mx-auto max-w-[960px] px-6 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-[var(--fs-2xl)] font-bold text-text-primary">
+          <h1 className="pf-text-2xl font-bold text-text-primary">
             {t('overview.title', 'API Workspace')}
           </h1>
-          <p className="mt-1 text-[var(--fs-sm)] text-text-tertiary">
+          <p className="mt-1 pf-text-sm text-text-tertiary">
             {t('overview.subtitle', 'Create a new request or select from your collections to get started.')}
           </p>
         </div>
@@ -120,22 +120,22 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
             {/* Collections */}
             <section>
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-[var(--fs-sm)] font-semibold text-text-primary">
+                <h2 className="flex items-center gap-2 pf-text-sm font-semibold text-text-primary">
                   <FolderOpen className="h-4 w-4 text-accent/70" />
                   {t('overview.collections', 'Collections')}
-                  <span className="ml-1 rounded-full bg-bg-tertiary px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-tertiary">
+                  <span className="ml-1 rounded-full bg-bg-tertiary px-2 py-0.5 pf-text-xxs font-medium text-text-tertiary">
                     {collections.length}
                   </span>
                 </h2>
               </div>
 
               {collections.length === 0 ? (
-                <div className="rounded-[var(--radius-md)] border border-dashed border-border-default/80 bg-bg-secondary/30 px-5 py-8 text-center">
+                <div className="pf-rounded-md border border-dashed border-border-default/80 bg-bg-secondary/30 px-5 py-8 text-center">
                   <FolderOpen className="mx-auto mb-2 h-8 w-8 text-text-disabled" />
-                  <p className="text-[var(--fs-sm)] font-medium text-text-secondary">
+                  <p className="pf-text-sm font-medium text-text-secondary">
                     {t('overview.noCollections', 'No collections yet')}
                   </p>
-                  <p className="mt-1 text-[var(--fs-xs)] text-text-tertiary">
+                  <p className="mt-1 pf-text-xs text-text-tertiary">
                     {t('overview.noCollectionsHint', 'Create a collection to organize your API requests')}
                   </p>
                 </div>
@@ -157,36 +157,36 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
             {/* Recent History */}
             {historyEntries.length > 0 && (
               <section>
-                <h2 className="mb-3 flex items-center gap-2 text-[var(--fs-sm)] font-semibold text-text-primary">
+                <h2 className="mb-3 flex items-center gap-2 pf-text-sm font-semibold text-text-primary">
                   <Clock className="h-4 w-4 text-text-tertiary" />
                   {t('overview.recentHistory', 'Recent Requests')}
                 </h2>
-                <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-primary overflow-hidden">
+                <div className="pf-rounded-md border border-border-default/60 bg-bg-primary overflow-hidden">
                   {historyEntries.slice(0, 6).map((entry, i) => (
                     <div
                       key={entry.id}
                       className={cn(
-                        'flex items-center gap-3 px-3.5 py-2 text-[var(--fs-xs)]',
+                        'flex items-center gap-3 px-3.5 py-2 pf-text-xs',
                         i > 0 && 'border-t border-border-subtle/50'
                       )}
                     >
                       <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', methodDot[entry.method] || 'bg-text-disabled')} />
-                      <span className="w-[52px] shrink-0 font-mono text-[var(--fs-xxs)] font-bold text-text-secondary">
+                      <span className="w-[52px] shrink-0 font-mono pf-text-xxs font-bold text-text-secondary">
                         {entry.method}
                       </span>
-                      <span className="min-w-0 flex-1 truncate font-mono text-[var(--fs-xxs)] text-text-tertiary">
+                      <span className="min-w-0 flex-1 truncate font-mono pf-text-xxs text-text-tertiary">
                         {entry.url}
                       </span>
                       {entry.status && (
                         <span className={cn(
-                          'shrink-0 font-mono text-[var(--fs-xxs)] font-medium',
+                          'shrink-0 font-mono pf-text-xxs font-medium',
                           entry.status < 300 ? 'text-emerald-600' : entry.status < 400 ? 'text-amber-600' : 'text-red-500'
                         )}>
                           {entry.status}
                         </span>
                       )}
                       {entry.durationMs != null && (
-                        <span className="shrink-0 font-mono text-[var(--fs-xxs)] tabular-nums text-text-disabled">
+                        <span className="shrink-0 font-mono pf-text-xxs tabular-nums text-text-disabled">
                           {entry.durationMs < 1000 ? `${entry.durationMs}ms` : `${(entry.durationMs / 1000).toFixed(1)}s`}
                         </span>
                       )}
@@ -201,11 +201,11 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
           <div className="lg:col-span-2 flex flex-col gap-6">
             {/* Active Environment */}
             <section>
-              <h2 className="mb-3 flex items-center gap-2 text-[var(--fs-sm)] font-semibold text-text-primary">
+              <h2 className="mb-3 flex items-center gap-2 pf-text-sm font-semibold text-text-primary">
                 <Globe2 className="h-4 w-4 text-emerald-500/70" />
                 {t('overview.environment', 'Environment')}
               </h2>
-              <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-primary">
+              <div className="pf-rounded-md border border-border-default/60 bg-bg-primary">
                 {/* Active env header */}
                 <button
                   onClick={onOpenEnvModal}
@@ -216,7 +216,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                       'h-2 w-2 rounded-full',
                       activeEnv ? 'bg-emerald-500' : 'bg-text-disabled'
                     )} />
-                    <span className="text-[var(--fs-sm)] font-medium text-text-primary">
+                    <span className="pf-text-sm font-medium text-text-primary">
                       {activeEnv?.name || t('overview.noActiveEnv', 'No active environment')}
                     </span>
                   </div>
@@ -227,7 +227,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                 {enabledEnvVars.length > 0 && (
                   <div className="border-t border-border-subtle/50">
                     {enabledEnvVars.slice(0, 8).map((v) => (
-                      <div key={v.id} className="flex items-center gap-2 px-3.5 py-1.5 text-[var(--fs-xxs)]">
+                      <div key={v.id} className="flex items-center gap-2 px-3.5 py-1.5 pf-text-xxs">
                         <Braces className="h-3 w-3 shrink-0 text-emerald-500/50" />
                         <span className="font-mono font-semibold text-text-secondary">{v.key}</span>
                         <span className="text-text-disabled">=</span>
@@ -240,7 +240,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                       </div>
                     ))}
                     {enabledEnvVars.length > 8 && (
-                      <div className="px-3.5 py-1.5 text-[var(--fs-xxs)] text-text-disabled">
+                      <div className="px-3.5 py-1.5 pf-text-xxs text-text-disabled">
                         +{enabledEnvVars.length - 8} {t('overview.more')}
                       </div>
                     )}
@@ -249,7 +249,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
 
                 {/* Other environments */}
                 {environments.length > 1 && (
-                  <div className="border-t border-border-subtle/50 px-3.5 py-2 text-[var(--fs-xxs)] text-text-disabled">
+                  <div className="border-t border-border-subtle/50 px-3.5 py-2 pf-text-xxs text-text-disabled">
                     {environments.length - 1} {t('overview.otherEnvs', 'other environment(s) available')}
                   </div>
                 )}
@@ -258,16 +258,16 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
 
             {/* Global Variables */}
             <section>
-              <h2 className="mb-3 flex items-center gap-2 text-[var(--fs-sm)] font-semibold text-text-primary">
+              <h2 className="mb-3 flex items-center gap-2 pf-text-sm font-semibold text-text-primary">
                 <Variable className="h-4 w-4 text-amber-500/70" />
                 {t('overview.globalVars', 'Global Variables')}
-                <span className="ml-1 rounded-full bg-bg-tertiary px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-tertiary">
+                <span className="ml-1 rounded-full bg-bg-tertiary px-2 py-0.5 pf-text-xxs font-medium text-text-tertiary">
                   {enabledGlobalVars.length}
                 </span>
               </h2>
-              <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-primary">
+              <div className="pf-rounded-md border border-border-default/60 bg-bg-primary">
                 {enabledGlobalVars.length === 0 ? (
-                  <div className="px-3.5 py-4 text-center text-[var(--fs-xs)] text-text-disabled">
+                  <div className="px-3.5 py-4 text-center pf-text-xs text-text-disabled">
                     {t('overview.noGlobalVars', 'No global variables defined')}
                   </div>
                 ) : (
@@ -275,7 +275,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                     <div
                       key={v.id}
                       className={cn(
-                        'flex items-center gap-2 px-3.5 py-1.5 text-[var(--fs-xxs)]',
+                        'flex items-center gap-2 px-3.5 py-1.5 pf-text-xxs',
                         i > 0 && 'border-t border-border-subtle/40'
                       )}
                     >
@@ -287,7 +287,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                   ))
                 )}
                 {enabledGlobalVars.length > 10 && (
-                  <div className="border-t border-border-subtle/40 px-3.5 py-1.5 text-[var(--fs-xxs)] text-text-disabled">
+                  <div className="border-t border-border-subtle/40 px-3.5 py-1.5 pf-text-xxs text-text-disabled">
                     +{enabledGlobalVars.length - 10} {t('overview.more')}
                   </div>
                 )}
@@ -338,14 +338,14 @@ function CollectionCard({
   return (
     <button
       onClick={onClick}
-      className="group flex min-w-0 items-center gap-3 overflow-hidden rounded-[var(--radius-md)] border border-border-default/60 bg-bg-primary px-4 py-3 text-left transition-all hover:border-accent/30 hover:bg-bg-hover/40 hover:shadow-xs"
+      className="group flex min-w-0 items-center gap-3 overflow-hidden pf-rounded-md border border-border-default/60 bg-bg-primary px-4 py-3 text-left transition-all hover:border-accent/30 hover:bg-bg-hover/40 hover:shadow-xs"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-accent/8 text-accent/60 transition-colors group-hover:bg-accent/12 group-hover:text-accent">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center pf-rounded-sm bg-accent/8 text-accent/60 transition-colors group-hover:bg-accent/12 group-hover:text-accent">
         <FolderOpen className="h-4.5 w-4.5" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[var(--fs-sm)] font-semibold text-text-primary">{collection.name}</div>
-        <div className="mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden text-[var(--fs-xxs)] text-text-disabled">
+        <div className="truncate pf-text-sm font-semibold text-text-primary">{collection.name}</div>
+        <div className="mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden pf-text-xxs text-text-disabled">
           <span className="shrink-0">{itemCount} {itemCount !== 1 ? t('overview.requests') : t('overview.requestsSingular')}</span>
           {folderCount > 0 && <span className="shrink-0">{folderCount} {folderCount !== 1 ? t('overview.folders') : t('overview.foldersSingular')}</span>}
           {collection.description && (
@@ -378,10 +378,10 @@ function CollectionCard({
 /* ── Stat Card ── */
 function StatCard({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
   return (
-    <div className="rounded-[var(--radius-md)] border border-border-default/60 bg-bg-primary px-3.5 py-3">
+    <div className="pf-rounded-md border border-border-default/60 bg-bg-primary px-3.5 py-3">
       <div className={cn('mb-1', color)}>{icon}</div>
-      <div className="text-[var(--fs-xl)] font-bold tabular-nums text-text-primary">{value}</div>
-      <div className="text-[var(--fs-xxs)] text-text-tertiary">{label}</div>
+      <div className="pf-text-xl font-bold tabular-nums text-text-primary">{value}</div>
+      <div className="pf-text-xxs text-text-tertiary">{label}</div>
     </div>
   );
 }

@@ -137,7 +137,7 @@ export function SseWorkspace() {
                 status === 'error' ? "text-red-500" :
                 "text-text-tertiary"
               )}>
-                <span className={cn("w-2 h-2 rounded-[var(--radius-xs)]",
+                <span className={cn("w-2 h-2 pf-rounded-xs",
                   status === 'connected' ? "bg-emerald-500 animate-pulse" :
                   status === 'connecting' ? "bg-amber-500 animate-pulse" :
                   status === 'error' ? "bg-red-500" :
@@ -145,10 +145,10 @@ export function SseWorkspace() {
                 )} />
                 {status === 'idle' ? t('sse.idle') : status === 'connecting' ? t('sse.connecting') : status === 'connected' ? t('sse.connected') : status === 'disconnected' ? t('sse.disconnected') : t('sse.error')}
               </span>
-              {errorMsg ? <span className="truncate text-[var(--fs-sm)] text-red-500">{errorMsg}</span> : null}
+              {errorMsg ? <span className="truncate pf-text-sm text-red-500">{errorMsg}</span> : null}
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-              <span className="text-[var(--fs-xxs)] text-text-disabled">{t('sse.eventCount', { count: events.length })}</span>
+              <span className="pf-text-xxs text-text-disabled">{t('sse.eventCount', { count: events.length })}</span>
               <button onClick={() => setEvents([])} className="wb-icon-btn hover:text-red-500 transition-colors">
                 <Trash2 className="w-3 h-3" />
               </button>
@@ -157,22 +157,22 @@ export function SseWorkspace() {
           <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/10">
             {events.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-border-default/60 bg-bg-primary/78">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
                   <Waves className="h-8 w-8 opacity-20 text-orange-500" />
                 </div>
-                <p className="text-[var(--fs-base)] font-medium">{t('sse.emptyTitle')}</p>
-                <p className="mt-1 text-[var(--fs-xs)]">{t('sse.emptyDesc')}</p>
+                <p className="pf-text-base font-medium">{t('sse.emptyTitle')}</p>
+                <p className="mt-1 pf-text-xs">{t('sse.emptyDesc')}</p>
               </div>
             ) : (
               <div className="divide-y divide-border-default/55">
                 {events.map((evt, i) => (
                   <div key={i} className="px-4 py-3 transition-colors hover:bg-bg-hover/35">
                     <div className="mb-1.5 flex items-center gap-2">
-                      <span className="text-[var(--fs-xxs)] font-mono text-text-disabled">{new Date(evt.timestamp).toLocaleTimeString()}</span>
-                      <span className="rounded-[var(--radius-sm)] bg-orange-500/10 px-1.5 py-0.5 text-[var(--fs-xxs)] font-bold text-orange-600">{evt.eventType}</span>
-                      {evt.id && <span className="text-[var(--fs-xxs)] text-text-disabled">id: {evt.id}</span>}
+                      <span className="pf-text-xxs font-mono text-text-disabled">{new Date(evt.timestamp).toLocaleTimeString()}</span>
+                      <span className="pf-rounded-sm bg-orange-500/10 px-1.5 py-0.5 pf-text-xxs font-bold text-orange-600">{evt.eventType}</span>
+                      {evt.id && <span className="pf-text-xxs text-text-disabled">id: {evt.id}</span>}
                     </div>
-                    <pre className="whitespace-pre-wrap break-all text-[var(--fs-sm)] font-mono text-text-secondary">{evt.data}</pre>
+                    <pre className="whitespace-pre-wrap break-all pf-text-sm font-mono text-text-secondary">{evt.data}</pre>
                   </div>
                 ))}
               </div>

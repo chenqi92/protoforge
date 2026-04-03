@@ -139,7 +139,7 @@ export function RightSidebar({ panelCollapsed, onTogglePanel }: RightSidebarProp
               key={id}
               onClick={() => handleNavClick(id)}
               className={cn(
-                'relative flex h-[34px] w-[34px] items-center justify-center rounded-[var(--radius-sm)] transition-all duration-150',
+                'relative flex h-[34px] w-[34px] items-center justify-center pf-rounded-sm transition-all duration-150',
                 isActive
                   ? 'text-accent bg-accent-soft'
                   : 'text-text-tertiary hover:bg-bg-hover hover:text-text-primary'
@@ -149,7 +149,7 @@ export function RightSidebar({ panelCollapsed, onTogglePanel }: RightSidebarProp
               {isActive && (
                 <motion.div
                   layoutId="right-sidebar-active-indicator"
-                  className="absolute inset-0 rounded-[var(--radius-sm)] bg-accent-soft"
+                  className="absolute inset-0 pf-rounded-sm bg-accent-soft"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
@@ -222,7 +222,7 @@ function ActivityLogsView() {
             {entries.length > 0 && (
               <button
                 onClick={clearAll}
-                className="flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
+                className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
                 title={t('sidebar.clearAll', '清空')}
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -240,14 +240,14 @@ function ActivityLogsView() {
             onChange={(e) => handleFilterChange(e.target.value)}
             placeholder={t('rightSidebar.regexSearch', '正则搜索日志...')}
             className={cn(
-              'h-[30px] w-full rounded-[var(--radius-sm)] border bg-bg-inset pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all shadow-inset placeholder:text-text-tertiary focus:shadow-[0_0_0_2px_var(--color-accent-soft)]',
+              'h-[30px] w-full pf-rounded-sm border bg-bg-inset pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all shadow-inset placeholder:text-text-tertiary focus:shadow-[0_0_0_2px_var(--color-accent-soft)]',
               regexError
                 ? 'border-red-400 focus:border-red-400'
                 : 'border-border-sidebar focus:border-accent'
             )}
           />
           {regexError && (
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--fs-3xs)] text-red-400">
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pf-text-3xs text-red-400">
               {t('rightSidebar.invalidRegex', '无效正则')}
             </span>
           )}
@@ -258,7 +258,7 @@ function ActivityLogsView() {
       <div ref={scrollRef} className="flex-1 overflow-auto px-1.5 py-1">
         {filteredEntries.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16 px-4 text-center">
-            <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-[var(--radius-lg)] border border-border-subtle bg-bg-hover shadow-sm">
+            <div className="mb-1 flex h-11 w-11 items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-hover shadow-sm">
               <ScrollText className="w-5 h-5 text-text-tertiary" />
             </div>
             <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">
@@ -282,7 +282,7 @@ function ActivityLogsView() {
             return (
               <div
                 key={entry.id}
-                className="flex items-start gap-2 px-2 py-[7px] rounded-[var(--radius-sm)] hover:bg-bg-hover/50 transition-colors group cursor-default"
+                className="flex items-start gap-2 px-2 py-[7px] pf-rounded-sm hover:bg-bg-hover/50 transition-colors group cursor-default"
               >
                 <div className="flex items-center gap-1 mt-0.5 shrink-0">
                   <SourceIcon className={cn('w-3.5 h-3.5', sourceColors[entry.source])} />
@@ -290,10 +290,10 @@ function ActivityLogsView() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[var(--fs-3xs)] text-text-disabled font-mono tabular-nums shrink-0">
+                    <span className="pf-text-3xs text-text-disabled font-mono tabular-nums shrink-0">
                       {formatTime(entry.timestamp)}
                     </span>
-                    <span className="text-[var(--fs-3xs)] text-text-disabled uppercase font-semibold shrink-0">
+                    <span className="pf-text-3xs text-text-disabled uppercase font-semibold shrink-0">
                       {entry.source}
                     </span>
                   </div>

@@ -148,7 +148,7 @@ export function RequestStatsPanel() {
       {/* Empty state */}
       {stats.total === 0 && (
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[var(--radius-lg)] border border-border-subtle bg-bg-hover shadow-sm">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-hover shadow-sm">
             <Activity className="w-6 h-6 text-text-tertiary" />
           </div>
           <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">暂无请求数据</p>
@@ -188,25 +188,25 @@ export function RequestStatsPanel() {
 
           {/* Latency Section */}
           <div className="rounded-lg border border-border-default/60 bg-bg-secondary/30 p-2">
-            <p className="text-[var(--fs-3xs)] text-text-disabled mb-1.5 uppercase tracking-wider flex items-center gap-1">
+            <p className="pf-text-3xs text-text-disabled mb-1.5 uppercase tracking-wider flex items-center gap-1">
               <Clock className="w-3 h-3" />
               响应时间
             </p>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <p className="text-[var(--fs-3xs)] text-text-disabled">平均</p>
+                <p className="pf-text-3xs text-text-disabled">平均</p>
                 <p className="text-[length:var(--fs-sidebar-sm)] font-semibold text-text-primary tabular-nums">
                   {stats.avgDuration.toFixed(0)}ms
                 </p>
               </div>
               <div>
-                <p className="text-[var(--fs-3xs)] text-text-disabled">最快</p>
+                <p className="pf-text-3xs text-text-disabled">最快</p>
                 <p className="text-[length:var(--fs-sidebar-sm)] font-semibold text-emerald-500 tabular-nums">
                   {stats.minDuration === Infinity ? '-' : `${stats.minDuration.toFixed(0)}ms`}
                 </p>
               </div>
               <div>
-                <p className="text-[var(--fs-3xs)] text-text-disabled">最慢</p>
+                <p className="pf-text-3xs text-text-disabled">最慢</p>
                 <p className="text-[length:var(--fs-sidebar-sm)] font-semibold text-amber-500 tabular-nums">
                   {stats.maxDuration === 0 ? '-' : `${stats.maxDuration.toFixed(0)}ms`}
                 </p>
@@ -217,7 +217,7 @@ export function RequestStatsPanel() {
           {/* Status Code Distribution */}
           {Object.keys(stats.statusCodes).length > 0 && (
             <div className="rounded-lg border border-border-default/60 bg-bg-secondary/30 p-2">
-              <p className="text-[var(--fs-3xs)] text-text-disabled mb-1.5 uppercase tracking-wider">状态码分布</p>
+              <p className="pf-text-3xs text-text-disabled mb-1.5 uppercase tracking-wider">状态码分布</p>
               <div className="space-y-1">
                 {Object.entries(stats.statusCodes)
                   .sort(([a], [b]) => Number(a) - Number(b))
@@ -232,7 +232,7 @@ export function RequestStatsPanel() {
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <span className="text-[var(--fs-3xs)] text-text-disabled tabular-nums w-6 text-right">{count}</span>
+                        <span className="pf-text-3xs text-text-disabled tabular-nums w-6 text-right">{count}</span>
                       </div>
                     );
                   })}
@@ -243,14 +243,14 @@ export function RequestStatsPanel() {
           {/* Method Distribution */}
           {Object.keys(stats.methodCounts).length > 0 && (
             <div className="rounded-lg border border-border-default/60 bg-bg-secondary/30 p-2">
-              <p className="text-[var(--fs-3xs)] text-text-disabled mb-1.5 uppercase tracking-wider">方法分布</p>
+              <p className="pf-text-3xs text-text-disabled mb-1.5 uppercase tracking-wider">方法分布</p>
               <div className="flex flex-wrap gap-1">
                 {Object.entries(stats.methodCounts)
                   .sort(([, a], [, b]) => b - a)
                   .map(([method, count]) => (
                     <span
                       key={method}
-                      className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[var(--fs-3xs)] font-semibold', methodColor(method))}
+                      className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 pf-text-3xs font-semibold', methodColor(method))}
                     >
                       {method}
                       <span className="opacity-60 tabular-nums">{count}</span>
@@ -278,7 +278,7 @@ function StatCard({
 }) {
   return (
     <div className="rounded-lg border border-border-default/60 bg-bg-secondary/30 p-2 flex flex-col">
-      <div className={cn('flex items-center gap-1 text-[var(--fs-3xs)] mb-0.5', accent)}>
+      <div className={cn('flex items-center gap-1 pf-text-3xs mb-0.5', accent)}>
         {icon}
         <span className="text-text-disabled">{label}</span>
       </div>

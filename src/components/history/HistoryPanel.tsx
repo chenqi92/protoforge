@@ -61,8 +61,8 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-text-disabled">
         <Clock className="w-10 h-10 mb-3 opacity-30" />
-        <p className="text-[var(--fs-sm)]">{t('sidebar.noHistory')}</p>
-        <p className="text-[var(--fs-xs)] mt-1">{t('sidebar.noHistoryHint')}</p>
+        <p className="pf-text-sm">{t('sidebar.noHistory')}</p>
+        <p className="pf-text-xs mt-1">{t('sidebar.noHistoryHint')}</p>
       </div>
     );
   }
@@ -71,13 +71,13 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
     <div className="h-full flex flex-col">
       {/* Search + Clear */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border-subtle">
-        <div className="flex-1 flex items-center gap-1.5 bg-bg-elevated border border-border-subtle rounded-[var(--radius-sm)] px-2 py-1">
+        <div className="flex-1 flex items-center gap-1.5 bg-bg-elevated border border-border-subtle pf-rounded-sm px-2 py-1">
           <Search className="w-3.5 h-3.5 text-text-disabled shrink-0" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('history.searchPlaceholder')}
-            className="flex-1 bg-transparent text-[var(--fs-xs)] text-text-primary placeholder:text-text-disabled focus:outline-none"
+            className="flex-1 bg-transparent pf-text-xs text-text-primary placeholder:text-text-disabled focus:outline-none"
           />
         </div>
         <button
@@ -93,7 +93,7 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
       <div className="flex-1 overflow-auto">
         {Object.entries(groups).map(([label, items]) => (
           <div key={label}>
-            <div className="px-3 py-1.5 text-[var(--fs-xxs)] font-medium text-text-disabled uppercase tracking-wider bg-bg-primary/50 sticky top-0">
+            <div className="px-3 py-1.5 pf-text-xxs font-medium text-text-disabled uppercase tracking-wider bg-bg-primary/50 sticky top-0">
               {label}
             </div>
             <AnimatePresence>
@@ -112,21 +112,21 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
                       'hover:bg-bg-hover transition-colors group',
                     )}
                   >
-                    <span className={cn('text-[var(--fs-xxs)] font-bold w-10 shrink-0', getMethodColor(item.method as any))}>
+                    <span className={cn('pf-text-xxs font-bold w-10 shrink-0', getMethodColor(item.method as any))}>
                       {item.method}
                     </span>
-                    <span className="flex-1 text-[var(--fs-xs)] text-text-secondary truncate font-mono">
+                    <span className="flex-1 pf-text-xs text-text-secondary truncate font-mono">
                       {item.url}
                     </span>
                     {item.status && (
-                      <span className={cn('text-[var(--fs-xxs)] font-bold', getStatusColor(item.status))}>
+                      <span className={cn('pf-text-xxs font-bold', getStatusColor(item.status))}>
                         {item.status}
                       </span>
                     )}
                     {item.durationMs && (
-                      <span className="text-[var(--fs-xxs)] text-text-disabled">{item.durationMs}ms</span>
+                      <span className="pf-text-xxs text-text-disabled">{item.durationMs}ms</span>
                     )}
-                    <span className="text-[var(--fs-xxs)] text-text-disabled">{formatTime(item.timestamp)}</span>
+                    <span className="pf-text-xxs text-text-disabled">{formatTime(item.timestamp)}</span>
                     <ChevronRight className={cn(
                       'w-3 h-3 text-text-disabled transition-transform',
                       expanded === item.id && 'rotate-90'
@@ -141,7 +141,7 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
                     >
                       <button
                         onClick={() => onRestoreRequest?.(item.requestConfig)}
-                        className="flex items-center gap-1 text-[var(--fs-xs)] text-accent hover:text-accent-hover transition-colors"
+                        className="flex items-center gap-1 pf-text-xs text-accent hover:text-accent-hover transition-colors"
                       >
                         <RotateCcw className="w-3 h-3" />
                         {t('history.restore')}

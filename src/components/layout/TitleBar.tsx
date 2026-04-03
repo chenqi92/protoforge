@@ -59,7 +59,7 @@ export function TitleBar({
 
       <div className="flex min-w-0 flex-1 justify-center px-2">
         <div
-          className="flex items-center gap-0.5 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/80 p-[3px] no-drag"
+          className="flex items-center gap-0.5 pf-rounded-md border border-border-default/60 bg-bg-secondary/80 p-[3px] no-drag"
         >
           {workbenches.map((workbench) => {
             const Icon = workbench.icon;
@@ -71,7 +71,7 @@ export function TitleBar({
                 key={workbench.id}
                 onClick={() => onSelectWorkbench(workbench.id)}
                 className={cn(
-                  "flex h-8 items-center gap-2 rounded-[var(--radius-sm)] px-3 text-[var(--fs-sm)] font-medium transition-all",
+                  "flex h-8 items-center gap-2 pf-rounded-sm px-3 pf-text-sm font-medium transition-all",
                   isActive
                     ? "bg-bg-primary text-text-primary shadow-sm ring-1 ring-border-default/50"
                     : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",
@@ -87,11 +87,11 @@ export function TitleBar({
       </div>
 
       <div className="flex items-center gap-2 no-drag">
-        <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/80 p-[3px]">
+        <div className="flex items-center gap-1 pf-rounded-md border border-border-default/60 bg-bg-secondary/80 p-[3px]">
           <Tooltip content={t('titleBar.plugins')}>
             <button
               onClick={onOpenPlugins}
-              className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-violet-500"
+              className="flex h-8 w-8 items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-violet-500"
             >
               <Puzzle className="h-[15px] w-[15px]" />
             </button>
@@ -99,14 +99,14 @@ export function TitleBar({
           <Tooltip content={t('titleBar.settings')}>
             <button
               onClick={onOpenSettings}
-              className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+              className="flex h-8 w-8 items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
             >
               <Settings className="h-[15px] w-[15px]" />
             </button>
           </Tooltip>
         </div>
 
-        <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/80 p-[3px]">
+        <div className="flex items-center gap-1 pf-rounded-md border border-border-default/60 bg-bg-secondary/80 p-[3px]">
           <button
             onClick={() => {
               toggle();
@@ -114,7 +114,7 @@ export function TitleBar({
               const nextIndex = (nextModes.indexOf(mode) + 1) % nextModes.length;
               useSettingsStore.getState().update("theme", nextModes[nextIndex]);
             }}
-            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+            className="flex h-8 w-8 items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
             title={mode === "system" ? t('titleBar.themeSystem') : mode === "dark" ? t('titleBar.themeDark') : t('titleBar.themeLight')}
           >
             {mode === "system" ? (

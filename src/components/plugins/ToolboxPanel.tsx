@@ -145,17 +145,17 @@ function CrcCalculator() {
       <div className="space-y-2">
         {/* 输入区 */}
         <div className="flex items-center gap-2">
-          <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
+          <span className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
             {t('toolbox.crc.inputLabel', '输入')}
           </span>
           {/* 模式切换 */}
-          <div className="flex h-6 items-center rounded-[var(--radius-xs)] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
+          <div className="flex h-6 items-center pf-rounded-xs border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
             {(['hex', 'ascii'] as InputMode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => setInputMode(m)}
                 className={cn(
-                  "h-full px-2.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-wide transition-colors",
+                  "h-full px-2.5 pf-text-xxs font-semibold uppercase tracking-wide transition-colors",
                   inputMode === m
                     ? "bg-accent text-white"
                     : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
@@ -171,18 +171,18 @@ function CrcCalculator() {
           onChange={(e) => setInput(e.target.value)}
           placeholder={inputMode === 'hex' ? 'FF 01 02 03 ...' : 'Hello World'}
           rows={3}
-          className="w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent-muted resize-none placeholder:text-text-disabled"
+          className="w-full pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 px-3 py-2 pf-text-xs font-mono text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent-muted resize-none placeholder:text-text-disabled"
         />
 
         <div className="flex items-center gap-2">
-          <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
+          <span className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled shrink-0">
             {t('toolbox.crc.algorithm', '算法')}
           </span>
           <div className="relative flex-1">
             <select
               value={algorithm}
               onChange={(e) => setAlgorithm(e.target.value as CrcAlgorithm)}
-              className="h-7 w-full appearance-none rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 pl-2 pr-6 text-[var(--fs-xs)] font-mono text-text-primary outline-none cursor-pointer"
+              className="h-7 w-full appearance-none pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 pl-2 pr-6 pf-text-xs font-mono text-text-primary outline-none cursor-pointer"
             >
               {(Object.keys(algoLabels) as CrcAlgorithm[]).map((a) => (
                 <option key={a} value={a}>{algoLabels[a]}</option>
@@ -200,29 +200,29 @@ function CrcCalculator() {
       </div>
 
       {error && (
-        <div className="rounded-[var(--radius-sm)] border border-red-500/30 bg-red-500/5 px-3 py-2 text-[var(--fs-xs)] text-red-400">
+        <div className="pf-rounded-sm border border-red-500/30 bg-red-500/5 px-3 py-2 pf-text-xs text-red-400">
           {error}
         </div>
       )}
 
       {result && (
-        <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 space-y-1.5">
-          <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled mb-1">
+        <div className="pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 px-3 py-2 space-y-1.5">
+          <div className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled mb-1">
             {t('toolbox.crc.result', '计算结果')} — {algoLabels[algorithm]} ({result.bits} {t('toolbox.crc.bits', '位')})
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[var(--fs-xs)] font-mono">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 pf-text-xs font-mono">
             <div className="flex items-center gap-2">
-              <span className="text-text-disabled text-[var(--fs-xxs)] w-[48px] shrink-0">{t('toolbox.crc.decimal', '十进制')}</span>
+              <span className="text-text-disabled pf-text-xxs w-[48px] shrink-0">{t('toolbox.crc.decimal', '十进制')}</span>
               <span className="text-text-primary font-medium">{result.value}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-text-disabled text-[var(--fs-xxs)] w-[48px] shrink-0">{t('toolbox.crc.hex', '十六进制')}</span>
+              <span className="text-text-disabled pf-text-xxs w-[48px] shrink-0">{t('toolbox.crc.hex', '十六进制')}</span>
               <span className="text-accent font-medium">
                 0x{result.value.toString(16).toUpperCase().padStart(result.bits / 4, '0')}
               </span>
             </div>
             <div className="flex items-center gap-2 col-span-2">
-              <span className="text-text-disabled text-[var(--fs-xxs)] w-[48px] shrink-0">{t('toolbox.crc.binary', '二进制')}</span>
+              <span className="text-text-disabled pf-text-xxs w-[48px] shrink-0">{t('toolbox.crc.binary', '二进制')}</span>
               <span className="text-text-secondary">{formatBinary(result.value, result.bits)}</span>
             </div>
           </div>
@@ -345,7 +345,7 @@ function NumberConverter() {
       <div className="grid grid-cols-2 gap-2">
         {fields.map(({ key, label, value, onChange, placeholder }) => (
           <div key={key} className="space-y-1">
-            <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
               {label}
             </label>
             <input
@@ -353,7 +353,7 @@ function NumberConverter() {
               onChange={(e) => onChange(e.target.value)}
               placeholder={placeholder}
               className={cn(
-                "h-7 w-full rounded-[var(--radius-sm)] border bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:ring-2 focus:ring-accent-muted transition-colors",
+                "h-7 w-full pf-rounded-sm border bg-bg-secondary/40 px-2 pf-text-xs font-mono text-text-primary outline-none focus:ring-2 focus:ring-accent-muted transition-colors",
                 activeField === key ? "border-accent" : "border-border-default/60 focus:border-accent"
               )}
             />
@@ -362,16 +362,16 @@ function NumberConverter() {
       </div>
 
       {error && (
-        <div className="text-[var(--fs-xxs)] text-red-400">{error}</div>
+        <div className="pf-text-xxs text-red-400">{error}</div>
       )}
 
       {!error && hexVal && (
-        <div className="grid grid-cols-2 gap-2 text-[var(--fs-xxs)] font-mono">
-          <div className="rounded-[var(--radius-sm)] border border-border-default/50 bg-bg-secondary/30 px-2 py-1.5">
+        <div className="grid grid-cols-2 gap-2 pf-text-xxs font-mono">
+          <div className="pf-rounded-sm border border-border-default/50 bg-bg-secondary/30 px-2 py-1.5">
             <div className="text-text-disabled mb-0.5">{t('toolbox.converter.bytes_be', '字节 (大端)')}</div>
             <div className="text-text-secondary">{formatBytes(u32, true)}</div>
           </div>
-          <div className="rounded-[var(--radius-sm)] border border-border-default/50 bg-bg-secondary/30 px-2 py-1.5">
+          <div className="pf-rounded-sm border border-border-default/50 bg-bg-secondary/30 px-2 py-1.5">
             <div className="text-text-disabled mb-0.5">{t('toolbox.converter.bytes_le', '字节 (小端)')}</div>
             <div className="text-text-secondary">{formatBytes(u32, false)}</div>
           </div>
@@ -443,25 +443,25 @@ function ByteTools() {
     <div className="space-y-3">
       <div className="space-y-2">
         <div className="space-y-1">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('toolbox.byteTools.inputLabel', 'HEX 输入')}
           </label>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="FF 01 02 03 ..."
-            className="h-7 w-full rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent-muted"
+            className="h-7 w-full pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 px-2 pf-text-xs font-mono text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent-muted"
           />
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex h-7 items-center rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
+          <div className="flex h-7 items-center pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 overflow-hidden">
             {ops.map((op) => (
               <button
                 key={op.key}
                 onClick={() => setOperation(op.key)}
                 className={cn(
-                  "h-full px-2.5 text-[var(--fs-xxs)] font-semibold tracking-wide transition-colors border-r border-border-default/40 last:border-r-0",
+                  "h-full px-2.5 pf-text-xxs font-semibold tracking-wide transition-colors border-r border-border-default/40 last:border-r-0",
                   operation === op.key
                     ? "bg-accent text-white"
                     : "text-text-tertiary hover:text-text-secondary hover:bg-bg-hover"
@@ -473,12 +473,12 @@ function ByteTools() {
           </div>
           {currentOp.hasMask && (
             <div className="flex items-center gap-1.5">
-              <span className="text-[var(--fs-xxs)] text-text-disabled">{t('toolbox.byteTools.andMask', '掩码')}</span>
+              <span className="pf-text-xxs text-text-disabled">{t('toolbox.byteTools.andMask', '掩码')}</span>
               <input
                 value={mask}
                 onChange={(e) => setMask(e.target.value)}
                 placeholder="FF"
-                className="h-7 w-[80px] rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-2 text-center text-[var(--fs-xs)] font-mono text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent-muted"
+                className="h-7 w-[80px] pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 px-2 text-center pf-text-xs font-mono text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent-muted"
               />
             </div>
           )}
@@ -492,17 +492,17 @@ function ByteTools() {
       </div>
 
       {error && (
-        <div className="rounded-[var(--radius-sm)] border border-red-500/30 bg-red-500/5 px-3 py-2 text-[var(--fs-xs)] text-red-400">
+        <div className="pf-rounded-sm border border-red-500/30 bg-red-500/5 px-3 py-2 pf-text-xs text-red-400">
           {error}
         </div>
       )}
 
       {result && (
-        <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 px-3 py-2 space-y-1.5">
-          <div className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <div className="pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 px-3 py-2 space-y-1.5">
+          <div className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('toolbox.byteTools.result', '结果')}
           </div>
-          <div className="space-y-1 text-[var(--fs-xs)] font-mono">
+          <div className="space-y-1 pf-text-xs font-mono">
             <div className="text-accent break-all">{result}</div>
             <div className="text-text-tertiary">{resultAscii}</div>
           </div>
@@ -527,7 +527,7 @@ function SidebarSection({ title, icon, defaultOpen = true, children }: {
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-bg-hover transition-colors text-left group"
       >
-        <span className="flex h-5 w-5 items-center justify-center rounded-[var(--radius-xs)] bg-accent/10 text-accent shrink-0">
+        <span className="flex h-5 w-5 items-center justify-center pf-rounded-xs bg-accent/10 text-accent shrink-0">
           {icon}
         </span>
         <span className="flex-1 text-[length:var(--fs-sidebar)] font-semibold text-text-primary">{title}</span>

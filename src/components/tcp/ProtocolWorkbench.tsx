@@ -44,11 +44,11 @@ export function ProtocolSidebarSection({
     <section className={cn("wb-subpanel overflow-hidden", className)}>
       <div className={cn("wb-pane-header shrink-0", compact && "px-3 py-2")}>
         <div className="min-w-0">
-          <div className={cn("font-semibold text-text-primary", compact ? "text-[var(--fs-xxs)]" : "text-[var(--fs-xs)]")}>
+          <div className={cn("font-semibold text-text-primary", compact ? "pf-text-xxs" : "pf-text-xs")}>
             {title}
           </div>
           {description && (!compact || showDescriptionInCompact) ? (
-            <div className="mt-0.5 text-[var(--fs-xxs)] leading-5 text-text-tertiary">
+            <div className="mt-0.5 pf-text-xxs leading-5 text-text-tertiary">
               {description}
             </div>
           ) : null}

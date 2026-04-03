@@ -63,7 +63,7 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
     <div className="min-w-0 space-y-4 overflow-x-hidden">
       {/* Mode: Pull vs Push */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.rtmp.mode', '模式')}
         </label>
         <SegmentedControl
@@ -80,7 +80,7 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
       {/* Stream Key (Push mode) */}
       {config.mode === 'push' && (
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('videostream.rtmp.streamKey', '推流密钥')}
           </label>
           <input
@@ -96,7 +96,7 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
       {/* Handshake & Protocol Actions */}
       {connected && (
         <div className="space-y-2">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('videostream.rtmp.actions', '协议操作')}
           </label>
           <div className="flex gap-2">
@@ -129,7 +129,7 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
       <div className="space-y-1.5">
         <button
           onClick={() => setShowHandshake(v => !v)}
-          className="flex items-center gap-1.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled hover:text-text-secondary transition-colors"
+          className="flex items-center gap-1.5 pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled hover:text-text-secondary transition-colors"
         >
           <svg className={cn("w-3 h-3 transition-transform", showHandshake && "rotate-90")} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -139,7 +139,7 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
         {showHandshake && (
           <div className="space-y-0.5 pl-1">
             {handshakePhases.map((p, i) => (
-              <div key={i} className="flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] text-[var(--fs-xxs)] font-mono">
+              <div key={i} className="flex items-center gap-2 px-2 py-1 pf-rounded-xs pf-text-xxs font-mono">
                 <span className={cn(
                   "w-1.5 h-1.5 rounded-full shrink-0",
                   p.status === 'done' ? 'bg-emerald-500' : p.status === 'active' ? 'bg-amber-500 animate-pulse' : p.status === 'error' ? 'bg-red-500' : 'bg-text-disabled/40'
@@ -154,10 +154,10 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
 
       {/* AMF / Metadata placeholder */}
       <div className="space-y-1.5">
-        <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+        <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.rtmp.metadata', '元数据 (onMetaData)')}
         </label>
-        <div className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-2 text-[var(--fs-xs)] text-text-disabled text-center py-4">
+        <div className="pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-2 pf-text-xs text-text-disabled text-center py-4">
           {connected
             ? t('videostream.rtmp.waitingMetadata', '等待元数据...')
             : t('videostream.rtmp.connectFirst', '连接后显示')}

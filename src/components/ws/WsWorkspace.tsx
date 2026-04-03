@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { memo, useDeferredValue, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Play, Loader2, ChevronDown, X, Trash2, ArrowUp, ArrowDown, Search, ChevronUp, Plug, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -12,8 +12,10 @@ import { KVEditor } from "@/components/http/HttpWorkspace";
 
 interface KVItem { key: string; value: string; enabled: boolean }
 
-export function WsWorkspace() {
-  const activeTab = useAppStore((s) => s.getActiveTab());
+const MAX_VISIBLE_WS_MESSAGES = 400;
+
+export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string }) {
+  const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === tabId));
   const updateTab = useAppStore((s) => s.updateTab);
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
@@ -38,9 +40,9 @@ export function WsWorkspace() {
   const connectedRef = useRef(false);
   const lastEventFingerprintRef = useRef<{ key: string; at: number } | null>(null);
 
-  const tabId = activeTab?.id;
   const [configTab, setConfigTab] = useState<"message" | "params" | "headers" | "settings">("message");
   const [params, setParams] = useState<KVItem[]>([{ key: "", value: "", enabled: true }]);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const currentUrl = activeTab?.wsUrl || "ws://localhost:8080";
 
@@ -320,15 +322,19 @@ export function WsWorkspace() {
   const formatSize = (bytes: number) => bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 
   const filteredMessages = useMemo(() => {
-    if (!searchQuery) return messages;
-    const normalized = searchQuery.toLowerCase();
+    if (!deferredSearchQuery) return messages;
+    const normalized = deferredSearchQuery.toLowerCase();
     return messages.filter((messageItem) => {
       const haystack = `${messageItem.title} ${messageItem.data}`.toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [messages, searchQuery]);
+  }, [messages, deferredSearchQuery]);
 
   const displayMessages = useMemo(() => [...filteredMessages].reverse(), [filteredMessages]);
+  const visibleMessages = useMemo(
+    () => displayMessages.slice(0, MAX_VISIBLE_WS_MESSAGES),
+    [displayMessages],
+  );
 
   const handleRequestKindChange = useCallback(async (kind: RequestKind) => {
     if (!activeTab || kind === activeTab.protocol) return;
@@ -415,7 +421,7 @@ export function WsWorkspace() {
                     <select
                       value={sendMode}
                       onChange={(e) => setSendMode(e.target.value as "json" | "text" | "binary")}
-                      className="pointer-events-auto wb-native-select text-[var(--fs-xs)] font-semibold text-text-secondary uppercase tracking-wider h-7 px-2 focus:ring-0 cursor-pointer bg-bg-primary/90 backdrop-blur-md border border-border-default/50 hover:bg-bg-hover transition-colors rounded-[var(--radius-sm)]"
+                      className="pointer-events-auto wb-native-select pf-text-xs font-semibold text-text-secondary uppercase tracking-wider h-7 px-2 focus:ring-0 cursor-pointer bg-bg-primary/90 backdrop-blur-md border border-border-default/50 hover:bg-bg-hover transition-colors pf-rounded-sm"
                     >
                       <option value="text">TEXT</option>
                       <option value="json">JSON</option>
@@ -424,7 +430,7 @@ export function WsWorkspace() {
                     <button
                       onClick={handleSend}
                       disabled={!connected || !message.trim()}
-                      className="pointer-events-auto inline-flex items-center justify-center gap-1.5 h-7 px-3.5 rounded-[var(--radius-sm)] bg-accent text-white text-[var(--fs-xs)] font-bold tracking-wide shadow-sm hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                      className="pointer-events-auto inline-flex items-center justify-center gap-1.5 h-7 px-3.5 pf-rounded-sm bg-accent text-white pf-text-xs font-bold tracking-wide shadow-sm hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" /> {t('ws.send')}
                     </button>
@@ -455,39 +461,39 @@ export function WsWorkspace() {
               {configTab === "settings" && (
                 <div className="p-4 space-y-5 overflow-auto h-full">
                   <div className="space-y-3 max-w-xl">
-                    <label className="flex items-center gap-3 p-3 rounded-[var(--radius-md)] border border-border-default/50 bg-bg-secondary/20 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
+                    <label className="flex items-center gap-3 p-3 pf-rounded-md border border-border-default/50 bg-bg-secondary/20 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
                       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 text-amber-600">
                         <Loader2 className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-[var(--fs-sm)] font-medium text-text-primary">{t('ws.autoReconnect')}</div>
-                        <div className="text-[var(--fs-xs)] text-text-tertiary">Automatically attempt to reconnect if the connection drops</div>
+                        <div className="pf-text-sm font-medium text-text-primary">{t('ws.autoReconnect')}</div>
+                        <div className="pf-text-xs text-text-tertiary">Automatically attempt to reconnect if the connection drops</div>
                       </div>
                       <input type="checkbox" checked={autoReconnect} onChange={() => setAutoReconnect(!autoReconnect)} className="w-4 h-4 accent-amber-500 rounded border-border-default" />
                     </label>
 
-                    <div className="rounded-[var(--radius-md)] border border-border-default/50 bg-bg-secondary/20 overflow-hidden">
+                    <div className="pf-rounded-md border border-border-default/50 bg-bg-secondary/20 overflow-hidden">
                       <label className="flex items-center gap-3 p-3 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/10 text-blue-600">
                           <Zap className="w-4 h-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-[var(--fs-sm)] font-medium text-text-primary">{t('ws.heartbeat')}</div>
-                          <div className="text-[var(--fs-xs)] text-text-tertiary">Send periodic ping messages to keep connection alive</div>
+                          <div className="pf-text-sm font-medium text-text-primary">{t('ws.heartbeat')}</div>
+                          <div className="pf-text-xs text-text-tertiary">Send periodic ping messages to keep connection alive</div>
                         </div>
                         <input type="checkbox" checked={heartbeatEnabled} onChange={() => setHeartbeatEnabled(!heartbeatEnabled)} className="w-4 h-4 accent-amber-500 rounded border-border-default" />
                       </label>
                       {heartbeatEnabled && (
                         <div className="p-3 bg-bg-secondary/10 border-t border-border-default/30 flex items-center gap-4">
                           <div className="flex items-center gap-2">
-                            <span className="text-[var(--fs-xs)] text-text-secondary">Interval</span>
+                            <span className="pf-text-xs text-text-secondary">Interval</span>
                             <div className="relative">
                               <input value={heartbeatInterval} onChange={(e) => setHeartbeatInterval(Math.max(1, parseInt(e.target.value) || 30))} className="wb-field-sm w-20 text-center pr-6" />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--fs-xxs)] text-text-disabled uppercase">s</span>
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 pf-text-xxs text-text-disabled uppercase">s</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[var(--fs-xs)] text-text-secondary">Message</span>
+                            <span className="pf-text-xs text-text-secondary">Message</span>
                             <input value={heartbeatMsg} onChange={(e) => setHeartbeatMsg(e.target.value)} className="wb-field-sm w-32 font-mono" placeholder="ping" />
                           </div>
                         </div>
@@ -544,15 +550,15 @@ export function WsWorkspace() {
             >
               {filteredMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center px-6 text-text-disabled">
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[var(--radius-lg)] border border-border-default bg-bg-secondary shadow-sm">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default bg-bg-secondary shadow-sm">
                     <Zap className="w-8 h-8 opacity-20 text-amber-500" />
                   </div>
-                  <p className="text-[var(--fs-md)] font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
-                  <p className="mt-1 text-[var(--fs-sm)]">{searchQuery ? '' : t('ws.emptyDesc')}</p>
+                  <p className="pf-text-md font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
+                  <p className="mt-1 pf-text-sm">{searchQuery ? '' : t('ws.emptyDesc')}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border-default/30">
-                  {displayMessages.map((item) => (
+                  {visibleMessages.map((item) => (
                     <WsMessageRow
                       key={item.id}
                       message={item}
@@ -560,6 +566,11 @@ export function WsWorkspace() {
                       formatSize={formatSize}
                     />
                   ))}
+                  {displayMessages.length > MAX_VISIBLE_WS_MESSAGES && (
+                    <div className="px-4 py-2 text-center pf-text-xxs text-text-disabled">
+                      仅渲染最近 {MAX_VISIBLE_WS_MESSAGES} 条消息，共 {displayMessages.length} 条
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -569,7 +580,9 @@ export function WsWorkspace() {
       </div>
     </div>
   );
-}
+});
+
+WsWorkspace.displayName = "WsWorkspace";
 
 /** 尝试格式化 JSON */
 function tryFormatJson(data: string): { isJson: boolean; formatted: string } {
@@ -629,7 +642,7 @@ function WsMessageRow({
   // 状态消息行
   if (message.kind === "status" || message.kind === "error") {
     return (
-      <div className="flex items-center gap-2.5 px-4 py-2 text-[var(--fs-xs)] text-text-tertiary">
+      <div className="flex items-center gap-2.5 px-4 py-2 pf-text-xs text-text-tertiary">
         {message.kind === "status" && message.status === "connected" ? (
           <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
         ) : message.kind === "error" ? (
@@ -638,7 +651,7 @@ function WsMessageRow({
           <span className="h-2 w-2 rounded-full bg-slate-400 shrink-0" />
         )}
         <span className="flex-1 truncate">{getWsMessageSummary(message, t)}</span>
-        <span className="shrink-0 font-mono text-[var(--fs-xxs)] text-text-disabled">
+        <span className="shrink-0 font-mono pf-text-xxs text-text-disabled">
           {formatTime(message.timestamp)}
         </span>
       </div>
@@ -666,7 +679,7 @@ function WsMessageRow({
         {/* 格式标签 */}
         {format && (
           <span className={cn(
-            "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[var(--fs-xxs)] font-bold leading-none",
+            "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 pf-text-xxs font-bold leading-none",
             format === "JSON" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" :
             format === "HEX" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" :
             "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
@@ -681,7 +694,7 @@ function WsMessageRow({
         </span>
 
         {/* 大小 & 时间 */}
-        <div className="flex shrink-0 items-center gap-2 text-[var(--fs-xxs)] text-text-disabled">
+        <div className="flex shrink-0 items-center gap-2 pf-text-xxs text-text-disabled">
           {message.size > 0 && <span>{formatSize(message.size)}</span>}
           <span className="font-mono">{formatTime(message.timestamp)}</span>
         </div>
@@ -696,7 +709,7 @@ function WsMessageRow({
       {/* 内联展开详情 */}
       {expanded && (
         <div className="mx-4 mb-2 mt-0.5 rounded-lg border border-border-default/60 bg-bg-secondary/20 overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-border-default/40 px-3 py-1.5 text-[var(--fs-xxs)] text-text-tertiary">
+          <div className="flex items-center gap-2 border-b border-border-default/40 px-3 py-1.5 pf-text-xxs text-text-tertiary">
             <span className="font-semibold">{isJson ? 'JSON' : message.dataType === 'binary' ? 'HEX' : 'TEXT'}</span>
             {message.size > 0 && <span className="ml-auto">{formatSize(message.size)}</span>}
           </div>

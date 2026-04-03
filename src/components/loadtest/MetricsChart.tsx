@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import type { MetricsSnapshot } from "@/types/loadtest";
 
 interface MetricsChartProps {
@@ -26,24 +26,30 @@ const PAD = { top: 20, right: 16, bottom: 28, left: 56 };
 export function MetricsChart({ data, type, height = 200 }: MetricsChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hoverRafRef = useRef<number | null>(null);
+  const hoverIdxRef = useRef<number | null>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container || data.length < 2) return;
+  const dedupedData = useMemo(() => {
+    if (data.length < 2) return [];
 
-    // Deduplicate: keep only the last snapshot per elapsedSecs
     const deduped: MetricsSnapshot[] = [];
     for (let i = 0; i < data.length; i++) {
       if (i === data.length - 1 || data[i].elapsedSecs !== data[i + 1].elapsedSecs) {
         deduped.push(data[i]);
       }
     }
-    if (deduped.length < 2) return;
+    return deduped;
+  }, [data]);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container || dedupedData.length < 2) return;
 
     const dpr = window.devicePixelRatio || 1;
     const w = container.clientWidth;
+    if (w === 0 || container.offsetParent === null) return;
     const h = height;
     canvas.width = w * dpr;
     canvas.height = h * dpr;
@@ -60,19 +66,19 @@ export function MetricsChart({ data, type, height = 200 }: MetricsChartProps) {
     ctx.clearRect(0, 0, w, h);
 
     switch (type) {
-      case "rps": drawRpsChart(ctx, deduped, chartW, chartH); break;
-      case "latency": drawLatencyChart(ctx, deduped, chartW, chartH); break;
-      case "error": drawErrorChart(ctx, deduped, chartW, chartH); break;
-      case "throughput": drawThroughputChart(ctx, deduped, chartW, chartH); break;
-      case "concurrency": drawConcurrencyChart(ctx, deduped, chartW, chartH); break;
-      case "scatter": drawScatterChart(ctx, deduped, chartW, chartH); break;
+      case "rps": drawRpsChart(ctx, dedupedData, chartW, chartH); break;
+      case "latency": drawLatencyChart(ctx, dedupedData, chartW, chartH); break;
+      case "error": drawErrorChart(ctx, dedupedData, chartW, chartH); break;
+      case "throughput": drawThroughputChart(ctx, dedupedData, chartW, chartH); break;
+      case "concurrency": drawConcurrencyChart(ctx, dedupedData, chartW, chartH); break;
+      case "scatter": drawScatterChart(ctx, dedupedData, chartW, chartH); break;
     }
 
     // Draw tooltip overlay
-    if (hoverIdx !== null && hoverIdx >= 0 && hoverIdx < deduped.length) {
-      drawTooltipOverlay(ctx, deduped, hoverIdx, type, chartW, chartH, w);
+    if (hoverIdx !== null && hoverIdx >= 0 && hoverIdx < dedupedData.length) {
+      drawTooltipOverlay(ctx, dedupedData, hoverIdx, type, chartW, chartH, w);
     }
-  }, [data, type, height, hoverIdx]);
+  }, [dedupedData, type, height, hoverIdx]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -85,27 +91,48 @@ export function MetricsChart({ data, type, height = 200 }: MetricsChartProps) {
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container || data.length < 2) return;
-
-    // Deduplicate for hover index calculation
-    const dedupedLen = new Set(data.map(d => d.elapsedSecs)).size;
-    if (dedupedLen < 2) return;
+    if (!canvas || !container || dedupedData.length < 2) return;
 
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const chartW = container.clientWidth - PAD.left - PAD.right;
 
     if (mx < PAD.left || mx > PAD.left + chartW) {
-      setHoverIdx(null);
+      if (hoverIdxRef.current !== null) {
+        hoverIdxRef.current = null;
+        setHoverIdx(null);
+      }
       return;
     }
 
     const ratio = (mx - PAD.left) / chartW;
-    const idx = Math.round(ratio * (dedupedLen - 1));
-    setHoverIdx(Math.max(0, Math.min(idx, dedupedLen - 1)));
-  }, [data]);
+    const idx = Math.max(0, Math.min(Math.round(ratio * (dedupedData.length - 1)), dedupedData.length - 1));
+    if (hoverIdxRef.current === idx) return;
 
-  const handleMouseLeave = useCallback(() => setHoverIdx(null), []);
+    hoverIdxRef.current = idx;
+    if (hoverRafRef.current !== null) {
+      window.cancelAnimationFrame(hoverRafRef.current);
+    }
+    hoverRafRef.current = window.requestAnimationFrame(() => {
+      setHoverIdx(idx);
+      hoverRafRef.current = null;
+    });
+  }, [dedupedData]);
+
+  const handleMouseLeave = useCallback(() => {
+    hoverIdxRef.current = null;
+    if (hoverRafRef.current !== null) {
+      window.cancelAnimationFrame(hoverRafRef.current);
+      hoverRafRef.current = null;
+    }
+    setHoverIdx(null);
+  }, []);
+
+  useEffect(() => () => {
+    if (hoverRafRef.current !== null) {
+      window.cancelAnimationFrame(hoverRafRef.current);
+    }
+  }, []);
 
   return (
     <div ref={containerRef} className="w-full">

@@ -1,5 +1,4 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import Hls from "hls.js";
 import { listen } from "@tauri-apps/api/event";
 import {
   Camera,
@@ -46,6 +45,9 @@ type CapturableVideoElement = HTMLVideoElement & {
   mozCaptureStream?: () => MediaStream;
 };
 
+type HlsConstructor = typeof import("hls.js").default;
+type HlsInstance = InstanceType<HlsConstructor>;
+
 function codecToMime(codec: string, hasAudio: boolean): string {
   const normalized = codec.toLowerCase();
   const audio = hasAudio ? ', mp4a.40.2' : "";
@@ -87,7 +89,7 @@ function preferredRecorderMimeType(): string | undefined {
 
 export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, liveMode = true }: NativeVideoSurfaceProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
+  const hlsRef = useRef<HlsInstance | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordChunksRef = useRef<Blob[]>([]);
   const [playing, setPlaying] = useState(false);
@@ -124,44 +126,14 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
     if (!video || !url || !isHls) return;
 
     const hlsUrl = url.slice(4);
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
     }
 
-    if (Hls.isSupported()) {
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        liveSyncDurationCount: 2,
-        maxBufferLength: 5,
-      });
-      hlsRef.current = hls;
-      setLoading(true);
-      setStatus("加载 HLS...");
-      hls.loadSource(hlsUrl);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setLoading(false);
-        setStatus("");
-        void video.play().then(() => {
-          setPlaying(true);
-          notifyReady();
-        }).catch(() => {});
-      });
-      hls.on(Hls.Events.ERROR, (_, data) => {
-        if (data.fatal) {
-          setLoading(false);
-          onErrorRef.current?.(`HLS: ${data.details}`);
-        }
-      });
-      return () => {
-        hls.destroy();
-        hlsRef.current = null;
-      };
-    }
-
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+    const setupNativePlayback = () => {
       setLoading(true);
       setStatus("加载 HLS...");
       video.src = hlsUrl;
@@ -179,15 +151,70 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
       };
       video.addEventListener("loadedmetadata", onLoaded);
       video.addEventListener("error", onNativeError);
-      return () => {
+      cleanup = () => {
         video.removeEventListener("loadedmetadata", onLoaded);
         video.removeEventListener("error", onNativeError);
       };
-    }
+    };
 
-    setLoading(false);
-    onErrorRef.current?.("HLS: 当前运行环境不支持 hls.js 或原生 HLS");
-  }, [isHls, url]);
+    const setupHlsPlayback = async () => {
+      try {
+        const { default: Hls } = await import("hls.js/light");
+        if (disposed) return;
+
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            liveSyncDurationCount: 2,
+            maxBufferLength: 5,
+          });
+          hlsRef.current = hls;
+          setLoading(true);
+          setStatus("加载 HLS...");
+          hls.loadSource(hlsUrl);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            setLoading(false);
+            setStatus("");
+            void video.play().then(() => {
+              setPlaying(true);
+              notifyReady();
+            }).catch(() => {});
+          });
+          hls.on(Hls.Events.ERROR, (_: unknown, data: { fatal: boolean; details: string }) => {
+            if (data.fatal) {
+              setLoading(false);
+              onErrorRef.current?.(`HLS: ${data.details}`);
+            }
+          });
+          cleanup = () => {
+            hls.destroy();
+            hlsRef.current = null;
+          };
+          return;
+        }
+      } catch {
+        // Fall back to native playback if the lightweight HLS bundle fails to load.
+      }
+
+      if (disposed) return;
+      if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        setupNativePlayback();
+        return;
+      }
+
+      setLoading(false);
+      onErrorRef.current?.("HLS: 当前运行环境不支持 hls.js 或原生 HLS");
+    };
+
+    void setupHlsPlayback();
+
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
+  }, [isHls, notifyReady, url]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -505,24 +532,24 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
 
   if (!url) {
     return (
-      <div className="h-full w-full bg-black rounded-[var(--radius-md)] overflow-hidden flex items-center justify-center">
+      <div className="h-full w-full bg-black pf-rounded-md overflow-hidden flex items-center justify-center">
         <div className="flex flex-col items-center gap-2 text-white/30">
           <Play className="w-6 h-6" />
-          <span className="text-[var(--fs-xxs)]">获取流地址后播放</span>
+          <span className="pf-text-xxs">获取流地址后播放</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative h-full w-full bg-black rounded-[var(--radius-md)] overflow-hidden flex flex-col">
+    <div className="relative h-full w-full bg-black pf-rounded-md overflow-hidden flex flex-col">
       <video ref={videoRef} className="flex-1 min-h-0 w-full bg-black object-contain" playsInline muted={muted} />
 
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-white/70">
             <Loader className="w-6 h-6 animate-spin" />
-            {status && <span className="text-[var(--fs-xxs)] font-mono">{status}</span>}
+            {status && <span className="pf-text-xxs font-mono">{status}</span>}
           </div>
         </div>
       )}
@@ -530,19 +557,19 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
       <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
         <button
           onClick={handlePlayPause}
-          className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+          className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/80 hover:text-white hover:bg-white/10 transition-colors"
         >
           {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
         </button>
         <button
           onClick={handleStop}
-          className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+          className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/80 hover:text-white hover:bg-white/10 transition-colors"
         >
           <Square className="w-3 h-3" />
         </button>
         <button
           onClick={handleMute}
-          className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/60 hover:text-white transition-colors ml-1"
+          className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors ml-1"
         >
           {muted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
         </button>
@@ -573,7 +600,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
                 videoRef.current.playbackRate = nextRate;
               }
             }}
-            className="h-6 rounded-[var(--radius-xs)] border border-white/10 bg-black/40 px-1.5 text-[var(--fs-3xs)] text-white/75 outline-none"
+            className="h-6 pf-rounded-xs border border-white/10 bg-black/40 px-1.5 pf-text-3xs text-white/75 outline-none"
           >
             <option value={0.5}>0.5x</option>
             <option value={1}>1.0x</option>
@@ -583,23 +610,23 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
         )}
         <button
           onClick={handleScreenshot}
-          className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/60 hover:text-white transition-colors"
+          className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors"
           title="截图"
         >
           <Camera className="w-3 h-3" />
         </button>
         <button
           onClick={handleToggleRecording}
-          className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/60 hover:text-white transition-colors"
+          className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors"
           title={recording ? "停止录制" : "开始录制"}
         >
           <Circle className={`w-3 h-3 ${recording ? "fill-red-500 text-red-500" : ""}`} />
         </button>
         <div className="flex-1" />
-        {status && !loading && <span className="text-[var(--fs-3xs)] text-white/40 font-mono">{status}</span>}
+        {status && !loading && <span className="pf-text-3xs text-white/40 font-mono">{status}</span>}
         <button
           onClick={() => videoRef.current?.requestFullscreen?.()}
-          className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-xs)] text-white/60 hover:text-white transition-colors"
+          className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors"
         >
           <Maximize className="w-3 h-3" />
         </button>

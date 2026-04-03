@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useCollectionStore } from '@/stores/collectionStore';
+import { updateCollection } from '@/services/collectionService';
 import type { Collection } from '@/types/collections';
 import type { CollectionVariableEntry } from '@/lib/requestVariables';
 import { parseCollectionVariableEntries, saveCollectionVariables } from '@/lib/requestVariables';
@@ -38,7 +39,7 @@ export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPane
   if (!collection) {
     return (
       <div className="h-full flex items-center justify-center text-text-disabled">
-        <p className="text-[var(--fs-sm)]">{t('collectionSettings.notFound')}</p>
+        <p className="pf-text-sm">{t('collectionSettings.notFound')}</p>
       </div>
     );
   }
@@ -52,8 +53,8 @@ export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPane
             <Variable className="w-4.5 h-4.5 text-sky-600" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-[var(--fs-lg)] font-semibold text-text-primary truncate">{collection.name}</h1>
-            <p className="text-[var(--fs-xs)] text-text-tertiary">{t('collectionSettings.title')}</p>
+            <h1 className="pf-text-lg font-semibold text-text-primary truncate">{collection.name}</h1>
+            <p className="pf-text-xs text-text-tertiary">{t('collectionSettings.title')}</p>
           </div>
         </div>
 
@@ -64,7 +65,7 @@ export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPane
               key={id}
               onClick={() => setActiveTab(id)}
               className={cn(
-                'relative flex items-center gap-1.5 px-3 py-2 text-[var(--fs-sm)] font-medium rounded-t-md transition-colors',
+                'relative flex items-center gap-1.5 px-3 py-2 pf-text-sm font-medium rounded-t-md transition-colors',
                 activeTab === id
                   ? 'text-accent'
                   : 'text-text-tertiary hover:text-text-secondary hover:bg-bg-hover'
@@ -113,9 +114,8 @@ function OverviewTab({ collection }: { collection: Collection }) {
     // renameCollection only updates the name, we need full update
     const col = collections.find((c) => c.id === collection.id);
     if (!col) return;
-    const { updateCollection: updateCol } = await import('@/services/collectionService');
     const updated = { ...col, name, description, updatedAt: new Date().toISOString() };
-    await updateCol(updated);
+    await updateCollection(updated);
     // refresh store
     useCollectionStore.getState().fetchCollections();
     setDirty(false);
@@ -124,22 +124,22 @@ function OverviewTab({ collection }: { collection: Collection }) {
   return (
     <div className="max-w-2xl space-y-5">
       <div>
-        <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">{t('collectionSettings.name')}</label>
+        <label className="block pf-text-sm font-medium text-text-secondary mb-1.5">{t('collectionSettings.name')}</label>
         <input
           value={name}
           onChange={(e) => { setName(e.target.value); setDirty(true); }}
-          className="w-full h-9 px-3 text-[var(--fs-base)] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary transition-all"
+          className="w-full h-9 px-3 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary transition-all"
         />
       </div>
 
       <div>
-        <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">{t('collectionSettings.description')}</label>
+        <label className="block pf-text-sm font-medium text-text-secondary mb-1.5">{t('collectionSettings.description')}</label>
         <textarea
           value={description}
           onChange={(e) => { setDescription(e.target.value); setDirty(true); }}
           rows={4}
           placeholder={t('collectionSettings.descPlaceholder')}
-          className="w-full px-3 py-2 text-[var(--fs-base)] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary resize-none transition-all"
+          className="w-full px-3 py-2 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary resize-none transition-all"
         />
       </div>
 
@@ -148,7 +148,7 @@ function OverviewTab({ collection }: { collection: Collection }) {
           onClick={handleSave}
           disabled={!dirty}
           className={cn(
-            'flex items-center gap-1.5 px-4 py-2 rounded-md text-[var(--fs-sm)] font-medium transition-all',
+            'flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium transition-all',
             dirty
               ? 'gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98]'
               : 'border border-border-default text-text-disabled cursor-not-allowed'
@@ -196,12 +196,12 @@ function VariablesTab({ collection }: { collection: Collection }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-[var(--fs-sm)] text-text-tertiary">
+        <p className="pf-text-sm text-text-tertiary">
           {t('collectionSettings.varsDesc')}
         </p>
         <button
           onClick={addVar}
-          className="flex items-center gap-1 px-2.5 py-1.5 text-[var(--fs-xs)] font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
+          className="flex items-center gap-1 px-2.5 py-1.5 pf-text-xs font-medium text-accent hover:bg-accent-soft rounded-md transition-all active:scale-[0.97]"
         >
           <Plus className="w-3.5 h-3.5" />
           {t('collectionSettings.addVar')}
@@ -211,20 +211,20 @@ function VariablesTab({ collection }: { collection: Collection }) {
       {vars.length === 0 ? (
         <div className="py-12 flex flex-col items-center text-text-disabled">
           <Variable className="w-8 h-8 mb-2 opacity-30" />
-          <p className="text-[var(--fs-sm)]">{t('collectionSettings.noVars')}</p>
-          <p className="text-[var(--fs-xs)] mt-0.5 opacity-60">{t('collectionSettings.noVarsHint')}</p>
+          <p className="pf-text-sm">{t('collectionSettings.noVars')}</p>
+          <p className="pf-text-xs mt-0.5 opacity-60">{t('collectionSettings.noVarsHint')}</p>
         </div>
       ) : (
         <div className="border border-border-default/60 rounded-lg overflow-hidden">
-          <table className="w-full text-[var(--fs-sm)]">
+          <table className="w-full pf-text-sm">
             <thead>
               <tr className="bg-bg-secondary/50 border-b border-border-default/50">
-                <th className="px-3 py-2 text-left text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider w-6">
+                <th className="px-3 py-2 text-left pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider w-6">
                   <span className="sr-only">Enabled</span>
                 </th>
-                <th className="px-3 py-2 text-left text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider">KEY</th>
-                <th className="px-3 py-2 text-left text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider">VALUE</th>
-                <th className="px-3 py-2 text-right text-[var(--fs-xxs)] font-semibold text-text-disabled uppercase tracking-wider w-20">{t('collectionSettings.actions', 'Actions')}</th>
+                <th className="px-3 py-2 text-left pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider">KEY</th>
+                <th className="px-3 py-2 text-left pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider">VALUE</th>
+                <th className="px-3 py-2 text-right pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider w-20">{t('collectionSettings.actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -250,7 +250,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
                       value={v.key}
                       onChange={(e) => updateVar(i, 'key', e.target.value)}
                       placeholder="key"
-                      className="w-full h-7 px-2 text-[var(--fs-sm)] bg-transparent border-none outline-none text-text-primary placeholder:text-text-tertiary font-mono"
+                      className="w-full h-7 px-2 pf-text-sm bg-transparent border-none outline-none text-text-primary placeholder:text-text-tertiary font-mono"
                     />
                   </td>
                   <td className="px-3 py-1.5">
@@ -259,7 +259,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
                       onChange={(e) => updateVar(i, 'value', e.target.value)}
                       placeholder="value"
                       type={v.isSecret ? 'password' : 'text'}
-                      className="w-full h-7 px-2 text-[var(--fs-sm)] bg-transparent border-none outline-none text-text-primary placeholder:text-text-tertiary font-mono"
+                      className="w-full h-7 px-2 pf-text-sm bg-transparent border-none outline-none text-text-primary placeholder:text-text-tertiary font-mono"
                     />
                   </td>
                   <td className="px-3 py-1.5">
@@ -290,7 +290,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
         <div className="flex items-center gap-2 pt-2">
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-[var(--fs-sm)] font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
           >
             <Save className="w-3.5 h-3.5" />
             {t('collectionSettings.saveVars')}
@@ -351,14 +351,14 @@ function AuthTab({ collection }: { collection: Collection }) {
   return (
     <div className="max-w-2xl space-y-5">
       <div>
-        <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">{t('collectionSettings.authType')}</label>
+        <label className="block pf-text-sm font-medium text-text-secondary mb-1.5">{t('collectionSettings.authType')}</label>
         <div className="flex gap-1.5">
           {authTypes.map(({ value, label }) => (
             <button
               key={value}
               onClick={() => { setAuthType(value); setDirty(true); }}
               className={cn(
-                'px-3 py-1.5 text-[var(--fs-sm)] font-medium rounded-md transition-all border',
+                'px-3 py-1.5 pf-text-sm font-medium rounded-md transition-all border',
                 authType === value
                   ? 'border-accent bg-accent-soft text-accent'
                   : 'border-border-default text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
@@ -372,12 +372,12 @@ function AuthTab({ collection }: { collection: Collection }) {
 
       {authType === 'bearer' && (
         <div>
-          <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">Token</label>
+          <label className="block pf-text-sm font-medium text-text-secondary mb-1.5">Token</label>
           <input
             value={authConfig.bearerToken || ''}
             onChange={(e) => updateField('bearerToken', e.target.value)}
             placeholder="Bearer token..."
-            className="w-full h-9 px-3 text-[var(--fs-base)] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-all"
+            className="w-full h-9 px-3 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-all"
           />
         </div>
       )}
@@ -385,22 +385,22 @@ function AuthTab({ collection }: { collection: Collection }) {
       {authType === 'basic' && (
         <div className="space-y-3">
           <div>
-            <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">{t('collectionSettings.username')}</label>
+            <label className="block pf-text-sm font-medium text-text-secondary mb-1.5">{t('collectionSettings.username')}</label>
             <input
               value={authConfig.basicUsername || ''}
               onChange={(e) => updateField('basicUsername', e.target.value)}
               placeholder="Username"
-              className="w-full h-9 px-3 text-[var(--fs-base)] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary transition-all"
+              className="w-full h-9 px-3 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary transition-all"
             />
           </div>
           <div>
-            <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">{t('collectionSettings.password')}</label>
+            <label className="block pf-text-sm font-medium text-text-secondary mb-1.5">{t('collectionSettings.password')}</label>
             <input
               type="password"
               value={authConfig.basicPassword || ''}
               onChange={(e) => updateField('basicPassword', e.target.value)}
               placeholder="Password"
-              className="w-full h-9 px-3 text-[var(--fs-base)] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary transition-all"
+              className="w-full h-9 px-3 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary transition-all"
             />
           </div>
         </div>
@@ -409,32 +409,32 @@ function AuthTab({ collection }: { collection: Collection }) {
       {authType === 'apikey' && (
         <div className="space-y-3">
           <div>
-            <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">{t('collectionSettings.keyName')}</label>
+            <label className="block pf-text-sm font-medium text-text-secondary mb-1.5">{t('collectionSettings.keyName')}</label>
             <input
               value={authConfig.apiKeyName || ''}
               onChange={(e) => updateField('apiKeyName', e.target.value)}
               placeholder="X-API-Key"
-              className="w-full h-9 px-3 text-[var(--fs-base)] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-all"
+              className="w-full h-9 px-3 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-all"
             />
           </div>
           <div>
-            <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">{t('collectionSettings.keyValue')}</label>
+            <label className="block pf-text-sm font-medium text-text-secondary mb-1.5">{t('collectionSettings.keyValue')}</label>
             <input
               value={authConfig.apiKeyValue || ''}
               onChange={(e) => updateField('apiKeyValue', e.target.value)}
               placeholder="your-api-key"
-              className="w-full h-9 px-3 text-[var(--fs-base)] bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-all"
+              className="w-full h-9 px-3 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary font-mono transition-all"
             />
           </div>
           <div>
-            <label className="block text-[var(--fs-sm)] font-medium text-text-secondary mb-1.5">{t('collectionSettings.addTo')}</label>
+            <label className="block pf-text-sm font-medium text-text-secondary mb-1.5">{t('collectionSettings.addTo')}</label>
             <div className="flex gap-1.5">
               {['header', 'query'].map((loc) => (
                 <button
                   key={loc}
                   onClick={() => updateField('apiKeyIn', loc)}
                   className={cn(
-                    'px-3 py-1.5 text-[var(--fs-sm)] font-medium rounded-md transition-all border',
+                    'px-3 py-1.5 pf-text-sm font-medium rounded-md transition-all border',
                     (authConfig.apiKeyIn || 'header') === loc
                       ? 'border-accent bg-accent-soft text-accent'
                       : 'border-border-default text-text-tertiary hover:bg-bg-hover'
@@ -452,7 +452,7 @@ function AuthTab({ collection }: { collection: Collection }) {
         <div className="flex items-center gap-2 pt-2">
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-[var(--fs-sm)] font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
           >
             <Save className="w-3.5 h-3.5" />
             {t('collectionSettings.saveAuth')}
@@ -490,29 +490,29 @@ function ScriptsTab({ collection }: { collection: Collection }) {
     <div className="space-y-6">
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('collectionSettings.preScript')}</label>
-          <span className="text-[var(--fs-xxs)] text-text-disabled">{t('collectionSettings.preScriptHint')}</span>
+          <label className="pf-text-sm font-medium text-text-secondary">{t('collectionSettings.preScript')}</label>
+          <span className="pf-text-xxs text-text-disabled">{t('collectionSettings.preScriptHint')}</span>
         </div>
         <textarea
           value={preScript}
           onChange={(e) => { setPreScript(e.target.value); setDirty(true); }}
           rows={10}
           placeholder={'// 在此合集下所有请求发送前执行\n// 可使用 pf.setVar("key", "value") 设置变量\n// 可使用 pf.getVar("key") 获取变量'}
-          className="w-full px-4 py-3 text-[var(--fs-sm)] bg-bg-secondary border border-border-default rounded-lg outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary resize-none font-mono leading-relaxed transition-all"
+          className="w-full px-4 py-3 pf-text-sm bg-bg-secondary border border-border-default rounded-lg outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary resize-none font-mono leading-relaxed transition-all"
         />
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="text-[var(--fs-sm)] font-medium text-text-secondary">{t('collectionSettings.postScript')}</label>
-          <span className="text-[var(--fs-xxs)] text-text-disabled">{t('collectionSettings.postScriptHint')}</span>
+          <label className="pf-text-sm font-medium text-text-secondary">{t('collectionSettings.postScript')}</label>
+          <span className="pf-text-xxs text-text-disabled">{t('collectionSettings.postScriptHint')}</span>
         </div>
         <textarea
           value={postScript}
           onChange={(e) => { setPostScript(e.target.value); setDirty(true); }}
           rows={10}
           placeholder={'// 在此合集下所有请求收到响应后执行\n// 可使用 pf.test("name", () => { ... }) 编写测试\n// 可使用 pf.response 访问响应对象'}
-          className="w-full px-4 py-3 text-[var(--fs-sm)] bg-bg-secondary border border-border-default rounded-lg outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary resize-none font-mono leading-relaxed transition-all"
+          className="w-full px-4 py-3 pf-text-sm bg-bg-secondary border border-border-default rounded-lg outline-none focus:border-accent text-text-primary placeholder:text-text-tertiary resize-none font-mono leading-relaxed transition-all"
         />
       </div>
 
@@ -520,7 +520,7 @@ function ScriptsTab({ collection }: { collection: Collection }) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-md text-[var(--fs-sm)] font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
           >
             <Save className="w-3.5 h-3.5" />
             {t('collectionSettings.saveScripts')}

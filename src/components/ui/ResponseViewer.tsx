@@ -5,7 +5,7 @@
  * 支持插件渲染器（如 Excel）— 通过 contributes.responseRenderers 动态注入 Tab
  */
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useDeferredValue } from 'react';
 import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive, Filter, ScanSearch, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -83,13 +83,13 @@ function HexView({ data }: { data: string }) {
   return (
     <div className="selectable overflow-x-auto font-mono leading-[18px]" style={{ fontSize: 'var(--fs-xs)' }}>
       <div className="min-w-[620px]">
-        <div className="mb-2 grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/30 px-2 py-2 font-semibold uppercase tracking-[0.08em] text-text-tertiary" style={{ fontSize: 'var(--fs-xxs)' }}>
+        <div className="mb-2 grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 pf-rounded-md border border-border-default/60 bg-bg-secondary/30 px-2 py-2 font-semibold uppercase tracking-[0.08em] text-text-tertiary" style={{ fontSize: 'var(--fs-xxs)' }}>
           <span>Offset</span>
           <span>Hex</span>
           <span>ASCII</span>
         </div>
         {lines.map((line, i) => (
-          <div key={i} className="grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 rounded-[var(--radius-sm)] px-2 py-1 hover:bg-bg-hover/30">
+          <div key={i} className="grid grid-cols-[72px_minmax(0,1fr)_150px] gap-4 pf-rounded-sm px-2 py-1 hover:bg-bg-hover/30">
             <span className="shrink-0 text-text-disabled">{line.offset}</span>
             <span className="min-w-0 text-[#0284c7]">{line.hex}</span>
             <span className="shrink-0 text-text-tertiary">{line.ascii}</span>
@@ -117,7 +117,7 @@ export function ReadonlyCodeBlock({
   stickyScroll?: boolean;
 }) {
   return (
-    <div className={cn("flex flex-col overflow-hidden rounded-[var(--radius-md)] border border-border-default/60 bg-bg-primary h-full", minHeightClassName)}>
+    <div className={cn("flex flex-col overflow-hidden pf-rounded-md border border-border-default/60 bg-bg-primary h-full", minHeightClassName)}>
       <div className="flex-1 min-h-0">
         <CodeEditor value={value} language={language} readOnly height="100%" stickyScroll={stickyScroll} />
       </div>
@@ -133,10 +133,10 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [isRegexMode, setIsRegexMode] = useState(false);
-  const [regexError, setRegexError] = useState<string | null>(null);
   const [stickyScroll, setStickyScroll] = useState(true);
   const [jsonFilterKeys, setJsonFilterKeys] = useState<Set<string>>(new Set());
   const [showKeyFilter, setShowKeyFilter] = useState(false);
+  const deferredSearchText = useDeferredValue(searchText);
 
   // 插件渲染器匹配
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
@@ -165,22 +165,59 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     return tabs;
   }, [contentType, responseHeaders, installedPlugins]);
 
-  // Detect content type — skip expensive parsing for binary
-  const isJson = useMemo(() => {
-    if (isBinary) return false;
-    if (contentType?.includes('json')) return true;
-    try { JSON.parse(body); return true; } catch { return false; }
+  const analyzedTextBody = useMemo(() => {
+    if (isBinary) {
+      return {
+        isJson: false,
+        isHtml: false,
+        isXml: false,
+        jsonData: null as unknown,
+        prettyBody: '',
+        rawDisplayBody: '',
+      };
+    }
+
+    const trimmed = body.trimStart();
+    let jsonData: unknown = null;
+    let isJson = false;
+
+    if (contentType?.includes('json') || trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        jsonData = JSON.parse(body);
+        isJson = true;
+      } catch {
+        jsonData = null;
+      }
+    }
+
+    const isHtml = contentType?.includes('html') || trimmed.startsWith('<!') || trimmed.startsWith('<html');
+    const isXml = !isJson && (contentType?.includes('xml') || trimmed.startsWith('<?xml'));
+
+    let prettyBody = body;
+    if (isJson) {
+      prettyBody = JSON.stringify(jsonData, null, 2);
+    } else if (isXml) {
+      prettyBody = body.replace(/></g, '>\n<');
+    }
+
+    return {
+      isJson,
+      isHtml,
+      isXml,
+      jsonData,
+      prettyBody,
+      rawDisplayBody: body,
+    };
   }, [body, contentType, isBinary]);
 
-  const isHtml = useMemo(() => {
-    if (isBinary) return false;
-    return contentType?.includes('html') || body.trimStart().startsWith('<!') || body.trimStart().startsWith('<html');
-  }, [body, contentType, isBinary]);
-
-  const isXml = useMemo(() => {
-    if (isBinary) return false;
-    return contentType?.includes('xml') || body.trimStart().startsWith('<?xml');
-  }, [body, contentType, isBinary]);
+  const {
+    isJson,
+    isHtml,
+    isXml,
+    jsonData,
+    prettyBody,
+    rawDisplayBody,
+  } = analyzedTextBody;
 
   // Available modes
   const availableModes = useMemo(() => {
@@ -219,31 +256,6 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     setTimeout(() => setCopied(false), 2000);
   }, [body]);
 
-  // Parsed JSON data — skip for binary
-  const jsonData = useMemo(() => {
-    if (isBinary || !isJson) return null;
-    try { return JSON.parse(body); } catch { return null; }
-  }, [body, isJson, isBinary]);
-
-  // Formatted raw text (for XML/JSON pretty-print) — skip for binary
-  const prettyBody = useMemo(() => {
-    if (isBinary) return '';
-    if (isJson) {
-      try { return JSON.stringify(JSON.parse(body), null, 2); } catch { return body; }
-    }
-    if (isXml) {
-      // Simple XML formatting
-      return body.replace(/><|/g, '>\n<').replace(/(< [^\/!][^>]*>)/g, '\n$1');
-    }
-    return body;
-  }, [body, isJson, isXml, isBinary]);
-
-  // For binary responses, skip raw text decoding (this was causing the UI freeze)
-  const rawDisplayBody = useMemo(() => {
-    if (isBinary) return '';
-    return body;
-  }, [body, isBinary]);
-
   // 二进制文件真实大小（从 base64 反算）
   const binaryFileSize = useMemo(() => {
     if (!isBinary) return 0;
@@ -251,23 +263,30 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     return Math.floor((body.length * 3) / 4) - padding;
   }, [body, isBinary]);
 
-  const searchCount = useMemo(() => {
-    if (!searchText) { setRegexError(null); return 0; }
+  const searchMeta = useMemo(() => {
+    if (!showSearch || !deferredSearchText) {
+      return { count: 0, regexError: null as string | null };
+    }
     const target =
       activeTab === 'json' ? prettyBody :
       activeTab === 'raw' ? body :
       body;
+
     try {
       const regex = isRegexMode
-        ? new RegExp(searchText, 'gi')
-        : new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      setRegexError(null);
-      return (target.match(regex) || []).length;
+        ? new RegExp(deferredSearchText, 'gi')
+        : new RegExp(deferredSearchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      return {
+        count: (target.match(regex) || []).length,
+        regexError: null,
+      };
     } catch (e) {
-      setRegexError(String(e).replace(/^SyntaxError: /, ''));
-      return 0;
+      return {
+        count: 0,
+        regexError: String(e).replace(/^SyntaxError: /, ''),
+      };
     }
-  }, [searchText, prettyBody, body, activeTab, isRegexMode]);
+  }, [showSearch, deferredSearchText, prettyBody, body, activeTab, isRegexMode]);
 
   // 提取 JSON 中可用的 keys
   const availableJsonKeys = useMemo<string[]>(() => {
@@ -445,7 +464,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder={isRegexMode ? t('response.regexPlaceholder', { defaultValue: '正则表达式...' }) : t('response.searchPlaceholder')}
-              className={cn('flex-1 h-6 bg-transparent outline-none text-text-primary placeholder:text-text-tertiary', regexError && 'text-red-500')} style={{ fontSize: 'var(--fs-sm)' }}
+              className={cn('flex-1 h-6 bg-transparent outline-none text-text-primary placeholder:text-text-tertiary', searchMeta.regexError && 'text-red-500')} style={{ fontSize: 'var(--fs-sm)' }}
               autoFocus
             />
             {/* Regex toggle */}
@@ -483,13 +502,13 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                 {jsonFilterKeys.size > 0 ? jsonFilterKeys.size : ''}
               </button>
             )}
-            {searchText && !regexError && (
+            {deferredSearchText && !searchMeta.regexError && (
               <span className="text-text-disabled tabular-nums shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
-                {t('response.matchCount', { count: searchCount })}
+                {t('response.matchCount', { count: searchMeta.count })}
               </span>
             )}
-            {regexError && (
-              <span className="text-red-400 truncate max-w-[160px] shrink-0" style={{ fontSize: 'var(--fs-xxs)' }} title={regexError}>
+            {searchMeta.regexError && (
+              <span className="text-red-400 truncate max-w-[160px] shrink-0" style={{ fontSize: 'var(--fs-xxs)' }} title={searchMeta.regexError}>
                 {t('response.regexInvalid', { defaultValue: '无效正则' })}
               </span>
             )}
@@ -512,7 +531,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                       });
                     }}
                     className={cn(
-                      'inline-flex items-center gap-1 h-[22px] px-2 rounded-[var(--radius-sm)] text-[11px] font-mono whitespace-nowrap transition-all shrink-0 border',
+                      'inline-flex items-center gap-1 h-[22px] px-2 pf-rounded-sm text-[11px] font-mono whitespace-nowrap transition-all shrink-0 border',
                       isActive
                         ? 'bg-accent/10 text-accent border-accent/25 shadow-[0_0_0_1px_rgba(59,130,246,0.06)]'
                         : 'bg-bg-primary/80 text-text-tertiary border-border-default/60 hover:bg-bg-hover hover:text-text-secondary hover:border-border-default'
@@ -534,12 +553,12 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
           {activeBuiltinMode === 'json' && (
             <div className="flex flex-col h-full gap-2">
               {jsonData === null ? (
-                <div className="rounded-[var(--radius-md)] border border-amber-300/60 bg-amber-500/8 px-3 py-2 text-amber-700 dark:text-amber-300 shrink-0" style={{ fontSize: 'var(--fs-xs)' }}>
+                <div className="pf-rounded-md border border-amber-300/60 bg-amber-500/8 px-3 py-2 text-amber-700 dark:text-amber-300 shrink-0" style={{ fontSize: 'var(--fs-xs)' }}>
                   {t('response.invalidJsonPrettyFallback')}
                 </div>
               ) : null}
               {jsonFilterKeys.size > 0 && (
-                <div className="flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-accent/6 border border-accent/15 px-2.5 py-1 shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
+                <div className="flex items-center gap-1.5 pf-rounded-sm bg-accent/6 border border-accent/15 px-2.5 py-1 shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
                   <Filter className="w-2.5 h-2.5 text-accent/60" />
                   <span className="text-accent/80">
                     {t('response.filterActive', { count: jsonFilterKeys.size, defaultValue: `已过滤 ${jsonFilterKeys.size} 个 Key` })}
@@ -575,8 +594,8 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                   )}
                   style={{ fontSize: 'var(--fs-sm)' }}
                 >
-                  {searchText ? (
-                    <HighlightedText text={rawDisplayBody} search={searchText} isRegex={isRegexMode} />
+                  {deferredSearchText ? (
+                    <HighlightedText text={rawDisplayBody} search={deferredSearchText} isRegex={isRegexMode} />
                   ) : (
                     rawDisplayBody
                   )}
@@ -586,14 +605,14 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
           )}
 
           {activeBuiltinMode === 'base64' && (
-            <Base64View body={body} isBinary={isBinary} wordWrap={wordWrap} searchText={searchText} />
+              <Base64View body={body} isBinary={isBinary} wordWrap={wordWrap} searchText={deferredSearchText} />
           )}
 
           {activeBuiltinMode === 'preview' && isHtml && (
             <iframe
               srcDoc={body}
               sandbox="allow-same-origin"
-              className="min-h-[420px] w-full rounded-[var(--radius-md)] border border-border-default bg-white"
+              className="min-h-[420px] w-full pf-rounded-md border border-border-default bg-white"
               title="HTML Preview"
             />
           )}
@@ -655,7 +674,7 @@ function Base64View({ body, isBinary, wordWrap, searchText }: {
 
   return (
     <div className={cn("max-w-full", !wordWrap && "overflow-x-auto")}>
-      <div className="flex items-center gap-2 mb-2 rounded-[var(--radius-md)] border border-border-default/60 bg-bg-secondary/30 px-3 py-1.5" style={{ fontSize: 'var(--fs-xs)' }}>
+      <div className="flex items-center gap-2 mb-2 pf-rounded-md border border-border-default/60 bg-bg-secondary/30 px-3 py-1.5" style={{ fontSize: 'var(--fs-xs)' }}>
         <span className="font-medium text-text-secondary">Base64</span>
         <span className="text-text-disabled">·</span>
         <span className="text-text-tertiary tabular-nums">{sizeLabel}</span>
@@ -898,7 +917,7 @@ function BinaryFileCard({ contentType, fileSize, body, responseHeaders }: {
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 min-h-0 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-5 rounded-[var(--radius-xl)] border border-border-default/60 bg-bg-secondary/40 px-12 py-10 shadow-sm">
+        <div className="flex flex-col items-center gap-5 pf-rounded-xl border border-border-default/60 bg-bg-secondary/40 px-12 py-10 shadow-sm">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10">
             <FileBox className="h-8 w-8 text-accent" />
           </div>
@@ -1010,7 +1029,7 @@ export function InlineJsonViewer({ data }: { data: string }) {
       <div className="flex items-center gap-1 mb-1">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-[var(--fs-xxs)] px-1.5 py-0.5 bg-accent/10 text-accent rounded hover:bg-accent/20 transition-colors flex items-center gap-0.5"
+          className="pf-text-xxs px-1.5 py-0.5 bg-accent/10 text-accent rounded hover:bg-accent/20 transition-colors flex items-center gap-0.5"
         >
           {expanded ? <Minimize2 className="w-2.5 h-2.5" /> : <Maximize2 className="w-2.5 h-2.5" />}
           JSON

@@ -125,7 +125,7 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
         <>
           {/* Device Discovery */}
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
               {t('videostream.onvif.discover', '设备发现')}
             </label>
             <button onClick={handleDiscover} disabled={discovering}
@@ -135,10 +135,10 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
               {discovering ? t('videostream.onvif.discovering', '发现中...') : t('videostream.onvif.discoverBtn', 'WS-Discovery 扫描')}
             </button>
             {discoveredDevices.length > 0 && (
-              <div className="max-h-[80px] overflow-y-auto space-y-0.5 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
+              <div className="max-h-[80px] overflow-y-auto space-y-0.5 pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-1">
                 {discoveredDevices.map((d, i) => (
                   <button key={i} onClick={() => { setHost(d.host); setPort(d.port); setSelectedXaddr((d as any).xaddr || null); }}
-                    className="w-full text-left flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] hover:bg-bg-hover/50 text-[var(--fs-xxs)] font-mono"
+                    className="w-full text-left flex items-center gap-2 px-2 py-1 pf-rounded-xs hover:bg-bg-hover/50 pf-text-xxs font-mono"
                   >
                     <span className="text-accent">{d.host}:{d.port}</span>
                     {d.name && <span className="text-text-disabled truncate">{d.name}</span>}
@@ -150,7 +150,7 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
 
           {/* Connection Config */}
           <div className="space-y-1.5">
-            <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
               {t('videostream.onvif.connection', '设备连接')}
             </label>
             <div className="grid grid-cols-3 gap-1.5">
@@ -175,7 +175,7 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
               <input type="checkbox" checked={useProxy} onChange={(e) => setUseProxy(e.target.checked)}
                 className="accent-accent w-3.5 h-3.5 rounded"
               />
-              <span className="text-[var(--fs-xxs)] text-text-secondary">
+              <span className="pf-text-xxs text-text-secondary">
                 {t('videostream.onvif.useProxy', '通过系统代理')}
               </span>
             </label>
@@ -185,9 +185,9 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
               {querying ? t('videostream.onvif.querying', '查询中...') : t('videostream.onvif.queryDevice', '查询设备')}
             </button>
             {queryError && (
-              <div className="flex items-start gap-2 rounded-[var(--radius-sm)] bg-error/8 border border-error/20 px-3 py-2">
+              <div className="flex items-start gap-2 pf-rounded-sm bg-error/8 border border-error/20 px-3 py-2">
                 <span className="shrink-0 mt-0.5 text-error">&#9888;</span>
-                <span className="text-[var(--fs-xxs)] text-error leading-relaxed">{queryError}</span>
+                <span className="pf-text-xxs text-error leading-relaxed">{queryError}</span>
               </div>
             )}
           </div>
@@ -196,13 +196,13 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
 
       {/* ── After device connected: Compact device header + content ── */}
       {deviceInfo && (
-        <div className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 px-2.5 py-1.5">
+        <div className="flex items-center gap-2 pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 px-2.5 py-1.5">
           <div className="flex-1 min-w-0">
-            <div className="text-[var(--fs-xs)] font-semibold text-text-primary truncate">{deviceInfo.manufacturer} {deviceInfo.model}</div>
-            <div className="text-[var(--fs-3xs)] text-text-disabled font-mono truncate">{host}:{port} &middot; {deviceInfo.firmwareVersion}</div>
+            <div className="pf-text-xs font-semibold text-text-primary truncate">{deviceInfo.manufacturer} {deviceInfo.model}</div>
+            <div className="pf-text-3xs text-text-disabled font-mono truncate">{host}:{port} &middot; {deviceInfo.firmwareVersion}</div>
           </div>
           <button onClick={handleCloseSession}
-            className="shrink-0 text-[var(--fs-xxs)] text-text-disabled hover:text-text-secondary transition-colors"
+            className="shrink-0 pf-text-xxs text-text-disabled hover:text-text-secondary transition-colors"
           >
             {t('videostream.onvif.disconnect', '断开')}
           </button>
@@ -212,13 +212,13 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
       {/* Profiles */}
       {profiles.length > 0 && (
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('videostream.onvif.profiles', '媒体配置')} ({profiles.length})
           </label>
           <div className="space-y-0.5">
             {profiles.map((p) => (
               <button key={p.token} onClick={() => handleSelectProfile(p.token)}
-                className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded-[var(--radius-xs)] text-left transition-colors text-[var(--fs-xxs)]",
+                className={cn("w-full flex items-center gap-2 px-2 py-1.5 pf-rounded-xs text-left transition-colors pf-text-xxs",
                   selectedProfile === p.token ? "bg-accent/10 border border-accent/30" : "bg-bg-secondary/30 hover:bg-bg-hover/50"
                 )}
               >
@@ -236,14 +236,14 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
       {/* Stream URI — shown after profile selection */}
       {profiles.length > 0 && selectedProfile && (
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('videostream.onvif.streamUri', '流地址')}
           </label>
-          <div className="rounded-[var(--radius-sm)] border border-accent/20 bg-accent-soft p-2 text-[var(--fs-xxs)] font-mono text-accent break-all select-text">
+          <div className="pf-rounded-sm border border-accent/20 bg-accent-soft p-2 pf-text-xxs font-mono text-accent break-all select-text">
             {_streamUrl || t('videostream.onvif.noUri', '未获取到流地址')}
           </div>
           {_streamUrl && (
-            <p className="text-[var(--fs-3xs)] text-text-disabled">
+            <p className="pf-text-3xs text-text-disabled">
               {t('videostream.onvif.streamHint', '流地址已填入顶部 URL 栏，可切换到 RTSP 标签页查看详细协议交互')}
             </p>
           )}
@@ -253,38 +253,38 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
       {/* PTZ Control */}
       {deviceInfo && (
         <div className="space-y-1.5">
-          <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+          <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             PTZ {t('videostream.gb.control', '控制')}
           </label>
           <div className="flex flex-col items-center gap-1">
             <button onMouseDown={() => handlePtz('up')} onMouseUp={handlePtzStop}
-              className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ArrowUp className="w-4 h-4" /></button>
             <div className="flex gap-1">
               <button onMouseDown={() => handlePtz('left')} onMouseUp={handlePtzStop}
-                className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+                className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowLeft className="w-4 h-4" /></button>
               <button onClick={handlePtzStop}
                 className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors"
               ><RotateCcw className="w-3.5 h-3.5" /></button>
               <button onMouseDown={() => handlePtz('right')} onMouseUp={handlePtzStop}
-                className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+                className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowRight className="w-4 h-4" /></button>
             </div>
             <button onMouseDown={() => handlePtz('down')} onMouseUp={handlePtzStop}
-              className="h-8 w-8 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ArrowDown className="w-4 h-4" /></button>
           </div>
           <div className="flex items-center justify-center gap-2">
             <button onMouseDown={() => handlePtz('zoom_in')} onMouseUp={handlePtzStop}
-              className="h-7 w-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-7 w-7 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ZoomIn className="w-3.5 h-3.5" /></button>
             <button onMouseDown={() => handlePtz('zoom_out')} onMouseUp={handlePtzStop}
-              className="h-7 w-7 flex items-center justify-center rounded-[var(--radius-sm)] bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-7 w-7 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ZoomOut className="w-3.5 h-3.5" /></button>
-            <span className="text-[var(--fs-3xs)] text-text-disabled ml-1">{t('videostream.gb.speed', '速度')}</span>
+            <span className="pf-text-3xs text-text-disabled ml-1">{t('videostream.gb.speed', '速度')}</span>
             <input type="range" min={1} max={15} value={ptzSpeed} onChange={(e) => setPtzSpeed(Number(e.target.value))} className="w-16 h-1 accent-accent" />
-            <span className="text-[var(--fs-3xs)] text-text-disabled w-4">{ptzSpeed}</span>
+            <span className="pf-text-3xs text-text-disabled w-4">{ptzSpeed}</span>
           </div>
         </div>
       )}
@@ -293,11 +293,11 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
       {deviceInfo && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.06em] text-text-disabled">
+            <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
               {t('videostream.onvif.presets', '预置位')} ({presets.length})
             </label>
             <div className="flex items-center gap-1">
-              <button onClick={handleLoadPresets} className="text-[var(--fs-3xs)] text-accent hover:underline">
+              <button onClick={handleLoadPresets} className="pf-text-3xs text-accent hover:underline">
                 {t('videostream.gb.query', '加载')}
               </button>
               <button onClick={() => setShowPresetInput(v => !v)}
@@ -311,15 +311,15 @@ export function OnvifPanel({ sessionKey, connected: _connected, streamUrl: _stre
                 onKeyDown={(e) => e.key === 'Enter' && handleSetPreset()}
                 className="wb-field-xs flex-1 font-mono"
               />
-              <button onClick={handleSetPreset} className="h-6 px-2 rounded-[var(--radius-xs)] bg-accent/10 text-accent text-[var(--fs-xxs)] hover:bg-accent/20 transition-colors">
+              <button onClick={handleSetPreset} className="h-6 px-2 pf-rounded-xs bg-accent/10 text-accent pf-text-xxs hover:bg-accent/20 transition-colors">
                 {t('videostream.onvif.save', '保存')}
               </button>
             </div>
           )}
           {presets.length > 0 && (
-            <div className="max-h-[200px] overflow-y-auto space-y-0.5 rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/30 p-1">
+            <div className="max-h-[200px] overflow-y-auto space-y-0.5 pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-1">
               {presets.map((p) => (
-                <div key={p.token} className="flex items-center gap-2 px-2 py-1 rounded-[var(--radius-xs)] hover:bg-bg-hover/50 text-[var(--fs-xxs)] transition-colors">
+                <div key={p.token} className="flex items-center gap-2 px-2 py-1 pf-rounded-xs hover:bg-bg-hover/50 pf-text-xxs transition-colors">
                   <Star className="w-3 h-3 text-amber-500 shrink-0" />
                   <span className="text-text-primary flex-1 truncate">{p.name || `Preset ${p.token}`}</span>
                   <button onClick={() => handleGotoPreset(p.token)} className="text-accent hover:underline shrink-0">

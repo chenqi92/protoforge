@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { lazy, Suspense, useState, useCallback, useEffect, useRef } from "react";
 import { ArrowUpRight, ChevronLeft, ChevronRight, Gauge, List, MonitorPlay, Network, Plus, Radio, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
@@ -10,19 +10,6 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { TabBar, type Tab } from "@/components/layout/TabBar";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { WelcomePage, type WelcomeAction } from "@/components/WelcomePage";
-import { HttpWorkspace } from "@/components/http/HttpWorkspace";
-import { RequestsOverview } from "@/components/http/RequestsOverview";
-import { WsWorkspace } from "@/components/ws/WsWorkspace";
-import { MqttWorkspace } from "@/components/mqtt/MqttWorkspace";
-import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
-import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
-import { VideoStreamWorkspace } from "@/components/videostream/VideoStreamWorkspace";
-import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
-import { PluginModal } from "@/components/plugins/PluginModal";
-import { SettingsModal } from "@/components/settings/SettingsModal";
-import { DesignSystemPage } from "@/components/dev/DesignSystemPage";
-import EnvironmentVariablesModal from "@/components/modals/EnvironmentVariablesModal";
-import { CollectionSettingsPanel } from "@/components/collections/CollectionSettingsPanel";
 import { useAppStore, type RequestProtocol, type ToolSession, type ToolWorkbench, type WorkbenchView } from "@/stores/appStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { usePluginStore } from "@/stores/pluginStore";
@@ -37,6 +24,28 @@ import { RightSidebar } from "@/components/layout/RightSidebar";
 import { subscribeDockToolRequests } from "@/lib/toolDocking";
 import { cn } from "@/lib/utils";
 import type { HttpRequestMode } from "@/types/http";
+
+const HttpWorkspace = lazy(() => import("@/components/http/HttpWorkspace").then((module) => ({ default: module.HttpWorkspace })));
+const RequestsOverview = lazy(() => import("@/components/http/RequestsOverview").then((module) => ({ default: module.RequestsOverview })));
+const WsWorkspace = lazy(() => import("@/components/ws/WsWorkspace").then((module) => ({ default: module.WsWorkspace })));
+const MqttWorkspace = lazy(() => import("@/components/mqtt/MqttWorkspace").then((module) => ({ default: module.MqttWorkspace })));
+const TcpWorkspace = lazy(() => import("@/components/tcp/TcpWorkspace").then((module) => ({ default: module.TcpWorkspace })));
+const LoadTestWorkspace = lazy(() => import("@/components/loadtest/LoadTestWorkspace").then((module) => ({ default: module.LoadTestWorkspace })));
+const VideoStreamWorkspace = lazy(() => import("@/components/videostream/VideoStreamWorkspace").then((module) => ({ default: module.VideoStreamWorkspace })));
+const CaptureWorkspace = lazy(() => import("@/components/capture/CaptureWorkspace").then((module) => ({ default: module.CaptureWorkspace })));
+const PluginModal = lazy(() => import("@/components/plugins/PluginModal").then((module) => ({ default: module.PluginModal })));
+const SettingsModal = lazy(() => import("@/components/settings/SettingsModal").then((module) => ({ default: module.SettingsModal })));
+const DesignSystemPage = lazy(() => import("@/components/dev/DesignSystemPage").then((module) => ({ default: module.DesignSystemPage })));
+const EnvironmentVariablesModal = lazy(() => import("@/components/modals/EnvironmentVariablesModal"));
+const CollectionSettingsPanel = lazy(() => import("@/components/collections/CollectionSettingsPanel").then((module) => ({ default: module.CollectionSettingsPanel })));
+
+function LazyPaneFallback({ label, className }: { label: string; className?: string }) {
+  return (
+    <div className={cn("flex h-full min-h-0 items-center justify-center px-4 pf-text-sm text-text-tertiary", className)}>
+      {label}
+    </div>
+  );
+}
 
 const toolWorkbenchMeta: Record<ToolWorkbench, {
   titleKey: string;
@@ -247,7 +256,7 @@ function ToolWorkbenchPanel({
         <div className="flex shrink-0 items-center gap-2 pr-1">
           <div className="flex h-7 items-center gap-2 rounded-[10px] border border-border-default/70 bg-bg-primary/85 px-2.5 shadow-xs">
             <Icon className={cn("h-3.5 w-3.5 shrink-0", meta.accentClassName)} />
-            <div className="text-[var(--fs-sm)] font-semibold text-text-primary">{t(meta.shortTitleKey)}</div>
+            <div className="pf-text-sm font-semibold text-text-primary">{t(meta.shortTitleKey)}</div>
           </div>
         </div>
 
@@ -270,7 +279,7 @@ function ToolWorkbenchPanel({
                   onSelectSession(tool, session.id);
                 }}
                 className={cn(
-                  "group flex h-8 shrink-0 cursor-grab items-center gap-1 rounded-[9px] px-2 text-[var(--fs-sm)] transition-colors",
+                  "group flex h-8 shrink-0 cursor-grab items-center gap-1 rounded-[9px] px-2 pf-text-sm transition-colors",
                   isActive
                     ? "bg-accent/10 text-text-primary"
                     : "bg-transparent text-text-secondary hover:bg-bg-hover hover:text-text-primary"
@@ -366,7 +375,7 @@ function ToolWorkbenchPanel({
             className="fixed z-[221] w-[220px] overflow-hidden rounded-[12px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
             style={{ top: sessionMenuPos.top, left: sessionMenuPos.left }}
           >
-            <div className="px-2.5 pb-0.5 pt-1.5 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.14em] text-text-disabled">
+            <div className="px-2.5 pb-0.5 pt-1.5 pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-disabled">
               {t('toolWorkbench.allInstances')}
             </div>
             <div className="max-h-[320px] overflow-y-auto">
@@ -393,7 +402,7 @@ function ToolWorkbenchPanel({
                     )}
                   >
                     <span className={cn("h-[6px] w-[6px] shrink-0 rounded-full", isActive && !isDetached ? meta.accentDotClassName : isDetached ? "bg-accent" : "bg-border-strong")} />
-                    <span className="min-w-0 flex-1 truncate text-[var(--fs-sm)] font-medium text-text-primary">{label}</span>
+                    <span className="min-w-0 flex-1 truncate pf-text-sm font-medium text-text-primary">{label}</span>
                     {isDetached ? <ArrowUpRight className="h-3 w-3 text-text-disabled" /> : null}
                   </button>
                 );
@@ -407,7 +416,7 @@ function ToolWorkbenchPanel({
         {visibleSessions.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-text-tertiary">
             <ArrowUpRight className="h-8 w-8 text-text-disabled" />
-            <div className="text-[var(--fs-sm)]">{t('toolWorkbench.allSessionsDetached')}</div>
+            <div className="pf-text-sm">{t('toolWorkbench.allSessionsDetached')}</div>
             <button
               onClick={() => onAddSession(tool)}
               className="wb-ghost-btn mt-1 px-3"
@@ -751,17 +760,23 @@ function App() {
 
               <div className="min-h-0 flex-1 overflow-hidden relative">
                 <div className={cn("absolute inset-0 z-10 bg-bg-primary", activeCollectionId ? "block" : "hidden")}>
-                  {activeCollectionId && <CollectionSettingsPanel collectionId={activeCollectionId} />}
+                  {activeCollectionId && (
+                    <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载集合设置..." />}>
+                      <CollectionSettingsPanel collectionId={activeCollectionId} />
+                    </Suspense>
+                  )}
                 </div>
 
                 {/* No tabs: show overview */}
                 {tabs.length === 0 && !activeCollectionId && (
                   <div className="absolute inset-0 bg-bg-primary">
-                    <RequestsOverview
-                      onNewTab={handleNewTab}
-                      onOpenCollection={(id) => useAppStore.getState().openCollectionPanel(id)}
-                      onOpenEnvModal={() => setEnvModalOpen(true)}
-                    />
+                    <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载请求概览..." />}>
+                      <RequestsOverview
+                        onNewTab={handleNewTab}
+                        onOpenCollection={(id) => useAppStore.getState().openCollectionPanel(id)}
+                        onOpenEnvModal={() => setEnvModalOpen(true)}
+                      />
+                    </Suspense>
                   </div>
                 )}
 
@@ -769,9 +784,21 @@ function App() {
                   const isActive = !activeCollectionId && activeTabId === tab.id;
                   return (
                     <div key={tab.id} className={cn("absolute inset-0 bg-bg-primary", isActive ? "block" : "hidden")}>
-                      {tab.protocol === "http" && <HttpWorkspace tabId={tab.id} />}
-                      {tab.protocol === "ws" && <WsWorkspace />}
-                      {tab.protocol === "mqtt" && <MqttWorkspace tabId={tab.id} />}
+                      {tab.protocol === "http" && (
+                        <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载 HTTP 工作区..." />}>
+                          <HttpWorkspace tabId={tab.id} />
+                        </Suspense>
+                      )}
+                      {tab.protocol === "ws" && (
+                        <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载 WebSocket 工作区..." />}>
+                          <WsWorkspace tabId={tab.id} />
+                        </Suspense>
+                      )}
+                      {tab.protocol === "mqtt" && (
+                        <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载 MQTT 工作区..." />}>
+                          <MqttWorkspace tabId={tab.id} />
+                        </Suspense>
+                      )}
                     </div>
                   );
                 })}
@@ -796,7 +823,9 @@ function App() {
                 key={session.id}
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.tcpudp ? "block" : "hidden")}
               >
-                <TcpWorkspace sessionId={session.id} />
+                <Suspense fallback={<LazyPaneFallback label="加载 TCP/UDP 工作区..." />}>
+                  <TcpWorkspace sessionId={session.id} />
+                </Suspense>
               </div>
             ))}
           </ToolWorkbenchPanel>
@@ -818,7 +847,9 @@ function App() {
                 key={session.id}
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.capture ? "block" : "hidden")}
               >
-                <CaptureWorkspace sessionId={session.id} />
+                <Suspense fallback={<LazyPaneFallback label="加载抓包工作区..." />}>
+                  <CaptureWorkspace sessionId={session.id} />
+                </Suspense>
               </div>
             ))}
           </ToolWorkbenchPanel>
@@ -840,7 +871,9 @@ function App() {
                 key={session.id}
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.loadtest ? "block" : "hidden")}
               >
-                <LoadTestWorkspace sessionId={session.id} />
+                <Suspense fallback={<LazyPaneFallback label="加载压测工作区..." />}>
+                  <LoadTestWorkspace sessionId={session.id} />
+                </Suspense>
               </div>
             ))}
           </ToolWorkbenchPanel>
@@ -862,7 +895,9 @@ function App() {
                 key={session.id}
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.videostream ? "block" : "hidden")}
               >
-                <VideoStreamWorkspace sessionId={session.id} />
+                <Suspense fallback={<LazyPaneFallback label="加载视频流工作区..." />}>
+                  <VideoStreamWorkspace sessionId={session.id} />
+                </Suspense>
               </div>
             ))}
           </ToolWorkbenchPanel>
@@ -932,20 +967,34 @@ function App() {
         </div>
       </WindowScaffold>
 
-      <PluginModal open={pluginModalOpen} onClose={() => setPluginModalOpen(false)} />
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {pluginModalOpen && (
+        <Suspense fallback={null}>
+          <PluginModal open={pluginModalOpen} onClose={() => setPluginModalOpen(false)} />
+        </Suspense>
+      )}
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        </Suspense>
+      )}
 
       {/* Design System Page — dev overlay */}
       {designSystemOpen && (
         <div className="fixed inset-0 z-[9999] bg-bg-app overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border-default bg-bg-primary shrink-0">
-            <span className="text-[var(--fs-sm)] font-semibold text-text-primary">Design System</span>
+            <span className="pf-text-sm font-semibold text-text-primary">Design System</span>
             <button onClick={() => setDesignSystemOpen(false)} className="wb-icon-btn"><X className="w-4 h-4" /></button>
           </div>
-          <DesignSystemPage />
+          <Suspense fallback={<LazyPaneFallback className="flex-1 bg-bg-app" label="加载设计系统..." />}>
+            <DesignSystemPage />
+          </Suspense>
         </div>
       )}
-      <EnvironmentVariablesModal open={envModalOpen} onClose={() => setEnvModalOpen(false)} />
+      {envModalOpen && (
+        <Suspense fallback={null}>
+          <EnvironmentVariablesModal open={envModalOpen} onClose={() => setEnvModalOpen(false)} />
+        </Suspense>
+      )}
       <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
 
       <CryptoContextMenu />

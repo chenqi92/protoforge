@@ -13,6 +13,42 @@ export default defineConfig(async () => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const normalized = id.replace(/\\/g, "/");
+
+          if (normalized.includes("/node_modules/")) {
+            if (
+              normalized.includes("/react/") ||
+              normalized.includes("/react-dom/") ||
+              normalized.includes("/scheduler/") ||
+              normalized.includes("/react-i18next/") ||
+              normalized.includes("/i18next/")
+            ) {
+              return "vendor-react";
+            }
+            if (normalized.includes("/@tauri-apps/")) {
+              return "vendor-tauri";
+            }
+            if (normalized.includes("/framer-motion/") || normalized.includes("/motion-dom/") || normalized.includes("/motion-utils/")) {
+              return "vendor-motion";
+            }
+            if (normalized.includes("/@monaco-editor/") || normalized.includes("/monaco-editor/")) {
+              return "vendor-monaco";
+            }
+            if (normalized.includes("/hls.js/")) {
+              return "vendor-hls";
+            }
+            return undefined;
+          }
+
+          return undefined;
+        },
+      },
+    },
+  },
   clearScreen: false,
   server: {
     port: 5420,

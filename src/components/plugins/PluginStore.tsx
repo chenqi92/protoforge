@@ -49,7 +49,7 @@ export function PluginsView({ search }: { search: string }) {
           <button
             onClick={() => setTab("store")}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[var(--fs-xs)] font-medium rounded-md transition-all",
+              "flex-1 flex items-center justify-center gap-1.5 py-1.5 pf-text-xs font-medium rounded-md transition-all",
               tab === "store"
                 ? "bg-bg-primary text-text-primary shadow-sm"
                 : "text-text-tertiary hover:text-text-secondary"
@@ -58,7 +58,7 @@ export function PluginsView({ search }: { search: string }) {
             <Store className="w-3 h-3" />
             {t('plugin.store')}
             {availablePlugins.filter((p) => !p.installed).length > 0 && (
-              <span className="text-[var(--fs-3xs)] bg-accent text-white px-1 py-[1px] rounded-full min-w-[14px] text-center leading-tight">
+              <span className="pf-text-3xs bg-accent text-white px-1 py-[1px] rounded-full min-w-[14px] text-center leading-tight">
                 {availablePlugins.filter((p) => !p.installed).length}
               </span>
             )}
@@ -66,7 +66,7 @@ export function PluginsView({ search }: { search: string }) {
           <button
             onClick={() => setTab("installed")}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[var(--fs-xs)] font-medium rounded-md transition-all",
+              "flex-1 flex items-center justify-center gap-1.5 py-1.5 pf-text-xs font-medium rounded-md transition-all",
               tab === "installed"
                 ? "bg-bg-primary text-text-primary shadow-sm"
                 : "text-text-tertiary hover:text-text-secondary"
@@ -75,7 +75,7 @@ export function PluginsView({ search }: { search: string }) {
             <Package className="w-3 h-3" />
             {t('plugin.installed')}
             {installedPlugins.length > 0 && (
-              <span className="text-[var(--fs-3xs)] text-text-disabled bg-bg-secondary px-1 py-[1px] rounded-full min-w-[14px] text-center leading-tight">
+              <span className="pf-text-3xs text-text-disabled bg-bg-secondary px-1 py-[1px] rounded-full min-w-[14px] text-center leading-tight">
                 {installedPlugins.length}
               </span>
             )}
@@ -106,7 +106,7 @@ export function PluginsView({ search }: { search: string }) {
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-text-disabled">
                   <RefreshCw className="w-6 h-6 animate-spin mb-3 opacity-40" />
-                  <p className="text-[var(--fs-sm)]">{t('plugin.loading')}</p>
+                  <p className="pf-text-sm">{t('plugin.loading')}</p>
                 </div>
               ) : filteredAvailable.length === 0 ? (
                 <EmptyState
@@ -156,8 +156,8 @@ function EmptyState({ icon, title, desc }: { icon: React.ReactNode; title: strin
   return (
     <div className="flex flex-col items-center justify-center py-12 text-text-disabled">
       {icon}
-      <p className="text-[var(--fs-sm)] mt-2">{title}</p>
-      <p className="text-[var(--fs-xs)] mt-0.5 opacity-60">{desc}</p>
+      <p className="pf-text-sm mt-2">{title}</p>
+      <p className="pf-text-xs mt-0.5 opacity-60">{desc}</p>
     </div>
   );
 }

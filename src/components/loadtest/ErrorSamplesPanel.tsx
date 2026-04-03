@@ -19,7 +19,7 @@ export function ErrorSamplesPanel({ samples }: ErrorSamplesPanelProps) {
 
   if (samples.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[200px] text-text-disabled text-[var(--fs-sm)]">
+      <div className="flex items-center justify-center h-[200px] text-text-disabled pf-text-sm">
         {t("loadtest.noErrors", "暂无错误样本")}
       </div>
     );
@@ -33,7 +33,7 @@ export function ErrorSamplesPanel({ samples }: ErrorSamplesPanelProps) {
 
   return (
     <div ref={listRef} className="max-h-[260px] overflow-y-auto -mx-4 -mt-4 -mb-4 rounded-b-[10px]">
-      <table className="w-full text-[var(--fs-xs)] table-fixed">
+      <table className="w-full pf-text-xs table-fixed">
         <colgroup>
           <col className="w-[60px]" />
           <col className="w-[52px]" />

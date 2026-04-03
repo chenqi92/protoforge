@@ -44,7 +44,7 @@ export function StatsBar({ stats, connected, statusText, connectedSince, autoRec
   }, [connectedSince]);
 
   return (
-    <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/50 border-t border-border-default/50 text-[var(--fs-xs)] font-medium shrink-0 select-none">
+    <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/50 border-t border-border-default/50 pf-text-xs font-medium shrink-0 select-none">
       {/* Connection Status */}
       <div className="flex items-center gap-1.5">
         <div className={cn(
@@ -57,7 +57,7 @@ export function StatsBar({ stats, connected, statusText, connectedSince, autoRec
         {autoReconnect && !connected && (
           <span className="flex items-center gap-0.5 text-amber-500">
             <RefreshCw className="w-2.5 h-2.5" />
-            <span className="text-[var(--fs-xxs)]">自动重连</span>
+            <span className="pf-text-xxs">自动重连</span>
           </span>
         )}
       </div>

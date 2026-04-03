@@ -214,13 +214,13 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
         <div className="absolute inset-0 flex items-center justify-center bg-black/55 pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-white/80">
             <Loader className="w-6 h-6 animate-spin" />
-            <span className="text-[var(--fs-xxs)] font-mono">{status || "播放器初始化中..."}</span>
+            <span className="pf-text-xxs font-mono">{status || "播放器初始化中..."}</span>
           </div>
         </div>
       )}
 
       {!loading && status && (
-        <div className="pointer-events-none absolute left-3 top-3 rounded-[var(--radius-xs)] bg-black/45 px-2 py-1 text-[var(--fs-3xs)] font-mono text-white/75">
+        <div className="pointer-events-none absolute left-3 top-3 pf-rounded-xs bg-black/45 px-2 py-1 pf-text-3xs font-mono text-white/75">
           {status}
         </div>
       )}
@@ -229,7 +229,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
         <div className="absolute inset-0 flex items-center justify-center text-white/35">
           <div className="flex flex-col items-center gap-2">
             <MonitorPlay className="w-6 h-6" />
-            <span className="text-[var(--fs-xxs)]">等待可播放的媒体地址</span>
+            <span className="pf-text-xxs">等待可播放的媒体地址</span>
           </div>
         </div>
       )}

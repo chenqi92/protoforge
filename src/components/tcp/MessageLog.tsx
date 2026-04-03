@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { Trash2, Search, Copy, Check, ArrowUpRight, ArrowDownLeft, PlugZap, FileCode2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,8 @@ const FORMAT_OPTIONS: { value: DataFormat; labelKey: string; fallback: string }[
   { value: "gbk", labelKey: "tcp.messageLog.gbk", fallback: "GBK" },
   { value: "json", labelKey: "tcp.messageLog.json", fallback: "JSON Pretty" },
 ];
+
+const MAX_VISIBLE_TCP_MESSAGES = 400;
 
 function formatTime(ts: string) {
   try {
@@ -59,6 +61,7 @@ export function MessageLog({
   const [filter, setFilter] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const hasParserPlugin = usePluginStore((s) => s.installedPlugins.some((p) => p.pluginType === 'protocol-parser'));
+  const deferredFilter = useDeferredValue(filter);
 
   const handleCopy = async (text: string, id: string) => {
     await navigator.clipboard.writeText(text);
@@ -70,11 +73,32 @@ export function MessageLog({
     window.dispatchEvent(new CustomEvent('parse-protocol', { detail: { data } }));
   };
 
-  const filteredMessages = filter
-    ? messages.filter((m) => m.data.toLowerCase().includes(filter.toLowerCase()))
-    : messages;
+  const filteredMessages = useMemo(() => {
+    const normalizedFilter = deferredFilter.trim().toLowerCase();
+    if (!normalizedFilter) {
+      return messages;
+    }
+
+    return messages.filter((message) => message.data.toLowerCase().includes(normalizedFilter));
+  }, [deferredFilter, messages]);
+
   // 倒序显示：最新消息在顶部
-  const reversedMessages = [...filteredMessages].reverse();
+  const reversedMessages = useMemo(() => [...filteredMessages].reverse(), [filteredMessages]);
+  const visibleMessages = useMemo(() => {
+    if (reversedMessages.length <= MAX_VISIBLE_TCP_MESSAGES) {
+      return reversedMessages;
+    }
+
+    const next = reversedMessages.slice(0, MAX_VISIBLE_TCP_MESSAGES);
+    if (!selectedMessageId || next.some((message) => message.id === selectedMessageId)) {
+      return next;
+    }
+
+    const selectedMessage = reversedMessages.find((message) => message.id === selectedMessageId);
+    return selectedMessage
+      ? [selectedMessage, ...next.slice(0, MAX_VISIBLE_TCP_MESSAGES - 1)]
+      : next;
+  }, [reversedMessages, selectedMessageId]);
   const hasTraffic = Boolean(
     stats && (
       stats.sentBytes > 0 ||
@@ -100,16 +124,16 @@ export function MessageLog({
                 connected ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.45)]" : "bg-text-disabled"
               )} />
             ) : null}
-            <span className="truncate text-[var(--fs-sm)] font-semibold text-text-primary">
+            <span className="truncate pf-text-sm font-semibold text-text-primary">
               {statusText || t('tcp.messageLog.title')}
             </span>
-            <span className="rounded-[var(--radius-sm)] bg-bg-primary/75 px-2 py-0.5 text-[var(--fs-xxs)] font-medium text-text-tertiary">
+            <span className="pf-rounded-sm bg-bg-primary/75 px-2 py-0.5 pf-text-xxs font-medium text-text-tertiary">
               {filteredMessages.length}/{messages.length}
             </span>
           </div>
 
           {stats && hasTraffic ? (
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-[var(--fs-xs)] text-text-tertiary">
+            <div className="mt-1 flex flex-wrap items-center gap-3 pf-text-xs text-text-tertiary">
               <span className="inline-flex items-center gap-1">
                 <ArrowUpRight className="h-3 w-3 text-blue-500" />
                 {formatSize(stats.sentBytes)} ({stats.sentCount})
@@ -123,14 +147,14 @@ export function MessageLog({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <label className="flex items-center gap-2 rounded-[var(--radius-md)] border border-border-default bg-bg-input px-2.5 py-1.5 text-[var(--fs-xs)] text-text-tertiary">
+          <label className="flex items-center gap-2 pf-rounded-md border border-border-default bg-bg-input px-2.5 py-1.5 pf-text-xs text-text-tertiary">
             <span className="shrink-0 font-semibold uppercase tracking-wide">
               {t('tcp.messageLog.displayFormat', '显示')}
             </span>
             <select
               value={displayFormat}
               onChange={(e) => setDisplayFormat(e.target.value as DataFormat)}
-              className="wb-native-select min-w-[128px] border-0 bg-transparent py-0 pl-0 pr-6 text-[var(--fs-xs)] font-semibold text-text-primary outline-none"
+              className="wb-native-select min-w-[128px] border-0 bg-transparent py-0 pl-0 pr-6 pf-text-xs font-semibold text-text-primary outline-none"
             >
               {FORMAT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -167,8 +191,8 @@ export function MessageLog({
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default/60 bg-bg-secondary">
                 <Search className="h-6 w-6 opacity-35" />
               </div>
-              <p className="text-[var(--fs-md)] font-semibold text-text-secondary">{t('tcp.messageLog.noMatch')}</p>
-              <p className="mt-1 text-[var(--fs-sm)] text-text-tertiary">{t('tcp.messageLog.noMatchHint')}</p>
+              <p className="pf-text-md font-semibold text-text-secondary">{t('tcp.messageLog.noMatch')}</p>
+              <p className="mt-1 pf-text-sm text-text-tertiary">{t('tcp.messageLog.noMatchHint')}</p>
             </div>
           ) : (
             <div className="flex h-full items-center justify-center px-6 py-8">
@@ -176,16 +200,16 @@ export function MessageLog({
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-border-default/60 bg-bg-primary/82">
                   <PlugZap className="h-5 w-5 text-text-disabled" />
                 </div>
-                <p className="text-[var(--fs-lg)] font-semibold text-text-secondary">{emptyTitle}</p>
-                <p className="mt-2 text-[var(--fs-sm)] leading-6 text-text-tertiary">{emptyDesc}</p>
+                <p className="pf-text-lg font-semibold text-text-secondary">{emptyTitle}</p>
+                <p className="mt-2 pf-text-sm leading-6 text-text-tertiary">{emptyDesc}</p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <span className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] font-semibold uppercase tracking-[0.08em] text-text-tertiary">
+                  <span className="pf-rounded-sm border border-border-default/60 bg-bg-primary/78 px-2.5 py-1 pf-text-xxs font-semibold uppercase tracking-[0.08em] text-text-tertiary">
                     {displayFormat === "auto" ? t("tcp.messageLog.auto", "AUTO") : displayFormat.toUpperCase()}
                   </span>
                   {typeof connected === "boolean" ? (
                     <span
                       className={cn(
-                        "rounded-[var(--radius-sm)] border px-2.5 py-1 text-[var(--fs-xxs)] font-semibold",
+                        "pf-rounded-sm border px-2.5 py-1 pf-text-xxs font-semibold",
                         connected
                           ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
                           : "border-border-default/60 bg-bg-secondary/78 text-text-tertiary"
@@ -196,10 +220,10 @@ export function MessageLog({
                   ) : null}
                   {stats && hasTraffic ? (
                     <>
-                      <span className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
+                      <span className="pf-rounded-sm border border-border-default/60 bg-bg-primary/78 px-2.5 py-1 pf-text-xxs text-text-secondary">
                         {formatSize(stats.sentBytes)} / {stats.sentCount} TX
                       </span>
-                      <span className="rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-primary/78 px-2.5 py-1 text-[var(--fs-xxs)] text-text-secondary">
+                      <span className="pf-rounded-sm border border-border-default/60 bg-bg-primary/78 px-2.5 py-1 pf-text-xxs text-text-secondary">
                         {formatSize(stats.receivedBytes)} / {stats.receivedCount} RX
                       </span>
                     </>
@@ -210,7 +234,7 @@ export function MessageLog({
           )
         ) : (
           <div className="divide-y divide-border-default/55">
-            {reversedMessages.map((m) => {
+            {visibleMessages.map((m) => {
               const displayData = m.direction === "system"
                 ? m.data
                 : convertFormat(m.data, m.rawHex, displayFormat);
@@ -230,21 +254,21 @@ export function MessageLog({
                 >
                   <div className="shrink-0">
                     {m.direction === "sent" ? (
-                      <span className="rounded-[var(--radius-sm)] bg-blue-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-blue-600">TX</span>
+                      <span className="pf-rounded-sm bg-blue-500/10 px-2 py-0.5 pf-text-3xs font-bold text-blue-600">TX</span>
                     ) : m.direction === "received" ? (
-                      <span className="rounded-[var(--radius-sm)] bg-emerald-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-emerald-600">RX</span>
+                      <span className="pf-rounded-sm bg-emerald-500/10 px-2 py-0.5 pf-text-3xs font-bold text-emerald-600">RX</span>
                     ) : (
-                      <span className="rounded-[var(--radius-sm)] bg-amber-500/10 px-2 py-0.5 text-[var(--fs-3xs)] font-bold text-amber-600">SYS</span>
+                      <span className="pf-rounded-sm bg-amber-500/10 px-2 py-0.5 pf-text-3xs font-bold text-amber-600">SYS</span>
                     )}
                   </div>
 
-                  <span className="w-[84px] shrink-0 select-none font-mono text-[var(--fs-xxs)] text-text-disabled">
+                  <span className="w-[84px] shrink-0 select-none font-mono pf-text-xxs text-text-disabled">
                     {formatTime(m.timestamp)}
                   </span>
 
                   <div className="min-w-0 flex-1">
                     <div className={cn(
-                      "truncate font-mono text-[var(--fs-sm)] leading-5 select-text",
+                      "truncate font-mono pf-text-sm leading-5 select-text",
                       m.direction === "sent" ? "text-blue-700 dark:text-blue-300" :
                       m.direction === "system" ? "text-amber-700 dark:text-amber-300" :
                       "text-text-primary"
@@ -253,14 +277,14 @@ export function MessageLog({
                     </div>
                   </div>
 
-                  <div className="hidden shrink-0 items-center gap-2 text-[var(--fs-xxs)] text-text-disabled lg:flex">
+                  <div className="hidden shrink-0 items-center gap-2 pf-text-xxs text-text-disabled lg:flex">
                     {m.remoteAddr ? (
-                      <span className="truncate rounded-[var(--radius-sm)] bg-bg-secondary/72 px-2 py-0.5">
+                      <span className="truncate pf-rounded-sm bg-bg-secondary/72 px-2 py-0.5">
                         {m.direction === "received" ? "\u2190 " : "\u2192 "}{m.remoteAddr}
                       </span>
                     ) : null}
                     {m.clientId ? (
-                      <span className="truncate rounded-[var(--radius-sm)] bg-bg-secondary/72 px-2 py-0.5">
+                      <span className="truncate pf-rounded-sm bg-bg-secondary/72 px-2 py-0.5">
                         {t('tcp.messageLog.client')}: {m.clientId.slice(0, 8)}
                       </span>
                     ) : null}
@@ -268,17 +292,17 @@ export function MessageLog({
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1.5">
-                    {m.size > 0 ? <span className="text-[var(--fs-xxs)] text-text-disabled lg:hidden">{formatSize(m.size)}</span> : null}
+                    {m.size > 0 ? <span className="pf-text-xxs text-text-disabled lg:hidden">{formatSize(m.size)}</span> : null}
                     <button
                       onClick={() => handleCopy(displayData, m.id)}
-                      className="rounded-[var(--radius-md)] p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-accent group-hover:opacity-100"
+                      className="pf-rounded-md p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-accent group-hover:opacity-100"
                     >
                       {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                     {hasParserPlugin && m.direction === 'received' && (
                       <button
                         onClick={() => handleParseMessage(m.data)}
-                        className="rounded-[var(--radius-md)] p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-blue-500 group-hover:opacity-100"
+                        className="pf-rounded-md p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-blue-500 group-hover:opacity-100"
                         title={t('parser.parse', '\u89e3\u6790')}
                       >
                         <FileCode2 className="h-3.5 w-3.5" />
@@ -291,6 +315,11 @@ export function MessageLog({
           </div>
         )}
       </div>
+      {reversedMessages.length > MAX_VISIBLE_TCP_MESSAGES ? (
+        <div className="shrink-0 border-t border-border-default/60 bg-bg-secondary/25 px-3 py-1.5 pf-text-xxs text-text-disabled">
+          {`为保证性能，仅显示最近 ${MAX_VISIBLE_TCP_MESSAGES} 条记录`}
+        </div>
+      ) : null}
     </div>
   );
 }

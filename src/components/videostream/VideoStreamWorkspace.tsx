@@ -1,6 +1,6 @@
 // 视频流调试工作台 — 七协议模式切换
 // 布局：Tabs+URL 固定顶部 → 可拖拽分栏（上：视频+配置 | 下：协议报文）
-import { useState, useEffect, useRef, useCallback } from "react";
+import { memo, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, GripHorizontal, GripVertical, History, X, Download, Loader } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -42,6 +42,8 @@ const MODE_COLORS: Record<VideoProtocol, string> = {
   rtsp: 'bg-blue-500', rtmp: 'bg-rose-500', 'http-flv': 'bg-orange-500',
   hls: 'bg-emerald-500', webrtc: 'bg-indigo-500', gb28181: 'bg-cyan-600', srt: 'bg-violet-500', onvif: 'bg-teal-500',
 };
+
+const MAX_VISIBLE_VIDEO_MESSAGES = 400;
 
 type RecentStream = { url: string; protocol: VideoProtocol; label?: string };
 
@@ -101,7 +103,7 @@ const DEFAULT_SRT_CONFIG: SrtConfig = {
   streamId: "",
 };
 
-export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
+export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<VideoProtocol>("onvif");
   const sessionKey = useRef(sessionId ?? crypto.randomUUID()).current;
@@ -118,14 +120,26 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   const [streamInfo, setStreamInfo] = useState<StreamInfo | null>(null);
   const [stats, setStats] = useState<StreamStats | null>(null);
   const [messageMap, setMessageMap] = useState<Record<string, ProtocolMessage[]>>({});
-  const filteredMessages = messageMap[mode] ?? [];
+  const filteredMessages = useMemo(() => messageMap[mode] ?? [], [messageMap, mode]);
+  const visibleMessages = useMemo(() => {
+    if (filteredMessages.length <= MAX_VISIBLE_VIDEO_MESSAGES) {
+      return filteredMessages;
+    }
+
+    return filteredMessages.slice(-MAX_VISIBLE_VIDEO_MESSAGES);
+  }, [filteredMessages]);
   const [, setPlaying] = useState(false); // kept for event handler compat
   const [selectedMsgId, setSelectedMsgId] = useState<string | null>(null);
   const [ffmpegStatus, setFfmpegStatus] = useState<FfmpegStatus | null>(null);
   const [ffmpegProgressText, setFfmpegProgressText] = useState("");
   const logEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [filteredMessages.length]);
+  useEffect(() => {
+    if (!logEndRef.current || logEndRef.current.offsetParent === null) {
+      return;
+    }
+    logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  }, [filteredMessages.length]);
 
   useEffect(() => {
     let disposed = false;
@@ -410,8 +424,8 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
 
       {/* ── Fixed: URL Bar ── */}
       <div className="shrink-0 pt-3">
-        <div className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
-          <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-2.5 text-[var(--fs-xs)] font-semibold text-white shadow-sm", MODE_COLORS[mode])}>
+        <div className="flex min-h-[38px] items-center gap-2 pf-rounded-md border border-border-default/80 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
+          <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 pf-rounded-sm px-2.5 pf-text-xs font-semibold text-white shadow-sm", MODE_COLORS[mode])}>
             {activeMode.icon}
             <span>{mode === 'http-flv' ? 'FLV' : mode === 'gb28181' ? 'GB' : mode.toUpperCase()}</span>
           </div>
@@ -419,7 +433,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
             value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)}
             placeholder={mode === 'rtsp' ? 'rtsp://admin:password@192.168.1.100:554/stream1' : mode === 'rtmp' ? 'rtmp://live.example.com/app/stream' : mode === 'http-flv' ? 'http://live.example.com/live/stream.flv' : mode === 'hls' ? 'https://example.com/live/index.m3u8' : mode === 'webrtc' ? 'wss://signal.example.com/ws' : mode === 'gb28181' ? 'rtsp:// / http(s):// / ws(s):// / webrtc:// 媒体地址' : 'srt://live.example.com:9000'}
             disabled={showPlayer}
-            className="h-7 flex-1 bg-transparent text-[var(--fs-sm)] font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
+            className="h-7 flex-1 bg-transparent pf-text-sm font-mono text-text-primary outline-none placeholder:text-text-disabled disabled:opacity-60"
             onKeyDown={(e) => e.key === 'Enter' && !showPlayer && handleConnect()}
           />
           <button onClick={handleConnect} disabled={connecting || (!activePlaybackUrl && !showPlayer)}
@@ -435,16 +449,16 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
         <div className="shrink-0 flex items-center gap-2 flex-wrap px-0.5 pt-1.5">
           <div className="flex items-center gap-1 text-text-disabled shrink-0">
             <History className="w-3 h-3" />
-            <span className="text-[var(--fs-xxs)] font-semibold uppercase tracking-wide">
+            <span className="pf-text-xxs font-semibold uppercase tracking-wide">
               {t('tcp.recentConnections', '最近')}
             </span>
           </div>
           <div className="flex items-center gap-1 flex-wrap min-w-0">
             {recentStreams.slice(0, 8).map((r, i) => (
-              <div key={i} className="group flex items-center rounded-[var(--radius-sm)] border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
+              <div key={i} className="group flex items-center pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
                 <button
                   onClick={() => { setStreamUrl(r.url); setMode(r.protocol); }}
-                  className="h-[22px] px-2 text-[var(--fs-xxs)] font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors flex items-center gap-1"
+                  className="h-[22px] px-2 pf-text-xxs font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors flex items-center gap-1"
                 >
                   <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", MODE_COLORS[r.protocol]?.replace('bg-', 'bg-') || 'bg-text-disabled')} />
                   <span className="truncate max-w-[180px]" title={r.label || r.url}>{r.label || r.url}</span>
@@ -466,14 +480,14 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
       )}
 
       {ffmpegRequired && ffmpegStatus && !ffmpegStatus.available && (
-        <div className="shrink-0 flex items-center gap-2 rounded-[var(--radius-sm)] border border-warning/20 bg-warning/8 px-3 py-2 mt-2">
-          <span className="text-[var(--fs-xxs)] text-warning flex-1">
+        <div className="shrink-0 flex items-center gap-2 pf-rounded-sm border border-warning/20 bg-warning/8 px-3 py-2 mt-2">
+          <span className="pf-text-xxs text-warning flex-1">
             内置播放器依赖 FFmpeg。当前未检测到可用安装{ffmpegProgressText ? `，${ffmpegProgressText}` : "。"}
           </span>
           <button
             onClick={handleDownloadFfmpeg}
             disabled={ffmpegStatus.downloading}
-            className="h-7 px-2.5 rounded-[var(--radius-sm)] bg-warning text-white text-[var(--fs-xxs)] font-semibold hover:bg-warning/90 disabled:opacity-60"
+            className="h-7 px-2.5 pf-rounded-sm bg-warning text-white pf-text-xxs font-semibold hover:bg-warning/90 disabled:opacity-60"
           >
             <Download className="w-3 h-3" />
             {ffmpegStatus.downloading ? "下载中..." : "下载 FFmpeg"}
@@ -483,9 +497,9 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
 
       {/* ── Player error toast ── */}
       {playerError && (
-        <div className="shrink-0 flex items-center gap-2 rounded-[var(--radius-sm)] bg-error/10 border border-error/20 px-3 py-1.5 mt-2">
-          <span className="text-error text-[var(--fs-sm)]">&#9888;</span>
-          <span className="flex-1 text-[var(--fs-xxs)] text-error">{playerError}</span>
+        <div className="shrink-0 flex items-center gap-2 pf-rounded-sm bg-error/10 border border-error/20 px-3 py-1.5 mt-2">
+          <span className="text-error pf-text-sm">&#9888;</span>
+          <span className="flex-1 pf-text-xxs text-error">{playerError}</span>
           <button onClick={() => setPlayerError(null)} className="text-error/60 hover:text-error"><X className="w-3 h-3" /></button>
         </div>
       )}
@@ -495,12 +509,12 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
         <PanelGroup orientation="horizontal">
           {/* ═══ Left Panel: Protocol Config ═══ */}
           <Panel id="vs-left" defaultSize={35} minSize={20}>
-            <div className="h-full rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
+            <div className="h-full pf-rounded-md border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
               <div className="wb-pane-header shrink-0">
-                <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
+                <span className="pf-text-xs font-semibold text-text-secondary">
                   {t('videostream.protocolConfig', '协议配置')}
                 </span>
-                <span className="text-[var(--fs-3xs)] text-text-disabled font-mono">{mode.toUpperCase()}</span>
+                <span className="pf-text-3xs text-text-disabled font-mono">{mode.toUpperCase()}</span>
               </div>
               <div className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-3">
                 <div className="min-w-0 max-w-full overflow-x-hidden">
@@ -521,7 +535,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
             <PanelGroup orientation="vertical">
               {/* ═══ Top Right Panel: Video Player ═══ */}
               <Panel id="vs-player" defaultSize={55} minSize={20}>
-                <div className="h-full rounded-[var(--radius-md)] border border-border-default/80 bg-black overflow-hidden flex flex-col relative">
+                <div className="h-full pf-rounded-md border border-border-default/80 bg-black overflow-hidden flex flex-col relative">
                   <div className="flex-1 w-full bg-[#0a0a0a] flex flex-col items-center justify-center relative overflow-hidden">
                     {showPlayer ? (
                       <div className="absolute inset-0 w-full h-full flex flex-col">
@@ -548,7 +562,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                           <div className="absolute inset-0 flex items-center justify-center bg-black/70">
                             <div className="flex flex-col items-center gap-2 text-white/75">
                               <Loader className="w-6 h-6 animate-spin" />
-                              <span className="text-[var(--fs-xxs)] font-mono">
+                              <span className="pf-text-xxs font-mono">
                                 {playbackPathLabel === "本地 HLS 网关" ? "启动本地媒体网关..." : "等待播放器初始化..."}
                               </span>
                             </div>
@@ -558,7 +572,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-3 text-text-disabled/40">
                         <MonitorPlay className="w-10 h-10 opacity-60" />
-                        <span className="text-[var(--fs-xs)] font-medium text-text-disabled/80">等待视频流接入...</span>
+                        <span className="pf-text-xs font-medium text-text-disabled/80">等待视频流接入...</span>
                       </div>
                     )}
                   </div>
@@ -573,34 +587,34 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
 
               {/* ═══ Bottom Right Panel: Protocol Message Log ═══ */}
               <Panel id="vs-log" defaultSize={45} minSize={10}>
-            <div className="h-full rounded-[var(--radius-md)] border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
+            <div className="h-full pf-rounded-md border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
               {/* Log header with status */}
               <div className="wb-pane-header shrink-0">
-                <span className="text-[var(--fs-xs)] font-semibold text-text-secondary">
+                <span className="pf-text-xs font-semibold text-text-secondary">
                   {t('videostream.protocolLog', '协议报文')}
                 </span>
-                <span className="text-[var(--fs-xxs)] text-text-disabled">{filteredMessages.length} {t('videostream.messages', '条')}</span>
+                <span className="pf-text-xxs text-text-disabled">{filteredMessages.length} {t('videostream.messages', '条')}</span>
                 <div className="flex-1" />
                 <div className="flex items-center gap-1.5">
                   <span className={cn("w-1.5 h-1.5 rounded-full", connected ? "bg-emerald-500" : "bg-text-disabled/40")} />
-                  <span className="text-[var(--fs-3xs)] text-text-disabled">{connected ? t('videostream.connected', '已连接') : t('videostream.idle', '空闲')}</span>
+                  <span className="pf-text-3xs text-text-disabled">{connected ? t('videostream.connected', '已连接') : t('videostream.idle', '空闲')}</span>
                 </div>
                 <div className="flex items-center gap-1.5 ml-2">
                   <span className={cn(
                     "w-1.5 h-1.5 rounded-full",
                     !showPlayer ? "bg-text-disabled/40" : connecting ? "bg-warning animate-pulse" : playbackReady ? "bg-sky-400" : "bg-text-disabled/60",
                   )} />
-                  <span className="text-[var(--fs-3xs)] text-text-disabled">{playbackStateLabel}</span>
+                  <span className="pf-text-3xs text-text-disabled">{playbackStateLabel}</span>
                 </div>
                 {streamInfo && (
-                  <div className="flex items-center gap-1.5 ml-2 text-[var(--fs-3xs)] text-text-disabled font-mono">
+                  <div className="flex items-center gap-1.5 ml-2 pf-text-3xs text-text-disabled font-mono">
                     <span>{streamInfo.codec}</span>
                     {streamInfo.width > 0 && <span>{streamInfo.width}×{streamInfo.height}</span>}
                     {streamInfo.bitrate > 0 && <span>{streamInfo.bitrate}kbps</span>}
                   </div>
                 )}
                 {stats && (
-                  <div className="flex items-center gap-1.5 ml-2 text-[var(--fs-3xs)] font-mono">
+                  <div className="flex items-center gap-1.5 ml-2 pf-text-3xs font-mono">
                     <span className="text-text-disabled">{stats.packetsReceived} pkts</span>
                     {stats.packetsLost > 0 && <span className="text-red-400">{stats.packetsLost} lost</span>}
                   </div>
@@ -615,7 +629,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                     a.click();
                     URL.revokeObjectURL(url);
                   }}
-                    className="text-[var(--fs-3xs)] text-text-disabled hover:text-accent transition-colors"
+                    className="pf-text-3xs text-text-disabled hover:text-accent transition-colors"
                     title={t('videostream.exportMessages', '导出报文')}
                   >
                     <Download className="w-3 h-3" />
@@ -623,7 +637,7 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                 )}
                 {filteredMessages.length > 0 && (
                   <button onClick={() => { setMessageMap(prev => ({ ...prev, [mode]: [] })); setSelectedMsgId(null); }}
-                    className="text-[var(--fs-3xs)] text-text-disabled hover:text-red-500 transition-colors ml-2"
+                    className="pf-text-3xs text-text-disabled hover:text-red-500 transition-colors ml-2"
                   >{t('sidebar.clearAll', '清空')}</button>
                 )}
               </div>
@@ -634,36 +648,43 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                 <div className={cn("min-w-0 overflow-y-auto overflow-x-hidden", selectedMsg ? "w-1/2 border-r border-border-default/30" : "flex-1")}>
                   {filteredMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-2 py-10 text-text-disabled">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-bg-secondary/60 border border-border-default/40">
+                      <div className="flex h-10 w-10 items-center justify-center pf-rounded-md bg-bg-secondary/60 border border-border-default/40">
                         <MonitorPlay className="w-5 h-5 text-text-disabled/60" />
                       </div>
-                      <span className="text-[var(--fs-xs)] font-medium">{t('videostream.noMessages', '暂无协议报文')}</span>
-                      <span className="text-[var(--fs-xxs)] text-text-disabled/60">{t('videostream.noMessagesHint', '连接流后将在此显示协议交互日志')}</span>
+                      <span className="pf-text-xs font-medium">{t('videostream.noMessages', '暂无协议报文')}</span>
+                      <span className="pf-text-xxs text-text-disabled/60">{t('videostream.noMessagesHint', '连接流后将在此显示协议交互日志')}</span>
                     </div>
                   ) : (
-                    <div className="divide-y divide-border-default/20">
-                      {filteredMessages.map((msg) => (
-                        <button key={msg.id} onClick={() => setSelectedMsgId(selectedMsgId === msg.id ? null : msg.id)}
-                          className={cn("w-full text-left px-3 py-1.5 hover:bg-bg-hover/50 transition-colors",
-                            selectedMsgId === msg.id && "bg-accent/5 border-l-2 border-l-accent"
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className={cn("text-[var(--fs-3xs)] font-bold uppercase w-10 shrink-0",
-                              msg.direction === 'sent' ? 'text-amber-500' : msg.direction === 'received' ? 'text-emerald-500' : 'text-blue-400'
-                            )}>
-                              {msg.direction === 'sent' ? '→ SENT' : msg.direction === 'received' ? '← RECV' : 'ℹ INFO'}
-                            </span>
-                            <span className="text-[var(--fs-3xs)] text-text-disabled font-mono shrink-0">
-                              {new Date(msg.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}.{String(new Date(msg.timestamp).getMilliseconds()).padStart(3, '0')}
-                            </span>
-                            {msg.size != null && msg.size > 0 && <span className="text-[var(--fs-3xs)] text-text-disabled shrink-0">{msg.size}B</span>}
-                            <span className="text-[var(--fs-xxs)] text-text-primary truncate flex-1">{msg.summary}</span>
-                          </div>
-                        </button>
-                      ))}
-                      <div ref={logEndRef} />
-                    </div>
+                    <>
+                      <div className="divide-y divide-border-default/20">
+                        {visibleMessages.map((msg) => (
+                          <button key={msg.id} onClick={() => setSelectedMsgId(selectedMsgId === msg.id ? null : msg.id)}
+                            className={cn("w-full text-left px-3 py-1.5 hover:bg-bg-hover/50 transition-colors",
+                              selectedMsgId === msg.id && "bg-accent/5 border-l-2 border-l-accent"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={cn("pf-text-3xs font-bold uppercase w-10 shrink-0",
+                                msg.direction === 'sent' ? 'text-amber-500' : msg.direction === 'received' ? 'text-emerald-500' : 'text-blue-400'
+                              )}>
+                                {msg.direction === 'sent' ? '→ SENT' : msg.direction === 'received' ? '← RECV' : 'ℹ INFO'}
+                              </span>
+                              <span className="pf-text-3xs text-text-disabled font-mono shrink-0">
+                                {new Date(msg.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}.{String(new Date(msg.timestamp).getMilliseconds()).padStart(3, '0')}
+                              </span>
+                              {msg.size != null && msg.size > 0 && <span className="pf-text-3xs text-text-disabled shrink-0">{msg.size}B</span>}
+                              <span className="pf-text-xxs text-text-primary truncate flex-1">{msg.summary}</span>
+                            </div>
+                          </button>
+                        ))}
+                        <div ref={logEndRef} />
+                      </div>
+                      {filteredMessages.length > MAX_VISIBLE_VIDEO_MESSAGES ? (
+                        <div className="border-t border-border-default/30 px-3 py-1.5 pf-text-xxs text-text-disabled">
+                          {`为保证性能，仅显示最近 ${MAX_VISIBLE_VIDEO_MESSAGES} 条协议报文`}
+                        </div>
+                      ) : null}
+                    </>
                   )}
                 </div>
 
@@ -671,10 +692,10 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
                 {selectedMsg && (
                   <div className="flex w-1/2 min-w-0 flex-col overflow-hidden">
                     <div className="shrink-0 px-3 py-1 border-b border-border-default/40 bg-bg-secondary/20 flex items-center justify-between">
-                      <span className="text-[var(--fs-xxs)] font-semibold text-text-secondary">{t('videostream.messageDetail', '报文详情')}</span>
-                      <button onClick={() => setSelectedMsgId(null)} className="text-[var(--fs-xxs)] text-text-disabled hover:text-text-secondary p-1">✕</button>
+                      <span className="pf-text-xxs font-semibold text-text-secondary">{t('videostream.messageDetail', '报文详情')}</span>
+                      <button onClick={() => setSelectedMsgId(null)} className="pf-text-xxs text-text-disabled hover:text-text-secondary p-1">✕</button>
                     </div>
-                    <pre className="flex-1 overflow-auto p-2.5 text-[var(--fs-xxs)] font-mono text-text-secondary whitespace-pre-wrap break-all leading-relaxed">
+                    <pre className="flex-1 overflow-auto p-2.5 pf-text-xxs font-mono text-text-secondary whitespace-pre-wrap break-all leading-relaxed">
                       {selectedMsg.detail}
                     </pre>
                   </div>
@@ -688,4 +709,6 @@ export function VideoStreamWorkspace({ sessionId }: { sessionId?: string }) {
   </div>
 </div>
   );
-}
+});
+
+VideoStreamWorkspace.displayName = "VideoStreamWorkspace";
