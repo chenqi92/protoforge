@@ -38,11 +38,14 @@ export interface OAuth2Config {
   // Authorization Code specific
   authUrl: string;
   redirectUri: string;
+  usePkce: boolean;
   // Password specific
   username: string;
   password: string;
-  // Cached token
+  // Token state
   accessToken: string;
+  refreshToken: string;
+  tokenExpiresAt: number;  // absolute timestamp (ms), 0 = unknown
 }
 
 export interface HttpRequestConfig {
@@ -188,9 +191,12 @@ export function createDefaultRequest(): HttpRequestConfig {
       scope: '',
       authUrl: '',
       redirectUri: 'http://localhost:1420/callback',
+      usePkce: true,
       username: '',
       password: '',
       accessToken: '',
+      refreshToken: '',
+      tokenExpiresAt: 0,
     },
     preScript: '',
     postScript: '',

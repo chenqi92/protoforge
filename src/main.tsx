@@ -32,6 +32,11 @@ async function renderApp() {
       Component = VideoStreamWindow;
       break;
     }
+    case "mockserver": {
+      const { MockServerWindow } = await import("./windows/MockServerWindow");
+      Component = MockServerWindow;
+      break;
+    }
     default: {
       const { default: App } = await import("./App");
       Component = App;

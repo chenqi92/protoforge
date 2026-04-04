@@ -63,6 +63,19 @@ function getAuthConfig(config: HttpRequestConfig): string {
     apiKeyName: config.apiKeyName,
     apiKeyValue: config.apiKeyValue,
     apiKeyAddTo: config.apiKeyAddTo,
+    // OAuth2: persist configuration but NOT tokens (they are ephemeral runtime state)
+    oauth2Config: {
+      grantType: config.oauth2Config.grantType,
+      accessTokenUrl: config.oauth2Config.accessTokenUrl,
+      clientId: config.oauth2Config.clientId,
+      clientSecret: config.oauth2Config.clientSecret,
+      scope: config.oauth2Config.scope,
+      authUrl: config.oauth2Config.authUrl,
+      redirectUri: config.oauth2Config.redirectUri,
+      usePkce: config.oauth2Config.usePkce,
+      username: config.oauth2Config.username,
+      password: config.oauth2Config.password,
+    },
   });
 }
 

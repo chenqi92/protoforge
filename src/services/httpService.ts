@@ -17,6 +17,84 @@ import { ensureAutoHeaders } from '@/types/http';
 import { usePluginStore } from '@/stores/pluginStore';
 import * as pluginService from '@/services/pluginService';
 
+// Token refresh buffer: refresh 30s before actual expiry
+const TOKEN_REFRESH_BUFFER_MS = 30_000;
+let _refreshPromise: Promise<void> | null = null;
+
+/**
+ * If the OAuth2 token is expired (or about to expire) and a refresh_token is available,
+ * automatically refresh it. Returns a (potentially updated) config.
+ * Uses a module-level promise lock to prevent concurrent refresh races.
+ */
+export async function maybeRefreshOAuth2Token(
+  config: HttpRequestConfig,
+  onTokenUpdated?: (updates: Partial<import('@/types/http').OAuth2Config>) => void,
+): Promise<HttpRequestConfig> {
+  if (config.authType !== 'oauth2') return config;
+  const { oauth2Config } = config;
+  if (!oauth2Config.refreshToken || !oauth2Config.accessTokenUrl) return config;
+  if (!oauth2Config.tokenExpiresAt) return config; // no expiry info — can't judge
+
+  const remaining = oauth2Config.tokenExpiresAt - Date.now();
+  if (remaining > TOKEN_REFRESH_BUFFER_MS) return config; // still valid
+
+  // Avoid concurrent refreshes
+  if (_refreshPromise) {
+    await _refreshPromise;
+    return config;
+  }
+
+  let resolve: () => void;
+  _refreshPromise = new Promise<void>((r) => { resolve = r; });
+
+  try {
+    const result = await invoke<{
+      accessToken: string;
+      tokenType?: string;
+      expiresIn?: number;
+      refreshToken?: string;
+      scope?: string;
+    }>('fetch_oauth2_token', {
+      req: {
+        grantType: 'refresh_token',
+        accessTokenUrl: oauth2Config.accessTokenUrl,
+        clientId: oauth2Config.clientId,
+        clientSecret: oauth2Config.clientSecret,
+        scope: oauth2Config.scope || null,
+        username: null,
+        password: null,
+        code: null,
+        redirectUri: null,
+        codeVerifier: null,
+        refreshToken: oauth2Config.refreshToken,
+      },
+    });
+
+    const updates: Partial<import('@/types/http').OAuth2Config> = {
+      accessToken: result.accessToken,
+      tokenExpiresAt: result.expiresIn ? Date.now() + result.expiresIn * 1000 : 0,
+    };
+    if (result.refreshToken) {
+      updates.refreshToken = result.refreshToken;
+    }
+
+    // Apply to config for this request
+    const newOAuth2Config = { ...oauth2Config, ...updates };
+    config = { ...config, oauth2Config: newOAuth2Config };
+
+    // Notify UI to persist the refreshed token
+    onTokenUpdated?.(updates);
+
+    return config;
+  } catch {
+    // Refresh failed — proceed with existing (possibly expired) token
+    return config;
+  } finally {
+    _refreshPromise = null;
+    resolve!();
+  }
+}
+
 function resolveConfigVariables(config: HttpRequestConfig, scopeSnapshot?: Record<string, string>): HttpRequestConfig {
   const collectionId = getLinkedCollectionIdForRequestConfig(config);
   const itemId = getLinkedCollectionItemIdForRequestConfig(config);

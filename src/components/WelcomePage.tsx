@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
-import { Send, Zap, Network, Radio, Eye, Puzzle, Waves, Braces, ArrowRight, Sparkles } from "lucide-react";
+import { Send, Zap, Network, Radio, Eye, Puzzle, Waves, Braces, ArrowRight, Sparkles, Server } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
-export type WelcomeAction = "http" | "graphql" | "ws" | "sse" | "mqtt" | "tcpudp" | "loadtest" | "capture" | "plugins";
+export type WelcomeAction = "http" | "graphql" | "ws" | "sse" | "mqtt" | "tcpudp" | "loadtest" | "capture" | "mockserver" | "plugins";
 
 interface FeatureItem {
   action: WelcomeAction;
@@ -26,6 +26,7 @@ const toolFeatures: FeatureItem[] = [
   { action: "tcpudp", icon: Network, labelKey: "welcome.tcpudp", descKey: "welcome.tcpudpDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-indigo-500 bg-indigo-500/10" },
   { action: "capture", icon: Eye, labelKey: "welcome.capture", descKey: "welcome.captureDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-cyan-500 bg-cyan-500/10" },
   { action: "loadtest", icon: Radio, labelKey: "welcome.loadtest", descKey: "welcome.loadtestDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-rose-500 bg-rose-500/10" },
+  { action: "mockserver", icon: Server, labelKey: "welcome.mockserver", descKey: "welcome.mockserverDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-green-500 bg-green-500/10" },
   { action: "plugins", icon: Puzzle, labelKey: "welcome.pluginSystem", descKey: "welcome.pluginSystemDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-violet-500 bg-violet-500/10" },
 ];
 

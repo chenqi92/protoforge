@@ -13,7 +13,8 @@
     "themeSystem": "跟随系统",
     "themeDark": "深色模式",
     "themeLight": "浅色模式",
-    "videostream": "视频流"
+    "videostream": "视频流",
+    "mockserver": "Mock Server"
   },
   "statusBar": {
     "requests": "接口调试工作台",
@@ -27,7 +28,8 @@
     "capture": "流量捕获",
     "loadtest": "性能测试",
     "ready": "就绪",
-    "videostream": "视频流调试"
+    "videostream": "视频流调试",
+    "mockserver": "Mock Server"
   },
   "sidebar": {
     "collections": "集合",
@@ -99,6 +101,11 @@
       "shortTitle": "视频流",
       "description": "支持 RTSP、RTMP、HTTP-FLV、HLS、WebRTC、GB28181、SRT 协议的视频流拉取与深度协议分析"
     },
+    "mockserver": {
+      "title": "Mock Server",
+      "shortTitle": "Mock",
+      "description": "本地 HTTP Mock 服务器，支持通配符路由、动态响应模板、延迟模拟，适用于前端联调和接口测试。"
+    },
     "allInstances": "所有实例",
     "newInstance": "新建实例",
     "singleInstance": "单实例工具",
@@ -135,6 +142,8 @@
     "captureDesc": "本地 HTTP 代理抓包，支持 HTTPS 解密与请求详情分析",
     "loadtest": "性能测试",
     "loadtestDesc": "高并发压测引擎，实时 RPS / 延迟 / 错误率可视化",
+    "mockserver": "Mock Server",
+    "mockserverDesc": "本地 HTTP Mock 服务，通配符路由 + 动态模板 + 延迟模拟",
     "pluginSystem": "插件扩展",
     "pluginSystemDesc": "通过插件扩展协议解析、数据生成和自定义渲染能力",
     "sse": "SSE",
@@ -247,7 +256,19 @@
       "authorizing": "授权中...",
       "authorizingHint": "浏览器窗口已打开，请在授权页面完成登录并授权。完成后窗口将自动关闭。",
       "validity": "有效期 {{seconds}}s",
-      "accessTokenPlaceholder": "点击「获取 Token」自动填入，或手动粘贴"
+      "accessTokenPlaceholder": "点击「获取 Token」自动填入，或手动粘贴",
+      "refreshToken": "刷新 Token",
+      "refreshing": "刷新中...",
+      "clearToken": "清除 Token",
+      "tokenValid": "有效",
+      "tokenExpiring": "即将过期",
+      "tokenExpired": "已过期",
+      "noToken": "无 Token",
+      "pkce": "PKCE (S256)",
+      "pkceHint": "推荐用于公开客户端，自动生成 code_verifier / code_challenge。",
+      "autoRefreshed": "Token 已自动刷新",
+      "expiresIn": "{{time}} 后过期",
+      "tokenCleared": "Token 已清除"
     },
     "script": {
       "preScriptTitle": "前置脚本",
@@ -987,6 +1008,7 @@
     "openTcpUdp": "打开协议调试工作台",
     "openCapture": "打开流量捕获工作台",
     "openLoadtest": "打开性能测试工作台",
+    "openMockServer": "打开 Mock Server 工作台",
     "openPlugins": "打开插件中心",
     "openSettings": "打开偏好设置",
     "typeAction": "操作",
@@ -1263,6 +1285,48 @@
       "orMask": "OR 掩码",
       "result": "结果"
     }
+  },
+  "mockServer": {
+    "start": "启动",
+    "stop": "停止",
+    "starting": "启动中…",
+    "running": "运行中",
+    "stopped": "已停止",
+    "port": "端口",
+    "hits": "次命中",
+    "routes": "条路由",
+    "routeCount": "条路由",
+    "routeList": "路由列表",
+    "addRoute": "添加路由",
+    "deleteRoute": "删除路由",
+    "duplicate": "复制",
+    "enable": "启用",
+    "disable": "禁用",
+    "noRoutes": "暂无路由",
+    "addFirstRoute": "添加第一条路由",
+    "selectRoute": "选择一条路由进行编辑",
+    "routeConfig": "路由配置",
+    "methodAndPath": "方法 & 路径",
+    "description": "描述",
+    "descPlaceholder": "可选描述…",
+    "statusCode": "状态码",
+    "delay": "延迟 (ms)",
+    "priority": "优先级",
+    "responseHeaders": "响应头",
+    "headerName": "Header 名",
+    "headerValue": "值",
+    "addHeader": "添加响应头",
+    "responseBody": "响应体",
+    "templateVars": "模板变量",
+    "tplRequestCtx": "请求上下文",
+    "tplDynamic": "动态变量",
+    "tplRoutePatterns": "路由模式",
+    "requestLog": "请求日志",
+    "clearLog": "清空日志",
+    "noLogs": "暂无请求",
+    "noLogsHint": "收到的请求将实时显示在这里",
+    "logResponseBody": "响应体",
+    "logRequestBody": "请求体"
   },
   "rightSidebar": {
     "toolbox": "工具箱"

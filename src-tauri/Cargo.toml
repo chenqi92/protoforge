@@ -38,6 +38,8 @@ tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
 futures-util = "0.3"
 hudsucker = { version = "0.24", features = ["rcgen-ca"] }
 rcgen = "0.14"
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio", "http1"] }
 http = "1"
 http-body-util = "0.1"
 bytes = "1"

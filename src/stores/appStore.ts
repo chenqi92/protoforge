@@ -10,7 +10,7 @@ import {
 } from "@/types/toolSession";
 
 export type RequestProtocol = "http" | "ws" | "mqtt";
-export type ToolWorkbench = "tcpudp" | "loadtest" | "capture" | "videostream";
+export type ToolWorkbench = "tcpudp" | "loadtest" | "capture" | "videostream" | "mockserver";
 export type WorkbenchView = "home" | "requests" | ToolWorkbench;
 export type WorkspaceProtocol = RequestProtocol | ToolWorkbench | "collection";
 
@@ -104,12 +104,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
     loadtest: [],
     capture: [],
     videostream: [],
+    mockserver: [],
   },
   activeToolSessionIds: {
     tcpudp: null,
     loadtest: null,
     capture: null,
     videostream: null,
+    mockserver: null,
   },
 
   addTab: (protocol: RequestProtocol = "http") => {

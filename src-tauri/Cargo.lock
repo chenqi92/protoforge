@@ -4377,6 +4377,8 @@ dependencies = [
  "http",
  "http-body-util",
  "hudsucker",
+ "hyper",
+ "hyper-util",
  "libc",
  "log",
  "quick-xml 0.37.5",

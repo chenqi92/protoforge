@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useRef } from "react";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Gauge, List, MonitorPlay, Network, Plus, Radio, X } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Gauge, List, MonitorPlay, Network, Plus, Radio, Server, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -32,14 +32,18 @@ import {
   type ToolSessionOptions,
 } from "@/types/toolSession";
 
-const HttpWorkspace = lazy(() => import("@/components/http/HttpWorkspace").then((module) => ({ default: module.HttpWorkspace })));
-const RequestsOverview = lazy(() => import("@/components/http/RequestsOverview").then((module) => ({ default: module.RequestsOverview })));
-const WsWorkspace = lazy(() => import("@/components/ws/WsWorkspace").then((module) => ({ default: module.WsWorkspace })));
-const MqttWorkspace = lazy(() => import("@/components/mqtt/MqttWorkspace").then((module) => ({ default: module.MqttWorkspace })));
-const TcpWorkspace = lazy(() => import("@/components/tcp/TcpWorkspace").then((module) => ({ default: module.TcpWorkspace })));
-const LoadTestWorkspace = lazy(() => import("@/components/loadtest/LoadTestWorkspace").then((module) => ({ default: module.LoadTestWorkspace })));
-const VideoStreamWorkspace = lazy(() => import("@/components/videostream/VideoStreamWorkspace").then((module) => ({ default: module.VideoStreamWorkspace })));
-const CaptureWorkspace = lazy(() => import("@/components/capture/CaptureWorkspace").then((module) => ({ default: module.CaptureWorkspace })));
+// Core workspace components — direct imports for instant tab switching (no Suspense flash)
+import { HttpWorkspace } from "@/components/http/HttpWorkspace";
+import { RequestsOverview } from "@/components/http/RequestsOverview";
+import { WsWorkspace } from "@/components/ws/WsWorkspace";
+import { MqttWorkspace } from "@/components/mqtt/MqttWorkspace";
+import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
+import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
+import { VideoStreamWorkspace } from "@/components/videostream/VideoStreamWorkspace";
+import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
+import { MockServerWorkspace } from "@/components/mockserver/MockServerWorkspace";
+
+// Low-frequency components — keep lazy for smaller initial bundle
 const PluginModal = lazy(() => import("@/components/plugins/PluginModal").then((module) => ({ default: module.PluginModal })));
 const SettingsModal = lazy(() => import("@/components/settings/SettingsModal").then((module) => ({ default: module.SettingsModal })));
 const DesignSystemPage = lazy(() => import("@/components/dev/DesignSystemPage").then((module) => ({ default: module.DesignSystemPage })));
@@ -98,6 +102,15 @@ const toolWorkbenchMeta: Record<ToolWorkbench, {
     accentClassName: "text-purple-600",
     accentBorderClassName: "border-purple-500",
     accentDotClassName: "bg-purple-500",
+  },
+  mockserver: {
+    titleKey: "toolWorkbench.mockserver.title",
+    shortTitleKey: "toolWorkbench.mockserver.shortTitle",
+    descKey: "toolWorkbench.mockserver.description",
+    icon: Server,
+    accentClassName: "text-green-600",
+    accentBorderClassName: "border-green-500",
+    accentDotClassName: "bg-green-500",
   },
 };
 
@@ -608,6 +621,7 @@ function App() {
     capture: [],
     loadtest: [],
     videostream: [],
+    mockserver: [],
   });
 
   useKeyboardShortcuts();
@@ -691,7 +705,7 @@ function App() {
   }, [activeWorkbench, rightSidebarPanelRef]);
 
   const refreshDetachedTools = useCallback(async () => {
-    const toolKeys: ToolWorkbench[] = ["tcpudp", "capture", "loadtest", "videostream"];
+    const toolKeys: ToolWorkbench[] = ["tcpudp", "capture", "loadtest", "videostream", "mockserver"];
     const states = await Promise.all(
       toolKeys.map(async (tool) => [tool, await listOpenToolWindowSessions(tool)] as const)
     );
@@ -701,6 +715,7 @@ function App() {
       capture: states.find(([tool]) => tool === "capture")?.[1] ?? [],
       loadtest: states.find(([tool]) => tool === "loadtest")?.[1] ?? [],
       videostream: states.find(([tool]) => tool === "videostream")?.[1] ?? [],
+      mockserver: states.find(([tool]) => tool === "mockserver")?.[1] ?? [],
     });
   }, []);
 
@@ -873,6 +888,7 @@ function App() {
       case "tcpudp":
       case "loadtest":
       case "capture":
+      case "mockserver":
         void handleSelectWorkbench(action);
         break;
       case "plugins":
@@ -934,13 +950,11 @@ function App() {
                 {/* No tabs: show overview */}
                 {tabs.length === 0 && !activeCollectionId && (
                   <div className="absolute inset-0 bg-bg-primary">
-                    <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载请求概览..." />}>
-                      <RequestsOverview
-                        onNewTab={handleNewTab}
-                        onOpenCollection={(id) => useAppStore.getState().openCollectionPanel(id)}
-                        onOpenEnvModal={() => setEnvModalOpen(true)}
-                      />
-                    </Suspense>
+                    <RequestsOverview
+                      onNewTab={handleNewTab}
+                      onOpenCollection={(id) => useAppStore.getState().openCollectionPanel(id)}
+                      onOpenEnvModal={() => setEnvModalOpen(true)}
+                    />
                   </div>
                 )}
 
@@ -948,21 +962,9 @@ function App() {
                   const isActive = !activeCollectionId && activeTabId === tab.id;
                   return (
                     <div key={tab.id} className={cn("absolute inset-0 bg-bg-primary", isActive ? "block" : "hidden")}>
-                      {tab.protocol === "http" && (
-                        <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载 HTTP 工作区..." />}>
-                          <HttpWorkspace tabId={tab.id} />
-                        </Suspense>
-                      )}
-                      {tab.protocol === "ws" && (
-                        <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载 WebSocket 工作区..." />}>
-                          <WsWorkspace tabId={tab.id} />
-                        </Suspense>
-                      )}
-                      {tab.protocol === "mqtt" && (
-                        <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载 MQTT 工作区..." />}>
-                          <MqttWorkspace tabId={tab.id} />
-                        </Suspense>
-                      )}
+                      {tab.protocol === "http" && <HttpWorkspace tabId={tab.id} />}
+                      {tab.protocol === "ws" && <WsWorkspace tabId={tab.id} />}
+                      {tab.protocol === "mqtt" && <MqttWorkspace tabId={tab.id} />}
                     </div>
                   );
                 })}
@@ -987,9 +989,7 @@ function App() {
                 key={session.id}
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.tcpudp ? "block" : "hidden")}
               >
-                <Suspense fallback={<LazyPaneFallback label="加载 TCP/UDP 工作区..." />}>
-                  <TcpWorkspace sessionId={session.id} initialMode={session.tcpMode ?? DEFAULT_TCP_TOOL_MODE} />
-                </Suspense>
+                <TcpWorkspace sessionId={session.id} initialMode={session.tcpMode ?? DEFAULT_TCP_TOOL_MODE} />
               </div>
             ))}
           </ToolWorkbenchPanel>
@@ -1011,9 +1011,7 @@ function App() {
                 key={session.id}
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.capture ? "block" : "hidden")}
               >
-                <Suspense fallback={<LazyPaneFallback label="加载抓包工作区..." />}>
-                  <CaptureWorkspace sessionId={session.id} />
-                </Suspense>
+                <CaptureWorkspace sessionId={session.id} />
               </div>
             ))}
           </ToolWorkbenchPanel>
@@ -1035,9 +1033,7 @@ function App() {
                 key={session.id}
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.loadtest ? "block" : "hidden")}
               >
-                <Suspense fallback={<LazyPaneFallback label="加载压测工作区..." />}>
-                  <LoadTestWorkspace sessionId={session.id} />
-                </Suspense>
+                <LoadTestWorkspace sessionId={session.id} />
               </div>
             ))}
           </ToolWorkbenchPanel>
@@ -1059,9 +1055,29 @@ function App() {
                 key={session.id}
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.videostream ? "block" : "hidden")}
               >
-                <Suspense fallback={<LazyPaneFallback label="加载视频流工作区..." />}>
-                  <VideoStreamWorkspace sessionId={session.id} initialMode={session.videoMode ?? DEFAULT_VIDEO_TOOL_MODE} />
-                </Suspense>
+                <VideoStreamWorkspace sessionId={session.id} initialMode={session.videoMode ?? DEFAULT_VIDEO_TOOL_MODE} />
+              </div>
+            ))}
+          </ToolWorkbenchPanel>
+        </div>
+
+        <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "mockserver" ? "block" : "hidden")}>
+          <ToolWorkbenchPanel
+            tool="mockserver"
+            sessions={toolSessions.mockserver}
+            activeSessionId={activeToolSessionIds.mockserver}
+            detachedSessionIds={detachedToolSessions.mockserver}
+            onAddSession={addToolSession}
+            onSelectSession={setActiveToolSession}
+            onCloseSession={closeToolSession}
+            onPopout={handlePopoutWorkbench}
+          >
+            {toolSessions.mockserver.map((session) => (
+              <div
+                key={session.id}
+                className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.mockserver ? "block" : "hidden")}
+              >
+                <MockServerWorkspace sessionId={session.id} />
               </div>
             ))}
           </ToolWorkbenchPanel>

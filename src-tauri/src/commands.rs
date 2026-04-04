@@ -12,6 +12,7 @@ use crate::mqtt_client::{self, MqttConnectRequest, MqttConnections};
 use crate::script_engine::{self, ScriptRequestContext, ScriptResponse, ScriptResult};
 use crate::sse_client::{self, SseConnectRequest, SseConnections};
 use crate::tcp_client::{TcpConnections, TcpServers, UdpSockets};
+use crate::mock_server::{self, MockRoute, MockRequestLog, MockServerState, MockServerStatusInfo};
 use crate::wasm_runtime::WasmPluginRuntime;
 use crate::ws_client::WsConnections;
 use sqlx::SqlitePool;
@@ -117,7 +118,7 @@ pub async fn save_response_body(
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OAuth2TokenRequest {
-    pub grant_type: String, // "client_credentials" | "password" | "authorization_code"
+    pub grant_type: String, // "client_credentials" | "password" | "authorization_code" | "refresh_token"
     pub access_token_url: String,
     pub client_id: String,
     pub client_secret: String,
@@ -125,9 +126,12 @@ pub struct OAuth2TokenRequest {
     // authorization_code specific
     pub code: Option<String>,
     pub redirect_uri: Option<String>,
+    pub code_verifier: Option<String>, // PKCE
     // password specific
     pub username: Option<String>,
     pub password: Option<String>,
+    // refresh_token specific
+    pub refresh_token: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -187,6 +191,19 @@ pub async fn fetch_oauth2_token(req: OAuth2TokenRequest) -> Result<OAuth2TokenRe
             if !redirect_uri.is_empty() {
                 params.push(("redirect_uri".to_string(), redirect_uri.to_string()));
             }
+            // PKCE: send code_verifier during token exchange
+            if let Some(verifier) = &req.code_verifier {
+                if !verifier.is_empty() {
+                    params.push(("code_verifier".to_string(), verifier.clone()));
+                }
+            }
+        }
+        "refresh_token" => {
+            let rt = req.refresh_token.as_deref().unwrap_or("");
+            if rt.is_empty() {
+                return Err("Refresh Token 授权类型需要提供 refresh_token".into());
+            }
+            params.push(("refresh_token".to_string(), rt.to_string()));
         }
         _ => {
             return Err(format!("不支持的授权类型: {}", req.grant_type));
@@ -251,6 +268,8 @@ pub struct OAuthWindowRequest {
     pub redirect_uri: String,
     pub scope: Option<String>,
     pub state: Option<String>,
+    pub code_challenge: Option<String>,
+    pub code_challenge_method: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -284,6 +303,16 @@ pub async fn open_oauth_window(
     }
     if let Some(state) = &req.state {
         url.query_pairs_mut().append_pair("state", state);
+    }
+    // PKCE: append code_challenge and code_challenge_method
+    if let Some(challenge) = &req.code_challenge {
+        if !challenge.is_empty() {
+            url.query_pairs_mut().append_pair("code_challenge", challenge);
+            url.query_pairs_mut().append_pair(
+                "code_challenge_method",
+                req.code_challenge_method.as_deref().unwrap_or("S256"),
+            );
+        }
     }
 
     let label = format!(
@@ -3031,4 +3060,61 @@ pub async fn vs_webrtc_close(
         }
     }
     Ok(())
+}
+
+// ═══════════════════════════════════════════
+//  Mock Server
+// ═══════════════════════════════════════════
+
+#[tauri::command]
+pub async fn mock_server_start(
+    app: AppHandle,
+    state: State<'_, MockServerState>,
+    session_id: String,
+    port: u16,
+    routes: Vec<MockRoute>,
+) -> Result<(), String> {
+    mock_server::start_mock_server(app, &state, &session_id, port, routes).await
+}
+
+#[tauri::command]
+pub async fn mock_server_stop(
+    state: State<'_, MockServerState>,
+    session_id: String,
+) -> Result<(), String> {
+    mock_server::stop_mock_server(&state, &session_id).await
+}
+
+#[tauri::command]
+pub async fn mock_server_update_routes(
+    state: State<'_, MockServerState>,
+    session_id: String,
+    routes: Vec<MockRoute>,
+) -> Result<(), String> {
+    mock_server::update_routes(&state, &session_id, routes).await
+}
+
+#[tauri::command]
+pub async fn mock_server_get_log(
+    state: State<'_, MockServerState>,
+    session_id: String,
+) -> Result<Vec<MockRequestLog>, String> {
+    Ok(mock_server::get_logs(&state, &session_id).await)
+}
+
+#[tauri::command]
+pub async fn mock_server_clear_log(
+    state: State<'_, MockServerState>,
+    session_id: String,
+) -> Result<(), String> {
+    mock_server::clear_logs(&state, &session_id).await;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn mock_server_status(
+    state: State<'_, MockServerState>,
+    session_id: String,
+) -> Result<MockServerStatusInfo, String> {
+    Ok(mock_server::get_status(&state, &session_id).await)
 }

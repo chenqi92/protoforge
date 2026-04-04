@@ -10,6 +10,7 @@ import {
   FileText,
   Home,
   MonitorPlay,
+  Server,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useThemeStore } from "@/stores/themeStore";
@@ -38,6 +39,7 @@ const workbenches: Array<{
   { id: "capture", labelKey: "titleBar.capture", icon: Radio, accentClassName: "text-cyan-600" },
   { id: "loadtest", labelKey: "titleBar.loadtest", icon: Gauge, accentClassName: "text-rose-600" },
   { id: "videostream", labelKey: "titleBar.videostream", icon: MonitorPlay, accentClassName: "text-purple-600" },
+  { id: "mockserver", labelKey: "titleBar.mockserver", icon: Server, accentClassName: "text-green-600" },
 ];
 
 export function TitleBar({

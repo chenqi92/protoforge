@@ -358,43 +358,52 @@ export function JsonTreeViewer({
               </div>
               <div
                 className={cn(
-                  "min-w-0",
+                  "min-w-0 flex items-start",
                   wrapLines ? "whitespace-pre-wrap break-words" : "whitespace-pre",
                 )}
                 style={{ paddingLeft: `${line.indent * 1.25}rem` }}
               >
-                {line.kind === "primitive" && (
-                  <>
-                    {renderPropertyName(line.propertyName)}
-                    {renderScalar(line.value)}
-                    {line.suffix ? <span className="json-token-punctuation">{line.suffix}</span> : null}
-                  </>
-                )}
-                {line.kind === "open" && (
-                  <span className="inline-flex min-w-0 items-start gap-1">
-                    {renderPropertyName(line.propertyName)}
+                {/* Fold button gutter — fixed width so brackets always align */}
+                <span className="shrink-0 w-4 flex items-center justify-center">
+                  {line.kind === "open" && (
                     <FoldButton expanded onClick={() => togglePath(line.path)} />
-                    <span className="json-token-punctuation">{line.openBracket}</span>
-                  </span>
-                )}
-                {line.kind === "collapsed" && (
-                  <span className="inline-flex min-w-0 items-start gap-1">
-                    {renderPropertyName(line.propertyName)}
+                  )}
+                  {line.kind === "collapsed" && (
                     <FoldButton expanded={false} onClick={getToggleHandler(line.path)} />
-                    <span className="json-token-punctuation">{line.openBracket}</span>
-                    {line.summary ? (
-                      <span className="truncate px-1 text-text-disabled">{line.summary}</span>
-                    ) : null}
-                    <span className="json-token-punctuation">{line.closeBracket}</span>
-                    {line.suffix ? <span className="json-token-punctuation">{line.suffix}</span> : null}
-                  </span>
-                )}
-                {line.kind === "close" && (
-                  <>
-                    <span className="json-token-punctuation">{line.closeBracket}</span>
-                    {line.suffix ? <span className="json-token-punctuation">{line.suffix}</span> : null}
-                  </>
-                )}
+                  )}
+                </span>
+                <span className="min-w-0">
+                  {line.kind === "primitive" && (
+                    <>
+                      {renderPropertyName(line.propertyName)}
+                      {renderScalar(line.value)}
+                      {line.suffix ? <span className="json-token-punctuation">{line.suffix}</span> : null}
+                    </>
+                  )}
+                  {line.kind === "open" && (
+                    <>
+                      {renderPropertyName(line.propertyName)}
+                      <span className="json-token-punctuation">{line.openBracket}</span>
+                    </>
+                  )}
+                  {line.kind === "collapsed" && (
+                    <span className="inline-flex min-w-0 items-start gap-1">
+                      {renderPropertyName(line.propertyName)}
+                      <span className="json-token-punctuation">{line.openBracket}</span>
+                      {line.summary ? (
+                        <span className="truncate px-1 text-text-disabled">{line.summary}</span>
+                      ) : null}
+                      <span className="json-token-punctuation">{line.closeBracket}</span>
+                      {line.suffix ? <span className="json-token-punctuation">{line.suffix}</span> : null}
+                    </span>
+                  )}
+                  {line.kind === "close" && (
+                    <>
+                      <span className="json-token-punctuation">{line.closeBracket}</span>
+                      {line.suffix ? <span className="json-token-punctuation">{line.suffix}</span> : null}
+                    </>
+                  )}
+                </span>
               </div>
             </div>
           ))}

@@ -4,6 +4,7 @@ mod commands;
 mod database;
 mod http_client;
 mod load_test;
+mod mock_server;
 mod mqtt_client;
 mod plugin_runtime;
 mod plugins;
@@ -145,6 +146,7 @@ pub fn run() {
             app.manage(ProxyState::new());
             app.manage(workflow_engine::WorkflowState::new());
             app.manage(video_streaming::VideoStreamState::new());
+            app.manage(mock_server::MockServerState::new());
 
             // SSE / MQTT 连接管理
             app.manage(sse_client::new_connections());
@@ -357,6 +359,13 @@ pub fn run() {
             commands::vs_webrtc_set_answer,
             commands::vs_webrtc_add_ice,
             commands::vs_webrtc_close,
+            // Mock Server
+            commands::mock_server_start,
+            commands::mock_server_stop,
+            commands::mock_server_update_routes,
+            commands::mock_server_get_log,
+            commands::mock_server_clear_log,
+            commands::mock_server_status,
             // macOS Rounded Corners
             plugins::mac_rounded_corners::enable_rounded_corners,
         ])

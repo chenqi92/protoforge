@@ -551,8 +551,8 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
         ? "graphql"
         : "default";
 
-  const requestDefaultSize = requestLayoutMode === "compact" ? 28 : requestLayoutMode === "table-body" ? 50 : requestLayoutMode === "graphql" ? 55 : 50;
-  const responseDefaultSize = requestLayoutMode === "compact" ? 72 : requestLayoutMode === "table-body" ? 50 : requestLayoutMode === "graphql" ? 45 : 50;
+  const requestDefaultSize = requestLayoutMode === "compact" ? 40 : requestLayoutMode === "table-body" ? 58 : requestLayoutMode === "graphql" ? 60 : 58;
+  const responseDefaultSize = requestLayoutMode === "compact" ? 60 : requestLayoutMode === "table-body" ? 42 : requestLayoutMode === "graphql" ? 40 : 42;
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">

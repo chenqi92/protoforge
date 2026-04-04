@@ -8,11 +8,15 @@ export interface OAuthWindowConfig {
   clientId: string;
   redirectUri: string;
   scope: string;
+  /** PKCE code_challenge (S256), if PKCE is enabled */
+  codeChallenge?: string;
 }
 
 export interface OAuthResult {
   code: string;
   state?: string;
+  /** The state value we sent, for CSRF validation */
+  _sentState: string;
 }
 
 /**
@@ -25,7 +29,7 @@ export interface OAuthResult {
  * 4. 窗口被用户手动关闭时返回错误
  */
 export async function openOAuthWindow(config: OAuthWindowConfig): Promise<OAuthResult> {
-  const { authUrl, clientId, redirectUri, scope } = config;
+  const { authUrl, clientId, redirectUri, scope, codeChallenge } = config;
 
   // 生成随机 state 防 CSRF
   const state = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
@@ -37,11 +41,14 @@ export async function openOAuthWindow(config: OAuthWindowConfig): Promise<OAuthR
       redirectUri,
       scope: scope || null,
       state,
+      codeChallenge: codeChallenge || null,
+      codeChallengeMethod: codeChallenge ? "S256" : null,
     },
   });
 
   return {
     code: result.code,
     state: result.state ?? undefined,
+    _sentState: state,
   };
 }

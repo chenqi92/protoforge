@@ -404,6 +404,26 @@ function CollectionsView({ search, expanded, setExpanded }: {
         break;
     }
 
+    // Restore OAuth2 config from saved collection (tokens are not persisted)
+    const savedOAuth2 = authConfigRaw.oauth2Config;
+    const oauth2Updates = savedOAuth2 ? {
+      oauth2Config: {
+        grantType: savedOAuth2.grantType || 'client_credentials',
+        accessTokenUrl: savedOAuth2.accessTokenUrl || '',
+        clientId: savedOAuth2.clientId || '',
+        clientSecret: savedOAuth2.clientSecret || '',
+        scope: savedOAuth2.scope || '',
+        authUrl: savedOAuth2.authUrl || '',
+        redirectUri: savedOAuth2.redirectUri || 'http://localhost:1420/callback',
+        usePkce: savedOAuth2.usePkce ?? true,
+        username: savedOAuth2.username || '',
+        password: savedOAuth2.password || '',
+        accessToken: '',
+        refreshToken: '',
+        tokenExpiresAt: 0,
+      },
+    } : {};
+
     updateHttpConfig(tabId, {
       method: (item.method || 'GET') as any,
       url: item.url || '',
@@ -418,6 +438,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
       apiKeyName: authConfig.apiKeyName,
       apiKeyValue: authConfig.apiKeyValue,
       apiKeyAddTo: authConfig.apiKeyAddTo as any,
+      ...oauth2Updates,
       preScript: item.preScript || '',
       postScript: item.postScript || '',
     });

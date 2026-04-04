@@ -13,7 +13,8 @@
     "themeSystem": "System Theme",
     "themeDark": "Dark Mode",
     "themeLight": "Light Mode",
-    "videostream": "Video Stream"
+    "videostream": "Video Stream",
+    "mockserver": "Mock Server"
   },
   "statusBar": {
     "requests": "API Debug Workbench",
@@ -27,7 +28,8 @@
     "capture": "Traffic Capture",
     "loadtest": "Load Test",
     "ready": "READY",
-    "videostream": "Video Stream"
+    "videostream": "Video Stream",
+    "mockserver": "Mock Server"
   },
   "sidebar": {
     "collections": "Collections",
@@ -99,6 +101,11 @@
       "shortTitle": "Video",
       "description": "Video stream debugging with RTSP, RTMP, HTTP-FLV, HLS, WebRTC, GB28181, SRT protocol analysis"
     },
+    "mockserver": {
+      "title": "Mock Server",
+      "shortTitle": "Mock",
+      "description": "Local HTTP mock server with wildcard routing, dynamic response templates, and delay simulation for frontend development and API testing."
+    },
     "allInstances": "All Instances",
     "newInstance": "New Instance",
     "singleInstance": "Single-instance tool",
@@ -135,6 +142,8 @@
     "captureDesc": "Local HTTP proxy capture with HTTPS decryption and request detail analysis",
     "loadtest": "Load Test",
     "loadtestDesc": "High-concurrency load testing with real-time RPS, latency, and error rate visualization",
+    "mockserver": "Mock Server",
+    "mockserverDesc": "Local HTTP mock server with wildcard routing, dynamic templates, and delay simulation",
     "pluginSystem": "Plugin Extensions",
     "pluginSystemDesc": "Extend capabilities with protocol parsing, data generation, and custom rendering plugins",
     "sse": "SSE",
@@ -246,7 +255,19 @@
       "authorizing": "Authorizing...",
       "authorizingHint": "A browser window has been opened. Please complete the login and authorization. The window will close automatically.",
       "validity": "Expires in {{seconds}}s",
-      "accessTokenPlaceholder": "Click \"Get Token\" to auto-fill, or paste manually"
+      "accessTokenPlaceholder": "Click \"Get Token\" to auto-fill, or paste manually",
+      "refreshToken": "Refresh Token",
+      "refreshing": "Refreshing...",
+      "clearToken": "Clear Token",
+      "tokenValid": "Valid",
+      "tokenExpiring": "Expiring soon",
+      "tokenExpired": "Expired",
+      "noToken": "No Token",
+      "pkce": "PKCE (S256)",
+      "pkceHint": "Recommended for public clients. Generates code_verifier / code_challenge automatically.",
+      "autoRefreshed": "Token auto-refreshed",
+      "expiresIn": "Expires in {{time}}",
+      "tokenCleared": "Token cleared"
     },
     "script": {
       "preScriptTitle": "Pre-request Script",
@@ -971,6 +992,7 @@
     "openTcpUdp": "Open Protocol Debug Workbench",
     "openCapture": "Open Traffic Capture Workbench",
     "openLoadtest": "Open Load Test Workbench",
+    "openMockServer": "Open Mock Server Workbench",
     "openPlugins": "Open Plugin Center",
     "openSettings": "Open Preferences",
     "typeAction": "Action",
@@ -1247,6 +1269,48 @@
       "orMask": "OR Mask",
       "result": "Result"
     }
+  },
+  "mockServer": {
+    "start": "Start",
+    "stop": "Stop",
+    "starting": "Starting…",
+    "running": "Running",
+    "stopped": "Stopped",
+    "port": "Port",
+    "hits": "hits",
+    "routes": "routes",
+    "routeCount": "routes",
+    "routeList": "Routes",
+    "addRoute": "Add Route",
+    "deleteRoute": "Delete Route",
+    "duplicate": "Duplicate",
+    "enable": "Enable",
+    "disable": "Disable",
+    "noRoutes": "No routes yet",
+    "addFirstRoute": "Add your first route",
+    "selectRoute": "Select a route to edit",
+    "routeConfig": "Route Configuration",
+    "methodAndPath": "Method & Path",
+    "description": "Description",
+    "descPlaceholder": "Optional description…",
+    "statusCode": "Status Code",
+    "delay": "Delay (ms)",
+    "priority": "Priority",
+    "responseHeaders": "Response Headers",
+    "headerName": "Header name",
+    "headerValue": "Value",
+    "addHeader": "Add header",
+    "responseBody": "Response Body",
+    "templateVars": "Template variables",
+    "tplRequestCtx": "Request Context",
+    "tplDynamic": "Dynamic Variables",
+    "tplRoutePatterns": "Route Patterns",
+    "requestLog": "Request Log",
+    "clearLog": "Clear log",
+    "noLogs": "No requests yet",
+    "noLogsHint": "Incoming requests will appear here",
+    "logResponseBody": "Response Body",
+    "logRequestBody": "Request Body"
   },
   "rightSidebar": {
     "toolbox": "Toolbox"

@@ -4,7 +4,7 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { ToolSessionOptions } from "@/types/toolSession";
 
-export type ToolWindowType = "capture" | "loadtest" | "tcpudp" | "videostream";
+export type ToolWindowType = "capture" | "loadtest" | "tcpudp" | "videostream" | "mockserver";
 
 interface ToolWindowConfig {
   title: string;
@@ -43,6 +43,13 @@ const toolConfigs: Record<ToolWindowType, ToolWindowConfig> = {
     minWidth: 900,
     minHeight: 600,
   },
+  mockserver: {
+    title: "ProtoForge — Mock Server",
+    width: 1100,
+    height: 750,
+    minWidth: 800,
+    minHeight: 500,
+  },
 };
 
 export function getToolWindowLabel(tool: ToolWindowType, sessionId: string): string {
@@ -50,7 +57,7 @@ export function getToolWindowLabel(tool: ToolWindowType, sessionId: string): str
 }
 
 function parseToolWindowLabel(label: string): { tool: ToolWindowType; sessionId: string } | null {
-  const match = label.match(/^tool-(capture|loadtest|tcpudp|videostream)-(.+)$/);
+  const match = label.match(/^tool-(capture|loadtest|tcpudp|videostream|mockserver)-(.+)$/);
   if (!match) return null;
 
   return {
