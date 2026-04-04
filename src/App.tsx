@@ -17,7 +17,7 @@ import { closeWindowByLabel, listOpenToolWindowSessions, openToolWindow } from "
 import { getActiveConnectionLabelsForKeys, hasActiveConnectionsForKeys } from '@/lib/connectionRegistry';
 import { CommandPalette } from "@/components/ui/CommandPalette";
 
-import { CryptoContextMenu } from "@/components/plugins/CryptoContextMenu";
+import { GlobalContextMenu } from "@/components/plugins/GlobalContextMenu";
 
 import { WindowScaffold } from "@/components/layout/WindowScaffold";
 import { RightSidebar } from "@/components/layout/RightSidebar";
@@ -1177,7 +1177,7 @@ function App() {
       )}
       <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
 
-      <CryptoContextMenu />
+      <GlobalContextMenu />
 
     </>
   );

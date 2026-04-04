@@ -1416,6 +1416,18 @@ pub async fn plugin_run_crypto(
 }
 
 #[tauri::command]
+pub async fn plugin_run_context_menu_action(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+    action: String,
+    selected_text: String,
+    context_json: String,
+) -> Result<crate::plugin_runtime::ContextMenuActionResult, String> {
+    mgr.run_context_menu_action(&plugin_id, &action, &selected_text, &context_json)
+        .await
+}
+
+#[tauri::command]
 pub async fn plugin_list_crypto_algorithms(
     mgr: State<'_, PluginManager>,
 ) -> Result<Vec<InstalledCryptoAlgorithm>, String> {

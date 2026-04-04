@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { PluginManifest, ProtocolParser, ParseResult, HookResult, GenerateDataResult, ExportResult, CryptoResult, InstalledCryptoAlgorithm } from "@/types/plugin";
+import type { PluginManifest, ProtocolParser, ParseResult, HookResult, GenerateDataResult, ExportResult, CryptoResult, InstalledCryptoAlgorithm, ContextMenuActionResult } from "@/types/plugin";
 
 /** 列出所有已安装插件 */
 export async function listPlugins(): Promise<PluginManifest[]> {
@@ -70,4 +70,14 @@ export async function runCrypto(
 /** 列出所有已安装的加密算法（含 plugin ID） */
 export async function listCryptoAlgorithms(): Promise<InstalledCryptoAlgorithm[]> {
   return invoke<InstalledCryptoAlgorithm[]>("plugin_list_crypto_algorithms");
+}
+
+/** 执行插件右键菜单动作 */
+export async function runContextMenuAction(
+  pluginId: string,
+  action: string,
+  selectedText: string,
+  contextJson: string = '{}',
+): Promise<ContextMenuActionResult> {
+  return invoke<ContextMenuActionResult>("plugin_run_context_menu_action", { pluginId, action, selectedText, contextJson });
 }

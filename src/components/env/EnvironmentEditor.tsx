@@ -3,7 +3,10 @@ import { Globe, Plus, Trash2, Check, Eye, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useEnvStore } from '@/stores/envStore';
+import { useContextMenu, buildClipboardItems, useZoneFallback } from '@/components/ui/ContextMenu';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import type { EnvVariable } from '@/types/collections';
+import type { ContextMenuEntry } from '@/components/ui/ContextMenu';
 
 type EditorTab = 'environments' | 'global';
 
@@ -95,8 +98,64 @@ export function EnvironmentEditor() {
     setDirty(true);
   };
 
+  // ── Context menus ──
+  const { showMenu: showEnvMenu, MenuComponent: EnvMenuComponent } = useContextMenu();
+  const { showMenu: showGlobalMenu, MenuComponent: GlobalMenuComponent } = useContextMenu();
+
+  const { handleZoneFallback, ZoneFallbackMenu } = useZoneFallback(t);
+
+  const handleEnvVarContextMenu = (e: React.MouseEvent, v: EnvVariable, i: number) => {
+    const clipboardItems = buildClipboardItems(e, t);
+    if (!v.key.trim()) {
+      if (clipboardItems.length > 0) showEnvMenu(e, clipboardItems.slice(0, -1));
+      else e.preventDefault();
+      return;
+    }
+    const items: ContextMenuEntry[] = [
+      ...clipboardItems,
+      { id: 'copy-name', label: t('contextMenu.copyVarName', '复制变量名'), onClick: () => copyTextToClipboard(v.key) },
+      { id: 'copy-value', label: t('contextMenu.copyVarValue', '复制变量值'), onClick: () => copyTextToClipboard(v.value) },
+      { id: 'copy-ref', label: t('contextMenu.copyAsReference', '复制为 {{name}}'), onClick: () => copyTextToClipboard(`{{${v.key}}}`) },
+      { type: 'divider' },
+      { id: 'duplicate', label: t('contextMenu.duplicateRow', '复制为新行'), onClick: () => {
+        setEditing((prev) => {
+          const dup = { ...v, id: crypto.randomUUID(), key: v.key + '_copy', sortOrder: prev.length };
+          return [...prev.slice(0, i + 1), dup, ...prev.slice(i + 1)];
+        });
+        setDirty(true);
+      }},
+      { id: 'toggle-secret', label: v.isSecret === 1 ? t('contextMenu.showValue', '显示值') : t('contextMenu.hideValue', '隐藏值'), onClick: () => updateVar(i, { isSecret: v.isSecret === 1 ? 0 : 1 }) },
+      { type: 'divider' },
+      { id: 'delete', label: t('contextMenu.delete', '删除'), danger: true, onClick: () => removeVar(i) },
+    ];
+    showEnvMenu(e, items);
+  };
+
+  const handleGlobalVarContextMenu = (e: React.MouseEvent, v: { key: string; value: string; enabled: boolean }, i: number) => {
+    const clipboardItems = buildClipboardItems(e, t);
+    if (!v.key.trim()) {
+      if (clipboardItems.length > 0) showGlobalMenu(e, clipboardItems.slice(0, -1));
+      else e.preventDefault();
+      return;
+    }
+    const items: ContextMenuEntry[] = [
+      ...clipboardItems,
+      { id: 'copy-name', label: t('contextMenu.copyVarName', '复制变量名'), onClick: () => copyTextToClipboard(v.key) },
+      { id: 'copy-value', label: t('contextMenu.copyVarValue', '复制变量值'), onClick: () => copyTextToClipboard(v.value) },
+      { id: 'copy-ref', label: t('contextMenu.copyAsReference', '复制为 {{name}}'), onClick: () => copyTextToClipboard(`{{${v.key}}}`) },
+      { type: 'divider' },
+      { id: 'duplicate', label: t('contextMenu.duplicateRow', '复制为新行'), onClick: () => {
+        setGlobalEditing((prev) => [...prev.slice(0, i + 1), { key: v.key + '_copy', value: v.value, enabled: v.enabled }, ...prev.slice(i + 1)]);
+      }},
+      { type: 'divider' },
+      { id: 'delete', label: t('contextMenu.delete', '删除'), danger: true, onClick: () => setGlobalEditing((prev) => prev.filter((_, j) => j !== i)) },
+    ];
+    showGlobalMenu(e, items);
+  };
+
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-bg-primary">
+    <div className="h-full flex flex-col overflow-hidden bg-bg-primary" data-contextmenu-zone="env-editor" onContextMenu={handleZoneFallback}>
+      {ZoneFallbackMenu}
       {/* Header */}
       <div className="shrink-0 px-5 pt-4 pb-0">
         <div className="flex items-center gap-3 mb-3">
@@ -210,6 +269,7 @@ export function EnvironmentEditor() {
                   </div>
                 </div>
                 <div className="flex-1 overflow-auto p-4">
+                  {EnvMenuComponent}
                   {/* Header */}
                   {editing.length > 0 && (
                     <div className="flex items-center gap-2 mb-2 px-8 pf-text-xs font-semibold text-text-disabled uppercase tracking-wider">
@@ -221,7 +281,7 @@ export function EnvironmentEditor() {
                   )}
                   <div className="space-y-2">
                     {editing.map((v, i) => (
-                      <div key={v.id} className="flex items-center gap-2 group">
+                      <div key={v.id} className="flex items-center gap-2 group" onContextMenu={(e) => handleEnvVarContextMenu(e, v, i)}>
                         <div className="w-6 flex justify-center">
                           <input
                             type="checkbox"
@@ -288,6 +348,7 @@ export function EnvironmentEditor() {
             </button>
           </div>
           <div className="flex-1 overflow-auto p-4">
+            {GlobalMenuComponent}
             {globalEditing.length > 0 && (
               <div className="flex items-center gap-2 mb-2 px-8 pf-text-xs font-semibold text-text-disabled uppercase tracking-wider">
                 <div className="flex-1">{t('env.varName')}</div>
@@ -297,7 +358,7 @@ export function EnvironmentEditor() {
             )}
             <div className="space-y-2">
               {globalEditing.map((v, i) => (
-                <div key={i} className="flex items-center gap-2 group">
+                <div key={i} className="flex items-center gap-2 group" onContextMenu={(e) => handleGlobalVarContextMenu(e, v, i)}>
                   <div className="w-6 flex justify-center">
                     <input
                       type="checkbox"

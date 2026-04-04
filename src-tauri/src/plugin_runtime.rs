@@ -241,6 +241,9 @@ pub struct PluginContributes {
     /// 图标贡献 — icon-pack 类型插件提供
     #[serde(default)]
     pub icons: Vec<IconContribution>,
+    /// 右键菜单贡献 — 插件可注入自定义右键菜单项
+    #[serde(default)]
+    pub context_menu_items: Vec<ContextMenuContribution>,
 }
 
 /// 字体贡献
@@ -326,6 +329,33 @@ pub struct ExportFormatContribution {
     pub format_id: String,
     pub name: String,
     pub file_extension: String,
+}
+
+/// 右键菜单贡献 — 插件可注入自定义右键菜单项
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextMenuContribution {
+    pub menu_item_id: String,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub contexts: Vec<String>,
+    #[serde(default)]
+    pub requires_selection: bool,
+    pub action: String,
+}
+
+/// 右键菜单动作执行结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextMenuActionResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<String>,
+    #[serde(default)]
+    pub replace_selection: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 /// 加密解密算法贡献
@@ -1386,6 +1416,50 @@ impl PluginManager {
             }
         }
     }
+
+    /// 执行插件右键菜单动作
+    pub async fn run_context_menu_action(
+        &self,
+        plugin_id: &str,
+        action: &str,
+        selected_text: &str,
+        context_json: &str,
+    ) -> Result<ContextMenuActionResult, String> {
+        let reg = self.registry.read().await;
+        let rp = reg
+            .get(plugin_id)
+            .ok_or_else(|| format!("插件 '{}' 未注册", plugin_id))?;
+
+        match &rp.runtime {
+            PluginRuntime::Native(_) => {
+                drop(reg);
+                Err(format!("原生插件 '{}' 不支持 contextMenuAction 操作", plugin_id))
+            }
+            PluginRuntime::JavaScript => {
+                let script_path = self
+                    .plugins_dir
+                    .join(plugin_id)
+                    .join(&rp.manifest.entrypoint);
+                drop(reg);
+                let script = tokio::fs::read_to_string(&script_path)
+                    .await
+                    .map_err(|e| format!("读取插件脚本失败: {}", e))?;
+                let act = action.to_string();
+                let text = selected_text.to_string();
+                let ctx = context_json.to_string();
+                let result = tokio::task::spawn_blocking(move || {
+                    execute_context_menu_script(&script, &act, &text, &ctx)
+                })
+                .await
+                .map_err(|e| format!("执行插件失败: {}", e))??;
+                Ok(result)
+            }
+            PluginRuntime::Wasm => {
+                drop(reg);
+                Err(format!("WASM 插件 '{}' 不支持 contextMenuAction 操作", plugin_id))
+            }
+        }
+    }
 }
 
 // ── tar.gz extraction ──
@@ -1814,6 +1888,47 @@ fn execute_crypto_script(
 
     let parsed: CryptoResult = serde_json::from_str(&json_str)
         .map_err(|e| format!("解析 {} 返回 JSON 失败: {}", fn_name, e))?;
+
+    Ok(parsed)
+}
+
+/// Execute a JS plugin's onContextMenuAction function in a sandboxed boa_engine context.
+fn execute_context_menu_script(
+    script: &str,
+    action: &str,
+    selected_text: &str,
+    context_json: &str,
+) -> Result<ContextMenuActionResult, String> {
+    let mut context = Context::default();
+
+    context
+        .eval(Source::from_bytes(script))
+        .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
+
+    let action_escaped =
+        serde_json::to_string(action).map_err(|e| format!("序列化 action 失败: {}", e))?;
+    let text_escaped =
+        serde_json::to_string(selected_text).map_err(|e| format!("序列化选中文本失败: {}", e))?;
+    let ctx_escaped =
+        serde_json::to_string(context_json).map_err(|e| format!("序列化上下文失败: {}", e))?;
+
+    let call_script = format!(
+        "JSON.stringify(onContextMenuAction({}, {}, JSON.parse({})))",
+        action_escaped, text_escaped, ctx_escaped
+    );
+
+    let result = context
+        .eval(Source::from_bytes(call_script.as_bytes()))
+        .map_err(|e| format!("调用 onContextMenuAction() 失败: {}", format_js_error(&e)))?;
+
+    let json_str = result
+        .as_string()
+        .ok_or_else(|| "onContextMenuAction() 返回值不是字符串（需要 JSON.stringify 包装）".to_string())?
+        .to_std_string()
+        .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
+
+    let parsed: ContextMenuActionResult = serde_json::from_str(&json_str)
+        .map_err(|e| format!("解析 contextMenuAction 返回 JSON 失败: {}", e))?;
 
     Ok(parsed)
 }

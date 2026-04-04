@@ -10,6 +10,10 @@ import {
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useContextMenu } from "@/components/ui/ContextMenu";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { useTranslation } from "react-i18next";
+import type { ContextMenuEntry } from "@/components/ui/ContextMenu";
 
 interface JsonTreeViewerProps {
   value: string;
@@ -188,6 +192,39 @@ function buildJsonLines(source: unknown, collapsedPaths: Set<string>) {
   return lines;
 }
 
+/** Convert internal path like $.\"key\"[0].\"nested\" to key[0].nested */
+function formatJsonPath(path: string): string {
+  return path
+    .replace(/^\$\.?/, '')
+    .replace(/\."([^"]+)"/g, (_, key) => {
+      // If it's the first segment, no dot prefix
+      return key;
+    })
+    .replace(/\."([^"]+)"/g, '.$1')
+    // Clean up leading dots
+    .replace(/^\./, '');
+}
+
+/** Resolve a value from parsed JSON by internal path */
+function getValueAtPath(data: unknown, path: string): unknown {
+  if (path === '$') return data;
+  const stripped = path.replace(/^\$\.?/, '');
+  // Parse path segments
+  const segments: (string | number)[] = [];
+  const regex = /"([^"]+)"|\[(\d+)\]/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(stripped)) !== null) {
+    if (match[1] !== undefined) segments.push(match[1]);
+    else if (match[2] !== undefined) segments.push(Number(match[2]));
+  }
+  let current: any = data;
+  for (const seg of segments) {
+    if (current == null) return undefined;
+    current = current[seg];
+  }
+  return current;
+}
+
 function renderScalar(value: JsonScalar) {
   if (typeof value === "string") {
     return <span className="json-token-string">{JSON.stringify(value)}</span>;
@@ -239,10 +276,12 @@ export function JsonTreeViewer({
   className,
   wrapLines = true,
 }: JsonTreeViewerProps) {
+  const { t } = useTranslation();
   const editorFontSize = useSettingsStore((s) => Math.max(10, s.settings.fontSize - 1));
   const viewportRef = useRef<HTMLDivElement>(null);
   const codeContentRef = useRef<HTMLDivElement>(null);
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
+  const { showMenu, MenuComponent } = useContextMenu();
 
   const parsedJson = useMemo(() => {
     try {
@@ -302,6 +341,73 @@ export function JsonTreeViewer({
     };
   }, [togglePath]);
 
+  const handleLineContextMenu = useCallback((e: ReactMouseEvent, line: JsonLine) => {
+    const items: ContextMenuEntry[] = [];
+
+    // Add "Copy Selection" if user has selected text
+    const sel = window.getSelection();
+    const selText = sel?.toString().trim() || '';
+    if (selText) {
+      items.push({ id: '_copy-sel', label: t('contextMenu.copy', '复制'), shortcut: '⌘C', onClick: () => copyTextToClipboard(selText) });
+      items.push({ type: 'divider' });
+    }
+
+    const linePath = 'path' in line ? line.path : line.id.replace(/:(?:primitive|collapsed|open|close|empty)$/, '');
+    const displayPath = formatJsonPath(linePath);
+
+    if (line.kind === 'primitive') {
+      const valStr = line.value === null ? 'null' : typeof line.value === 'string' ? line.value : String(line.value);
+      items.push({ id: 'copy-value', label: t('contextMenu.copyValue', '复制值'), onClick: () => copyTextToClipboard(valStr) });
+      if (line.propertyName) {
+        items.push({ id: 'copy-kv', label: t('contextMenu.copyKeyValue', '复制键值对'), onClick: () => copyTextToClipboard(`"${line.propertyName}": ${JSON.stringify(line.value)}`) });
+      }
+      items.push({ id: 'copy-path', label: t('contextMenu.copyPath', '复制路径'), onClick: () => copyTextToClipboard(displayPath) });
+      items.push({ type: 'divider' });
+      items.push({ id: 'set-env', label: t('contextMenu.setAsEnvVariable', '设为环境变量'), onClick: () => {
+        window.dispatchEvent(new CustomEvent('set-env-variable', { detail: { value: valStr } }));
+      }});
+    } else if (line.kind === 'collapsed' || line.kind === 'open') {
+      // Copy the subtree value
+      if (parsedJson.ok) {
+        const nodeValue = getValueAtPath(parsedJson.data, linePath);
+        if (nodeValue !== undefined) {
+          items.push({ id: 'copy-value', label: t('contextMenu.copyValue', '复制值'), onClick: () => copyTextToClipboard(JSON.stringify(nodeValue, null, 2)) });
+        }
+      }
+      if (displayPath) {
+        items.push({ id: 'copy-path', label: t('contextMenu.copyPath', '复制路径'), onClick: () => copyTextToClipboard(displayPath) });
+      }
+      items.push({ type: 'divider' });
+      if (line.kind === 'collapsed' && line.path) {
+        items.push({ id: 'expand', label: t('contextMenu.expandNode', '展开'), onClick: () => togglePath(line.path!) });
+      }
+      if (line.kind === 'open') {
+        items.push({ id: 'collapse', label: t('contextMenu.collapseNode', '折叠'), onClick: () => togglePath(line.path) });
+      }
+      items.push({ type: 'divider' });
+      items.push({ id: 'expand-all', label: t('contextMenu.expandAll', '展开全部'), onClick: () => setCollapsedPaths(new Set()) });
+      items.push({ id: 'collapse-all', label: t('contextMenu.collapseAll', '折叠全部'), onClick: () => {
+        // Collect all collapsible paths
+        const allPaths = new Set<string>();
+        const collectPaths = (data: unknown, path: string) => {
+          if (Array.isArray(data) && data.length > 0) {
+            allPaths.add(path);
+            data.forEach((item, i) => collectPaths(item, `${path}[${i}]`));
+          } else if (data && typeof data === 'object') {
+            allPaths.add(path);
+            Object.entries(data).forEach(([key, val]) => collectPaths(val, `${path}.${JSON.stringify(key)}`));
+          }
+        };
+        if (parsedJson.ok) collectPaths(parsedJson.data, '$');
+        setCollapsedPaths(allPaths);
+      }});
+    }
+
+    if (items.length > 0) {
+      showMenu(e, items);
+    }
+  }, [parsedJson, showMenu, togglePath, t]);
+
   if (!parsedJson.ok) {
     return (
       <div className={cn("flex h-full min-h-0 overflow-auto bg-bg-input/88", className)}>
@@ -319,7 +425,8 @@ export function JsonTreeViewer({
   }
 
   return (
-    <div className={cn("flex h-full min-h-0 overflow-hidden bg-bg-input/88", className)}>
+    <div className={cn("flex h-full min-h-0 overflow-hidden bg-bg-input/88", className)} data-contextmenu-zone="json-tree" onContextMenu={(e) => e.preventDefault()}>
+      {MenuComponent}
       <div
         ref={viewportRef}
         tabIndex={0}
@@ -349,6 +456,7 @@ export function JsonTreeViewer({
               key={line.id}
               className="grid items-start gap-3"
               style={{ gridTemplateColumns: `${gutterWidth} minmax(0, 1fr)` }}
+              onContextMenu={(e) => { if (line.kind !== 'close') handleLineContextMenu(e, line); }}
             >
               <div
                 aria-hidden="true"

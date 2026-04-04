@@ -5,7 +5,10 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { VariableInlineInput } from "./VariableInlineInput";
 import { InlineMockButton } from "./ExportPluginDropdown";
+import { useContextMenu, buildClipboardItems, useZoneFallback } from "@/components/ui/ContextMenu";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import type { KeyValue, FormDataField } from "@/types/http";
+import type { ContextMenuEntry } from "@/components/ui/ContextMenu";
 import { pickFiles } from "@/services/httpService";
 
 /* ── Header Dictionary: key → possible values ── */
@@ -165,6 +168,55 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
 
   const cellInput = "editor-table-input";
 
+  // ── Context menu ──
+  const { showMenu, MenuComponent } = useContextMenu();
+  const { handleZoneFallback, ZoneFallbackMenu } = useZoneFallback(t);
+  const handleRowContextMenu = (e: React.MouseEvent, i: number) => {
+    const item = safe[i];
+    const clipboardItems = buildClipboardItems(e, t);
+    if (!item.key.trim() && !item.value.trim()) {
+      // 空行：只显示剪贴板菜单（如果在 input 上），否则仅阻止默认菜单
+      if (clipboardItems.length > 0) {
+        showMenu(e, clipboardItems.slice(0, -1));
+      } else {
+        e.preventDefault();
+      }
+      return;
+    }
+    const menuItems: ContextMenuEntry[] = [
+      ...clipboardItems,
+      { id: 'copy-row', label: t('contextMenu.copyRow', '复制行'), onClick: () => copyTextToClipboard(`${item.key}: ${item.value}`) },
+      { id: 'duplicate-row', label: t('contextMenu.duplicateRow', '复制为新行'), onClick: () => {
+        const n = [...safe];
+        n.splice(i + 1, 0, { ...item, key: item.key, value: item.value, description: item.description });
+        onChange(normalizeKeyValueRows(n));
+      }},
+      { type: 'divider' },
+      { id: 'insert-above', label: t('contextMenu.insertAbove', '在上方插入行'), onClick: () => {
+        const n = [...safe]; n.splice(i, 0, createEmptyKeyValue()); onChange(normalizeKeyValueRows(n));
+      }},
+      { id: 'insert-below', label: t('contextMenu.insertBelow', '在下方插入行'), onClick: () => {
+        const n = [...safe]; n.splice(i + 1, 0, createEmptyKeyValue()); onChange(normalizeKeyValueRows(n));
+      }},
+      { type: 'divider' },
+      { id: 'toggle-row', label: item.enabled ? t('contextMenu.disableRow', '禁用') : t('contextMenu.enableRow', '启用'), onClick: () => toggle(i) },
+    ];
+    // Set as env variable
+    if (item.key.trim()) {
+      menuItems.push({ id: 'set-key-env', label: t('contextMenu.setKeyAsEnv', '设 Key 为环境变量'), onClick: () => {
+        window.dispatchEvent(new CustomEvent('set-env-variable', { detail: { value: item.key } }));
+      }});
+    }
+    if (item.value.trim()) {
+      menuItems.push({ id: 'set-val-env', label: t('contextMenu.setValueAsEnv', '设 Value 为环境变量'), onClick: () => {
+        window.dispatchEvent(new CustomEvent('set-env-variable', { detail: { value: item.value } }));
+      }});
+    }
+    menuItems.push({ type: 'divider' });
+    menuItems.push({ id: 'delete-row', label: t('contextMenu.delete', '删除'), danger: true, onClick: () => remove(i) });
+    showMenu(e, menuItems);
+  };
+
   const visibleItems = safe.filter(item => !item.isAuto || showAuto);
   const selectableVisibleItems = visibleItems.filter(item => item.key.trim().length > 0);
   const allVisibleEnabled = selectableVisibleItems.length > 0 && selectableVisibleItems.every(item => item.enabled);
@@ -183,7 +235,7 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
     const keySugs = activeKeySuggest === i ? getKeySuggestions(item.key) : [];
     const valSugs = activeValueSuggest === i ? getValueSuggestions(item.key) : [];
     return (
-      <tr key={i} className={cn("group", item.isAuto && "bg-bg-secondary/18")}>
+      <tr key={i} className={cn("group", item.isAuto && "bg-bg-secondary/18")} onContextMenu={(e) => handleRowContextMenu(e, i)}>
         <td className="editor-table-check relative">
           {isSelectable ? (
             <input type="checkbox" checked={item.enabled} onChange={() => toggle(i)} className="w-3 h-3 rounded accent-accent cursor-pointer m-0 align-middle block mx-auto" />
@@ -229,7 +281,9 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
   };
 
   return (
-    <div className="editor-table-shell">
+    <div className="editor-table-shell" data-contextmenu-zone="kv-editor" onContextMenu={handleZoneFallback}>
+      {MenuComponent}
+      {ZoneFallbackMenu}
       <div ref={frameRef} className="editor-table-frame">
         {hasAuto && (
           <div className="editor-table-banner">

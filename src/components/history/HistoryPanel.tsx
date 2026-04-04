@@ -4,6 +4,9 @@ import { Clock, Trash2, Search, ChevronRight, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { getMethodColor, getStatusColor } from '@/types/http';
+import { useContextMenu, buildClipboardItems, useZoneFallback } from '@/components/ui/ContextMenu';
+import { copyTextToClipboard } from '@/lib/clipboard';
+import type { ContextMenuEntry } from '@/components/ui/ContextMenu';
 
 export interface HistoryItem {
   id: string;
@@ -57,6 +60,28 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
   const groups = groupByDate(filteredHistory);
   const formatTime = (ts: string) => new Date(ts).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
+  // ── Context menu ──
+  const { showMenu, MenuComponent } = useContextMenu();
+  const { handleZoneFallback, ZoneFallbackMenu } = useZoneFallback(t);
+  const handleItemContextMenu = (e: React.MouseEvent, item: HistoryItem) => {
+    const clipboardItems = buildClipboardItems(e, t);
+    const items: ContextMenuEntry[] = [
+      ...clipboardItems,
+      { id: 'copy-url', label: t('contextMenu.copyUrl', '复制 URL'), onClick: () => copyTextToClipboard(item.url) },
+      { id: 'copy-method-url', label: t('contextMenu.copyMethodUrl', '复制 Method + URL'), onClick: () => copyTextToClipboard(`${item.method} ${item.url}`) },
+    ];
+    if (onRestoreRequest) {
+      items.push({ type: 'divider' });
+      items.push({ id: 'restore', label: t('contextMenu.openInNewTab', '在新标签页打开'), onClick: () => onRestoreRequest(item.requestConfig) });
+    }
+    items.push({ type: 'divider' });
+    items.push({ id: 'delete', label: t('contextMenu.delete', '删除'), danger: true, onClick: () => {
+      setHistory((prev) => prev.filter((h) => h.id !== item.id));
+      // In production: invoke('delete_history_entry', { id: item.id })
+    }});
+    showMenu(e, items);
+  };
+
   if (history.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-text-disabled">
@@ -68,7 +93,9 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" data-contextmenu-zone="history" onContextMenu={handleZoneFallback}>
+      {MenuComponent}
+      {ZoneFallbackMenu}
       {/* Search + Clear */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border-subtle">
         <div className="flex-1 flex items-center gap-1.5 bg-bg-elevated border border-border-subtle pf-rounded-sm px-2 py-1">
@@ -107,6 +134,7 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
                 >
                   <div
                     onClick={() => setExpanded(expanded === item.id ? null : item.id)}
+                    onContextMenu={(e) => handleItemContextMenu(e, item)}
                     className={cn(
                       'flex items-center gap-2 px-3 py-2 cursor-pointer',
                       'hover:bg-bg-hover transition-colors group',

@@ -294,6 +294,7 @@ pub fn run() {
             commands::plugin_run_export,
             commands::plugin_run_crypto,
             commands::plugin_list_crypto_algorithms,
+            commands::plugin_run_context_menu_action,
             // SSE
             commands::sse_connect,
             commands::sse_disconnect,

@@ -53,6 +53,46 @@ export interface PluginContributes {
   cryptoAlgorithms?: CryptoAlgorithm[];
   /** 图标贡献 — icon-pack 类型插件提供 */
   icons?: IconContribution[];
+  /** 右键菜单贡献 — 插件可注入自定义右键菜单项 */
+  contextMenuItems?: ContextMenuContribution[];
+}
+
+// ── Context Menu Contribution Types ──
+
+/** 右键菜单上下文类型 */
+export type ContextMenuContext =
+  | 'editor'      // Monaco 编辑器
+  | 'input'       // input/textarea 输入框
+  | 'response'    // 响应体区域
+  | 'kv-row'      // KV 编辑器行
+  | 'json-node'   // JSON 树节点
+  | 'history'     // 历史记录条目
+  | 'global';     // 所有区域
+
+/** 插件右键菜单贡献声明 */
+export interface ContextMenuContribution {
+  /** 菜单项唯一 ID */
+  menuItemId: string;
+  /** 菜单项显示名称 */
+  label: string;
+  /** lucide 图标名（可选） */
+  icon?: string;
+  /** 在哪些上下文中显示 */
+  contexts: ContextMenuContext[];
+  /** 是否需要选中文本才显示 */
+  requiresSelection?: boolean;
+  /** 插件内的 action 标识 — 传给 onContextMenuAction */
+  action: string;
+}
+
+/** 右键菜单动作执行结果 */
+export interface ContextMenuActionResult {
+  /** 执行结果文本 */
+  output?: string;
+  /** 是否替换选中文本 */
+  replaceSelection?: boolean;
+  /** 错误信息 */
+  error?: string;
 }
 
 export interface ParserContribution {

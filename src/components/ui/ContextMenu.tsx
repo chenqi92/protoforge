@@ -99,6 +99,60 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   );
 }
 
+/**
+ * Build clipboard context menu items (Cut/Copy/Paste/SelectAll) for a given right-click event.
+ * Returns items + divider if the target is an input/textarea, otherwise empty array.
+ */
+export function buildClipboardItems(
+  e: React.MouseEvent,
+  t: (key: string, fallback?: string) => string,
+): ContextMenuEntry[] {
+  const target = e.target as Element;
+  const el =
+    target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
+      ? (target as HTMLInputElement | HTMLTextAreaElement)
+      : (target.closest('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null);
+  if (!el) return [];
+
+  const s = el.selectionStart ?? 0;
+  const end = el.selectionEnd ?? 0;
+  const hasSelection = s !== end;
+  const selectedText = hasSelection ? el.value.substring(s, end) : '';
+
+  const copyToClip = (text: string) => navigator.clipboard.writeText(text).catch(() => {});
+
+  const pasteFromClip = async () => {
+    const text = await navigator.clipboard.readText();
+    const setter =
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set ||
+      Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+    setter?.call(el, el.value.substring(0, s) + text + el.value.substring(end));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.focus();
+    el.setSelectionRange(s + text.length, s + text.length);
+  };
+
+  const cutText = () => {
+    if (!hasSelection) return;
+    copyToClip(selectedText);
+    const setter =
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set ||
+      Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+    setter?.call(el, el.value.substring(0, s) + el.value.substring(end));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.focus();
+    el.setSelectionRange(s, s);
+  };
+
+  return [
+    { id: '_cut', label: t('contextMenu.cut', '剪切'), shortcut: '⌘X', disabled: !hasSelection, onClick: cutText },
+    { id: '_copy', label: t('contextMenu.copy', '复制'), shortcut: '⌘C', disabled: !hasSelection, onClick: () => copyToClip(selectedText) },
+    { id: '_paste', label: t('contextMenu.paste', '粘贴'), shortcut: '⌘V', onClick: () => { pasteFromClip(); } },
+    { id: '_selectAll', label: t('contextMenu.selectAll', '全选'), shortcut: '⌘A', onClick: () => { el.focus(); el.setSelectionRange(0, el.value.length); } },
+    { type: 'divider' as const },
+  ];
+}
+
 /** Hook for using context menu in any component */
 export function useContextMenu() {
   const [menu, setMenu] = useState<{ x: number; y: number; items: ContextMenuEntry[] } | null>(null);
@@ -116,4 +170,28 @@ export function useContextMenu() {
   ) : null;
 
   return { showMenu, closeMenu, MenuComponent };
+}
+
+/**
+ * Zone 兜底右键处理器 — 挂在 data-contextmenu-zone 容器的 onContextMenu 上。
+ * 确保 zone 内任何未被子元素拦截的右键事件都能：
+ * 1. 阻止浏览器/系统默认菜单
+ * 2. 在 input/textarea 上显示剪贴板操作
+ */
+export function useZoneFallback(t: (key: string, fallback?: string) => string) {
+  const { showMenu, MenuComponent } = useContextMenu();
+
+  const handleZoneFallback = useCallback((e: React.MouseEvent) => {
+    // 只处理还没被子元素拦截的事件
+    const clipItems = buildClipboardItems(e, t);
+    if (clipItems.length > 0) {
+      // 有 input/textarea → 显示剪贴板菜单
+      showMenu(e, clipItems.slice(0, -1)); // 去掉尾部 divider
+    } else {
+      // 非 input 区域 → 仅阻止默认菜单
+      e.preventDefault();
+    }
+  }, [showMenu, t]);
+
+  return { handleZoneFallback, ZoneFallbackMenu: MenuComponent };
 }
