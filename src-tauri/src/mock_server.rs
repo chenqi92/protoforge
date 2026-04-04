@@ -48,10 +48,82 @@ pub struct MockRoute {
     /// 可选描述
     #[serde(default)]
     pub description: String,
+    /// 条件响应示例列表
+    #[serde(default)]
+    pub examples: Vec<MockExample>,
+    /// JS 脚本动态响应（非空时优先于 template/examples/sequence）
+    #[serde(default)]
+    pub script: Option<String>,
+    /// 响应序列（每次请求依次返回不同响应）
+    #[serde(default)]
+    pub sequence: Vec<SequenceItem>,
+    /// 序列用完后是否循环（默认 true）
+    #[serde(default = "default_true")]
+    pub sequence_loop: bool,
+}
+
+/// 条件响应示例
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MockExample {
+    pub id: String,
+    pub name: String,
+    pub match_condition: MatchCondition,
+    pub status_code: u16,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
+    pub body_template: String,
+    pub delay_ms: Option<u64>,
+}
+
+/// 匹配条件
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum MatchCondition {
+    /// 按请求头匹配
+    Header { name: String, value: String },
+    /// 请求体包含指定文本
+    BodyContains { value: String },
+    /// JSON Path 匹配
+    BodyJsonPath { path: String, value: String },
+    /// 请求体正则匹配
+    BodyRegex { pattern: String },
+    /// 默认匹配（总是命中）
+    Default,
+}
+
+/// 响应序列中的单项
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SequenceItem {
+    #[serde(default = "generate_id")]
+    pub id: String,
+    pub status_code: u16,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
+    pub body_template: String,
+    pub delay_ms: Option<u64>,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn generate_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
+
+/// 持久化配置（数据库行）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MockServerConfig {
+    pub id: String,
+    pub session_label: String,
+    pub port: u16,
+    pub routes_json: String,
+    pub proxy_target: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 /// 请求命中日志
@@ -98,6 +170,10 @@ pub struct MockServerSession {
     pub routes: Arc<Mutex<Vec<MockRoute>>>,
     pub logs: Arc<Mutex<VecDeque<MockRequestLog>>>,
     pub total_hits: Arc<std::sync::atomic::AtomicU64>,
+    /// 代理转发目标 URL（不匹配时转发）
+    pub proxy_target: Arc<Mutex<Option<String>>>,
+    /// 路由命中计数器（用于响应序列）
+    pub hit_counters: Arc<Mutex<HashMap<String, u64>>>,
 }
 
 impl MockServerSession {
@@ -109,6 +185,8 @@ impl MockServerSession {
             routes: Arc::new(Mutex::new(Vec::new())),
             logs: Arc::new(Mutex::new(VecDeque::new())),
             total_hits: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            proxy_target: Arc::new(Mutex::new(None)),
+            hit_counters: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -458,8 +536,9 @@ fn fastrand_u32(min: u32, max: u32) -> u32 {
     let counter = RAND_COUNTER.fetch_add(1, Ordering::Relaxed);
     // 简易混合哈希
     let mixed = nanos.wrapping_mul(6364136223846793005).wrapping_add(counter.wrapping_mul(1442695040888963407));
-    let range = (max - min).max(1) as u64;
-    min + ((mixed >> 16) % range) as u32
+    let (lo, hi) = if min > max { (max, min) } else { (min, max) };
+    let range = hi.saturating_sub(lo).max(1) as u64;
+    lo + ((mixed >> 16) % range) as u32
 }
 
 fn fastrand_f64() -> f64 {
@@ -467,6 +546,9 @@ fn fastrand_f64() -> f64 {
 }
 
 fn pick_random(list: &[&str]) -> String {
+    if list.is_empty() {
+        return String::new();
+    }
     let idx = fastrand_u32(0, list.len() as u32) as usize;
     list.get(idx).unwrap_or(&list[0]).to_string()
 }
@@ -502,6 +584,8 @@ async fn handle_mock_request(
     routes: Arc<Mutex<Vec<MockRoute>>>,
     logs: Arc<Mutex<VecDeque<MockRequestLog>>>,
     total_hits: Arc<std::sync::atomic::AtomicU64>,
+    hit_counters: Arc<Mutex<HashMap<String, u64>>>,
+    proxy_target: Arc<Mutex<Option<String>>>,
     session_id: String,
     app: tauri::AppHandle,
 ) -> Result<Response<Full<Bytes>>, hyper::Error> {
@@ -510,7 +594,7 @@ async fn handle_mock_request(
     let path = req.uri().path().to_string();
     let query_str = req.uri().query().unwrap_or("").to_string();
 
-    // CORS preflight 自动响应���无需配置路由）
+    // CORS preflight 自动响应
     if method == "OPTIONS" {
         return Ok(Response::builder()
             .status(StatusCode::NO_CONTENT)
@@ -530,10 +614,7 @@ async fn handle_mock_request(
             let mut parts = pair.splitn(2, '=');
             let key = parts.next()?;
             let value = parts.next().unwrap_or("");
-            Some((
-                url_decode(key),
-                url_decode(value),
-            ))
+            Some((url_decode(key), url_decode(value)))
         })
         .collect();
 
@@ -560,41 +641,104 @@ async fn handle_mock_request(
     let (status, response_body, matched_route_id, matched_pattern, delay_ms, response_headers) =
         if let Some(rm) = &route_match {
             let route = routes_lock.iter().find(|r| r.id == rm.route_id).unwrap();
-            let body = render_template(
-                &route.body_template,
-                &method,
-                &path,
-                &query_params,
-                &rm.params,
-                &req_headers,
-                &req_body,
-            );
-            let delay = route.delay_ms.unwrap_or(0);
-            (
-                route.status_code,
-                body,
-                Some(route.id.clone()),
-                Some(route.pattern.clone()),
-                delay,
-                route.headers.clone(),
-            )
-        } else {
-            (
-                404,
-                serde_json::json!({
-                    "error": "No matching mock route",
-                    "method": method,
-                    "path": path
-                })
-                .to_string(),
-                None,
-                None,
-                0u64,
-                HashMap::new(),
-            )
-        };
 
-    drop(routes_lock);
+            // 响应优先级: script > sequence > examples > 基础字段
+            // 响应优先级: script > sequence > examples > 基础字段
+            let has_script = route.script.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
+
+            if has_script {
+                // JS 脚本动态响应
+                let script = route.script.clone().unwrap();
+                let route_id = route.id.clone();
+                let route_pattern = route.pattern.clone();
+                let m = method.clone();
+                let p = path.clone();
+                let qp = query_params.clone();
+                let pp = rm.params.clone();
+                let rh = req_headers.clone();
+                let rb = req_body.clone();
+                drop(routes_lock);
+
+                match tokio::task::spawn_blocking(move || {
+                    execute_mock_script(&script, &m, &p, &qp, &pp, &rh, &rb)
+                })
+                .await
+                {
+                    Ok(Ok(result)) => (result.status, result.body, Some(route_id), Some(route_pattern), 0u64, result.headers),
+                    Ok(Err(e)) => (500, serde_json::json!({"error": "Script error", "detail": e}).to_string(), Some(route_id), Some(route_pattern), 0u64, HashMap::new()),
+                    Err(e) => (500, serde_json::json!({"error": "Script panic", "detail": e.to_string()}).to_string(), Some(route_id), Some(route_pattern), 0u64, HashMap::new()),
+                }
+            } else if !route.sequence.is_empty() {
+                // 响应序列 — 先克隆数据再释放 routes_lock，避免双锁死锁
+                let route_id = route.id.clone();
+                let route_pattern = route.pattern.clone();
+                let sequence = route.sequence.clone();
+                let sequence_loop = route.sequence_loop;
+                let params = rm.params.clone();
+                drop(routes_lock);
+
+                let mut counters = hit_counters.lock().await;
+                let count = counters.entry(route_id.clone()).or_insert(0);
+                let idx = if sequence_loop {
+                    (*count % sequence.len() as u64) as usize
+                } else {
+                    (*count).min(sequence.len() as u64 - 1) as usize
+                };
+                *count += 1;
+                drop(counters);
+
+                let seq = &sequence[idx];
+                let body = render_template(&seq.body_template, &method, &path, &query_params, &params, &req_headers, &req_body);
+                (seq.status_code, body, Some(route_id), Some(route_pattern), seq.delay_ms.unwrap_or(0), seq.headers.clone())
+            } else if !route.examples.is_empty() {
+                // 条件响应
+                let route_id = route.id.clone();
+                let route_pattern = route.pattern.clone();
+                if let Some(ex) = select_example(&route.examples, &req_headers, &req_body) {
+                    let body = render_template(&ex.body_template, &method, &path, &query_params, &rm.params, &req_headers, &req_body);
+                    let result = (ex.status_code, body, Some(route_id), Some(route_pattern), ex.delay_ms.unwrap_or(0), ex.headers.clone());
+                    drop(routes_lock);
+                    result
+                } else {
+                    // 无 example 匹配，用基础字段
+                    let body = render_template(&route.body_template, &method, &path, &query_params, &rm.params, &req_headers, &req_body);
+                    let result = (route.status_code, body, Some(route_id), Some(route_pattern), route.delay_ms.unwrap_or(0), route.headers.clone());
+                    drop(routes_lock);
+                    result
+                }
+            } else {
+                // 基础字段
+                let body = render_template(&route.body_template, &method, &path, &query_params, &rm.params, &req_headers, &req_body);
+                let result = (route.status_code, body, Some(route.id.clone()), Some(route.pattern.clone()), route.delay_ms.unwrap_or(0), route.headers.clone());
+                drop(routes_lock);
+                result
+            }
+        } else {
+            drop(routes_lock);
+            // 无匹配路由：尝试代理转发
+            let target = proxy_target.lock().await.clone();
+            if let Some(target_url) = target {
+                match proxy_forward(&target_url, &method, &path, &query_str, &req_headers, &req_body).await {
+                    Ok((s, h, b)) => (s, b, None, Some(format!("→ {}", target_url)), 0u64, h),
+                    Err(e) => (
+                        502,
+                        serde_json::json!({"error": "Proxy forward failed", "detail": e}).to_string(),
+                        None, None, 0u64, HashMap::new(),
+                    ),
+                }
+            } else {
+                (
+                    404,
+                    serde_json::json!({
+                        "error": "No matching mock route",
+                        "method": method,
+                        "path": path
+                    })
+                    .to_string(),
+                    None, None, 0u64, HashMap::new(),
+                )
+            }
+        };
 
     // 延迟模拟
     if delay_ms > 0 {
@@ -638,8 +782,8 @@ async fn handle_mock_request(
     let status_code = StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     let mut builder = Response::builder().status(status_code);
 
-    // 设置默认 Content-Type
-    if !response_headers.contains_key("content-type") && !response_headers.contains_key("Content-Type") {
+    // 设置默认 Content-Type（大小写不敏感）
+    if !response_headers.keys().any(|k| k.eq_ignore_ascii_case("content-type")) {
         builder = builder.header("Content-Type", "application/json; charset=utf-8");
     }
 
@@ -701,6 +845,8 @@ pub async fn start_mock_server(
     let routes_arc = session.routes.clone();
     let logs_arc = session.logs.clone();
     let total_hits = session.total_hits.clone();
+    let hit_counters_arc = session.hit_counters.clone();
+    let proxy_target_arc = session.proxy_target.clone();
     let sid = session_id.to_string();
     let abort_handle_store = session.abort_handle.clone();
 
@@ -714,6 +860,8 @@ pub async fn start_mock_server(
                     let routes = routes_arc.clone();
                     let logs = logs_arc.clone();
                     let hits = total_hits.clone();
+                    let hc = hit_counters_arc.clone();
+                    let pt = proxy_target_arc.clone();
                     let sid = sid.clone();
                     let app = app.clone();
 
@@ -724,6 +872,8 @@ pub async fn start_mock_server(
                                 routes.clone(),
                                 logs.clone(),
                                 hits.clone(),
+                                hc.clone(),
+                                pt.clone(),
                                 sid.clone(),
                                 app.clone(),
                             )
@@ -769,11 +919,12 @@ pub async fn stop_mock_server(
         return Ok(());
     }
 
+    // 先设 running=false，再 abort，避免 accept 循环误判
+    session.running.store(false, Ordering::SeqCst);
     let mut handle = session.abort_handle.lock().await;
     if let Some(h) = handle.take() {
         h.abort();
     }
-    session.running.store(false, Ordering::SeqCst);
 
     log::info!("Mock Server 已停止 (session: {})", session_id);
     Ok(())
@@ -824,4 +975,324 @@ pub async fn get_status(
         log_count: session.logs.lock().await.len(),
         total_hits: session.total_hits.load(Ordering::Relaxed),
     }
+}
+
+/// 设置代理转发目标
+pub async fn set_proxy_target(
+    state: &MockServerState,
+    session_id: &str,
+    target: Option<String>,
+) -> Result<(), String> {
+    let session = get_or_create_session(state, session_id).await;
+    *session.proxy_target.lock().await = target;
+    Ok(())
+}
+
+// ═══════════════════════════════════════════
+//  条件匹配引擎
+// ═══════════════════════════════════════════
+
+fn evaluate_condition(
+    condition: &MatchCondition,
+    req_headers: &HashMap<String, String>,
+    req_body: &Option<String>,
+) -> bool {
+    match condition {
+        MatchCondition::Default => true,
+        MatchCondition::Header { name, value } => {
+            req_headers
+                .get(&name.to_lowercase())
+                .map(|v| v == value)
+                .unwrap_or(false)
+        }
+        MatchCondition::BodyContains { value } => {
+            req_body.as_ref().map(|b| b.contains(value)).unwrap_or(false)
+        }
+        MatchCondition::BodyJsonPath { path, value } => {
+            let Some(body) = req_body.as_ref() else {
+                return false;
+            };
+            let Ok(json) = serde_json::from_str::<serde_json::Value>(body) else {
+                return false;
+            };
+            // 将 dot.path 转为 JSON pointer /path
+            let pointer = if path.starts_with('/') {
+                path.clone()
+            } else {
+                format!("/{}", path.replace('.', "/"))
+            };
+            json.pointer(&pointer)
+                .map(|v| {
+                    let v_str = match v {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    };
+                    v_str == *value
+                })
+                .unwrap_or(false)
+        }
+        MatchCondition::BodyRegex { pattern } => {
+            let Some(body) = req_body.as_ref() else {
+                return false;
+            };
+            regex_lite::Regex::new(pattern)
+                .map(|re| re.is_match(body))
+                .unwrap_or(false)
+        }
+    }
+}
+
+/// 根据条件从 examples 中选择响应（Default 条件总是最后匹配）
+fn select_example<'a>(
+    examples: &'a [MockExample],
+    req_headers: &HashMap<String, String>,
+    req_body: &Option<String>,
+) -> Option<&'a MockExample> {
+    // 先匹配具体条件
+    examples
+        .iter()
+        .find(|ex| {
+            !matches!(ex.match_condition, MatchCondition::Default)
+                && evaluate_condition(&ex.match_condition, req_headers, req_body)
+        })
+        // 再 fallback 到 Default
+        .or_else(|| {
+            examples
+                .iter()
+                .find(|ex| matches!(ex.match_condition, MatchCondition::Default))
+        })
+}
+
+// ═══════════════════════════════════════════
+//  JS 脚本执行引擎
+// ═══════════════════════════════════════════
+
+/// 脚本执行结果
+struct MockScriptResult {
+    status: u16,
+    headers: HashMap<String, String>,
+    body: String,
+}
+
+/// 执行 Mock 脚本（Boa JS 引擎）
+fn execute_mock_script(
+    script: &str,
+    req_method: &str,
+    req_path: &str,
+    query_params: &HashMap<String, String>,
+    path_params: &HashMap<String, String>,
+    req_headers: &HashMap<String, String>,
+    req_body: &Option<String>,
+) -> Result<MockScriptResult, String> {
+    use boa_engine::{Context, Source};
+
+    let mut ctx = Context::default();
+
+    // 构建 mock.request 对象 JSON
+    let request_json = serde_json::json!({
+        "method": req_method,
+        "path": req_path,
+        "query": query_params,
+        "params": path_params,
+        "headers": req_headers,
+        "body": req_body.clone().unwrap_or_default(),
+    });
+
+    // 注入全局变量: mock = { request: {...}, response: { status: 200, headers: {}, body: "" } }
+    let setup_script = format!(
+        r#"var mock = {{
+            request: {},
+            response: {{ status: 200, headers: {{}}, body: "" }}
+        }};"#,
+        serde_json::to_string(&request_json).unwrap_or_default()
+    );
+
+    ctx.eval(Source::from_bytes(&setup_script))
+        .map_err(|e| format!("脚本初始化失败: {}", e))?;
+
+    // 执行用户脚本
+    ctx.eval(Source::from_bytes(script))
+        .map_err(|e| format!("脚本执行失败: {}", e))?;
+
+    // 读取 mock.response
+    let read_result = ctx
+        .eval(Source::from_bytes("JSON.stringify(mock.response)"))
+        .map_err(|e| format!("读取脚本结果失败: {}", e))?;
+
+    let result_str = read_result
+        .as_string()
+        .map(|s| s.to_std_string_escaped())
+        .unwrap_or_default();
+
+    #[derive(Deserialize)]
+    struct ScriptResponse {
+        #[serde(default = "default_200")]
+        status: u16,
+        #[serde(default)]
+        headers: HashMap<String, String>,
+        #[serde(default)]
+        body: serde_json::Value,
+    }
+    fn default_200() -> u16 { 200 }
+
+    let parsed: ScriptResponse =
+        serde_json::from_str(&result_str).unwrap_or(ScriptResponse {
+            status: 200,
+            headers: HashMap::new(),
+            body: serde_json::Value::String(String::new()),
+        });
+
+    let body = match parsed.body {
+        serde_json::Value::String(s) => s,
+        other => other.to_string(),
+    };
+
+    Ok(MockScriptResult {
+        status: parsed.status,
+        headers: parsed.headers,
+        body,
+    })
+}
+
+// ═══════════════════════════════════════════
+//  代理转发
+// ═══════════════════════════════════════════
+
+async fn proxy_forward(
+    target: &str,
+    method: &str,
+    path: &str,
+    query: &str,
+    headers: &HashMap<String, String>,
+    body: &Option<String>,
+) -> Result<(u16, HashMap<String, String>, String), String> {
+    let url = if query.is_empty() {
+        format!("{}{}", target.trim_end_matches('/'), path)
+    } else {
+        format!("{}{}?{}", target.trim_end_matches('/'), path, query)
+    };
+
+    let client = reqwest::Client::new();
+    let mut req = match method.to_uppercase().as_str() {
+        "GET" => client.get(&url),
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "DELETE" => client.delete(&url),
+        "PATCH" => client.patch(&url),
+        "HEAD" => client.head(&url),
+        _ => client.get(&url),
+    };
+
+    for (key, value) in headers {
+        // 跳过 host 头（使用目标地址的 host）
+        if key.to_lowercase() != "host" {
+            req = req.header(key.as_str(), value.as_str());
+        }
+    }
+
+    if let Some(b) = body {
+        req = req.body(b.clone());
+    }
+
+    let resp = req.send().await.map_err(|e| format!("代理转发失败: {}", e))?;
+    let status = resp.status().as_u16();
+    let resp_headers: HashMap<String, String> = resp
+        .headers()
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+        .collect();
+    let resp_body = resp.text().await.unwrap_or_default();
+
+    Ok((status, resp_headers, resp_body))
+}
+
+// ═══════════════════════════════════════════
+//  SQLite 持久化
+// ═══════════════════════════════════════════
+
+pub async fn save_mock_config(
+    pool: &sqlx::SqlitePool,
+    config: &MockServerConfig,
+) -> Result<(), String> {
+    sqlx::query(
+        "INSERT INTO mock_server_configs (id, session_label, port, routes_json, proxy_target, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           session_label = excluded.session_label,
+           port = excluded.port,
+           routes_json = excluded.routes_json,
+           proxy_target = excluded.proxy_target,
+           updated_at = excluded.updated_at"
+    )
+    .bind(&config.id)
+    .bind(&config.session_label)
+    .bind(config.port as i64)
+    .bind(&config.routes_json)
+    .bind(&config.proxy_target)
+    .bind(&config.created_at)
+    .bind(&config.updated_at)
+    .execute(pool)
+    .await
+    .map_err(|e| format!("保存 Mock 配置失败: {}", e))?;
+    Ok(())
+}
+
+pub async fn load_mock_config(
+    pool: &sqlx::SqlitePool,
+    id: &str,
+) -> Result<Option<MockServerConfig>, String> {
+    let row = sqlx::query_as::<_, (String, String, i64, String, Option<String>, String, String)>(
+        "SELECT id, session_label, port, routes_json, proxy_target, created_at, updated_at FROM mock_server_configs WHERE id = ?"
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("加载 Mock 配置失败: {}", e))?;
+
+    Ok(row.map(|(id, label, port, routes_json, proxy_target, created_at, updated_at)| {
+        MockServerConfig {
+            id,
+            session_label: label,
+            port: port as u16,
+            routes_json,
+            proxy_target,
+            created_at,
+            updated_at,
+        }
+    }))
+}
+
+pub async fn list_mock_configs(
+    pool: &sqlx::SqlitePool,
+) -> Result<Vec<MockServerConfig>, String> {
+    let rows = sqlx::query_as::<_, (String, String, i64, String, Option<String>, String, String)>(
+        "SELECT id, session_label, port, routes_json, proxy_target, created_at, updated_at FROM mock_server_configs ORDER BY updated_at DESC"
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|e| format!("列出 Mock 配置失败: {}", e))?;
+
+    Ok(rows.into_iter().map(|(id, label, port, routes_json, proxy_target, created_at, updated_at)| {
+        MockServerConfig {
+            id,
+            session_label: label,
+            port: port as u16,
+            routes_json,
+            proxy_target,
+            created_at,
+            updated_at,
+        }
+    }).collect())
+}
+
+pub async fn delete_mock_config(
+    pool: &sqlx::SqlitePool,
+    id: &str,
+) -> Result<(), String> {
+    sqlx::query("DELETE FROM mock_server_configs WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(|e| format!("删除 Mock 配置失败: {}", e))?;
+    Ok(())
 }

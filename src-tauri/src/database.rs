@@ -67,6 +67,11 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             "add_item_variables",
             include_str!("../migrations/004_add_item_variables.sql"),
         ),
+        (
+            5,
+            "mock_server",
+            include_str!("../migrations/005_mock_server.sql"),
+        ),
     ];
 
     for (version, name, sql) in migrations {

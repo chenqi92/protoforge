@@ -12,7 +12,7 @@ use crate::mqtt_client::{self, MqttConnectRequest, MqttConnections};
 use crate::script_engine::{self, ScriptRequestContext, ScriptResponse, ScriptResult};
 use crate::sse_client::{self, SseConnectRequest, SseConnections};
 use crate::tcp_client::{TcpConnections, TcpServers, UdpSockets};
-use crate::mock_server::{self, MockRoute, MockRequestLog, MockServerState, MockServerStatusInfo};
+use crate::mock_server::{self, MockRoute, MockRequestLog, MockServerConfig, MockServerState, MockServerStatusInfo};
 use crate::wasm_runtime::WasmPluginRuntime;
 use crate::ws_client::WsConnections;
 use sqlx::SqlitePool;
@@ -3117,4 +3117,46 @@ pub async fn mock_server_status(
     session_id: String,
 ) -> Result<MockServerStatusInfo, String> {
     Ok(mock_server::get_status(&state, &session_id).await)
+}
+
+#[tauri::command]
+pub async fn mock_server_set_proxy_target(
+    state: State<'_, MockServerState>,
+    session_id: String,
+    target: Option<String>,
+) -> Result<(), String> {
+    mock_server::set_proxy_target(&state, &session_id, target).await
+}
+
+// ── Mock Server 持久化 ──
+
+#[tauri::command]
+pub async fn mock_server_save_config(
+    pool: State<'_, SqlitePool>,
+    config: MockServerConfig,
+) -> Result<(), String> {
+    mock_server::save_mock_config(&pool, &config).await
+}
+
+#[tauri::command]
+pub async fn mock_server_load_config(
+    pool: State<'_, SqlitePool>,
+    id: String,
+) -> Result<Option<MockServerConfig>, String> {
+    mock_server::load_mock_config(&pool, &id).await
+}
+
+#[tauri::command]
+pub async fn mock_server_list_configs(
+    pool: State<'_, SqlitePool>,
+) -> Result<Vec<MockServerConfig>, String> {
+    mock_server::list_mock_configs(&pool).await
+}
+
+#[tauri::command]
+pub async fn mock_server_delete_config(
+    pool: State<'_, SqlitePool>,
+    id: String,
+) -> Result<(), String> {
+    mock_server::delete_mock_config(&pool, &id).await
 }

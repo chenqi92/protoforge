@@ -7,6 +7,7 @@ import type {
   MockRoute,
   MockRequestLog,
   MockServerStatusInfo,
+  MockServerConfig,
 } from "@/types/mockserver";
 import { createEmptyRoute } from "@/types/mockserver";
 import * as mockService from "@/services/mockServerService";
@@ -20,9 +21,12 @@ interface MockServerStoreState {
   logs: MockRequestLog[];
   totalHits: number;
   error: string | null;
+  proxyTarget: string;
+  configId: string | null;
 
   // 路由管理
   addRoute: () => void;
+  addRouteFromTemplate: (partial: Partial<MockRoute>) => void;
   updateRoute: (id: string, patch: Partial<MockRoute>) => void;
   removeRoute: (id: string) => void;
   duplicateRoute: (id: string) => void;
@@ -36,6 +40,17 @@ interface MockServerStoreState {
 
   // 热更新路由到运行中的服务器
   syncRoutesToServer: () => Promise<void>;
+
+  // 代理
+  setProxyTarget: (target: string) => Promise<void>;
+
+  // 持久化
+  saveConfig: () => Promise<void>;
+  loadConfig: (id: string) => Promise<void>;
+
+  // 导入/导出
+  importRoutes: (routes: MockRoute[]) => void;
+  exportRoutes: () => MockRoute[];
 
   // 日志
   clearLogs: () => Promise<void>;
@@ -51,9 +66,27 @@ interface MockServerStoreState {
 type MockServerStoreApi = ReturnType<typeof createMockServerSessionStore>;
 
 const stores = new Map<string, MockServerStoreApi>();
+const cleanupFns = new Map<string, () => void>();
 
 function createMockServerSessionStore(sessionId: string) {
   let listenerPromise: Promise<UnlistenFn> | null = null;
+  let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleAutoSave(get: () => MockServerStoreState) {
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+      const state = get();
+      if (state.configId) {
+        void state.saveConfig();
+      }
+    }, 800);
+  }
+
+  // 注册清理函数
+  cleanupFns.set(sessionId, () => {
+    if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
+    if (listenerPromise) { void listenerPromise.then((fn) => fn()); listenerPromise = null; }
+  });
 
   return createStore<MockServerStoreState>((set, get) => ({
     sessionId,
@@ -64,6 +97,8 @@ function createMockServerSessionStore(sessionId: string) {
     logs: [],
     totalHits: 0,
     error: null,
+    proxyTarget: "",
+    configId: null,
 
     addRoute: () => {
       const newRoute = createEmptyRoute();
@@ -71,20 +106,31 @@ function createMockServerSessionStore(sessionId: string) {
         routes: [...s.routes, newRoute],
         selectedRouteId: newRoute.id,
       }));
+      scheduleAutoSave(get);
+    },
+
+    addRouteFromTemplate: (partial) => {
+      const newRoute: MockRoute = { ...createEmptyRoute(), ...partial, id: crypto.randomUUID() };
+      set((s) => ({
+        routes: [...s.routes, newRoute],
+        selectedRouteId: newRoute.id,
+      }));
+      scheduleAutoSave(get);
     },
 
     updateRoute: (id, patch) => {
       set((s) => ({
         routes: s.routes.map((r) => (r.id === id ? { ...r, ...patch } : r)),
       }));
+      scheduleAutoSave(get);
     },
 
     removeRoute: (id) => {
       set((s) => ({
         routes: s.routes.filter((r) => r.id !== id),
-        selectedRouteId:
-          s.selectedRouteId === id ? null : s.selectedRouteId,
+        selectedRouteId: s.selectedRouteId === id ? null : s.selectedRouteId,
       }));
+      scheduleAutoSave(get);
     },
 
     duplicateRoute: (id) => {
@@ -94,14 +140,13 @@ function createMockServerSessionStore(sessionId: string) {
       const copy: MockRoute = {
         ...source,
         id: crypto.randomUUID(),
-        description: source.description
-          ? `${source.description} (copy)`
-          : "(copy)",
+        description: source.description ? `${source.description} (copy)` : "(copy)",
       };
       const idx = state.routes.findIndex((r) => r.id === id);
       const newRoutes = [...state.routes];
       newRoutes.splice(idx + 1, 0, copy);
       set({ routes: newRoutes, selectedRouteId: copy.id });
+      scheduleAutoSave(get);
     },
 
     reorderRoutes: (fromIndex, toIndex) => {
@@ -111,6 +156,7 @@ function createMockServerSessionStore(sessionId: string) {
         newRoutes.splice(toIndex, 0, moved);
         return { routes: newRoutes };
       });
+      scheduleAutoSave(get);
     },
 
     setSelectedRoute: (id) => set({ selectedRouteId: id }),
@@ -121,6 +167,11 @@ function createMockServerSessionStore(sessionId: string) {
       try {
         await mockService.startMockServer(sessionId, p, routes);
         set({ running: true, port: p, error: null });
+        // 首次启动自动创建持久化配置
+        if (!get().configId) {
+          set({ configId: sessionId });
+          void get().saveConfig();
+        }
       } catch (e) {
         const msg = String(e);
         set({ error: msg });
@@ -137,7 +188,10 @@ function createMockServerSessionStore(sessionId: string) {
       }
     },
 
-    setPort: (port) => set({ port }),
+    setPort: (port) => {
+      set({ port });
+      scheduleAutoSave(get);
+    },
 
     syncRoutesToServer: async () => {
       if (!get().running) return;
@@ -147,6 +201,58 @@ function createMockServerSessionStore(sessionId: string) {
         set({ error: String(e) });
       }
     },
+
+    setProxyTarget: async (target) => {
+      set({ proxyTarget: target });
+      if (get().running) {
+        await mockService.setProxyTarget(sessionId, target || null);
+      }
+      scheduleAutoSave(get);
+    },
+
+    saveConfig: async () => {
+      const state = get();
+      const now = new Date().toISOString();
+      const config: MockServerConfig = {
+        id: state.configId || sessionId,
+        sessionLabel: "",
+        port: state.port,
+        routesJson: JSON.stringify(state.routes),
+        proxyTarget: state.proxyTarget || undefined,
+        createdAt: now,
+        updatedAt: now,
+      };
+      try {
+        await mockService.saveMockConfig(config);
+        if (!state.configId) set({ configId: config.id });
+      } catch (e) {
+        console.error("[MockServer] 保存配置失败:", e);
+      }
+    },
+
+    loadConfig: async (id) => {
+      try {
+        const config = await mockService.loadMockConfig(id);
+        if (!config) return;
+        const routes: MockRoute[] = JSON.parse(config.routesJson || "[]");
+        set({
+          configId: config.id,
+          port: config.port,
+          routes,
+          proxyTarget: config.proxyTarget || "",
+          selectedRouteId: routes.length > 0 ? routes[0].id : null,
+        });
+      } catch (e) {
+        console.error("[MockServer] 加载配置失败:", e);
+      }
+    },
+
+    importRoutes: (routes) => {
+      set({ routes, selectedRouteId: routes.length > 0 ? routes[0].id : null });
+      scheduleAutoSave(get);
+    },
+
+    exportRoutes: () => get().routes,
 
     clearLogs: async () => {
       await mockService.clearMockServerLog(sessionId);
@@ -173,8 +279,6 @@ function createMockServerSessionStore(sessionId: string) {
     },
 
     initListener: () => {
-      // Store 级别的 listener，只创建一次，不随组件 unmount 销毁
-      // 避免切换 tab 后回来丢失事件
       if (!listenerPromise) {
         listenerPromise = listen<MockRequestLog>(
           "mock-server-hit",
@@ -192,7 +296,6 @@ function createMockServerSessionStore(sessionId: string) {
           },
         );
       }
-      // 返回空 unlisten — listener 跟随 store 生命周期，由 destroyMockServerStore 清理
       return Promise.resolve(() => {});
     },
   }));
@@ -207,7 +310,7 @@ function getOrCreateStore(sessionId: string): MockServerStoreApi {
   return store;
 }
 
-/** React hook — 使用方式: useMockServerStore(sessionId, s => s.running) */
+/** React hook */
 export function useMockServerStore<T>(
   sessionId: string,
   selector: (state: MockServerStoreState) => T,
@@ -219,13 +322,8 @@ export function getMockServerStoreApi(sessionId: string): MockServerStoreApi {
   return getOrCreateStore(sessionId);
 }
 
-/** 销毁 session store（session 关闭时调用，防止内存泄漏） */
 export function destroyMockServerStore(sessionId: string) {
-  const store = stores.get(sessionId);
-  if (store) {
-    // 清理事件监听
-    const state = store.getState();
-    // initListener 内部的 listenerPromise 会在 GC 时释放
-    stores.delete(sessionId);
-  }
+  const cleanup = cleanupFns.get(sessionId);
+  if (cleanup) { cleanup(); cleanupFns.delete(sessionId); }
+  stores.delete(sessionId);
 }

@@ -366,6 +366,11 @@ pub fn run() {
             commands::mock_server_get_log,
             commands::mock_server_clear_log,
             commands::mock_server_status,
+            commands::mock_server_set_proxy_target,
+            commands::mock_server_save_config,
+            commands::mock_server_load_config,
+            commands::mock_server_list_configs,
+            commands::mock_server_delete_config,
             // macOS Rounded Corners
             plugins::mac_rounded_corners::enable_rounded_corners,
         ])

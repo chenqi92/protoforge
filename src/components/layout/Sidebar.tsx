@@ -5,7 +5,7 @@ import {
   FolderOpen, Clock, Search, Plus,
   ChevronRight, Download, Settings, Globe,
   MoreHorizontal, Folder, Zap, Edit3, Trash2, ExternalLink, Copy, FolderPlus,
-  ChevronsUpDown, BarChart3,
+  ChevronsUpDown, BarChart3, Server,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMe
 import { useAppStore } from "@/stores/appStore";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { useHistoryStore } from "@/stores/historyStore";
+import { getMockServerStoreApi } from "@/stores/mockServerStore";
 import { useEnvStore } from "@/stores/envStore";
 import { ImportModal } from "@/components/collections/ImportModal";
 import type { HistoryEntrySummary, CollectionItem } from '@/types/collections';
@@ -239,6 +240,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
   const openCollectionPanel = useAppStore((s) => s.openCollectionPanel);
+  const openToolTab = useAppStore((s) => s.openToolTab);
   const { showMenu, MenuComponent } = useContextMenu();
 
   const collections = useCollectionStore((s) => s.collections);
@@ -526,11 +528,42 @@ function CollectionsView({ search, expanded, setExpanded }: {
     showMenu(e, menuItems);
   };
 
+  const handleGenerateMock = useCallback((item: CollectionItem) => {
+    // 从集合请求生成 Mock 路由
+    let path = "/";
+    try {
+      const urlStr = item.url || "/";
+      if (urlStr.startsWith("http")) {
+        path = new URL(urlStr).pathname;
+      } else {
+        // 处理 {{baseUrl}}/api/xxx 格式
+        const match = urlStr.match(/\}\}(.+)/);
+        path = match ? match[1] : urlStr;
+      }
+    } catch {
+      path = item.url || "/";
+    }
+
+    const sessionId = openToolTab("mockserver");
+    // 延迟一帧等 store 创建完成
+    setTimeout(() => {
+      const mockStore = getMockServerStoreApi(sessionId);
+      mockStore.getState().addRouteFromTemplate({
+        method: item.method || "GET",
+        pattern: path,
+        bodyTemplate: item.responseExample || '{\n  "message": "mock response"\n}',
+        description: item.name || "",
+      });
+    }, 100);
+  }, [openToolTab]);
+
   const handleItemContextMenu = (e: React.MouseEvent, item: CollectionItem) => {
     const menuItems: ContextMenuEntry[] = [
       { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => handleOpenItem(item, { forceNewTab: true }) },
       { id: "rename", label: t('contextMenu.rename'), icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(item.id, item.name) },
       { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { if (item.url) void copyTextToClipboard(item.url); } },
+      { type: "divider" },
+      { id: "generate-mock", label: t('sidebar.generateMock'), icon: <Server className="w-3.5 h-3.5" />, onClick: () => handleGenerateMock(item) },
       { type: "divider" },
       { id: "delete", label: t('contextMenu.delete'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteItem(item.id, item.collectionId) },
     ];
