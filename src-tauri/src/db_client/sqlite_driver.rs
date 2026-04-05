@@ -309,9 +309,13 @@ impl DbDriver for SqliteDriver {
         limit: i64,
         sort_column: Option<&str>,
         sort_dir: Option<&str>,
-        _filter: Option<&str>,
+        filter: Option<&str>,
     ) -> Result<QueryResult, String> {
         let safe_table = quote_sqlite_ident(table)?;
+        let where_clause = match filter {
+            Some(f) if !f.trim().is_empty() => format!("WHERE {}", f),
+            _ => String::new(),
+        };
         let order = match sort_column {
             Some(col) => {
                 validate_identifier(col)?;
@@ -321,8 +325,8 @@ impl DbDriver for SqliteDriver {
             None => String::new(),
         };
         let sql = format!(
-            "SELECT * FROM {} {} LIMIT {} OFFSET {}",
-            safe_table, order, limit, offset
+            "SELECT * FROM {} {} {} LIMIT {} OFFSET {}",
+            safe_table, where_clause, order, limit, offset
         );
         self.execute_query(&sql).await
     }

@@ -397,12 +397,16 @@ impl DbDriver for MysqlDriver {
         limit: i64,
         sort_column: Option<&str>,
         sort_dir: Option<&str>,
-        _filter: Option<&str>,
+        filter: Option<&str>,
     ) -> Result<QueryResult, String> {
         let effective_db = if database.is_empty() {
             &self.config.database
         } else {
             database
+        };
+        let where_clause = match filter {
+            Some(f) if !f.trim().is_empty() => format!("WHERE {}", f),
+            _ => String::new(),
         };
         let order = match sort_column {
             Some(col) => {
@@ -421,8 +425,8 @@ impl DbDriver for MysqlDriver {
         };
         validate_identifier(table)?;
         let sql = format!(
-            "SELECT * FROM {}.{} {} LIMIT {} OFFSET {}",
-            quote_mysql_ident(effective_db)?, quote_mysql_ident(table)?, order, limit, offset
+            "SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {}",
+            quote_mysql_ident(effective_db)?, quote_mysql_ident(table)?, where_clause, order, limit, offset
         );
         self.execute_query(&sql).await
     }

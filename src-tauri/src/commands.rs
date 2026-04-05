@@ -3188,6 +3188,20 @@ pub async fn db_client_connect(
     mgr.connect(&session_id, &config).await
 }
 
+/// 用已保存的加密凭证直接连接（双击连接时使用）
+#[tauri::command]
+pub async fn db_client_connect_saved(
+    app: AppHandle,
+    pool: State<'_, SqlitePool>,
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+    connection_id: String,
+) -> Result<ServerInfo, String> {
+    let app_data_dir = app.path().app_data_dir().map_err(|e| format!("App data dir: {}", e))?;
+    let (info, _config) = db_client::connect_saved(&pool, &app_data_dir, &mgr, &session_id, &connection_id).await?;
+    Ok(info)
+}
+
 #[tauri::command]
 pub async fn db_client_disconnect(
     mgr: State<'_, DbConnectionManager>,

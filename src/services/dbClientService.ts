@@ -28,6 +28,13 @@ export async function connect(
   return invoke("db_client_connect", { sessionId, config });
 }
 
+export async function connectSaved(
+  sessionId: string,
+  connectionId: string,
+): Promise<ServerInfo> {
+  return invoke("db_client_connect_saved", { sessionId, connectionId });
+}
+
 export async function disconnect(sessionId: string): Promise<void> {
   return invoke("db_client_disconnect", { sessionId });
 }

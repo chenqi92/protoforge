@@ -289,6 +289,48 @@ pub async fn delete_connection(pool: &SqlitePool, id: &str) -> Result<(), String
     Ok(())
 }
 
+/// 用已保存的加密凭证直接连接（无需前端传密码）
+pub async fn connect_saved(
+    pool: &SqlitePool,
+    app_data_dir: &std::path::Path,
+    mgr: &DbConnectionManager,
+    session_id: &str,
+    connection_id: &str,
+) -> Result<(ServerInfo, ConnectionConfig), String> {
+    // 从数据库读取完整连接配置（含加密密码）
+    // db_type, host, port, database_name, username, password_enc, token_enc, ssl_enabled, file_path, org, influx_version, retention_policy
+    let row = sqlx::query_as::<_, (String, String, Option<i64>, String, String, String, String, bool, Option<String>, Option<String>, Option<String>, Option<String>)>(
+        "SELECT db_type, host, port, database_name, username, password_enc, token_enc, ssl_enabled, file_path, org, influx_version, retention_policy \
+         FROM db_connections WHERE id = ?"
+    )
+    .bind(connection_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("Query connection failed: {}", e))?
+    .ok_or_else(|| format!("Connection not found: {}", connection_id))?;
+
+    let password = if row.5.is_empty() { String::new() } else { crypto::decrypt(&row.5, app_data_dir)? };
+    let token_str = if row.6.is_empty() { String::new() } else { crypto::decrypt(&row.6, app_data_dir)? };
+
+    let config = ConnectionConfig {
+        db_type: row.0,
+        host: row.1,
+        port: row.2.unwrap_or(5432) as u16,
+        database: row.3,
+        username: row.4,
+        password,
+        ssl_enabled: row.7,
+        file_path: row.8,
+        org: row.9,
+        token: if token_str.is_empty() { None } else { Some(token_str) },
+        influx_version: row.10,
+        retention_policy: row.11,
+    };
+
+    let info = mgr.connect(session_id, &config).await?;
+    Ok((info, config))
+}
+
 // ═══════════════════════════════════════════
 //  查询历史
 // ═══════════════════════════════════════════

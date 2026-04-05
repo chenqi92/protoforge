@@ -150,7 +150,7 @@ function OverviewTab({ collection }: { collection: Collection }) {
           className={cn(
             'flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium transition-all',
             dirty
-              ? 'gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98]'
+              ? 'bg-accent text-white shadow-sm hover:bg-accent-hover hover:shadow-md active:scale-[0.98]'
               : 'border border-border-default text-text-disabled cursor-not-allowed'
           )}
         >
@@ -290,7 +290,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
         <div className="flex items-center gap-2 pt-2">
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium bg-accent text-white shadow-sm hover:bg-accent-hover hover:shadow-md active:scale-[0.98] transition-all"
           >
             <Save className="w-3.5 h-3.5" />
             {t('collectionSettings.saveVars')}
@@ -452,7 +452,7 @@ function AuthTab({ collection }: { collection: Collection }) {
         <div className="flex items-center gap-2 pt-2">
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium bg-accent text-white shadow-sm hover:bg-accent-hover hover:shadow-md active:scale-[0.98] transition-all"
           >
             <Save className="w-3.5 h-3.5" />
             {t('collectionSettings.saveAuth')}
@@ -520,7 +520,7 @@ function ScriptsTab({ collection }: { collection: Collection }) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium gradient-accent text-white shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md pf-text-sm font-medium bg-accent text-white shadow-sm hover:bg-accent-hover hover:shadow-md active:scale-[0.98] transition-all"
           >
             <Save className="w-3.5 h-3.5" />
             {t('collectionSettings.saveScripts')}

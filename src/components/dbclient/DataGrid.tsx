@@ -4,7 +4,7 @@
 import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Loader2, Save, Undo2, Trash2,
+  Loader2, Save, Undo2, Trash2, ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,10 @@ interface DataGridProps {
   onDiscardEdits?: () => void;
   onDeleteRows?: (pkValues: SqlValue[][]) => void;
   tableMeta?: { database: string; schema: string; table: string; pkColumns: string[] } | null;
+  // 排序
+  sortColumn?: string | null;
+  sortDir?: "ASC" | "DESC" | null;
+  onSort?: (column: string) => void;
 }
 
 export const DataGrid = memo(function DataGrid({
@@ -42,6 +46,9 @@ export const DataGrid = memo(function DataGrid({
   onDiscardEdits,
   onDeleteRows,
   tableMeta,
+  sortColumn,
+  sortDir,
+  onSort,
 }: DataGridProps) {
   const { t } = useTranslation();
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
@@ -184,8 +191,6 @@ export const DataGrid = memo(function DataGrid({
   const currentPage = Math.floor(offset / safeLimit) + 1;
   const totalPages = Math.max(1, Math.ceil(totalRows / safeLimit));
   const showPagination = onPageChange && totalRows > safeLimit;
-  const colCount = result.columns.length;
-
   return (
     <div className="flex h-full flex-col">
       {/* 编辑工具栏 */}
@@ -231,19 +236,37 @@ export const DataGrid = memo(function DataGrid({
           <div className="w-12 shrink-0 border-r border-border-default/50 px-2 py-1.5 text-center pf-text-xs font-medium text-text-tertiary">
             #
           </div>
-          {result.columns.map((col) => (
-            <div
-              key={col.name}
-              className="shrink-0 border-r border-border-default/50 px-3 py-1.5 pf-text-xs font-medium text-text-secondary whitespace-nowrap"
-              style={{ minWidth: 100, maxWidth: 300 }}
-            >
-              <div className="flex items-center gap-1">
-                <span>{col.name}</span>
-                <span className="text-text-quaternary font-normal">{col.dataType}</span>
-                {col.isPrimaryKey && <span className="text-amber-500 font-normal" title={t("dbClient.primaryKey")}>PK</span>}
+          {result.columns.map((col) => {
+            const isSorted = sortColumn === col.name;
+            return (
+              <div
+                key={col.name}
+                className={cn(
+                  "shrink-0 border-r border-border-default/50 px-3 py-1.5 pf-text-xs font-medium text-text-secondary whitespace-nowrap",
+                  onSort && "cursor-pointer hover:bg-bg-hover/50 select-none",
+                )}
+                style={{ minWidth: 100, maxWidth: 300 }}
+                onClick={onSort ? () => onSort(col.name) : undefined}
+              >
+                <div className="flex items-center gap-1">
+                  <span>{col.name}</span>
+                  <span className="text-text-quaternary font-normal">{col.dataType}</span>
+                  {col.isPrimaryKey && <span className="text-amber-500 font-normal" title={t("dbClient.primaryKey")}>PK</span>}
+                  {onSort && (
+                    <span className="ml-auto shrink-0">
+                      {isSorted && sortDir === "ASC" ? (
+                        <ArrowUp size={10} className="text-accent" />
+                      ) : isSorted && sortDir === "DESC" ? (
+                        <ArrowDown size={10} className="text-accent" />
+                      ) : (
+                        <ArrowUpDown size={10} className="text-text-quaternary opacity-0 group-hover:opacity-50" />
+                      )}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* 虚拟行 */}

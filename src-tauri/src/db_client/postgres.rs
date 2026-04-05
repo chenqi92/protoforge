@@ -449,12 +449,16 @@ impl DbDriver for PostgresDriver {
         limit: i64,
         sort_column: Option<&str>,
         sort_dir: Option<&str>,
-        _filter: Option<&str>,
+        filter: Option<&str>,
     ) -> Result<QueryResult, String> {
         let effective_schema = if schema.is_empty() { "public" } else { schema };
         validate_identifier(effective_schema)?;
         validate_identifier(table)?;
         let quoted_table = format!("{}.{}", quote_pg_ident(effective_schema)?, quote_pg_ident(table)?);
+        let where_clause = match filter {
+            Some(f) if !f.trim().is_empty() => format!("WHERE {}", f),
+            _ => String::new(),
+        };
         let order = match sort_column {
             Some(col) => {
                 validate_identifier(col)?;
@@ -464,8 +468,8 @@ impl DbDriver for PostgresDriver {
             None => String::new(),
         };
         let sql = format!(
-            "SELECT * FROM {} {} LIMIT {} OFFSET {}",
-            quoted_table, order, limit, offset
+            "SELECT * FROM {} {} {} LIMIT {} OFFSET {}",
+            quoted_table, where_clause, order, limit, offset
         );
         self.execute_query(&sql).await
     }

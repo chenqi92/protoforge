@@ -386,6 +386,7 @@ pub fn run() {
             commands::mock_server_delete_config,
             // Database Client
             commands::db_client_connect,
+            commands::db_client_connect_saved,
             commands::db_client_disconnect,
             commands::db_client_test_connection,
             commands::db_client_list_databases,

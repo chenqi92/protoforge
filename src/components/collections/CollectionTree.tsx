@@ -142,7 +142,7 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
         <FolderOpen className="w-10 h-10 mb-3 opacity-30" />
         <p className="pf-text-sm">{t('sidebar.noCollections')}</p>
         <p className="pf-text-xs mt-1 text-center">{t('sidebar.noCollectionsHint')}</p>
-        <button className="mt-4 flex items-center gap-1.5 px-3 py-1.5 pf-rounded-sm gradient-accent text-white pf-text-xs font-medium">
+        <button className="mt-4 flex items-center gap-1.5 px-3 py-1.5 pf-rounded-sm bg-accent hover:bg-accent-hover text-white pf-text-xs font-medium">
           <FolderPlus className="w-3.5 h-3.5" />
           {t('contextMenu.newFolder')}
         </button>

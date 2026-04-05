@@ -1,8 +1,7 @@
 // 查询历史面板 — 显示最近执行的 SQL 查询
 
 import { memo, useEffect, useState, useCallback } from "react";
-import { History, CheckCircle2, XCircle, Clock, Play, Trash2, Copy } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { History, CheckCircle2, XCircle, Clock, Play, Copy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as dbService from "@/services/dbClientService";
 import { getDbClientStoreApi } from "@/stores/dbClientStore";

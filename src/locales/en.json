@@ -1600,6 +1600,16 @@
     "selectAll": "Select all / Deselect all",
     "connectionNamePlaceholder": "e.g. Production PG",
     "serverConfig": "Server",
-    "authentication": "Authentication"
+    "authentication": "Authentication",
+    "newQueryTab": "New Query Tab",
+    "openTable": "Open Table",
+    "loading": "Loading...",
+    "disconnecting": "Disconnecting...",
+    "showDDL": "Show DDL",
+    "exportTable": "Export Table",
+    "copyName": "Copy Name",
+    "copySelect": "Copy SELECT",
+    "filterPlaceholder": "e.g. status = 'active' AND age > 18",
+    "sortedBy": "Sorted by"
   }
 }

@@ -1622,6 +1622,16 @@
     "selectAll": "全选 / 全不选",
     "connectionNamePlaceholder": "例如：生产环境 PG",
     "serverConfig": "服务器",
-    "authentication": "认证"
+    "authentication": "认证",
+    "newQueryTab": "新建查询标签",
+    "openTable": "打开表",
+    "loading": "加载中...",
+    "disconnecting": "断开中...",
+    "showDDL": "查看 DDL",
+    "exportTable": "导出表",
+    "copyName": "复制名称",
+    "copySelect": "复制 SELECT",
+    "filterPlaceholder": "例如 status = 'active' AND age > 18",
+    "sortedBy": "排序"
   }
 }
