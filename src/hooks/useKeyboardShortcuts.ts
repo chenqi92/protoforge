@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "@/stores/appStore";
 
 /**
@@ -89,6 +90,14 @@ export function useKeyboardShortcuts() {
       if (ctrl && !shift && e.key === ",") {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("open-settings-modal"));
+        return;
+      }
+
+      // Ctrl+Shift+I / F12 — Toggle DevTools
+      if ((ctrl && shift && e.key === "I") || e.key === "F12") {
+        e.preventDefault();
+        invoke("toggle_devtools").catch(() => {});
+        return;
       }
     };
 
