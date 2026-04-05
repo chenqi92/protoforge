@@ -60,4 +60,13 @@ sha1 = "0.10"
 quick-xml = "0.37"
 libc = "0.2"
 tauri-plugin-prevent-default = { version = "4", features = ["platform-windows"] }
+# Database client drivers
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_json-1", "with-uuid-1"] }
+mysql_async = { version = "0.34", default-features = false, features = ["default-rustls"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+async-trait = "0.1"
+aes-gcm = "0.10"
+rand = "0.8"
+sha2 = "0.10"
+hkdf = "0.12"
 

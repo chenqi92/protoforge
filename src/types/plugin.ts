@@ -6,7 +6,9 @@ export type PluginType =
   | 'export-format'
   | 'sidebar-panel'
   | 'crypto-tool'
-  | 'icon-pack';
+  | 'icon-pack'
+  | 'database-driver'
+  | 'query-formatter';
 
 /** 插件可翻译字段 */
 export interface PluginI18nEntry {
@@ -55,19 +57,63 @@ export interface PluginContributes {
   icons?: IconContribution[];
   /** 右键菜单贡献 — 插件可注入自定义右键菜单项 */
   contextMenuItems?: ContextMenuContribution[];
+  /** 数据库驱动贡献 — database-driver 类型插件提供 */
+  databaseDrivers?: DatabaseDriverContribution[];
+  /** 查询格式化器贡献 — query-formatter 类型插件提供 */
+  queryFormatters?: QueryFormatterContribution[];
+}
+
+// ── Database Plugin Contribution Types ──
+
+/** 数据库驱动插件贡献声明 */
+export interface DatabaseDriverContribution {
+  /** 驱动唯一 ID (如 "clickhouse", "redis", "mongodb") */
+  driverId: string;
+  /** 显示名称 */
+  name: string;
+  /** 图标 */
+  icon: string;
+  /** 默认端口 */
+  defaultPort: number;
+  /** 驱动能力声明 */
+  capabilities: string[];
+  /** 连接参数模板 — 用于动态生成连接表单 */
+  connectionFields?: DatabaseConnectionField[];
+}
+
+/** 连接表单字段定义 */
+export interface DatabaseConnectionField {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'password' | 'file' | 'boolean';
+  required: boolean;
+  defaultValue?: string;
+  placeholder?: string;
+}
+
+/** 查询格式化器插件贡献声明 */
+export interface QueryFormatterContribution {
+  formatterId: string;
+  name: string;
+  /** 支持的语言 (如 ["sql", "plpgsql", "flux"]) */
+  languages: string[];
 }
 
 // ── Context Menu Contribution Types ──
 
 /** 右键菜单上下文类型 */
 export type ContextMenuContext =
-  | 'editor'      // Monaco 编辑器
-  | 'input'       // input/textarea 输入框
-  | 'response'    // 响应体区域
-  | 'kv-row'      // KV 编辑器行
-  | 'json-node'   // JSON 树节点
-  | 'history'     // 历史记录条目
-  | 'global';     // 所有区域
+  | 'editor'          // Monaco 编辑器
+  | 'input'           // input/textarea 输入框
+  | 'response'        // 响应体区域
+  | 'kv-row'          // KV 编辑器行
+  | 'json-node'       // JSON 树节点
+  | 'history'         // 历史记录条目
+  | 'global'          // 所有区域
+  | 'db-grid-cell'    // 数据库网格单元格
+  | 'db-grid-row'     // 数据库网格行
+  | 'db-schema-node'  // Schema 树节点
+  | 'db-editor';      // SQL 编辑器
 
 /** 插件右键菜单贡献声明 */
 export interface ContextMenuContribution {

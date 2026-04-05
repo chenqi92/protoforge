@@ -7,6 +7,7 @@ import {
   ChevronRight, GripVertical, ToggleLeft, ToggleRight,
   Clock, ArrowUpDown, AlertCircle, Server, Zap,
   Download, Upload, Globe, Code, ListOrdered, Layers,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -20,6 +21,7 @@ import {
   Panel,
   Group as PanelGroup,
   Separator as PanelResizeHandle,
+  usePanelRef,
 } from "react-resizable-panels";
 
 // ── HTTP Method 颜色 ──
@@ -78,8 +80,22 @@ export const MockServerWorkspace = memo(function MockServerWorkspace({
 
   const selectedRoute = routes.find((r) => r.id === selectedRouteId) ?? null;
 
+  const routePanelRef = usePanelRef();
+  const [routePanelCollapsed, setRoutePanelCollapsed] = useState(false);
+
+  const handleRoutePanelResize = useCallback((size: { asPercentage: number; inPixels: number }) => {
+    setRoutePanelCollapsed(size.inPixels <= 42);
+  }, []);
+
+  const handleRoutePanelExpand = useCallback(() => {
+    const ref = routePanelRef.current;
+    if (!ref) return;
+    ref.expand();
+    ref.resize("22%");
+  }, [routePanelRef]);
+
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-bg-base">
+    <div className="flex h-full flex-col overflow-hidden bg-bg-base" data-contextmenu-zone="mockserver" onContextMenu={(e) => e.preventDefault()}>
       {/* 控制栏 */}
       <ControlBar sessionId={sessionId} running={running} port={port} totalHits={totalHits} error={error} routeCount={routes.length} proxyTarget={proxyTarget} />
 
@@ -87,13 +103,32 @@ export const MockServerWorkspace = memo(function MockServerWorkspace({
       <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
         <PanelGroup orientation="horizontal">
           {/* 路由列表 */}
-          <Panel id="mock-routes" defaultSize={22} minSize={15}>
-            <RouteListPanel sessionId={sessionId} routes={routes} selectedRouteId={selectedRouteId} />
+          <Panel
+            id="mock-routes"
+            defaultSize={22}
+            minSize="40px"
+            collapsible
+            collapsedSize="0px"
+            panelRef={routePanelRef}
+            onResize={handleRoutePanelResize}
+            className="overflow-hidden"
+          >
+            <div className="h-full min-w-[200px]">
+              <RouteListPanel sessionId={sessionId} routes={routes} selectedRouteId={selectedRouteId} />
+            </div>
           </Panel>
 
           {/* 分割线 */}
           <PanelResizeHandle className="relative w-[7px] shrink-0 cursor-col-resize group flex items-center justify-center">
             <div className="absolute inset-y-0 left-[3px] w-px bg-border-default/40 group-hover:bg-accent/40 transition-colors" />
+            {routePanelCollapsed && (
+              <button
+                onClick={handleRoutePanelExpand}
+                className="absolute left-0 top-2 z-10 flex items-center justify-center w-6 h-6 rounded-r bg-bg-surface border border-l-0 border-border-default/50 text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors shadow-sm"
+              >
+                <PanelLeftOpen size={14} />
+              </button>
+            )}
           </PanelResizeHandle>
 
           {/* 路由编辑 */}
@@ -351,7 +386,7 @@ function RouteListPanel({
   const store = getMockServerStoreApi(sessionId);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden border-r border-border-default/50">
+    <div className="flex h-full flex-col overflow-hidden">
       {/* 头部 */}
       <div className="flex items-center justify-between border-b border-border-primary px-3 py-2 shrink-0">
         <span className="pf-text-xs font-medium text-text-secondary uppercase tracking-wider">

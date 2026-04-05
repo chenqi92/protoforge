@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useRef } from "react";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Gauge, List, MonitorPlay, Network, Plus, Radio, Server, X } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Database, Gauge, List, MonitorPlay, Network, Plus, Radio, Server, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -42,6 +42,7 @@ import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
 import { VideoStreamWorkspace } from "@/components/videostream/VideoStreamWorkspace";
 import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
 import { MockServerWorkspace } from "@/components/mockserver/MockServerWorkspace";
+import { DbClientWorkspace } from "@/components/dbclient/DbClientWorkspace";
 
 // Low-frequency components — keep lazy for smaller initial bundle
 const PluginModal = lazy(() => import("@/components/plugins/PluginModal").then((module) => ({ default: module.PluginModal })));
@@ -111,6 +112,15 @@ const toolWorkbenchMeta: Record<ToolWorkbench, {
     accentClassName: "text-green-600",
     accentBorderClassName: "border-green-500",
     accentDotClassName: "bg-green-500",
+  },
+  dbclient: {
+    titleKey: "toolWorkbench.dbclient.title",
+    shortTitleKey: "toolWorkbench.dbclient.shortTitle",
+    descKey: "toolWorkbench.dbclient.description",
+    icon: Database,
+    accentClassName: "text-amber-600",
+    accentBorderClassName: "border-amber-500",
+    accentDotClassName: "bg-amber-500",
   },
 };
 
@@ -622,6 +632,7 @@ function App() {
     loadtest: [],
     videostream: [],
     mockserver: [],
+    dbclient: [],
   });
 
   useKeyboardShortcuts();
@@ -705,7 +716,7 @@ function App() {
   }, [activeWorkbench, rightSidebarPanelRef]);
 
   const refreshDetachedTools = useCallback(async () => {
-    const toolKeys: ToolWorkbench[] = ["tcpudp", "capture", "loadtest", "videostream", "mockserver"];
+    const toolKeys: ToolWorkbench[] = ["tcpudp", "capture", "loadtest", "videostream", "mockserver", "dbclient"];
     const states = await Promise.all(
       toolKeys.map(async (tool) => [tool, await listOpenToolWindowSessions(tool)] as const)
     );
@@ -716,6 +727,7 @@ function App() {
       loadtest: states.find(([tool]) => tool === "loadtest")?.[1] ?? [],
       videostream: states.find(([tool]) => tool === "videostream")?.[1] ?? [],
       mockserver: states.find(([tool]) => tool === "mockserver")?.[1] ?? [],
+      dbclient: states.find(([tool]) => tool === "dbclient")?.[1] ?? [],
     });
   }, []);
 
@@ -889,6 +901,7 @@ function App() {
       case "loadtest":
       case "capture":
       case "mockserver":
+      case "dbclient":
         void handleSelectWorkbench(action);
         break;
       case "plugins":
@@ -1078,6 +1091,28 @@ function App() {
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.mockserver ? "block" : "hidden")}
               >
                 <MockServerWorkspace sessionId={session.id} />
+              </div>
+            ))}
+          </ToolWorkbenchPanel>
+        </div>
+
+        <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "dbclient" ? "block" : "hidden")}>
+          <ToolWorkbenchPanel
+            tool="dbclient"
+            sessions={toolSessions.dbclient}
+            activeSessionId={activeToolSessionIds.dbclient}
+            detachedSessionIds={detachedToolSessions.dbclient}
+            onAddSession={addToolSession}
+            onSelectSession={setActiveToolSession}
+            onCloseSession={closeToolSession}
+            onPopout={handlePopoutWorkbench}
+          >
+            {toolSessions.dbclient.map((session) => (
+              <div
+                key={session.id}
+                className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.dbclient ? "block" : "hidden")}
+              >
+                <DbClientWorkspace sessionId={session.id} />
               </div>
             ))}
           </ToolWorkbenchPanel>

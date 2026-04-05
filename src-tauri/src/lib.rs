@@ -2,6 +2,7 @@ mod builtin_parsers;
 mod collections;
 mod commands;
 mod database;
+mod db_client;
 mod http_client;
 mod load_test;
 mod mock_server;
@@ -147,6 +148,7 @@ pub fn run() {
             app.manage(workflow_engine::WorkflowState::new());
             app.manage(video_streaming::VideoStreamState::new());
             app.manage(mock_server::MockServerState::new());
+            app.manage(db_client::DbConnectionManager::new());
 
             // SSE / MQTT 连接管理
             app.manage(sse_client::new_connections());
@@ -372,6 +374,25 @@ pub fn run() {
             commands::mock_server_load_config,
             commands::mock_server_list_configs,
             commands::mock_server_delete_config,
+            // Database Client
+            commands::db_client_connect,
+            commands::db_client_disconnect,
+            commands::db_client_test_connection,
+            commands::db_client_list_databases,
+            commands::db_client_list_schema_objects,
+            commands::db_client_describe_table,
+            commands::db_client_execute_query,
+            commands::db_client_cancel_query,
+            commands::db_client_fetch_table_data,
+            commands::db_client_apply_edits,
+            commands::db_client_delete_rows,
+            commands::db_client_save_connection,
+            commands::db_client_list_connections,
+            commands::db_client_delete_connection,
+            commands::db_client_add_query_history,
+            commands::db_client_list_query_history,
+            commands::db_client_export,
+            commands::db_client_import,
             // macOS Rounded Corners
             plugins::mac_rounded_corners::enable_rounded_corners,
         ])

@@ -4,6 +4,8 @@
 use crate::collections::{
     self, Collection, CollectionItem, EnvVariable, Environment, GlobalVariable, HistoryEntry,
 };
+use crate::db_client::{self, ConnectionConfig, DbConnectionManager, SaveConnectionRequest, SavedConnection, QueryHistoryEntry};
+use crate::db_client::driver::*;
 use crate::http_client::{
     self, HttpRequest, HttpRequestWithScripts, HttpResponse, HttpResponseWithScripts,
 };
@@ -3171,4 +3173,225 @@ pub async fn mock_server_delete_config(
     id: String,
 ) -> Result<(), String> {
     mock_server::delete_mock_config(&pool, &id).await
+}
+
+// ═══════════════════════════════════════════
+//  Database Client
+// ═══════════════════════════════════════════
+
+#[tauri::command]
+pub async fn db_client_connect(
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+    config: ConnectionConfig,
+) -> Result<ServerInfo, String> {
+    mgr.connect(&session_id, &config).await
+}
+
+#[tauri::command]
+pub async fn db_client_disconnect(
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+) -> Result<(), String> {
+    mgr.disconnect(&session_id).await
+}
+
+#[tauri::command]
+pub async fn db_client_test_connection(
+    mgr: State<'_, DbConnectionManager>,
+    config: ConnectionConfig,
+) -> Result<ServerInfo, String> {
+    mgr.test_connection(&config).await
+}
+
+#[tauri::command]
+pub async fn db_client_list_databases(
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+) -> Result<Vec<DatabaseInfo>, String> {
+    let driver_arc = mgr.get_driver_arc(&session_id).await?;
+    let driver = driver_arc.lock().await;
+    driver.list_databases().await
+}
+
+#[tauri::command]
+pub async fn db_client_list_schema_objects(
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+    database: String,
+    schema: String,
+) -> Result<SchemaObjects, String> {
+    let driver_arc = mgr.get_driver_arc(&session_id).await?;
+    let driver = driver_arc.lock().await;
+    driver.list_schema_objects(&database, &schema).await
+}
+
+#[tauri::command]
+pub async fn db_client_describe_table(
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+    database: String,
+    schema: String,
+    table: String,
+) -> Result<TableDescription, String> {
+    let driver_arc = mgr.get_driver_arc(&session_id).await?;
+    let driver = driver_arc.lock().await;
+    driver.describe_table(&database, &schema, &table).await
+}
+
+#[tauri::command]
+pub async fn db_client_execute_query(
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+    sql: String,
+) -> Result<QueryResult, String> {
+    let driver_arc = mgr.get_driver_arc(&session_id).await?;
+    let driver = driver_arc.lock().await;
+    driver.execute_query(&sql).await
+}
+
+#[tauri::command]
+pub async fn db_client_cancel_query(
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+) -> Result<(), String> {
+    let driver_arc = mgr.get_driver_arc(&session_id).await?;
+    let driver = driver_arc.lock().await;
+    driver.cancel_query().await
+}
+
+#[tauri::command]
+pub async fn db_client_fetch_table_data(
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+    database: String,
+    schema: String,
+    table: String,
+    offset: i64,
+    limit: i64,
+    sort_column: Option<String>,
+    sort_dir: Option<String>,
+    filter: Option<String>,
+) -> Result<QueryResult, String> {
+    let driver_arc = mgr.get_driver_arc(&session_id).await?;
+    let driver = driver_arc.lock().await;
+    driver.fetch_table_data(
+        &database, &schema, &table, offset, limit,
+        sort_column.as_deref(), sort_dir.as_deref(), filter.as_deref(),
+    ).await
+}
+
+#[tauri::command]
+pub async fn db_client_apply_edits(
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+    edits: Vec<CellEdit>,
+) -> Result<u64, String> {
+    let driver_arc = mgr.get_driver_arc(&session_id).await?;
+    let driver = driver_arc.lock().await;
+    driver.apply_cell_edits(&edits).await
+}
+
+#[tauri::command]
+pub async fn db_client_delete_rows(
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
+    database: String,
+    schema: String,
+    table: String,
+    pk_columns: Vec<String>,
+    pk_values: Vec<Vec<SqlValue>>,
+) -> Result<u64, String> {
+    let driver_arc = mgr.get_driver_arc(&session_id).await?;
+    let driver = driver_arc.lock().await;
+    driver.delete_rows(&database, &schema, &table, &pk_columns, &pk_values).await
+}
+
+// ── DB Client 持久化 ──
+
+#[tauri::command]
+pub async fn db_client_save_connection(
+    app: AppHandle,
+    pool: State<'_, SqlitePool>,
+    req: SaveConnectionRequest,
+) -> Result<String, String> {
+    let app_data_dir = app.path().app_data_dir().map_err(|e| format!("App data dir: {}", e))?;
+    db_client::save_connection(&pool, &req, &app_data_dir).await
+}
+
+#[tauri::command]
+pub async fn db_client_list_connections(
+    pool: State<'_, SqlitePool>,
+) -> Result<Vec<SavedConnection>, String> {
+    db_client::list_connections(&pool).await
+}
+
+#[tauri::command]
+pub async fn db_client_delete_connection(
+    pool: State<'_, SqlitePool>,
+    id: String,
+) -> Result<(), String> {
+    db_client::delete_connection(&pool, &id).await
+}
+
+#[tauri::command]
+pub async fn db_client_add_query_history(
+    pool: State<'_, SqlitePool>,
+    entry: QueryHistoryEntry,
+) -> Result<(), String> {
+    db_client::add_query_history(&pool, &entry).await
+}
+
+#[tauri::command]
+pub async fn db_client_list_query_history(
+    pool: State<'_, SqlitePool>,
+    connection_id: Option<String>,
+    limit: Option<i64>,
+) -> Result<Vec<QueryHistoryEntry>, String> {
+    db_client::list_query_history(&pool, connection_id.as_deref(), limit.unwrap_or(100)).await
+}
+
+// ── DB Client 导入导出 ──
+
+#[tauri::command]
+pub async fn db_client_export(
+    _mgr: State<'_, DbConnectionManager>,
+    _session_id: String,
+    config: ConnectionConfig,
+    options: db_client::driver::ExportOptions,
+) -> Result<db_client::driver::ExportResult, String> {
+    match config.db_type.as_str() {
+        "postgresql" => {
+            db_client::export::pg_dump(
+                &config.host, config.port, &config.username, &config.password, &options,
+            ).await
+        }
+        "mysql" => {
+            db_client::export::mysql_dump(
+                &config.host, config.port, &config.username, &config.password, &options,
+            ).await
+        }
+        "sqlite" => {
+            let db_path = config.file_path.as_deref().unwrap_or(&config.database);
+            db_client::export::sqlite_dump(db_path, &options).await
+        }
+        _ => Err(format!("Export not supported for {}", config.db_type)),
+    }
+}
+
+#[tauri::command]
+pub async fn db_client_import(
+    _mgr: State<'_, DbConnectionManager>,
+    _session_id: String,
+    config: ConnectionConfig,
+    options: db_client::driver::ImportOptions,
+) -> Result<db_client::driver::ImportResult, String> {
+    match config.db_type.as_str() {
+        "postgresql" => {
+            db_client::export::pg_import(
+                &config.host, config.port, &config.username, &config.password, &options,
+            ).await
+        }
+        _ => Err(format!("Import not supported for {}", config.db_type)),
+    }
 }
