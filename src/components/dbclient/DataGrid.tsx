@@ -1,14 +1,18 @@
-// 数据网格 — 查询结果 / 表数据展示 + 内联编辑
+// 数据网格 — 虚拟滚动 + 内联编辑
+// 使用 @tanstack/react-virtual 行虚拟化，仅渲染可视区域 DOM
 
-import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Loader2, Save, Undo2, Trash2, Check, X,
+  Loader2, Save, Undo2, Trash2,
 } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import type { QueryResult, SqlValue, CellEdit, ColumnInfo } from "@/types/dbclient";
 import { sqlValueDisplay } from "@/types/dbclient";
+
+const ROW_HEIGHT = 28; // px per row
 
 interface DataGridProps {
   result: QueryResult | null;
@@ -16,14 +20,12 @@ interface DataGridProps {
   offset?: number;
   limit?: number;
   onPageChange?: (offset: number) => void;
-  // 编辑相关
   editable?: boolean;
   pendingEdits?: CellEdit[];
   onCellEdit?: (edit: CellEdit) => void;
   onApplyEdits?: () => void;
   onDiscardEdits?: () => void;
   onDeleteRows?: (pkValues: SqlValue[][]) => void;
-  // 表信息（用于编辑）
   tableMeta?: { database: string; schema: string; table: string; pkColumns: string[] } | null;
 }
 
@@ -44,6 +46,112 @@ export const DataGrid = memo(function DataGrid({
   const { t } = useTranslation();
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const lastClickedRowRef = useRef<number | null>(null); // Shift+Click 锚点
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // 虚拟化 — overscan 30 行保证快速滚动不白屏
+  const rowCount = result?.rows.length ?? 0;
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 30,
+  });
+
+  // 主键列索引（缓存）
+  const pkColIndices = useMemo(() =>
+    tableMeta?.pkColumns.map((pk) =>
+      result?.columns.findIndex((c) => c.name === pk) ?? -1
+    ).filter((i) => i >= 0) ?? [],
+    [tableMeta?.pkColumns, result?.columns]
+  );
+
+  const getPkValues = useCallback((rowIdx: number): SqlValue[] => {
+    const row = result?.rows[rowIdx];
+    if (!row) return [];
+    return pkColIndices.map((ci) => (ci < row.length ? row[ci] : { type: "Null" as const }));
+  }, [result, pkColIndices]);
+
+  // 编辑判断（缓存 set）
+  const editedCellKeys = useMemo(() => {
+    if (!tableMeta || pendingEdits.length === 0) return new Set<string>();
+    const keys = new Set<string>();
+    for (const e of pendingEdits) {
+      if (e.table === tableMeta.table) {
+        keys.add(`${JSON.stringify(e.pkValues)}:${e.column}`);
+      }
+    }
+    return keys;
+  }, [pendingEdits, tableMeta]);
+
+  const isCellEdited = useCallback((rowIdx: number, colIdx: number): boolean => {
+    if (editedCellKeys.size === 0 || !result) return false;
+    const colName = result.columns[colIdx].name;
+    const pkVals = getPkValues(rowIdx);
+    return editedCellKeys.has(`${JSON.stringify(pkVals)}:${colName}`);
+  }, [editedCellKeys, result, getPkValues]);
+
+  const handleDoubleClick = useCallback((rowIdx: number, colIdx: number) => {
+    if (!editable || !tableMeta || !result) return;
+    const col = result.columns[colIdx];
+    if (col.dataType === "bytea" || col.dataType === "BLOB") return;
+    setEditingCell({ row: rowIdx, col: colIdx });
+  }, [editable, tableMeta, result]);
+
+  const handleCellSave = useCallback((rowIdx: number, colIdx: number, newValue: SqlValue) => {
+    if (!tableMeta || !onCellEdit || !result) return;
+    onCellEdit({
+      database: tableMeta.database,
+      schema: tableMeta.schema,
+      table: tableMeta.table,
+      pkColumns: tableMeta.pkColumns,
+      pkValues: getPkValues(rowIdx),
+      column: result.columns[colIdx].name,
+      newValue,
+    });
+    setEditingCell(null);
+  }, [tableMeta, onCellEdit, result, getPkValues]);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (!tableMeta || !onDeleteRows || selectedRows.size === 0) return;
+    const pkValues = Array.from(selectedRows).map(getPkValues);
+    onDeleteRows(pkValues);
+    setSelectedRows(new Set());
+  }, [tableMeta, onDeleteRows, selectedRows, getPkValues]);
+
+  // 行选择：支持 Click 单选、Shift+Click 范围选、全选/全不选
+  const handleRowSelect = useCallback((rowIdx: number, shiftKey: boolean) => {
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      if (shiftKey && lastClickedRowRef.current != null) {
+        // Shift+Click: 选中从锚点到当前行的连续范围
+        const from = Math.min(lastClickedRowRef.current, rowIdx);
+        const to = Math.max(lastClickedRowRef.current, rowIdx);
+        for (let i = from; i <= to; i++) next.add(i);
+      } else {
+        // 普通 Click: 切换单行
+        if (next.has(rowIdx)) next.delete(rowIdx);
+        else next.add(rowIdx);
+      }
+      return next;
+    });
+    lastClickedRowRef.current = rowIdx;
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedRows((prev) => {
+      if (prev.size === rowCount) {
+        // 已全选 → 全不选
+        return new Set();
+      }
+      // 全选
+      const all = new Set<number>();
+      for (let i = 0; i < rowCount; i++) all.add(i);
+      return all;
+    });
+  }, [rowCount]);
+
+  // ── 空状态 ──
 
   if (loading) {
     return (
@@ -76,171 +184,111 @@ export const DataGrid = memo(function DataGrid({
   const currentPage = Math.floor(offset / safeLimit) + 1;
   const totalPages = Math.max(1, Math.ceil(totalRows / safeLimit));
   const showPagination = onPageChange && totalRows > safeLimit;
-
-  const pkColIndices = tableMeta?.pkColumns.map((pk) =>
-    result.columns.findIndex((c) => c.name === pk)
-  ).filter((i) => i >= 0) ?? [];
-
-  const getPkValues = (rowIdx: number): SqlValue[] => {
-    const row = result.rows[rowIdx];
-    if (!row) return [];
-    return pkColIndices.map((ci) => (ci < row.length ? row[ci] : { type: "Null" as const }));
-  };
-
-  const isCellEdited = (rowIdx: number, colIdx: number): boolean => {
-    if (!tableMeta || pendingEdits.length === 0) return false;
-    const colName = result.columns[colIdx].name;
-    const pkVals = getPkValues(rowIdx);
-    return pendingEdits.some(
-      (e) =>
-        e.column === colName &&
-        e.table === tableMeta.table &&
-        JSON.stringify(e.pkValues) === JSON.stringify(pkVals),
-    );
-  };
-
-  const handleDoubleClick = (rowIdx: number, colIdx: number) => {
-    if (!editable || !tableMeta) return;
-    const col = result.columns[colIdx];
-    if (col.dataType === "bytea" || col.dataType === "BLOB") return;
-    setEditingCell({ row: rowIdx, col: colIdx });
-  };
-
-  const handleCellSave = (rowIdx: number, colIdx: number, newValue: SqlValue) => {
-    if (!tableMeta || !onCellEdit) return;
-    const col = result.columns[colIdx];
-    onCellEdit({
-      database: tableMeta.database,
-      schema: tableMeta.schema,
-      table: tableMeta.table,
-      pkColumns: tableMeta.pkColumns,
-      pkValues: getPkValues(rowIdx),
-      column: col.name,
-      newValue,
-    });
-    setEditingCell(null);
-  };
-
-  const handleDeleteSelected = () => {
-    if (!tableMeta || !onDeleteRows || selectedRows.size === 0) return;
-    const pkValues = Array.from(selectedRows).map(getPkValues);
-    onDeleteRows(pkValues);
-    setSelectedRows(new Set());
-  };
-
-  const toggleRowSelect = (rowIdx: number) => {
-    setSelectedRows((prev) => {
-      const next = new Set(prev);
-      if (next.has(rowIdx)) next.delete(rowIdx);
-      else next.add(rowIdx);
-      return next;
-    });
-  };
+  const colCount = result.columns.length;
 
   return (
     <div className="flex h-full flex-col">
       {/* 编辑工具栏 */}
       {editable && (pendingEdits.length > 0 || selectedRows.size > 0) && (
-        <div className="flex items-center gap-2 border-b border-border-default/50 px-3 py-1.5 bg-amber-500/5">
+        <div className="flex items-center gap-2 border-b border-border-default/50 px-3 py-1.5 bg-amber-500/5 shrink-0">
           {pendingEdits.length > 0 && (
             <>
               <span className="pf-text-xs text-amber-600 font-medium">
                 {pendingEdits.length} {t("dbClient.pendingChanges")}
               </span>
-              <button
-                onClick={onApplyEdits}
-                className="flex items-center gap-1 pf-rounded-sm bg-emerald-500/15 px-2 py-0.5 pf-text-xs font-medium text-emerald-600 hover:bg-emerald-500/25"
-              >
-                <Save size={11} />
-                {t("dbClient.apply")}
+              <button onClick={onApplyEdits} className="flex items-center gap-1 pf-rounded-sm bg-emerald-500/15 px-2 py-0.5 pf-text-xs font-medium text-emerald-600 hover:bg-emerald-500/25">
+                <Save size={11} />{t("dbClient.apply")}
               </button>
-              <button
-                onClick={onDiscardEdits}
-                className="flex items-center gap-1 pf-rounded-sm bg-bg-secondary px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover"
-              >
-                <Undo2 size={11} />
-                {t("dbClient.discard")}
+              <button onClick={onDiscardEdits} className="flex items-center gap-1 pf-rounded-sm bg-bg-secondary px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover">
+                <Undo2 size={11} />{t("dbClient.discard")}
               </button>
             </>
           )}
           {selectedRows.size > 0 && (
-            <button
-              onClick={handleDeleteSelected}
-              className="flex items-center gap-1 pf-rounded-sm bg-red-500/15 px-2 py-0.5 pf-text-xs font-medium text-red-600 hover:bg-red-500/25 ml-auto"
-            >
-              <Trash2 size={11} />
-              {t("dbClient.deleteSelected", { count: selectedRows.size })}
+            <button onClick={handleDeleteSelected} className="flex items-center gap-1 pf-rounded-sm bg-red-500/15 px-2 py-0.5 pf-text-xs font-medium text-red-600 hover:bg-red-500/25 ml-auto">
+              <Trash2 size={11} />{t("dbClient.deleteSelected", { count: selectedRows.size })}
             </button>
           )}
         </div>
       )}
 
-      {/* 表格 */}
-      <div className="flex-1 min-h-0 overflow-auto">
-        <table className="w-full border-collapse pf-text-xs">
-          <thead className="sticky top-0 z-10 bg-bg-secondary">
-            <tr>
-              {editable && (
-                <th className="w-8 border-b border-r border-border-default/50 px-1 py-1.5 text-center">
-                  {/* 全选 checkbox 预留 */}
-                </th>
-              )}
-              <th className="w-10 border-b border-r border-border-default/50 px-2 py-1.5 text-center font-medium text-text-tertiary">
-                #
-              </th>
-              {result.columns.map((col) => (
-                <th
-                  key={col.name}
-                  className="border-b border-r border-border-default/50 px-3 py-1.5 text-left font-medium text-text-secondary whitespace-nowrap"
-                >
-                  <div className="flex items-center gap-1">
-                    <span>{col.name}</span>
-                    <span className="text-text-quaternary font-normal">{col.dataType}</span>
-                    {col.isPrimaryKey && (
-                      <span className="text-amber-500 font-normal" title={t("dbClient.primaryKey")}>PK</span>
-                    )}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {result.rows.map((row, rowIdx) => (
-              <tr
-                key={rowIdx}
+      {/* 虚拟滚动表格 */}
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
+        {/* 固定表头 */}
+        <div className="sticky top-0 z-10 flex bg-bg-secondary border-b border-border-default/50" style={{ minWidth: "max-content" }}>
+          {editable && (
+            <div className="w-8 shrink-0 border-r border-border-default/50 flex items-center justify-center">
+              <input
+                type="checkbox"
+                checked={rowCount > 0 && selectedRows.size === rowCount}
+                ref={(el) => { if (el) el.indeterminate = selectedRows.size > 0 && selectedRows.size < rowCount; }}
+                onChange={handleSelectAll}
+                className="h-3 w-3 rounded border-border-default"
+                title={t("dbClient.selectAll")}
+              />
+            </div>
+          )}
+          <div className="w-12 shrink-0 border-r border-border-default/50 px-2 py-1.5 text-center pf-text-xs font-medium text-text-tertiary">
+            #
+          </div>
+          {result.columns.map((col) => (
+            <div
+              key={col.name}
+              className="shrink-0 border-r border-border-default/50 px-3 py-1.5 pf-text-xs font-medium text-text-secondary whitespace-nowrap"
+              style={{ minWidth: 100, maxWidth: 300 }}
+            >
+              <div className="flex items-center gap-1">
+                <span>{col.name}</span>
+                <span className="text-text-quaternary font-normal">{col.dataType}</span>
+                {col.isPrimaryKey && <span className="text-amber-500 font-normal" title={t("dbClient.primaryKey")}>PK</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 虚拟行 */}
+        <div style={{ height: virtualizer.getTotalSize(), position: "relative", minWidth: "max-content" }}>
+          {virtualizer.getVirtualItems().map((virtualRow) => {
+            const rowIdx = virtualRow.index;
+            const row = result.rows[rowIdx];
+            const isSelected = selectedRows.has(rowIdx);
+
+            return (
+              <div
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={virtualizer.measureElement}
                 className={cn(
-                  "border-b border-border-default/30 transition-colors",
-                  selectedRows.has(rowIdx)
-                    ? "bg-accent-primary/5"
-                    : "hover:bg-bg-hover/50",
+                  "absolute left-0 right-0 flex border-b border-border-default/30",
+                  isSelected ? "bg-accent-primary/5" : "hover:bg-bg-hover/50",
                 )}
+                style={{ top: virtualRow.start, height: ROW_HEIGHT }}
               >
                 {editable && (
-                  <td className="border-r border-border-default/30 px-1 py-1 text-center">
+                  <div className="w-8 shrink-0 border-r border-border-default/30 flex items-center justify-center">
                     <input
                       type="checkbox"
-                      checked={selectedRows.has(rowIdx)}
-                      onChange={() => toggleRowSelect(rowIdx)}
+                      checked={isSelected}
+                      onChange={(e) => handleRowSelect(rowIdx, (e.nativeEvent as MouseEvent).shiftKey)}
                       className="h-3 w-3 rounded border-border-default"
                     />
-                  </td>
+                  </div>
                 )}
-                <td className="border-r border-border-default/30 px-2 py-1 text-center text-text-quaternary tabular-nums">
+                <div className="w-12 shrink-0 border-r border-border-default/30 flex items-center justify-center pf-text-xs text-text-quaternary tabular-nums">
                   {offset + rowIdx + 1}
-                </td>
+                </div>
                 {row.map((cell, colIdx) => {
-                  const isEditing =
-                    editingCell?.row === rowIdx && editingCell?.col === colIdx;
+                  const isEditing = editingCell?.row === rowIdx && editingCell?.col === colIdx;
                   const isEdited = isCellEdited(rowIdx, colIdx);
-
                   return (
-                    <td
+                    <div
                       key={colIdx}
                       className={cn(
-                        "border-r border-border-default/30 max-w-[300px]",
+                        "shrink-0 border-r border-border-default/30 flex items-center overflow-hidden",
                         isEdited && "bg-amber-500/10",
-                        !isEditing && "px-3 py-1 truncate",
+                        !isEditing && "px-3",
                       )}
+                      style={{ minWidth: 100, maxWidth: 300 }}
                       onDoubleClick={() => handleDoubleClick(rowIdx, colIdx)}
                     >
                       {isEditing ? (
@@ -249,44 +297,34 @@ export const DataGrid = memo(function DataGrid({
                           column={result.columns[colIdx]}
                           onSave={(newVal) => handleCellSave(rowIdx, colIdx, newVal)}
                           onCancel={() => setEditingCell(null)}
+                          t={t}
                         />
                       ) : (
-                        <CellRenderer value={cell} />
+                        <CellValue value={cell} t={t} />
                       )}
-                    </td>
+                    </div>
                   );
                 })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* 分页 + 状态栏 */}
-      <div className="flex items-center justify-between border-t border-border-default/50 px-3 py-1">
+      <div className="flex items-center justify-between border-t border-border-default/50 px-3 py-1 shrink-0">
         <span className="pf-text-xs text-text-tertiary">
           {result.rows.length} {t("dbClient.rows")}
           {result.executionTimeMs != null && ` · ${result.executionTimeMs}ms`}
           {result.warnings.length > 0 && ` · ${result.warnings.length} ${t("dbClient.warnings")}`}
         </span>
-
         {showPagination && (
           <div className="flex items-center gap-1">
-            <PagBtn onClick={() => onPageChange(0)} disabled={offset === 0}>
-              <ChevronsLeft size={12} />
-            </PagBtn>
-            <PagBtn onClick={() => onPageChange(Math.max(0, offset - limit))} disabled={offset === 0}>
-              <ChevronLeft size={12} />
-            </PagBtn>
-            <span className="px-2 pf-text-xs text-text-secondary tabular-nums">
-              {currentPage} / {totalPages}
-            </span>
-            <PagBtn onClick={() => onPageChange(offset + limit)} disabled={offset + limit >= totalRows}>
-              <ChevronRight size={12} />
-            </PagBtn>
-            <PagBtn onClick={() => onPageChange((totalPages - 1) * limit)} disabled={offset + limit >= totalRows}>
-              <ChevronsRight size={12} />
-            </PagBtn>
+            <PagBtn onClick={() => onPageChange(0)} disabled={offset === 0}><ChevronsLeft size={12} /></PagBtn>
+            <PagBtn onClick={() => onPageChange(Math.max(0, offset - safeLimit))} disabled={offset === 0}><ChevronLeft size={12} /></PagBtn>
+            <span className="px-2 pf-text-xs text-text-secondary tabular-nums">{currentPage} / {totalPages}</span>
+            <PagBtn onClick={() => onPageChange(offset + safeLimit)} disabled={offset + safeLimit >= totalRows}><ChevronRight size={12} /></PagBtn>
+            <PagBtn onClick={() => onPageChange((totalPages - 1) * safeLimit)} disabled={offset + safeLimit >= totalRows}><ChevronsRight size={12} /></PagBtn>
           </div>
         )}
       </div>
@@ -294,35 +332,38 @@ export const DataGrid = memo(function DataGrid({
   );
 });
 
-// ── 内联单元格编辑器 ──
+// ── 单元格值渲染（纯函数，不调 hooks）──
+
+function CellValue({ value, t }: { value: SqlValue; t: (key: string) => string }) {
+  if (value.type === "Null") return <span className="italic text-text-quaternary truncate">{t("dbClient.null")}</span>;
+  if (value.type === "Bool") return <span className={cn("truncate", value.value ? "text-emerald-600" : "text-text-tertiary")}>{value.value ? "true" : "false"}</span>;
+  if (value.type === "Int" || value.type === "Float") return <span className="tabular-nums text-blue-600 truncate">{String(value.value)}</span>;
+  if (value.type === "Bytes") return <span className="italic text-text-quaternary truncate">{t("dbClient.binaryValue")}</span>;
+  if (value.type === "Json") return <span className="text-amber-600 truncate">{JSON.stringify(value.value)}</span>;
+  if (value.type === "Timestamp") return <span className="text-purple-600 tabular-nums truncate">{value.value}</span>;
+  if (value.type === "Array") return <span className="text-text-secondary truncate">[{value.value.length} {t("dbClient.items")}]</span>;
+  return <span className="text-text-primary truncate">{value.value}</span>;
+}
+
+// ── 内联编辑器 ──
 
 function InlineCellEditor({
-  value,
-  column,
-  onSave,
-  onCancel,
+  value, column, onSave, onCancel, t,
 }: {
   value: SqlValue;
   column: ColumnInfo;
   onSave: (newValue: SqlValue) => void;
   onCancel: () => void;
+  t: (key: string) => string;
 }) {
-  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState(value.type === "Null" ? "" : sqlValueDisplay(value));
   const [isNull, setIsNull] = useState(value.type === "Null");
 
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
+  useEffect(() => { inputRef.current?.focus(); inputRef.current?.select(); }, []);
 
   const handleSave = () => {
-    if (isNull) {
-      onSave({ type: "Null" });
-      return;
-    }
-    // 根据列类型构造 SqlValue
+    if (isNull) { onSave({ type: "Null" }); return; }
     const dt = column.dataType.toLowerCase();
     if (dt.includes("int") || dt.includes("serial")) {
       const n = parseInt(text, 10);
@@ -333,29 +374,19 @@ function InlineCellEditor({
     } else if (dt.includes("bool")) {
       onSave({ type: "Bool", value: text === "true" || text === "1" });
     } else if (dt.includes("json")) {
-      try {
-        onSave({ type: "Json", value: JSON.parse(text) });
-      } catch {
-        onSave({ type: "Text", value: text });
-      }
+      try { onSave({ type: "Json", value: JSON.parse(text) }); } catch { onSave({ type: "Text", value: text }); }
     } else {
       onSave({ type: "Text", value: text });
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSave();
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onCancel();
-    }
+    if (e.key === "Enter") { e.preventDefault(); handleSave(); }
+    if (e.key === "Escape") { e.preventDefault(); onCancel(); }
   };
 
   return (
-    <div className="flex items-center gap-0.5 py-0.5 px-1">
+    <div className="flex items-center gap-0.5 w-full px-1">
       <input
         ref={inputRef}
         value={isNull ? "" : text}
@@ -364,78 +395,24 @@ function InlineCellEditor({
         onBlur={handleSave}
         placeholder={isNull ? "NULL" : ""}
         className={cn(
-          "flex-1 min-w-[60px] pf-rounded-sm border border-accent-primary bg-bg-primary px-1.5 py-0.5 pf-text-xs text-text-primary focus:outline-none",
+          "flex-1 min-w-0 pf-rounded-sm border border-accent-primary bg-bg-primary px-1.5 py-0.5 pf-text-xs text-text-primary focus:outline-none",
           isNull && "italic text-text-quaternary",
         )}
       />
       <button
         onMouseDown={(e) => { e.preventDefault(); setIsNull(!isNull); }}
-        className={cn(
-          "shrink-0 pf-rounded-sm px-1 py-0.5 pf-text-xs",
-          isNull ? "bg-amber-500/20 text-amber-600" : "text-text-quaternary hover:bg-bg-hover",
-        )}
+        className={cn("shrink-0 pf-rounded-sm px-1 py-0.5 pf-text-xs", isNull ? "bg-amber-500/20 text-amber-600" : "text-text-quaternary hover:bg-bg-hover")}
         title={t("dbClient.toggleNull")}
-      >
-        N
-      </button>
+      >N</button>
     </div>
   );
 }
 
-// ── 单元格渲染 ──
-
-function CellRenderer({ value }: { value: SqlValue }) {
-  const { t } = useTranslation();
-  if (value.type === "Null") {
-    return <span className="italic text-text-quaternary">{t("dbClient.null")}</span>;
-  }
-  if (value.type === "Bool") {
-    return (
-      <span className={value.value ? "text-emerald-600" : "text-text-tertiary"}>
-        {value.value ? "true" : "false"}
-      </span>
-    );
-  }
-  if (value.type === "Int" || value.type === "Float") {
-    return <span className="tabular-nums text-blue-600">{String(value.value)}</span>;
-  }
-  if (value.type === "Bytes") {
-    return <span className="italic text-text-quaternary">{t("dbClient.binaryValue")}</span>;
-  }
-  if (value.type === "Json") {
-    return <span className="text-amber-600">{JSON.stringify(value.value)}</span>;
-  }
-  if (value.type === "Timestamp") {
-    return <span className="text-purple-600 tabular-nums">{value.value}</span>;
-  }
-  if (value.type === "Array") {
-    return <span className="text-text-secondary">[{value.value.length} {t("dbClient.items")}]</span>;
-  }
-  return <span className="text-text-primary">{value.value}</span>;
-}
-
 // ── 分页按钮 ──
 
-function PagBtn({
-  onClick,
-  disabled,
-  children,
-}: {
-  onClick: () => void;
-  disabled: boolean;
-  children: React.ReactNode;
-}) {
+function PagBtn({ onClick, disabled, children }: { onClick: () => void; disabled: boolean; children: React.ReactNode }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "p-1 pf-rounded-sm transition-colors",
-        disabled
-          ? "text-text-quaternary cursor-not-allowed"
-          : "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
-      )}
-    >
+    <button onClick={onClick} disabled={disabled} className={cn("p-1 pf-rounded-sm transition-colors", disabled ? "text-text-quaternary cursor-not-allowed" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary")}>
       {children}
     </button>
   );

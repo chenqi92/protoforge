@@ -1608,6 +1608,20 @@
     "warnings": "个警告",
     "justNow": "刚刚",
     "minutesAgo": "{{count}}分钟前",
-    "hoursAgo": "{{count}}小时前"
+    "hoursAgo": "{{count}}小时前",
+    "dbType": "数据库类型",
+    "influxVersion": "InfluxDB 版本",
+    "retentionPolicy": "保留策略",
+    "bucket": "Bucket",
+    "selectDbFile": "选择数据库文件",
+    "allFiles": "所有文件",
+    "browse": "浏览",
+    "testConnection": "测试连接",
+    "saveAndConnect": "保存并连接",
+    "delete": "删除",
+    "selectAll": "全选 / 全不选",
+    "connectionNamePlaceholder": "例如：生产环境 PG",
+    "serverConfig": "服务器",
+    "authentication": "认证"
   }
 }

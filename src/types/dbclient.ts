@@ -4,6 +4,8 @@ export type DbType = "postgresql" | "mysql" | "sqlite" | "influxdb";
 
 // ── 连接配置 ──
 
+export type InfluxVersion = "1.x" | "2.x" | "3.x";
+
 export interface ConnectionConfig {
   dbType: DbType;
   host: string;
@@ -13,8 +15,11 @@ export interface ConnectionConfig {
   password: string;
   sslEnabled: boolean;
   filePath?: string | null;
+  // InfluxDB
   org?: string | null;
   token?: string | null;
+  influxVersion?: InfluxVersion | null;
+  retentionPolicy?: string | null;
 }
 
 export interface SavedConnection {
@@ -28,6 +33,7 @@ export interface SavedConnection {
   sslEnabled: boolean;
   filePath: string | null;
   org: string | null;
+  influxVersion: string | null;
   colorLabel: string | null;
   sortOrder: number;
   createdAt: string;
@@ -47,6 +53,8 @@ export interface SaveConnectionRequest {
   filePath?: string | null;
   org?: string | null;
   token?: string | null;
+  influxVersion?: string | null;
+  retentionPolicy?: string | null;
   colorLabel?: string | null;
   sortOrder?: number | null;
 }

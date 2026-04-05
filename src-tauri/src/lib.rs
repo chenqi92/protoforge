@@ -29,6 +29,16 @@ use tauri::Manager;
 use tcp_client::{TcpConnections, TcpServers, UdpSockets};
 use ws_client::WsConnections;
 
+/// 快捷键打开 DevTools（所有模式可用）
+#[tauri::command]
+fn toggle_devtools(window: tauri::WebviewWindow) {
+    if window.is_devtools_open() {
+        window.close_devtools();
+    } else {
+        window.open_devtools();
+    }
+}
+
 /// 开发模式：保留 DevTools / Reload / ContextMenu（方便调试）
 /// 生产模式：禁用所有浏览器默认行为
 #[cfg(debug_assertions)]
@@ -393,6 +403,8 @@ pub fn run() {
             commands::db_client_list_query_history,
             commands::db_client_export,
             commands::db_client_import,
+            // DevTools
+            toggle_devtools,
             // macOS Rounded Corners
             plugins::mac_rounded_corners::enable_rounded_corners,
         ])

@@ -3247,7 +3247,15 @@ pub async fn db_client_execute_query(
 ) -> Result<QueryResult, String> {
     let driver_arc = mgr.get_driver_arc(&session_id).await?;
     let driver = driver_arc.lock().await;
-    driver.execute_query(&sql).await
+    let mut result = driver.execute_query(&sql).await?;
+    // 安全阈值：截断超过 10000 行的结果防止前端 OOM
+    const MAX_ROWS: usize = 10_000;
+    if result.rows.len() > MAX_ROWS {
+        result.rows.truncate(MAX_ROWS);
+        result.truncated = true;
+        result.warnings.push(format!("Result truncated to {} rows", MAX_ROWS));
+    }
+    Ok(result)
 }
 
 #[tauri::command]

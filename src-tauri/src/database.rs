@@ -77,6 +77,11 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             "db_client",
             include_str!("../migrations/006_db_client.sql"),
         ),
+        (
+            7,
+            "db_client_influx_version",
+            include_str!("../migrations/007_db_client_influx_version.sql"),
+        ),
     ];
 
     for (version, name, sql) in migrations {

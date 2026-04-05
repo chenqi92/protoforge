@@ -1586,6 +1586,20 @@
     "warnings": "warnings",
     "justNow": "just now",
     "minutesAgo": "{{count}}m ago",
-    "hoursAgo": "{{count}}h ago"
+    "hoursAgo": "{{count}}h ago",
+    "dbType": "Database Type",
+    "influxVersion": "InfluxDB Version",
+    "retentionPolicy": "Retention Policy",
+    "bucket": "Bucket",
+    "selectDbFile": "Select database file",
+    "allFiles": "All Files",
+    "browse": "Browse",
+    "testConnection": "Test Connection",
+    "saveAndConnect": "Save & Connect",
+    "delete": "Delete",
+    "selectAll": "Select all / Deselect all",
+    "connectionNamePlaceholder": "e.g. Production PG",
+    "serverConfig": "Server",
+    "authentication": "Authentication"
   }
 }

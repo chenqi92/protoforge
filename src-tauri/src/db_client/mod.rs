@@ -36,6 +36,8 @@ pub struct ConnectionConfig {
     pub file_path: Option<String>,
     pub org: Option<String>,
     pub token: Option<String>,
+    pub influx_version: Option<String>,
+    pub retention_policy: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,6 +53,7 @@ pub struct SavedConnection {
     pub ssl_enabled: bool,
     pub file_path: Option<String>,
     pub org: Option<String>,
+    pub influx_version: Option<String>,
     pub color_label: Option<String>,
     pub sort_order: i64,
     pub created_at: String,
@@ -72,6 +75,8 @@ pub struct SaveConnectionRequest {
     pub file_path: Option<String>,
     pub org: Option<String>,
     pub token: Option<String>,
+    pub influx_version: Option<String>,
+    pub retention_policy: Option<String>,
     pub color_label: Option<String>,
     pub sort_order: Option<i64>,
 }
@@ -135,6 +140,10 @@ impl DbConnectionManager {
                 org: config.org.clone().unwrap_or_default(),
                 token: config.token.clone().unwrap_or_default(),
                 bucket: config.database.clone(),
+                version: config.influx_version.clone().unwrap_or_else(|| "2.x".to_string()),
+                username: config.username.clone(),
+                password: config.password.clone(),
+                database: config.database.clone(),
             })),
             other => return Err(format!("Unsupported database type: {}", other)),
         };
@@ -208,12 +217,13 @@ pub async fn save_connection(pool: &SqlitePool, req: &SaveConnectionRequest, app
     };
 
     sqlx::query(
-        "INSERT INTO db_connections (id, name, db_type, host, port, database_name, username, password_enc, ssl_enabled, file_path, org, token_enc, color_label, sort_order, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now')) \
+        "INSERT INTO db_connections (id, name, db_type, host, port, database_name, username, password_enc, ssl_enabled, file_path, org, token_enc, influx_version, retention_policy, color_label, sort_order, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now')) \
          ON CONFLICT(id) DO UPDATE SET \
          name=excluded.name, db_type=excluded.db_type, host=excluded.host, port=excluded.port, \
          database_name=excluded.database_name, username=excluded.username, password_enc=excluded.password_enc, \
          ssl_enabled=excluded.ssl_enabled, file_path=excluded.file_path, org=excluded.org, token_enc=excluded.token_enc, \
+         influx_version=excluded.influx_version, retention_policy=excluded.retention_policy, \
          color_label=excluded.color_label, sort_order=excluded.sort_order, updated_at=datetime('now')"
     )
     .bind(&id)
@@ -228,6 +238,8 @@ pub async fn save_connection(pool: &SqlitePool, req: &SaveConnectionRequest, app
     .bind(&req.file_path)
     .bind(&req.org)
     .bind(&token_enc)
+    .bind(&req.influx_version)
+    .bind(&req.retention_policy)
     .bind(&req.color_label)
     .bind(req.sort_order.unwrap_or(0))
     .execute(pool)
@@ -238,8 +250,8 @@ pub async fn save_connection(pool: &SqlitePool, req: &SaveConnectionRequest, app
 }
 
 pub async fn list_connections(pool: &SqlitePool) -> Result<Vec<SavedConnection>, String> {
-    let rows = sqlx::query_as::<_, (String, String, String, String, Option<i64>, String, String, bool, Option<String>, Option<String>, Option<String>, i64, String, String)>(
-        "SELECT id, name, db_type, host, port, database_name, username, ssl_enabled, file_path, org, color_label, sort_order, created_at, updated_at \
+    let rows = sqlx::query_as::<_, (String, String, String, String, Option<i64>, String, String, bool, Option<String>, Option<String>, Option<String>, Option<String>, i64, String, String)>(
+        "SELECT id, name, db_type, host, port, database_name, username, ssl_enabled, file_path, org, influx_version, color_label, sort_order, created_at, updated_at \
          FROM db_connections ORDER BY sort_order, name"
     )
     .fetch_all(pool)
@@ -259,10 +271,11 @@ pub async fn list_connections(pool: &SqlitePool) -> Result<Vec<SavedConnection>,
             ssl_enabled: r.7,
             file_path: r.8,
             org: r.9,
-            color_label: r.10,
-            sort_order: r.11,
-            created_at: r.12,
-            updated_at: r.13,
+            influx_version: r.10,
+            color_label: r.11,
+            sort_order: r.12,
+            created_at: r.13,
+            updated_at: r.14,
         })
         .collect())
 }

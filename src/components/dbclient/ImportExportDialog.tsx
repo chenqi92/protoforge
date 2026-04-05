@@ -1,21 +1,18 @@
-// 导入导出对话框 — 封装 pg_dump / mysqldump / sqlite3
+// 导入导出对话框 — 使用项目统一 Dialog 组件
 
 import { memo, useState, useCallback } from "react";
 import {
-  Download, Upload, X, Loader2, CheckCircle2, AlertCircle,
-  FileText, FolderOpen,
+  Download, Upload, Loader2, CheckCircle2, AlertCircle, FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import * as dbService from "@/services/dbClientService";
 import type {
   ConnectionConfig,
   ExportOptions,
   ImportOptions,
-  ExportResult,
-  ImportResult,
-  DbType,
 } from "@/types/dbclient";
 
 interface ImportExportDialogProps {
@@ -44,10 +41,9 @@ export const ImportExportDialog = memo(function ImportExportDialog({
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  if (!isOpen || !connectionConfig) return null;
+  if (!connectionConfig) return null;
 
-  const dbType = connectionConfig.dbType;
-  const supportsExport = dbType !== "influxdb";
+  const supportsExport = connectionConfig.dbType !== "influxdb";
 
   const handlePickExportPath = async () => {
     const path = await save({
@@ -55,7 +51,7 @@ export const ImportExportDialog = memo(function ImportExportDialog({
       defaultPath: `${selectedDatabase ?? "dump"}.sql`,
       filters: [
         { name: "SQL", extensions: ["sql"] },
-        { name: "All", extensions: ["*"] },
+        { name: t("dbClient.allFiles"), extensions: ["*"] },
       ],
     });
     if (path) setOutputPath(path);
@@ -67,7 +63,7 @@ export const ImportExportDialog = memo(function ImportExportDialog({
       multiple: false,
       filters: [
         { name: "SQL / Dump", extensions: ["sql", "dump", "backup", "gz"] },
-        { name: "All", extensions: ["*"] },
+        { name: t("dbClient.allFiles"), extensions: ["*"] },
       ],
     });
     if (path) setImportPath(path as string);
@@ -79,23 +75,12 @@ export const ImportExportDialog = memo(function ImportExportDialog({
     setResult(null);
     try {
       const options: ExportOptions = {
-        format: "sql",
-        outputPath,
+        format: "sql", outputPath,
         database: selectedDatabase ?? connectionConfig.database,
-        schema: null,
-        tables: [],
-        dataOnly,
-        schemaOnly,
-        toolPath: null,
+        schema: null, tables: [], dataOnly, schemaOnly, toolPath: null,
       };
       const res = await dbService.exportDatabase(sessionId, connectionConfig, options);
-      setResult({
-        ok: true,
-        msg: t("dbClient.exportSuccess", {
-          size: formatBytes(res.sizeBytes),
-          time: res.durationMs,
-        }),
-      });
+      setResult({ ok: true, msg: t("dbClient.exportSuccess", { size: formatBytes(res.sizeBytes), time: res.durationMs }) });
     } catch (e) {
       setResult({ ok: false, msg: String(e) });
     }
@@ -110,17 +95,11 @@ export const ImportExportDialog = memo(function ImportExportDialog({
       const options: ImportOptions = {
         filePath: importPath,
         database: selectedDatabase ?? connectionConfig.database,
-        schema: null,
-        toolPath: null,
+        schema: null, toolPath: null,
       };
       const res = await dbService.importDatabase(sessionId, connectionConfig, options);
-      const warnings = res.warnings.length > 0
-        ? ` (${res.warnings.length} warnings)`
-        : "";
-      setResult({
-        ok: true,
-        msg: t("dbClient.importSuccess", { time: res.durationMs }) + warnings,
-      });
+      const warnings = res.warnings.length > 0 ? ` (${res.warnings.length} ${t("dbClient.warnings")})` : "";
+      setResult({ ok: true, msg: t("dbClient.importSuccess", { time: res.durationMs }) + warnings });
     } catch (e) {
       setResult({ ok: false, msg: String(e) });
     }
@@ -128,16 +107,16 @@ export const ImportExportDialog = memo(function ImportExportDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="w-[480px] pf-rounded-lg border border-border-default bg-bg-primary shadow-xl">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        className="w-[480px] max-w-[96vw] gap-0 overflow-hidden pf-rounded-xl border border-border-default/60 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.18)] sm:max-w-[480px]"
+        showCloseButton
+      >
+        <DialogTitle className="sr-only">{t("dbClient.importExport")}</DialogTitle>
+
         {/* 头部 */}
-        <div className="flex items-center justify-between border-b border-border-default/50 px-4 py-3">
-          <span className="pf-text-sm font-medium text-text-primary">
-            {t("dbClient.importExport")}
-          </span>
-          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary">
-            <X size={16} />
-          </button>
+        <div className="border-b border-border-default/50 px-5 py-4">
+          <h2 className="pf-text-sm font-semibold text-text-primary">{t("dbClient.importExport")}</h2>
         </div>
 
         {/* 模式切换 */}
@@ -146,9 +125,7 @@ export const ImportExportDialog = memo(function ImportExportDialog({
             onClick={() => { setMode("export"); setResult(null); }}
             className={cn(
               "flex flex-1 items-center justify-center gap-2 py-2.5 pf-text-sm font-medium transition-colors",
-              mode === "export"
-                ? "border-b-2 border-accent-primary text-accent-primary"
-                : "text-text-tertiary hover:text-text-primary",
+              mode === "export" ? "border-b-2 border-accent-primary text-accent-primary" : "text-text-tertiary hover:text-text-primary",
             )}
           >
             <Download size={14} />
@@ -158,9 +135,7 @@ export const ImportExportDialog = memo(function ImportExportDialog({
             onClick={() => { setMode("import"); setResult(null); }}
             className={cn(
               "flex flex-1 items-center justify-center gap-2 py-2.5 pf-text-sm font-medium transition-colors",
-              mode === "import"
-                ? "border-b-2 border-accent-primary text-accent-primary"
-                : "text-text-tertiary hover:text-text-primary",
+              mode === "import" ? "border-b-2 border-accent-primary text-accent-primary" : "text-text-tertiary hover:text-text-primary",
             )}
           >
             <Upload size={14} />
@@ -169,8 +144,8 @@ export const ImportExportDialog = memo(function ImportExportDialog({
         </div>
 
         {/* 内容区 */}
-        <div className="p-4 space-y-3">
-          {!supportsExport && (
+        <div className="p-5 space-y-4">
+          {!supportsExport && mode === "export" && (
             <div className="pf-rounded-sm bg-amber-500/10 px-3 py-2 pf-text-xs text-amber-600">
               {t("dbClient.exportNotSupported")}
             </div>
@@ -178,54 +153,26 @@ export const ImportExportDialog = memo(function ImportExportDialog({
 
           {mode === "export" && supportsExport && (
             <>
-              {/* 导出路径 */}
               <div>
-                <label className="mb-1 block pf-text-xs font-medium text-text-secondary">
-                  {t("dbClient.outputFile")}
-                </label>
+                <label className="mb-1.5 block pf-text-xs font-medium text-text-secondary">{t("dbClient.outputFile")}</label>
                 <div className="flex gap-2">
-                  <input
-                    value={outputPath}
-                    onChange={(e) => setOutputPath(e.target.value)}
-                    placeholder="/path/to/dump.sql"
-                    className="flex-1 pf-rounded-sm border border-border-default bg-bg-secondary px-2.5 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none"
-                  />
-                  <button
-                    onClick={handlePickExportPath}
-                    className="pf-rounded-sm border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover"
-                  >
+                  <input value={outputPath} onChange={(e) => setOutputPath(e.target.value)} placeholder="/path/to/dump.sql" className="flex-1 pf-rounded-sm border border-border-default bg-bg-secondary px-2.5 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+                  <button onClick={handlePickExportPath} className="pf-rounded-sm border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover">
                     <FolderOpen size={14} />
                   </button>
                 </div>
               </div>
-
-              {/* 选项 */}
               <div className="flex gap-4">
                 <label className="flex items-center gap-1.5 pf-text-xs text-text-secondary">
-                  <input
-                    type="checkbox"
-                    checked={dataOnly}
-                    onChange={(e) => { setDataOnly(e.target.checked); if (e.target.checked) setSchemaOnly(false); }}
-                    className="h-3 w-3 rounded"
-                  />
+                  <input type="checkbox" checked={dataOnly} onChange={(e) => { setDataOnly(e.target.checked); if (e.target.checked) setSchemaOnly(false); }} className="h-3 w-3 rounded" />
                   {t("dbClient.dataOnly")}
                 </label>
                 <label className="flex items-center gap-1.5 pf-text-xs text-text-secondary">
-                  <input
-                    type="checkbox"
-                    checked={schemaOnly}
-                    onChange={(e) => { setSchemaOnly(e.target.checked); if (e.target.checked) setDataOnly(false); }}
-                    className="h-3 w-3 rounded"
-                  />
+                  <input type="checkbox" checked={schemaOnly} onChange={(e) => { setSchemaOnly(e.target.checked); if (e.target.checked) setDataOnly(false); }} className="h-3 w-3 rounded" />
                   {t("dbClient.schemaOnly")}
                 </label>
               </div>
-
-              <button
-                onClick={handleExport}
-                disabled={running || !outputPath}
-                className="flex w-full items-center justify-center gap-2 pf-rounded-sm bg-accent-primary px-4 py-2 pf-text-sm font-medium text-white hover:bg-accent-primary/90 disabled:opacity-50"
-              >
+              <button onClick={handleExport} disabled={running || !outputPath} className="flex w-full items-center justify-center gap-2 pf-rounded-sm bg-accent-primary px-4 py-2 pf-text-sm font-medium text-white hover:bg-accent-primary/90 disabled:opacity-50">
                 {running ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                 {t("dbClient.startExport")}
               </button>
@@ -234,39 +181,22 @@ export const ImportExportDialog = memo(function ImportExportDialog({
 
           {mode === "import" && (
             <>
-              {/* 导入文件 */}
               <div>
-                <label className="mb-1 block pf-text-xs font-medium text-text-secondary">
-                  {t("dbClient.importFile")}
-                </label>
+                <label className="mb-1.5 block pf-text-xs font-medium text-text-secondary">{t("dbClient.importFile")}</label>
                 <div className="flex gap-2">
-                  <input
-                    value={importPath}
-                    onChange={(e) => setImportPath(e.target.value)}
-                    placeholder="/path/to/dump.sql"
-                    className="flex-1 pf-rounded-sm border border-border-default bg-bg-secondary px-2.5 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none"
-                  />
-                  <button
-                    onClick={handlePickImportFile}
-                    className="pf-rounded-sm border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover"
-                  >
+                  <input value={importPath} onChange={(e) => setImportPath(e.target.value)} placeholder="/path/to/dump.sql" className="flex-1 pf-rounded-sm border border-border-default bg-bg-secondary px-2.5 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+                  <button onClick={handlePickImportFile} className="pf-rounded-sm border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover">
                     <FolderOpen size={14} />
                   </button>
                 </div>
               </div>
-
-              <button
-                onClick={handleImport}
-                disabled={running || !importPath}
-                className="flex w-full items-center justify-center gap-2 pf-rounded-sm bg-accent-primary px-4 py-2 pf-text-sm font-medium text-white hover:bg-accent-primary/90 disabled:opacity-50"
-              >
+              <button onClick={handleImport} disabled={running || !importPath} className="flex w-full items-center justify-center gap-2 pf-rounded-sm bg-accent-primary px-4 py-2 pf-text-sm font-medium text-white hover:bg-accent-primary/90 disabled:opacity-50">
                 {running ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                 {t("dbClient.startImport")}
               </button>
             </>
           )}
 
-          {/* 结果 */}
           {result && (
             <div className={cn(
               "flex items-start gap-2 pf-rounded-sm px-3 py-2 pf-text-xs",
@@ -277,8 +207,8 @@ export const ImportExportDialog = memo(function ImportExportDialog({
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 });
 
