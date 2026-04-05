@@ -213,7 +213,7 @@ function ResultTabs({
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 pf-text-xs font-medium transition-colors border-b-2",
             activeTab === "data"
-              ? "border-accent-primary text-accent-primary"
+              ? "border-accent-primary text-accent"
               : "border-transparent text-text-tertiary hover:text-text-primary",
           )}
         >
@@ -225,7 +225,7 @@ function ResultTabs({
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 pf-text-xs font-medium transition-colors border-b-2",
             activeTab === "history"
-              ? "border-accent-primary text-accent-primary"
+              ? "border-accent-primary text-accent"
               : "border-transparent text-text-tertiary hover:text-text-primary",
           )}
         >

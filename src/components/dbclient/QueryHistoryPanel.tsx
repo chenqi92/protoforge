@@ -117,7 +117,7 @@ export const QueryHistoryPanel = memo(function QueryHistoryPanel({
               </button>
               <button
                 onClick={() => handleReplay(entry.sqlText)}
-                className="pf-rounded-sm px-1.5 py-0.5 pf-text-xs text-accent-primary hover:bg-accent-primary/10"
+                className="pf-rounded-sm px-1.5 py-0.5 pf-text-xs text-accent hover:bg-accent/10"
                 title={t("dbClient.rerun")}
               >
                 <Play size={11} />

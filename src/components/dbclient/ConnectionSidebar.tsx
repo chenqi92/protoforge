@@ -37,13 +37,13 @@ function ConnectionItem({
       className={cn(
         "group flex items-center gap-2 pf-rounded-sm px-2.5 py-2 transition-colors cursor-pointer",
         isActive
-          ? "bg-accent-primary/10 ring-1 ring-accent-primary/20"
+          ? "bg-accent/10 ring-1 ring-accent/20"
           : "hover:bg-bg-hover",
       )}
       onDoubleClick={onConnect}
     >
       <Database size={14} className={cn(
-        isActive ? "text-accent-primary" : "text-text-tertiary",
+        isActive ? "text-accent" : "text-text-tertiary",
       )} />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate pf-text-sm font-medium text-text-primary">
@@ -92,22 +92,11 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
     store.getState().loadSavedConnections();
   }, [sessionId]);
 
+  // 双击已保存连接 → 打开编辑弹框（需要用户输入密码后连接）
   const handleConnectSaved = useCallback((conn: SavedConnection) => {
-    const store = getDbClientStoreApi(sessionId);
-    store.getState().connect({
-      dbType: conn.dbType,
-      host: conn.host,
-      port: conn.port ?? DB_TYPE_DEFAULTS[conn.dbType].port ?? 5432,
-      database: conn.databaseName,
-      username: conn.username,
-      password: "", // 密码需要用户重新输入（加密存储后端不返回明文）
-      sslEnabled: conn.sslEnabled,
-      filePath: conn.filePath,
-      org: conn.org,
-      token: null,
-      influxVersion: conn.influxVersion as any,
-    });
-  }, [sessionId]);
+    setEditingConn(conn);
+    setDialogOpen(true);
+  }, []);
 
   const handleDisconnect = useCallback(() => {
     const store = getDbClientStoreApi(sessionId);
@@ -169,7 +158,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
 
       {connecting && (
         <div className="flex items-center gap-2 border-b border-border-default/50 px-3 py-2">
-          <Loader2 size={13} className="animate-spin text-accent-primary" />
+          <Loader2 size={13} className="animate-spin text-accent" />
           <span className="pf-text-xs text-text-tertiary">{t("dbClient.connecting")}</span>
         </div>
       )}
@@ -198,7 +187,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
             <span className="pf-text-xs">{t("dbClient.noConnections")}</span>
             <button
               onClick={handleNew}
-              className="mt-2 pf-text-xs text-accent-primary hover:underline"
+              className="mt-2 pf-text-xs text-accent hover:underline"
             >
               {t("dbClient.createFirst")}
             </button>

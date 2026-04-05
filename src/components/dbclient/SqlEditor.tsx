@@ -62,7 +62,7 @@ export const SqlEditor = memo(function SqlEditor({
             "flex items-center gap-1.5 pf-rounded-sm px-3 py-1 pf-text-xs font-medium transition-colors",
             queryRunning
               ? "bg-red-500/15 text-red-600 hover:bg-red-500/25"
-              : "bg-accent-primary/15 text-accent-primary hover:bg-accent-primary/25",
+              : "bg-accent/15 text-accent hover:bg-accent/25",
             !connected && "opacity-40 cursor-not-allowed",
           )}
         >

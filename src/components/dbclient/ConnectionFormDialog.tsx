@@ -164,7 +164,7 @@ export function ConnectionFormDialog({
   const meta = DB_META[dbType];
   const Icon = meta.icon;
 
-  const inputCls = "w-full pf-rounded-md border border-border-default/80 bg-bg-secondary/60 px-3 py-2 pf-text-sm text-text-primary placeholder:text-text-quaternary focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 focus:outline-none transition-colors";
+  const inputCls = "w-full pf-rounded-md border border-border-default/80 bg-bg-secondary/60 px-3 py-2 pf-text-sm text-text-primary placeholder:text-text-quaternary focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none transition-colors";
   const selectCls = cn(inputCls, "appearance-none cursor-pointer");
   const labelCls = "mb-1 block pf-text-xs font-medium text-text-tertiary uppercase tracking-wider";
 
@@ -383,7 +383,7 @@ export function ConnectionFormDialog({
             <button
               onClick={handleSaveAndConnect}
               disabled={saving || !name.trim()}
-              className="flex items-center gap-2 pf-rounded-lg bg-accent-primary px-5 py-2 pf-text-xs font-medium text-white shadow-sm hover:bg-accent-primary/90 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 pf-rounded-lg bg-primary px-5 py-2 pf-text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               <Plug size={14} />
               {t("dbClient.saveAndConnect")}

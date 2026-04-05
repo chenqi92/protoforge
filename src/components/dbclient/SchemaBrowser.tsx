@@ -48,7 +48,7 @@ export const SchemaBrowser = memo(function SchemaBrowser({
         <select
           value={selectedDatabase ?? ""}
           onChange={(e) => handleSelectDatabase(e.target.value)}
-          className="w-full pf-rounded-sm border border-border-default bg-bg-secondary px-2 py-1 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none"
+          className="w-full pf-rounded-sm border border-border-default bg-bg-secondary px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none"
         >
           {databases.map((db) => (
             <option key={db.name} value={db.name}>
@@ -180,7 +180,7 @@ function TableItem({
       className={cn(
         "flex w-full items-center gap-1.5 px-6 py-1 pf-text-xs transition-colors pf-rounded-sm",
         isSelected
-          ? "bg-accent-primary/10 text-accent-primary"
+          ? "bg-accent/10 text-accent"
           : "text-text-secondary hover:bg-bg-hover",
       )}
     >

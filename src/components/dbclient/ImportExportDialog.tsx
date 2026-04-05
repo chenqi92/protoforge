@@ -125,7 +125,7 @@ export const ImportExportDialog = memo(function ImportExportDialog({
             onClick={() => { setMode("export"); setResult(null); }}
             className={cn(
               "flex flex-1 items-center justify-center gap-2 py-2.5 pf-text-sm font-medium transition-colors",
-              mode === "export" ? "border-b-2 border-accent-primary text-accent-primary" : "text-text-tertiary hover:text-text-primary",
+              mode === "export" ? "border-b-2 border-accent-primary text-accent" : "text-text-tertiary hover:text-text-primary",
             )}
           >
             <Download size={14} />
@@ -135,7 +135,7 @@ export const ImportExportDialog = memo(function ImportExportDialog({
             onClick={() => { setMode("import"); setResult(null); }}
             className={cn(
               "flex flex-1 items-center justify-center gap-2 py-2.5 pf-text-sm font-medium transition-colors",
-              mode === "import" ? "border-b-2 border-accent-primary text-accent-primary" : "text-text-tertiary hover:text-text-primary",
+              mode === "import" ? "border-b-2 border-accent-primary text-accent" : "text-text-tertiary hover:text-text-primary",
             )}
           >
             <Upload size={14} />
@@ -156,7 +156,7 @@ export const ImportExportDialog = memo(function ImportExportDialog({
               <div>
                 <label className="mb-1.5 block pf-text-xs font-medium text-text-secondary">{t("dbClient.outputFile")}</label>
                 <div className="flex gap-2">
-                  <input value={outputPath} onChange={(e) => setOutputPath(e.target.value)} placeholder="/path/to/dump.sql" className="flex-1 pf-rounded-sm border border-border-default bg-bg-secondary px-2.5 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+                  <input value={outputPath} onChange={(e) => setOutputPath(e.target.value)} placeholder="/path/to/dump.sql" className="flex-1 pf-rounded-sm border border-border-default bg-bg-secondary px-2.5 py-1.5 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
                   <button onClick={handlePickExportPath} className="pf-rounded-sm border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover">
                     <FolderOpen size={14} />
                   </button>
@@ -172,7 +172,7 @@ export const ImportExportDialog = memo(function ImportExportDialog({
                   {t("dbClient.schemaOnly")}
                 </label>
               </div>
-              <button onClick={handleExport} disabled={running || !outputPath} className="flex w-full items-center justify-center gap-2 pf-rounded-sm bg-accent-primary px-4 py-2 pf-text-sm font-medium text-white hover:bg-accent-primary/90 disabled:opacity-50">
+              <button onClick={handleExport} disabled={running || !outputPath} className="flex w-full items-center justify-center gap-2 pf-rounded-sm bg-primary px-4 py-2 pf-text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
                 {running ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                 {t("dbClient.startExport")}
               </button>
@@ -184,13 +184,13 @@ export const ImportExportDialog = memo(function ImportExportDialog({
               <div>
                 <label className="mb-1.5 block pf-text-xs font-medium text-text-secondary">{t("dbClient.importFile")}</label>
                 <div className="flex gap-2">
-                  <input value={importPath} onChange={(e) => setImportPath(e.target.value)} placeholder="/path/to/dump.sql" className="flex-1 pf-rounded-sm border border-border-default bg-bg-secondary px-2.5 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+                  <input value={importPath} onChange={(e) => setImportPath(e.target.value)} placeholder="/path/to/dump.sql" className="flex-1 pf-rounded-sm border border-border-default bg-bg-secondary px-2.5 py-1.5 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
                   <button onClick={handlePickImportFile} className="pf-rounded-sm border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover">
                     <FolderOpen size={14} />
                   </button>
                 </div>
               </div>
-              <button onClick={handleImport} disabled={running || !importPath} className="flex w-full items-center justify-center gap-2 pf-rounded-sm bg-accent-primary px-4 py-2 pf-text-sm font-medium text-white hover:bg-accent-primary/90 disabled:opacity-50">
+              <button onClick={handleImport} disabled={running || !importPath} className="flex w-full items-center justify-center gap-2 pf-rounded-sm bg-primary px-4 py-2 pf-text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
                 {running ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                 {t("dbClient.startImport")}
               </button>

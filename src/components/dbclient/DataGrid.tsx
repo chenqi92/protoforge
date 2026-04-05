@@ -260,7 +260,7 @@ export const DataGrid = memo(function DataGrid({
                 ref={virtualizer.measureElement}
                 className={cn(
                   "absolute left-0 right-0 flex border-b border-border-default/30",
-                  isSelected ? "bg-accent-primary/5" : "hover:bg-bg-hover/50",
+                  isSelected ? "bg-accent/5" : "hover:bg-bg-hover/50",
                 )}
                 style={{ top: virtualRow.start, height: ROW_HEIGHT }}
               >
