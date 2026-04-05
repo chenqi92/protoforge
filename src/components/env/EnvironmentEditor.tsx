@@ -102,10 +102,10 @@ export function EnvironmentEditor() {
   const { showMenu: showEnvMenu, MenuComponent: EnvMenuComponent } = useContextMenu();
   const { showMenu: showGlobalMenu, MenuComponent: GlobalMenuComponent } = useContextMenu();
 
-  const { handleZoneFallback, ZoneFallbackMenu } = useZoneFallback(t);
+  const { handleZoneFallback, ZoneFallbackMenu } = useZoneFallback(t as unknown as (key: string, fallback?: string) => string);
 
   const handleEnvVarContextMenu = (e: React.MouseEvent, v: EnvVariable, i: number) => {
-    const clipboardItems = buildClipboardItems(e, t);
+    const clipboardItems = buildClipboardItems(e, t as unknown as (key: string, fallback?: string) => string);
     if (!v.key.trim()) {
       if (clipboardItems.length > 0) showEnvMenu(e, clipboardItems.slice(0, -1));
       else e.preventDefault();
@@ -132,7 +132,7 @@ export function EnvironmentEditor() {
   };
 
   const handleGlobalVarContextMenu = (e: React.MouseEvent, v: { key: string; value: string; enabled: boolean }, i: number) => {
-    const clipboardItems = buildClipboardItems(e, t);
+    const clipboardItems = buildClipboardItems(e, t as unknown as (key: string, fallback?: string) => string);
     if (!v.key.trim()) {
       if (clipboardItems.length > 0) showGlobalMenu(e, clipboardItems.slice(0, -1));
       else e.preventDefault();

@@ -352,7 +352,7 @@ export function JsonTreeViewer({
       items.push({ type: 'divider' });
     }
 
-    const linePath = 'path' in line ? line.path : line.id.replace(/:(?:primitive|collapsed|open|close|empty)$/, '');
+    const linePath = ('path' in line ? line.path : line.id.replace(/:(?:primitive|collapsed|open|close|empty)$/, '')) ?? '';
     const displayPath = formatJsonPath(linePath);
 
     if (line.kind === 'primitive') {

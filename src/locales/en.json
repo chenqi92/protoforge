@@ -13,7 +13,7 @@
     "themeSystem": "System Theme",
     "themeDark": "Dark Mode",
     "themeLight": "Light Mode",
-    "videostream": "Video Stream",
+    "videostream": "Video Debug",
     "mockserver": "Mock Server"
   },
   "statusBar": {
@@ -28,7 +28,7 @@
     "capture": "Traffic Capture",
     "loadtest": "Load Test",
     "ready": "READY",
-    "videostream": "Video Stream",
+    "videostream": "Video Debug",
     "mockserver": "Mock Server"
   },
   "sidebar": {
@@ -135,8 +135,8 @@
       "description": "High-concurrency HTTP load testing engine with configurable concurrency, duration, and RPS limiting. Real-time visualization of throughput, latency distribution, and error rates for API performance evaluation."
     },
     "videostream": {
-      "title": "Video Stream Workbench",
-      "shortTitle": "Video",
+      "title": "Video Debug Workbench",
+      "shortTitle": "Video Debug",
       "description": "Video stream debugging with RTSP, RTMP, HTTP-FLV, HLS, WebRTC, GB28181, SRT protocol analysis"
     },
     "mockserver": {

@@ -14,7 +14,7 @@ export function VideoStreamWindow() {
   });
 
   return (
-    <ToolWindowShell tool="videostream" sessionId={sessionId} title="视频流调试" module="videostream" accentClassName="bg-purple-500">
+    <ToolWindowShell tool="videostream" sessionId={sessionId} title="视频调试" module="videostream" accentClassName="bg-purple-500">
       <div className="h-full overflow-hidden bg-transparent">
         <VideoStreamWorkspace sessionId={sessionId} initialMode={initialMode} />
       </div>

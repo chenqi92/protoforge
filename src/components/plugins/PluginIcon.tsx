@@ -11,6 +11,13 @@ const iconCache = new Map<string, string | null>();
 // Lucide 图标组件缓存
 const lucideComponentCache = new Map<string, React.LazyExoticComponent<React.ComponentType<LucideProps>>>();
 
+/** 判断字符串是否包含 emoji (非纯 ASCII 且不是 ns:name 格式) */
+function isEmoji(str: string): boolean {
+  if (!str || str.includes(':') || /^[a-z][a-z0-9-]*$/.test(str)) return false;
+  // eslint-disable-next-line no-control-regex
+  return /[\u{1F300}-\u{1FAD6}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/u.test(str);
+}
+
 /** 判断 icon 值是否为合法的 lucide 图标名称 */
 function isLucideIconName(icon: string): icon is keyof typeof dynamicIconImports {
   return /^[a-z][a-z0-9-]*$/.test(icon) && icon in dynamicIconImports;
@@ -118,7 +125,16 @@ export function PluginIcon({ pluginId, fallbackEmoji, className, size = "md" }: 
       );
     }
 
-    // 4. 首字母灰色头像兜底
+    // 4. emoji 直接渲染
+    if (loaded && isEmoji(fallbackEmoji)) {
+      return (
+        <span style={{ fontSize: size === 'sm' ? 16 : size === 'md' ? 22 : 28, lineHeight: 1 }}>
+          {fallbackEmoji}
+        </span>
+      );
+    }
+
+    // 5. 首字母灰色头像兜底
     if (loaded) {
       const letter = fallbackEmoji.replace(/^[^:]*:/, '').charAt(0).toUpperCase() || '?';
       return (

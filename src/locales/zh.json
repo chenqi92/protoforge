@@ -13,8 +13,8 @@
     "themeSystem": "跟随系统",
     "themeDark": "深色模式",
     "themeLight": "浅色模式",
-    "videostream": "视频流",
-    "mockserver": "Mock Server"
+    "videostream": "视频调试",
+    "mockserver": "模拟服务"
   },
   "statusBar": {
     "requests": "接口调试工作台",
@@ -28,8 +28,8 @@
     "capture": "流量捕获",
     "loadtest": "性能测试",
     "ready": "就绪",
-    "videostream": "视频流调试",
-    "mockserver": "Mock Server"
+    "videostream": "视频调试",
+    "mockserver": "模拟服务"
   },
   "sidebar": {
     "collections": "集合",
@@ -135,14 +135,14 @@
       "description": "高并发 HTTP 性能测试引擎，支持自定义并发数、持续时间、RPS 限速，实时展示吞吐量、延迟分布和错误率，适用于接口性能评估。"
     },
     "videostream": {
-      "title": "视频流调试工作台",
-      "shortTitle": "视频流",
+      "title": "视频调试工作台",
+      "shortTitle": "视频调试",
       "description": "支持 RTSP、RTMP、HTTP-FLV、HLS、WebRTC、GB28181、SRT 协议的视频流拉取与深度协议分析"
     },
     "mockserver": {
-      "title": "Mock Server",
-      "shortTitle": "Mock",
-      "description": "本地 HTTP Mock 服务器，支持通配符路由、动态响应模板、延迟模拟，适用于前端联调和接口测试。"
+      "title": "模拟服务工作台",
+      "shortTitle": "模拟服务",
+      "description": "本地 HTTP 模拟服务，支持通配符路由、动态响应模板、延迟模拟，适用于前端联调和接口测试。"
     },
     "allInstances": "所有实例",
     "newInstance": "新建实例",
@@ -180,8 +180,8 @@
     "captureDesc": "本地 HTTP 代理抓包，支持 HTTPS 解密与请求详情分析",
     "loadtest": "性能测试",
     "loadtestDesc": "高并发压测引擎，实时 RPS / 延迟 / 错误率可视化",
-    "mockserver": "Mock Server",
-    "mockserverDesc": "本地 HTTP Mock 服务，通配符路由 + 动态模板 + 延迟模拟",
+    "mockserver": "模拟服务",
+    "mockserverDesc": "本地 HTTP 模拟服务，通配符路由 + 动态模板 + 延迟模拟",
     "pluginSystem": "插件扩展",
     "pluginSystemDesc": "通过插件扩展协议解析、数据生成和自定义渲染能力",
     "sse": "SSE",
@@ -1037,7 +1037,10 @@
     "value": "值",
     "selectPlugin": "选择解析器",
     "searchPlugin": "搜索协议...",
-    "noMatch": "无匹配结果"
+    "noMatch": "无匹配结果",
+    "parsersAvailable": "个解析器",
+    "navigate": "导航",
+    "confirm": "确认"
   },
   "commandPalette": {
     "placeholder": "搜索操作、请求、集合...",

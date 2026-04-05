@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import type { PluginManifest } from "@/types/plugin";
 import { pluginT } from "@/lib/pluginI18n";
+import { PluginIcon } from "@/components/plugins/PluginIcon";
 
 interface PluginCardProps {
   plugin: PluginManifest;
@@ -44,9 +45,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start gap-3 mb-3">
-          <div className="w-10 h-10 rounded-lg bg-bg-secondary border border-border-default flex items-center justify-center pf-text-xl shrink-0 shadow-sm">
-            {plugin.icon}
-          </div>
+          <PluginIcon pluginId={plugin.id} fallbackEmoji={plugin.icon} size="sm" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="pf-text-base font-semibold text-text-primary truncate">

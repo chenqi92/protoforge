@@ -8,7 +8,8 @@
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef, Component, type ReactNode } from 'react';
-import { Search, FileCode2, Loader2, AlertCircle, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, FileCode2, Loader2, AlertCircle, Copy, Check, ChevronDown, ChevronRight, ArrowLeftRight } from 'lucide-react';
+import { PluginIcon } from '@/components/plugins/PluginIcon';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { usePluginStore } from '@/stores/pluginStore';
@@ -219,29 +220,62 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
 
   // ── Determine render mode ──
   const hasLayout = result?.layout?.sections && result.layout.sections.length > 0;
+  const selectedPlugin = parserPlugins.find(p => p.id === selectedPluginId);
+  const [searchSelectOpen, setSearchSelectOpen] = useState(false);
 
   return (
     <div className={cn('flex h-full flex-col overflow-hidden', className)}>
       {/* ── Input Area ── */}
       {!compact && (
-        <div className="shrink-0 border-b border-border-default/60 p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <PluginSearchSelect
-              plugins={parserPlugins}
-              selectedId={selectedPluginId}
-              onSelect={setSelectedPluginId}
-            />
+        <div className="shrink-0 border-b border-border-default/60">
+          {/* Row 1: Title bar — protocol icon + name + switch button */}
+          <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border-default/40 bg-bg-secondary/20">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {selectedPlugin && (
+                <PluginIcon pluginId={selectedPlugin.id} fallbackEmoji={selectedPlugin.icon} size="sm" />
+              )}
+              <div className="min-w-0">
+                <div className="pf-text-sm font-semibold text-text-primary truncate">
+                  {selectedPlugin?.name || t('parser.selectPlugin', '选择解析器')}
+                </div>
+                {selectedPlugin?.protocolIds?.[0] && (
+                  <span className="pf-text-3xs text-accent font-medium">{selectedPlugin.protocolIds[0].toUpperCase()}</span>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setSearchSelectOpen(true)}
+              className="flex items-center gap-1 px-2 py-1 pf-rounded-md pf-text-3xs font-medium text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors shrink-0"
+              title={t('parser.switchPlugin', '切换协议')}
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t('parser.switch', '切换')}</span>
+            </button>
+          </div>
+
+          {/* Hidden PluginSearchSelect (controlled by title bar button) */}
+          <PluginSearchSelect
+            plugins={parserPlugins}
+            selectedId={selectedPluginId}
+            onSelect={setSelectedPluginId}
+            externalOpen={searchSelectOpen}
+            onOpenChange={setSearchSelectOpen}
+            hideTrigger
+          />
+
+          {/* Row 2: Input textarea + Parse button */}
+          <div className="p-3 space-y-2">
+            <textarea value={rawInput} onChange={(e) => setRawInput(e.target.value)}
+              placeholder={t('parser.inputPlaceholder', '粘贴原始报文数据...')}
+              className="h-[80px] w-full resize-none pf-rounded-md border border-border-default/80 bg-bg-secondary/42 px-3 py-2 font-mono text-text-primary outline-none placeholder:text-text-tertiary transition-all focus:border-accent"
+              style={{ fontSize: 'var(--fs-xs)' }} />
             <button onClick={handleParse} disabled={loading || !rawInput.trim()}
-              className="flex items-center gap-1.5 h-[32px] px-4 pf-rounded-md bg-accent text-white font-medium transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              className="flex w-full items-center justify-center gap-1.5 h-[32px] pf-rounded-md bg-accent text-white font-medium transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ fontSize: 'var(--fs-sm)' }}>
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
               {t('parser.parse', '解析')}
             </button>
           </div>
-          <textarea value={rawInput} onChange={(e) => setRawInput(e.target.value)}
-            placeholder={t('parser.inputPlaceholder', '粘贴原始报文数据...')}
-            className="h-[80px] w-full resize-none pf-rounded-md border border-border-default/80 bg-bg-secondary/42 px-3 py-2 font-mono text-text-primary outline-none placeholder:text-text-tertiary transition-all focus:border-accent"
-            style={{ fontSize: 'var(--fs-xs)' }} />
         </div>
       )}
 
@@ -656,20 +690,32 @@ function DefaultGroupRenderer({ fields, search, collapsedSections, toggleSection
 // ════════════════════════════════════════════════
 
 // ════════════════════════════════════════════════
-//  Plugin Search Select (可搜索插件选择器)
+//  Plugin Search Select (弹框式可搜索插件选择器)
 // ════════════════════════════════════════════════
 
-function PluginSearchSelect({ plugins, selectedId, onSelect }: {
+function PluginSearchSelect({ plugins, selectedId, onSelect, externalOpen, onOpenChange, hideTrigger }: {
   plugins: PluginManifest[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** Controlled open state from parent */
+  externalOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Hide the built-in trigger button (parent provides its own) */
+  hideTrigger?: boolean;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  // Support both controlled and uncontrolled modes
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    setInternalOpen(v);
+  };
   const [query, setQuery] = useState('');
   const [highlightIdx, setHighlightIdx] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const selected = plugins.find(p => p.id === selectedId);
 
@@ -680,94 +726,133 @@ function PluginSearchSelect({ plugins, selectedId, onSelect }: {
       p.name.toLowerCase().includes(q) ||
       p.id.toLowerCase().includes(q) ||
       p.protocolIds.some(pid => pid.toLowerCase().includes(q)) ||
-      p.tags.some(tag => tag.toLowerCase().includes(q))
+      p.tags.some(tag => tag.toLowerCase().includes(q)) ||
+      p.description.toLowerCase().includes(q)
     );
   }, [plugins, query]);
 
   useEffect(() => { setHighlightIdx(0); }, [filtered.length]);
 
-  // Close on click outside
+  // Focus input and reset on open
   useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    if (open) { setQuery(''); setTimeout(() => inputRef.current?.focus(), 50); }
   }, [open]);
 
-  // Focus input on open
-  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 0); }, [open]);
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (!listRef.current) return;
+    const el = listRef.current.children[highlightIdx] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [highlightIdx]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightIdx(i => Math.min(i + 1, filtered.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightIdx(i => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter' && filtered[highlightIdx]) { onSelect(filtered[highlightIdx].id); setOpen(false); setQuery(''); }
-    else if (e.key === 'Escape') { setOpen(false); setQuery(''); }
+    else if (e.key === 'Enter' && filtered[highlightIdx]) { onSelect(filtered[highlightIdx].id); setOpen(false); }
+    else if (e.key === 'Escape') { setOpen(false); }
   };
 
   return (
-    <div ref={containerRef} className="relative flex-1">
-      {/* Trigger */}
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex h-[32px] w-full items-center justify-between gap-2 pf-rounded-md border border-border-default/80 bg-bg-secondary/42 px-3 text-left transition-all hover:border-border-default cursor-pointer"
-      >
-        <span className="truncate pf-text-sm text-text-primary">{selected?.name || t('parser.selectPlugin', '选择解析器')}</span>
-        <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 text-text-disabled transition-transform", open && "rotate-180")} />
-      </button>
+    <>
+      {/* Trigger (hidden when parent provides its own) */}
+      {!hideTrigger && (
+        <button
+          onClick={() => setOpen(true)}
+          className="flex h-[32px] flex-1 items-center justify-between gap-2 pf-rounded-md border border-border-default/80 bg-bg-secondary/42 px-3 text-left transition-all hover:border-border-default cursor-pointer"
+        >
+          <span className="truncate pf-text-sm text-text-primary">{selected?.name || t('parser.selectPlugin', '选择解析器')}</span>
+          <ChevronDown className="w-3.5 h-3.5 shrink-0 text-text-disabled" />
+        </button>
+      )}
 
-      {/* Popover */}
+      {/* Dialog Overlay */}
       {open && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden pf-rounded-md border border-border-default bg-bg-primary shadow-lg">
-          {/* Search */}
-          <div className="flex items-center gap-2 border-b border-border-default/60 px-2.5 py-2">
-            <Search className="w-3.5 h-3.5 shrink-0 text-text-disabled" />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={t('parser.searchPlugin', '搜索协议...')}
-              className="flex-1 bg-transparent pf-text-sm text-text-primary outline-none placeholder:text-text-tertiary"
-            />
-          </div>
-          {/* List */}
-          <div className="max-h-[240px] overflow-y-auto py-1">
-            {filtered.length === 0 ? (
-              <div className="px-3 py-4 text-center pf-text-xs text-text-disabled">{t('parser.noMatch', '无匹配结果')}</div>
-            ) : (
-              filtered.map((p, idx) => (
-                <button
-                  key={p.id}
-                  onClick={() => { onSelect(p.id); setOpen(false); setQuery(''); }}
-                  onMouseEnter={() => setHighlightIdx(idx)}
-                  className={cn(
-                    "flex w-full items-center gap-2 px-3 py-2 text-left transition-colors",
-                    idx === highlightIdx && "bg-accent/8",
-                    selectedId === p.id && "text-accent"
-                  )}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className={cn("pf-text-sm font-medium truncate", selectedId === p.id ? "text-accent" : "text-text-primary")}>
-                      {p.name}
-                    </div>
-                    {p.protocolIds.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-0.5">
-                        {p.protocolIds.map(pid => (
-                          <span key={pid} className="pf-text-3xs px-1 py-0.5 pf-rounded-xs bg-bg-secondary text-text-tertiary">{pid}</span>
-                        ))}
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]" onClick={() => setOpen(false)}>
+          <div className="fixed inset-0 bg-black/20 animate-in fade-in-0 duration-150" />
+          <div
+            className="relative z-10 w-full max-w-md overflow-hidden rounded-xl border border-border-default bg-bg-primary shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Search header */}
+            <div className="flex items-center gap-2.5 border-b border-border-default/60 px-4 py-3">
+              <Search className="w-4 h-4 shrink-0 text-text-disabled" />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={t('parser.searchPlugin', '搜索协议...')}
+                className="flex-1 bg-transparent pf-text-sm text-text-primary outline-none placeholder:text-text-tertiary"
+              />
+              <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 pf-rounded-xs border border-border-default/60 bg-bg-secondary/60 pf-text-3xs text-text-disabled font-mono">
+                ESC
+              </kbd>
+            </div>
+
+            {/* Plugin list */}
+            <div ref={listRef} className="max-h-[50vh] overflow-y-auto p-2">
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-8 text-text-disabled">
+                  <Search className="w-6 h-6 opacity-30" />
+                  <span className="pf-text-sm">{t('parser.noMatch', '无匹配结果')}</span>
+                </div>
+              ) : (
+                filtered.map((p, idx) => {
+                  const isSelected = selectedId === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => { onSelect(p.id); setOpen(false); }}
+                      onMouseEnter={() => setHighlightIdx(idx)}
+                      className={cn(
+                        "flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
+                        idx === highlightIdx ? "bg-accent/8" : "hover:bg-bg-hover/50",
+                        isSelected && "ring-1 ring-accent/30 bg-accent/5"
+                      )}
+                    >
+                      {/* Icon */}
+                      <PluginIcon pluginId={p.id} fallbackEmoji={p.icon} size="sm" />
+
+                      {/* Content */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("pf-text-sm font-semibold truncate", isSelected ? "text-accent" : "text-text-primary")}>
+                            {p.name}
+                          </span>
+                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-accent" />}
+                        </div>
+                        <p className="mt-0.5 pf-text-xs text-text-tertiary line-clamp-2 leading-relaxed">
+                          {p.description}
+                        </p>
+                        {(p.protocolIds.length > 0 || p.tags.length > 0) && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {p.protocolIds.map(pid => (
+                              <span key={pid} className="pf-text-3xs px-1.5 py-0.5 pf-rounded-xs bg-accent/8 text-accent font-medium">{pid}</span>
+                            ))}
+                            {p.tags.slice(0, 3).map(tag => (
+                              <span key={tag} className="pf-text-3xs px-1.5 py-0.5 pf-rounded-xs bg-bg-secondary/80 text-text-disabled">{tag}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  {selectedId === p.id && <Check className="w-3.5 h-3.5 shrink-0 text-accent" />}
-                </button>
-              ))
-            )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer hint */}
+            <div className="flex items-center justify-between border-t border-border-default/40 px-4 py-2 pf-text-3xs text-text-disabled">
+              <span>{filtered.length} {t('parser.parsersAvailable', '个解析器')}</span>
+              <div className="flex items-center gap-2">
+                <span><kbd className="font-mono">↑↓</kbd> {t('parser.navigate', '导航')}</span>
+                <span><kbd className="font-mono">↵</kbd> {t('parser.confirm', '确认')}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
