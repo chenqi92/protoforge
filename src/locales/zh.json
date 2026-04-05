@@ -617,8 +617,9 @@
       "title": "消息详情",
       "emptyTitle": "选中一条消息查看详情",
       "emptyDesc": "这里会展示完整载荷、原始十六进制、时间戳以及来源地址，便于逐帧分析协议数据。",
-      "payload": "解码内容",
-      "rawHex": "原始 HEX",
+      "payload": "原始报文",
+      "rawHex": "HEX",
+      "protocolParse": "协议解析",
       "copyPayload": "复制当前内容",
       "copyRawHex": "复制原始 HEX"
     },

@@ -107,35 +107,26 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
   const parserPlugins = useMemo(() => installedPlugins.filter(p => p.pluginType === 'protocol-parser'), [installedPlugins]);
 
-  useEffect(() => { if (!selectedPluginId && parserPlugins.length > 0) setSelectedPluginId(parserPlugins[0].id); }, [parserPlugins, selectedPluginId]);
-  useEffect(() => { if (initialData !== undefined) setRawInput(initialData); }, [initialData]);
-  useEffect(() => { if (compact && initialData && selectedPluginId) handleParse(); }, [compact, initialData, selectedPluginId]);
-
-  // Auto-detect protocol
-  const detectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const detectProtocol = useCallback((input: string) => {
-    if (!input.trim() || parserPlugins.length <= 1) return;
+  // Auto-detect protocol — returns matched plugin id or null
+  const detectProtocol = useCallback((input: string): string | null => {
+    if (!input.trim() || parserPlugins.length <= 1) return null;
     const trimmed = input.trim();
     for (const plugin of parserPlugins) {
       const nameL = plugin.name.toLowerCase();
-      if (/^##\d{4}/.test(trimmed) && (nameL.includes('hj212') || nameL.includes('hj 212'))) { setSelectedPluginId(plugin.id); return; }
-      if (/^7[Ee]7[Ee]/i.test(trimmed) && (nameL.includes('sl651') || nameL.includes('sl 651'))) { setSelectedPluginId(plugin.id); return; }
-      if (/^:/.test(trimmed) && nameL.includes('modbus')) { setSelectedPluginId(plugin.id); return; }
+      if (/^##\d{4}/.test(trimmed) && (nameL.includes('hj212') || nameL.includes('hj 212'))) return plugin.id;
+      if (/^7[Ee]7[Ee]/i.test(trimmed) && (nameL.includes('sl651') || nameL.includes('sl 651'))) return plugin.id;
+      if (/^:/.test(trimmed) && nameL.includes('modbus')) return plugin.id;
     }
+    return null;
   }, [parserPlugins]);
-  useEffect(() => {
-    if (detectTimeoutRef.current) clearTimeout(detectTimeoutRef.current);
-    if (rawInput.trim()) detectTimeoutRef.current = setTimeout(() => detectProtocol(rawInput), 300);
-    return () => { if (detectTimeoutRef.current) clearTimeout(detectTimeoutRef.current); };
-  }, [rawInput, detectProtocol]);
 
+  // handleParse — must be defined before effects that reference it
   const handleParse = useCallback(async () => {
     if (!selectedPluginId || !rawInput.trim()) return;
     setLoading(true); setResult(null);
     try {
       const res = await pluginService.parseData(selectedPluginId, rawInput.trim());
       setResult(res);
-      // Initialize collapsed state from layout
       if (res?.layout?.sections) {
         const initial: Record<string, boolean> = {};
         res.layout.sections.forEach(s => { if (s.collapsed) initial[s.title] = true; });
@@ -148,6 +139,39 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
     }
     setLoading(false);
   }, [selectedPluginId, rawInput]);
+
+  // Initialize: detect protocol first, then fallback to first plugin
+  useEffect(() => {
+    if (!selectedPluginId && parserPlugins.length > 0) {
+      const detected = rawInput ? detectProtocol(rawInput) : null;
+      setSelectedPluginId(detected || parserPlugins[0].id);
+    }
+  }, [parserPlugins, selectedPluginId, rawInput, detectProtocol]);
+
+  useEffect(() => { if (initialData !== undefined) setRawInput(initialData); }, [initialData]);
+
+  // Compact mode: auto-parse once plugin is resolved
+  const compactParsedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (compact && initialData && selectedPluginId && compactParsedRef.current !== `${initialData}::${selectedPluginId}`) {
+      compactParsedRef.current = `${initialData}::${selectedPluginId}`;
+      handleParse();
+    }
+  }, [compact, initialData, selectedPluginId, handleParse]);
+
+  // Non-compact: debounced detection on input change
+  const detectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (compact) return;
+    if (detectTimeoutRef.current) clearTimeout(detectTimeoutRef.current);
+    if (rawInput.trim()) {
+      detectTimeoutRef.current = setTimeout(() => {
+        const detected = detectProtocol(rawInput);
+        if (detected) setSelectedPluginId(detected);
+      }, 300);
+    }
+    return () => { if (detectTimeoutRef.current) clearTimeout(detectTimeoutRef.current); };
+  }, [rawInput, detectProtocol, compact]);
 
   const handleCopyResult = useCallback(async () => {
     if (!result || !result.fields.length) return;

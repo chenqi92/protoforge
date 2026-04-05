@@ -1,9 +1,16 @@
-// TCP Server 客户端列表组件 — 下拉选择器模式
-import { useState, useRef, useEffect } from "react";
-import { Users, ChevronDown, Radio } from "lucide-react";
+// TCP Server 客户端列表组件 — 使用 DropdownMenu（Portal 渲染，不被 overflow 裁剪）
+import { Users, Radio } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { TcpServerClient } from "@/types/tcp";
+import { useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 interface ClientListProps {
   clients: TcpServerClient[];
@@ -15,20 +22,6 @@ interface ClientListProps {
 
 export function ClientList({ clients, selectedClientId, onSelectClient, embedded = false, compact = false }: ClientListProps) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // 点击外部时关闭下拉
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
 
   // 选中的客户端断开时自动切回广播
   useEffect(() => {
@@ -43,7 +36,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
   const isBroadcast = !selectedClientId;
 
   return (
-    <div ref={containerRef} className={cn("overflow-visible", !embedded && "wb-panel")}>
+    <div className={cn("overflow-visible", !embedded && "wb-panel")}>
       <div className={cn(embedded ? "wb-pane-header" : "wb-panel-header", compact && "px-3 py-2")}>
         <div className="flex items-center gap-2">
           <div className={cn("flex items-center justify-center pf-rounded-md bg-accent/8 text-accent", compact ? "h-7 w-7" : "h-8 w-8")}>
@@ -60,86 +53,79 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
       </div>
 
       <div className={cn("relative", compact ? "p-2.5" : "p-3")}>
-        {/* 选择器触发按钮 */}
-        <button
-          onClick={() => setOpen(!open)}
-          className={cn(
-            "flex w-full items-center justify-between gap-2 pf-rounded-md border px-3 text-left transition-all",
-            compact ? "py-2" : "py-2.5",
-            isBroadcast
-              ? "border-accent/30 bg-accent/5 hover:bg-accent/8"
-              : "border-border-default bg-bg-secondary/50 hover:bg-bg-hover"
-          )}
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            {isBroadcast ? (
-              <>
-                <Radio className="h-3.5 w-3.5 shrink-0 text-accent" />
-                <span className={cn("truncate font-medium text-accent", compact ? "pf-text-xs" : "pf-text-sm")}>
-                  {t('tcp.clientList.broadcastAll')}
-                </span>
-                <span className="shrink-0 pf-rounded-sm bg-accent/10 px-1.5 py-0.5 pf-text-3xs font-bold text-accent">
-                  {clients.length}
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-                <span className={cn("truncate font-mono text-text-primary", compact ? "pf-text-xs" : "pf-text-sm")}>
-                  {selectedClient?.remoteAddr ?? selectedClientId}
-                </span>
-              </>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className={cn(
+              "flex w-full items-center justify-between gap-2 pf-rounded-md border px-3 text-left transition-all cursor-pointer",
+              compact ? "py-2" : "py-2.5",
+              isBroadcast
+                ? "border-accent/30 bg-accent/5 hover:bg-accent/8"
+                : "border-border-default bg-bg-secondary/50 hover:bg-bg-hover"
             )}
-          </div>
-          <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-text-disabled transition-transform", open && "rotate-180")} />
-        </button>
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              {isBroadcast ? (
+                <>
+                  <Radio className="h-3.5 w-3.5 shrink-0 text-accent" />
+                  <span className={cn("truncate font-medium text-accent", compact ? "pf-text-xs" : "pf-text-sm")}>
+                    {t('tcp.clientList.broadcastAll')}
+                  </span>
+                  <span className="shrink-0 pf-rounded-sm bg-accent/10 px-1.5 py-0.5 pf-text-3xs font-bold text-accent">
+                    {clients.length}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                  <span className={cn("truncate font-mono text-text-primary", compact ? "pf-text-xs" : "pf-text-sm")}>
+                    {selectedClient?.remoteAddr ?? selectedClientId}
+                  </span>
+                </>
+              )}
+            </div>
+          </DropdownMenuTrigger>
 
-        {/* 下拉面板 */}
-        {open && (
-          <div className="absolute left-3 right-3 top-full z-20 mt-1 overflow-hidden pf-rounded-md border border-border-default bg-bg-primary shadow-lg">
-            <div className="max-h-[220px] overflow-y-auto py-1">
-              {/* 全部广播选项 */}
-              <button
-                onClick={() => { onSelectClient(null); setOpen(false); }}
+          <DropdownMenuContent align="start" side="bottom" sideOffset={4}>
+            {/* 全部广播选项 */}
+            <DropdownMenuItem
+              onClick={() => onSelectClient(null)}
+              className={cn(
+                "flex items-center gap-2.5 px-3 py-2.5",
+                isBroadcast && "bg-accent/8 text-accent"
+              )}
+            >
+              <Radio className="h-3.5 w-3.5 shrink-0 text-accent" />
+              <span className="flex-1 pf-text-sm font-medium">
+                {t('tcp.clientList.broadcastAll')}
+              </span>
+              <span className="pf-rounded-sm bg-accent/10 px-1.5 py-0.5 pf-text-3xs font-bold text-accent">
+                {clients.length}
+              </span>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            {/* 客户端列表 */}
+            {clients.map((c) => (
+              <DropdownMenuItem
+                key={c.id}
+                onClick={() => onSelectClient(c.id)}
                 className={cn(
-                  "flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors",
-                  isBroadcast ? "bg-accent/8 text-accent" : "hover:bg-bg-hover"
+                  "flex items-center gap-2.5 px-3 py-2",
+                  selectedClientId === c.id && "bg-accent/8"
                 )}
               >
-                <Radio className="h-3.5 w-3.5 shrink-0 text-accent" />
-                <span className="flex-1 pf-text-sm font-medium">
-                  {t('tcp.clientList.broadcastAll')}
+                <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                <span className={cn(
+                  "flex-1 truncate font-mono pf-text-sm",
+                  selectedClientId === c.id ? "text-accent font-medium" : "text-text-secondary"
+                )}>
+                  {c.remoteAddr}
                 </span>
-                <span className="pf-rounded-sm bg-accent/10 px-1.5 py-0.5 pf-text-3xs font-bold text-accent">
-                  {clients.length}
-                </span>
-              </button>
-
-              {/* 分隔线 */}
-              <div className="mx-3 my-1 border-t border-border-default/60" />
-
-              {/* 客户端列表 */}
-              {clients.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => { onSelectClient(c.id); setOpen(false); }}
-                  className={cn(
-                    "flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors",
-                    selectedClientId === c.id ? "bg-accent/8" : "hover:bg-bg-hover"
-                  )}
-                >
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-                  <span className={cn(
-                    "flex-1 truncate font-mono pf-text-sm",
-                    selectedClientId === c.id ? "text-accent font-medium" : "text-text-secondary"
-                  )}>
-                    {c.remoteAddr}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

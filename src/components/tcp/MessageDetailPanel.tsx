@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, FileCode2 } from "lucide-react";
+import { Check, Copy, FileCode2, FileText, Binary } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { convertFormat, estimateRawHex } from "@/services/tcpService";
 import type { DataFormat, TcpMessage } from "@/types/tcp";
+import { ProtocolParserPanel } from "@/components/plugins/ProtocolParserPanel";
+
+type DetailTab = "payload" | "hex" | "protocol";
 
 interface MessageDetailPanelProps {
   message: TcpMessage | null;
@@ -32,9 +35,17 @@ function normalizeHexBlocks(rawHex: string): string {
     .join("\n");
 }
 
-export function MessageDetailPanel({ message, displayFormat, compact = false }: MessageDetailPanelProps) {
+const TAB_ITEMS: { key: DetailTab; icon: typeof FileText; labelKey: string; fallback: string }[] = [
+  { key: "payload", icon: FileText, labelKey: "tcp.messageDetail.payload", fallback: "原始报文" },
+  { key: "hex", icon: Binary, labelKey: "tcp.messageDetail.rawHex", fallback: "HEX" },
+  { key: "protocol", icon: FileCode2, labelKey: "tcp.messageDetail.protocolParse", fallback: "协议解析" },
+];
+
+export function MessageDetailPanel({ message, displayFormat, compact: _compact = false }: MessageDetailPanelProps) {
   const { t } = useTranslation();
   const [copiedKey, setCopiedKey] = useState<"payload" | "raw" | null>(null);
+  const [activeTab, setActiveTab] = useState<DetailTab>("payload");
+
   const messageDirectionLabel = message
     ? (message.direction === "sent"
       ? t("tcp.messageLog.sent", "发送")
@@ -45,10 +56,7 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
 
   const derived = useMemo(() => {
     if (!message) {
-      return {
-        rendered: "",
-        rawHex: "",
-      };
+      return { rendered: "", rawHex: "" };
     }
     const rendered = message.direction === "system"
       ? message.data
@@ -94,6 +102,7 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      {/* Header */}
       <div className="wb-pane-header shrink-0">
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
@@ -120,48 +129,16 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <button
-            onClick={() => void copyValue(derived.rendered, "payload")}
-            className="wb-icon-btn !h-7 !w-7"
-            title={t("tcp.messageDetail.copyPayload", "复制当前内容")}
-          >
-            {copiedKey === "payload" ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-          </button>
-          {message.direction !== "system" ? (
+          {activeTab === "payload" && (
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent("parse-protocol", { detail: { data: message.data } }))}
+              onClick={() => void copyValue(derived.rendered, "payload")}
               className="wb-icon-btn !h-7 !w-7"
-              title={t("parser.parse", "解析")}
+              title={t("tcp.messageDetail.copyPayload", "复制当前内容")}
             >
-              <FileCode2 className="h-3.5 w-3.5" />
+              {copiedKey === "payload" ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className={cn(
-        "grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-auto p-3",
-        !compact && "xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]"
-      )}>
-        <section className="wb-subpanel flex min-h-[220px] flex-col overflow-hidden">
-          <div className="wb-pane-header shrink-0">
-            <span className="pf-text-xs font-semibold text-text-secondary">
-              {t("tcp.messageDetail.payload", "解码内容")}
-            </span>
-            <span className="pf-rounded-sm bg-bg-primary/70 px-2 py-0.5 pf-text-3xs font-semibold uppercase tracking-wide text-text-tertiary">
-              {displayFormat === "auto" ? t("tcp.messageLog.auto", "Auto") : displayFormat.toUpperCase()}
-            </span>
-          </div>
-          <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all bg-bg-primary/50 p-3 font-mono pf-text-sm leading-6 text-text-primary">
-            {derived.rendered || " "}
-          </pre>
-        </section>
-
-        <section className="wb-subpanel flex min-h-[220px] flex-col overflow-hidden">
-          <div className="wb-pane-header shrink-0">
-            <span className="pf-text-xs font-semibold text-text-secondary">
-              {t("tcp.messageDetail.rawHex", "原始 HEX")}
-            </span>
+          )}
+          {activeTab === "hex" && (
             <button
               onClick={() => void copyValue(derived.rawHex, "raw")}
               className="wb-icon-btn !h-7 !w-7"
@@ -169,11 +146,59 @@ export function MessageDetailPanel({ message, displayFormat, compact = false }: 
             >
               {copiedKey === "raw" ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
-          </div>
-          <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all bg-bg-primary/50 p-3 font-mono pf-text-xs leading-6 text-text-secondary">
+          )}
+          {message.direction !== "system" && activeTab !== "protocol" && (
+            <button
+              onClick={() => setActiveTab("protocol")}
+              className="wb-icon-btn !h-7 !w-7"
+              title={t("parser.parse", "解析")}
+            >
+              <FileCode2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex shrink-0 items-center gap-0.5 border-b border-border-default/60 px-3">
+        {TAB_ITEMS.map(({ key, icon: Icon, labelKey, fallback }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2 pf-text-xs font-medium transition-colors border-b-2 -mb-px",
+              activeTab === key
+                ? "border-accent text-accent"
+                : "border-transparent text-text-tertiary hover:text-text-secondary"
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {t(labelKey, fallback)}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {activeTab === "payload" && (
+          <pre className="h-full overflow-auto whitespace-pre-wrap break-all p-3 font-mono pf-text-sm leading-6 text-text-primary">
+            {derived.rendered || " "}
+          </pre>
+        )}
+
+        {activeTab === "hex" && (
+          <pre className="h-full overflow-auto whitespace-pre-wrap break-all p-3 font-mono pf-text-xs leading-6 text-text-secondary">
             {normalizeHexBlocks(derived.rawHex) || " "}
           </pre>
-        </section>
+        )}
+
+        {activeTab === "protocol" && (
+          <ProtocolParserPanel
+            key={message.id}
+            initialData={message.data}
+            compact
+          />
+        )}
       </div>
     </div>
   );

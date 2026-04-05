@@ -616,8 +616,9 @@
       "title": "Message Detail",
       "emptyTitle": "Select a frame to inspect",
       "emptyDesc": "This panel shows the decoded payload, raw hex, timestamp, and source metadata to help inspect packets frame by frame.",
-      "payload": "Decoded Payload",
-      "rawHex": "Raw HEX",
+      "payload": "Raw Payload",
+      "rawHex": "HEX",
+      "protocolParse": "Protocol Parse",
       "copyPayload": "Copy payload",
       "copyRawHex": "Copy raw HEX"
     },
