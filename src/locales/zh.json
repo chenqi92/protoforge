@@ -1034,7 +1034,10 @@
     "readyDesc": "支持 HJ212、Modbus 等工业协议的报文解析与结构化展示",
     "allGroups": "全部",
     "field": "字段",
-    "value": "值"
+    "value": "值",
+    "selectPlugin": "选择解析器",
+    "searchPlugin": "搜索协议...",
+    "noMatch": "无匹配结果"
   },
   "commandPalette": {
     "placeholder": "搜索操作、请求、集合...",

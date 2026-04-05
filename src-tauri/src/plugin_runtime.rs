@@ -276,6 +276,12 @@ pub struct FontFile {
 pub struct ParserContribution {
     pub protocol_id: String,
     pub name: String,
+    /// 自动检测正则数组, 任一匹配即命中. 如 ["^##\\d{4}"]
+    #[serde(default)]
+    pub match_patterns: Vec<String>,
+    /// 优先级 (0-100), 越大越优先. 默认 0
+    #[serde(default)]
+    pub priority: i32,
 }
 
 /// 图标贡献 — icon-pack 插件中每个图标的定义

@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { usePluginStore } from '@/stores/pluginStore';
 import * as pluginService from '@/services/pluginService';
-import type { ParseResult, ParsedField, LayoutSection, RegisterRow } from '@/types/plugin';
+import type { ParseResult, ParsedField, LayoutSection, RegisterRow, PluginManifest } from '@/types/plugin';
 
 // ════════════════════════════════════════════════
 //  Error Boundary
@@ -107,17 +107,31 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
   const parserPlugins = useMemo(() => installedPlugins.filter(p => p.pluginType === 'protocol-parser'), [installedPlugins]);
 
-  // Auto-detect protocol — returns matched plugin id or null
+  // Auto-detect protocol — data-driven from plugin manifests' matchPatterns + priority
   const detectProtocol = useCallback((input: string): string | null => {
-    if (!input.trim() || parserPlugins.length <= 1) return null;
+    if (!input.trim() || parserPlugins.length === 0) return null;
     const trimmed = input.trim();
+
+    // Collect all candidates: { pluginId, priority }
+    const candidates: { pluginId: string; priority: number }[] = [];
     for (const plugin of parserPlugins) {
-      const nameL = plugin.name.toLowerCase();
-      if (/^##\d{4}/.test(trimmed) && (nameL.includes('hj212') || nameL.includes('hj 212'))) return plugin.id;
-      if (/^7[Ee]7[Ee]/i.test(trimmed) && (nameL.includes('sl651') || nameL.includes('sl 651'))) return plugin.id;
-      if (/^:/.test(trimmed) && nameL.includes('modbus')) return plugin.id;
+      const parsers = plugin.contributes?.parsers;
+      if (!parsers?.length) continue;
+      for (const parser of parsers) {
+        if (!parser.matchPatterns?.length) continue;
+        const matched = parser.matchPatterns.some(pattern => {
+          try { return new RegExp(pattern).test(trimmed); } catch { return false; }
+        });
+        if (matched) {
+          candidates.push({ pluginId: plugin.id, priority: parser.priority ?? 0 });
+          break; // one match per plugin is enough
+        }
+      }
     }
-    return null;
+    if (candidates.length === 0) return null;
+    // highest priority wins
+    candidates.sort((a, b) => b.priority - a.priority);
+    return candidates[0].pluginId;
   }, [parserPlugins]);
 
   // handleParse — must be defined before effects that reference it
@@ -212,14 +226,11 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
       {!compact && (
         <div className="shrink-0 border-b border-border-default/60 p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <select value={selectedPluginId || ''} onChange={(e) => setSelectedPluginId(e.target.value)}
-                className="h-[32px] w-full appearance-none pf-rounded-md border border-border-default/80 bg-bg-secondary/42 pl-3 pr-8 text-text-primary outline-none transition-all focus:border-accent"
-                style={{ fontSize: 'var(--fs-sm)' }}>
-                {parserPlugins.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
-              </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled pointer-events-none" />
-            </div>
+            <PluginSearchSelect
+              plugins={parserPlugins}
+              selectedId={selectedPluginId}
+              onSelect={setSelectedPluginId}
+            />
             <button onClick={handleParse} disabled={loading || !rawInput.trim()}
               className="flex items-center gap-1.5 h-[32px] px-4 pf-rounded-md bg-accent text-white font-medium transition-colors hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               style={{ fontSize: 'var(--fs-sm)' }}>
@@ -643,6 +654,122 @@ function DefaultGroupRenderer({ fields, search, collapsedSections, toggleSection
 // ════════════════════════════════════════════════
 //  Field Value Renderer (通用)
 // ════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════
+//  Plugin Search Select (可搜索插件选择器)
+// ════════════════════════════════════════════════
+
+function PluginSearchSelect({ plugins, selectedId, onSelect }: {
+  plugins: PluginManifest[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [highlightIdx, setHighlightIdx] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selected = plugins.find(p => p.id === selectedId);
+
+  const filtered = useMemo(() => {
+    if (!query) return plugins;
+    const q = query.toLowerCase();
+    return plugins.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.id.toLowerCase().includes(q) ||
+      p.protocolIds.some(pid => pid.toLowerCase().includes(q)) ||
+      p.tags.some(tag => tag.toLowerCase().includes(q))
+    );
+  }, [plugins, query]);
+
+  useEffect(() => { setHighlightIdx(0); }, [filtered.length]);
+
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Focus input on open
+  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 0); }, [open]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightIdx(i => Math.min(i + 1, filtered.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter' && filtered[highlightIdx]) { onSelect(filtered[highlightIdx].id); setOpen(false); setQuery(''); }
+    else if (e.key === 'Escape') { setOpen(false); setQuery(''); }
+  };
+
+  return (
+    <div ref={containerRef} className="relative flex-1">
+      {/* Trigger */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex h-[32px] w-full items-center justify-between gap-2 pf-rounded-md border border-border-default/80 bg-bg-secondary/42 px-3 text-left transition-all hover:border-border-default cursor-pointer"
+      >
+        <span className="truncate pf-text-sm text-text-primary">{selected?.name || t('parser.selectPlugin', '选择解析器')}</span>
+        <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 text-text-disabled transition-transform", open && "rotate-180")} />
+      </button>
+
+      {/* Popover */}
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden pf-rounded-md border border-border-default bg-bg-primary shadow-lg">
+          {/* Search */}
+          <div className="flex items-center gap-2 border-b border-border-default/60 px-2.5 py-2">
+            <Search className="w-3.5 h-3.5 shrink-0 text-text-disabled" />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={t('parser.searchPlugin', '搜索协议...')}
+              className="flex-1 bg-transparent pf-text-sm text-text-primary outline-none placeholder:text-text-tertiary"
+            />
+          </div>
+          {/* List */}
+          <div className="max-h-[240px] overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-4 text-center pf-text-xs text-text-disabled">{t('parser.noMatch', '无匹配结果')}</div>
+            ) : (
+              filtered.map((p, idx) => (
+                <button
+                  key={p.id}
+                  onClick={() => { onSelect(p.id); setOpen(false); setQuery(''); }}
+                  onMouseEnter={() => setHighlightIdx(idx)}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2 text-left transition-colors",
+                    idx === highlightIdx && "bg-accent/8",
+                    selectedId === p.id && "text-accent"
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className={cn("pf-text-sm font-medium truncate", selectedId === p.id ? "text-accent" : "text-text-primary")}>
+                      {p.name}
+                    </div>
+                    {p.protocolIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-0.5">
+                        {p.protocolIds.map(pid => (
+                          <span key={pid} className="pf-text-3xs px-1 py-0.5 pf-rounded-xs bg-bg-secondary text-text-tertiary">{pid}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {selectedId === p.id && <Check className="w-3.5 h-3.5 shrink-0 text-accent" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FieldValue({ field }: { field: ParsedField }) {
   const valStr = String(field.value);

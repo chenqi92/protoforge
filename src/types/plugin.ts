@@ -98,6 +98,10 @@ export interface ContextMenuActionResult {
 export interface ParserContribution {
   protocolId: string;
   name: string;
+  /** 自动检测正则数组, 任一匹配即命中. 如 ["^##\\d{4}"] */
+  matchPatterns?: string[];
+  /** 优先级 (0-100), 越大越优先, 相似协议通过此字段区分. 默认 0 */
+  priority?: number;
 }
 
 /** 图标贡献 — icon-pack 类型插件中每个图标的定义 */
