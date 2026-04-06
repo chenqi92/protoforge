@@ -1,9 +1,11 @@
 // SQL 编辑器 — 统一 Tab 栏（Query + Table）+ Monaco 方言 + Schema 补全
+// 包含数据库选择器、SQL 关键字补全
 
-import { memo, useCallback, useState, useRef, useEffect } from "react";
+import { memo, useCallback, useRef, useEffect } from "react";
 import {
   Play, Square, Loader2, Clock, AlertCircle, CheckCircle2,
-  Download, Upload, Wand2, Plus, X, Table2, FileText,
+  Wand2, Plus, X, Table2, FileText, Database,
+  Copy, ClipboardPaste, Search,
 } from "lucide-react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { languages } from "monaco-editor";
@@ -11,9 +13,24 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { useDbClientStore, getDbClientStoreApi } from "@/stores/dbClientStore";
 import { useThemeStore } from "@/stores/themeStore";
-import { ImportExportDialog } from "./ImportExportDialog";
 import { formatSql } from "@/lib/sqlFormatter";
 import { getMonacoLanguage, getDbKeywords } from "@/lib/sqlDialect";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
+
+// ── SQL 标准关键字 ──
+const SQL_KEYWORDS = [
+  "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP",
+  "TABLE", "INDEX", "VIEW", "DATABASE", "SCHEMA", "INTO", "VALUES", "SET",
+  "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "CROSS", "ON", "AS", "AND", "OR", "NOT",
+  "IN", "EXISTS", "BETWEEN", "LIKE", "IS", "NULL", "TRUE", "FALSE",
+  "ORDER", "BY", "ASC", "DESC", "GROUP", "HAVING", "LIMIT", "OFFSET",
+  "UNION", "ALL", "DISTINCT", "CASE", "WHEN", "THEN", "ELSE", "END",
+  "COUNT", "SUM", "AVG", "MIN", "MAX", "COALESCE", "CAST",
+  "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "CHECK", "DEFAULT",
+  "CONSTRAINT", "IF", "BEGIN", "COMMIT", "ROLLBACK", "TRANSACTION",
+  "GRANT", "REVOKE", "TRUNCATE", "EXPLAIN", "ANALYZE", "WITH", "RECURSIVE",
+];
 
 export const SqlEditor = memo(function SqlEditor({
   sessionId,
@@ -30,10 +47,12 @@ export const SqlEditor = memo(function SqlEditor({
   const queryError = useDbClientStore(sessionId, (s) => s.queryError);
   const connected = useDbClientStore(sessionId, (s) => s.connected);
   const connectionConfig = useDbClientStore(sessionId, (s) => s.connectionConfig);
+  const databases = useDbClientStore(sessionId, (s) => s.databases);
   const selectedDatabase = useDbClientStore(sessionId, (s) => s.selectedDatabase);
 
-  const [showImportExport, setShowImportExport] = useState(false);
   const completionDisposableRef = useRef<{ dispose(): void } | null>(null);
+  const editorRef = useRef<{ getValue(): string; getSelection(): { startLineNumber: number; endLineNumber: number; startColumn: number; endColumn: number } | null; getModel(): { getValueInRange(range: unknown): string } | null } | null>(null);
+  const { showMenu: showEditorMenu, MenuComponent: EditorMenuComponent } = useContextMenu();
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const isQueryTab = activeTab?.kind === "query";
@@ -41,15 +60,13 @@ export const SqlEditor = memo(function SqlEditor({
 
   // ── Monaco 补全注册 ──
   const registerCompletionProvider = useCallback((monaco: Monaco) => {
-    // 先清理旧的
     completionDisposableRef.current?.dispose();
 
     const disposable = monaco.languages.registerCompletionItemProvider(monacoLanguage, {
-      triggerCharacters: ["."],
+      triggerCharacters: [".", " "],
       provideCompletionItems: (_model: unknown, position: { lineNumber: number; column: number }) => {
         const store = getDbClientStoreApi(sessionId);
         const schema = store.getState().schemaObjects;
-        if (!schema) return { suggestions: [] };
 
         const model = _model as { getWordUntilPosition(pos: { lineNumber: number; column: number }): { startColumn: number; endColumn: number } };
         const word = model.getWordUntilPosition(position);
@@ -62,6 +79,30 @@ export const SqlEditor = memo(function SqlEditor({
 
         const suggestions: languages.CompletionItem[] = [];
 
+        // SQL 标准关键字
+        for (const kw of SQL_KEYWORDS) {
+          suggestions.push({
+            label: kw,
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: kw,
+            range,
+            sortText: `2_${kw}`, // 排在表名后面
+          });
+        }
+
+        // 数据库特有关键字
+        for (const kw of getDbKeywords(connectionConfig?.dbType)) {
+          suggestions.push({
+            label: kw,
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: kw,
+            range,
+            sortText: `2_${kw}`,
+          });
+        }
+
+        if (!schema) return { suggestions };
+
         // 表名补全
         for (const tbl of schema.tables) {
           suggestions.push({
@@ -70,6 +111,7 @@ export const SqlEditor = memo(function SqlEditor({
             detail: tbl.comment || t("dbClient.tables"),
             insertText: tbl.name,
             range,
+            sortText: `0_${tbl.name}`, // 排在最前
           });
         }
 
@@ -81,6 +123,7 @@ export const SqlEditor = memo(function SqlEditor({
             detail: v.comment || t("dbClient.views"),
             insertText: v.name,
             range,
+            sortText: `0_${v.name}`,
           });
         }
 
@@ -92,16 +135,7 @@ export const SqlEditor = memo(function SqlEditor({
             detail: fn.returnType ? `→ ${fn.returnType}` : t("dbClient.functions"),
             insertText: `${fn.name}()`,
             range,
-          });
-        }
-
-        // 数据库特有关键字补全
-        for (const kw of getDbKeywords(connectionConfig?.dbType)) {
-          suggestions.push({
-            label: kw,
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: kw,
-            range,
+            sortText: `1_${fn.name}`,
           });
         }
 
@@ -112,11 +146,8 @@ export const SqlEditor = memo(function SqlEditor({
     completionDisposableRef.current = disposable;
   }, [sessionId, monacoLanguage, connectionConfig?.dbType, t]);
 
-  // 清理补全 provider
   useEffect(() => {
-    return () => {
-      completionDisposableRef.current?.dispose();
-    };
+    return () => { completionDisposableRef.current?.dispose(); };
   }, []);
 
   const handleExecute = useCallback(() => {
@@ -152,15 +183,73 @@ export const SqlEditor = memo(function SqlEditor({
     getDbClientStoreApi(sessionId).getState().setActiveTab(tabId);
   }, [sessionId]);
 
+  const handleSelectDatabase = useCallback((db: string) => {
+    getDbClientStoreApi(sessionId).getState().selectDatabase(db);
+  }, [sessionId]);
+
+  // 获取选中文本
+  const getSelectedText = useCallback((): string => {
+    const ed = editorRef.current;
+    if (!ed) return "";
+    const sel = ed.getSelection();
+    if (!sel) return "";
+    const model = ed.getModel();
+    if (!model) return "";
+    return model.getValueInRange(sel).trim();
+  }, []);
+
+  // 执行选中的 SQL
+  const executeSelection = useCallback(() => {
+    const sel = getSelectedText();
+    if (!sel) return;
+    const store = getDbClientStoreApi(sessionId);
+    store.getState().setSqlText(sel);
+    store.getState().executeQuery();
+  }, [sessionId, getSelectedText]);
+
+  // EXPLAIN 查询
+  const explainQuery = useCallback(() => {
+    const store = getDbClientStoreApi(sessionId);
+    const sel = getSelectedText() || store.getState().sqlText.trim();
+    if (!sel) return;
+    store.getState().addQueryTab("EXPLAIN", `EXPLAIN ${sel}`);
+    store.getState().executeQuery();
+  }, [sessionId, getSelectedText]);
+
+  // 编辑器右键菜单
+  const handleEditorContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const sel = getSelectedText();
+    const items: ContextMenuEntry[] = [
+      { id: "copy", label: t("contextMenu.copy") || "Copy", icon: <Copy size={13} />, shortcut: "⌘C",
+        disabled: !sel, onClick: () => { if (sel) copyTextToClipboard(sel); } },
+      { id: "paste", label: t("contextMenu.paste") || "Paste", icon: <ClipboardPaste size={13} />, shortcut: "⌘V",
+        onClick: async () => {
+          const text = await navigator.clipboard.readText();
+          const ed = editorRef.current as { trigger?(source: string, handlerId: string, payload: unknown): void } | null;
+          if (ed?.trigger) ed.trigger("keyboard", "type", { text });
+        } },
+      { type: "divider" },
+      { id: "exec-sel", label: t("dbClient.executeSelection"), icon: <Play size={13} />,
+        disabled: !sel, onClick: executeSelection },
+      { id: "explain", label: t("dbClient.explain"), icon: <Search size={13} />,
+        onClick: explainQuery },
+      { type: "divider" },
+      { id: "format", label: t("dbClient.formatSql"), icon: <Wand2 size={13} />,
+        onClick: handleFormat },
+    ];
+    showEditorMenu(e, items);
+  }, [t, getSelectedText, executeSelection, explainQuery, handleFormat, showEditorMenu]);
+
   // 自动创建第一个 query tab
   if (tabs.filter((t) => t.kind === "query").length === 0 && connected) {
     getDbClientStoreApi(sessionId).getState().addQueryTab();
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className={cn("flex flex-col", isQueryTab && "h-full")}>
       {/* 统一 Tab 栏 */}
-      <div className="flex items-center border-b border-border-default/50 bg-bg-base">
+      <div className="flex items-center border-b border-border-default/50 bg-bg-base shrink-0">
         <div className="flex flex-1 items-center overflow-x-auto min-w-0">
           {tabs.map((tab) => (
             <button
@@ -206,11 +295,11 @@ export const SqlEditor = memo(function SqlEditor({
         </button>
       </div>
 
-      {/* Query Tab 内容：工具栏 + 编辑器 */}
+      {/* Query Tab 内容 */}
       {isQueryTab && (
         <>
           {/* 工具栏 */}
-          <div className="flex items-center gap-2 border-b border-border-default/50 px-3 py-1.5">
+          <div className="flex items-center gap-2 border-b border-border-default/50 px-3 py-1.5 shrink-0">
             <button
               onClick={queryRunning ? handleCancel : handleExecute}
               disabled={!connected}
@@ -229,6 +318,23 @@ export const SqlEditor = memo(function SqlEditor({
               )}
             </button>
 
+            {/* 数据库选择器 */}
+            {databases.length > 0 && (
+              <div className="flex items-center gap-1 shrink-0">
+                <Database size={11} className="text-text-tertiary" />
+                <select
+                  value={selectedDatabase ?? ""}
+                  onChange={(e) => handleSelectDatabase(e.target.value)}
+                  className="pf-rounded-sm border border-border-default bg-bg-secondary px-1.5 py-0.5 pf-text-xs text-text-primary focus:border-accent focus:outline-none max-w-[140px]"
+                >
+                  {databases.map((db) => (
+                    <option key={db.name} value={db.name}>{db.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* 结果状态 */}
             {queryResult && !queryRunning && (
               <div className="flex items-center gap-1.5 pf-text-xs text-text-tertiary">
                 <CheckCircle2 size={12} className="text-emerald-500" />
@@ -253,6 +359,7 @@ export const SqlEditor = memo(function SqlEditor({
               </div>
             )}
 
+            {/* 右侧工具 */}
             <div className="ml-auto flex items-center gap-1">
               <button
                 onClick={handleFormat}
@@ -262,20 +369,11 @@ export const SqlEditor = memo(function SqlEditor({
               >
                 <Wand2 size={12} />
               </button>
-              <button
-                onClick={() => setShowImportExport(true)}
-                disabled={!connected}
-                className="flex items-center gap-1 pf-rounded-sm px-2 py-1 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary disabled:opacity-40"
-                title={t("dbClient.importExport")}
-              >
-                <Download size={12} />
-                <Upload size={12} />
-              </button>
             </div>
           </div>
 
           {/* Monaco 编辑器 */}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0" onContextMenu={handleEditorContextMenu}>
             <Editor
               language={monacoLanguage}
               theme={theme === "dark" ? "vs-dark" : "light"}
@@ -291,9 +389,12 @@ export const SqlEditor = memo(function SqlEditor({
                 tabSize: 2,
                 padding: { top: 8 },
                 suggest: { showKeywords: true },
+                quickSuggestions: true,
+                contextmenu: false, // 禁用默认右键菜单
               }}
               onMount={(editor, monaco) => {
-                // Ctrl/Cmd + Enter 执行查询
+                editorRef.current = editor as typeof editorRef.current;
+                // Ctrl/Cmd + Enter 执行
                 editor.addAction({
                   id: "execute-query",
                   label: "Execute Query",
@@ -306,7 +407,6 @@ export const SqlEditor = memo(function SqlEditor({
                     }
                   },
                 });
-                // 注册补全 provider
                 registerCompletionProvider(monaco);
               }}
             />
@@ -314,16 +414,8 @@ export const SqlEditor = memo(function SqlEditor({
         </>
       )}
 
-      {/* Table tab 的内容不在这里渲染，由 DbClientWorkspace 处理 */}
-
-      {/* 导入导出对话框 */}
-      <ImportExportDialog
-        open={showImportExport}
-        onClose={() => setShowImportExport(false)}
-        sessionId={sessionId}
-        connectionConfig={connectionConfig}
-        selectedDatabase={selectedDatabase}
-      />
+      {/* 编辑器右键菜单 */}
+      {EditorMenuComponent}
     </div>
   );
 });

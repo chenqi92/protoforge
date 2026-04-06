@@ -25,17 +25,12 @@ export function getTableDdlQuery(
 ): string {
   switch (dbType) {
     case "postgresql": {
-      return [
-        `-- DDL for ${schema ? schema + "." : ""}${table}`,
-        `-- Columns`,
-        `SELECT column_name, data_type, is_nullable, column_default`,
-        `FROM information_schema.columns`,
-        `WHERE table_schema = '${escLiteral(schema || "public")}' AND table_name = '${escLiteral(table)}'`,
-        `ORDER BY ordinal_position;`,
-      ].join("\n");
+      const pgSchema = schema || "public";
+      return `SELECT column_name, data_type, is_nullable, column_default, character_maximum_length\nFROM information_schema.columns\nWHERE table_schema = '${escLiteral(pgSchema)}' AND table_name = '${escLiteral(table)}'\nORDER BY ordinal_position;`;
     }
     case "mysql":
-      return `SHOW CREATE TABLE ${quoteIdentMysql(schema)}.${quoteIdentMysql(table)};`;
+      // MySQL 的 SHOW CREATE TABLE 只需要表名，数据库上下文由 USE 语句处理
+      return `SHOW CREATE TABLE ${quoteIdentMysql(table)};`;
     case "sqlite":
       return `SELECT sql FROM sqlite_master WHERE type='table' AND name='${escLiteral(table)}';`;
     default:

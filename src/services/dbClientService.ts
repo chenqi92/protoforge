@@ -84,8 +84,9 @@ export async function describeTable(
 export async function executeQuery(
   sessionId: string,
   sql: string,
+  database?: string | null,
 ): Promise<QueryResult> {
-  return invoke("db_client_execute_query", { sessionId, sql });
+  return invoke("db_client_execute_query", { sessionId, sql, database: database ?? null });
 }
 
 export async function cancelQuery(sessionId: string): Promise<void> {

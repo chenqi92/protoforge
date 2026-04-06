@@ -3258,10 +3258,17 @@ pub async fn db_client_execute_query(
     mgr: State<'_, DbConnectionManager>,
     session_id: String,
     sql: String,
+    database: Option<String>,
 ) -> Result<QueryResult, String> {
     let driver_arc = mgr.get_driver_arc(&session_id).await?;
     let driver = driver_arc.lock().await;
-    let mut result = driver.execute_query(&sql).await?;
+    // 使用 execute_query_in_database 确保 USE db 和用户 SQL 在同一连接上执行
+    let mut result = match database {
+        Some(ref db) if !db.is_empty() => {
+            driver.execute_query_in_database(&sql, db).await?
+        }
+        _ => driver.execute_query(&sql).await?,
+    };
     // 安全阈值：截断超过 10000 行的结果防止前端 OOM
     const MAX_ROWS: usize = 10_000;
     if result.rows.len() > MAX_ROWS {
@@ -3377,12 +3384,13 @@ pub async fn db_client_list_query_history(
 
 #[tauri::command]
 pub async fn db_client_export(
-    _mgr: State<'_, DbConnectionManager>,
-    _session_id: String,
+    mgr: State<'_, DbConnectionManager>,
+    session_id: String,
     config: ConnectionConfig,
     options: db_client::driver::ExportOptions,
 ) -> Result<db_client::driver::ExportResult, String> {
-    match config.db_type.as_str() {
+    // 优先使用外部工具，失败时回退到内置 SQL 导出
+    let tool_result = match config.db_type.as_str() {
         "postgresql" => {
             db_client::export::pg_dump(
                 &config.host, config.port, &config.username, &config.password, &options,
@@ -3398,6 +3406,20 @@ pub async fn db_client_export(
             db_client::export::sqlite_dump(db_path, &options).await
         }
         _ => Err(format!("Export not supported for {}", config.db_type)),
+    };
+
+    // 如果外部工具失败（找不到工具），回退到内置 SQL 导出
+    match tool_result {
+        Ok(result) => Ok(result),
+        Err(e) if e.contains("not found") => {
+            // 使用内置 SQL 导出
+            let driver_arc = mgr.get_driver_arc(&session_id).await?;
+            let driver = driver_arc.lock().await;
+            db_client::export::sql_based_export(
+                &**driver, &options, config.db_type.as_str(),
+            ).await
+        }
+        Err(e) => Err(e),
     }
 }
 
@@ -3411,6 +3433,11 @@ pub async fn db_client_import(
     match config.db_type.as_str() {
         "postgresql" => {
             db_client::export::pg_import(
+                &config.host, config.port, &config.username, &config.password, &options,
+            ).await
+        }
+        "mysql" => {
+            db_client::export::mysql_import(
                 &config.host, config.port, &config.username, &config.password, &options,
             ).await
         }

@@ -2,7 +2,7 @@
 // Query tab: SqlEditor(编辑器+工具栏) + ResultTabs(结果+历史)
 // Table tab: TableDataView(筛选+排序+数据网格)
 
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useState, useRef, useMemo } from "react";
 import {
   Panel,
   Group as PanelGroup,
@@ -81,9 +81,11 @@ export const DbClientWorkspace = memo(function DbClientWorkspace({
           <Panel id="db-main" defaultSize={78} minSize={40}>
             {connected ? (
               activeTab?.kind === "table" ? (
-                // Table Data Tab: Tab 栏（SqlEditor）+ 全高 TableDataView
+                // Table Data Tab: Tab 栏 + 全高 TableDataView
                 <div className="flex h-full flex-col">
-                  <SqlEditor sessionId={sessionId} />
+                  <div className="shrink-0">
+                    <SqlEditor sessionId={sessionId} />
+                  </div>
                   <div className="flex-1 min-h-0">
                     <TableDataView sessionId={sessionId} tab={activeTab} />
                   </div>
@@ -135,6 +137,25 @@ function ResultTabs({
 }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"data" | "history">("data");
+  const [queryPageOffset, setQueryPageOffset] = useState(0);
+  const queryPageLimit = 500;
+
+  // 重置分页 when result changes
+  const resultRef = useRef(queryResult);
+  if (resultRef.current !== queryResult) {
+    resultRef.current = queryResult;
+    if (queryPageOffset !== 0) setQueryPageOffset(0);
+  }
+
+  // 客户端分页：截取当前页数据
+  const pagedResult = useMemo(() => {
+    if (!queryResult || queryResult.rows.length <= queryPageLimit) return queryResult;
+    return {
+      ...queryResult,
+      rows: queryResult.rows.slice(queryPageOffset, queryPageOffset + queryPageLimit),
+      totalRows: queryResult.rows.length,
+    };
+  }, [queryResult, queryPageOffset, queryPageLimit]);
 
   return (
     <div className="flex h-full flex-col">
@@ -167,7 +188,12 @@ function ResultTabs({
 
       <div className="flex-1 min-h-0">
         {activeTab === "data" ? (
-          <DataGrid result={queryResult} />
+          <DataGrid
+            result={pagedResult}
+            offset={queryPageOffset}
+            limit={queryPageLimit}
+            onPageChange={queryResult && queryResult.rows.length > queryPageLimit ? setQueryPageOffset : undefined}
+          />
         ) : (
           <QueryHistoryPanel sessionId={sessionId} />
         )}

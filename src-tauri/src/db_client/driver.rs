@@ -220,6 +220,12 @@ pub trait DbDriver: Send + Sync {
     /// 执行查询（SELECT），返回结果集
     async fn execute_query(&self, sql: &str) -> Result<QueryResult, String>;
 
+    /// 在指定数据库上下文中执行查询（同一连接先 USE db）
+    /// 默认实现忽略 database 参数，MySQL 覆盖此方法
+    async fn execute_query_in_database(&self, sql: &str, _database: &str) -> Result<QueryResult, String> {
+        self.execute_query(sql).await
+    }
+
     /// 执行语句（INSERT/UPDATE/DELETE/DDL），返回影响行数
     async fn execute_statement(&self, sql: &str) -> Result<u64, String>;
 

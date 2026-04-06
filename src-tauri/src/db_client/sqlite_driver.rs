@@ -324,11 +324,24 @@ impl DbDriver for SqliteDriver {
             }
             None => String::new(),
         };
+        let count_sql = format!("SELECT COUNT(*) FROM {} {}", safe_table, where_clause);
+        let total_rows: Option<i64> = match self.execute_query(&count_sql).await {
+            Ok(cr) if !cr.rows.is_empty() && !cr.rows[0].is_empty() => {
+                match &cr.rows[0][0] {
+                    SqlValue::Int(n) => Some(*n),
+                    SqlValue::Text(s) => s.parse().ok(),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
         let sql = format!(
             "SELECT * FROM {} {} {} LIMIT {} OFFSET {}",
             safe_table, where_clause, order, limit, offset
         );
-        self.execute_query(&sql).await
+        let mut result = self.execute_query(&sql).await?;
+        result.total_rows = total_rows;
+        Ok(result)
     }
 
     async fn apply_cell_edits(&self, edits: &[CellEdit]) -> Result<u64, String> {

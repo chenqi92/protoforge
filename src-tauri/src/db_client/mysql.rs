@@ -41,6 +41,7 @@ impl MysqlDriver {
             .map_err(|e| format!("Get connection failed: {}", e))
     }
 
+
     fn mysql_value_to_sql(val: &MysqlValue) -> SqlValue {
         match val {
             MysqlValue::NULL => SqlValue::Null,
@@ -181,6 +182,44 @@ impl DbDriver for MysqlDriver {
             truncated: false,
             total_rows: Some(row_count as i64),
             warnings: vec![],
+        })
+    }
+
+    async fn execute_query_in_database(&self, sql: &str, database: &str) -> Result<QueryResult, String> {
+        let mut conn = self.get_conn().await?;
+        // 在同一连接上先 USE database
+        if !database.is_empty() {
+            let use_sql = format!("USE `{}`", database.replace('`', "``"));
+            conn.query_drop(&use_sql).await
+                .map_err(|e| format!("USE database failed: {}", e))?;
+        }
+        // 然后执行用户 SQL（同一个 conn 对象）
+        let start = std::time::Instant::now();
+        let result: Vec<MysqlRow> = conn.query(sql).await
+            .map_err(|e| format!("Query failed: {}", e))?;
+        let elapsed = start.elapsed().as_millis() as u64;
+
+        if result.is_empty() {
+            return Ok(QueryResult {
+                columns: vec![], rows: vec![], affected_rows: None,
+                execution_time_ms: elapsed, truncated: false, total_rows: Some(0), warnings: vec![],
+            });
+        }
+
+        let columns: Vec<ColumnInfo> = result[0].columns_ref().iter().map(|col| ColumnInfo {
+            name: col.name_str().to_string(),
+            data_type: format!("{:?}", col.column_type()),
+            nullable: true,
+            is_primary_key: col.flags().contains(mysql_async::consts::ColumnFlags::PRI_KEY_FLAG),
+            max_length: Some(col.column_length() as i64),
+        }).collect();
+
+        let data: Vec<Vec<SqlValue>> = result.iter().map(Self::row_to_values).collect();
+        let row_count = data.len();
+
+        Ok(QueryResult {
+            columns, rows: data, affected_rows: None,
+            execution_time_ms: elapsed, truncated: false, total_rows: Some(row_count as i64), warnings: vec![],
         })
     }
 
@@ -424,11 +463,28 @@ impl DbDriver for MysqlDriver {
             None => String::new(),
         };
         validate_identifier(table)?;
+        let table_ref = format!("{}.{}", quote_mysql_ident(effective_db)?, quote_mysql_ident(table)?);
+
+        // 先查总行数
+        let count_sql = format!("SELECT COUNT(*) FROM {} {}", table_ref, where_clause);
+        let total_rows: Option<i64> = match self.execute_query(&count_sql).await {
+            Ok(cr) if !cr.rows.is_empty() && !cr.rows[0].is_empty() => {
+                match &cr.rows[0][0] {
+                    SqlValue::Int(n) => Some(*n),
+                    SqlValue::Text(s) => s.parse().ok(),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+
         let sql = format!(
-            "SELECT * FROM {}.{} {} {} LIMIT {} OFFSET {}",
-            quote_mysql_ident(effective_db)?, quote_mysql_ident(table)?, where_clause, order, limit, offset
+            "SELECT * FROM {} {} {} LIMIT {} OFFSET {}",
+            table_ref, where_clause, order, limit, offset
         );
-        self.execute_query(&sql).await
+        let mut result = self.execute_query(&sql).await?;
+        result.total_rows = total_rows;
+        Ok(result)
     }
 
     async fn apply_cell_edits(&self, edits: &[CellEdit]) -> Result<u64, String> {

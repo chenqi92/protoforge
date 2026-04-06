@@ -43,7 +43,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
   const expandedNodes = useDbClientStore(sessionId, (s) => s.expandedNodes);
   const databases = useDbClientStore(sessionId, (s) => s.databases);
   const selectedDatabase = useDbClientStore(sessionId, (s) => s.selectedDatabase);
-  const schemaObjects = useDbClientStore(sessionId, (s) => s.schemaObjects);
+  const schemaObjectsMap = useDbClientStore(sessionId, (s) => s.schemaObjectsMap);
   const schemaLoading = useDbClientStore(sessionId, (s) => s.schemaLoading);
   const connectionConfig = useDbClientStore(sessionId, (s) => s.connectionConfig);
   const tabs = useDbClientStore(sessionId, (s) => s.tabs);
@@ -52,6 +52,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingConn, setEditingConn] = useState<SavedConnection | null>(null);
   const [importExportOpen, setImportExportOpen] = useState(false);
+  const [exportDefaultTables, setExportDefaultTables] = useState<string[]>([]);
   const { showMenu, MenuComponent } = useContextMenu();
 
   // 当前活跃 table tab 的表名（用于高亮）
@@ -106,11 +107,11 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
     navigator.clipboard.writeText(text).catch(() => {});
   }, []);
 
-  // ── Show DDL → 新建 query tab 并执行 ──
-  const showDdl = useCallback((ddlSql: string) => {
+  // ── Show DDL → 新建 query tab 并执行（使用表所在数据库）──
+  const showDdl = useCallback((ddlSql: string, database?: string) => {
     const store = getDbClientStoreApi(sessionId);
     store.getState().addQueryTab("DDL", ddlSql);
-    store.getState().executeQuery();
+    store.getState().executeQuery(database);
   }, [sessionId]);
 
   // ── 右键菜单：连接节点 ──
@@ -160,7 +161,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
       { type: "divider" },
       {
         id: "export-db", label: t("dbClient.export"), icon: <Download size={13} />,
-        onClick: () => { setImportExportOpen(true); },
+        onClick: () => { setExportDefaultTables([]); setImportExportOpen(true); },
       },
       {
         id: "import-db", label: t("dbClient.import"), icon: <Upload size={13} />,
@@ -176,7 +177,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
   }, [t, sessionId, handleSelectDatabase, copyText, showMenu]);
 
   // ── 右键菜单：表节点 ──
-  const onTableContext = useCallback((e: React.MouseEvent, schema: string, tableName: string) => {
+  const onTableContext = useCallback((e: React.MouseEvent, schema: string, tableName: string, database?: string) => {
     const items: ContextMenuEntry[] = [
       {
         id: "open", label: t("dbClient.openTable"), icon: <Table2 size={13} />,
@@ -184,12 +185,12 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
       },
       {
         id: "show-ddl", label: t("dbClient.showDDL"), icon: <Code2 size={13} />,
-        onClick: () => showDdl(getTableDdlQuery(dbType, schema, tableName)),
+        onClick: () => showDdl(getTableDdlQuery(dbType, schema, tableName), database),
       },
       { type: "divider" },
       {
         id: "export-table", label: t("dbClient.exportTable"), icon: <Download size={13} />,
-        onClick: () => { setImportExportOpen(true); },
+        onClick: () => { setExportDefaultTables([tableName]); setImportExportOpen(true); },
       },
       {
         id: "copy-name", label: t("dbClient.copyName"), icon: <Copy size={13} />,
@@ -204,11 +205,11 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
   }, [t, dbType, handleOpenTable, showDdl, copyText, showMenu]);
 
   // ── 右键菜单：函数节点 ──
-  const onFunctionContext = useCallback((e: React.MouseEvent, schema: string, funcName: string) => {
+  const onFunctionContext = useCallback((e: React.MouseEvent, schema: string, funcName: string, database?: string) => {
     const items: ContextMenuEntry[] = [
       {
         id: "show-ddl", label: t("dbClient.showDDL"), icon: <Code2 size={13} />,
-        onClick: () => showDdl(getFunctionDdlQuery(dbType, schema, funcName)),
+        onClick: () => showDdl(getFunctionDdlQuery(dbType, schema, funcName), database),
       },
       {
         id: "copy-name", label: t("dbClient.copyName"), icon: <Copy size={13} />,
@@ -314,9 +315,11 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                               "text-text-secondary hover:bg-bg-hover",
                             )}
                             onClick={() => {
-                              handleSelectDatabase(db.name);
-                              if (!isDbExpanded) toggle(dbNodeId);
-                              else if (isDbSelected) toggle(dbNodeId);
+                              if (!isDbExpanded) {
+                                // 展开时加载 schema（如果未缓存）
+                                handleSelectDatabase(db.name);
+                              }
+                              toggle(dbNodeId);
                             }}
                             onContextMenu={(e) => onDatabaseContext(e, db.name)}
                           >
@@ -330,72 +333,75 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                             )}
                           </div>
 
-                          {/* Schema 对象 */}
-                          {isDbExpanded && isDbSelected && (
+                          {/* Schema 对象（支持多库同时展开） */}
+                          {isDbExpanded && (() => {
+                            const dbSchema = schemaObjectsMap.get(db.name);
+                            const isThisDbLoading = schemaLoading && selectedDatabase === db.name;
+                            return (
                             <div className="ml-4 border-l border-border-default/15 pl-0">
-                              {schemaLoading ? (
+                              {isThisDbLoading && !dbSchema ? (
                                 <div className="flex items-center gap-1.5 px-3 py-1.5">
                                   <Loader2 size={11} className="animate-spin text-text-tertiary" />
                                   <span className="pf-text-xs text-text-tertiary">{t("dbClient.loading")}</span>
                                 </div>
-                              ) : schemaObjects ? (
+                              ) : dbSchema ? (
                                 <>
                                   {/* Tables */}
-                                  {schemaObjects.tables.length > 0 && (
+                                  {dbSchema.tables.length > 0 && (
                                     <SchemaGroup
                                       icon={<Table2 size={11} className="text-blue-500" />}
                                       label={t("dbClient.tables")}
-                                      count={schemaObjects.tables.length}
+                                      count={dbSchema.tables.length}
                                       expanded={expandedNodes.has(`tables:${conn.id}:${db.name}`)}
                                       onToggle={() => toggle(`tables:${conn.id}:${db.name}`)}
                                     >
-                                      {schemaObjects.tables.map((tbl) => (
+                                      {dbSchema.tables.map((tbl) => (
                                         <TableLeaf
                                           key={`${tbl.schema}.${tbl.name}`}
                                           table={tbl}
                                           isSelected={activeTableSchema === tbl.schema && activeTableName === tbl.name}
                                           onDoubleClick={() => handleOpenTable(tbl.schema, tbl.name)}
-                                          onContextMenu={(e) => onTableContext(e, tbl.schema, tbl.name)}
+                                          onContextMenu={(e) => onTableContext(e, tbl.schema, tbl.name, db.name)}
                                         />
                                       ))}
                                     </SchemaGroup>
                                   )}
 
                                   {/* Views */}
-                                  {schemaObjects.views.length > 0 && (
+                                  {dbSchema.views.length > 0 && (
                                     <SchemaGroup
                                       icon={<Eye size={11} className="text-purple-500" />}
                                       label={t("dbClient.views")}
-                                      count={schemaObjects.views.length}
+                                      count={dbSchema.views.length}
                                       expanded={expandedNodes.has(`views:${conn.id}:${db.name}`)}
                                       onToggle={() => toggle(`views:${conn.id}:${db.name}`)}
                                     >
-                                      {schemaObjects.views.map((v) => (
+                                      {dbSchema.views.map((v) => (
                                         <TableLeaf
                                           key={`${v.schema}.${v.name}`}
                                           table={v}
                                           isSelected={false}
                                           onDoubleClick={() => handleOpenTable(v.schema, v.name)}
-                                          onContextMenu={(e) => onTableContext(e, v.schema, v.name)}
+                                          onContextMenu={(e) => onTableContext(e, v.schema, v.name, db.name)}
                                         />
                                       ))}
                                     </SchemaGroup>
                                   )}
 
                                   {/* Functions */}
-                                  {schemaObjects.functions.length > 0 && (
+                                  {dbSchema.functions.length > 0 && (
                                     <SchemaGroup
                                       icon={<FunctionSquare size={11} className="text-amber-500" />}
                                       label={t("dbClient.functions")}
-                                      count={schemaObjects.functions.length}
+                                      count={dbSchema.functions.length}
                                       expanded={expandedNodes.has(`functions:${conn.id}:${db.name}`)}
                                       onToggle={() => toggle(`functions:${conn.id}:${db.name}`)}
                                     >
-                                      {schemaObjects.functions.map((fn) => (
+                                      {dbSchema.functions.map((fn) => (
                                         <div
                                           key={`${fn.schema}.${fn.name}`}
                                           className="flex items-center gap-1.5 px-5 py-0.5 pf-text-xs text-text-secondary hover:bg-bg-hover pf-rounded-sm cursor-default"
-                                          onContextMenu={(e) => onFunctionContext(e, fn.schema, fn.name)}
+                                          onContextMenu={(e) => onFunctionContext(e, fn.schema, fn.name, db.name)}
                                         >
                                           <FunctionSquare size={10} className="shrink-0 opacity-40" />
                                           <span className="truncate">{fn.name}</span>
@@ -409,7 +415,8 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                                 </>
                               ) : null}
                             </div>
-                          )}
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -448,10 +455,11 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
       {/* 导入导出对话框 */}
       <ImportExportDialog
         open={importExportOpen}
-        onClose={() => setImportExportOpen(false)}
+        onClose={() => { setImportExportOpen(false); setExportDefaultTables([]); }}
         sessionId={sessionId}
         connectionConfig={connectionConfig}
         selectedDatabase={selectedDatabase}
+        defaultTables={exportDefaultTables}
       />
     </div>
   );

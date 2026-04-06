@@ -95,7 +95,7 @@ export const MockServerWorkspace = memo(function MockServerWorkspace({
   }, [routePanelRef]);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-bg-base" data-contextmenu-zone="mockserver" onContextMenu={(e) => e.preventDefault()}>
+    <div className="flex h-full flex-col overflow-hidden bg-bg-primary" data-contextmenu-zone="mockserver" onContextMenu={(e) => e.preventDefault()}>
       {/* 控制栏 */}
       <ControlBar sessionId={sessionId} running={running} port={port} totalHits={totalHits} error={error} routeCount={routes.length} proxyTarget={proxyTarget} />
 
@@ -258,7 +258,7 @@ function ControlBar({
   }, [store]);
 
   return (
-    <div className="flex flex-col border-b border-border-primary bg-bg-surface">
+    <div className="flex flex-col border-b border-border-default bg-bg-surface">
       <div className="flex items-center gap-3 px-4 py-2">
         {/* 启动/停止 */}
         <button
@@ -283,7 +283,7 @@ function ControlBar({
             value={portInput}
             onChange={(e) => setPortInput(e.target.value)}
             disabled={running}
-            className={cn("w-20 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none", running && "opacity-60 cursor-not-allowed")}
+            className={cn("w-20 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none", running && "opacity-60 cursor-not-allowed")}
             min={1} max={65535}
           />
         </div>
@@ -352,7 +352,7 @@ function ProxyTargetInput({ sessionId, proxyTarget }: { sessionId: string; proxy
   };
 
   return (
-    <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border-subtle bg-bg-base/50">
+    <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border-subtle bg-bg-primary/50">
       <Globe className="h-3 w-3 text-text-tertiary shrink-0" />
       <span className="pf-text-xs text-text-secondary shrink-0">{t("mockServer.proxyTarget")}:</span>
       <input
@@ -362,7 +362,7 @@ function ProxyTargetInput({ sessionId, proxyTarget }: { sessionId: string; proxy
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
         placeholder="https://api.example.com"
-        className="flex-1 min-w-0 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-xs text-text-primary font-mono focus:border-accent-primary focus:outline-none"
+        className="flex-1 min-w-0 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary font-mono focus:border-accent focus:outline-none"
       />
       <span className="pf-text-[10px] text-text-tertiary shrink-0">{t("mockServer.proxyHint")}</span>
     </div>
@@ -388,13 +388,13 @@ function RouteListPanel({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* 头部 */}
-      <div className="flex items-center justify-between border-b border-border-primary px-3 py-2 shrink-0">
+      <div className="flex items-center justify-between border-b border-border-default px-3 py-2 shrink-0">
         <span className="pf-text-xs font-medium text-text-secondary uppercase tracking-wider">
           {t("mockServer.routeList")}
         </span>
         <button
           onClick={() => store.getState().addRoute()}
-          className="flex items-center gap-1 rounded px-1.5 py-0.5 pf-text-xs text-accent-primary hover:bg-bg-hover transition-colors"
+          className="flex items-center gap-1 rounded px-1.5 py-0.5 pf-text-xs text-accent hover:bg-bg-hover transition-colors"
           title={t("mockServer.addRoute")}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -411,7 +411,7 @@ function RouteListPanel({
             </p>
             <button
               onClick={() => store.getState().addRoute()}
-              className="flex items-center gap-1 rounded-md bg-accent-primary/10 px-3 py-1.5 pf-text-xs text-accent-primary hover:bg-accent-primary/20 transition-colors"
+              className="flex items-center gap-1 rounded-md bg-accent/10 px-3 py-1.5 pf-text-xs text-accent hover:bg-accent/20 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               {t("mockServer.addFirstRoute")}
@@ -461,7 +461,7 @@ function RouteListItem({
       className={cn(
         "group flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-border-subtle transition-colors min-w-0",
         selected
-          ? "bg-accent-primary/8 border-l-2 border-l-accent-primary"
+          ? "bg-accent/8 border-l-2 border-l-accent"
           : "hover:bg-bg-hover border-l-2 border-l-transparent",
         !route.enabled && "opacity-50",
       )}
@@ -583,12 +583,12 @@ function RouteEditorPanel({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* 方法 + 路径 (始终显示) */}
-      <div className="border-b border-border-primary px-4 py-2 shrink-0 space-y-2">
+      <div className="border-b border-border-default px-4 py-2 shrink-0 space-y-2">
         <div className="flex gap-2">
           <select
             value={route.method ?? ""}
             onChange={(e) => update({ method: e.target.value || undefined })}
-            className="w-28 shrink-0 rounded border border-border-primary bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none"
+            className="w-28 shrink-0 rounded border border-border-default bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary focus:border-accent focus:outline-none"
           >
             <option value="">ANY</option>
             {HTTP_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -598,7 +598,7 @@ function RouteEditorPanel({
             value={route.pattern}
             onChange={(e) => update({ pattern: e.target.value })}
             placeholder="/api/users/:id"
-            className="flex-1 min-w-0 rounded border border-border-primary bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary font-mono focus:border-accent-primary focus:outline-none"
+            className="flex-1 min-w-0 rounded border border-border-default bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary font-mono focus:border-accent focus:outline-none"
           />
         </div>
         {/* Tab 切换 */}
@@ -612,14 +612,14 @@ function RouteEditorPanel({
                 className={cn(
                   "flex items-center gap-1 px-2 py-1 rounded pf-text-[11px] transition-colors",
                   activeTab === tab.id
-                    ? "bg-accent-primary/10 text-accent-primary font-medium"
+                    ? "bg-accent/10 text-accent font-medium"
                     : "text-text-tertiary hover:text-text-primary hover:bg-bg-hover",
                 )}
               >
                 <Icon className="h-3 w-3" />
                 {tab.label}
                 {(tab.badge ?? 0) > 0 && (
-                  <span className="ml-0.5 px-1 py-0 rounded-full bg-accent-primary/20 text-accent-primary pf-text-[9px] font-bold">
+                  <span className="ml-0.5 px-1 py-0 rounded-full bg-accent/20 text-accent pf-text-[9px] font-bold">
                     {tab.badge}
                   </span>
                 )}
@@ -655,23 +655,23 @@ function ResponseTabContent({ route, update }: { route: MockRoute; update: (p: P
       <div>
         <label className="pf-text-xs text-text-secondary mb-1 block">{t("mockServer.description")}</label>
         <input type="text" value={route.description} onChange={(e) => update({ description: e.target.value })} placeholder={t("mockServer.descPlaceholder")}
-          className="w-full rounded border border-border-primary bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+          className="w-full rounded border border-border-default bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
       </div>
       <div className="flex gap-3">
         <div className="flex-1">
           <label className="pf-text-xs text-text-secondary mb-1 block">{t("mockServer.statusCode")}</label>
           <input type="number" value={route.statusCode} onChange={(e) => update({ statusCode: parseInt(e.target.value, 10) || 200 })} min={100} max={599}
-            className="w-full rounded border border-border-primary bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+            className="w-full rounded border border-border-default bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
         </div>
         <div className="flex-1">
           <label className="pf-text-xs text-text-secondary mb-1 block"><Clock className="inline h-3 w-3 mr-0.5" />{t("mockServer.delay")}</label>
           <input type="number" value={route.delayMs ?? ""} onChange={(e) => update({ delayMs: e.target.value ? parseInt(e.target.value, 10) : undefined })} placeholder="0" min={0} max={60000}
-            className="w-full rounded border border-border-primary bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+            className="w-full rounded border border-border-default bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
         </div>
         <div className="flex-1">
           <label className="pf-text-xs text-text-secondary mb-1 block">{t("mockServer.priority")}</label>
           <input type="number" value={route.priority} onChange={(e) => update({ priority: parseInt(e.target.value, 10) || 0 })}
-            className="w-full rounded border border-border-primary bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+            className="w-full rounded border border-border-default bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
         </div>
       </div>
       <div>
@@ -684,7 +684,7 @@ function ResponseTabContent({ route, update }: { route: MockRoute; update: (p: P
           <TemplateHelpTip />
         </div>
         <textarea value={route.bodyTemplate} onChange={(e) => update({ bodyTemplate: e.target.value })} placeholder={'{\n  "message": "Hello"\n}'} spellCheck={false}
-          className="w-full h-48 rounded border border-border-primary bg-bg-input px-3 py-2 pf-text-xs text-text-primary font-mono focus:border-accent-primary focus:outline-none resize-y" />
+          className="w-full h-48 rounded border border-border-default bg-bg-input px-3 py-2 pf-text-xs text-text-primary font-mono focus:border-accent focus:outline-none resize-y" />
       </div>
     </>
   );
@@ -724,17 +724,17 @@ function ExamplesTabContent({ route, update }: { route: MockRoute; update: (p: P
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="pf-text-[11px] text-text-tertiary">{t("mockServer.examplesHint")}</p>
-        <button onClick={addExample} className="flex items-center gap-1 pf-text-xs text-accent-primary hover:text-accent-primary/80">
+        <button onClick={addExample} className="flex items-center gap-1 pf-text-xs text-accent hover:text-accent/80">
           <Plus className="h-3 w-3" />{t("mockServer.addExample")}
         </button>
       </div>
       {route.examples.map((ex, i) => (
-        <div key={ex.id} className="border border-border-primary rounded-md p-3 space-y-2 bg-bg-base/50">
+        <div key={ex.id} className="border border-border-default rounded-md p-3 space-y-2 bg-bg-primary/50">
           <div className="flex items-center gap-2">
             <input type="text" value={ex.name} onChange={(e) => updateExample(ex.id, { name: e.target.value })} placeholder={`Example ${i + 1}`}
-              className="flex-1 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+              className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
             <input type="number" value={ex.statusCode} onChange={(e) => updateExample(ex.id, { statusCode: parseInt(e.target.value, 10) || 200 })} min={100} max={599}
-              className="w-16 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+              className="w-16 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
             <button onClick={() => removeExample(ex.id)} className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500">
               <Trash2 className="h-3 w-3" />
             </button>
@@ -742,37 +742,37 @@ function ExamplesTabContent({ route, update }: { route: MockRoute; update: (p: P
           {/* 条件 */}
           <div className="flex items-center gap-2">
             <select value={ex.matchCondition.type} onChange={(e) => changeConditionType(ex, e.target.value as MatchCondition["type"])}
-              className="w-32 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary focus:border-accent-primary focus:outline-none">
+              className="w-32 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary focus:border-accent focus:outline-none">
               {conditionTypes.map((ct) => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
             </select>
             {ex.matchCondition.type === "header" && (
               <>
                 <input type="text" value={ex.matchCondition.name} onChange={(e) => updateExample(ex.id, { matchCondition: { ...ex.matchCondition, name: e.target.value } as MatchCondition })} placeholder="x-mock-example"
-                  className="flex-1 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent-primary focus:outline-none" />
+                  className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none" />
                 <input type="text" value={ex.matchCondition.value} onChange={(e) => updateExample(ex.id, { matchCondition: { ...ex.matchCondition, value: e.target.value } as MatchCondition })} placeholder="success"
-                  className="flex-1 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent-primary focus:outline-none" />
+                  className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none" />
               </>
             )}
             {ex.matchCondition.type === "bodyContains" && (
               <input type="text" value={ex.matchCondition.value} onChange={(e) => updateExample(ex.id, { matchCondition: { type: "bodyContains", value: e.target.value } })} placeholder={t("mockServer.condBodyContainsHint")}
-                className="flex-1 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent-primary focus:outline-none" />
+                className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none" />
             )}
             {ex.matchCondition.type === "bodyJsonPath" && (
               <>
                 <input type="text" value={ex.matchCondition.path} onChange={(e) => updateExample(ex.id, { matchCondition: { ...ex.matchCondition, path: e.target.value } as MatchCondition })} placeholder="user.role"
-                  className="flex-1 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent-primary focus:outline-none" />
+                  className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none" />
                 <input type="text" value={ex.matchCondition.value} onChange={(e) => updateExample(ex.id, { matchCondition: { ...ex.matchCondition, value: e.target.value } as MatchCondition })} placeholder="admin"
-                  className="flex-1 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent-primary focus:outline-none" />
+                  className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none" />
               </>
             )}
             {ex.matchCondition.type === "bodyRegex" && (
               <input type="text" value={ex.matchCondition.pattern} onChange={(e) => updateExample(ex.id, { matchCondition: { type: "bodyRegex", pattern: e.target.value } })} placeholder="user_id.*\\d+"
-                className="flex-1 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent-primary focus:outline-none" />
+                className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none" />
             )}
           </div>
           {/* 响应体 */}
           <textarea value={ex.bodyTemplate} onChange={(e) => updateExample(ex.id, { bodyTemplate: e.target.value })} placeholder={'{ "result": "..." }'} spellCheck={false}
-            className="w-full h-20 rounded border border-border-primary bg-bg-input px-2 py-1.5 pf-text-[11px] text-text-primary font-mono focus:border-accent-primary focus:outline-none resize-y" />
+            className="w-full h-20 rounded border border-border-default bg-bg-input px-2 py-1.5 pf-text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none resize-y" />
         </div>
       ))}
       {route.examples.length === 0 && (
@@ -802,25 +802,25 @@ function SequenceTabContent({ route, update }: { route: MockRoute; update: (p: P
             <span className="pf-text-[11px] text-text-secondary">{t("mockServer.sequenceLoop")}</span>
           </label>
         </div>
-        <button onClick={addItem} className="flex items-center gap-1 pf-text-xs text-accent-primary hover:text-accent-primary/80">
+        <button onClick={addItem} className="flex items-center gap-1 pf-text-xs text-accent hover:text-accent/80">
           <Plus className="h-3 w-3" />{t("mockServer.addSequenceItem")}
         </button>
       </div>
       {route.sequence.map((item, idx) => (
-        <div key={item.id} className="border border-border-primary rounded-md p-3 space-y-2 bg-bg-base/50">
+        <div key={item.id} className="border border-border-default rounded-md p-3 space-y-2 bg-bg-primary/50">
           <div className="flex items-center gap-2">
             <span className="pf-text-[10px] text-text-tertiary font-mono w-6 text-center shrink-0">#{idx + 1}</span>
             <input type="number" value={item.statusCode} onChange={(e) => updateItem(idx, { statusCode: parseInt(e.target.value, 10) || 200 })} min={100} max={599}
-              className="w-16 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent-primary focus:outline-none" />
+              className="w-16 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
             <input type="number" value={item.delayMs ?? ""} onChange={(e) => updateItem(idx, { delayMs: e.target.value ? parseInt(e.target.value, 10) : undefined })} placeholder="delay ms"
-              className="w-20 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary focus:border-accent-primary focus:outline-none" />
+              className="w-20 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary focus:border-accent focus:outline-none" />
             <div className="flex-1" />
             <button onClick={() => removeItem(idx)} className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500">
               <Trash2 className="h-3 w-3" />
             </button>
           </div>
           <textarea value={item.bodyTemplate} onChange={(e) => updateItem(idx, { bodyTemplate: e.target.value })} placeholder={'{ "step": ' + (idx + 1) + " }"} spellCheck={false}
-            className="w-full h-16 rounded border border-border-primary bg-bg-input px-2 py-1.5 pf-text-[11px] text-text-primary font-mono focus:border-accent-primary focus:outline-none resize-y" />
+            className="w-full h-16 rounded border border-border-default bg-bg-input px-2 py-1.5 pf-text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none resize-y" />
         </div>
       ))}
       {route.sequence.length === 0 && (
@@ -837,7 +837,7 @@ function ScriptTabContent({ route, update }: { route: MockRoute; update: (p: Par
     <div className="space-y-3">
       <div className="pf-text-[11px] text-text-tertiary space-y-1">
         <p>{t("mockServer.scriptHint")}</p>
-        <div className="bg-bg-base/50 border border-border-subtle rounded p-2 font-mono pf-text-[10px] text-text-secondary space-y-0.5">
+        <div className="bg-bg-primary/50 border border-border-subtle rounded p-2 font-mono pf-text-[10px] text-text-secondary space-y-0.5">
           <p>// {t("mockServer.scriptApiAccess")}:</p>
           <p>mock.request.method / .path / .query / .params / .headers / .body</p>
           <p>mock.response.status = 201;</p>
@@ -850,7 +850,7 @@ function ScriptTabContent({ route, update }: { route: MockRoute; update: (p: Par
         onChange={(e) => update({ script: e.target.value || undefined })}
         placeholder={'// mock.response.body = JSON.stringify({\n//   id: mock.request.params.id,\n//   name: "User " + mock.request.params.id\n// });'}
         spellCheck={false}
-        className="w-full h-64 rounded border border-border-primary bg-bg-input px-3 py-2 pf-text-xs text-text-primary font-mono focus:border-accent-primary focus:outline-none resize-y"
+        className="w-full h-64 rounded border border-border-default bg-bg-input px-3 py-2 pf-text-xs text-text-primary font-mono focus:border-accent focus:outline-none resize-y"
       />
     </div>
   );
@@ -898,14 +898,14 @@ function ResponseHeadersEditor({
             value={row.key}
             onChange={(e) => commit(rows.map((r) => (r._id === row._id ? { ...r, key: e.target.value } : r)))}
             placeholder={t("mockServer.headerName")}
-            className="flex-1 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent-primary focus:outline-none"
+            className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none"
           />
           <input
             type="text"
             value={row.value}
             onChange={(e) => commit(rows.map((r) => (r._id === row._id ? { ...r, value: e.target.value } : r)))}
             placeholder={t("mockServer.headerValue")}
-            className="flex-1 rounded border border-border-primary bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent-primary focus:outline-none"
+            className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none"
           />
           <button
             onClick={() => commit(rows.filter((r) => r._id !== row._id))}
@@ -917,7 +917,7 @@ function ResponseHeadersEditor({
       ))}
       <button
         onClick={() => commit([...rows, { _id: crypto.randomUUID(), key: "", value: "" }])}
-        className="flex items-center gap-1 pf-text-[11px] text-accent-primary hover:text-accent-primary/80"
+        className="flex items-center gap-1 pf-text-[11px] text-accent hover:text-accent/80"
       >
         <Plus className="h-3 w-3" />
         {t("mockServer.addHeader")}
@@ -947,32 +947,32 @@ function TemplateHelpTip() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="pf-text-[10px] text-accent-primary hover:text-accent-primary/80 flex items-center gap-0.5"
+        className="pf-text-[10px] text-accent hover:text-accent/80 flex items-center gap-0.5"
       >
         <Zap className="h-3 w-3" />
         {t("mockServer.templateVars")}
       </button>
       {open && (
-        <div className="absolute right-0 top-5 z-50 w-72 rounded-md border border-border-primary bg-bg-surface shadow-lg p-3 pf-text-[10px] text-text-secondary">
+        <div className="absolute right-0 top-5 z-50 w-72 rounded-md border border-border-default bg-bg-surface shadow-lg p-3 pf-text-[10px] text-text-secondary">
           <div className="space-y-1.5">
             <p className="font-medium text-text-primary mb-1">{t("mockServer.tplRequestCtx")}:</p>
-            <code className="block text-accent-primary">{"{{request.method}}"}</code>
-            <code className="block text-accent-primary">{"{{request.path}}"}</code>
-            <code className="block text-accent-primary">{"{{request.params.<name>}}"}</code>
-            <code className="block text-accent-primary">{"{{request.query.<name>}}"}</code>
-            <code className="block text-accent-primary">{"{{request.headers.<name>}}"}</code>
-            <code className="block text-accent-primary">{"{{request.body}}"}</code>
+            <code className="block text-accent">{"{{request.method}}"}</code>
+            <code className="block text-accent">{"{{request.path}}"}</code>
+            <code className="block text-accent">{"{{request.params.<name>}}"}</code>
+            <code className="block text-accent">{"{{request.query.<name>}}"}</code>
+            <code className="block text-accent">{"{{request.headers.<name>}}"}</code>
+            <code className="block text-accent">{"{{request.body}}"}</code>
 
             <p className="font-medium text-text-primary mt-2 mb-1">{t("mockServer.tplDynamic")}:</p>
-            <code className="block text-accent-primary">{"{{$randomUUID}}"}</code>
-            <code className="block text-accent-primary">{"{{$timestamp}}"}</code>
-            <code className="block text-accent-primary">{"{{$isoTimestamp}}"}</code>
-            <code className="block text-accent-primary">{"{{$randomInt}}"} / {"{{$randomInt(1,100)}}"}</code>
-            <code className="block text-accent-primary">{"{{$randomFloat}}"} {"{{$randomBoolean}}"}</code>
+            <code className="block text-accent">{"{{$randomUUID}}"}</code>
+            <code className="block text-accent">{"{{$timestamp}}"}</code>
+            <code className="block text-accent">{"{{$isoTimestamp}}"}</code>
+            <code className="block text-accent">{"{{$randomInt}}"} / {"{{$randomInt(1,100)}}"}</code>
+            <code className="block text-accent">{"{{$randomFloat}}"} {"{{$randomBoolean}}"}</code>
 
             <p className="font-medium text-text-primary mt-2 mb-1">Faker:</p>
-            <code className="block text-accent-primary">{"{{$faker.name}}"} {"{{$faker.email}}"}</code>
-            <code className="block text-accent-primary">{"{{$faker.phone}}"} {"{{$faker.company}}"}</code>
+            <code className="block text-accent">{"{{$faker.name}}"} {"{{$faker.email}}"}</code>
+            <code className="block text-accent">{"{{$faker.phone}}"} {"{{$faker.company}}"}</code>
 
             <p className="font-medium text-text-primary mt-2 mb-1">{t("mockServer.tplRoutePatterns")}:</p>
             <code className="block text-text-secondary">/users/:id</code>
@@ -1011,7 +1011,7 @@ function RequestLogPanel({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* 头部 */}
-      <div className="flex items-center justify-between border-b border-border-primary px-3 py-2 shrink-0">
+      <div className="flex items-center justify-between border-b border-border-default px-3 py-2 shrink-0">
         <span className="pf-text-xs font-medium text-text-secondary uppercase tracking-wider">
           {t("mockServer.requestLog")}
           {logs.length > 0 && (
@@ -1044,7 +1044,7 @@ function RequestLogPanel({
                 onClick={() => setSelectedLogId(log.id === selectedLogId ? null : log.id)}
                 className={cn(
                   "px-3 py-1.5 border-b border-border-subtle cursor-pointer transition-colors",
-                  log.id === selectedLogId ? "bg-accent-primary/8" : "hover:bg-bg-hover",
+                  log.id === selectedLogId ? "bg-accent/8" : "hover:bg-bg-hover",
                 )}
               >
                 <div className="flex items-center gap-1.5">
@@ -1082,7 +1082,7 @@ function RequestLogPanel({
 
                 {/* 展开的详情 */}
                 {log.id === selectedLogId && (
-                  <div className="mt-2 p-2 rounded bg-bg-base border border-border-subtle pf-text-[10px]">
+                  <div className="mt-2 p-2 rounded bg-bg-primary border border-border-subtle pf-text-[10px]">
                     <div className="mb-1 text-text-secondary font-medium">{t("mockServer.logResponseBody")}:</div>
                     <pre className="whitespace-pre-wrap break-all text-text-primary font-mono max-h-32 overflow-y-auto">
                       {formatJsonSafe(log.responseBody)}

@@ -74,7 +74,8 @@ interface DbClientStoreState {
   // Schema 浏览
   databases: DatabaseInfo[];
   selectedDatabase: string | null;
-  schemaObjects: SchemaObjects | null;
+  schemaObjects: SchemaObjects | null;         // 当前选中数据库的 schema
+  schemaObjectsMap: Map<string, SchemaObjects>; // 所有已加载数据库的 schema 缓存
   selectedSchema: string | null;
   schemaLoading: boolean;
 
@@ -110,7 +111,7 @@ interface DbClientStoreState {
   closeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   setSqlText: (text: string) => void;
-  executeQuery: () => Promise<void>;
+  executeQuery: (overrideDatabase?: string) => Promise<void>;
   cancelQuery: () => Promise<void>;
 
   // 表数据 Tab 操作
@@ -119,6 +120,7 @@ interface DbClientStoreState {
   setTableSort: (tabId: string, column: string) => Promise<void>;
   setTableFilter: (tabId: string, filter: string) => Promise<void>;
   setTableDataPage: (tabIdOrOffset: string | number, offset?: number) => Promise<void>;
+  setTablePageSize: (tabId: string, pageSize: number) => Promise<void>;
 
   // 编辑操作（作用于具体 tab）
   addPendingEdit: (edit: CellEdit, tabId?: string) => void;
@@ -170,6 +172,7 @@ function createDbClientSessionStore(sessionId: string) {
     databases: [],
     selectedDatabase: null,
     schemaObjects: null,
+    schemaObjectsMap: new Map<string, SchemaObjects>(),
     selectedSchema: null,
     schemaLoading: false,
     tabs: [],
@@ -202,10 +205,25 @@ function createDbClientSessionStore(sessionId: string) {
       set({ connecting: true, connectionError: null });
       try {
         const info = await dbService.connectSaved(sessionId, connectionId);
+        // 从 savedConnections 中恢复 connectionConfig 用于导出/DDL 等
+        const saved = get().savedConnections.find((c) => c.id === connectionId);
+        const config: ConnectionConfig | null = saved ? {
+          dbType: saved.dbType,
+          host: saved.host,
+          port: saved.port ?? 0,
+          database: saved.databaseName,
+          username: saved.username,
+          password: "", // 密码在后端加密存储，前端不可见
+          sslEnabled: saved.sslEnabled,
+          filePath: saved.filePath,
+          org: saved.org,
+          influxVersion: (saved.influxVersion as ConnectionConfig["influxVersion"]) ?? null,
+        } : null;
         set({
           connected: true,
           serverInfo: info,
           activeConnectionId: connectionId,
+          connectionConfig: config,
           connecting: false,
         });
         get().loadDatabases();
@@ -225,6 +243,7 @@ function createDbClientSessionStore(sessionId: string) {
         databases: [],
         selectedDatabase: null,
         schemaObjects: null,
+        schemaObjectsMap: new Map(),
         tabs: [],
         activeTabId: null,
         sqlText: "",
@@ -275,13 +294,24 @@ function createDbClientSessionStore(sessionId: string) {
     },
 
     selectDatabase: async (db: string) => {
+      // 检查缓存
+      const cached = get().schemaObjectsMap.get(db);
+      if (cached) {
+        set({ selectedDatabase: db, schemaObjects: cached, schemaLoading: false });
+        if (cached.schemas.length > 0) set({ selectedSchema: cached.schemas[0] });
+        return;
+      }
       set({ selectedDatabase: db, schemaObjects: null, schemaLoading: true });
       try {
-        const objects = await dbService.listSchemaObjects(sessionId, db, "");
-        set({ schemaObjects: objects, schemaLoading: false });
-        if (objects.schemas.length > 0) {
-          set({ selectedSchema: objects.schemas[0] });
+        const config = get().connectionConfig;
+        if (config?.dbType === "mysql") {
+          await dbService.executeQuery(sessionId, `USE \`${db.replace(/`/g, "``")}\``).catch(() => {});
         }
+        const objects = await dbService.listSchemaObjects(sessionId, db, "");
+        const newMap = new Map(get().schemaObjectsMap);
+        newMap.set(db, objects);
+        set({ schemaObjects: objects, schemaObjectsMap: newMap, schemaLoading: false });
+        if (objects.schemas.length > 0) set({ selectedSchema: objects.schemas[0] });
       } catch (e) {
         set({ schemaLoading: false });
         console.error("Load schema objects failed:", e);
@@ -296,7 +326,9 @@ function createDbClientSessionStore(sessionId: string) {
         const objects = await dbService.listSchemaObjects(
           sessionId, db, schema ?? get().selectedSchema ?? "",
         );
-        set({ schemaObjects: objects, schemaLoading: false });
+        const newMap = new Map(get().schemaObjectsMap);
+        newMap.set(db, objects);
+        set({ schemaObjects: objects, schemaObjectsMap: newMap, schemaLoading: false });
       } catch (e) {
         set({ schemaLoading: false });
         console.error("Load schema objects failed:", e);
@@ -389,14 +421,15 @@ function createDbClientSessionStore(sessionId: string) {
 
     setSqlText: (text: string) => set({ sqlText: text }),
 
-    executeQuery: async () => {
+    executeQuery: async (overrideDatabase?: string) => {
       const sql = get().sqlText.trim();
       if (!sql) return;
       set({ queryRunning: true, queryError: null, queryResult: null });
       const config = get().connectionConfig;
+      const selectedDb = overrideDatabase ?? get().selectedDatabase;
       const startMs = Date.now();
       try {
-        const result = await dbService.executeQuery(sessionId, sql);
+        const result = await dbService.executeQuery(sessionId, sql, selectedDb);
         set((s) => ({
           queryResult: result,
           queryRunning: false,
@@ -477,7 +510,7 @@ function createDbClientSessionStore(sessionId: string) {
         tableData: null,
         tableDataLoading: true,
         tableDataOffset: 0,
-        tableDataLimit: 200,
+        tableDataLimit: 1000,
         sortColumn: null,
         sortDir: null,
         filter: "",
@@ -507,7 +540,7 @@ function createDbClientSessionStore(sessionId: string) {
       // 并行加载表数据和表结构
       try {
         const [result, desc] = await Promise.all([
-          dbService.fetchTableData(sessionId, db, schema, table, 0, 200),
+          dbService.fetchTableData(sessionId, db, schema, table, 0, 1000),
           dbService.describeTable(sessionId, db, schema, table),
         ]);
         set((s) => ({
@@ -642,6 +675,31 @@ function createDbClientSessionStore(sessionId: string) {
       } catch (e) {
         set((s) => ({
           tabs: updateTab<TableDataTab>(s.tabs, tab.id, () => ({ tableDataLoading: false })),
+        }));
+      }
+    },
+
+    setTablePageSize: async (tabId: string, pageSize: number) => {
+      const tab = getActiveTableTab(get(), tabId);
+      if (!tab) return;
+      set((s) => ({
+        tabs: updateTab<TableDataTab>(s.tabs, tabId, () => ({
+          tableDataLimit: pageSize, tableDataOffset: 0, tableDataLoading: true,
+        })),
+      }));
+      try {
+        const result = await dbService.fetchTableData(
+          sessionId, tab.database, tab.schema, tab.table,
+          0, pageSize, tab.sortColumn, tab.sortDir, tab.filter || null,
+        );
+        set((s) => ({
+          tabs: updateTab<TableDataTab>(s.tabs, tabId, () => ({
+            tableData: result, tableDataLoading: false,
+          })),
+        }));
+      } catch (e) {
+        set((s) => ({
+          tabs: updateTab<TableDataTab>(s.tabs, tabId, () => ({ tableDataLoading: false })),
         }));
       }
     },
