@@ -42,9 +42,12 @@ export const DbClientWorkspace = memo(function DbClientWorkspace({
   const editorSize = panelLayout?.[0] ?? 45;
   const resultsSize = panelLayout?.[1] ?? 55;
 
-  const handleVerticalLayout = useCallback((sizes: number[]) => {
-    if (activeTabId && sizes.length === 2) {
-      getDbClientStoreApi(sessionId).getState().setTabPanelLayout(activeTabId, [sizes[0], sizes[1]]);
+  const handleVerticalLayout = useCallback((layout: Record<string, number>) => {
+    if (!activeTabId) return;
+    const editorVal = layout["db-sql-editor"];
+    const resultsVal = layout["db-results"];
+    if (editorVal != null && resultsVal != null) {
+      getDbClientStoreApi(sessionId).getState().setTabPanelLayout(activeTabId, [editorVal, resultsVal]);
     }
   }, [sessionId, activeTabId]);
 
@@ -117,7 +120,7 @@ export const DbClientWorkspace = memo(function DbClientWorkspace({
                 </div>
               ) : (
                 // Query Tab: key={activeTabId} 确保各 tab 分割线独立
-                <PanelGroup orientation="vertical" key={activeTabId} onLayout={handleVerticalLayout}>
+                <PanelGroup orientation="vertical" key={activeTabId} onLayoutChanged={handleVerticalLayout}>
                   <Panel id="db-sql-editor" defaultSize={editorSize} minSize={15}>
                     <SqlEditor sessionId={sessionId} />
                   </Panel>

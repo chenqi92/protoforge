@@ -12,6 +12,7 @@ pub struct PostgresDriver {
     cancel_token: Arc<Mutex<Option<tokio_postgres::CancelToken>>>,
 }
 
+#[allow(dead_code)]
 pub struct PostgresConfig {
     pub host: String,
     pub port: u16,

@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
-import { ImagePlus, FolderOutput, Play, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { ImagePlus, FolderOutput, Play, CheckCircle2, AlertCircle, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resizeScreenshots, type BatchResult } from "@/services/toolboxService";
 
@@ -104,6 +104,7 @@ export function ScreenshotResizerTool() {
   }, [selectedImages, selectedSizes, outputDir]);
 
   const canProcess = selectedImages.length > 0 && selectedSizes.size > 0 && !!outputDir && !processing;
+  const totalTasks = selectedImages.length * selectedSizes.size;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -233,7 +234,7 @@ export function ScreenshotResizerTool() {
               : "cursor-not-allowed bg-bg-secondary text-text-disabled"
           )}
         >
-          <Play className="h-4 w-4" />
+          {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
           {processing ? t(`${k}.processing`) : t(`${k}.process`)}
         </button>
 
@@ -254,6 +255,22 @@ export function ScreenshotResizerTool() {
           </div>
         )}
       </section>
+
+      {/* 进度条 */}
+      {processing && (
+        <section className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
+          <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
+            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+            <span>
+              {t(`${k}.processing`)} {selectedImages.length} {t(`${k}.selectImages`).toLowerCase()} × {selectedSizes.size} {t(`${k}.targetSizes`).toLowerCase()}
+              {totalTasks > 0 && <span className="text-text-disabled"> ({totalTasks} {t(`${k}.selectImages`).toLowerCase()})</span>}
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-orange-500/20">
+            <div className="h-full animate-[progress-indeterminate_1.5s_ease-in-out_infinite] rounded-full bg-orange-500" style={{ width: "40%" }} />
+          </div>
+        </section>
+      )}
 
       {/* 错误详情 */}
       {result && result.errors.length > 0 && (

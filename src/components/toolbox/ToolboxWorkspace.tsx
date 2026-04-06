@@ -1,6 +1,7 @@
-// 工具箱工作区 — 左侧工具列表 + 右侧工具内容
+// 工具箱工作区 — 左侧卡片式工具列表 + 右侧工具内容
+// 支持内置工具和通过插件扩展的自定义工具
 
-import { memo, useState } from "react";
+import { memo, useState, useMemo } from "react";
 import {
   Panel,
   Group as PanelGroup,
@@ -14,22 +15,29 @@ import {
   FolderEdit,
   Image,
   FolderOpen,
+  Puzzle,
 } from "lucide-react";
+import { usePluginStore } from "@/stores/pluginStore";
 import { ScreenshotResizerTool } from "./ScreenshotResizerTool";
 import { IconGeneratorTool } from "./IconGeneratorTool";
 import { BatchRenamerTool } from "./BatchRenamerTool";
 
-export type ToolboxToolId = "screenshot-resizer" | "icon-generator" | "batch-renamer";
+export type ToolboxToolId = string;
 
-interface ToolDef {
+export interface ToolboxToolDef {
   id: ToolboxToolId;
   labelKey: string;
   descKey: string;
   icon: typeof Smartphone;
-  group: "image" | "file";
+  group: string;
+  /** 由插件提供时为 true */
+  fromPlugin?: boolean;
+  /** 插件 ID */
+  pluginId?: string;
 }
 
-const TOOLS: ToolDef[] = [
+// 内置工具定义
+const BUILTIN_TOOLS: ToolboxToolDef[] = [
   {
     id: "screenshot-resizer",
     labelKey: "toolWorkbench.toolbox.screenshotResizer.name",
@@ -56,64 +64,110 @@ const TOOLS: ToolDef[] = [
 const GROUP_META: Record<string, { labelKey: string; icon: typeof Image }> = {
   image: { labelKey: "toolWorkbench.toolbox.imageTools", icon: Image },
   file: { labelKey: "toolWorkbench.toolbox.fileTools", icon: FolderOpen },
+  plugin: { labelKey: "toolWorkbench.toolbox.pluginTools", icon: Puzzle },
 };
+
+/** 渲染内置工具内容 */
+function BuiltinToolContent({ toolId }: { toolId: string }) {
+  switch (toolId) {
+    case "screenshot-resizer": return <ScreenshotResizerTool />;
+    case "icon-generator": return <IconGeneratorTool />;
+    case "batch-renamer": return <BatchRenamerTool />;
+    default: return null;
+  }
+}
 
 export const ToolboxWorkspace = memo(function ToolboxWorkspace() {
   const { t } = useTranslation();
   const [activeTool, setActiveTool] = useState<ToolboxToolId>("screenshot-resizer");
+  const installedPlugins = usePluginStore((s) => s.installedPlugins);
+
+  // 合并内置 + 插件提供的工具
+  const allTools = useMemo(() => {
+    const tools: ToolboxToolDef[] = [...BUILTIN_TOOLS];
+
+    // 查找 toolbox-tool 类型插件（预留扩展点）
+    for (const plugin of installedPlugins) {
+      if ((plugin.pluginType as string) === "toolbox-tool") {
+        tools.push({
+          id: `plugin-${plugin.id}`,
+          labelKey: plugin.name,
+          descKey: plugin.description,
+          icon: Puzzle,
+          group: "plugin",
+          fromPlugin: true,
+          pluginId: plugin.id,
+        });
+      }
+    }
+    return tools;
+  }, [installedPlugins]);
 
   // 按 group 分组
-  const groups = TOOLS.reduce<Record<string, ToolDef[]>>((acc, tool) => {
-    (acc[tool.group] ??= []).push(tool);
-    return acc;
-  }, {});
+  const groups = useMemo(() => {
+    return allTools.reduce<Record<string, ToolboxToolDef[]>>((acc, tool) => {
+      (acc[tool.group] ??= []).push(tool);
+      return acc;
+    }, {});
+  }, [allTools]);
+
+  const activeToolDef = allTools.find((t) => t.id === activeTool);
 
   return (
     <PanelGroup orientation="horizontal" className="h-full">
-      {/* 侧栏 */}
-      <Panel defaultSize={18} minSize="180px">
-        <div className="flex h-full flex-col overflow-hidden border-r border-border-default/60">
+      {/* 左侧卡片网格 */}
+      <Panel defaultSize={22} minSize="200px">
+        <div className="flex h-full flex-col overflow-hidden">
           <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border-default/50 px-3">
             <span className="pf-text-xs font-semibold uppercase tracking-wider text-text-tertiary">
               {t("toolWorkbench.toolbox.sidebarTitle")}
             </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2">
+          <div className="flex-1 overflow-y-auto p-2.5">
             {Object.entries(groups).map(([groupId, tools]) => {
-              const meta = GROUP_META[groupId];
-              const GroupIcon = meta?.icon;
+              const meta = GROUP_META[groupId] ?? GROUP_META.plugin;
+              const GroupIcon = meta.icon;
               return (
-                <div key={groupId} className="mb-3">
-                  <div className="mb-1 flex items-center gap-1.5 px-2 py-1">
-                    {GroupIcon && <GroupIcon className="h-3 w-3 text-text-disabled" />}
+                <div key={groupId} className="mb-4">
+                  <div className="mb-2 flex items-center gap-1.5 px-1">
+                    <GroupIcon className="h-3 w-3 text-text-disabled" />
                     <span className="pf-text-xs font-medium uppercase tracking-wider text-text-disabled">
-                      {t(meta?.labelKey ?? groupId)}
+                      {t(meta.labelKey)}
                     </span>
                   </div>
 
-                  {tools.map((tool) => {
-                    const Icon = tool.icon;
-                    const isActive = activeTool === tool.id;
-                    return (
-                      <button
-                        key={tool.id}
-                        onClick={() => setActiveTool(tool.id)}
-                        className={cn(
-                          "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors",
-                          isActive
-                            ? "bg-accent/10 text-text-primary"
-                            : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                        )}
-                      >
-                        <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-orange-500" : "text-text-tertiary")} />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate pf-text-sm font-medium">{t(tool.labelKey)}</div>
-                          <div className="truncate pf-text-xs text-text-tertiary">{t(tool.descKey)}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
+                  <div className="grid grid-cols-2 gap-2">
+                    {tools.map((tool) => {
+                      const Icon = tool.icon;
+                      const isActive = activeTool === tool.id;
+                      return (
+                        <button
+                          key={tool.id}
+                          onClick={() => setActiveTool(tool.id)}
+                          className={cn(
+                            "flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center transition-all",
+                            isActive
+                              ? "border-orange-500/50 bg-orange-500/10 shadow-sm"
+                              : "border-border-default/40 bg-bg-secondary/60 hover:border-border-strong hover:bg-bg-hover"
+                          )}
+                        >
+                          <div className={cn(
+                            "flex h-8 w-8 items-center justify-center rounded-lg",
+                            isActive ? "bg-orange-500/20 text-orange-500" : "bg-bg-primary/80 text-text-tertiary"
+                          )}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <span className={cn(
+                            "line-clamp-2 pf-text-xs font-medium leading-tight",
+                            isActive ? "text-text-primary" : "text-text-secondary"
+                          )}>
+                            {tool.fromPlugin ? tool.labelKey : t(tool.labelKey)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}
@@ -126,11 +180,21 @@ export const ToolboxWorkspace = memo(function ToolboxWorkspace() {
       </PanelResizeHandle>
 
       {/* 主内容区 */}
-      <Panel defaultSize={82} minSize={40}>
+      <Panel defaultSize={78} minSize={40}>
         <div className="h-full overflow-y-auto">
-          {activeTool === "screenshot-resizer" && <ScreenshotResizerTool />}
-          {activeTool === "icon-generator" && <IconGeneratorTool />}
-          {activeTool === "batch-renamer" && <BatchRenamerTool />}
+          {activeToolDef && !activeToolDef.fromPlugin && (
+            <BuiltinToolContent toolId={activeToolDef.id} />
+          )}
+          {activeToolDef?.fromPlugin && (
+            <div className="flex h-full items-center justify-center p-8">
+              <div className="text-center">
+                <Puzzle className="mx-auto mb-3 h-10 w-10 text-text-disabled" />
+                <p className="pf-text-sm text-text-tertiary">
+                  {activeToolDef.labelKey}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </Panel>
     </PanelGroup>

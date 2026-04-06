@@ -2450,6 +2450,11 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes progress-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
 /* Suppress react-resizable-panels v4.7 separator blue focus/active outlines */
 [data-separator] {
   outline: none !important;

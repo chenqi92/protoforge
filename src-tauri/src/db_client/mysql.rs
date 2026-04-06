@@ -7,12 +7,14 @@ use mysql_async::{Conn, Opts, OptsBuilder, Pool, Row as MysqlRow, Value as Mysql
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+#[allow(dead_code)]
 pub struct MysqlDriver {
     config: MysqlConfig,
     pool: Option<Pool>,
     conn: Arc<Mutex<Option<Conn>>>,
 }
 
+#[allow(dead_code)]
 pub struct MysqlConfig {
     pub host: String,
     pub port: u16,

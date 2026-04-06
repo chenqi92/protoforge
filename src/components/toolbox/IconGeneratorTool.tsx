@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { ImagePlus, FolderOutput, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { ImagePlus, FolderOutput, Sparkles, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateIcons, type BatchResult, type IconPlatforms } from "@/services/toolboxService";
 
@@ -80,6 +80,11 @@ export function IconGeneratorTool() {
 
   const anyPlatform = platforms.ios || platforms.macos || platforms.windows || platforms.favicon;
   const canGenerate = !!sourceImage && !!outputDir && anyPlatform && !processing;
+
+  // 计算选中平台数
+  const selectedPlatformNames = PLATFORMS
+    .filter((p) => platforms[p.key])
+    .map((p) => t(p.labelKey));
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -168,7 +173,7 @@ export function IconGeneratorTool() {
               : "cursor-not-allowed bg-bg-secondary text-text-disabled"
           )}
         >
-          <Sparkles className="h-4 w-4" />
+          {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {processing ? t(`${k}.generating`) : t(`${k}.generate`)}
         </button>
 
@@ -189,6 +194,19 @@ export function IconGeneratorTool() {
           </div>
         )}
       </section>
+
+      {/* 进度条 */}
+      {processing && (
+        <section className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
+          <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
+            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+            <span>{t(`${k}.generating`)} {selectedPlatformNames.join(", ")}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-orange-500/20">
+            <div className="h-full animate-[progress-indeterminate_1.5s_ease-in-out_infinite] rounded-full bg-orange-500" style={{ width: "40%" }} />
+          </div>
+        </section>
+      )}
 
       {/* 错误详情 */}
       {result && result.errors.length > 0 && (

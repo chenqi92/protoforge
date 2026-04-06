@@ -4,7 +4,7 @@
 import { memo, useEffect, useCallback, useState, useRef } from "react";
 import {
   Play, Square, Trash2, Plus, Copy, Search,
-  ChevronRight, GripVertical, ToggleLeft, ToggleRight,
+  ChevronRight, ToggleLeft, ToggleRight,
   Clock, ArrowUpDown, AlertCircle, Server, Zap,
   Download, Upload, Globe, Code, ListOrdered, Layers,
   PanelLeftOpen,
@@ -235,19 +235,19 @@ function ControlBar({
         // 确保每条路由都有 id 和新增字段的默认值
         const routes = parsed.map((r: Record<string, unknown>) => ({
           id: (r.id as string) || crypto.randomUUID(),
-          method: r.method ?? "GET",
-          pattern: r.pattern ?? "/",
-          statusCode: r.statusCode ?? 200,
-          headers: r.headers ?? {},
-          bodyTemplate: r.bodyTemplate ?? "",
-          delayMs: r.delayMs,
-          priority: r.priority ?? 0,
-          enabled: r.enabled ?? true,
-          description: r.description ?? "",
-          examples: r.examples ?? [],
-          script: r.script,
-          sequence: r.sequence ?? [],
-          sequenceLoop: r.sequenceLoop ?? true,
+          method: (r.method as string | undefined) ?? "GET",
+          pattern: (r.pattern as string) ?? "/",
+          statusCode: (r.statusCode as number) ?? 200,
+          headers: (r.headers as Record<string, string>) ?? {},
+          bodyTemplate: (r.bodyTemplate as string) ?? "",
+          delayMs: r.delayMs as number | undefined,
+          priority: (r.priority as number) ?? 0,
+          enabled: (r.enabled as boolean) ?? true,
+          description: (r.description as string) ?? "",
+          examples: (r.examples as MockRoute["examples"]) ?? [],
+          script: r.script as string | undefined,
+          sequence: (r.sequence as MockRoute["sequence"]) ?? [],
+          sequenceLoop: (r.sequenceLoop as boolean) ?? true,
         }));
         store.getState().importRoutes(routes);
       } catch (e) {
@@ -552,7 +552,7 @@ function RouteEditorPanel({
   );
 
   // 路由变更时同步到服务器
-  const syncTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const syncTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     if (!running) return;
     clearTimeout(syncTimeout.current);

@@ -110,6 +110,7 @@ export type ContextMenuContext =
   | 'json-node'       // JSON 树节点
   | 'history'         // 历史记录条目
   | 'global'          // 所有区域
+  | 'general'         // 通用上下文
   | 'db-grid-cell'    // 数据库网格单元格
   | 'db-grid-row'     // 数据库网格行
   | 'db-schema-node'  // Schema 树节点

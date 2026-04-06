@@ -24,6 +24,7 @@ impl SqliteDriver {
         }
     }
 
+    #[allow(dead_code)]
     fn with_conn<F, R>(&self, guard: &tokio::sync::MutexGuard<'_, Option<Connection>>, f: F) -> Result<R, String>
     where
         F: FnOnce(&Connection) -> Result<R, String>,

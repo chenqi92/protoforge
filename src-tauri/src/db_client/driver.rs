@@ -136,6 +136,7 @@ pub struct CellEdit {
 //  驱动能力声明
 // ═══════════════════════════════════════════
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DriverCapabilities {
@@ -206,6 +207,7 @@ pub struct ImportResult {
 //  DbDriver trait
 // ═══════════════════════════════════════════
 
+#[allow(dead_code)]
 #[async_trait]
 pub trait DbDriver: Send + Sync {
     /// 测试连接，返回服务器版本信息

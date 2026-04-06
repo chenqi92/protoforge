@@ -103,9 +103,10 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
  * Build clipboard context menu items (Cut/Copy/Paste/SelectAll) for a given right-click event.
  * Returns items + divider if the target is an input/textarea, otherwise empty array.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildClipboardItems(
   e: React.MouseEvent,
-  t: (key: string, fallback?: string) => string,
+  t: any,
 ): ContextMenuEntry[] {
   const target = e.target as Element;
   const el =
@@ -178,7 +179,8 @@ export function useContextMenu() {
  * 1. 阻止浏览器/系统默认菜单
  * 2. 在 input/textarea 上显示剪贴板操作
  */
-export function useZoneFallback(t: (key: string, fallback?: string) => string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useZoneFallback(t: any) {
   const { showMenu, MenuComponent } = useContextMenu();
 
   const handleZoneFallback = useCallback((e: React.MouseEvent) => {

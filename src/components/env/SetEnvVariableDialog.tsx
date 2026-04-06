@@ -26,7 +26,7 @@ export function SetEnvVariableDialog() {
 
   const {
     environments, activeEnvId,
-    globalVariables, variables,
+    globalVariables, variables: _variables,
     fetchEnvironments, fetchGlobalVariables, fetchVariables,
     saveGlobalVars, saveVariables,
   } = useEnvStore();
