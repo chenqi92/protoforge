@@ -30,13 +30,16 @@ use tauri::Manager;
 use tcp_client::{TcpConnections, TcpServers, UdpSockets};
 use ws_client::WsConnections;
 
-/// 快捷键打开 DevTools（所有模式可用）
+/// 快捷键打开 DevTools（仅 debug 模式或启用 devtools feature 时可用）
 #[tauri::command]
-fn toggle_devtools(window: tauri::WebviewWindow) {
-    if window.is_devtools_open() {
-        window.close_devtools();
-    } else {
-        window.open_devtools();
+fn toggle_devtools(#[allow(unused_variables)] window: tauri::WebviewWindow) {
+    #[cfg(debug_assertions)]
+    {
+        if window.is_devtools_open() {
+            window.close_devtools();
+        } else {
+            window.open_devtools();
+        }
     }
 }
 
