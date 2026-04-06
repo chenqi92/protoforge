@@ -1,4 +1,4 @@
-// 导入导出对话框 — 支持多种导出格式、表选择、工具路径
+// 导出/导入 — 完全独立的两个对话框
 
 import { memo, useState, useEffect } from "react";
 import {
@@ -6,302 +6,291 @@ import {
   ChevronDown, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTranslation } from "react-i18next";
 import { save, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import * as dbService from "@/services/dbClientService";
 import { useDbClientStore } from "@/stores/dbClientStore";
 import type { ConnectionConfig, ExportOptions, ImportOptions } from "@/types/dbclient";
 
-interface ImportExportDialogProps {
+interface Props {
   open: boolean;
   onClose: () => void;
   sessionId: string;
   connectionConfig: ConnectionConfig | null;
   selectedDatabase: string | null;
-  defaultTables?: string[];  // 右键表时预填
+  defaultTables?: string[];
 }
 
-type Mode = "export" | "import";
-
-// 导出格式
-type ExportFormat = "sql" | "insert" | "csv";
-const EXPORT_FORMATS: { value: ExportFormat; label: string; ext: string }[] = [
-  { value: "sql", label: "SQL Dump (mysqldump/pg_dump)", ext: "sql" },
+type ExportFormat = "sql" | "insert" | "csv" | "tsv" | "markdown";
+const FMT_LIST: { value: ExportFormat; label: string; ext: string }[] = [
+  { value: "sql", label: "SQL Dump", ext: "sql" },
   { value: "insert", label: "INSERT Statements", ext: "sql" },
   { value: "csv", label: "CSV", ext: "csv" },
+  { value: "tsv", label: "TSV", ext: "tsv" },
+  { value: "markdown", label: "Markdown Table", ext: "md" },
 ];
 
-function genFilename(base: string, ext: string): string {
-  const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  return `${base}_${ts}.${ext}`;
-}
+function mkTs() { return new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19); }
 
-export const ImportExportDialog = memo(function ImportExportDialog({
-  open: isOpen, onClose, sessionId, connectionConfig, selectedDatabase, defaultTables,
-}: ImportExportDialogProps) {
-  const { t } = useTranslation();
+// ── 入口：根据 props 渲染导出或导入对话框 ──
+// 由外部控制显示哪个，这里只是转发
+export const ImportExportDialog = memo(function ImportExportDialog(props: Props) {
+  if (!props.open || !props.connectionConfig) return null;
+  // 默认显示导出对话框
+  return <ExportDialog {...props} />;
+});
+
+// 单独导出导入对话框组件（供外部直接使用）
+export { ExportDialog, ImportDialog };
+
+// ═══════════════════════════════════════════
+// 导出对话框
+// ═══════════════════════════════════════════
+
+function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, selectedDatabase, defaultTables }: Props) {
   const schemaObjects = useDbClientStore(sessionId, (s) => s.schemaObjects);
+  const allTables = schemaObjects?.tables ?? [];
 
-  const [mode, setMode] = useState<Mode>("export");
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("sql");
-  const [outputPath, setOutputPath] = useState("");
-  const [importPath, setImportPath] = useState("");
+  const [fmt, setFmt] = useState<ExportFormat>("sql");
+  const [path, setPath] = useState("");
   const [dataOnly, setDataOnly] = useState(false);
   const [schemaOnly, setSchemaOnly] = useState(false);
   const [toolPath, setToolPath] = useState("");
-  const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdv, setShowAdv] = useState(false);
+  const [sel, setSel] = useState<Set<string>>(new Set());
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  // 初始化默认值
   useEffect(() => {
     if (isOpen) {
-      setResult(null);
-      setRunning(false);
-      if (defaultTables?.length) {
-        setSelectedTables(new Set(defaultTables));
-        const base = defaultTables.length === 1 ? defaultTables[0] : (selectedDatabase ?? "dump");
-        setOutputPath(genFilename(base, EXPORT_FORMATS.find(f => f.value === exportFormat)?.ext ?? "sql"));
-      } else {
-        setSelectedTables(new Set());
-        setOutputPath(genFilename(selectedDatabase ?? "dump", EXPORT_FORMATS.find(f => f.value === exportFormat)?.ext ?? "sql"));
-      }
+      setResult(null); setRunning(false);
+      // 如果没有指定默认表（从数据库级别导出），则选中所有表
+      const tables = defaultTables && defaultTables.length > 0
+        ? defaultTables
+        : allTables.map(t => t.name);
+      setSel(new Set(tables));
+      setPath(`${defaultTables?.[0] ?? selectedDatabase ?? "dump"}_${mkTs()}.sql`);
     }
-  }, [isOpen, defaultTables, selectedDatabase, exportFormat]);
+  }, [isOpen, defaultTables, selectedDatabase]);
+
+  useEffect(() => {
+    if (!path) return;
+    const ext = FMT_LIST.find(f => f.value === fmt)?.ext ?? "sql";
+    setPath(p => p.replace(/\.[^.]+$/, `.${ext}`));
+  }, [fmt]);
 
   if (!connectionConfig) return null;
 
-  const supportsExport = connectionConfig.dbType !== "influxdb";
-  const supportsImport = connectionConfig.dbType === "postgresql" || connectionConfig.dbType === "mysql";
+  const toggle = (n: string) => setSel(p => { const s = new Set(p); s.has(n) ? s.delete(n) : s.add(n); return s; });
+  const toggleAll = () => setSel(p => p.size === allTables.length ? new Set() : new Set(allTables.map(t => t.name)));
 
-  const toolName = connectionConfig.dbType === "postgresql" ? "pg_dump" : connectionConfig.dbType === "mysql" ? "mysqldump" : connectionConfig.dbType === "sqlite" ? "sqlite3" : "";
-  const allTables = schemaObjects?.tables ?? [];
-
-  const handlePickExportPath = async () => {
-    const ext = EXPORT_FORMATS.find(f => f.value === exportFormat)?.ext ?? "sql";
-    const path = await save({
-      title: t("dbClient.exportSelectPath"),
-      defaultPath: outputPath || genFilename(selectedDatabase ?? "dump", ext),
-      filters: [{ name: ext.toUpperCase(), extensions: [ext] }, { name: t("dbClient.allFiles"), extensions: ["*"] }],
-    });
-    if (path) setOutputPath(path);
+  const pickPath = async () => {
+    const ext = FMT_LIST.find(f => f.value === fmt)?.ext ?? "sql";
+    const p = await save({ defaultPath: path, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
+    if (p) setPath(p);
   };
 
-  const handlePickImportFile = async () => {
-    const path = await openDialog({
-      title: t("dbClient.importSelectFile"), multiple: false,
-      filters: [{ name: "SQL / Dump", extensions: ["sql", "dump", "backup", "gz", "csv"] }, { name: t("dbClient.allFiles"), extensions: ["*"] }],
-    });
-    if (path) setImportPath(path as string);
-  };
-
-  const handlePickToolPath = async () => {
-    const path = await openDialog({ title: t("dbClient.selectToolPath"), multiple: false });
-    if (path) setToolPath(path as string);
-  };
-
-  const toggleTable = (name: string) => setSelectedTables(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
-  const toggleAllTables = () => setSelectedTables(prev => prev.size === allTables.length ? new Set() : new Set(allTables.map(t => t.name)));
-
-  const handleExport = async () => {
-    if (!outputPath) return;
+  const doExport = async () => {
+    if (!path) return;
     setRunning(true); setResult(null);
     try {
-      const options: ExportOptions = {
-        format: exportFormat, outputPath,
-        database: selectedDatabase ?? connectionConfig.database,
-        schema: null, tables: Array.from(selectedTables), dataOnly, schemaOnly,
-        toolPath: toolPath || null,
-      };
-      const res = await dbService.exportDatabase(sessionId, connectionConfig, options);
-      setResult({ ok: true, msg: t("dbClient.exportSuccess", { size: fmtBytes(res.sizeBytes), time: res.durationMs }) });
-    } catch (e) { setResult({ ok: false, msg: String(e) }); }
-    setRunning(false);
-  };
-
-  const handleImport = async () => {
-    if (!importPath) return;
-    setRunning(true); setResult(null);
-    try {
-      const options: ImportOptions = { filePath: importPath, database: selectedDatabase ?? connectionConfig.database, schema: null, toolPath: toolPath || null };
-      const res = await dbService.importDatabase(sessionId, connectionConfig, options);
-      const w = res.warnings.length > 0 ? ` (${res.warnings.length} ${t("dbClient.warnings")})` : "";
-      setResult({ ok: true, msg: t("dbClient.importSuccess", { time: res.durationMs }) + w });
+      const opts: ExportOptions = { format: fmt, outputPath: path, database: selectedDatabase ?? connectionConfig.database, schema: null, tables: Array.from(sel), dataOnly, schemaOnly, toolPath: toolPath || null };
+      const res = await dbService.exportDatabase(sessionId, connectionConfig, opts);
+      setResult({ ok: true, msg: `导出完成：${fmtB(res.sizeBytes)}，耗时 ${res.durationMs}ms` });
     } catch (e) { setResult({ ok: false, msg: String(e) }); }
     setRunning(false);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent
-        className="w-[520px] max-w-[96vw] gap-0 overflow-hidden rounded-xl border border-border-default/60 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.18)] sm:max-w-[520px]"
-        showCloseButton
-      >
-        <DialogTitle className="sr-only">{t("dbClient.importExport")}</DialogTitle>
-
-        {/* 头部 */}
-        <div className="border-b border-border-default/50 px-5 py-3">
-          <h2 className="text-sm font-semibold text-text-primary">{t("dbClient.importExport")}</h2>
-          <p className="text-xs text-text-tertiary mt-0.5">
-            {selectedDatabase ?? connectionConfig.database}
-            {defaultTables?.length ? ` · ${defaultTables.join(", ")}` : ""}
-          </p>
-        </div>
-
-        {/* 模式切换 */}
-        <div className="flex border-b border-border-default/50">
-          <button onClick={() => { setMode("export"); setResult(null); }}
-            className={cn("flex flex-1 items-center justify-center gap-2 py-2 text-sm font-medium transition-colors",
-              mode === "export" ? "border-b-2 border-accent text-accent" : "text-text-tertiary hover:text-text-primary")}>
-            <Download size={14} />{t("dbClient.export")}
-          </button>
-          <button onClick={() => { setMode("import"); setResult(null); }}
-            className={cn("flex flex-1 items-center justify-center gap-2 py-2 text-sm font-medium transition-colors",
-              mode === "import" ? "border-b-2 border-accent text-accent" : "text-text-tertiary hover:text-text-primary")}>
-            <Upload size={14} />{t("dbClient.import")}
-          </button>
-        </div>
-
-        {/* 内容 */}
-        <div className="p-5 space-y-3 max-h-[60vh] overflow-y-auto">
-          {!supportsExport && mode === "export" && (
-            <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-600">{t("dbClient.exportNotSupported")}</div>
-          )}
-          {!supportsImport && mode === "import" && (
-            <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-600">{t("dbClient.importNotSupported")}</div>
-          )}
-
-          {mode === "export" && supportsExport && (
-            <>
-              {/* 导出格式 */}
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-text-secondary">{t("dbClient.exportFormat")}</label>
-                <div className="flex gap-2 flex-wrap">
-                  {EXPORT_FORMATS.map(f => (
-                    <button key={f.value} onClick={() => setExportFormat(f.value)}
-                      className={cn("rounded-md px-3 py-1.5 text-xs border transition-colors",
-                        f.value === exportFormat ? "border-accent bg-accent/10 text-accent font-medium" : "border-border-default text-text-secondary hover:bg-bg-hover")}>
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 输出文件 */}
-              <div>
-                <label className="mb-1 block text-xs font-medium text-text-secondary">{t("dbClient.outputFile")}</label>
-                <div className="flex gap-2">
-                  <input value={outputPath} onChange={e => setOutputPath(e.target.value)} placeholder={genFilename("dump", "sql")}
-                    className="flex-1 rounded-md border border-border-default bg-bg-secondary px-2.5 py-1.5 text-xs text-text-primary focus:border-accent focus:outline-none" />
-                  <button onClick={handlePickExportPath} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover"><FolderOpen size={14} /></button>
-                </div>
-              </div>
-
-              {/* SQL Dump 选项 */}
-              {exportFormat === "sql" && (
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-1.5 text-xs text-text-secondary">
-                    <input type="checkbox" checked={dataOnly} onChange={e => { setDataOnly(e.target.checked); if (e.target.checked) setSchemaOnly(false); }} className="h-3 w-3 rounded" />
-                    {t("dbClient.dataOnly")}
-                  </label>
-                  <label className="flex items-center gap-1.5 text-xs text-text-secondary">
-                    <input type="checkbox" checked={schemaOnly} onChange={e => { setSchemaOnly(e.target.checked); if (e.target.checked) setDataOnly(false); }} className="h-3 w-3 rounded" />
-                    {t("dbClient.schemaOnly")}
-                  </label>
-                </div>
-              )}
-
-              {/* 表选择 */}
-              {!defaultTables?.length && allTables.length > 0 && (
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-text-secondary">
-                    {t("dbClient.exportTables")}
-                    <span className="text-text-tertiary font-normal ml-1">({selectedTables.size === 0 ? t("dbClient.exportAllTables") : `${selectedTables.size}/${allTables.length}`})</span>
-                  </label>
-                  <div className="border border-border-default rounded-md max-h-[100px] overflow-y-auto bg-bg-secondary">
-                    <div className="sticky top-0 bg-bg-secondary border-b border-border-default/30 px-2 py-1">
-                      <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer">
-                        <input type="checkbox" checked={selectedTables.size === allTables.length}
-                          ref={el => { if (el) el.indeterminate = selectedTables.size > 0 && selectedTables.size < allTables.length; }}
-                          onChange={toggleAllTables} className="h-3 w-3 rounded" />
-                        {t("dbClient.selectAll")}
-                      </label>
-                    </div>
-                    {allTables.map(tbl => (
-                      <label key={tbl.name} className="flex items-center gap-1.5 px-2 py-0.5 text-xs text-text-primary hover:bg-bg-hover cursor-pointer">
-                        <input type="checkbox" checked={selectedTables.has(tbl.name)} onChange={() => toggleTable(tbl.name)} className="h-3 w-3 rounded" />
-                        {tbl.name}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 高级选项 */}
-              {exportFormat === "sql" && (
-                <div>
-                  <button onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary">
-                    {showAdvanced ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                    {t("dbClient.advancedOptions")}
-                  </button>
-                  {showAdvanced && (
-                    <div className="mt-2">
-                      <label className="mb-1 block text-xs text-text-tertiary">{t("dbClient.toolPath")} ({toolName})</label>
-                      <div className="flex gap-2">
-                        <input value={toolPath} onChange={e => setToolPath(e.target.value)} placeholder={t("dbClient.toolPathPlaceholder")}
-                          className="flex-1 rounded-md border border-border-default bg-bg-secondary px-2.5 py-1.5 text-xs text-text-primary font-mono focus:border-accent focus:outline-none" />
-                        <button onClick={handlePickToolPath} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover"><FolderOpen size={14} /></button>
-                      </div>
-                      <p className="mt-1 text-xs text-text-quaternary">{t("dbClient.toolPathHint")}</p>
-                    </div>
+    <Dialog open={isOpen} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="!w-[660px] !max-w-[96vw] !gap-0 !p-0 !rounded-xl sm:!max-w-[660px]" showCloseButton>
+        <DialogTitle className="sr-only">导出</DialogTitle>
+        <div className="flex rounded-xl overflow-hidden max-h-[70vh]">
+          {/* 左：表列表 */}
+          <div className="w-[220px] shrink-0 border-r border-border-default bg-bg-secondary/30 flex flex-col min-h-0">
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-default/50 shrink-0">
+              <span className="text-xs font-semibold text-text-primary">导出表</span>
+              <span className="text-[10px] text-text-quaternary">{sel.size}/{allTables.length}</span>
+            </div>
+            <div className="px-3 py-1 border-b border-border-default/30 shrink-0">
+              <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none">
+                <input type="checkbox" checked={sel.size === allTables.length}
+                  ref={el => { if (el) el.indeterminate = sel.size > 0 && sel.size < allTables.length; }}
+                  onChange={toggleAll} className="h-3.5 w-3.5 rounded" />
+                全选 / 全不选
+              </label>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {allTables.map(tbl => (
+                <label key={tbl.name} className={cn(
+                  "flex items-center gap-2 px-3 py-0.5 text-xs cursor-pointer select-none",
+                  sel.has(tbl.name) ? "bg-accent/8 text-text-primary" : "text-text-secondary hover:bg-bg-hover",
+                )}>
+                  <input type="checkbox" checked={sel.has(tbl.name)} onChange={() => toggle(tbl.name)} className="h-3.5 w-3.5 rounded shrink-0" />
+                  <span className="truncate flex-1">{tbl.name}</span>
+                  {tbl.rowCountEstimate != null && tbl.rowCountEstimate > 0 && (
+                    <span className="text-[10px] text-text-quaternary tabular-nums shrink-0">
+                      {tbl.rowCountEstimate > 999 ? `${(tbl.rowCountEstimate / 1000).toFixed(1)}K` : tbl.rowCountEstimate}
+                    </span>
                   )}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* 右：选项 — 流式布局，内容决定弹框高度 */}
+          <div className="flex-1 min-w-0">
+            <div className="p-4 pb-3 space-y-3">
+              <Fld label="导出格式">
+                <select value={fmt} onChange={e => setFmt(e.target.value as ExportFormat)}
+                  className="w-full rounded-md border border-border-default bg-bg-secondary px-3 py-1.5 text-xs text-text-primary focus:border-accent focus:outline-none">
+                  {FMT_LIST.map(f => <option key={f.value} value={f.value}>{f.label} (.{f.ext})</option>)}
+                </select>
+              </Fld>
+
+              <Fld label="输出文件">
+                <div className="flex gap-2">
+                  <input value={path} onChange={e => setPath(e.target.value)}
+                    className="flex-1 rounded-md border border-border-default bg-bg-secondary px-3 py-1.5 text-xs text-text-primary font-mono focus:border-accent focus:outline-none min-w-0" />
+                  <button onClick={pickPath} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={13} /></button>
+                </div>
+              </Fld>
+
+              {fmt === "sql" && (
+                <>
+                  <div className="flex gap-5">
+                    <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none">
+                      <input type="checkbox" checked={dataOnly} onChange={e => { setDataOnly(e.target.checked); if (e.target.checked) setSchemaOnly(false); }} className="h-3.5 w-3.5 rounded" />
+                      仅数据
+                    </label>
+                    <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none">
+                      <input type="checkbox" checked={schemaOnly} onChange={e => { setSchemaOnly(e.target.checked); if (e.target.checked) setDataOnly(false); }} className="h-3.5 w-3.5 rounded" />
+                      仅结构
+                    </label>
+                  </div>
+                  <div>
+                    <button onClick={() => setShowAdv(!showAdv)} className="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary">
+                      {showAdv ? <ChevronDown size={12} /> : <ChevronRight size={12} />} 高级选项
+                    </button>
+                    {showAdv && (
+                      <div className="mt-2 ml-4 border-l-2 border-border-default/30 pl-3 space-y-1">
+                        <label className="block text-[11px] text-text-tertiary">工具路径（留空自动检测）</label>
+                        <div className="flex gap-2">
+                          <input value={toolPath} onChange={e => setToolPath(e.target.value)} placeholder="自动检测"
+                            className="flex-1 rounded-md border border-border-default bg-bg-secondary px-2.5 py-1 text-xs text-text-primary font-mono focus:border-accent focus:outline-none min-w-0" />
+                          <button onClick={async () => { const p = await openDialog({ multiple: false }); if (p) setToolPath(p as string); }}
+                            className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={12} /></button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {result && (
+                <div className={cn("flex items-start gap-2 rounded-md px-3 py-2 text-xs",
+                  result.ok ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500")}>
+                  {result.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
+                  <span className="break-all">{result.msg}</span>
                 </div>
               )}
 
-              <button onClick={handleExport} disabled={running || !outputPath}
+              <button onClick={doExport} disabled={running || !path}
                 className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
-                {running ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                {t("dbClient.startExport")}
+                {running ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} 开始导出
               </button>
-            </>
-          )}
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-          {mode === "import" && supportsImport && (
+// ═══════════════════════════════════════════
+// 导入对话框
+// ═══════════════════════════════════════════
+
+function ImportDialog({ open: isOpen, onClose, sessionId, connectionConfig, selectedDatabase }: Props) {
+  const [importPath, setImportPath] = useState("");
+  const [toolPath, setToolPath] = useState("");
+  const [showAdv, setShowAdv] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  useEffect(() => { if (isOpen) { setResult(null); setRunning(false); } }, [isOpen]);
+
+  if (!connectionConfig) return null;
+  const ok = connectionConfig.dbType === "postgresql" || connectionConfig.dbType === "mysql";
+
+  const pickFile = async () => {
+    const p = await openDialog({ multiple: false, filters: [{ name: "SQL / Dump", extensions: ["sql", "dump", "backup", "gz", "csv"] }] });
+    if (p) setImportPath(p as string);
+  };
+
+  const doImport = async () => {
+    if (!importPath) return;
+    setRunning(true); setResult(null);
+    try {
+      const opts: ImportOptions = { filePath: importPath, database: selectedDatabase ?? connectionConfig.database, schema: null, toolPath: toolPath || null };
+      const res = await dbService.importDatabase(sessionId, connectionConfig, opts);
+      setResult({ ok: true, msg: `导入完成，耗时 ${res.durationMs}ms${res.warnings.length ? ` (${res.warnings.length} 个警告)` : ""}` });
+    } catch (e) { setResult({ ok: false, msg: String(e) }); }
+    setRunning(false);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="!w-[400px] !max-w-[96vw] !gap-0 !p-0 !rounded-xl sm:!max-w-[400px]" showCloseButton>
+        <DialogTitle className="sr-only">导入</DialogTitle>
+        <div className="p-4 space-y-3">
+          {!ok ? (
+            <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-600">当前数据库类型不支持导入</div>
+          ) : (
             <>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-text-secondary">{t("dbClient.importFile")}</label>
+              <Fld label="导入文件">
                 <div className="flex gap-2">
                   <input value={importPath} onChange={e => setImportPath(e.target.value)} placeholder="/path/to/dump.sql"
-                    className="flex-1 rounded-md border border-border-default bg-bg-secondary px-2.5 py-1.5 text-xs text-text-primary focus:border-accent focus:outline-none" />
-                  <button onClick={handlePickImportFile} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover"><FolderOpen size={14} /></button>
+                    className="flex-1 rounded-md border border-border-default bg-bg-secondary px-3 py-1.5 text-xs text-text-primary font-mono focus:border-accent focus:outline-none min-w-0" />
+                  <button onClick={pickFile} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={13} /></button>
                 </div>
+              </Fld>
+
+              <div>
+                <button onClick={() => setShowAdv(!showAdv)} className="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-primary">
+                  {showAdv ? <ChevronDown size={12} /> : <ChevronRight size={12} />} 高级选项
+                </button>
+                {showAdv && (
+                  <div className="mt-2 ml-4 border-l-2 border-border-default/30 pl-3">
+                    <label className="block text-[11px] text-text-tertiary mb-1">工具路径</label>
+                    <input value={toolPath} onChange={e => setToolPath(e.target.value)} placeholder="自动检测"
+                      className="w-full rounded-md border border-border-default bg-bg-secondary px-2.5 py-1 text-xs text-text-primary font-mono focus:border-accent focus:outline-none" />
+                  </div>
+                )}
               </div>
-              <button onClick={handleImport} disabled={running || !importPath}
+
+              {result && (
+                <div className={cn("flex items-start gap-2 rounded-md px-3 py-2 text-xs",
+                  result.ok ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500")}>
+                  {result.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
+                  <span className="break-all">{result.msg}</span>
+                </div>
+              )}
+
+              <button onClick={doImport} disabled={running || !importPath}
                 className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
-                {running ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                {t("dbClient.startImport")}
+                {running ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} 开始导入
               </button>
             </>
-          )}
-
-          {result && (
-            <div className={cn("flex items-start gap-2 rounded-md px-3 py-2 text-xs",
-              result.ok ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500")}>
-              {result.ok ? <CheckCircle2 size={14} className="shrink-0 mt-0.5" /> : <AlertCircle size={14} className="shrink-0 mt-0.5" />}
-              <span className="break-all">{result.msg}</span>
-            </div>
           )}
         </div>
       </DialogContent>
     </Dialog>
   );
-});
-
-function fmtBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+function Fld({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div><label className="block text-xs font-medium text-text-secondary mb-1.5">{label}</label>{children}</div>;
+}
+
+function fmtB(b: number) { return b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`; }

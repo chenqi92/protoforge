@@ -335,10 +335,11 @@ impl DbDriver for SqliteDriver {
             }
             _ => None,
         };
-        let sql = format!(
-            "SELECT * FROM {} {} {} LIMIT {} OFFSET {}",
-            safe_table, where_clause, order, limit, offset
-        );
+        let sql = if limit > 0 {
+            format!("SELECT * FROM {} {} {} LIMIT {} OFFSET {}", safe_table, where_clause, order, limit, offset)
+        } else {
+            format!("SELECT * FROM {} {} {}", safe_table, where_clause, order)
+        };
         let mut result = self.execute_query(&sql).await?;
         result.total_rows = total_rows;
         Ok(result)

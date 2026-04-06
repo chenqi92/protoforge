@@ -18,7 +18,7 @@ import {
 import type { SavedConnection, TableMeta } from "@/types/dbclient";
 import { DB_TYPE_LABELS } from "@/types/dbclient";
 import { ConnectionFormDialog } from "./ConnectionFormDialog";
-import { ImportExportDialog } from "./ImportExportDialog";
+import { ExportDialog, ImportDialog } from "./ImportExportDialog";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
 import {
   Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
@@ -51,7 +51,8 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingConn, setEditingConn] = useState<SavedConnection | null>(null);
-  const [importExportOpen, setImportExportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [exportDefaultTables, setExportDefaultTables] = useState<string[]>([]);
   const { showMenu, MenuComponent } = useContextMenu();
 
@@ -108,9 +109,9 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
   }, []);
 
   // ── Show DDL → 新建 query tab 并执行（使用表所在数据库）──
-  const showDdl = useCallback((ddlSql: string, database?: string) => {
+  const showDdl = useCallback((ddlSql: string, database?: string, objectName?: string) => {
     const store = getDbClientStoreApi(sessionId);
-    store.getState().addQueryTab("DDL", ddlSql);
+    store.getState().addQueryTab(objectName ? `DDL: ${objectName}` : "DDL", ddlSql);
     store.getState().executeQuery(database);
   }, [sessionId]);
 
@@ -151,7 +152,9 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
       {
         id: "new-query", label: t("dbClient.newQueryTab"), icon: <FileText size={13} />,
         onClick: () => {
-          getDbClientStoreApi(sessionId).getState().addQueryTab(`${dbName}`, "");
+          const store = getDbClientStoreApi(sessionId);
+          store.getState().addQueryTab(`${dbName}`, "");
+          store.getState().selectDatabase(dbName);
         },
       },
       {
@@ -161,11 +164,11 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
       { type: "divider" },
       {
         id: "export-db", label: t("dbClient.export"), icon: <Download size={13} />,
-        onClick: () => { setExportDefaultTables([]); setImportExportOpen(true); },
+        onClick: () => { setExportDefaultTables([]); setExportOpen(true); },
       },
       {
         id: "import-db", label: t("dbClient.import"), icon: <Upload size={13} />,
-        onClick: () => { setImportExportOpen(true); },
+        onClick: () => { setImportOpen(true); },
       },
       { type: "divider" },
       {
@@ -184,13 +187,29 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
         onClick: () => handleOpenTable(schema, tableName),
       },
       {
+        id: "new-query", label: t("dbClient.newQueryTab"), icon: <FileText size={13} />,
+        onClick: () => {
+          const store = getDbClientStoreApi(sessionId);
+          store.getState().addQueryTab(tableName, getSelectQuery(dbType, schema, tableName));
+          if (database) store.getState().selectDatabase(database);
+        },
+      },
+      {
+        id: "edit-structure", label: t("dbClient.editStructure"), icon: <Pencil size={13} />,
+        onClick: () => {
+          const store = getDbClientStoreApi(sessionId);
+          if (database) store.getState().selectDatabase(database);
+          store.getState().openTableStructure(schema, tableName);
+        },
+      },
+      {
         id: "show-ddl", label: t("dbClient.showDDL"), icon: <Code2 size={13} />,
-        onClick: () => showDdl(getTableDdlQuery(dbType, schema, tableName), database),
+        onClick: () => showDdl(getTableDdlQuery(dbType, schema, tableName), database, tableName),
       },
       { type: "divider" },
       {
         id: "export-table", label: t("dbClient.exportTable"), icon: <Download size={13} />,
-        onClick: () => { setExportDefaultTables([tableName]); setImportExportOpen(true); },
+        onClick: () => { setExportDefaultTables([tableName]); setExportOpen(true); },
       },
       {
         id: "copy-name", label: t("dbClient.copyName"), icon: <Copy size={13} />,
@@ -202,14 +221,14 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
       },
     ];
     showMenu(e, items);
-  }, [t, dbType, handleOpenTable, showDdl, copyText, showMenu]);
+  }, [t, dbType, sessionId, handleOpenTable, showDdl, copyText, showMenu]);
 
   // ── 右键菜单：函数节点 ──
   const onFunctionContext = useCallback((e: React.MouseEvent, schema: string, funcName: string, database?: string) => {
     const items: ContextMenuEntry[] = [
       {
         id: "show-ddl", label: t("dbClient.showDDL"), icon: <Code2 size={13} />,
-        onClick: () => showDdl(getFunctionDdlQuery(dbType, schema, funcName), database),
+        onClick: () => showDdl(getFunctionDdlQuery(dbType, schema, funcName), database, funcName),
       },
       {
         id: "copy-name", label: t("dbClient.copyName"), icon: <Copy size={13} />,
@@ -453,13 +472,20 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
       />
 
       {/* 导入导出对话框 */}
-      <ImportExportDialog
-        open={importExportOpen}
-        onClose={() => { setImportExportOpen(false); setExportDefaultTables([]); }}
+      <ExportDialog
+        open={exportOpen}
+        onClose={() => { setExportOpen(false); setExportDefaultTables([]); }}
         sessionId={sessionId}
         connectionConfig={connectionConfig}
         selectedDatabase={selectedDatabase}
         defaultTables={exportDefaultTables}
+      />
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        sessionId={sessionId}
+        connectionConfig={connectionConfig}
+        selectedDatabase={selectedDatabase}
       />
     </div>
   );

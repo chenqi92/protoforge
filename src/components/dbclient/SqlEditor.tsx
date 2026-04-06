@@ -5,7 +5,7 @@ import { memo, useCallback, useRef, useEffect } from "react";
 import {
   Play, Square, Loader2, Clock, AlertCircle, CheckCircle2,
   Wand2, Plus, X, Table2, FileText, Database,
-  Copy, ClipboardPaste, Search,
+  Copy, ClipboardPaste, Search, Pencil,
 } from "lucide-react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { languages } from "monaco-editor";
@@ -262,7 +262,9 @@ export const SqlEditor = memo(function SqlEditor({
                   : "border-transparent text-text-tertiary hover:text-text-primary hover:bg-bg-hover/50",
               )}
             >
-              {tab.kind === "query" ? (
+              {tab.kind === "structure" ? (
+                <Pencil size={11} className="shrink-0 text-amber-500" />
+              ) : tab.kind === "query" ? (
                 <FileText size={11} className="shrink-0 opacity-60" />
               ) : (
                 <Table2 size={11} className="shrink-0 text-blue-500" />
@@ -272,6 +274,9 @@ export const SqlEditor = memo(function SqlEditor({
                 <Loader2 size={10} className="animate-spin shrink-0" />
               )}
               {tab.kind === "table" && tab.tableDataLoading && (
+                <Loader2 size={10} className="animate-spin shrink-0" />
+              )}
+              {tab.kind === "structure" && tab.loading && (
                 <Loader2 size={10} className="animate-spin shrink-0" />
               )}
               {tabs.length > 1 && (

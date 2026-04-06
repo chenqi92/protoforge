@@ -478,10 +478,11 @@ impl DbDriver for MysqlDriver {
             _ => None,
         };
 
-        let sql = format!(
-            "SELECT * FROM {} {} {} LIMIT {} OFFSET {}",
-            table_ref, where_clause, order, limit, offset
-        );
+        let sql = if limit > 0 {
+            format!("SELECT * FROM {} {} {} LIMIT {} OFFSET {}", table_ref, where_clause, order, limit, offset)
+        } else {
+            format!("SELECT * FROM {} {} {}", table_ref, where_clause, order)
+        };
         let mut result = self.execute_query(&sql).await?;
         result.total_rows = total_rows;
         Ok(result)

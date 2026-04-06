@@ -11,6 +11,7 @@ import type {
   DatabaseInfo,
   SchemaObjects,
   TableDescription,
+  ColumnDetail,
   CellEdit,
 } from "@/types/dbclient";
 import * as dbService from "@/services/dbClientService";
@@ -27,6 +28,7 @@ export interface QueryTab {
   queryResult: QueryResult | null;
   queryError: string | null;
   queryRunning: boolean;
+  panelLayout?: [number, number]; // [editorPercent, resultsPercent]
 }
 
 export interface TableDataTab {
@@ -48,7 +50,22 @@ export interface TableDataTab {
   tableDescription: TableDescription | null;
 }
 
-export type WorkspaceTab = QueryTab | TableDataTab;
+export interface TableStructureTab {
+  kind: "structure";
+  id: string;
+  label: string;
+  database: string;
+  schema: string;
+  table: string;
+  originalDescription: TableDescription | null;
+  editedColumns: ColumnDetail[];
+  deletedColumns: string[];
+  addedColumns: ColumnDetail[];
+  loading: boolean;
+  applyError: string | null;
+}
+
+export type WorkspaceTab = QueryTab | TableDataTab | TableStructureTab;
 
 // ═══════════════════════════════════════════
 //  State 类型
@@ -127,6 +144,18 @@ interface DbClientStoreState {
   clearPendingEdits: (tabId?: string) => void;
   applyEdits: (tabId?: string) => Promise<void>;
   deleteRows: (pkValues: import("@/types/dbclient").SqlValue[][], tabId?: string) => Promise<void>;
+
+  // Panel 布局
+  setTabPanelLayout: (tabId: string, layout: [number, number]) => void;
+
+  // 表结构编辑
+  openTableStructure: (schema: string, table: string) => Promise<void>;
+  updateStructureColumn: (tabId: string, colIndex: number, updates: Partial<ColumnDetail>) => void;
+  addStructureColumn: (tabId: string) => void;
+  removeStructureColumn: (tabId: string, colIndex: number) => void;
+  moveStructureColumn: (tabId: string, fromIndex: number, toIndex: number) => void;
+  applyStructureChanges: (tabId: string) => Promise<void>;
+  discardStructureChanges: (tabId: string) => void;
 
   // 向后兼容旧接口
   closeQueryTab: (tabId: string) => void;
@@ -754,6 +783,146 @@ function createDbClientSessionStore(sessionId: string) {
         console.error("Delete rows failed:", e);
         throw e;
       }
+    },
+
+    // ── Panel 布局 ──
+
+    setTabPanelLayout: (tabId: string, layout: [number, number]) => {
+      set((s) => ({
+        tabs: updateTab<QueryTab>(s.tabs, tabId, () => ({ panelLayout: layout })),
+      }));
+    },
+
+    // ── 表结构编辑 ──
+
+    openTableStructure: async (schema: string, table: string) => {
+      const db = get().selectedDatabase ?? "";
+      const existing = get().tabs.find(
+        (t) => t.kind === "structure" && t.database === db && t.schema === schema && t.table === table
+      );
+      if (existing) { get().setActiveTab(existing.id); return; }
+
+      const id = crypto.randomUUID();
+      const tab: TableStructureTab = {
+        kind: "structure", id, label: `${table} [结构]`,
+        database: db, schema, table,
+        originalDescription: null, editedColumns: [], deletedColumns: [], addedColumns: [],
+        loading: true, applyError: null,
+      };
+      set((s) => {
+        const tabs = s.tabs.map((t) => {
+          if (t.id === s.activeTabId && t.kind === "query") {
+            return { ...t, sqlText: s.sqlText, queryResult: s.queryResult, queryError: s.queryError, queryRunning: s.queryRunning };
+          }
+          return t;
+        });
+        return { tabs: [...tabs, tab], activeTabId: id, sqlText: "", queryResult: null, queryError: null, queryRunning: false };
+      });
+
+      try {
+        const desc = await dbService.describeTable(sessionId, db, schema, table);
+        set((s) => ({
+          tabs: updateTab<TableStructureTab>(s.tabs, id, () => ({
+            originalDescription: desc,
+            editedColumns: desc.columns.map((c) => ({ ...c })),
+            loading: false,
+          })),
+        }));
+      } catch {
+        set((s) => ({
+          tabs: updateTab<TableStructureTab>(s.tabs, id, () => ({ loading: false })),
+        }));
+      }
+    },
+
+    updateStructureColumn: (tabId: string, colIndex: number, updates: Partial<ColumnDetail>) => {
+      set((s) => ({
+        tabs: updateTab<TableStructureTab>(s.tabs, tabId, (t) => ({
+          editedColumns: t.editedColumns.map((c, i) => i === colIndex ? { ...c, ...updates } : c),
+        })),
+      }));
+    },
+
+    addStructureColumn: (tabId: string) => {
+      const newCol: ColumnDetail = {
+        name: "new_column", dataType: "varchar(255)", nullable: true,
+        defaultValue: null, isPrimaryKey: false, comment: null, maxLength: null,
+      };
+      set((s) => ({
+        tabs: updateTab<TableStructureTab>(s.tabs, tabId, (t) => ({
+          editedColumns: [...t.editedColumns, newCol],
+          addedColumns: [...t.addedColumns, newCol],
+        })),
+      }));
+    },
+
+    removeStructureColumn: (tabId: string, colIndex: number) => {
+      set((s) => ({
+        tabs: updateTab<TableStructureTab>(s.tabs, tabId, (t) => {
+          const col = t.editedColumns[colIndex];
+          const isNew = t.addedColumns.some((a) => a === col);
+          return {
+            editedColumns: t.editedColumns.filter((_, i) => i !== colIndex),
+            deletedColumns: isNew ? t.deletedColumns : [...t.deletedColumns, col.name],
+            addedColumns: isNew ? t.addedColumns.filter((a) => a !== col) : t.addedColumns,
+          };
+        }),
+      }));
+    },
+
+    moveStructureColumn: (tabId: string, fromIndex: number, toIndex: number) => {
+      set((s) => ({
+        tabs: updateTab<TableStructureTab>(s.tabs, tabId, (t) => {
+          const cols = [...t.editedColumns];
+          const [moved] = cols.splice(fromIndex, 1);
+          cols.splice(toIndex, 0, moved);
+          return { editedColumns: cols };
+        }),
+      }));
+    },
+
+    applyStructureChanges: async (tabId: string) => {
+      const tab = get().tabs.find((t) => t.id === tabId && t.kind === "structure") as TableStructureTab | undefined;
+      if (!tab || !tab.originalDescription) return;
+      const config = get().connectionConfig;
+      if (!config) return;
+
+      const { generateAlterTableSQL } = await import("@/lib/sqlDialect");
+      const statements = generateAlterTableSQL(
+        config.dbType, tab.schema, tab.table,
+        tab.originalDescription.columns, tab.editedColumns,
+        tab.deletedColumns, tab.addedColumns,
+      );
+      if (statements.length === 0) return;
+
+      set((s) => ({ tabs: updateTab<TableStructureTab>(s.tabs, tabId, () => ({ loading: true, applyError: null })) }));
+      try {
+        for (const sql of statements) {
+          await dbService.executeQuery(sessionId, sql, tab.database);
+        }
+        // 重新加载表结构
+        const desc = await dbService.describeTable(sessionId, tab.database, tab.schema, tab.table);
+        set((s) => ({
+          tabs: updateTab<TableStructureTab>(s.tabs, tabId, () => ({
+            originalDescription: desc,
+            editedColumns: desc.columns.map((c) => ({ ...c })),
+            deletedColumns: [], addedColumns: [], loading: false, applyError: null,
+          })),
+        }));
+      } catch (e) {
+        set((s) => ({
+          tabs: updateTab<TableStructureTab>(s.tabs, tabId, () => ({ loading: false, applyError: String(e) })),
+        }));
+      }
+    },
+
+    discardStructureChanges: (tabId: string) => {
+      set((s) => ({
+        tabs: updateTab<TableStructureTab>(s.tabs, tabId, (t) => ({
+          editedColumns: t.originalDescription ? t.originalDescription.columns.map((c) => ({ ...c })) : [],
+          deletedColumns: [], addedColumns: [], applyError: null,
+        })),
+      }));
     },
 
     // ── 向后兼容 ──

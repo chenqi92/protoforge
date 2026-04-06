@@ -6,7 +6,7 @@ import { memo, useCallback, useState, useRef, useEffect } from "react";
 import {
   Filter, RefreshCw, Loader2, X, ArrowUpDown,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Code2, Copy, ChevronDown,
+  Code2, Copy, ChevronDown, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -16,7 +16,7 @@ import type { CellEdit, SqlValue } from "@/types/dbclient";
 import { DataGrid, type CopyFormat, COPY_FORMAT_LABELS, COPY_FORMAT_GROUPS, getSavedCopyFormat, saveCopyFormat } from "./DataGrid";
 import { getTableDdlQuery } from "@/lib/sqlDialect";
 
-const PAGE_SIZES = [1000, 2000, 5000, -1]; // -1 = All
+const PAGE_SIZES = [1000, 2000, 5000, 0]; // 0 = All (no LIMIT)
 
 export const TableDataView = memo(function TableDataView({
   sessionId, tab,
@@ -89,6 +89,10 @@ export const TableDataView = memo(function TableDataView({
     store.getState().executeQuery(tab.database);
   }, [store, tab.schema, tab.table, tab.database]);
 
+  const handleEditStructure = useCallback(() => {
+    store.getState().openTableStructure(tab.schema, tab.table);
+  }, [store, tab.schema, tab.table]);
+
   const handleCellEdit = useCallback((edit: CellEdit) => { store.getState().addPendingEdit(edit, tab.id); }, [store, tab.id]);
   const handleApplyEdits = useCallback(() => { store.getState().applyEdits(tab.id); }, [store, tab.id]);
   const handleDiscardEdits = useCallback(() => { store.getState().clearPendingEdits(tab.id); }, [store, tab.id]);
@@ -125,14 +129,14 @@ export const TableDataView = memo(function TableDataView({
         <div className="relative" ref={pageSizeRef}>
           <button onClick={() => setShowPageSize(!showPageSize)}
             className="flex items-center gap-1 pf-rounded-sm px-1.5 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover border border-border-default/40">
-            <span>{pl >= 99999 ? "All" : pl}</span><span className="text-text-quaternary">/{t("dbClient.page")}</span><ChevronDown size={9} />
+            <span>{pl === 0 ? "All" : pl}</span><span className="text-text-quaternary">/{t("dbClient.page")}</span><ChevronDown size={9} />
           </button>
           {showPageSize && (
             <div className="absolute top-full left-0 mt-1 w-[80px] py-1 bg-bg-elevated border border-border-default rounded-lg shadow-lg z-50">
               {PAGE_SIZES.map(s => (
-                <button key={s} onClick={() => handlePageSizeChange(s === -1 ? 99999 : s)}
-                  className={cn("w-full text-left px-3 py-1 pf-text-xs", (s === -1 ? 99999 : s) === pl ? "bg-accent/10 text-accent font-medium" : "text-text-secondary hover:bg-bg-hover")}>
-                  {s === -1 ? "All" : s}
+                <button key={s} onClick={() => handlePageSizeChange(s)}
+                  className={cn("w-full text-left px-3 py-1 pf-text-xs", s === pl ? "bg-accent/10 text-accent font-medium" : "text-text-secondary hover:bg-bg-hover")}>
+                  {s === 0 ? "All" : s}
                 </button>
               ))}
             </div>
@@ -143,6 +147,11 @@ export const TableDataView = memo(function TableDataView({
 
         {/* 右：DDL + 复制格式 */}
         <div className="flex-1" />
+
+        <button onClick={handleEditStructure}
+          className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary">
+          <Pencil size={12} /><span>{t("dbClient.editStructure")}</span>
+        </button>
 
         <button onClick={handleShowDdl}
           className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary" title={t("dbClient.showDDL")}>

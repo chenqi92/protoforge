@@ -1649,6 +1649,7 @@
     "importNotSupported": "当前数据库类型不支持导入",
     "copyAsMarkdown": "复制为 Markdown",
     "copyAsUpdate": "复制为 UPDATE",
+    "editStructure": "编辑结构",
     "executeSelection": "执行选中语句",
     "explain": "EXPLAIN 分析",
     "clearSort": "清除排序",
