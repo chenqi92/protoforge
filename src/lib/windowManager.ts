@@ -4,7 +4,7 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { ToolSessionOptions } from "@/types/toolSession";
 
-export type ToolWindowType = "capture" | "loadtest" | "tcpudp" | "videostream" | "mockserver" | "dbclient";
+export type ToolWindowType = "capture" | "loadtest" | "tcpudp" | "videostream" | "mockserver" | "dbclient" | "toolbox";
 
 interface ToolWindowConfig {
   title: string;
@@ -56,6 +56,13 @@ const toolConfigs: Record<ToolWindowType, ToolWindowConfig> = {
     height: 800,
     minWidth: 900,
     minHeight: 600,
+  },
+  toolbox: {
+    title: "ProtoForge — 工具箱",
+    width: 1000,
+    height: 700,
+    minWidth: 800,
+    minHeight: 500,
   },
 };
 

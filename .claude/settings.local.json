@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo build:*)",
+      "Bash(grep -v \"unused import: \\\\`tauri::Emitter\")",
+      "Bash(cargo fix:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -rn \"TODO\\\\|Placeholder\\\\|FIXME\\\\|XXX\\\\|HACK\" /Users/chenqi/Projects/workspace-freq/protoforge/src-tauri/src --include=*.rs)",
+      "Bash(grep -rn \"TODO\\\\|Placeholder\\\\|FIXME\\\\|XXX\\\\|stub\\\\|mock\" /Users/chenqi/Projects/workspace-freq/protoforge/src/components/videostream --include=*.tsx)"
+    ]
+  }
+}

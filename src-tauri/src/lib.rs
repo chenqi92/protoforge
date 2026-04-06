@@ -18,6 +18,7 @@ mod tcp_client;
 mod video_streaming;
 mod wasm_runtime;
 mod workflow_engine;
+mod toolbox;
 mod ws_client;
 
 use load_test::LoadTestState;
@@ -404,6 +405,11 @@ pub fn run() {
             commands::db_client_list_query_history,
             commands::db_client_export,
             commands::db_client_import,
+            // Toolbox
+            toolbox::toolbox_resize_screenshots,
+            toolbox::toolbox_generate_icons,
+            toolbox::toolbox_list_directory,
+            toolbox::toolbox_batch_rename,
             // DevTools
             toggle_devtools,
             // macOS Rounded Corners
