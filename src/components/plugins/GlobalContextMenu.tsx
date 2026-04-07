@@ -210,9 +210,9 @@ export function GlobalContextMenu() {
       // 桌面端始终阻止默认右键菜单
       e.preventDefault();
 
-      // 对于一般区域（非 Monaco、非 input），需要有选中文本或插件才显示自定义菜单
-      const hasPlugins = algorithmsRef.current.length > 0 || generatorsRef.current.length > 0;
-      if (!monacoEditor && !inputLike && !text && !hasPlugins) return;
+      // 对于一般区域（非 Monaco、非 input），仅在有选中文本时才显示菜单
+      // 插件功能（Mock 生成、加密等）需要有插入目标才有意义
+      if (!monacoEditor && !inputLike && !text) return;
 
       e.stopPropagation();
       setSelectedText(text);
@@ -532,8 +532,8 @@ export function GlobalContextMenu() {
             </>
           )}
 
-          {/* 🪄 Mock 数据生成 — hover 子菜单 */}
-          {generators.length > 0 && (
+          {/* 🪄 Mock 数据生成 — 仅在有插入目标时显示（Monaco / input） */}
+          {generators.length > 0 && (contextTarget === 'monaco' || contextTarget === 'input') && (
             <HoverSubmenu
               label={t('contextMenu.mockData', 'Mock 数据')}
               hoverKey="mock"

@@ -201,6 +201,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   return (
     <div
       ref={tabBarRef}
+      data-contextmenu-zone="tabbar"
       className="no-drag flex h-[var(--tabbar-height)] shrink-0 items-center border-b border-border-default/50 bg-bg-secondary/30 px-2"
     >
       <div ref={scrollRef} className="flex flex-1 items-center gap-1 overflow-x-auto py-0.5 scrollbar-hide">

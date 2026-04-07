@@ -6,6 +6,7 @@ import {
   Play, Square, Loader2, Clock, AlertCircle, CheckCircle2,
   Wand2, Plus, X, Table2, FileText, Database,
   Copy, ClipboardPaste, Search, Pencil,
+  ArrowLeftFromLine, ArrowRightFromLine,
 } from "lucide-react";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { languages } from "monaco-editor";
@@ -179,6 +180,44 @@ export const SqlEditor = memo(function SqlEditor({
     getDbClientStoreApi(sessionId).getState().closeTab(tabId);
   }, [sessionId]);
 
+  const { showMenu: showTabMenu, MenuComponent: TabMenuComponent } = useContextMenu();
+
+  const handleTabContextMenu = useCallback((e: React.MouseEvent, tabId: string) => {
+    e.preventDefault();
+    const store = getDbClientStoreApi(sessionId).getState();
+    const currentTabs = store.tabs;
+    const tabIndex = currentTabs.findIndex((tab) => tab.id === tabId);
+    const items: ContextMenuEntry[] = [
+      {
+        id: "close",
+        label: t("tabBar.close"),
+        onClick: () => store.closeTab(tabId),
+      },
+      {
+        id: "close-others",
+        label: t("tabBar.closeOthers"),
+        onClick: () => store.closeOtherTabs(tabId),
+        disabled: currentTabs.length <= 1,
+      },
+      { type: "divider" },
+      {
+        id: "close-left",
+        label: t("tabBar.closeLeft"),
+        icon: <ArrowLeftFromLine size={12} />,
+        onClick: () => store.closeTabsToLeft(tabId),
+        disabled: tabIndex === 0,
+      },
+      {
+        id: "close-right",
+        label: t("tabBar.closeRight"),
+        icon: <ArrowRightFromLine size={12} />,
+        onClick: () => store.closeTabsToRight(tabId),
+        disabled: tabIndex === currentTabs.length - 1,
+      },
+    ];
+    showTabMenu(e, items);
+  }, [sessionId, t, showTabMenu]);
+
   const handleSwitchTab = useCallback((tabId: string) => {
     getDbClientStoreApi(sessionId).getState().setActiveTab(tabId);
   }, [sessionId]);
@@ -250,11 +289,13 @@ export const SqlEditor = memo(function SqlEditor({
     <div className={cn("flex flex-col", isQueryTab && "h-full")}>
       {/* 统一 Tab 栏 */}
       <div className="flex items-center border-b border-border-default/50 bg-bg-base shrink-0">
-        <div className="flex flex-1 items-center overflow-x-auto min-w-0">
+        <div className="flex flex-1 items-center overflow-x-auto min-w-0 scrollbar-hide">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleSwitchTab(tab.id)}
+              onContextMenu={(e) => handleTabContextMenu(e, tab.id)}
+              onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); getDbClientStoreApi(sessionId).getState().closeTab(tab.id); } }}
               className={cn(
                 "group flex items-center gap-1.5 px-3 py-1.5 pf-text-xs font-medium border-b-2 transition-colors shrink-0 max-w-[180px]",
                 tab.id === activeTabId
@@ -279,14 +320,15 @@ export const SqlEditor = memo(function SqlEditor({
               {tab.kind === "structure" && tab.loading && (
                 <Loader2 size={10} className="animate-spin shrink-0" />
               )}
-              {tabs.length > 1 && (
-                <span
-                  onClick={(e) => handleCloseTab(tab.id, e)}
-                  className="shrink-0 p-0.5 pf-rounded-sm opacity-0 group-hover:opacity-100 hover:bg-bg-hover transition-opacity"
-                >
-                  <X size={10} />
-                </span>
-              )}
+              <span
+                onClick={(e) => handleCloseTab(tab.id, e)}
+                className={cn(
+                  "shrink-0 p-0.5 pf-rounded-sm hover:bg-bg-hover transition-opacity",
+                  tab.id === activeTabId ? "opacity-60 hover:opacity-100" : "opacity-0 group-hover:opacity-100",
+                )}
+              >
+                <X size={10} />
+              </span>
             </button>
           ))}
         </div>
@@ -419,8 +461,9 @@ export const SqlEditor = memo(function SqlEditor({
         </>
       )}
 
-      {/* 编辑器右键菜单 */}
+      {/* 右键菜单 */}
       {EditorMenuComponent}
+      {TabMenuComponent}
     </div>
   );
 });

@@ -325,6 +325,18 @@ function quoteIdentMysql(name: string): string {
   return `\`${name.replace(/`/g, "``")}\``;
 }
 
+/** 按数据库类型引用标识符 */
+export function quoteIdentifier(name: string, dbType?: DbType | null): string {
+  if (dbType === "mysql") return quoteIdentMysql(name);
+  return quoteIdent(name);
+}
+
+/** 生成带 schema 的完整表名 */
+export function qualifiedTableName(schema: string | undefined, table: string, dbType?: DbType | null): string {
+  const q = (n: string) => quoteIdentifier(n, dbType);
+  return schema ? `${q(schema)}.${q(table)}` : q(table);
+}
+
 function escLiteral(s: string): string {
   return s.replace(/'/g, "''");
 }

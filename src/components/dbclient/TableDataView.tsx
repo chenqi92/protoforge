@@ -6,7 +6,7 @@ import { memo, useCallback, useState, useRef, useEffect } from "react";
 import {
   Filter, RefreshCw, Loader2, X, ArrowUpDown,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Code2, Copy, ChevronDown, Pencil,
+  Code2, Copy, ChevronDown, Pencil, Maximize2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -14,6 +14,7 @@ import { getDbClientStoreApi } from "@/stores/dbClientStore";
 import type { TableDataTab } from "@/stores/dbClientStore";
 import type { CellEdit, SqlValue } from "@/types/dbclient";
 import { DataGrid, type CopyFormat, COPY_FORMAT_LABELS, COPY_FORMAT_GROUPS, getSavedCopyFormat, saveCopyFormat } from "./DataGrid";
+import { CellDetailDialog } from "./CellDetailDialog";
 import { getTableDdlQuery } from "@/lib/sqlDialect";
 
 const PAGE_SIZES = [1000, 2000, 5000, 0]; // 0 = All (no LIMIT)
@@ -93,12 +94,21 @@ export const TableDataView = memo(function TableDataView({
     store.getState().openTableStructure(tab.schema, tab.table);
   }, [store, tab.schema, tab.table]);
 
+  // 选中单元格（用于工具栏查看按钮）
+  const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+  const [showCellDetail, setShowCellDetail] = useState(false);
+
+  const handleCellSelect = useCallback((row: number, col: number) => {
+    setSelectedCell({ row, col });
+  }, []);
+
   const handleCellEdit = useCallback((edit: CellEdit) => { store.getState().addPendingEdit(edit, tab.id); }, [store, tab.id]);
   const handleApplyEdits = useCallback(() => { store.getState().applyEdits(tab.id); }, [store, tab.id]);
   const handleDiscardEdits = useCallback(() => { store.getState().clearPendingEdits(tab.id); }, [store, tab.id]);
   const handleDeleteRows = useCallback((pkValues: SqlValue[][]) => { store.getState().deleteRows(pkValues, tab.id); }, [store, tab.id]);
 
-  const tableMeta = { database: tab.database, schema: tab.schema, table: tab.table, pkColumns: tab.tablePrimaryKeys };
+  const dbType = store.getState().connectionConfig?.dbType ?? null;
+  const tableMeta = { database: tab.database, schema: tab.schema, table: tab.table, pkColumns: tab.tablePrimaryKeys, dbType };
   const totalRows = tab.tableData?.totalRows ?? tab.tableData?.rows.length ?? 0;
   const pl = tab.tableDataLimit;
   const curPage = Math.floor(tab.tableDataOffset / pl) + 1;
@@ -151,6 +161,15 @@ export const TableDataView = memo(function TableDataView({
         <button onClick={handleEditStructure}
           className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary">
           <Pencil size={12} /><span>{t("dbClient.editStructure")}</span>
+        </button>
+
+        <button
+          onClick={() => { if (selectedCell) setShowCellDetail(true); }}
+          disabled={!selectedCell}
+          className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+          title={t("dbClient.viewCellDetail")}
+        >
+          <Maximize2 size={12} /><span>{t("dbClient.viewCellDetail")}</span>
         </button>
 
         <button onClick={handleShowDdl}
@@ -214,8 +233,20 @@ export const TableDataView = memo(function TableDataView({
           pendingEdits={tab.pendingEdits} onCellEdit={handleCellEdit}
           onApplyEdits={handleApplyEdits} onDiscardEdits={handleDiscardEdits} onDeleteRows={handleDeleteRows}
           sortColumn={tab.sortColumn} sortDir={tab.sortDir} onSort={handleSort}
+          copyFormatOverride={copyFormat}
+          onCellSelect={handleCellSelect}
           hideCopyFormatDropdown hideStatusBar />
       </div>
+
+      {/* 单元格详情弹框 */}
+      {showCellDetail && selectedCell && tab.tableData && tab.tableData.rows[selectedCell.row] && (
+        <CellDetailDialog
+          value={tab.tableData.rows[selectedCell.row][selectedCell.col]}
+          column={tab.tableData.columns[selectedCell.col]}
+          rowIndex={tab.tableDataOffset + selectedCell.row}
+          onClose={() => setShowCellDetail(false)}
+        />
+      )}
     </div>
   );
 });

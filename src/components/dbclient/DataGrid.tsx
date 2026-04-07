@@ -6,7 +6,7 @@ import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Loader2, Save, Undo2, Trash2, ArrowUp, ArrowDown,
-  Copy, ChevronDown,
+  Copy, ChevronDown, Maximize2,
 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,9 @@ import type { QueryResult, SqlValue, CellEdit, ColumnInfo } from "@/types/dbclie
 import { sqlValueDisplay, sqlValueToString } from "@/types/dbclient";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
+import { CellDetailDialog } from "./CellDetailDialog";
+import type { DbType } from "@/types/dbclient";
+import { quoteIdentifier, qualifiedTableName } from "@/lib/sqlDialect";
 
 const ROW_HEIGHT = 28;
 export const COPY_FORMAT_KEY = "protoforge:dbclient:copyFormat";
@@ -62,7 +65,7 @@ function inRange(row: number, col: number, range: CellRange | null) {
 // ── 复制格式化 ──
 function cellText(val: SqlValue): string { return sqlValueToString(val); }
 
-function formatRange(res: QueryResult, r: CellRange, fmt: CopyFormat, table: string): string {
+function formatRange(res: QueryResult, r: CellRange, fmt: CopyFormat, table: string, dbType?: DbType | null, schema?: string): string {
   const { r1, c1, r2, c2 } = norm(r);
   const cols = res.columns.slice(c1, c2 + 1);
   const getRows = () => {
@@ -70,6 +73,8 @@ function formatRange(res: QueryResult, r: CellRange, fmt: CopyFormat, table: str
     for (let i = r1; i <= r2; i++) { if (res.rows[i]) rows.push(res.rows[i].slice(c1, c2 + 1)); }
     return rows;
   };
+  const qi = (name: string) => quoteIdentifier(name, dbType);
+  const fqn = qualifiedTableName(schema, table, dbType);
 
   switch (fmt) {
     case "tsv": {
@@ -84,19 +89,19 @@ function formatRange(res: QueryResult, r: CellRange, fmt: CopyFormat, table: str
       return lines.join("\n");
     }
     case "insert": {
-      const cn = cols.map(c => c.name).join(", ");
+      const cn = cols.map(c => qi(c.name)).join(", ");
       return getRows().map(row => {
         const vals = row.map(c => c.type === "Null" ? "NULL" : (c.type === "Int" || c.type === "Float") ? String(c.value) : c.type === "Bool" ? (c.value ? "TRUE" : "FALSE") : `'${cellText(c).replace(/'/g, "''")}'`);
-        return `INSERT INTO ${table} (${cn}) VALUES (${vals.join(", ")});`;
+        return `INSERT INTO ${fqn} (${cn}) VALUES (${vals.join(", ")});`;
       }).join("\n");
     }
     case "update": {
       return getRows().map(row => {
         const sets = row.map((c, i) => {
           const v = c.type === "Null" ? "NULL" : (c.type === "Int" || c.type === "Float") ? String(c.value) : c.type === "Bool" ? (c.value ? "TRUE" : "FALSE") : `'${cellText(c).replace(/'/g, "''")}'`;
-          return `${cols[i].name} = ${v}`;
+          return `${qi(cols[i].name)} = ${v}`;
         });
-        return `UPDATE ${table} SET ${sets.join(", ")} WHERE /* condition */;`;
+        return `UPDATE ${fqn} SET ${sets.join(", ")} WHERE /* condition */;`;
       }).join("\n");
     }
     case "markdown": {
@@ -121,18 +126,20 @@ interface DataGridProps {
   onApplyEdits?: () => void;
   onDiscardEdits?: () => void;
   onDeleteRows?: (pkValues: SqlValue[][]) => void;
-  tableMeta?: { database: string; schema: string; table: string; pkColumns: string[] } | null;
+  tableMeta?: { database: string; schema: string; table: string; pkColumns: string[]; dbType?: DbType | null } | null;
   sortColumn?: string | null;
   sortDir?: "ASC" | "DESC" | null;
   onSort?: (column: string) => void;
+  copyFormatOverride?: CopyFormat;
   hideCopyFormatDropdown?: boolean;
   hideStatusBar?: boolean;
+  onCellSelect?: (row: number, col: number) => void;
 }
 
 export const DataGrid = memo(function DataGrid({
   result, loading = false, offset = 0, limit = 200, onPageChange,
   editable = false, pendingEdits = [], onCellEdit, onApplyEdits, onDiscardEdits, onDeleteRows,
-  tableMeta, sortColumn, sortDir, onSort, hideCopyFormatDropdown = false, hideStatusBar = false,
+  tableMeta, sortColumn, sortDir, onSort, copyFormatOverride, hideCopyFormatDropdown = false, hideStatusBar = false, onCellSelect,
 }: DataGridProps) {
   const { t } = useTranslation();
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
@@ -144,6 +151,9 @@ export const DataGrid = memo(function DataGrid({
   const [cellRange, setCellRange] = useState<CellRange | null>(null);
   const [anchor, setAnchor] = useState<{ row: number; col: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // 单元格详情弹框
+  const [inspectCell, setInspectCell] = useState<{ row: number; col: number } | null>(null);
 
   // 当 result 变化时清空选区（切换 tab 或刷新数据）
   const resultRef = useRef(result);
@@ -288,10 +298,11 @@ export const DataGrid = memo(function DataGrid({
     } else {
       setAnchor({ row, col });
       setCellRange({ startRow: row, startCol: col, endRow: row, endCol: col });
+      onCellSelect?.(row, col);
     }
     setSelectedRows(new Set());
     setIsDragging(true);
-  }, [anchor]);
+  }, [anchor, onCellSelect]);
 
   const extendDrag = useCallback((row: number, col: number) => {
     if (!isDragging || !anchor) return;
@@ -335,11 +346,13 @@ export const DataGrid = memo(function DataGrid({
   }, [tableMeta, onDeleteRows, selectedRows, getPk]);
 
   // ── 复制（使用当前选择的格式）──
+  const effectiveCopyFormat = copyFormatOverride ?? copyFormat;
+
   const doCopy = useCallback(() => {
     if (!result || !cellRange) return;
-    const text = formatRange(result, cellRange, copyFormat, tableMeta?.table ?? "table");
+    const text = formatRange(result, cellRange, effectiveCopyFormat, tableMeta?.table ?? "table", tableMeta?.dbType, tableMeta?.schema);
     copyTextToClipboard(text);
-  }, [result, cellRange, copyFormat, tableMeta]);
+  }, [result, cellRange, effectiveCopyFormat, tableMeta]);
 
   const copyCellAt = useCallback((ri: number, ci: number) => {
     if (!result) return;
@@ -369,11 +382,13 @@ export const DataGrid = memo(function DataGrid({
       setCellRange({ startRow: ri, startCol: ci, endRow: ri, endCol: ci });
     }
     const items: ContextMenuEntry[] = [
-      { id: "copy", label: `${t("dbClient.copy")} (${COPY_FORMAT_LABELS[copyFormat]})`, icon: <Copy size={13} />, shortcut: "⌘C", onClick: doCopy },
+      { id: "copy", label: `${t("dbClient.copy")} (${COPY_FORMAT_LABELS[effectiveCopyFormat]})`, icon: <Copy size={13} />, shortcut: "⌘C", onClick: doCopy },
       { id: "copy-cell", label: t("dbClient.copyCell"), icon: <Copy size={13} />, onClick: () => copyCellAt(ri, ci) },
+      { type: "divider" },
+      { id: "inspect-cell", label: t("dbClient.viewCellDetail"), icon: <Maximize2 size={13} />, onClick: () => setInspectCell({ row: ri, col: ci }) },
     ];
     showMenu(e, items);
-  }, [t, cellRange, copyFormat, doCopy, copyCellAt, showMenu]);
+  }, [t, cellRange, effectiveCopyFormat, doCopy, copyCellAt, showMenu]);
 
   // ── 空状态 ──
   if (loading) return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin text-text-tertiary" /></div>;
@@ -530,6 +545,16 @@ export const DataGrid = memo(function DataGrid({
           {selectedRows.size > 0 && (
             <span className="pf-text-xs text-accent">{selectedRows.size} {t("dbClient.rowsSelected")}</span>
           )}
+          {anchor && rangeNorm && rangeNorm.r1 === rangeNorm.r2 && rangeNorm.c1 === rangeNorm.c2 && (
+            <button
+              onClick={() => setInspectCell({ row: anchor.row, col: anchor.col })}
+              className="flex items-center gap-1 pf-rounded-sm px-1.5 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors"
+              title={t("dbClient.viewCellDetail")}
+            >
+              <Maximize2 size={10} />
+              <span>{t("dbClient.viewCellDetail")}</span>
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {/* 复制格式下拉 */}
@@ -572,6 +597,16 @@ export const DataGrid = memo(function DataGrid({
         </div>
       </div>}
       {MenuComponent}
+
+      {/* 单元格详情弹框 */}
+      {inspectCell && result && result.rows[inspectCell.row] && (
+        <CellDetailDialog
+          value={result.rows[inspectCell.row][inspectCell.col]}
+          column={result.columns[inspectCell.col]}
+          rowIndex={offset + inspectCell.row}
+          onClose={() => setInspectCell(null)}
+        />
+      )}
     </div>
   );
 });

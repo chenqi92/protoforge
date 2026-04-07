@@ -6,7 +6,12 @@
       "Bash(cargo fix:*)",
       "Bash(npx tsc:*)",
       "Bash(grep -rn \"TODO\\\\|Placeholder\\\\|FIXME\\\\|XXX\\\\|HACK\" /Users/chenqi/Projects/workspace-freq/protoforge/src-tauri/src --include=*.rs)",
-      "Bash(grep -rn \"TODO\\\\|Placeholder\\\\|FIXME\\\\|XXX\\\\|stub\\\\|mock\" /Users/chenqi/Projects/workspace-freq/protoforge/src/components/videostream --include=*.tsx)"
+      "Bash(grep -rn \"TODO\\\\|Placeholder\\\\|FIXME\\\\|XXX\\\\|stub\\\\|mock\" /Users/chenqi/Projects/workspace-freq/protoforge/src/components/videostream --include=*.tsx)",
+      "Bash(xargs grep:*)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(node ./node_modules/.bin/tsc --noEmit)",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }

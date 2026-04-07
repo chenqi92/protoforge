@@ -1332,6 +1332,7 @@
     "close": "关闭",
     "closeOthers": "关闭其他",
     "closeRight": "关闭右侧",
+    "closeLeft": "关闭左侧",
     "new": "新建"
   },
   "toolWindow": {
@@ -1724,6 +1725,10 @@
     "filterPlaceholder": "例如 status = 'active' AND age > 18",
     "sortedBy": "排序",
     "copyCell": "复制单元格",
+    "viewCellDetail": "查看单元格",
+    "formatJson": "格式化 JSON",
+    "copied": "已复制",
+    "characters": "个字符",
     "copyAsTsv": "复制为 TSV",
     "copyAsCsv": "复制为 CSV",
     "copyAsInsert": "复制为 INSERT",

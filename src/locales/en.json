@@ -1310,6 +1310,7 @@
     "close": "Close",
     "closeOthers": "Close Others",
     "closeRight": "Close Right",
+    "closeLeft": "Close Left",
     "new": "New"
   },
   "toolWindow": {
@@ -1702,6 +1703,10 @@
     "filterPlaceholder": "e.g. status = 'active' AND age > 18",
     "sortedBy": "Sorted by",
     "copyCell": "Copy Cell",
+    "viewCellDetail": "View Cell",
+    "formatJson": "Format JSON",
+    "copied": "Copied",
+    "characters": "characters",
     "copyAsTsv": "Copy as TSV",
     "copyAsCsv": "Copy as CSV",
     "copyAsInsert": "Copy as INSERT",

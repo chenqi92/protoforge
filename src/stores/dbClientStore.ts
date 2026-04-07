@@ -126,6 +126,9 @@ interface DbClientStoreState {
   // 统一 Tab 操作
   addQueryTab: (label?: string, sql?: string) => string;
   closeTab: (tabId: string) => void;
+  closeOtherTabs: (tabId: string) => void;
+  closeTabsToLeft: (tabId: string) => void;
+  closeTabsToRight: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   setSqlText: (text: string) => void;
   executeQuery: (overrideDatabase?: string) => Promise<void>;
@@ -407,6 +410,60 @@ function createDbClientSessionStore(sessionId: string) {
         if (activeId === tabId) {
           activeId = tabs.length > 0 ? tabs[tabs.length - 1].id : null;
         }
+        const activeTab = tabs.find((t) => t.id === activeId);
+        const isQuery = activeTab?.kind === "query";
+        return {
+          tabs,
+          activeTabId: activeId,
+          sqlText: isQuery ? (activeTab as QueryTab).sqlText : "",
+          queryResult: isQuery ? (activeTab as QueryTab).queryResult : null,
+          queryError: isQuery ? (activeTab as QueryTab).queryError : null,
+          queryRunning: isQuery ? (activeTab as QueryTab).queryRunning : false,
+        };
+      });
+    },
+
+    closeOtherTabs: (tabId: string) => {
+      set((s) => {
+        const tabs = s.tabs.filter((t) => t.id === tabId);
+        const activeTab = tabs[0];
+        const isQuery = activeTab?.kind === "query";
+        return {
+          tabs,
+          activeTabId: tabId,
+          sqlText: isQuery ? (activeTab as QueryTab).sqlText : "",
+          queryResult: isQuery ? (activeTab as QueryTab).queryResult : null,
+          queryError: isQuery ? (activeTab as QueryTab).queryError : null,
+          queryRunning: isQuery ? (activeTab as QueryTab).queryRunning : false,
+        };
+      });
+    },
+
+    closeTabsToLeft: (tabId: string) => {
+      set((s) => {
+        const idx = s.tabs.findIndex((t) => t.id === tabId);
+        const tabs = s.tabs.slice(idx);
+        const activeStillExists = tabs.some((t) => t.id === s.activeTabId);
+        const activeId = activeStillExists ? s.activeTabId : tabId;
+        const activeTab = tabs.find((t) => t.id === activeId);
+        const isQuery = activeTab?.kind === "query";
+        return {
+          tabs,
+          activeTabId: activeId,
+          sqlText: isQuery ? (activeTab as QueryTab).sqlText : "",
+          queryResult: isQuery ? (activeTab as QueryTab).queryResult : null,
+          queryError: isQuery ? (activeTab as QueryTab).queryError : null,
+          queryRunning: isQuery ? (activeTab as QueryTab).queryRunning : false,
+        };
+      });
+    },
+
+    closeTabsToRight: (tabId: string) => {
+      set((s) => {
+        const idx = s.tabs.findIndex((t) => t.id === tabId);
+        const tabs = s.tabs.slice(0, idx + 1);
+        const activeStillExists = tabs.some((t) => t.id === s.activeTabId);
+        const activeId = activeStillExists ? s.activeTabId : tabId;
         const activeTab = tabs.find((t) => t.id === activeId);
         const isQuery = activeTab?.kind === "query";
         return {
