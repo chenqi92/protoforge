@@ -150,14 +150,14 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
 
     if (kind === "mqtt") return;
 
-    if (kind === "ws") {
-      setTabProtocol(activeTab.id, "ws");
+    if (kind === "ws" || kind === "grpc") {
+      setTabProtocol(activeTab.id, kind);
       return;
     }
 
     setTabProtocol(activeTab.id, "http");
     updateHttpConfig(activeTab.id, {
-      requestMode: kind === "http" ? "rest" : kind,
+      requestMode: kind === "http" ? "rest" : kind as "graphql" | "rest",
       name: kind === "graphql" ? "GraphQL Request" : "Untitled Request",
       method: kind === "graphql" ? "POST" : "GET",
     });

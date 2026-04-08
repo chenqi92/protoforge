@@ -129,6 +129,15 @@ pub async fn get_collection(pool: &SqlitePool, id: &str) -> Result<Collection, S
 }
 
 pub async fn create_collection(pool: &SqlitePool, col: Collection) -> Result<Collection, String> {
+    insert_collection(&col, pool).await?;
+    Ok(col)
+}
+
+/// Insert a collection row using any executor (pool or transaction).
+pub async fn insert_collection<'e, E>(col: &Collection, executor: E) -> Result<(), String>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
     sqlx::query(
         "INSERT INTO collections (id, name, description, auth, pre_script, post_script, variables, sort_order, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -136,8 +145,8 @@ pub async fn create_collection(pool: &SqlitePool, col: Collection) -> Result<Col
     .bind(&col.id).bind(&col.name).bind(&col.description).bind(&col.auth)
     .bind(&col.pre_script).bind(&col.post_script).bind(&col.variables)
     .bind(col.sort_order).bind(&col.created_at).bind(&col.updated_at)
-    .execute(pool).await.map_err(|e| format!("创建集合失败: {}", e))?;
-    Ok(col)
+    .execute(executor).await.map_err(|e| format!("创建集合失败: {}", e))?;
+    Ok(())
 }
 
 pub async fn update_collection(pool: &SqlitePool, col: Collection) -> Result<(), String> {
@@ -184,15 +193,24 @@ pub async fn import_collection(pool: &SqlitePool, json: &str) -> Result<Collecti
         serde_json::from_value(data.get("collection").cloned().unwrap_or(data.clone()))
             .map_err(|e| format!("集合数据格式错误: {}", e))?;
 
-    create_collection(pool, col.clone()).await?;
+    let items_to_import: Vec<CollectionItem> = if let Some(items) = data.get("items").and_then(|v| v.as_array()) {
+        items.iter()
+            .filter_map(|v| serde_json::from_value::<CollectionItem>(v.clone()).ok())
+            .collect()
+    } else {
+        vec![]
+    };
 
-    if let Some(items) = data.get("items").and_then(|v| v.as_array()) {
-        for item_val in items {
-            if let Ok(item) = serde_json::from_value::<CollectionItem>(item_val.clone()) {
-                let _ = create_collection_item(pool, item).await;
-            }
-        }
+    // Wrap entire import in a transaction — rollback on any failure
+    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
+
+    insert_collection(&col, &mut *tx).await?;
+
+    for item in &items_to_import {
+        insert_collection_item(item, &mut *tx).await?;
     }
+
+    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
     Ok(col)
 }
 
@@ -217,6 +235,15 @@ pub async fn create_collection_item(
     pool: &SqlitePool,
     item: CollectionItem,
 ) -> Result<CollectionItem, String> {
+    insert_collection_item(&item, pool).await?;
+    Ok(item)
+}
+
+/// Insert a collection item using any executor (pool or transaction).
+pub async fn insert_collection_item<'e, E>(item: &CollectionItem, executor: E) -> Result<(), String>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
     sqlx::query(
         "INSERT INTO collection_items (id, collection_id, parent_id, item_type, variables, name, sort_order,
          method, url, headers, query_params, body_type, body_content, auth_type, auth_config,
@@ -229,8 +256,8 @@ pub async fn create_collection_item(
     .bind(&item.body_type).bind(&item.body_content).bind(&item.auth_type).bind(&item.auth_config)
     .bind(&item.pre_script).bind(&item.post_script).bind(&item.response_example)
     .bind(&item.created_at).bind(&item.updated_at)
-    .execute(pool).await.map_err(|e| format!("创建集合项失败: {}", e))?;
-    Ok(item)
+    .execute(executor).await.map_err(|e| format!("创建集合项失败: {}", e))?;
+    Ok(())
 }
 
 pub async fn update_collection_item(pool: &SqlitePool, item: CollectionItem) -> Result<(), String> {

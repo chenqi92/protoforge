@@ -26,6 +26,7 @@
     "ws": "WebSocket",
     "sse": "SSE",
     "mqtt": "MQTT",
+    "grpc": "gRPC",
     "tcpudp": "Protocol Debug",
     "capture": "Traffic Capture",
     "loadtest": "Load Test",
@@ -383,7 +384,24 @@
       "variablesInvalid": "Invalid JSON",
       "variablesInvalidDetail": "Variables must be a valid JSON object",
       "insertTemplate": "Insert Template",
-      "formatVariables": "Format Variables"
+      "formatVariables": "Format Variables",
+      "schemaFetch": "Fetch Schema",
+      "schemaRefresh": "Refresh Schema",
+      "schemaLoading": "Loading Schema...",
+      "schemaLoaded": "Schema loaded",
+      "explorer": {
+        "title": "Schema Explorer",
+        "back": "Back",
+        "types": "types",
+        "searchPlaceholder": "Search types...",
+        "rootTypes": "Root Types",
+        "objectTypes": "Objects",
+        "inputTypes": "Inputs",
+        "enumTypes": "Enums",
+        "interfaceTypes": "Interfaces",
+        "unionTypes": "Unions",
+        "scalarTypes": "Custom Scalars"
+      }
     },
     "oauth2": {
       "fetchingToken": "Fetching...",
@@ -1336,7 +1354,17 @@
     "lastWeek": "Last 7 Days",
     "searchPlaceholder": "Search history...",
     "clearHistory": "Clear History",
-    "restore": "Restore to Workspace"
+    "restore": "Restore to Workspace",
+    "exportJson": "Export as JSON",
+    "exportCsv": "Export as CSV",
+    "loadMore": "Load more",
+    "loading": "Loading...",
+    "entryCount": "{{count}} entries loaded",
+    "writeFailed": "Save failed"
+  },
+  "env": {
+    "export": "Export Environments",
+    "import": "Import Environments"
   },
   "update": {
     "checking": "Checking for updates…",
@@ -1730,5 +1758,40 @@
     "rowsSelected": "rows selected",
     "page": "page",
     "exportFormat": "Export Format"
+  },
+  "assertion": {
+    "title": "Assertions",
+    "add": "Add",
+    "addFirst": "Add first assertion",
+    "empty": "No assertions defined. Add visual assertions to validate responses without writing code.",
+    "expectedValue": "Expected value"
+  },
+  "diff": {
+    "title": "Compare Requests",
+    "compareWith": "Compare with...",
+    "request": "Request",
+    "response": "Response",
+    "selectTarget": "Select a request to compare with",
+    "compareTarget": "Compare Target",
+    "openTabs": "Open Tabs",
+    "history": "History",
+    "noTargets": "No other tabs or history entries to compare with"
+  },
+  "grpc": {
+    "loadProto": "Load Proto",
+    "reflect": "Reflect",
+    "send": "Send",
+    "startStream": "Start Stream",
+    "streamSend": "Send Message",
+    "closeSend": "Close Send",
+    "cancel": "Cancel",
+    "noProto": "No Proto definition loaded",
+    "noProtoHint": "Load a .proto file or use Server Reflection to discover services",
+    "selectMethod": "Select a method from the service tree",
+    "noResponse": "Send a request to see the response",
+    "tls": "TLS",
+    "tlsEnabled": "Enable TLS",
+    "tlsCaCert": "CA Certificate (PEM)",
+    "tlsCaCertHint": "Optional custom CA certificate path"
   }
 }

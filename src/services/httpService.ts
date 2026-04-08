@@ -15,6 +15,8 @@ import {
 } from '@/lib/requestVariables';
 import { ensureAutoHeaders } from '@/types/http';
 import { usePluginStore } from '@/stores/pluginStore';
+import { useCookieJarStore } from '@/stores/cookieJarStore';
+import { useActivityLogStore } from '@/stores/activityLogStore';
 import * as pluginService from '@/services/pluginService';
 
 // Token refresh buffer: refresh 30s before actual expiry
@@ -407,16 +409,62 @@ async function applyRequestHooks(payload: ReturnType<typeof buildRequestPayload>
   return mutated;
 }
 
+/** Inject stored cookies from the cookie jar into the request payload */
+function applyCookieJar(payload: ReturnType<typeof buildRequestPayload>): ReturnType<typeof buildRequestPayload> {
+  const settings = useSettingsStore.getState().settings;
+  if (!settings.autoSaveCookies) return payload;
+
+  const cookieHeader = useCookieJarStore.getState().buildCookieHeader(payload.url);
+  if (!cookieHeader) return payload;
+
+  // Merge with any existing Cookie header (user-set takes precedence)
+  const existingCookie = Object.entries(payload.headers).find(
+    ([k]) => k.toLowerCase() === 'cookie'
+  );
+  if (existingCookie) return payload; // User already set a Cookie header
+
+  return {
+    ...payload,
+    headers: { ...payload.headers, Cookie: cookieHeader },
+  };
+}
+
+/** Save response cookies to the cookie jar */
+function saveResponseCookies(url: string, resp: HttpResponse) {
+  const settings = useSettingsStore.getState().settings;
+  if (!settings.autoSaveCookies) return;
+  if (resp.cookies?.length) {
+    useCookieJarStore.getState().saveCookies(url, resp.cookies);
+  }
+}
+
+function trace(summary: string, direction: 'sent' | 'received' | 'info', meta?: Record<string, unknown>) {
+  useActivityLogStore.getState().addEntry({ source: 'http', direction, summary, protocol: 'HTTP', meta });
+}
+
 export async function sendHttpRequest(config: HttpRequestConfig): Promise<HttpResponse> {
   const resolved = resolveConfigVariables(config);
   const payload = buildRequestPayload(resolved);
   const hookedPayload = await applyRequestHooks(payload);
-  const finalPayload = buildFinalPayload(hookedPayload);
+  const withCookies = applyCookieJar(hookedPayload);
+  const finalPayload = buildFinalPayload(withCookies);
+
+  trace(`→ ${finalPayload.method} ${finalPayload.url}`, 'sent', {
+    method: finalPayload.method, url: finalPayload.url,
+    headerCount: Object.keys(finalPayload.headers).length,
+  });
+
   const resp = await invoke<HttpResponse>('send_request', { request: finalPayload });
-  
+
+  trace(`← ${resp.status} ${resp.statusText} (${resp.durationMs}ms, ${resp.bodySize}B)`, 'received', {
+    status: resp.status, durationMs: resp.durationMs, bodySize: resp.bodySize,
+    timing: resp.timing,
+  });
+
   if (resp && resp.cookies && Array.isArray(resp.cookies)) {
     resp.cookies = processAndFilterCookies(resolved.url, resp.cookies);
   }
+  saveResponseCookies(resolved.url, resp);
   return resp;
 }
 
@@ -435,6 +483,7 @@ export async function sendRequestWithScripts(config: HttpRequestConfig): Promise
   let postScriptResult: ScriptResult | null = null;
 
   if (config.preScript?.trim()) {
+    trace('⚙ Pre-request script executing...', 'info');
     preScriptResult = await invoke<ScriptResult>('run_pre_request_script', {
       script: config.preScript,
       envVars: Object.keys(envVars).length > 0 ? envVars : null,
@@ -443,6 +492,12 @@ export async function sendRequestWithScripts(config: HttpRequestConfig): Promise
       globalVars: Object.keys(globalVars).length > 0 ? globalVars : null,
       request: buildScriptRequestContext(initialPayload),
     });
+
+    trace(
+      preScriptResult.success ? '✓ Pre-script completed' : `✗ Pre-script failed: ${preScriptResult.error}`,
+      'info',
+      { success: preScriptResult.success, logs: preScriptResult.logs, envUpdates: preScriptResult.envUpdates },
+    );
 
     if (!preScriptResult.success) {
       throw new Error(preScriptResult.error || '前置脚本执行失败');
@@ -461,11 +516,24 @@ export async function sendRequestWithScripts(config: HttpRequestConfig): Promise
   const payload = buildRequestPayload(resolved);
   const patchedPayload = applyScriptRequestPatch(payload, preScriptResult?.requestPatch);
   const hookedPayload = await applyRequestHooks(patchedPayload);
-  const finalPayload = buildFinalPayload(hookedPayload);
+  const withCookies = applyCookieJar(hookedPayload);
+  const finalPayload = buildFinalPayload(withCookies);
+
+  trace(`→ ${finalPayload.method} ${finalPayload.url}`, 'sent', {
+    method: finalPayload.method, url: finalPayload.url,
+    headerCount: Object.keys(finalPayload.headers).length,
+    hasPreScript: !!config.preScript?.trim(), hasPostScript: !!config.postScript?.trim(),
+  });
 
   const response = await invoke<HttpResponse>('send_request', { request: finalPayload });
 
+  trace(`← ${response.status} ${response.statusText} (${response.durationMs}ms, ${response.bodySize}B)`, 'received', {
+    status: response.status, durationMs: response.durationMs, bodySize: response.bodySize,
+    timing: response.timing,
+  });
+
   if (config.postScript?.trim()) {
+    trace('⚙ Post-response script executing...', 'info');
     postScriptResult = await invoke<ScriptResult>('run_post_response_script', {
       script: config.postScript,
       envVars: Object.keys(mergedScopes.envVars).length > 0 ? mergedScopes.envVars : null,
@@ -480,11 +548,25 @@ export async function sendRequestWithScripts(config: HttpRequestConfig): Promise
         durationMs: response.durationMs,
       },
     });
+
+    if (postScriptResult) {
+      const testsPassed = postScriptResult.testResults?.filter((t) => t.passed).length ?? 0;
+      const testsFailed = postScriptResult.testResults?.filter((t) => !t.passed).length ?? 0;
+      const testSummary = postScriptResult.testResults?.length
+        ? ` | Tests: ${testsPassed}✓ ${testsFailed}✗`
+        : '';
+      trace(
+        postScriptResult.success ? `✓ Post-script completed${testSummary}` : `✗ Post-script failed: ${postScriptResult.error}`,
+        'info',
+        { success: postScriptResult.success, logs: postScriptResult.logs, testResults: postScriptResult.testResults },
+      );
+    }
   }
 
   if (response && response.cookies && Array.isArray(response.cookies)) {
     response.cookies = processAndFilterCookies(resolved.url, response.cookies);
   }
+  saveResponseCookies(resolved.url, response);
 
   return {
     response,

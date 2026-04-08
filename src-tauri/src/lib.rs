@@ -3,6 +3,7 @@ mod collections;
 mod commands;
 mod database;
 mod db_client;
+mod grpc_client;
 mod http_client;
 mod load_test;
 mod mock_server;
@@ -167,6 +168,7 @@ pub fn run() {
             // SSE / MQTT 连接管理
             app.manage(sse_client::new_connections());
             app.manage(mqtt_client::new_connections());
+            app.manage(grpc_client::new_connections());
 
             // 初始化插件管理器
             let plugin_mgr = PluginManager::new(&app_data);
@@ -320,6 +322,17 @@ pub fn run() {
             commands::mqtt_subscribe,
             commands::mqtt_unsubscribe,
             commands::mqtt_publish,
+            // gRPC
+            commands::grpc_load_proto,
+            commands::grpc_load_proto_content,
+            commands::grpc_reflect,
+            commands::grpc_call_unary,
+            commands::grpc_call_server_stream,
+            commands::grpc_call_client_stream,
+            commands::grpc_call_bidi_stream,
+            commands::grpc_stream_send,
+            commands::grpc_stream_close_send,
+            commands::grpc_cancel_stream,
             // Collection Runner
             commands::run_collection,
             // WASM Plugins

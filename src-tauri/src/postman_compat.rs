@@ -5,7 +5,7 @@
 use crate::collections::{self, Collection, CollectionItem};
 use chrono::Utc;
 use serde::Deserialize;
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, SqliteConnection};
 use uuid::Uuid;
 
 // ── Postman v2.1 schema types ──
@@ -684,9 +684,6 @@ fn build_export_event(listen: &str, script_code: &str) -> serde_json::Value {
 // ══════════════════════════════════════════════
 
 pub async fn import_postman(pool: &SqlitePool, json: &str) -> Result<Collection, String> {
-    // TODO: 整个导入过程（create_collection + import_items）理想情况下应包裹在事务中，
-    // 中途失败时可回滚，避免留下不完整的集合。当前 create_collection_item 直接使用 pool，
-    // 需要重构为接受 &mut Transaction 才能实现。
     let postman: PostmanCollection =
         serde_json::from_str(json).map_err(|e| format!("Postman JSON 解析失败: {}", e))?;
 
@@ -736,18 +733,20 @@ pub async fn import_postman(pool: &SqlitePool, json: &str) -> Result<Collection,
         updated_at: now.clone(),
     };
 
-    // 创建集合
-    collections::create_collection(pool, collection.clone()).await?;
+    // 整个导入过程包裹在事务中 — 中途失败自动回滚，不会留下不完整的集合数据
+    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
 
-    // 递归导入 items
-    import_items(pool, &col_id, None, &postman.item, &now, 0).await?;
+    collections::insert_collection(&collection, &mut *tx).await?;
+    import_items(&mut *tx, &col_id, None, &postman.item, &now, 0).await?;
+
+    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
 
     Ok(collection)
 }
 
-/// 递归导入 Postman items（支持嵌套文件夹）
+/// 递归导入 Postman items（支持嵌套文件夹），通过传入的连接/事务写入
 async fn import_items(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     collection_id: &str,
     parent_id: Option<&str>,
     items: &[PostmanItem],
@@ -788,11 +787,11 @@ async fn import_items(
                 created_at: now.to_string(),
                 updated_at: now.to_string(),
             };
-            collections::create_collection_item(pool, folder).await?;
+            collections::insert_collection_item(&folder, &mut *conn).await?;
 
             // 递归子项
             Box::pin(import_items(
-                pool,
+                conn,
                 collection_id,
                 Some(&item_id),
                 children,
@@ -836,7 +835,7 @@ async fn import_items(
                 created_at: now.to_string(),
                 updated_at: now.to_string(),
             };
-            collections::create_collection_item(pool, item).await?;
+            collections::insert_collection_item(&item, &mut *conn).await?;
         }
     }
 

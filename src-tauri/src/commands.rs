@@ -16,6 +16,7 @@ use crate::sse_client::{self, SseConnectRequest, SseConnections};
 use crate::tcp_client::{TcpConnections, TcpServers, UdpSockets};
 use crate::mock_server::{self, MockRoute, MockRequestLog, MockServerConfig, MockServerState, MockServerStatusInfo};
 use crate::wasm_runtime::WasmPluginRuntime;
+use crate::grpc_client::{self, GrpcConnections};
 use crate::ws_client::WsConnections;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
@@ -3443,4 +3444,136 @@ pub async fn db_client_import(
         }
         _ => Err(format!("Import not supported for {}", config.db_type)),
     }
+}
+
+// ═══════════════════════════════════════════
+//  gRPC
+// ═══════════════════════════════════════════
+
+#[tauri::command]
+pub async fn grpc_load_proto(proto_path: String) -> Result<grpc_client::ProtoLoadResult, String> {
+    grpc_client::load_proto_file(&proto_path).await
+}
+
+#[tauri::command]
+pub async fn grpc_load_proto_content(content: String, key: String) -> Result<grpc_client::ProtoLoadResult, String> {
+    grpc_client::load_proto_content(&content, &key).await
+}
+
+#[tauri::command]
+pub async fn grpc_reflect(url: String) -> Result<grpc_client::ProtoLoadResult, String> {
+    grpc_client::reflect_services(&url).await
+}
+
+#[tauri::command]
+pub async fn grpc_call_unary(
+    url: String,
+    proto_key: String,
+    method_full_name: String,
+    request_json: String,
+    metadata: HashMap<String, String>,
+) -> Result<grpc_client::GrpcCallResult, String> {
+    grpc_client::call_unary(&url, &proto_key, &method_full_name, &request_json, &metadata).await
+}
+
+#[tauri::command]
+pub async fn grpc_call_server_stream(
+    app: AppHandle,
+    connections: State<'_, GrpcConnections>,
+    connection_id: String,
+    url: String,
+    proto_key: String,
+    method_full_name: String,
+    request_json: String,
+    metadata: HashMap<String, String>,
+) -> Result<(), String> {
+    grpc_client::call_server_stream(
+        app,
+        connections.inner(),
+        &connection_id,
+        &url,
+        &proto_key,
+        &method_full_name,
+        &request_json,
+        &metadata,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn grpc_call_client_stream(
+    app: AppHandle,
+    connections: State<'_, GrpcConnections>,
+    connection_id: String,
+    url: String,
+    proto_key: String,
+    method_full_name: String,
+    metadata: HashMap<String, String>,
+) -> Result<(), String> {
+    grpc_client::call_client_stream(
+        app,
+        connections.inner(),
+        &connection_id,
+        &url,
+        &proto_key,
+        &method_full_name,
+        &metadata,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn grpc_call_bidi_stream(
+    app: AppHandle,
+    connections: State<'_, GrpcConnections>,
+    connection_id: String,
+    url: String,
+    proto_key: String,
+    method_full_name: String,
+    metadata: HashMap<String, String>,
+) -> Result<(), String> {
+    grpc_client::call_bidi_stream(
+        app,
+        connections.inner(),
+        &connection_id,
+        &url,
+        &proto_key,
+        &method_full_name,
+        &metadata,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn grpc_stream_send(
+    connections: State<'_, GrpcConnections>,
+    connection_id: String,
+    proto_key: String,
+    method_full_name: String,
+    message_json: String,
+) -> Result<(), String> {
+    grpc_client::stream_send_message(
+        connections.inner(),
+        &connection_id,
+        &proto_key,
+        &method_full_name,
+        &message_json,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn grpc_stream_close_send(
+    connections: State<'_, GrpcConnections>,
+    connection_id: String,
+) -> Result<(), String> {
+    grpc_client::stream_close_send(connections.inner(), &connection_id).await
+}
+
+#[tauri::command]
+pub async fn grpc_cancel_stream(
+    connections: State<'_, GrpcConnections>,
+    connection_id: String,
+) -> Result<(), String> {
+    grpc_client::cancel_stream(connections.inner(), &connection_id).await
 }

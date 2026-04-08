@@ -359,14 +359,14 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
 
     if (kind === "ws") return;
 
-    if (kind === "mqtt") {
-      setTabProtocol(activeTab.id, "mqtt");
+    if (kind === "mqtt" || kind === "grpc") {
+      setTabProtocol(activeTab.id, kind);
       return;
     }
 
     setTabProtocol(activeTab.id, "http");
     updateHttpConfig(activeTab.id, {
-      requestMode: kind === "http" ? "rest" : kind,
+      requestMode: kind === "http" ? "rest" : kind as "graphql" | "rest",
       name: kind === "graphql" ? "GraphQL Request" : "Untitled Request",
       method: kind === "graphql" ? "POST" : "GET",
     });

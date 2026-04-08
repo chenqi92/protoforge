@@ -79,6 +79,8 @@ export interface HttpRequestConfig {
   // Scripts
   preScript: string;
   postScript: string;
+  // Visual assertions (auto-generates pm.test() code)
+  assertions: string; // JSON-serialized Assertion[]
   timeoutMs: number;
   followRedirects: boolean;
 }
@@ -200,6 +202,7 @@ export function createDefaultRequest(): HttpRequestConfig {
     },
     preScript: '',
     postScript: '',
+    assertions: '[]',
     timeoutMs: 30000,
     followRedirects: true,
   };

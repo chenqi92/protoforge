@@ -26,6 +26,7 @@
     "ws": "WebSocket",
     "sse": "SSE",
     "mqtt": "MQTT",
+    "grpc": "gRPC",
     "tcpudp": "协议调试",
     "capture": "流量捕获",
     "loadtest": "性能测试",
@@ -384,7 +385,24 @@
       "variablesInvalid": "JSON 无效",
       "variablesInvalidDetail": "变量区域需要是合法的 JSON 对象",
       "insertTemplate": "示例模板",
-      "formatVariables": "格式化变量"
+      "formatVariables": "格式化变量",
+      "schemaFetch": "获取 Schema",
+      "schemaRefresh": "刷新 Schema",
+      "schemaLoading": "加载 Schema...",
+      "schemaLoaded": "Schema 已加载",
+      "explorer": {
+        "title": "Schema 浏览器",
+        "back": "返回",
+        "types": "个类型",
+        "searchPlaceholder": "搜索类型...",
+        "rootTypes": "根类型",
+        "objectTypes": "对象类型",
+        "inputTypes": "输入类型",
+        "enumTypes": "枚举类型",
+        "interfaceTypes": "接口类型",
+        "unionTypes": "联合类型",
+        "scalarTypes": "自定义标量"
+      }
     },
     "oauth2": {
       "fetchingToken": "获取中...",
@@ -1358,7 +1376,17 @@
     "lastWeek": "7 天内",
     "searchPlaceholder": "搜索历史...",
     "clearHistory": "清空历史",
-    "restore": "恢复到工作区"
+    "restore": "恢复到工作区",
+    "exportJson": "导出 JSON",
+    "exportCsv": "导出 CSV",
+    "loadMore": "加载更多",
+    "loading": "加载中...",
+    "entryCount": "已加载 {{count}} 条",
+    "writeFailed": "保存失败"
+  },
+  "env": {
+    "export": "导出环境变量",
+    "import": "导入环境变量"
   },
   "update": {
     "checking": "检查更新中…",
@@ -1752,5 +1780,40 @@
     "rowsSelected": "行已选中",
     "page": "页",
     "exportFormat": "导出格式"
+  },
+  "assertion": {
+    "title": "断言",
+    "add": "添加",
+    "addFirst": "添加第一个断言",
+    "empty": "未定义断言。通过可视化方式添加断言，无需编写代码即可验证响应。",
+    "expectedValue": "期望值"
+  },
+  "diff": {
+    "title": "请求对比",
+    "compareWith": "对比...",
+    "request": "请求",
+    "response": "响应",
+    "selectTarget": "选择一个请求进行对比",
+    "compareTarget": "对比目标",
+    "openTabs": "已打开的标签页",
+    "history": "历史记录",
+    "noTargets": "没有可对比的标签页或历史记录"
+  },
+  "grpc": {
+    "loadProto": "加载 Proto",
+    "reflect": "服务发现",
+    "send": "发送",
+    "startStream": "开始流",
+    "streamSend": "发送消息",
+    "closeSend": "关闭发送",
+    "cancel": "取消",
+    "noProto": "未加载 Proto 定义",
+    "noProtoHint": "加载 .proto 文件或使用服务端 Reflection 发现服务",
+    "selectMethod": "从左侧服务树中选择方法",
+    "noResponse": "发送请求以查看响应",
+    "tls": "TLS",
+    "tlsEnabled": "启用 TLS",
+    "tlsCaCert": "CA 证书 (PEM)",
+    "tlsCaCertHint": "可选的自定义 CA 证书路径"
   }
 }

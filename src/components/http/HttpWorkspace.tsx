@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from "@/stores/appStore";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { useHistoryStore } from "@/stores/historyStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import type { HttpMethod, ScriptResult, HttpRequestMode } from "@/types/http";
 import { ensureAutoHeaders } from "@/types/http";
 import type { CollectionItem } from "@/types/collections";
@@ -30,6 +31,7 @@ import { GraphQLBodyEditor, MonacoEditorSurface, EditorSurfaceFallback } from ".
 import { ResponseMetaPill, HttpRequestErrorPanel, ResponseHeaderMetric } from "./HttpResponseParts";
 import { ExportPluginDropdown } from "./ExportPluginDropdown";
 import { BinaryPicker } from "./BinaryPicker";
+import { AssertionBuilder, generateAssertionCode, type Assertion } from "./AssertionBuilder";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 const LazyScriptEditor = lazy(() => import("./ScriptEditor").then((module) => ({ default: module.ScriptEditor })));
@@ -132,7 +134,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
 
   // URL history autocomplete
   const historyEntries = useHistoryStore((s) => s.entries);
-  useEffect(() => { useHistoryStore.getState().fetchHistory(200); }, []);
+  useEffect(() => { useHistoryStore.getState().fetchHistory(); }, []);
   const urlSuggestions = useMemo(() => {
     const url = activeTab?.httpConfig?.url || '';
     if (!url.trim() || !urlFocused) return [];
@@ -154,6 +156,13 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
   const sseConnId = `sse-${tabId}`;
   const isSseMode = config.requestMode === "sse";
   const isGraphqlMode = config.requestMode === "graphql";
+  const graphqlHeaders = useMemo(() => {
+    const h: Record<string, string> = {};
+    for (const kv of config.headers) {
+      if (kv.enabled && kv.key.trim()) h[kv.key.trim()] = kv.value;
+    }
+    return h;
+  }, [config.headers]);
   const isSseConnected = sseStatus === "connected" || sseStatus === "connecting";
   const currentRequestSignature = useMemo(
     () => getCollectionRequestSignatureFromConfig(config),
@@ -342,9 +351,15 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
     setScriptResults({ pre: null, post: null });
     let finalResponse: import("@/types/http").HttpResponse | null = null;
     try {
-      const hasScripts = (config.preScript?.trim() || config.postScript?.trim());
+      // Inject visual assertions into postScript
+      const assertionCode = generateAssertionCode(parsedAssertions);
+      const configWithAssertions = assertionCode
+        ? { ...config, postScript: (config.postScript || '') + '\n' + assertionCode }
+        : config;
+
+      const hasScripts = (configWithAssertions.preScript?.trim() || configWithAssertions.postScript?.trim());
       if (hasScripts) {
-        const result = await sendRequestWithScripts(config);
+        const result = await sendRequestWithScripts(configWithAssertions);
         if (requestIdRef.current !== currentRequestId) return;
         await persistScriptVariableUpdates(activeTab.linkedCollectionId, activeTab.linkedCollectionItemId, {
           envUpdates: mergeScriptScopeUpdates(
@@ -368,7 +383,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
         setHttpResponse(tabId, result.response);
         setScriptResults({ pre: result.preScriptResult, post: result.postScriptResult });
       } else {
-        const res = await sendHttpRequest(config);
+        const res = await sendHttpRequest(configWithAssertions);
         if (requestIdRef.current !== currentRequestId) return;
         finalResponse = res;
         setHttpResponse(tabId, res);
@@ -447,7 +462,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
 
       setShowMethods(false);
 
-      if (kind === "ws" || kind === "mqtt") {
+      if (kind === "ws" || kind === "mqtt" || kind === "grpc") {
         setTabProtocol(tabId, kind);
         return;
       }
@@ -529,8 +544,26 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
     tabId,
   ]);
 
+  // ── Auto-save timer ──
+  const autoSaveInterval = useSettingsStore((s) => s.settings.autoSaveInterval);
+  const handleSaveRef = useRef(handleSaveRequest);
+  handleSaveRef.current = handleSaveRequest;
+
+  useEffect(() => {
+    if (autoSaveInterval <= 0 || !isLinkedCollectionRequest || isSavedRequestPristine) return;
+
+    const timer = setInterval(() => {
+      handleSaveRef.current();
+    }, autoSaveInterval * 1000);
+
+    return () => clearInterval(timer);
+  }, [autoSaveInterval, isLinkedCollectionRequest, isSavedRequestPristine]);
+
   const hasAuthContent = config.authType !== "none";
   const hasBodyContent = config.bodyType !== "none";
+  const parsedAssertions: Assertion[] = useMemo(() => {
+    try { return JSON.parse(config.assertions || '[]'); } catch { return []; }
+  }, [config.assertions]);
 
   const reqTabs = [
     { key: "params" as const, label: `${t('http.params')}${params.filter(p => p.key).length ? ` (${params.filter(p => p.key).length})` : ""}` },
@@ -791,6 +824,8 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                         variables={config.graphqlVariables || ""}
                         onQueryChange={(v) => updateHttpConfig(tabId, { graphqlQuery: v })}
                         onVariablesChange={(v) => updateHttpConfig(tabId, { graphqlVariables: v })}
+                        endpointUrl={config.url || undefined}
+                        requestHeaders={graphqlHeaders}
                       />
                     ) : config.bodyType === "none" ? <div className="absolute inset-0 flex items-center justify-center text-text-disabled pf-text-base">{t('http.noBody')}</div> : null}
                     {!isGraphqlMode && config.bodyType === "json" && (
@@ -808,6 +843,8 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                         variables={config.graphqlVariables || ""}
                         onQueryChange={(v) => updateHttpConfig(tabId, { graphqlQuery: v })}
                         onVariablesChange={(v) => updateHttpConfig(tabId, { graphqlVariables: v })}
+                        endpointUrl={config.url || undefined}
+                        requestHeaders={graphqlHeaders}
                       />
                     )}
                     {!isGraphqlMode && config.bodyType === "raw" && (
@@ -858,13 +895,24 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
               )}
 
               {reqTab === "post-script" && (
-                <Suspense fallback={<EditorSurfaceFallback label="加载后置脚本编辑器..." />}>
-                  <LazyScriptEditor
-                    type="post"
-                    value={config.postScript}
-                    onChange={(v) => updateHttpConfig(tabId, { postScript: v })}
-                  />
-                </Suspense>
+                <div className="flex h-full min-h-0">
+                  <div className="flex-1 min-w-0">
+                    <Suspense fallback={<EditorSurfaceFallback label="加载后置脚本编辑器..." />}>
+                      <LazyScriptEditor
+                        type="post"
+                        value={config.postScript}
+                        onChange={(v) => updateHttpConfig(tabId, { postScript: v })}
+                      />
+                    </Suspense>
+                  </div>
+                  <div className="w-[320px] shrink-0 border-l border-border-default/60">
+                    <AssertionBuilder
+                      assertions={parsedAssertions}
+                      onChange={(a) => updateHttpConfig(tabId, { assertions: JSON.stringify(a) })}
+                      testResults={scriptResults.post?.testResults}
+                    />
+                  </div>
+                </div>
               )}
             </div>
           </Panel>

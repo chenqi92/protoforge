@@ -1,4 +1,4 @@
-import { Braces, ChevronDown, FileText, Radio, Zap } from "lucide-react";
+import { Braces, ChevronDown, FileText, Radio, Zap, Network } from "lucide-react";
 import { useState } from "react";
 import type { RequestProtocol } from "@/stores/appStore";
 import type { HttpRequestMode } from "@/types/http";
@@ -16,6 +16,7 @@ const options: Array<{
   { kind: "graphql", label: "GraphQL", icon: Braces, activeClass: "text-fuchsia-600", iconBgClass: "bg-fuchsia-500/12", description: "Schema Query" },
   { kind: "ws", label: "WebSocket", icon: Zap, activeClass: "text-amber-600", iconBgClass: "bg-amber-500/12", description: "Live Connection" },
   { kind: "mqtt", label: "MQTT", icon: Radio, activeClass: "text-violet-600", iconBgClass: "bg-violet-500/12", description: "Message Broker" },
+  { kind: "grpc", label: "gRPC", icon: Network, activeClass: "text-cyan-600", iconBgClass: "bg-cyan-500/12", description: "RPC Framework" },
 ];
 
 export type RequestKind = RequestProtocol | Extract<HttpRequestMode, "graphql">;

@@ -37,6 +37,7 @@ import { HttpWorkspace } from "@/components/http/HttpWorkspace";
 import { RequestsOverview } from "@/components/http/RequestsOverview";
 import { WsWorkspace } from "@/components/ws/WsWorkspace";
 import { MqttWorkspace } from "@/components/mqtt/MqttWorkspace";
+import { GrpcWorkspace } from "@/components/grpc/GrpcWorkspace";
 import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
 import { LoadTestWorkspace } from "@/components/loadtest/LoadTestWorkspace";
 import { VideoStreamWorkspace } from "@/components/videostream/VideoStreamWorkspace";
@@ -990,6 +991,7 @@ function App() {
                       {tab.protocol === "http" && <HttpWorkspace tabId={tab.id} />}
                       {tab.protocol === "ws" && <WsWorkspace tabId={tab.id} />}
                       {tab.protocol === "mqtt" && <MqttWorkspace tabId={tab.id} />}
+                      {tab.protocol === "grpc" && <GrpcWorkspace tabId={tab.id} />}
                     </div>
                   );
                 })}

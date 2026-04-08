@@ -6,37 +6,67 @@ import type { HistoryEntry, HistoryEntrySummary } from '@/types/collections';
 import * as svc from '@/services/historyService';
 import { useSettingsStore } from '@/stores/settingsStore';
 
+const PAGE_SIZE = 50;
+
 interface HistoryStore {
   entries: HistoryEntrySummary[];
   loading: boolean;
   error: string | null;
+  /** Whether there are potentially more entries to load */
+  hasMore: boolean;
+  /** Last write error (shown briefly in UI) */
+  writeError: string | null;
 
   // Actions
-  fetchHistory: (limit?: number) => Promise<void>;
+  fetchHistory: () => Promise<void>;
+  loadMore: () => Promise<void>;
   addEntry: (entry: HistoryEntry) => void;
   /** 按需从 SQLite 获取完整记录（含 requestConfig） */
   getEntryDetail: (id: string) => Promise<HistoryEntry | null>;
   deleteEntry: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
+  clearWriteError: () => void;
 }
 
-export const useHistoryStore = create<HistoryStore>((set) => ({
+export const useHistoryStore = create<HistoryStore>((set, get) => ({
   entries: [],
   loading: false,
   error: null,
+  hasMore: true,
+  writeError: null,
 
-  fetchHistory: async (limit = 200) => {
+  fetchHistory: async () => {
     set({ loading: true, error: null });
     try {
-      const entries = await svc.listHistorySummary(limit);
-      set({ entries, loading: false });
+      const entries = await svc.listHistorySummary(PAGE_SIZE);
+      set({ entries, loading: false, hasMore: entries.length >= PAGE_SIZE });
+    } catch (e) {
+      set({ error: String(e), loading: false });
+    }
+  },
+
+  loadMore: async () => {
+    const state = get();
+    if (state.loading || !state.hasMore) return;
+    set({ loading: true });
+    try {
+      const maxCount = useSettingsStore.getState().settings.maxHistoryCount;
+      const currentCount = state.entries.length;
+      const nextBatch = Math.min(PAGE_SIZE, maxCount - currentCount);
+      if (nextBatch <= 0) {
+        set({ loading: false, hasMore: false });
+        return;
+      }
+      // Use offset-based pagination: fetch entries older than the last one we have
+      const allEntries = await svc.listHistorySummary(currentCount + nextBatch);
+      const hasMore = allEntries.length >= currentCount + nextBatch && allEntries.length < maxCount;
+      set({ entries: allEntries, loading: false, hasMore });
     } catch (e) {
       set({ error: String(e), loading: false });
     }
   },
 
   addEntry: (entry: HistoryEntry) => {
-    // 从 settings 获取历史记录上限
     const maxCount = useSettingsStore.getState().settings.maxHistoryCount;
     // 乐观更新：只存摘要到内存
     const summary: HistoryEntrySummary = {
@@ -50,10 +80,17 @@ export const useHistoryStore = create<HistoryStore>((set) => ({
     };
     set((s) => ({
       entries: [summary, ...s.entries].slice(0, maxCount),
+      writeError: null,
     }));
     // 异步写入完整记录到 SQLite
     svc.addHistory(entry, maxCount).catch((e) => {
-      console.error('Failed to save history:', e);
+      const msg = String(e);
+      console.error('Failed to save history:', msg);
+      set({ writeError: msg });
+      // Auto-clear after 5s
+      setTimeout(() => {
+        if (get().writeError === msg) set({ writeError: null });
+      }, 5000);
     });
   },
 
@@ -73,6 +110,8 @@ export const useHistoryStore = create<HistoryStore>((set) => ({
 
   clearAll: async () => {
     await svc.clearHistory();
-    set({ entries: [] });
+    set({ entries: [], hasMore: false });
   },
+
+  clearWriteError: () => set({ writeError: null }),
 }));

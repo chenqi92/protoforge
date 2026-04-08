@@ -11,7 +11,12 @@
       "Bash(./node_modules/.bin/tsc --noEmit)",
       "Bash(node ./node_modules/.bin/tsc --noEmit)",
       "Bash(node node_modules/typescript/bin/tsc --noEmit)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npm ls:*)",
+      "Bash(npx vite:*)",
+      "Bash(cargo check:*)",
+      "Bash(xargs cat:*)",
+      "Bash(grep -n \"response\\\\\\\\.status\\\\|response\\\\\\\\.body\\\\|response\\\\\\\\.headers\\\\|response\\\\\\\\.duration\\\\|response\\\\\\\\.timing\" /E/workspace-freq/protoforge/src/components/http/HttpWorkspace.tsx)"
     ]
   }
 }

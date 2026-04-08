@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen, Clock, Search, Plus,
-  ChevronRight, Download, Settings, Globe,
+  ChevronRight, Download, Upload, Settings, Globe,
   MoreHorizontal, Folder, Zap, Edit3, Trash2, ExternalLink, Copy, FolderPlus,
   ChevronsUpDown, BarChart3, Server,
 } from "lucide-react";
@@ -56,6 +56,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
   const fetchHistory = useHistoryStore((s) => s.fetchHistory);
   const hasHistoryItems = useHistoryStore((s) => s.entries.length > 0);
   const fetchEnvironments = useEnvStore((s) => s.fetchEnvironments);
+  const fetchGlobalVariables = useEnvStore((s) => s.fetchGlobalVariables);
   const createCollection = useCollectionStore((s) => s.createCollection);
   const createEnvironment = useEnvStore((s) => s.createEnvironment);
 
@@ -94,6 +95,102 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
 
   const handleImport = () => {
     setImportModalOpen(true);
+  };
+
+  // ── History export ──
+  const exportHistory = async (format: 'json' | 'csv') => {
+    try {
+      const { listHistory } = await import('@/services/historyService');
+      const entries = await listHistory(10000);
+      let content: string;
+      let fileName: string;
+
+      if (format === 'csv') {
+        const header = 'Method,URL,Status,Duration(ms),BodySize,CreatedAt';
+        const rows = entries.map((e) =>
+          `${e.method},"${e.url}",${e.status ?? ''},${e.durationMs ?? ''},${e.bodySize ?? ''},${e.createdAt}`
+        );
+        content = [header, ...rows].join('\n');
+        fileName = `protoforge-history-${new Date().toISOString().slice(0, 10)}.csv`;
+      } else {
+        content = JSON.stringify(entries, null, 2);
+        fileName = `protoforge-history-${new Date().toISOString().slice(0, 10)}.json`;
+      }
+
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const path = await save({ defaultPath: fileName, filters: format === 'csv' ? [{ name: 'CSV', extensions: ['csv'] }] : [{ name: 'JSON', extensions: ['json'] }] });
+      if (path) {
+        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+        await writeTextFile(path, content);
+      }
+    } catch (e) {
+      console.error('History export failed:', e);
+    }
+  };
+
+  // ── Environment export/import ──
+  const handleExportEnvs = async () => {
+    try {
+      const { listEnvironments, listEnvVariables, listGlobalVariables } = await import('@/services/envService');
+      const envs = await listEnvironments();
+      const vars: Record<string, unknown[]> = {};
+      for (const env of envs) {
+        vars[env.id] = await listEnvVariables(env.id);
+      }
+      const globals = await listGlobalVariables();
+      const data = { environments: envs, variables: vars, globalVariables: globals };
+
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const path = await save({ defaultPath: 'protoforge-environments.json', filters: [{ name: 'JSON', extensions: ['json'] }] });
+      if (path) {
+        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+        await writeTextFile(path, JSON.stringify(data, null, 2));
+      }
+    } catch (e) {
+      console.error('Environment export failed:', e);
+    }
+  };
+
+  const handleImportEnvs = async () => {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const filePath = await open({ filters: [{ name: 'JSON', extensions: ['json'] }], multiple: false });
+      if (!filePath) return;
+      const path = typeof filePath === 'string' ? filePath : (filePath as { path: string }).path;
+      const { readTextFile } = await import('@tauri-apps/plugin-fs');
+      const content = await readTextFile(path);
+      const data = JSON.parse(content);
+
+      const { createEnvironment: createEnvSvc, saveEnvVariables, saveGlobalVariables } = await import('@/services/envService');
+      const envIdMap: Record<string, string> = {};
+
+      if (Array.isArray(data.environments)) {
+        for (const env of data.environments) {
+          const newEnv = await createEnvSvc({ ...env, id: crypto.randomUUID(), name: env.name || 'Imported' });
+          envIdMap[env.id] = newEnv.id;
+        }
+      }
+
+      if (data.variables && typeof data.variables === 'object') {
+        for (const [oldEnvId, vars] of Object.entries(data.variables)) {
+          const newEnvId = envIdMap[oldEnvId];
+          if (newEnvId && Array.isArray(vars)) {
+            const remapped = (vars as any[]).map((v: any) => ({ ...v, id: crypto.randomUUID(), environmentId: newEnvId }));
+            await saveEnvVariables(newEnvId, remapped);
+          }
+        }
+      }
+
+      if (Array.isArray(data.globalVariables)) {
+        await saveGlobalVariables(data.globalVariables);
+      }
+
+      // Refresh store
+      await fetchEnvironments();
+      await fetchGlobalVariables();
+    } catch (e) {
+      console.error('Environment import failed:', e);
+    }
   };
 
   const handleNewEnvironment = async () => {
@@ -177,14 +274,40 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                   </button>
                 )}
                 {activeView === "history" && hasHistoryItems && (
-                  <button
-                    onClick={() => useHistoryStore.getState().clearAll()}
-                    className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
-                    title={t('sidebar.clearAll', '清空历史')}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    {t('sidebar.clearAll', '清空')}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => exportHistory('json')}
+                      className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover"
+                      title={t('history.exportJson')}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => useHistoryStore.getState().clearAll()}
+                      className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
+                      title={t('sidebar.clearAll', '清空历史')}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+                {activeView === "environments" && (
+                  <>
+                    <button
+                      onClick={handleExportEnvs}
+                      className="flex h-7 items-center gap-1 pf-rounded-sm px-1.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover"
+                      title={t('env.export')}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={handleImportEnvs}
+                      className="flex h-7 items-center gap-1 pf-rounded-sm px-1.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover"
+                      title={t('env.import')}
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -639,7 +762,9 @@ function CollectionsView({ search, expanded, setExpanded }: {
 
       if (item.itemType === 'folder') {
         const childCount = colItems.filter(c => c.parentId === item.id && c.itemType === 'request').length;
-        const isDropTarget = dropTargetId === `folder:${item.id}`;
+        const folderDropKey = `folder:${item.id}`;
+        const isDropTarget = dropTargetId === folderDropKey;
+        const folderDropPos = isDropTarget ? dropPosition : null;
         return (
           <div key={item.id}>
             <button
@@ -650,31 +775,41 @@ function CollectionsView({ search, expanded, setExpanded }: {
                 setDragItemId(item.id);
                 setDragCollectionId(item.collectionId);
               }}
-              onDragEnd={() => { setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); }}
+              onDragEnd={() => { setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); setDropPosition(null); }}
               onDragOver={(e) => {
-                if (dragItemId && dragItemId !== item.id) {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
-                  setDropTargetId(`folder:${item.id}`);
-                }
+                if (!dragItemId || dragItemId === item.id || dragCollectionId !== item.collectionId) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                // 3-zone detection: top 25% = before, middle 50% = inside (move into folder), bottom 25% = after
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                const relY = e.clientY - rect.top;
+                const h = rect.height;
+                const pos = relY < h * 0.25 ? 'before' : relY > h * 0.75 ? 'after' : null;
+                setDropTargetId(folderDropKey);
+                setDropPosition(pos);
               }}
-              onDragLeave={() => { if (dropTargetId === `folder:${item.id}`) setDropTargetId(null); }}
+              onDragLeave={() => { if (dropTargetId === folderDropKey) { setDropTargetId(null); setDropPosition(null); } }}
               onDrop={(e) => {
                 e.preventDefault();
-                setDropTargetId(null);
                 if (dragItemId && dragCollectionId === item.collectionId && dragItemId !== item.id) {
-                  moveItem(dragItemId, item.collectionId, item.id);
-                  // Auto-expand the target folder
-                  setExpanded((prev) => ({ ...prev, [`folder:${item.id}`]: true }));
+                  if (folderDropPos === 'before' || folderDropPos === 'after') {
+                    // Reorder relative to this folder
+                    reorderItems(dragItemId, item.id, item.collectionId, folderDropPos);
+                  } else {
+                    // Move into folder (middle zone or no position)
+                    moveItem(dragItemId, item.collectionId, item.id);
+                    setExpanded((prev) => ({ ...prev, [`folder:${item.id}`]: true }));
+                  }
                 }
-                setDragItemId(null);
-                setDragCollectionId(null);
+                setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); setDropPosition(null);
               }}
               onClick={() => toggleFolder(item.id)}
               onContextMenu={(e) => handleSubFolderContextMenu(e, item)}
               className={cn(
                 "w-full flex items-center gap-1.5 pr-2 py-[3px] rounded-md text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover transition-colors group/folder",
-                isDropTarget && "ring-1 ring-accent bg-accent/5",
+                isDropTarget && !folderDropPos && "ring-1 ring-accent bg-accent/5",
+                isDropTarget && folderDropPos === 'before' && "border-t-2 border-t-accent",
+                isDropTarget && folderDropPos === 'after' && "border-b-2 border-b-accent",
                 dragItemId === item.id && "opacity-40"
               )}
               style={{ paddingLeft: `${12 + depth * 14}px` }}
@@ -1085,6 +1220,10 @@ function HistoryView({ search }: { search: string }) {
 
   const entries = useHistoryStore((s) => s.entries);
   const deleteEntry = useHistoryStore((s) => s.deleteEntry);
+  const hasMore = useHistoryStore((s) => s.hasMore);
+  const loadMore = useHistoryStore((s) => s.loadMore);
+  const loading = useHistoryStore((s) => s.loading);
+  const writeError = useHistoryStore((s) => s.writeError);
 
   // 从历史记录恢复请求到新 tab（按需从 SQLite 加载 requestConfig）
   const handleOpenHistoryEntry = async (entry: HistoryEntrySummary) => {
@@ -1226,6 +1365,28 @@ function HistoryView({ search }: { search: string }) {
           })}
         </div>
       ))}
+      {/* Write error banner */}
+      {writeError && (
+        <div className="mx-2 my-1 px-2 py-1 pf-rounded-sm bg-red-500/10 text-red-500 pf-text-xxs truncate" title={writeError}>
+          {t('history.writeFailed')}: {writeError}
+        </div>
+      )}
+      {/* Load more button */}
+      {!search && hasMore && filtered.length > 0 && (
+        <button
+          onClick={loadMore}
+          disabled={loading}
+          className="w-full py-2 pf-text-xxs text-accent hover:text-accent-hover transition-colors disabled:opacity-50"
+        >
+          {loading ? t('history.loading') : t('history.loadMore')}
+        </button>
+      )}
+      {/* Entry count */}
+      {filtered.length > 0 && (
+        <div className="px-2 py-1 pf-text-xxs text-text-disabled text-center">
+          {t('history.entryCount', { count: filtered.length })}
+        </div>
+      )}
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
           <div className="mb-3 flex h-11 w-11 items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-hover shadow-sm">

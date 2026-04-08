@@ -1,8 +1,11 @@
-import { lazy, Suspense, useCallback, useMemo } from "react";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, CheckCircle2, XCircle, RefreshCw, BookOpen, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { JsonEditorLite } from "@/components/common/JsonEditorLite";
+import { useGraphQLSchemaStore } from "@/stores/graphqlSchemaStore";
+import { registerGraphQLProviders, setGraphQLSchema } from "@/lib/graphqlMonaco";
+import { GraphQLExplorer } from "./GraphQLExplorer";
 
 const LazyMonacoCodeEditor = lazy(() => import("@/components/common/CodeEditor").then((module) => ({ default: module.CodeEditor })));
 
@@ -56,15 +59,33 @@ export function GraphQLBodyEditor({
   variables,
   onQueryChange,
   onVariablesChange,
+  endpointUrl,
+  requestHeaders,
 }: {
   query: string;
   variables: string;
   onQueryChange: (value: string) => void;
   onVariablesChange: (value: string) => void;
+  endpointUrl?: string;
+  requestHeaders?: Record<string, string>;
 }) {
   const { t } = useTranslation();
+  const [showExplorer, setShowExplorer] = useState(false);
+  const monacoRegistered = useRef(false);
   const trimmedVariables = variables.trim();
   const hasVariables = trimmedVariables.length > 0 && trimmedVariables !== "{}";
+
+  // Schema store
+  const fetchSchema = useGraphQLSchemaStore((s) => s.fetchSchema);
+  const schema = useGraphQLSchemaStore((s) => endpointUrl ? s.getSchema(endpointUrl) : null);
+  const schemaLoading = useGraphQLSchemaStore((s) => endpointUrl ? s.isLoading(endpointUrl) : false);
+  const schemaError = useGraphQLSchemaStore((s) => endpointUrl ? s.getError(endpointUrl) : null);
+
+  // Sync schema to Monaco autocomplete provider
+  useEffect(() => {
+    setGraphQLSchema(schema);
+  }, [schema]);
+
   const variableState = useMemo(() => {
     if (!trimmedVariables) {
       return { valid: true, label: t('http.graphql.variablesOptional'), detail: t('http.graphql.variablesOptionalDetail') };
@@ -123,9 +144,64 @@ export function GraphQLBodyEditor({
     }
   }, [onVariablesChange, trimmedVariables, variables]);
 
+  const handleFetchSchema = useCallback(() => {
+    if (endpointUrl) {
+      fetchSchema(endpointUrl, requestHeaders);
+    }
+  }, [endpointUrl, requestHeaders, fetchSchema]);
+
+  // Register Monaco providers on first editor mount
+  const handleEditorMount = useCallback((_editor: any, monaco: any) => {
+    if (!monacoRegistered.current) {
+      registerGraphQLProviders(monaco);
+      monacoRegistered.current = true;
+    }
+  }, []);
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.95fr)]">
+      {/* Schema toolbar */}
+      {endpointUrl && (
+        <div className="flex items-center gap-2 shrink-0 px-1">
+          <button
+            onClick={handleFetchSchema}
+            disabled={schemaLoading || !endpointUrl}
+            className={cn("wb-ghost-btn inline-flex items-center gap-1.5 pf-text-xs", schemaLoading && "opacity-50")}
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", schemaLoading && "animate-spin")} />
+            {schemaLoading ? t('http.graphql.schemaLoading') : schema ? t('http.graphql.schemaRefresh') : t('http.graphql.schemaFetch')}
+          </button>
+          {schema && (
+            <>
+              <span className="pf-text-xxs text-emerald-500 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                {t('http.graphql.schemaLoaded')}
+              </span>
+              <button
+                onClick={() => setShowExplorer((v) => !v)}
+                className={cn("wb-ghost-btn inline-flex items-center gap-1.5 pf-text-xs", showExplorer && "text-accent")}
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                {t('http.graphql.explorer.title')}
+              </button>
+            </>
+          )}
+          {schemaError && (
+            <span className="pf-text-xxs text-red-500 flex items-center gap-1 truncate max-w-[300px]" title={schemaError}>
+              <AlertCircle className="h-3 w-3 shrink-0" />
+              {schemaError}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className={cn(
+        "grid min-h-0 flex-1 gap-3",
+        showExplorer && schema
+          ? "xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.7fr)_minmax(280px,0.6fr)]"
+          : "xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.95fr)]"
+      )}>
+        {/* Query editor */}
         <div className="wb-panel flex min-h-[320px] min-w-0 flex-col overflow-hidden">
           <div className="wb-panel-header shrink-0">
             <div>
@@ -144,10 +220,12 @@ export function GraphQLBodyEditor({
               value={query}
               onChange={onQueryChange}
               language="graphql"
+              onMount={handleEditorMount}
             />
           </div>
         </div>
 
+        {/* Variables editor */}
         <div className="wb-panel flex min-h-[320px] min-w-0 flex-col overflow-hidden">
           <div className="wb-panel-header shrink-0">
             <div className="min-w-0">
@@ -180,6 +258,16 @@ export function GraphQLBodyEditor({
             />
           </div>
         </div>
+
+        {/* Schema Explorer panel */}
+        {showExplorer && schema && (
+          <div className="wb-panel flex min-h-[320px] min-w-0 flex-col overflow-hidden">
+            <GraphQLExplorer
+              schema={schema}
+              onClose={() => setShowExplorer(false)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

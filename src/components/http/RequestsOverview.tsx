@@ -55,7 +55,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
     fetchCollections();
     fetchEnvironments();
     fetchGlobalVariables();
-    fetchHistory(10);
+    fetchHistory();
   }, [fetchCollections, fetchEnvironments, fetchGlobalVariables, fetchHistory]);
 
   // Load items for each collection and active env vars

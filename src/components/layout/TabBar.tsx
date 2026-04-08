@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, ChevronLeft, ChevronRight, X, Copy, Trash2, Edit3, ArrowRightFromLine, List } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, X, Copy, Trash2, Edit3, ArrowRightFromLine, List, GitCompareArrows } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import type { RequestProtocol } from "@/stores/appStore";
 import { useAppStore } from "@/stores/appStore";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
 import type { HttpRequestMode } from "@/types/http";
+import { RequestDiffModal } from "@/components/request/RequestDiffModal";
 
 export interface Tab {
   id: string;
@@ -30,12 +31,14 @@ const protocolLabels: Record<RequestProtocol, string> = {
   http: "HTTP",
   ws: "WebSocket",
   mqtt: "MQTT",
+  grpc: "gRPC",
 };
 
 const protocolColors: Record<RequestProtocol, string> = {
   http: "bg-emerald-500/15 text-emerald-600",
   ws: "bg-amber-500/15 text-amber-600",
   mqtt: "bg-purple-500/15 text-purple-600",
+  grpc: "bg-cyan-500/15 text-cyan-600",
 };
 
 const modeBadgeColors: Record<HttpRequestMode, string> = {
@@ -74,6 +77,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const createProtocol: RequestProtocol = "http";
+  const [diffTabId, setDiffTabId] = useState<string | null>(null);
 
   const registerTabRef = useCallback((tabId: string, node: HTMLDivElement | null) => {
     if (node) {
@@ -223,6 +227,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
                 setDragOverIndex(null);
               }}
               registerRef={registerTabRef}
+              onCompare={tab.protocol === "http" ? () => setDiffTabId(tab.id) : undefined}
             />
           ))}
         </AnimatePresence>
@@ -321,6 +326,14 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
           </div>
         </>
       ) : null}
+
+      {diffTabId && (
+        <RequestDiffModal
+          open
+          onClose={() => setDiffTabId(null)}
+          sourceTabId={diffTabId}
+        />
+      )}
     </div>
   );
 }
@@ -337,6 +350,7 @@ function TabItem({
   onDrop,
   onDragEnd,
   registerRef,
+  onCompare,
 }: {
   tab: Tab;
   isActive: boolean;
@@ -349,6 +363,7 @@ function TabItem({
   onDrop: () => void;
   onDragEnd: () => void;
   registerRef: (tabId: string, node: HTMLDivElement | null) => void;
+  onCompare?: () => void;
 }) {
   const { t } = useTranslation();
   const [isRenaming, setIsRenaming] = useState(false);
@@ -402,7 +417,13 @@ function TabItem({
         icon: <Copy className="h-3.5 w-3.5" />,
         onClick: () => duplicateTab(tab.id),
       },
-      { type: "divider" },
+      ...(tab.protocol === "http" && onCompare ? [{
+        id: "compare",
+        label: t('diff.compareWith'),
+        icon: <GitCompareArrows className="h-3.5 w-3.5" />,
+        onClick: onCompare,
+      } as ContextMenuEntry] : []),
+      { type: "divider" as const },
       { id: "close", label: t('tabBar.close'), shortcut: "Ctrl+W", onClick: onClose },
       { id: "close-others", label: t('tabBar.closeOthers'), onClick: () => closeOtherTabs(tab.id), disabled: totalTabs <= 1 },
       {
