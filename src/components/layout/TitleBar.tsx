@@ -59,6 +59,7 @@ export function TitleBar({
   return (
     <div
       {...frameGestures}
+      data-titlebar
       className="relative flex h-[var(--titlebar-height)] shrink-0 items-center gap-3 border-b border-border-default/50 bg-bg-primary/85 px-3 backdrop-blur-xl shadow-xs select-none"
     >
       <div className="w-[70px] shrink-0" />

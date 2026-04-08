@@ -172,8 +172,24 @@ export function GlobalContextMenu() {
       // 如果右键目标在声明了 data-contextmenu-zone 的区域内，交给组件自行处理
       if (target.closest('[data-contextmenu-zone]')) return;
 
+      // 结构性 UI 区域（标题栏、状态栏、按钮、Tab 等）不应弹出全局菜单
+      // 仅 Monaco 编辑器、input/textarea 和包含文本内容的区域才需要
+      const isStructuralUI = !!(
+        target.closest('[data-titlebar]') ||
+        target.closest('[data-statusbar]') ||
+        target.closest('button') ||
+        target.closest('[role="tablist"]') ||
+        target.closest('[data-no-contextmenu]')
+      );
+
       const monacoEditor = getMonacoEditor(target);
       const inputLike = !monacoEditor && isInputLike(target);
+
+      // 桌面端始终阻止默认右键菜单
+      e.preventDefault();
+
+      // 结构性 UI：既非编辑器也非输入框，直接退出
+      if (isStructuralUI && !monacoEditor && !inputLike) return;
 
       let text = '';
       let inputEl: HTMLInputElement | HTMLTextAreaElement | undefined;
@@ -207,11 +223,7 @@ export function GlobalContextMenu() {
         setContextTarget('general');
       }
 
-      // 桌面端始终阻止默认右键菜单
-      e.preventDefault();
-
       // 对于一般区域（非 Monaco、非 input），仅在有选中文本时才显示菜单
-      // 插件功能（Mock 生成、加密等）需要有插入目标才有意义
       if (!monacoEditor && !inputLike && !text) return;
 
       e.stopPropagation();
