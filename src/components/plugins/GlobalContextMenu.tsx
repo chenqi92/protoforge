@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { runCrypto, runGenerator, runContextMenuAction } from '@/services/pluginService';
 import { usePluginStore } from '@/stores/pluginStore';
-import { EXPORT_FORMATS, findArrayNodes, doExportToFile, type ArrayNodeInfo, type FormatDef } from '@/components/ui/ResponseExportDropdown';
+import { EXPORT_FORMATS, getByPath, collectColumnsFromArray, doExportToFile, type FormatDef } from '@/components/ui/ResponseExportDropdown';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import type { InstalledCryptoAlgorithm, CryptoAlgorithm, GeneratorContribution, ContextMenuContribution } from '@/types/plugin';
 import { CryptoParamsDialog } from './CryptoParamsDialog';
@@ -81,7 +81,9 @@ function isInputLike(target: Element): boolean {
   const tag = target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
   const el = target.closest('input, textarea');
-  return !!el;
+  if (el) return true;
+  // contentEditable elements (e.g. VariableInlineInput)
+  return !!getContentEditableElement(target);
 }
 
 function getInputElement(target: Element): HTMLInputElement | HTMLTextAreaElement | null {
@@ -89,6 +91,11 @@ function getInputElement(target: Element): HTMLInputElement | HTMLTextAreaElemen
     return target as HTMLInputElement | HTMLTextAreaElement;
   }
   return target.closest('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null;
+}
+
+function getContentEditableElement(target: Element): HTMLElement | null {
+  if ((target as HTMLElement).isContentEditable) return target as HTMLElement;
+  return target.closest('[contenteditable="true"]') as HTMLElement | null;
 }
 
 /* ── 主组件 ────────────────────────────────────────── */
@@ -106,42 +113,47 @@ export function GlobalContextMenu() {
   const [parserDialogData, setParserDialogData] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const sourceInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const contentEditableRef = useRef<HTMLElement | null>(null);
   const monacoEditorRef = useRef<any>(null);
   const monacoSelectionRef = useRef<any>(null);
+  const modalGuardRef = useRef(false);
 
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
 
-  // 响应体数组节点（从 ResponseViewer 暴露的 window ref 读取）
-  const [responseArrayNodes, setResponseArrayNodes] = useState<ArrayNodeInfo[]>([]);
-  const responseBodyRef = useRef<string>('');
+  // 响应体导出元信息由 ResponseViewer 预先缓存，避免右键时同步解析大 JSON
+  const responseBodyRef = useRef('');
+  const bestArrayPathRef = useRef('');
+  const [hasResponseArrays, setHasResponseArrays] = useState(false);
+  const [exportDialog, setExportDialog] = useState<{ fmt: FormatDef; body: string; path: string } | null>(null);
 
-  // 右键菜单打开时刷新数组节点
-  useEffect(() => {
-    if (!visible || contextTarget !== 'monaco') {
-      setResponseArrayNodes([]);
+  const syncResponseExportMeta = useCallback(() => {
+    const body = (window as any).__pf_response_body;
+    responseBodyRef.current = typeof body === 'string' ? body : '';
+
+    const meta = (window as any).__pf_response_export_meta;
+    if (!body || !meta || meta.body !== body) {
+      bestArrayPathRef.current = '';
+      setHasResponseArrays(false);
       return;
     }
-    const body = (window as any).__pf_response_body;
-    if (typeof body === 'string') {
-      responseBodyRef.current = body;
-      try { setResponseArrayNodes(findArrayNodes(JSON.parse(body))); }
-      catch { setResponseArrayNodes([]); }
-    }
-  }, [visible, contextTarget]);
 
-  // 自动选择最大的数组节点
-  const bestArrayPath = responseArrayNodes.length > 0
-    ? responseArrayNodes.reduce((a, b) => (b.length > a.length ? b : a)).path
-    : '';
+    bestArrayPathRef.current = typeof meta.bestArrayPath === 'string' ? meta.bestArrayPath : '';
+    setHasResponseArrays(Boolean(bestArrayPathRef.current));
+  }, []);
 
   const handleExportFormat = useCallback((fmt: FormatDef) => {
     setVisible(false);
     setHoveredSub(null);
-    if (!bestArrayPath) return;
-    doExportToFile(responseBodyRef.current, bestArrayPath, fmt).catch((e) => {
-      console.warn('[ProtoForge] export failed:', e);
-    });
-  }, [bestArrayPath]);
+    const path = bestArrayPathRef.current;
+    const body = responseBodyRef.current;
+    if (!path || !body) return;
+    if (fmt.needsOptions) {
+      // 立即弹对话框，列信息在对话框内异步计算
+      setExportDialog({ fmt, body, path });
+    } else {
+      doExportToFile(body, path, fmt).catch(console.warn);
+    }
+  }, []);
 
   // 构建算法列表
   const algorithmsRef = useRef<InstalledCryptoAlgorithm[]>([]);
@@ -213,10 +225,37 @@ export function GlobalContextMenu() {
     return () => window.removeEventListener('crypto-result', handler);
   }, []);
 
+  useEffect(() => {
+    modalGuardRef.current = !!(exportDialog || pendingAction || resultDialog || parserDialogData);
+  }, [exportDialog, pendingAction, resultDialog, parserDialogData]);
+
+  useEffect(() => {
+    if (!visible || contextTarget !== 'monaco') {
+      setHasResponseArrays(false);
+      return;
+    }
+
+    const handleMetaReady = (e: Event) => {
+      const d = (e as CustomEvent<{ body?: string }>).detail;
+      const currentBody = (window as any).__pf_response_body;
+      if (d?.body && d.body !== currentBody) return;
+      syncResponseExportMeta();
+    };
+
+    syncResponseExportMeta();
+    window.addEventListener('pf-response-export-meta-ready', handleMetaReady);
+    return () => window.removeEventListener('pf-response-export-meta-ready', handleMetaReady);
+  }, [visible, contextTarget, syncResponseExportMeta]);
+
   // 全局 contextmenu
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const target = e.target as Element;
+
+      if (modalGuardRef.current) {
+        e.preventDefault();
+        return;
+      }
 
       // 如果右键目标在声明了 data-contextmenu-zone 的区域内，交给组件自行处理
       if (target.closest('[data-contextmenu-zone]')) return;
@@ -250,18 +289,26 @@ export function GlobalContextMenu() {
         monacoSelectionRef.current = selection;
         sourceInputRef.current = null;
         setContextTarget('monaco');
+        syncResponseExportMeta();
       } else if (inputLike) {
         const el = getInputElement(target);
+        const ceEl = !el ? getContentEditableElement(target) : null;
         if (el) {
           const s = el.selectionStart ?? 0;
           const end = el.selectionEnd ?? 0;
           text = s !== end ? el.value.substring(s, end) : '';
           inputEl = el;
+        } else if (ceEl) {
+          const sel = window.getSelection();
+          text = sel?.toString() || '';
         }
         monacoEditorRef.current = null;
         monacoSelectionRef.current = null;
         sourceInputRef.current = inputEl || null;
+        contentEditableRef.current = ceEl || null;
         setContextTarget('input');
+        bestArrayPathRef.current = '';
+        setHasResponseArrays(false);
       } else {
         const result = getSelectedText();
         text = result.text;
@@ -270,6 +317,8 @@ export function GlobalContextMenu() {
         monacoSelectionRef.current = null;
         sourceInputRef.current = inputEl || null;
         setContextTarget('general');
+        bestArrayPathRef.current = '';
+        setHasResponseArrays(false);
       }
 
       // 对于一般区域（非 Monaco、非 input），仅在有选中文本时才显示菜单
@@ -287,7 +336,7 @@ export function GlobalContextMenu() {
 
     document.addEventListener('contextmenu', handler, true);
     return () => document.removeEventListener('contextmenu', handler, true);
-  }, []);
+  }, [syncResponseExportMeta]);
 
   // 关闭
   useEffect(() => {
@@ -318,6 +367,14 @@ export function GlobalContextMenu() {
     if (contextTarget === 'monaco') {
       const ed = monacoEditorRef.current;
       if (ed) { ed.focus(); ed.trigger('custom', 'editor.action.clipboardCutAction', null); }
+    } else if (contentEditableRef.current) {
+      const ce = contentEditableRef.current;
+      const sel = window.getSelection();
+      if (sel && sel.toString()) {
+        copyTextToClipboard(sel.toString());
+        ce.focus();
+        document.execCommand('delete');
+      }
     } else {
       const el = sourceInputRef.current;
       if (el) {
@@ -357,6 +414,11 @@ export function GlobalContextMenu() {
           ed.executeEdits('paste', [{ range: selection, text, forceMoveMarkers: true }]);
         }
       }
+    } else if (contentEditableRef.current) {
+      const ce = contentEditableRef.current;
+      ce.focus();
+      const text = await navigator.clipboard.readText();
+      document.execCommand('insertText', false, text);
     } else {
       const el = sourceInputRef.current;
       if (el) {
@@ -384,6 +446,13 @@ export function GlobalContextMenu() {
           ed.setSelection(model.getFullModelRange());
         }
       }
+    } else if (contentEditableRef.current) {
+      const ce = contentEditableRef.current;
+      ce.focus();
+      const range = document.createRange();
+      range.selectNodeContents(ce);
+      const sel = window.getSelection();
+      if (sel) { sel.removeAllRanges(); sel.addRange(range); }
     } else {
       const el = sourceInputRef.current;
       if (el) {
@@ -556,13 +625,16 @@ export function GlobalContextMenu() {
     return item.contexts.includes(contextKey) || item.contexts.includes('global');
   });
 
-  if (!visible && !pendingAction && !resultDialog) return <SetEnvVariableDialog />;
+  if (!visible && !pendingAction && !resultDialog && !exportDialog && !parserDialogData) {
+    return <SetEnvVariableDialog />;
+  }
 
   return (
     <>
       {visible && createPortal(
         <div
           ref={menuRef}
+          data-contextmenu-zone="global-context-menu"
           className="fixed z-[var(--z-toast)] min-w-[200px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
           style={{ left: position.x, top: position.y, fontSize: 'var(--fs-sm)' }}
         >
@@ -603,15 +675,15 @@ export function GlobalContextMenu() {
             />
           )}
 
-          {/* 导出数组 — 直接列格式，自动选最大数组 */}
-          {contextTarget === 'monaco' && responseArrayNodes.length > 0 && (
+          {/* 导出数组 — 直接列所有格式 */}
+          {contextTarget === 'monaco' && hasResponseArrays && (
             <HoverSubmenu
-              label={`${t('contextMenu.exportArray', '导出数组')} (${bestArrayPath === '(root)' ? '根' : bestArrayPath})`}
+              label={`${t('contextMenu.exportArray', '导出数组')} (${bestArrayPathRef.current === '(root)' ? '根' : bestArrayPathRef.current})`}
               hoverKey="export-array"
               hoveredSub={hoveredSub}
               onHover={setHoveredSub}
             >
-              {EXPORT_FORMATS.filter((f) => !f.needsOptions).map((fmt) => (
+              {EXPORT_FORMATS.map((fmt) => (
                 <button
                   key={fmt.id}
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-text-primary hover:bg-bg-hover transition-colors"
@@ -716,9 +788,25 @@ export function GlobalContextMenu() {
 
       <SetEnvVariableDialog />
 
+      {/* 导出选项对话框（SQL 表名+字段选择、InfluxDB 参数） */}
+      {exportDialog && createPortal(
+        <ExportOptionsDialog
+          fmt={exportDialog.fmt}
+          body={exportDialog.body}
+          path={exportDialog.path}
+          onExport={(opts) => {
+            const { fmt, body, path } = exportDialog;
+            setExportDialog(null);
+            doExportToFile(body, path, fmt, opts).catch(console.warn);
+          }}
+          onClose={() => setExportDialog(null)}
+        />,
+        document.body,
+      )}
+
       {/* 协议解析对话框 */}
       {parserDialogData && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={() => setParserDialogData(null)}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" data-contextmenu-zone="parser-dialog" onClick={() => setParserDialogData(null)}>
           <div
             className="relative w-[640px] max-h-[80vh] flex flex-col pf-rounded-lg border border-border-default bg-bg-primary shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
@@ -913,4 +1001,131 @@ function replaceSelectedText(replacement: string, inputEl?: HTMLInputElement | H
   range.deleteContents();
   range.insertNode(document.createTextNode(replacement));
   sel.removeAllRanges();
+}
+
+/* ── 导出选项对话框（SQL 表名+字段选择 / InfluxDB 参数） ── */
+
+function ExportOptionsDialog({
+  fmt,
+  body,
+  path,
+  onExport,
+  onClose,
+}: {
+  fmt: FormatDef;
+  body: string;
+  path: string;
+  onExport: (opts: Record<string, string>) => void;
+  onClose: () => void;
+}) {
+  const isInflux = fmt.id === 'influxdb';
+  const [tableName, setTableName] = useState('table_name');
+  const [measurement, setMeasurement] = useState('data');
+  const [tagKeys, setTagKeys] = useState('');
+  const [columns, setColumns] = useState<string[]>([]);
+  const [selectedCols, setSelectedCols] = useState<Set<string>>(new Set());
+  const [aliases, setAliases] = useState<Record<string, string>>({});
+  // 列名从前几行采样，微秒级完成
+  useEffect(() => {
+    if (isInflux) return;
+    try {
+      const arr = getByPath(JSON.parse(body), path);
+      const cols = Array.isArray(arr) ? collectColumnsFromArray(arr) : [];
+      setColumns(cols);
+      setSelectedCols(new Set(cols));
+    } catch { /* ignore */ }
+  }, [body, path, isInflux]);
+
+  const handleExport = () => {
+    if (isInflux) {
+      onExport({ measurement, tagKeys });
+    } else {
+      const opts: Record<string, string> = { tableName };
+      if (selectedCols.size < columns.length) {
+        opts.selectedColumns = [...selectedCols].join(',');
+      }
+      const usedAliases = Object.fromEntries(
+        Object.entries(aliases).filter(([k, v]) => v && selectedCols.has(k))
+      );
+      if (Object.keys(usedAliases).length > 0) {
+        opts.columnAliases = JSON.stringify(usedAliases);
+      }
+      onExport(opts);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" data-contextmenu-zone="export-dialog" onClick={onClose}>
+      <div className="w-[480px] max-h-[70vh] flex flex-col pf-rounded-lg border border-border-default bg-bg-primary shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border-default/60">
+          <span className="pf-text-sm font-semibold text-text-primary">{fmt.name}</span>
+          <button onClick={onClose} className="p-1 rounded hover:bg-bg-hover text-text-tertiary">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-auto p-4 space-y-3">
+          {isInflux ? (
+            <>
+              <div>
+                <label className="block pf-text-xs font-medium text-text-secondary mb-1">Measurement</label>
+                <input value={measurement} onChange={(e) => setMeasurement(e.target.value)}
+                  className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" />
+              </div>
+              <div>
+                <label className="block pf-text-xs font-medium text-text-secondary mb-1">Tag Keys (逗号分隔)</label>
+                <input value={tagKeys} onChange={(e) => setTagKeys(e.target.value)}
+                  className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" placeholder="device_id,city" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="block pf-text-xs font-medium text-text-secondary mb-1">表名</label>
+                <input value={tableName} onChange={(e) => setTableName(e.target.value)}
+                  className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" />
+              </div>
+              {columns.length > 0 && (
+                <div>
+                  <label className="block pf-text-xs font-medium text-text-secondary mb-1">
+                    字段选择 ({selectedCols.size}/{columns.length})
+                    <button className="ml-2 text-accent pf-text-xxs hover:underline"
+                      onClick={() => setSelectedCols(selectedCols.size === columns.length ? new Set() : new Set(columns))}>
+                      {selectedCols.size === columns.length ? '取消全选' : '全选'}
+                    </button>
+                  </label>
+                  <div className="max-h-[200px] overflow-auto border border-border-default/60 pf-rounded-sm">
+                    {columns.map((col) => (
+                      <div key={col} className="flex items-center gap-2 px-2 py-1 hover:bg-bg-hover/50 border-b border-border-default/30 last:border-0">
+                        <input type="checkbox" checked={selectedCols.has(col)}
+                          onChange={() => setSelectedCols((prev) => { const n = new Set(prev); if (n.has(col)) n.delete(col); else n.add(col); return n; })}
+                          className="rounded border-border-default shrink-0" />
+                        <span className="pf-text-xs font-mono text-text-primary min-w-[100px]">{col}</span>
+                        <span className="pf-text-xxs text-text-disabled mx-1">→</span>
+                        <input
+                          value={aliases[col] || ''}
+                          onChange={(e) => setAliases((p) => ({ ...p, [col]: e.target.value }))}
+                          placeholder={col}
+                          className="flex-1 px-1.5 py-0.5 pf-rounded-sm border border-border-default/40 bg-transparent pf-text-xs text-text-secondary placeholder:text-text-disabled/50"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 px-4 py-3 border-t border-border-default/60">
+          <button onClick={onClose} className="px-3 py-1.5 pf-rounded-sm pf-text-xs text-text-secondary hover:bg-bg-hover">取消</button>
+          <button onClick={handleExport} disabled={!isInflux && selectedCols.size === 0}
+            className="px-3 py-1.5 pf-rounded-sm pf-text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50">
+            导出
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

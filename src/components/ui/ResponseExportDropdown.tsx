@@ -40,6 +40,30 @@ export function findArrayNodes(obj: unknown, prefix = ''): ArrayNodeInfo[] {
   return result;
 }
 
+export function getByPath(obj: unknown, path: string): unknown {
+  if (path === '(root)') return obj;
+  const parts = path.replace(/\[(\d+)\]/g, '.$1').split('.');
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+/** 从数组前几行采样收集列名（无需遍历全量数据） */
+export function collectColumnsFromArray(arr: unknown[]): string[] {
+  const seen = new Map<string, true>();
+  const sample = Math.min(arr.length, 5);
+  for (let i = 0; i < sample; i++) {
+    const item = arr[i];
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      for (const key of Object.keys(item)) if (!seen.has(key)) seen.set(key, true);
+    }
+  }
+  return seen.size > 0 ? [...seen.keys()] : ['value'];
+}
+
 /* ── 格式定义 ── */
 
 export interface FormatDef {
@@ -106,8 +130,10 @@ export async function doExportToFile(
       }
     }
     return null;
-  } catch (e) {
-    return String(e);
+  } catch (e: any) {
+    const msg = typeof e === 'string' ? e : e?.message || JSON.stringify(e);
+    console.warn('[ProtoForge] export error:', msg);
+    return msg;
   }
 }
 
@@ -125,6 +151,10 @@ export function ResponseExportDropdown({ body }: { body: string }) {
   const [selectedPath, setSelectedPath] = useState('');
   const [selectedFormat, setSelectedFormat] = useState<FormatDef | null>(null);
   const [optionValues, setOptionValues] = useState<Record<string, string>>({});
+  // SQL 字段选择 + 别名
+  const [allColumns, setAllColumns] = useState<string[]>([]);
+  const [selectedCols, setSelectedCols] = useState<Set<string>>(new Set());
+  const [aliases, setAliases] = useState<Record<string, string>>({});
 
   // 每个格式的独立状态：idle / loading / done / error
   const [formatStates, setFormatStates] = useState<Record<string, 'idle' | 'loading' | 'done' | 'error'>>({});
@@ -167,6 +197,16 @@ export function ResponseExportDropdown({ body }: { body: string }) {
       setOptionValues(
         fmt.id === 'influxdb' ? { measurement: 'data', tagKeys: '' } : { tableName: 'table_name' }
       );
+      // SQL 格式需要解析列信息
+      if (fmt.id !== 'influxdb') {
+        try {
+          const arr = getByPath(JSON.parse(body), selectedPath);
+          const cols = Array.isArray(arr) ? collectColumnsFromArray(arr) : [];
+          setAllColumns(cols);
+          setSelectedCols(new Set(cols));
+          setAliases({});
+        } catch { setAllColumns([]); setSelectedCols(new Set()); }
+      }
       setStep(3);
       return;
     }
@@ -255,11 +295,11 @@ export function ResponseExportDropdown({ body }: { body: string }) {
           )}
 
           {step === 3 && selectedFormat && (
-            <div className="flex flex-col">
+            <div className="flex flex-col" style={{ width: selectedFormat.id !== 'influxdb' ? 420 : undefined }}>
               <div className="px-3 py-2 border-b border-border-default/60">
                 <span className="pf-text-sm font-semibold text-text-primary">{selectedFormat.name}</span>
               </div>
-              <div className="p-3 space-y-2">
+              <div className="p-3 space-y-2 max-h-[400px] overflow-auto">
                 {selectedFormat.id === 'influxdb' ? (
                   <>
                     <label className="block pf-text-xs text-text-secondary">Measurement</label>
@@ -271,17 +311,57 @@ export function ResponseExportDropdown({ body }: { body: string }) {
                   </>
                 ) : (
                   <>
-                    <label className="block pf-text-xs text-text-secondary">{t('response.tableName', '表名')}</label>
-                    <input value={optionValues.tableName || ''} onChange={(e) => setOptionValues((p) => ({ ...p, tableName: e.target.value }))}
-                      className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" placeholder="table_name" />
+                    <div>
+                      <label className="block pf-text-xs text-text-secondary mb-1">{t('response.tableName', '表名')}</label>
+                      <input value={optionValues.tableName || ''} onChange={(e) => setOptionValues((p) => ({ ...p, tableName: e.target.value }))}
+                        className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" placeholder="table_name" />
+                    </div>
+                    {allColumns.length > 0 && (
+                      <div>
+                        <label className="block pf-text-xs text-text-secondary mb-1">
+                          字段选择 ({selectedCols.size}/{allColumns.length})
+                          <button className="ml-2 text-accent pf-text-xxs hover:underline"
+                            onClick={() => setSelectedCols(selectedCols.size === allColumns.length ? new Set() : new Set(allColumns))}>
+                            {selectedCols.size === allColumns.length ? '取消全选' : '全选'}
+                          </button>
+                        </label>
+                        <div className="max-h-[200px] overflow-auto border border-border-default/60 pf-rounded-sm">
+                          {allColumns.map((col) => (
+                            <div key={col} className="flex items-center gap-2 px-2 py-1 hover:bg-bg-hover/50 border-b border-border-default/30 last:border-0">
+                              <input type="checkbox" checked={selectedCols.has(col)}
+                                onChange={() => setSelectedCols((prev) => { const n = new Set(prev); if (n.has(col)) n.delete(col); else n.add(col); return n; })}
+                                className="rounded border-border-default shrink-0" />
+                              <span className="pf-text-xs font-mono text-text-primary min-w-[80px] truncate">{col}</span>
+                              <span className="pf-text-xxs text-text-disabled">→</span>
+                              <input
+                                value={aliases[col] || ''} placeholder={col}
+                                onChange={(e) => setAliases((p) => ({ ...p, [col]: e.target.value }))}
+                                className="flex-1 px-1.5 py-0.5 pf-rounded-sm border border-border-default/40 bg-transparent pf-text-xs text-text-secondary placeholder:text-text-disabled/50 min-w-0" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
               <div className="flex justify-end gap-2 px-3 py-2 border-t border-border-default/60">
                 <button onClick={() => setStep(2)} className="px-3 py-1 pf-rounded-sm pf-text-xs text-text-secondary hover:bg-bg-hover">{t('response.cancel', '返回')}</button>
                 <button
-                  onClick={() => { fireExport(selectedFormat, optionValues); setStep(2); }}
-                  className="px-3 py-1 pf-rounded-sm pf-text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600">
+                  onClick={() => {
+                    const opts = { ...optionValues };
+                    if (selectedFormat.id !== 'influxdb' && selectedCols.size < allColumns.length) {
+                      opts.selectedColumns = [...selectedCols].join(',');
+                    }
+                    const usedAliases = Object.fromEntries(Object.entries(aliases).filter(([k, v]) => v && selectedCols.has(k)));
+                    if (Object.keys(usedAliases).length > 0) {
+                      opts.columnAliases = JSON.stringify(usedAliases);
+                    }
+                    fireExport(selectedFormat, opts);
+                    setStep(2);
+                  }}
+                  disabled={selectedFormat.id !== 'influxdb' && selectedCols.size === 0}
+                  className="px-3 py-1 pf-rounded-sm pf-text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50">
                   {t('response.export', '导出')}
                 </button>
               </div>

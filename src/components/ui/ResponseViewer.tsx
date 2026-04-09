@@ -16,7 +16,7 @@ import type { RendererContribution } from '@/types/plugin';
 import { PluginRendererView } from '@/components/ui/PluginRendererView';
 import { ProtocolParserPanel } from '@/components/plugins/ProtocolParserPanel';
 import { ResolvedIcon } from '@/components/common/ResolvedIcon';
-import { ResponseExportDropdown } from '@/components/ui/ResponseExportDropdown';
+import { ResponseExportDropdown, findArrayNodes } from '@/components/ui/ResponseExportDropdown';
 
 export type ViewMode = 'json' | 'raw' | 'preview' | 'hex' | 'base64';
 
@@ -255,6 +255,53 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
       (window as any).__pf_response_body = body;
     }
   }, [isJson, isBinary, body]);
+
+  // 预先缓存导出所需的数组节点信息，避免右键时再次同步 JSON.parse 卡住主线程
+  useEffect(() => {
+    if (!isJson || isBinary || !body || jsonData == null) return;
+
+    let cancelled = false;
+    let idleId: number | null = null;
+    let timeoutId: number | null = null;
+    const idleWindow = window as Window & typeof globalThis & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const publishExportMeta = () => {
+      if (cancelled) return;
+      const arrayNodes = findArrayNodes(jsonData);
+      const bestArrayPath = arrayNodes.length > 0
+        ? arrayNodes.reduce((a, b) => (b.length > a.length ? b : a)).path
+        : '';
+
+      if (cancelled) return;
+
+      (window as any).__pf_response_export_meta = {
+        body,
+        arrayNodes,
+        bestArrayPath,
+      };
+
+      window.dispatchEvent(new CustomEvent('pf-response-export-meta-ready', { detail: { body } }));
+    };
+
+    if (typeof idleWindow.requestIdleCallback === 'function') {
+      idleId = idleWindow.requestIdleCallback(() => publishExportMeta(), { timeout: 500 });
+    } else {
+      timeoutId = globalThis.setTimeout(publishExportMeta, 0);
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleId != null && typeof idleWindow.cancelIdleCallback === 'function') {
+        idleWindow.cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) {
+        globalThis.clearTimeout(timeoutId);
+      }
+    };
+  }, [isJson, isBinary, body, jsonData]);
 
   // Available modes
   const availableModes = useMemo(() => {
