@@ -51,6 +51,7 @@ const PluginModal = lazy(() => import("@/components/plugins/PluginModal").then((
 const SettingsModal = lazy(() => import("@/components/settings/SettingsModal").then((module) => ({ default: module.SettingsModal })));
 const DesignSystemPage = lazy(() => import("@/components/dev/DesignSystemPage").then((module) => ({ default: module.DesignSystemPage })));
 const EnvironmentVariablesModal = lazy(() => import("@/components/modals/EnvironmentVariablesModal"));
+const CookieManagerModal = lazy(() => import("@/components/http/CookieManagerModal").then((module) => ({ default: module.CookieManagerModal })));
 const CollectionSettingsPanel = lazy(() => import("@/components/collections/CollectionSettingsPanel").then((module) => ({ default: module.CollectionSettingsPanel })));
 
 function LazyPaneFallback({ label, className }: { label: string; className?: string }) {
@@ -636,6 +637,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [designSystemOpen, setDesignSystemOpen] = useState(false);
   const [envModalOpen, setEnvModalOpen] = useState(false);
+  const [cookieManagerOpen, setCookieManagerOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [detachedToolSessions, setDetachedToolSessions] = useState<Record<ToolWorkbench, string[]>>({
     tcpudp: [],
@@ -667,15 +669,18 @@ function App() {
     const openPlugins = () => setPluginModalOpen(true);
     const openSettings = () => setSettingsOpen(true);
     const openDesignSystem = () => setDesignSystemOpen(true);
+    const openCookieManager = () => setCookieManagerOpen(true);
 
     window.addEventListener("open-plugin-modal", openPlugins);
     window.addEventListener("open-settings-modal", openSettings);
     window.addEventListener("open-design-system", openDesignSystem);
+    window.addEventListener("open-cookie-manager", openCookieManager);
 
     return () => {
       window.removeEventListener("open-plugin-modal", openPlugins);
       window.removeEventListener("open-settings-modal", openSettings);
       window.removeEventListener("open-design-system", openDesignSystem);
+      window.removeEventListener("open-cookie-manager", openCookieManager);
     };
   }, []);
 
@@ -1244,6 +1249,11 @@ function App() {
       {envModalOpen && (
         <Suspense fallback={null}>
           <EnvironmentVariablesModal open={envModalOpen} onClose={() => setEnvModalOpen(false)} />
+        </Suspense>
+      )}
+      {cookieManagerOpen && (
+        <Suspense fallback={null}>
+          <CookieManagerModal open={cookieManagerOpen} onClose={() => setCookieManagerOpen(false)} />
         </Suspense>
       )}
       <CommandPalette isOpen={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />

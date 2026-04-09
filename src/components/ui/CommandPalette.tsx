@@ -2,7 +2,7 @@
 // 全局搜索：集合/请求/环境/历史
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, FileText, Globe, X, Network, Gauge, Radio, Puzzle, Settings, Braces, Waves, Palette, Server } from 'lucide-react';
+import { Search, FileText, Globe, X, Network, Gauge, Radio, Puzzle, Settings, Braces, Waves, Palette, Server, Cookie } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
@@ -68,6 +68,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
       { type: 'action', label: t('commandPalette.openMockServer'), icon: Server, action: () => { openToolTab('mockserver'); onClose(); } },
       { type: 'action', label: t('commandPalette.openPlugins'), icon: Puzzle, action: () => { window.dispatchEvent(new CustomEvent('open-plugin-modal')); onClose(); } },
       { type: 'action', label: t('commandPalette.openSettings'), icon: Settings, action: () => { window.dispatchEvent(new CustomEvent('open-settings-modal')); onClose(); } },
+      { type: 'action', label: t('commandPalette.openCookieManager'), icon: Cookie, action: () => { window.dispatchEvent(new CustomEvent('open-cookie-manager')); onClose(); } },
       { type: 'action', label: 'Design System', description: 'Dev', icon: Palette, action: () => { window.dispatchEvent(new CustomEvent('open-design-system')); onClose(); } },
     );
 

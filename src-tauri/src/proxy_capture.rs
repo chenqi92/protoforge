@@ -446,8 +446,6 @@ pub async fn test_proxy_connection(port: u16) -> Result<String, String> {
 // ═══════════════════════════════════════════
 
 /// 获取或生成 CA 证书，返回 (cert_pem, key_pem, cert_path)
-/// SECURITY TODO: 私钥文件当前以明文储存，未设置严格文件权限。
-/// 在多用户 Windows 系统上，应考虑使用 ACL 限制访问或使用系统密钥库。
 fn get_or_create_ca(app_data_dir: &PathBuf) -> Result<(String, String, PathBuf), String> {
     let ca_dir = app_data_dir.join("proxy-ca");
     let cert_path = ca_dir.join("protoforge-ca.crt");
@@ -455,6 +453,9 @@ fn get_or_create_ca(app_data_dir: &PathBuf) -> Result<(String, String, PathBuf),
 
     // 如果已有证书，直接加载
     if cert_path.exists() && key_path.exists() {
+        // 确保已有私钥文件权限正确（可能是旧版本创建的）
+        lock_down_private_key(&key_path);
+
         let cert_pem =
             std::fs::read_to_string(&cert_path).map_err(|e| format!("读取 CA 证书失败: {}", e))?;
         let key_pem =
@@ -488,9 +489,65 @@ fn get_or_create_ca(app_data_dir: &PathBuf) -> Result<(String, String, PathBuf),
     std::fs::write(&cert_path, &cert_pem).map_err(|e| format!("写入 CA 证书失败: {}", e))?;
     std::fs::write(&key_path, &key_pem).map_err(|e| format!("写入 CA 私钥失败: {}", e))?;
 
+    // 写入后立即限制私钥文件访问权限
+    lock_down_private_key(&key_path);
+
     log::info!("已生成新的 CA 证书: {:?}", cert_path);
 
     Ok((cert_pem, key_pem, cert_path))
+}
+
+/// 限制私钥文件权限，仅允许当前用户访问。
+/// - Windows: 通过 icacls 移除继承权限并仅授权当前用户完全控制
+/// - Unix: chmod 0600
+fn lock_down_private_key(path: &std::path::Path) {
+    #[cfg(target_os = "windows")]
+    {
+        // icacls <path> /inheritance:r   — 移除所有继承的 ACE
+        // icacls <path> /grant:r "%USERNAME%:(F)" — 仅当前用户完全控制
+        let path_str = path.to_string_lossy();
+        let username = std::env::var("USERNAME").unwrap_or_default();
+        if username.is_empty() {
+            log::warn!("[CAPTURE] 无法获取 USERNAME，跳过私钥 ACL 设置");
+            return;
+        }
+
+        let remove_inherit = std::process::Command::new("icacls")
+            .args([path_str.as_ref(), "/inheritance:r"])
+            .output();
+        if let Err(e) = remove_inherit {
+            log::warn!("[CAPTURE] icacls 移除继承权限失败: {}", e);
+            return;
+        }
+
+        let grant_user = std::process::Command::new("icacls")
+            .args([path_str.as_ref(), "/grant:r", &format!("{}:(F)", username)])
+            .output();
+        match grant_user {
+            Ok(output) if output.status.success() => {
+                log::info!("[CAPTURE] 已限制私钥文件权限: 仅用户 {} 可访问", username);
+            }
+            Ok(output) => {
+                log::warn!(
+                    "[CAPTURE] icacls 授权失败: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            Err(e) => {
+                log::warn!("[CAPTURE] icacls 执行失败: {}", e);
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Err(e) = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)) {
+            log::warn!("[CAPTURE] 设置私钥文件权限失败: {}", e);
+        } else {
+            log::info!("[CAPTURE] 已限制私钥文件权限: 0600");
+        }
+    }
 }
 
 // ═══════════════════════════════════════════

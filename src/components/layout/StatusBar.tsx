@@ -8,9 +8,11 @@ import {
   Download,
   ExternalLink,
   ArrowRight,
+  Cookie,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUpdateStore } from "@/stores/updateStore";
+import { useCookieJarStore } from "@/stores/cookieJarStore";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface StatusBarProps {
@@ -185,6 +187,9 @@ export function StatusBar({
             </span>
           )}
 
+          {/* Cookie Jar */}
+          <CookieJarButton />
+
           {/* 版本 & 更新区域 */}
           <button
             onClick={handleVersionClick}
@@ -302,5 +307,23 @@ export function StatusBar({
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+function CookieJarButton() {
+  const { t } = useTranslation();
+  const cookieCount = useCookieJarStore((s) => s.cookies.length);
+
+  return (
+    <button
+      onClick={() => window.dispatchEvent(new CustomEvent("open-cookie-manager"))}
+      className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-text-disabled transition-all hover:text-text-secondary"
+      title={t("cookieManager.title")}
+    >
+      <Cookie className="h-3 w-3" />
+      {cookieCount > 0 && (
+        <span className="font-semibold text-amber-500">{cookieCount}</span>
+      )}
+    </button>
   );
 }
