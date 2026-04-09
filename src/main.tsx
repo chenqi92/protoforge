@@ -37,6 +37,21 @@ async function renderApp() {
       Component = MockServerWindow;
       break;
     }
+    case "dbclient": {
+      const { DbClientWindow } = await import("./windows/DbClientWindow");
+      Component = DbClientWindow;
+      break;
+    }
+    case "toolbox": {
+      const { ToolboxWindow } = await import("./windows/ToolboxWindow");
+      Component = ToolboxWindow;
+      break;
+    }
+    case "workflow": {
+      const { WorkflowWindow } = await import("./windows/WorkflowWindow");
+      Component = WorkflowWindow;
+      break;
+    }
     default: {
       const { default: App } = await import("./App");
       Component = App;

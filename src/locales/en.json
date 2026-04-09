@@ -289,6 +289,8 @@
     "dbclientDesc": "Connect to multiple databases, execute queries, browse schemas, edit data, import/export",
     "toolbox": "Toolbox",
     "toolboxDesc": "Image resizing, icon generation, batch renaming and other handy developer utilities",
+    "workflow": "Workflow",
+    "workflowDesc": "Visually chain HTTP/TCP/Script nodes for automated complex API testing",
     "pluginSystem": "Plugin Extensions",
     "pluginSystemDesc": "Extend capabilities with protocol parsing, data generation, and custom rendering plugins",
     "sse": "SSE",
@@ -1895,6 +1897,7 @@
     "output": "Output",
     "error": "Error",
     "noOutput": "No output",
+    "rename": "Rename",
     "nodeTypes": {
       "httpRequest": "HTTP Request",
       "tcpSend": "TCP Send",
@@ -1904,6 +1907,16 @@
       "extractData": "Extract Data",
       "base64Encode": "Base64 Encode",
       "base64Decode": "Base64 Decode"
+    },
+    "nodeDescs": {
+      "httpRequest": "Send HTTP/HTTPS request and get response",
+      "tcpSend": "Establish TCP connection and send data",
+      "udpSend": "Send UDP datagram",
+      "delay": "Pause for specified milliseconds",
+      "script": "Execute custom JavaScript code",
+      "extractData": "Extract data from previous node output",
+      "base64Encode": "Encode input to Base64",
+      "base64Decode": "Decode Base64 to plaintext"
     },
     "nodeFields": {
       "method": "Method",

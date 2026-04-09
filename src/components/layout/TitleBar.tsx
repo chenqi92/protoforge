@@ -13,6 +13,7 @@ import {
   Server,
   Database,
   Wrench,
+  Workflow,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useThemeStore } from "@/stores/themeStore";
@@ -44,6 +45,7 @@ const workbenches: Array<{
   { id: "mockserver", labelKey: "titleBar.mockserver", icon: Server, accentClassName: "text-green-600" },
   { id: "dbclient", labelKey: "titleBar.dbclient", icon: Database, accentClassName: "text-amber-600" },
   { id: "toolbox", labelKey: "titleBar.toolbox", icon: Wrench, accentClassName: "text-orange-600" },
+  { id: "workflow", labelKey: "titleBar.workflow", icon: Workflow, accentClassName: "text-indigo-600" },
 ];
 
 export function TitleBar({

@@ -289,6 +289,8 @@
     "dbclientDesc": "连接多种数据库，执行查询、浏览结构、编辑数据、导入导出",
     "toolbox": "工具箱",
     "toolboxDesc": "图片缩放、图标生成、批量重命名等实用开发辅助工具",
+    "workflow": "工作流编排",
+    "workflowDesc": "可视化串联 HTTP/TCP/脚本节点，自动化复杂 API 测试场景",
     "pluginSystem": "插件扩展",
     "pluginSystemDesc": "通过插件扩展协议解析、数据生成和自定义渲染能力",
     "sse": "SSE",
@@ -1917,6 +1919,7 @@
     "output": "输出",
     "error": "错误",
     "noOutput": "无输出",
+    "rename": "重命名",
     "nodeTypes": {
       "httpRequest": "HTTP 请求",
       "tcpSend": "TCP 发送",
@@ -1926,6 +1929,16 @@
       "extractData": "数据提取",
       "base64Encode": "Base64 编码",
       "base64Decode": "Base64 解码"
+    },
+    "nodeDescs": {
+      "httpRequest": "发送 HTTP/HTTPS 请求并获取响应",
+      "tcpSend": "建立 TCP 连接并发送数据",
+      "udpSend": "发送 UDP 数据报",
+      "delay": "暂停指定毫秒后继续",
+      "script": "执行自定义 JavaScript 脚本",
+      "extractData": "从上一节点输出提取数据",
+      "base64Encode": "将输入编码为 Base64",
+      "base64Decode": "将 Base64 解码为原文"
     },
     "nodeFields": {
       "method": "方法",

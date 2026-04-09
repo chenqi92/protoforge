@@ -932,6 +932,7 @@ function App() {
       case "capture":
       case "mockserver":
       case "dbclient":
+      case "workflow":
         void handleSelectWorkbench(action);
         break;
       case "plugins":
@@ -1171,26 +1172,9 @@ function App() {
           </ToolWorkbenchPanel>
         </div>
 
+        {/* Workflow: single-instance, no session tabs — has its own list sidebar */}
         <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "workflow" ? "block" : "hidden")}>
-          <ToolWorkbenchPanel
-            tool="workflow"
-            sessions={toolSessions.workflow}
-            activeSessionId={activeToolSessionIds.workflow}
-            detachedSessionIds={detachedToolSessions.workflow}
-            onAddSession={addToolSession}
-            onSelectSession={setActiveToolSession}
-            onCloseSession={closeToolSession}
-            onPopout={handlePopoutWorkbench}
-          >
-            {toolSessions.workflow.map((session) => (
-              <div
-                key={session.id}
-                className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.workflow ? "block" : "hidden")}
-              >
-                <WorkflowWorkspace />
-              </div>
-            ))}
-          </ToolWorkbenchPanel>
+          <WorkflowWorkspace />
         </div>
       </div>
     );

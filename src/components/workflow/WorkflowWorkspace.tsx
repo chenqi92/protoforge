@@ -1,7 +1,7 @@
 // ProtoForge Workflow Workspace — visual workflow orchestration
 // Layout: sidebar (workflow list + node palette) | canvas (React Flow) | right panel (config + results)
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -10,6 +10,8 @@ import {
   addEdge,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
   type Node,
   type Edge,
   type Connection,
@@ -22,7 +24,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import {
-  Plus, Trash2, Play, Square, Save, Search, Loader2,
+  Plus, Trash2, Play, Square, Save, Search, Loader2, Pencil,
   Globe, Plug, Radio, Clock, Code, Filter, Lock, Unlock,
   ChevronRight, ChevronDown, X, CheckCircle2, XCircle,
   Workflow as WorkflowIcon,
@@ -348,6 +350,14 @@ function ExecutionPanel({
 // ═══════════════════════════════════════════
 
 export function WorkflowWorkspace() {
+  return (
+    <ReactFlowProvider>
+      <WorkflowWorkspaceInner />
+    </ReactFlowProvider>
+  );
+}
+
+function WorkflowWorkspaceInner() {
   const { t } = useTranslation();
   const theme = useThemeStore((s) => s.resolved);
 
@@ -373,27 +383,41 @@ export function WorkflowWorkspace() {
   const [search, setSearch] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [rightPanel, setRightPanel] = useState<'config' | 'results'>('config');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [nodePaletteExpanded, setNodePaletteExpanded] = useState(true);
 
   // Active workflow data — local editing state
   const activeWorkflow = useMemo(() => workflows.find((w) => w.id === activeWorkflowId) || null, [workflows, activeWorkflowId]);
   const [localWorkflow, setLocalWorkflow] = useState<Workflow | null>(null);
 
+  // Track structural version to avoid re-deriving RF nodes on position-only changes
+  const structureVersionRef = useRef(0);
+  const [structureVersion, setStructureVersion] = useState(0);
+  const bumpStructure = useCallback(() => {
+    structureVersionRef.current += 1;
+    setStructureVersion(structureVersionRef.current);
+  }, []);
+
   // Sync local state when active workflow changes
   useEffect(() => {
     setLocalWorkflow(activeWorkflow ? { ...activeWorkflow } : null);
     setSelectedNodeId(null);
+    bumpStructure();
   }, [activeWorkflow?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // React Flow state
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<Node>([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const reactFlowInstance = useReactFlow();
 
-  // Sync React Flow nodes from local workflow + execution results
+  // Rebuild RF nodes only on structural changes (add/remove node/edge) or execution status,
+  // NOT on position changes — React Flow manages positions internally via onNodesChange.
   useEffect(() => {
     if (!localWorkflow) { setRfNodes([]); setRfEdges([]); return; }
     setRfNodes(toRfNodes(localWorkflow.nodes, nodeResults));
     setRfEdges(toRfEdges(localWorkflow.edges));
-  }, [localWorkflow, nodeResults, setRfNodes, setRfEdges]);
+  }, [structureVersion, nodeResults, setRfNodes, setRfEdges]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Subscribe to progress events
   useEffect(() => {
@@ -429,12 +453,13 @@ export function WorkflowWorkspace() {
     await runWf(localWorkflow.id);
   }, [localWorkflow, dirty, saveWf, runWf]);
 
-  // Update local workflow nodes (position sync from canvas)
+  // Let React Flow handle position updates internally (no flicker).
+  // Only sync final positions back to localWorkflow on drag end.
   const handleNodesChange: typeof onNodesChange = useCallback((changes) => {
     onNodesChange(changes);
-    // Sync position changes back to local workflow
     for (const change of changes) {
-      if (change.type === 'position' && change.position && localWorkflow) {
+      // 'position' change with dragging=false means drag ended
+      if (change.type === 'position' && change.dragging === false && change.position) {
         setLocalWorkflow((prev) => {
           if (!prev) return prev;
           return {
@@ -446,8 +471,21 @@ export function WorkflowWorkspace() {
         });
         setDirty(true);
       }
+      // Handle node removal from canvas (e.g. backspace in RF)
+      if (change.type === 'remove') {
+        setLocalWorkflow((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            nodes: prev.nodes.filter((n) => n.id !== change.id),
+            edges: prev.edges.filter((e) => e.sourceNodeId !== change.id && e.targetNodeId !== change.id),
+          };
+        });
+        bumpStructure();
+        setDirty(true);
+      }
     }
-  }, [onNodesChange, localWorkflow, setDirty]);
+  }, [onNodesChange, setDirty, bumpStructure]);
 
   const onConnect: OnConnect = useCallback((connection: Connection) => {
     setRfEdges((eds) => addEdge({ ...connection, markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 }, style: { strokeWidth: 2 } }, eds));
@@ -460,11 +498,11 @@ export function WorkflowWorkspace() {
       };
       return { ...prev, edges: [...prev.edges, newEdge] };
     });
+    bumpStructure();
     setDirty(true);
-  }, [setRfEdges, setDirty]);
+  }, [setRfEdges, setDirty, bumpStructure]);
 
-  const handleAddNode = useCallback((nodeType: NodeType) => {
-    if (!localWorkflow) return;
+  const addNodeAtPosition = useCallback((nodeType: NodeType, position: { x: number; y: number }) => {
     const id = crypto.randomUUID();
     const meta = NODE_TYPE_META[nodeType];
     const newNode: FlowNode = {
@@ -472,13 +510,33 @@ export function WorkflowWorkspace() {
       name: meta.label,
       nodeType,
       config: defaultConfig(nodeType),
-      position: { x: 250, y: (localWorkflow.nodes.length) * 120 + 60 },
+      position,
     };
     setLocalWorkflow((prev) => prev ? { ...prev, nodes: [...prev.nodes, newNode] } : prev);
+    bumpStructure();
     setDirty(true);
     setSelectedNodeId(id);
     setRightPanel('config');
-  }, [localWorkflow, setDirty]);
+  }, [setDirty, bumpStructure]);
+
+  const handleAddNode = useCallback((nodeType: NodeType) => {
+    if (!localWorkflow) return;
+    addNodeAtPosition(nodeType, { x: 250, y: localWorkflow.nodes.length * 120 + 60 });
+  }, [localWorkflow, addNodeAtPosition]);
+
+  // Drag-and-drop from palette onto canvas
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const nodeType = e.dataTransfer.getData('application/protoforge-node-type') as NodeType;
+    if (!nodeType || !NODE_TYPE_META[nodeType]) return;
+    const position = reactFlowInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    addNodeAtPosition(nodeType, position);
+  }, [reactFlowInstance, addNodeAtPosition]);
 
   const handleDeleteNode = useCallback((nodeId: string) => {
     setLocalWorkflow((prev) => {
@@ -490,8 +548,9 @@ export function WorkflowWorkspace() {
       };
     });
     if (selectedNodeId === nodeId) setSelectedNodeId(null);
+    bumpStructure();
     setDirty(true);
-  }, [selectedNodeId, setDirty]);
+  }, [selectedNodeId, setDirty, bumpStructure]);
 
   const handleNodeClick = useCallback((_: unknown, node: Node) => {
     setSelectedNodeId(node.id);
@@ -509,6 +568,25 @@ export function WorkflowWorkspace() {
     });
     setDirty(true);
   }, [selectedNodeId, setDirty]);
+
+  // ── Rename ──
+  const startRename = useCallback((id: string, currentName: string) => {
+    setRenamingId(id);
+    setRenameValue(currentName);
+  }, []);
+
+  const commitRename = useCallback(async () => {
+    if (!renamingId || !renameValue.trim()) { setRenamingId(null); return; }
+    const wf = workflows.find((w) => w.id === renamingId);
+    if (wf) {
+      await saveWf({ ...wf, name: renameValue.trim() });
+      // If renaming the active workflow, update local state too
+      if (localWorkflow && localWorkflow.id === renamingId) {
+        setLocalWorkflow((prev) => prev ? { ...prev, name: renameValue.trim() } : prev);
+      }
+    }
+    setRenamingId(null);
+  }, [renamingId, renameValue, workflows, saveWf, localWorkflow]);
 
   const selectedNode = localWorkflow?.nodes.find((n) => n.id === selectedNodeId) || null;
   const isRunning = executionStatus === 'running';
@@ -559,49 +637,94 @@ export function WorkflowWorkspace() {
             </div>
           ) : (
             filteredWorkflows.map((w) => (
-              <button
+              <div
                 key={w.id}
                 onClick={() => setActiveId(w.id)}
                 className={cn(
-                  'group flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-bg-hover/50',
+                  'group flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-bg-hover/50 cursor-pointer',
                   w.id === activeWorkflowId && 'bg-accent/8 border-r-2 border-accent',
                 )}
               >
                 <WorkflowIcon className="h-3.5 w-3.5 text-text-tertiary shrink-0" />
-                <span className="pf-text-xs text-text-primary flex-1 truncate">{w.name}</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(w.id, w.name); }}
-                  className="shrink-0 p-0.5 text-text-disabled opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </button>
+                {renamingId === w.id ? (
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename();
+                      if (e.key === 'Escape') setRenamingId(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="pf-text-xs text-text-primary flex-1 min-w-0 bg-bg-input border border-accent/40 pf-rounded-sm px-1.5 py-0.5 outline-none"
+                  />
+                ) : (
+                  <span
+                    className="pf-text-xs text-text-primary flex-1 truncate"
+                    onDoubleClick={(e) => { e.stopPropagation(); startRename(w.id, w.name); }}
+                  >
+                    {w.name}
+                  </span>
+                )}
+                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); startRename(w.id, w.name); }}
+                    className="p-0.5 text-text-disabled hover:text-text-secondary"
+                    title={t('workflow.rename')}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(w.id, w.name); }}
+                    className="p-0.5 text-text-disabled hover:text-red-500"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
             ))
           )}
         </div>
 
-        {/* Node palette */}
+        {/* Node palette — collapsible */}
         {localWorkflow && (
-          <div className="border-t border-border-default/60 shrink-0">
-            <div className="px-3 py-2 pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider">
+          <div className="border-t border-border-default/60 flex flex-col min-h-0">
+            <button
+              onClick={() => setNodePaletteExpanded(!nodePaletteExpanded)}
+              className="flex items-center gap-1.5 px-3 py-2 pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider hover:text-text-tertiary transition-colors shrink-0"
+            >
+              {nodePaletteExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
               {t('workflow.addNode')}
-            </div>
-            <div className="grid grid-cols-2 gap-1 px-2 pb-2">
-              {(Object.keys(NODE_TYPE_META) as NodeType[]).map((nt) => {
-                const meta = NODE_TYPE_META[nt];
-                const Icon = NODE_ICONS[nt];
-                return (
-                  <button
-                    key={nt}
-                    onClick={() => handleAddNode(nt)}
-                    className="flex items-center gap-1.5 px-2 py-1.5 pf-rounded-md text-left pf-text-xxs text-text-secondary hover:bg-bg-hover/60 transition-colors"
-                  >
-                    <Icon className="h-3 w-3 shrink-0" style={{ color: meta.color }} />
-                    <span className="truncate">{t(`workflow.nodeTypes.${nt}`)}</span>
-                  </button>
-                );
-              })}
-            </div>
+            </button>
+            {nodePaletteExpanded && (
+              <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2 space-y-1">
+                {(Object.keys(NODE_TYPE_META) as NodeType[]).map((nt) => {
+                  const meta = NODE_TYPE_META[nt];
+                  const Icon = NODE_ICONS[nt];
+                  return (
+                    <button
+                      key={nt}
+                      draggable
+                      onClick={() => handleAddNode(nt)}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/protoforge-node-type', nt);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      className="flex items-center gap-2.5 w-full px-2.5 py-2 pf-rounded-lg text-left hover:bg-bg-hover/60 transition-colors cursor-grab active:cursor-grabbing border border-transparent hover:border-border-default/40"
+                    >
+                      <div className="flex h-7 w-7 items-center justify-center pf-rounded-md shrink-0" style={{ backgroundColor: meta.color + '15' }}>
+                        <Icon className="h-3.5 w-3.5" style={{ color: meta.color }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="pf-text-xs font-medium text-text-primary truncate">{t(`workflow.nodeTypes.${nt}`)}</div>
+                        <div className="pf-text-xxs text-text-disabled truncate leading-4">{t(`workflow.nodeDescs.${nt}`)}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -640,6 +763,8 @@ export function WorkflowWorkspace() {
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               onNodeClick={handleNodeClick}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
               nodeTypes={nodeTypes}
               fitView
               colorMode={theme === 'dark' ? 'dark' : 'light'}
