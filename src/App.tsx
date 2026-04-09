@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useRef } from "react";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Database, Gauge, List, MonitorPlay, Network, Plus, Radio, Server, Wrench, X } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Database, Gauge, List, MonitorPlay, Network, Plus, Radio, Server, Wrench, Workflow, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -45,6 +45,7 @@ import { CaptureWorkspace } from "@/components/capture/CaptureWorkspace";
 import { MockServerWorkspace } from "@/components/mockserver/MockServerWorkspace";
 import { DbClientWorkspace } from "@/components/dbclient/DbClientWorkspace";
 import { ToolboxWorkspace } from "@/components/toolbox/ToolboxWorkspace";
+import { WorkflowWorkspace } from "@/components/workflow/WorkflowWorkspace";
 
 // Low-frequency components — keep lazy for smaller initial bundle
 const PluginModal = lazy(() => import("@/components/plugins/PluginModal").then((module) => ({ default: module.PluginModal })));
@@ -133,6 +134,15 @@ const toolWorkbenchMeta: Record<ToolWorkbench, {
     accentClassName: "text-orange-600",
     accentBorderClassName: "border-orange-500",
     accentDotClassName: "bg-orange-500",
+  },
+  workflow: {
+    titleKey: "toolWorkbench.workflow.title",
+    shortTitleKey: "toolWorkbench.workflow.shortTitle",
+    descKey: "toolWorkbench.workflow.description",
+    icon: Workflow,
+    accentClassName: "text-indigo-600",
+    accentBorderClassName: "border-indigo-500",
+    accentDotClassName: "bg-indigo-500",
   },
 };
 
@@ -647,6 +657,7 @@ function App() {
     mockserver: [],
     dbclient: [],
     toolbox: [],
+    workflow: [],
   });
 
   useKeyboardShortcuts();
@@ -733,7 +744,7 @@ function App() {
   }, [activeWorkbench, rightSidebarPanelRef]);
 
   const refreshDetachedTools = useCallback(async () => {
-    const toolKeys: ToolWorkbench[] = ["tcpudp", "capture", "loadtest", "videostream", "mockserver", "dbclient", "toolbox"];
+    const toolKeys: ToolWorkbench[] = ["tcpudp", "capture", "loadtest", "videostream", "mockserver", "dbclient", "toolbox", "workflow"];
     const states = await Promise.all(
       toolKeys.map(async (tool) => [tool, await listOpenToolWindowSessions(tool)] as const)
     );
@@ -746,6 +757,7 @@ function App() {
       mockserver: states.find(([tool]) => tool === "mockserver")?.[1] ?? [],
       dbclient: states.find(([tool]) => tool === "dbclient")?.[1] ?? [],
       toolbox: states.find(([tool]) => tool === "toolbox")?.[1] ?? [],
+      workflow: states.find(([tool]) => tool === "workflow")?.[1] ?? [],
     });
   }, []);
 
@@ -1154,6 +1166,28 @@ function App() {
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.toolbox ? "block" : "hidden")}
               >
                 <ToolboxWorkspace />
+              </div>
+            ))}
+          </ToolWorkbenchPanel>
+        </div>
+
+        <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "workflow" ? "block" : "hidden")}>
+          <ToolWorkbenchPanel
+            tool="workflow"
+            sessions={toolSessions.workflow}
+            activeSessionId={activeToolSessionIds.workflow}
+            detachedSessionIds={detachedToolSessions.workflow}
+            onAddSession={addToolSession}
+            onSelectSession={setActiveToolSession}
+            onCloseSession={closeToolSession}
+            onPopout={handlePopoutWorkbench}
+          >
+            {toolSessions.workflow.map((session) => (
+              <div
+                key={session.id}
+                className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.workflow ? "block" : "hidden")}
+              >
+                <WorkflowWorkspace />
               </div>
             ))}
           </ToolWorkbenchPanel>

@@ -16,7 +16,10 @@
       "Bash(npx vite:*)",
       "Bash(cargo check:*)",
       "Bash(xargs cat:*)",
-      "Bash(grep -n \"response\\\\\\\\.status\\\\|response\\\\\\\\.body\\\\|response\\\\\\\\.headers\\\\|response\\\\\\\\.duration\\\\|response\\\\\\\\.timing\" /E/workspace-freq/protoforge/src/components/http/HttpWorkspace.tsx)"
+      "Bash(grep -n \"response\\\\\\\\.status\\\\|response\\\\\\\\.body\\\\|response\\\\\\\\.headers\\\\|response\\\\\\\\.duration\\\\|response\\\\\\\\.timing\" /E/workspace-freq/protoforge/src/components/http/HttpWorkspace.tsx)",
+      "Bash(grep -n \"zh\\\\.json\\\\|i18n\" /e/workspace-freq/protoforge/src/locales/*.json)",
+      "Bash(grep:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

@@ -31,7 +31,7 @@ import { GraphQLBodyEditor, MonacoEditorSurface, EditorSurfaceFallback } from ".
 import { ResponseMetaPill, HttpRequestErrorPanel, ResponseHeaderMetric } from "./HttpResponseParts";
 import { ExportPluginDropdown } from "./ExportPluginDropdown";
 import { BinaryPicker } from "./BinaryPicker";
-import { AssertionBuilder, generateAssertionCode, type Assertion } from "./AssertionBuilder";
+import { AssertionBuilder, TestResultsPanel, generateAssertionCode, type Assertion } from "./AssertionBuilder";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 const LazyScriptEditor = lazy(() => import("./ScriptEditor").then((module) => ({ default: module.ScriptEditor })));
@@ -82,8 +82,8 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
   const saveRequestToCollection = useCollectionStore((s) => s.saveRequest);
 
-  const [reqTab, setReqTab] = useState<"params" | "headers" | "body" | "auth" | "pre-script" | "post-script">("params");
-  const [resTab, setResTab] = useState<"body" | "headers" | "cookies" | "timing">("body");
+  const [reqTab, setReqTab] = useState<"params" | "headers" | "body" | "auth" | "pre-script" | "post-script" | "tests">("params");
+  const [resTab, setResTab] = useState<"body" | "headers" | "cookies" | "timing" | "tests">("body");
   const [copied, setCopied] = useState(false);
   const [showMethods, setShowMethods] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -238,7 +238,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
 
 
   useEffect(() => {
-    const allowedTabs = isSseMode ? ["params", "headers", "auth"] : ["params", "headers", "body", "auth", "pre-script", "post-script"];
+    const allowedTabs = isSseMode ? ["params", "headers", "auth"] : ["params", "headers", "body", "auth", "tests", "pre-script", "post-script"];
     if (!allowedTabs.includes(reqTab)) {
       setReqTab(isGraphqlMode ? "body" : "params");
     }
@@ -571,6 +571,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
     ...(!isSseMode ? [{ key: "body" as const, label: isGraphqlMode ? t('http.graphql.modeLabel') : t('http.body'), hasContent: hasBodyContent }] : []),
     { key: "auth" as const, label: t('http.auth'), hasContent: hasAuthContent },
     ...(!isSseMode ? [
+      { key: "tests" as const, label: `${t('assertion.testResults')}${parsedAssertions.length ? ` (${parsedAssertions.length})` : ''}`, hasContent: parsedAssertions.length > 0 },
       { key: "pre-script" as const, label: t('http.preScript'), hasContent: !!config.preScript?.trim() },
       { key: "post-script" as const, label: t('http.postScript'), hasContent: !!config.postScript?.trim() },
     ] : []),
@@ -884,6 +885,15 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 />
               )}
 
+              {reqTab === "tests" && (
+                <AssertionBuilder
+                  assertions={parsedAssertions}
+                  onChange={(a) => updateHttpConfig(tabId, { assertions: JSON.stringify(a) })}
+                  testResults={scriptResults.post?.testResults}
+                  response={response}
+                />
+              )}
+
             {reqTab === "pre-script" && (
                 <Suspense fallback={<EditorSurfaceFallback label="加载前置脚本编辑器..." />}>
                   <LazyScriptEditor
@@ -910,6 +920,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                       assertions={parsedAssertions}
                       onChange={(a) => updateHttpConfig(tabId, { assertions: JSON.stringify(a) })}
                       testResults={scriptResults.post?.testResults}
+                      compact
                     />
                   </div>
                 </div>
@@ -973,7 +984,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 )}
                 <div className="http-response-head shrink-0">
                   <div className="http-response-tabs scrollbar-hide">
-                    {(["body", "headers", "cookies", "timing"] as const).map((tab) => (
+                    {(["body", "headers", "cookies", "timing", ...(scriptResults.post?.testResults?.length ? ["tests" as const] : [])] as const).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setResTab(tab)}
@@ -982,7 +993,11 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                           resTab === tab && "is-active"
                         )}
                       >
-                        {tab === "body" ? t('http.responseBody') : tab === "headers" ? t('http.responseHeaders') : tab === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}` : t('http.timing')}
+                        {tab === "body" ? t('http.responseBody')
+                          : tab === "headers" ? t('http.responseHeaders')
+                          : tab === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}`
+                          : tab === "tests" ? `${t('assertion.testResults')} (${scriptResults.post?.testResults?.filter(tr => tr.passed).length}/${scriptResults.post?.testResults?.length})`
+                          : t('http.timing')}
                       </button>
                     ))}
                   </div>
@@ -1219,6 +1234,8 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                         </div>
                       </div>
                     </div>
+                  ) : resTab === "tests" ? (
+                    <TestResultsPanel testResults={scriptResults.post?.testResults} />
                   ) : (
                     <ResponseViewer body={response.body} contentType={response.contentType} responseHeaders={response.headers} isBinary={response.isBinary} />
                   )}

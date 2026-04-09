@@ -16,7 +16,8 @@
     "videostream": "视频调试",
     "mockserver": "模拟服务",
     "dbclient": "数据库",
-    "toolbox": "工具箱"
+    "toolbox": "工具箱",
+    "workflow": "工作流"
   },
   "statusBar": {
     "requests": "接口调试工作台",
@@ -34,7 +35,8 @@
     "videostream": "视频调试",
     "mockserver": "模拟服务",
     "dbclient": "数据库客户端",
-    "toolbox": "工具箱"
+    "toolbox": "工具箱",
+    "workflow": "工作流编排"
   },
   "sidebar": {
     "collections": "集合",
@@ -153,6 +155,11 @@
       "title": "数据库客户端",
       "shortTitle": "数据库",
       "description": "连接 PostgreSQL、MySQL、SQLite、InfluxDB 数据库，执行 SQL 查询、浏览表结构、编辑数据，支持导入导出。"
+    },
+    "workflow": {
+      "title": "工作流编排",
+      "shortTitle": "工作流",
+      "description": "可视化工作流编排引擎，串联 HTTP/TCP/UDP/脚本等节点，自动化复杂 API 测试场景。"
     },
     "toolbox": {
       "title": "开发工具箱",
@@ -1174,6 +1181,7 @@
     "openPlugins": "打开插件中心",
     "openSettings": "打开偏好设置",
     "openCookieManager": "打开 Cookie 管理器",
+    "openWorkflow": "打开工作流编排",
     "typeAction": "操作",
     "typeCollection": "集合",
     "typeEnvironment": "环境",
@@ -1787,7 +1795,30 @@
     "add": "添加",
     "addFirst": "添加第一个断言",
     "empty": "未定义断言。通过可视化方式添加断言，无需编写代码即可验证响应。",
-    "expectedValue": "期望值"
+    "expectedValue": "期望值",
+    "testName": "测试名称（可选）",
+    "actualValue": "实际值",
+    "noResponse": "发送请求后可查看实际值",
+    "duplicate": "复制",
+    "presets": "预设",
+    "presetsDesc": "快速添加常用断言",
+    "presetStatus200": "状态码 == 200",
+    "presetStatus2xx": "状态码 2xx",
+    "presetJsonNotEmpty": "JSON Body 非空",
+    "presetDuration": "响应时间 < 500ms",
+    "presetContentJson": "Content-Type 含 JSON",
+    "presetBodyContains": "Body 包含关键词",
+    "pickJsonPath": "从响应中选取",
+    "pickJsonPathHint": "点击 JSON 节点选取路径",
+    "passCount": "{{passed}}/{{total}} 通过",
+    "allPassed": "全部通过",
+    "testResults": "测试结果",
+    "testResultsEmpty": "发送请求以查看测试结果",
+    "testPassed": "通过",
+    "testFailed": "失败",
+    "expected": "期望",
+    "actual": "实际",
+    "error": "错误"
   },
   "diff": {
     "title": "请求对比",
@@ -1851,5 +1882,71 @@
     "autoSaveOff": "自动保存已关闭",
     "autoSaveOffHint": "前往设置启用「自动保存 Cookie」以自动捕获响应 Cookie。",
     "goToSettings": "前往设置"
+  },
+  "workflow": {
+    "title": "工作流",
+    "newWorkflow": "新建工作流",
+    "editWorkflow": "编辑工作流",
+    "deleteWorkflow": "删除工作流",
+    "deleteConfirm": "确定要删除工作流「{{name}}」吗？",
+    "untitled": "未命名工作流",
+    "name": "名称",
+    "description": "描述",
+    "save": "保存",
+    "cancel": "取消",
+    "run": "运行",
+    "stop": "停止",
+    "running": "运行中...",
+    "completed": "已完成",
+    "failed": "失败",
+    "cancelled": "已取消",
+    "pending": "等待中",
+    "noWorkflows": "暂无工作流",
+    "noWorkflowsHint": "创建第一个工作流，编排 API 请求和脚本节点",
+    "addNode": "添加节点",
+    "nodeConfig": "节点配置",
+    "variables": "变量",
+    "addVariable": "添加变量",
+    "variableKey": "变量名",
+    "variableValue": "变量值",
+    "variableDesc": "说明",
+    "execution": "执行",
+    "executionProgress": "执行进度",
+    "step": "步骤 {{current}}/{{total}}",
+    "duration": "耗时",
+    "output": "输出",
+    "error": "错误",
+    "noOutput": "无输出",
+    "nodeTypes": {
+      "httpRequest": "HTTP 请求",
+      "tcpSend": "TCP 发送",
+      "udpSend": "UDP 发送",
+      "delay": "延时等待",
+      "script": "脚本",
+      "extractData": "数据提取",
+      "base64Encode": "Base64 编码",
+      "base64Decode": "Base64 解码"
+    },
+    "nodeFields": {
+      "method": "方法",
+      "url": "URL",
+      "headers": "请求头",
+      "body": "请求体",
+      "host": "主机",
+      "port": "端口",
+      "data": "数据",
+      "encoding": "编码",
+      "timeout": "超时 (ms)",
+      "delayMs": "延时 (ms)",
+      "script": "脚本代码",
+      "source": "数据源",
+      "mode": "提取模式",
+      "expression": "表达式",
+      "input": "输入"
+    },
+    "emptyCanvas": "拖拽左侧节点到画布开始编排",
+    "selectNode": "点击节点查看配置",
+    "resultPanel": "执行结果",
+    "noResults": "运行工作流以查看结果"
   }
 }

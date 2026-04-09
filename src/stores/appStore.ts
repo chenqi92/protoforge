@@ -10,7 +10,7 @@ import {
 } from "@/types/toolSession";
 
 export type RequestProtocol = "http" | "ws" | "mqtt" | "grpc";
-export type ToolWorkbench = "tcpudp" | "loadtest" | "capture" | "videostream" | "mockserver" | "dbclient" | "toolbox";
+export type ToolWorkbench = "tcpudp" | "loadtest" | "capture" | "videostream" | "mockserver" | "dbclient" | "toolbox" | "workflow";
 export type WorkbenchView = "home" | "requests" | ToolWorkbench;
 export type WorkspaceProtocol = RequestProtocol | ToolWorkbench | "collection";
 
@@ -108,6 +108,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     mockserver: [],
     dbclient: [],
     toolbox: [],
+    workflow: [],
   },
   activeToolSessionIds: {
     tcpudp: null,
@@ -117,6 +118,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     mockserver: null,
     dbclient: null,
     toolbox: null,
+    workflow: null,
   },
 
   addTab: (protocol: RequestProtocol = "http") => {

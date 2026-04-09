@@ -16,7 +16,8 @@
     "videostream": "Video Debug",
     "mockserver": "Mock Server",
     "dbclient": "Database",
-    "toolbox": "Toolbox"
+    "toolbox": "Toolbox",
+    "workflow": "Workflow"
   },
   "statusBar": {
     "requests": "API Debug Workbench",
@@ -34,7 +35,8 @@
     "videostream": "Video Debug",
     "mockserver": "Mock Server",
     "dbclient": "Database Client",
-    "toolbox": "Toolbox"
+    "toolbox": "Toolbox",
+    "workflow": "Workflow"
   },
   "sidebar": {
     "collections": "Collections",
@@ -153,6 +155,11 @@
       "title": "Database Client",
       "shortTitle": "Database",
       "description": "Connect to PostgreSQL, MySQL, SQLite, and InfluxDB databases. Execute SQL queries, browse schemas, edit data, and import/export."
+    },
+    "workflow": {
+      "title": "Workflow Orchestration",
+      "shortTitle": "Workflow",
+      "description": "Visual workflow engine chaining HTTP/TCP/UDP/Script nodes for automated complex API testing scenarios."
     },
     "toolbox": {
       "title": "Developer Toolbox",
@@ -1152,6 +1159,7 @@
     "openPlugins": "Open Plugin Center",
     "openSettings": "Open Preferences",
     "openCookieManager": "Open Cookie Manager",
+    "openWorkflow": "Open Workflow Orchestration",
     "typeAction": "Action",
     "typeCollection": "Collection",
     "typeEnvironment": "Environment",
@@ -1765,7 +1773,30 @@
     "add": "Add",
     "addFirst": "Add first assertion",
     "empty": "No assertions defined. Add visual assertions to validate responses without writing code.",
-    "expectedValue": "Expected value"
+    "expectedValue": "Expected value",
+    "testName": "Test name (optional)",
+    "actualValue": "Actual value",
+    "noResponse": "Send request to see actual values",
+    "duplicate": "Duplicate",
+    "presets": "Presets",
+    "presetsDesc": "Quickly add common assertions",
+    "presetStatus200": "Status Code == 200",
+    "presetStatus2xx": "Status Code 2xx",
+    "presetJsonNotEmpty": "JSON Body not empty",
+    "presetDuration": "Response Time < 500ms",
+    "presetContentJson": "Content-Type has JSON",
+    "presetBodyContains": "Body contains keyword",
+    "pickJsonPath": "Pick from response",
+    "pickJsonPathHint": "Click a JSON node to pick path",
+    "passCount": "{{passed}}/{{total}} passed",
+    "allPassed": "All passed",
+    "testResults": "Test Results",
+    "testResultsEmpty": "Send a request to see test results",
+    "testPassed": "Passed",
+    "testFailed": "Failed",
+    "expected": "Expected",
+    "actual": "Actual",
+    "error": "Error"
   },
   "diff": {
     "title": "Compare Requests",
@@ -1829,5 +1860,71 @@
     "autoSaveOff": "Auto-save is off",
     "autoSaveOffHint": "Go to Settings to enable \"Auto Save Cookies\" for automatic cookie capture.",
     "goToSettings": "Go to Settings"
+  },
+  "workflow": {
+    "title": "Workflow",
+    "newWorkflow": "New Workflow",
+    "editWorkflow": "Edit Workflow",
+    "deleteWorkflow": "Delete Workflow",
+    "deleteConfirm": "Are you sure you want to delete workflow \"{{name}}\"?",
+    "untitled": "Untitled Workflow",
+    "name": "Name",
+    "description": "Description",
+    "save": "Save",
+    "cancel": "Cancel",
+    "run": "Run",
+    "stop": "Stop",
+    "running": "Running...",
+    "completed": "Completed",
+    "failed": "Failed",
+    "cancelled": "Cancelled",
+    "pending": "Pending",
+    "noWorkflows": "No workflows yet",
+    "noWorkflowsHint": "Create your first workflow to orchestrate API requests and script nodes",
+    "addNode": "Add Node",
+    "nodeConfig": "Node Config",
+    "variables": "Variables",
+    "addVariable": "Add Variable",
+    "variableKey": "Key",
+    "variableValue": "Value",
+    "variableDesc": "Description",
+    "execution": "Execution",
+    "executionProgress": "Execution Progress",
+    "step": "Step {{current}}/{{total}}",
+    "duration": "Duration",
+    "output": "Output",
+    "error": "Error",
+    "noOutput": "No output",
+    "nodeTypes": {
+      "httpRequest": "HTTP Request",
+      "tcpSend": "TCP Send",
+      "udpSend": "UDP Send",
+      "delay": "Delay",
+      "script": "Script",
+      "extractData": "Extract Data",
+      "base64Encode": "Base64 Encode",
+      "base64Decode": "Base64 Decode"
+    },
+    "nodeFields": {
+      "method": "Method",
+      "url": "URL",
+      "headers": "Headers",
+      "body": "Body",
+      "host": "Host",
+      "port": "Port",
+      "data": "Data",
+      "encoding": "Encoding",
+      "timeout": "Timeout (ms)",
+      "delayMs": "Delay (ms)",
+      "script": "Script Code",
+      "source": "Source",
+      "mode": "Mode",
+      "expression": "Expression",
+      "input": "Input"
+    },
+    "emptyCanvas": "Drag nodes from the left panel onto the canvas",
+    "selectNode": "Click a node to configure it",
+    "resultPanel": "Execution Results",
+    "noResults": "Run the workflow to see results"
   }
 }
