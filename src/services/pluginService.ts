@@ -56,6 +56,11 @@ export async function runExport(pluginId: string, requestJson: string): Promise<
   return invoke<ExportResult>("plugin_run_export", { pluginId, requestJson });
 }
 
+/** 执行响应数据导出插件 */
+export async function runResponseExport(pluginId: string, dataJson: string): Promise<ExportResult> {
+  return invoke<ExportResult>("plugin_run_response_export", { pluginId, dataJson });
+}
+
 /** 执行加密/解密操作 */
 export async function runCrypto(
   pluginId: string,

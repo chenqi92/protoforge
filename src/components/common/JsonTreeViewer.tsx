@@ -7,7 +7,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useContextMenu } from "@/components/ui/ContextMenu";
@@ -19,6 +19,8 @@ interface JsonTreeViewerProps {
   value: string;
   className?: string;
   wrapLines?: boolean;
+  /** 当用户在数组节点上触发导出时回调 (path, arrayData) */
+  onExportArray?: (path: string, data: unknown[]) => void;
 }
 
 type JsonScalar = string | number | boolean | null;
@@ -275,6 +277,7 @@ export function JsonTreeViewer({
   value,
   className,
   wrapLines = true,
+  onExportArray,
 }: JsonTreeViewerProps) {
   const { t } = useTranslation();
   const editorFontSize = useSettingsStore((s) => Math.max(10, s.settings.fontSize - 1));
@@ -401,6 +404,19 @@ export function JsonTreeViewer({
         if (parsedJson.ok) collectPaths(parsedJson.data, '$');
         setCollapsedPaths(allPaths);
       }});
+
+      // 数组节点导出
+      if (onExportArray && parsedJson.ok && ('openBracket' in line) && line.openBracket === '[') {
+        const nodeValue = getValueAtPath(parsedJson.data, linePath);
+        if (Array.isArray(nodeValue) && nodeValue.length > 0) {
+          items.push({ type: 'divider' });
+          items.push({
+            id: 'export-csv',
+            label: t('contextMenu.exportCsv', '导出为 CSV ({{count}} 条)', { count: nodeValue.length }),
+            onClick: () => onExportArray(displayPath || linePath, nodeValue),
+          });
+        }
+      }
     }
 
     if (items.length > 0) {
@@ -489,6 +505,7 @@ export function JsonTreeViewer({
           {enableVirtualization && topPad > 0 && <div style={{ height: topPad }} />}
           {visibleLines.map((line, i) => {
             const index = startIndex + i;
+            const isArrayLine = onExportArray && (line.kind === 'open' || line.kind === 'collapsed') && ('openBracket' in line) && line.openBracket === '[';
             return (
             <div
               key={line.id}
@@ -498,9 +515,26 @@ export function JsonTreeViewer({
             >
               <div
                 aria-hidden="true"
-                className="select-none pr-2 text-right tabular-nums text-text-disabled cursor-default"
+                className={cn(
+                  "select-none pr-2 text-right tabular-nums text-text-disabled cursor-default group/gutter relative",
+                  isArrayLine && "cursor-pointer",
+                )}
+                onClick={isArrayLine ? () => {
+                  if (!parsedJson.ok) return;
+                  const linePath = ('path' in line ? line.path : '') ?? '';
+                  const nodeValue = getValueAtPath(parsedJson.data, linePath);
+                  if (Array.isArray(nodeValue) && nodeValue.length > 0) {
+                    onExportArray!(formatJsonPath(linePath), nodeValue);
+                  }
+                } : undefined}
+                title={isArrayLine ? t('contextMenu.exportCsv', '导出为 CSV') : undefined}
               >
-                {index + 1}
+                <span className={cn(isArrayLine && "group-hover/gutter:invisible")}>{index + 1}</span>
+                {isArrayLine && (
+                  <span className="absolute inset-0 hidden group-hover/gutter:flex items-center justify-center text-emerald-500">
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                  </span>
+                )}
               </div>
               <div
                 className={cn(

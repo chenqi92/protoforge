@@ -16,11 +16,14 @@ import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { runCrypto, runGenerator, runContextMenuAction } from '@/services/pluginService';
 import { usePluginStore } from '@/stores/pluginStore';
+import { EXPORT_FORMATS, findArrayNodes, doExportToFile, type ArrayNodeInfo, type FormatDef } from '@/components/ui/ResponseExportDropdown';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import type { InstalledCryptoAlgorithm, CryptoAlgorithm, GeneratorContribution, ContextMenuContribution } from '@/types/plugin';
 import { CryptoParamsDialog } from './CryptoParamsDialog';
 import { CryptoResultDialog } from './CryptoResultDialog';
 import { SetEnvVariableDialog } from '@/components/env/SetEnvVariableDialog';
+import { ProtocolParserPanel } from '@/components/plugins/ProtocolParserPanel';
+import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 /* ── 常量 ──────────────────────────────────────────── */
@@ -100,12 +103,45 @@ export function GlobalContextMenu() {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [resultDialog, setResultDialog] = useState<{ output: string; algorithmName: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [parserDialogData, setParserDialogData] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const sourceInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const monacoEditorRef = useRef<any>(null);
   const monacoSelectionRef = useRef<any>(null);
 
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
+
+  // 响应体数组节点（从 ResponseViewer 暴露的 window ref 读取）
+  const [responseArrayNodes, setResponseArrayNodes] = useState<ArrayNodeInfo[]>([]);
+  const responseBodyRef = useRef<string>('');
+
+  // 右键菜单打开时刷新数组节点
+  useEffect(() => {
+    if (!visible || contextTarget !== 'monaco') {
+      setResponseArrayNodes([]);
+      return;
+    }
+    const body = (window as any).__pf_response_body;
+    if (typeof body === 'string') {
+      responseBodyRef.current = body;
+      try { setResponseArrayNodes(findArrayNodes(JSON.parse(body))); }
+      catch { setResponseArrayNodes([]); }
+    }
+  }, [visible, contextTarget]);
+
+  // 自动选择最大的数组节点
+  const bestArrayPath = responseArrayNodes.length > 0
+    ? responseArrayNodes.reduce((a, b) => (b.length > a.length ? b : a)).path
+    : '';
+
+  const handleExportFormat = useCallback((fmt: FormatDef) => {
+    setVisible(false);
+    setHoveredSub(null);
+    if (!bestArrayPath) return;
+    doExportToFile(responseBodyRef.current, bestArrayPath, fmt).catch((e) => {
+      console.warn('[ProtoForge] export failed:', e);
+    });
+  }, [bestArrayPath]);
 
   // 构建算法列表
   const algorithmsRef = useRef<InstalledCryptoAlgorithm[]>([]);
@@ -127,6 +163,9 @@ export function GlobalContextMenu() {
     }
   }
   generatorsRef.current = generators;
+
+  // 检查是否有协议解析器插件
+  const hasParserPlugins = installedPlugins.some((p) => p.pluginType === 'protocol-parser');
 
   // 构建插件右键菜单项列表
   const pluginMenuItems: { pluginId: string; item: ContextMenuContribution }[] = [];
@@ -151,6 +190,16 @@ export function GlobalContextMenu() {
     };
     window.addEventListener('crypto-action', handler);
     return () => window.removeEventListener('crypto-action', handler);
+  }, []);
+
+  // 监听协议解析打开事件
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (d?.data) setParserDialogData(d.data);
+    };
+    window.addEventListener('open-protocol-parser', handler);
+    return () => window.removeEventListener('open-protocol-parser', handler);
   }, []);
 
   // 监听 crypto-result
@@ -540,9 +589,42 @@ export function GlobalContextMenu() {
           {selectedText && (
             <>
               <MenuItem label={t('contextMenu.setAsEnvVariable', '设为环境变量')} onClick={handleSetEnvVariable} />
-              <Divider />
             </>
           )}
+
+          {/* 协议解析 — 有选中文本且有解析器插件时显示 */}
+          {selectedText && hasParserPlugins && (
+            <MenuItem
+              label={t('contextMenu.protocolParse', '协议解析')}
+              onClick={() => {
+                setVisible(false);
+                window.dispatchEvent(new CustomEvent('open-protocol-parser', { detail: { data: selectedText } }));
+              }}
+            />
+          )}
+
+          {/* 导出数组 — 直接列格式，自动选最大数组 */}
+          {contextTarget === 'monaco' && responseArrayNodes.length > 0 && (
+            <HoverSubmenu
+              label={`${t('contextMenu.exportArray', '导出数组')} (${bestArrayPath === '(root)' ? '根' : bestArrayPath})`}
+              hoverKey="export-array"
+              hoveredSub={hoveredSub}
+              onHover={setHoveredSub}
+            >
+              {EXPORT_FORMATS.filter((f) => !f.needsOptions).map((fmt) => (
+                <button
+                  key={fmt.id}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-text-primary hover:bg-bg-hover transition-colors"
+                  onClick={() => handleExportFormat(fmt)}
+                >
+                  <span>{fmt.name}</span>
+                  <span className="ml-auto pf-text-xxs text-text-disabled">{fmt.extension}</span>
+                </button>
+              ))}
+            </HoverSubmenu>
+          )}
+
+          {selectedText && <Divider />}
 
           {/* 🪄 Mock 数据生成 — 仅在有插入目标时显示（Monaco / input） */}
           {generators.length > 0 && (contextTarget === 'monaco' || contextTarget === 'input') && (
@@ -633,6 +715,27 @@ export function GlobalContextMenu() {
       )}
 
       <SetEnvVariableDialog />
+
+      {/* 协议解析对话框 */}
+      {parserDialogData && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onClick={() => setParserDialogData(null)}>
+          <div
+            className="relative w-[640px] max-h-[80vh] flex flex-col pf-rounded-lg border border-border-default bg-bg-primary shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border-default/60">
+              <span className="pf-text-sm font-semibold text-text-primary">{t('contextMenu.protocolParse', '协议解析')}</span>
+              <button onClick={() => setParserDialogData(null)} className="p-1 rounded hover:bg-bg-hover text-text-tertiary">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-auto">
+              <ProtocolParserPanel initialData={parserDialogData} compact />
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </>
   );
 }
@@ -684,8 +787,35 @@ function HoverSubmenu({
   onHover: (key: string | null) => void;
   children: React.ReactNode;
 }) {
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const subRef = useRef<HTMLDivElement>(null);
+  const [subStyle, setSubStyle] = useState<React.CSSProperties>({});
+
+  useEffect(() => {
+    if (hoveredSub !== hoverKey || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const subW = 220; // min-width estimate
+    const subH = subRef.current?.scrollHeight || 300;
+
+    // 水平方向：优先右侧，空间不够则左侧
+    const goLeft = rect.right + subW + 8 > window.innerWidth;
+    // 垂直方向：如果底部溢出则上移
+    let top = 0;
+    if (rect.top + subH > window.innerHeight - 8) {
+      top = Math.max(-(subH - rect.height), -(rect.top - 8));
+    }
+
+    setSubStyle({
+      ...(goLeft ? { right: '100%', marginRight: 4 } : { left: '100%', marginLeft: 4 }),
+      top,
+      maxHeight: window.innerHeight - 16,
+      overflowY: 'auto' as const,
+    });
+  }, [hoveredSub, hoverKey]);
+
   return (
     <div
+      ref={triggerRef}
       className="relative"
       onMouseEnter={() => onHover(hoverKey)}
       onMouseLeave={() => onHover(null)}
@@ -696,8 +826,9 @@ function HoverSubmenu({
       </button>
       {hoveredSub === hoverKey && (
         <div
-          className="absolute left-full top-0 z-[var(--z-toast)] ml-1 min-w-[180px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
-          style={{ fontSize: 'var(--fs-sm)' }}
+          ref={subRef}
+          className="absolute z-[var(--z-toast)] min-w-[180px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
+          style={{ fontSize: 'var(--fs-sm)', ...subStyle }}
         >
           {children}
         </div>

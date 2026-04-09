@@ -6,16 +6,17 @@
  */
 
 import { lazy, Suspense, useState, useMemo, useCallback, useEffect, useDeferredValue } from 'react';
-import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive, Filter, ScanSearch, Music, Loader2 } from 'lucide-react';
+import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive, Filter, Music, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
-import { JsonTreeViewer } from '@/components/common/JsonTreeViewer';
+// JsonTreeViewer removed — using Monaco exclusively for JSON
 import { usePluginStore } from '@/stores/pluginStore';
 import { invoke } from '@tauri-apps/api/core';
 import type { RendererContribution } from '@/types/plugin';
 import { PluginRendererView } from '@/components/ui/PluginRendererView';
 import { ProtocolParserPanel } from '@/components/plugins/ProtocolParserPanel';
 import { ResolvedIcon } from '@/components/common/ResolvedIcon';
+import { ResponseExportDropdown } from '@/components/ui/ResponseExportDropdown';
 
 export type ViewMode = 'json' | 'raw' | 'preview' | 'hex' | 'base64';
 
@@ -109,25 +110,16 @@ export function ReadonlyCodeBlock({
   value,
   language = 'json',
   minHeightClassName = 'min-h-[320px]',
-  wrapLines = true,
-  /** For JSON: 'editor' (Monaco) or 'tree' (JsonTreeViewer). Controlled externally. */
-  jsonViewMode = 'editor',
 }: {
   value: string;
   language?: string;
   minHeightClassName?: string;
-  wrapLines?: boolean;
-  jsonViewMode?: 'editor' | 'tree';
 }) {
   if (language === 'json') {
     return (
       <div className={cn("flex h-full min-h-0 overflow-hidden", minHeightClassName)}>
         <div className="flex-1 min-h-0">
-          {jsonViewMode === 'editor' ? (
-            <MonacoReadonlyViewer value={value} language="json" />
-          ) : (
-            <JsonTreeViewer value={value} className="h-full" wrapLines={wrapLines} />
-          )}
+          <MonacoReadonlyViewer value={value} language="json" />
         </div>
       </div>
     );
@@ -174,7 +166,6 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   const [isRegexMode, setIsRegexMode] = useState(false);
   const [jsonFilterKeys, setJsonFilterKeys] = useState<Set<string>>(new Set());
   const [showKeyFilter, setShowKeyFilter] = useState(false);
-  const [jsonViewMode, setJsonViewMode] = useState<'editor' | 'tree'>('editor');
   const deferredSearchText = useDeferredValue(searchText);
 
   // 插件渲染器匹配
@@ -258,6 +249,13 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     rawDisplayBody,
   } = analyzedTextBody;
 
+  // 暴露 JSON 响应体供右键菜单导出使用（不在 cleanup 中清除，避免 tab 切换导致丢失）
+  useEffect(() => {
+    if (isJson && !isBinary && body) {
+      (window as any).__pf_response_body = body;
+    }
+  }, [isJson, isBinary, body]);
+
   // Available modes
   const availableModes = useMemo(() => {
     if (modes) return modes;
@@ -278,12 +276,6 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   // 联合 tab：内置 + 插件
   type ActiveTab = ViewMode | `plugin:${string}` | 'protocol-parser';
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => availableModes[0] || 'raw');
-
-  // Check if protocol-parser plugins are installed (for non-binary text responses)
-  const hasParserPlugin = useMemo(() => {
-    if (isBinary) return false;
-    return installedPlugins.some((p) => p.pluginType === 'protocol-parser');
-  }, [installedPlugins, isBinary]);
 
   useEffect(() => {
     setActiveTab(availableModes[0] || 'raw');
@@ -379,7 +371,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
 
 
   const modeLabels: Record<ViewMode, string> = {
-    json: 'JSON',
+    json: 'Pretty',
     raw: isBinary ? t('response.fileInfo', { defaultValue: '文件信息' }) : 'Raw',
     base64: 'Base64',
     preview: t('response.preview'),
@@ -413,24 +405,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                 {modeLabels[mode]}
               </button>
             ))}
-            {/* Pretty/Tree sub-toggle — inline when JSON is active */}
-            {activeBuiltinMode === 'json' && (
-              <>
-                <span className="mx-1 h-3 w-px bg-border-default/60 shrink-0" />
-                <button
-                  onClick={() => setJsonViewMode('editor')}
-                  className={cn('response-viewer-tab !pf-text-xxs', jsonViewMode === 'editor' && 'is-active')}
-                >
-                  Pretty
-                </button>
-                <button
-                  onClick={() => setJsonViewMode('tree')}
-                  className={cn('response-viewer-tab !pf-text-xxs', jsonViewMode === 'tree' && 'is-active')}
-                >
-                  Tree
-                </button>
-              </>
-            )}
+            {/* 协议解析器已移至右键菜单触发 */}
             {/* 插件渲染器 tab */}
             {matchedRenderers.map((pt, idx) => (
               <button
@@ -445,19 +420,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                 <span>{pt.renderer.name}</span>
               </button>
             ))}
-            {/* 协议解析器 tab */}
-            {hasParserPlugin && (
-              <button
-                onClick={() => setActiveTab('protocol-parser')}
-                className={cn(
-                  'response-viewer-tab flex items-center gap-1',
-                  activeTab === 'protocol-parser' && 'is-active'
-                )}
-              >
-                <ScanSearch className="w-3.5 h-3.5" />
-                <span>{t('parser.tabLabel', '协议解析')}</span>
-              </button>
-            )}
+            {/* 协议解析器已移至右键菜单触发 */}
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-1.5 px-2">
@@ -493,6 +456,11 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
             >
               {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
             </button>
+
+            {/* Response Export — only for JSON responses */}
+            {isJson && !isBinary && (
+              <ResponseExportDropdown body={body} />
+            )}
           </div>
         </div>
       )}
@@ -591,10 +559,17 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
       )}
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-auto bg-[linear-gradient(180deg,rgba(148,163,184,0.05),transparent_22%)] px-3 py-2" style={{ userSelect: 'text' }}>
-        <div className="h-full py-0">
+      <div
+        className={cn(
+          "flex-1 min-h-0 overflow-auto bg-[linear-gradient(180deg,rgba(148,163,184,0.05),transparent_22%)]",
+          // JSON 模式 Monaco/Tree 自带 padding，不加外层 padding
+          activeBuiltinMode === 'json' ? '' : 'px-3 py-2',
+        )}
+        style={{ userSelect: 'text' }}
+      >
+        <div className="h-full">
           {activeBuiltinMode === 'json' && (
-            <div className="flex flex-col h-full gap-2">
+            <div className="flex flex-col h-full">
               {jsonData === null ? (
                 <div className="pf-rounded-md border border-amber-300/60 bg-amber-500/8 px-3 py-2 text-amber-700 dark:text-amber-300 shrink-0" style={{ fontSize: 'var(--fs-xs)' }}>
                   {t('response.invalidJsonPrettyFallback')}
@@ -614,8 +589,6 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                   value={jsonFilterKeys.size > 0 ? filteredPrettyBody : prettyBody}
                   language={jsonData !== null ? 'json' : isXml ? 'xml' : 'plaintext'}
                   minHeightClassName=""
-                  wrapLines={wordWrap}
-                  jsonViewMode={jsonViewMode}
                 />
               </div>
             </div>

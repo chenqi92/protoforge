@@ -335,6 +335,38 @@ pub struct ExportFormatContribution {
     pub format_id: String,
     pub name: String,
     pub file_extension: String,
+    /// 是否支持响应数据导出
+    #[serde(default)]
+    pub supports_response: bool,
+    /// 导出参数声明
+    #[serde(default)]
+    pub parameters: Vec<ExportParameterDef>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportParameterDef {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub param_type: String,
+    #[serde(default)]
+    pub required: bool,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub placeholder: Option<String>,
+    #[serde(default)]
+    pub options: Vec<ExportParameterOption>,
+    #[serde(default)]
+    pub default_value: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportParameterOption {
+    pub label: String,
+    pub value: String,
 }
 
 /// 右键菜单贡献 — 插件可注入自定义右键菜单项
@@ -1356,6 +1388,46 @@ impl PluginManager {
         }
     }
 
+    /// 执行导出格式插件的 exportResponse(data) 函数（响应数据导出）
+    pub async fn run_response_export(
+        &self,
+        plugin_id: &str,
+        data_json: &str,
+    ) -> Result<ExportResult, String> {
+        let reg = self.registry.read().await;
+        let rp = reg
+            .get(plugin_id)
+            .ok_or_else(|| format!("插件 '{}' 未注册", plugin_id))?;
+
+        match &rp.runtime {
+            PluginRuntime::Native(_) => {
+                drop(reg);
+                Err(format!("原生插件 '{}' 不支持 response export 操作", plugin_id))
+            }
+            PluginRuntime::JavaScript => {
+                let script_path = self
+                    .plugins_dir
+                    .join(plugin_id)
+                    .join(&rp.manifest.entrypoint);
+                drop(reg);
+                let script = tokio::fs::read_to_string(&script_path)
+                    .await
+                    .map_err(|e| format!("读取插件脚本失败: {}", e))?;
+                let data = data_json.to_string();
+                let result = tokio::task::spawn_blocking(move || {
+                    execute_response_export_script(&script, &data)
+                })
+                .await
+                .map_err(|e| format!("执行插件失败: {}", e))??;
+                Ok(result)
+            }
+            PluginRuntime::Wasm => {
+                drop(reg);
+                Err(format!("WASM 插件 '{}' 不支持 response export 操作", plugin_id))
+            }
+        }
+    }
+
     /// 列出所有已安装 crypto-tool 插件的算法
     pub async fn list_crypto_algorithms(&self) -> Vec<InstalledCryptoAlgorithm> {
         let reg = self.registry.read().await;
@@ -1849,6 +1921,39 @@ fn execute_export_script(script: &str, request_json: &str) -> Result<ExportResul
     Ok(parsed)
 }
 
+/// Execute a JS plugin's exportResponse(data) function in a sandboxed boa_engine context.
+fn execute_response_export_script(script: &str, data_json: &str) -> Result<ExportResult, String> {
+    let mut context = Context::default();
+
+    context
+        .eval(Source::from_bytes(script))
+        .map_err(|e| format!("执行脚本错误: {}", format_js_error(&e)))?;
+
+    let json_escaped =
+        serde_json::to_string(data_json).map_err(|e| format!("序列化输入数据失败: {}", e))?;
+    let call_script = format!(
+        "JSON.stringify(exportResponse(JSON.parse({})))",
+        json_escaped
+    );
+
+    let result = context
+        .eval(Source::from_bytes(call_script.as_bytes()))
+        .map_err(|e| format!("调用 exportResponse() 失败: {}", format_js_error(&e)))?;
+
+    let json_str = result
+        .as_string()
+        .ok_or_else(|| {
+            "exportResponse() 返回值不是字符串（需要 JSON.stringify 包装）".to_string()
+        })?
+        .to_std_string()
+        .map_err(|e| format!("UTF-16 转换失败: {}", e))?;
+
+    let parsed: ExportResult = serde_json::from_str(&json_str)
+        .map_err(|e| format!("解析 response export 返回 JSON 失败: {}", e))?;
+
+    Ok(parsed)
+}
+
 /// Execute a JS plugin's encrypt/decrypt function in a sandboxed boa_engine context.
 /// mode: "encrypt" or "decrypt"
 fn execute_crypto_script(
@@ -1977,4 +2082,217 @@ async fn detect_china_ip() -> Result<bool, String> {
         .map_err(|e| format!("解析 IP 检测响应失败: {}", e))?;
 
     Ok(data.country_code == "CN")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 读取插件脚本文件
+    fn load_plugin_script() -> String {
+        let plugin_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("protoforge-plugins/plugins/json-excel-exporter/index.js");
+        std::fs::read_to_string(&plugin_path)
+            .unwrap_or_else(|_| panic!("无法读取插件脚本: {:?}", plugin_path))
+    }
+
+    #[test]
+    fn test_response_export_nested_array() {
+        let script = load_plugin_script();
+        let data = serde_json::json!({
+            "body": "{\"code\":200,\"data\":{\"records\":[{\"id\":1,\"name\":\"Alice\"},{\"id\":2,\"name\":\"Bob\"}]}}",
+            "params": { "jsonPath": "data.records" }
+        });
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        assert!(result.error.is_none(), "应无错误: {:?}", result.error);
+        assert!(result.content.contains("id,name"), "应包含表头: {}", result.content);
+        assert!(result.content.contains("1,Alice"), "应包含数据行");
+        assert!(result.content.contains("2,Bob"), "应包含数据行");
+        assert_eq!(result.mime_type, "text/csv");
+        assert!(result.filename.ends_with(".csv"));
+    }
+
+    #[test]
+    fn test_response_export_root_array() {
+        let script = load_plugin_script();
+        let data = serde_json::json!({
+            "body": "[{\"city\":\"北京\",\"pop\":2154},{\"city\":\"上海\",\"pop\":2487}]",
+            "params": { "jsonPath": "(root)" }
+        });
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        assert!(result.error.is_none());
+        assert!(result.content.contains("city,pop"));
+        assert!(result.content.contains("北京"));
+        assert!(result.content.contains("上海"));
+    }
+
+    #[test]
+    fn test_response_export_csv_escaping() {
+        let script = load_plugin_script();
+        let data = serde_json::json!({
+            "body": "[{\"name\":\"O'Brien, Jr.\",\"desc\":\"has \\\"quotes\\\"\"}]",
+            "params": { "jsonPath": "(root)" }
+        });
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        assert!(result.error.is_none());
+        // 含逗号和引号的字段应被双引号包裹
+        assert!(result.content.contains("\"O'Brien, Jr.\""));
+        assert!(result.content.contains("\"\"quotes\"\""));
+    }
+
+    #[test]
+    fn test_response_export_empty_array() {
+        let script = load_plugin_script();
+        let data = serde_json::json!({
+            "body": "{\"items\":[]}",
+            "params": { "jsonPath": "items" }
+        });
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        assert!(result.error.is_some(), "空数组应返回错误");
+    }
+
+    #[test]
+    fn test_response_export_invalid_path() {
+        let script = load_plugin_script();
+        let data = serde_json::json!({
+            "body": "{\"data\":{\"list\":[1,2,3]}}",
+            "params": { "jsonPath": "data.nonexistent" }
+        });
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        assert!(result.error.is_some(), "不存在的路径应返回错误");
+    }
+
+    #[test]
+    fn test_response_export_nested_objects_as_json_string() {
+        let script = load_plugin_script();
+        let data = serde_json::json!({
+            "body": "[{\"id\":1,\"meta\":{\"tags\":[\"a\",\"b\"]}}]",
+            "params": { "jsonPath": "(root)" }
+        });
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        assert!(result.error.is_none());
+        // 嵌套对象应被 JSON.stringify
+        assert!(result.content.contains("id,meta"));
+    }
+
+    #[test]
+    fn test_response_export_primitive_array() {
+        let script = load_plugin_script();
+        let data = serde_json::json!({
+            "body": "{\"tags\":[\"rust\",\"tauri\",\"react\"]}",
+            "params": { "jsonPath": "tags" }
+        });
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        assert!(result.error.is_none());
+        // 纯值数组应用 "value" 作为列名
+        assert!(result.content.contains("value"));
+        assert!(result.content.contains("rust"));
+        assert!(result.content.contains("tauri"));
+    }
+
+    #[test]
+    fn test_response_export_array_index_path() {
+        let script = load_plugin_script();
+        let data = serde_json::json!({
+            "body": "{\"result\":{\"departments\":[{\"name\":\"dev\",\"members\":[{\"name\":\"Alice\"},{\"name\":\"Bob\"}]}]}}",
+            "params": { "jsonPath": "result.departments[0].members" }
+        });
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        assert!(result.error.is_none());
+        assert!(result.content.contains("Alice"));
+        assert!(result.content.contains("Bob"));
+    }
+
+    /// 生成大批量 JSON 数据并测试导出性能
+    fn generate_bulk_json(count: usize, fields: usize) -> String {
+        let mut records = Vec::with_capacity(count);
+        for i in 0..count {
+            let mut obj = serde_json::Map::new();
+            obj.insert("id".into(), serde_json::json!(i + 1));
+            obj.insert("name".into(), serde_json::json!(format!("User_{}", i + 1)));
+            obj.insert("email".into(), serde_json::json!(format!("user{}@test.com", i + 1)));
+            obj.insert("score".into(), serde_json::json!((i % 100) as f64 + 0.5));
+            obj.insert("active".into(), serde_json::json!(i % 2 == 0));
+            for f in 5..fields {
+                obj.insert(format!("field_{}", f), serde_json::json!(format!("value_{}_{}", i, f)));
+            }
+            records.push(serde_json::Value::Object(obj));
+        }
+        serde_json::to_string(&records).unwrap()
+    }
+
+    #[test]
+    fn test_response_export_bulk_1000_rows() {
+        let script = load_plugin_script();
+        let body_json = generate_bulk_json(1_000, 10);
+        let data = serde_json::json!({
+            "body": body_json,
+            "params": { "jsonPath": "(root)" }
+        });
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        assert!(result.error.is_none(), "1K 行导出应成功");
+        // 表头 + 1000 数据行
+        let line_count = result.content.lines().count();
+        assert_eq!(line_count, 1001, "应有 1001 行（1 表头 + 1000 数据）");
+    }
+
+    #[test]
+    fn test_response_export_bulk_10000_rows() {
+        let script = load_plugin_script();
+        let body_json = generate_bulk_json(10_000, 10);
+        let data = serde_json::json!({
+            "body": body_json,
+            "params": { "jsonPath": "(root)" }
+        });
+        let start = std::time::Instant::now();
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        let elapsed = start.elapsed();
+        assert!(result.error.is_none(), "10K 行导出应成功");
+        let line_count = result.content.lines().count();
+        assert_eq!(line_count, 10_001);
+        println!("[perf] 10K rows / 10 fields => CSV {}KB in {:?}",
+            result.content.len() / 1024, elapsed);
+    }
+
+    #[test]
+    fn test_response_export_bulk_wide_table() {
+        let script = load_plugin_script();
+        let body_json = generate_bulk_json(5_000, 30);
+        let data = serde_json::json!({
+            "body": body_json,
+            "params": { "jsonPath": "(root)" }
+        });
+        let start = std::time::Instant::now();
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        let elapsed = start.elapsed();
+        assert!(result.error.is_none(), "5K 行 30 列宽表导出应成功");
+        // 验证列数
+        let header = result.content.lines().next().unwrap();
+        let col_count = header.split(',').count();
+        assert_eq!(col_count, 30, "应有 30 列");
+        println!("[perf] 5K rows / 30 fields => CSV {}KB in {:?}",
+            result.content.len() / 1024, elapsed);
+    }
+
+    #[test]
+    fn test_response_export_bulk_50000_rows() {
+        let script = load_plugin_script();
+        let body_json = generate_bulk_json(50_000, 8);
+        let data = serde_json::json!({
+            "body": body_json,
+            "params": { "jsonPath": "(root)" }
+        });
+        let start = std::time::Instant::now();
+        let result = execute_response_export_script(&script, &data.to_string()).unwrap();
+        let elapsed = start.elapsed();
+        assert!(result.error.is_none(), "50K 行导出应成功");
+        let line_count = result.content.lines().count();
+        assert_eq!(line_count, 50_001);
+        println!("[perf] 50K rows / 8 fields => CSV {}MB in {:?}",
+            result.content.len() / 1024 / 1024, elapsed);
+    }
 }

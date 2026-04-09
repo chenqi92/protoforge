@@ -1249,21 +1249,33 @@ function HistoryView({ search }: { search: string }) {
   const groupByDate = (items: HistoryEntrySummary[]) => {
     const today = new Date().toDateString();
     const yesterday = new Date(Date.now() - 86400000).toDateString();
+    const sevenDaysAgo = Date.now() - 7 * 86400000;
+    const thirtyDaysAgo = Date.now() - 30 * 86400000;
     const groups: { label: string; items: HistoryEntrySummary[] }[] = [];
-    const todayItems: HistoryEntrySummary[] = [];
-    const yesterdayItems: HistoryEntrySummary[] = [];
-    const olderItems: HistoryEntrySummary[] = [];
+    const buckets: Record<string, HistoryEntrySummary[]> = {};
+    const bucketOrder: string[] = [];
+    const addToBucket = (label: string, item: HistoryEntrySummary) => {
+      if (!buckets[label]) { buckets[label] = []; bucketOrder.push(label); }
+      buckets[label].push(item);
+    };
 
     for (const e of items) {
-      const d = new Date(e.createdAt).toDateString();
-      if (d === today) todayItems.push(e);
-      else if (d === yesterday) yesterdayItems.push(e);
-      else olderItems.push(e);
+      const d = new Date(e.createdAt);
+      const ds = d.toDateString();
+      const ts = d.getTime();
+      if (ds === today) addToBucket(t('sidebar.today'), e);
+      else if (ds === yesterday) addToBucket(t('sidebar.yesterday'), e);
+      else if (ts >= sevenDaysAgo) addToBucket(t('sidebar.lastSevenDays'), e);
+      else if (ts >= thirtyDaysAgo) addToBucket(t('sidebar.lastThirtyDays'), e);
+      else {
+        const monthLabel = d.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
+        addToBucket(monthLabel, e);
+      }
     }
 
-    if (todayItems.length) groups.push({ label: t('sidebar.today'), items: todayItems });
-    if (yesterdayItems.length) groups.push({ label: t('sidebar.yesterday'), items: yesterdayItems });
-    if (olderItems.length) groups.push({ label: t('sidebar.earlier'), items: olderItems });
+    for (const label of bucketOrder) {
+      groups.push({ label, items: buckets[label] });
+    }
     return groups;
   };
 
@@ -1297,6 +1309,7 @@ function HistoryView({ search }: { search: string }) {
       if (pathAndQuery === '/' || !pathAndQuery) {
         pathAndQuery = '/';
       }
+      try { pathAndQuery = decodeURIComponent(pathAndQuery); } catch { /* keep encoded if invalid */ }
       return { path: pathAndQuery, origin: u.origin.replace(/^https?:\/\//, '') };
     } catch {
       return { path: urlString, origin: "" };

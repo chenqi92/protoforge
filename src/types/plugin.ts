@@ -183,10 +183,26 @@ export interface GeneratorContribution {
   description: string;
 }
 
+/** 导出插件参数定义 */
+export interface ExportParameterDef {
+  id: string;
+  name: string;
+  type: 'string' | 'json-path' | 'select' | 'boolean';
+  required?: boolean;
+  description?: string;
+  placeholder?: string;
+  options?: { label: string; value: string }[];
+  defaultValue?: string | boolean;
+}
+
 export interface ExportFormatContribution {
   formatId: string;
   name: string;
   fileExtension: string;
+  /** 是否支持响应数据导出 */
+  supportsResponse?: boolean;
+  /** 导出参数声明 */
+  parameters?: ExportParameterDef[];
 }
 
 export interface ProtocolParser {

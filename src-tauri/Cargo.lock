@@ -5291,6 +5291,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "image",
+ "indexmap 2.13.0",
  "libc",
  "log",
  "mysql_async",
@@ -5305,6 +5306,7 @@ dependencies = [
  "reqwest",
  "rumqttc",
  "rusqlite",
+ "rust_xlsxwriter",
  "serde",
  "serde_json",
  "sha1",
@@ -5999,6 +6001,15 @@ dependencies = [
  "serde",
  "serde_json",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "rust_xlsxwriter"
+version = "0.82.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d61a82de4e7b30fc427909f2c5aafaada88cc7ae8316edabae435f74341f9278"
+dependencies = [
+ "zip 2.4.2",
 ]
 
 [[package]]

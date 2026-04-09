@@ -1,6 +1,7 @@
 mod builtin_parsers;
 mod collections;
 mod commands;
+mod data_export;
 mod database;
 mod db_client;
 mod grpc_client;
@@ -310,6 +311,8 @@ pub fn run() {
             commands::plugin_run_hook,
             commands::plugin_run_generator,
             commands::plugin_run_export,
+            commands::export_response_data,
+            commands::plugin_run_response_export,
             commands::plugin_run_crypto,
             commands::plugin_list_crypto_algorithms,
             commands::plugin_run_context_menu_action,

@@ -1406,6 +1406,33 @@ pub async fn plugin_run_export(
 }
 
 #[tauri::command]
+pub async fn export_response_data(
+    body: String,
+    json_path: String,
+    format: String,
+    options: std::collections::HashMap<String, String>,
+) -> Result<crate::data_export::ExportDataResult, String> {
+    let req = crate::data_export::ExportDataRequest {
+        body,
+        json_path,
+        format,
+        options,
+    };
+    tokio::task::spawn_blocking(move || crate::data_export::export_data(&req))
+        .await
+        .map_err(|e| format!("导出执行失败: {}", e))
+}
+
+#[tauri::command]
+pub async fn plugin_run_response_export(
+    mgr: State<'_, PluginManager>,
+    plugin_id: String,
+    data_json: String,
+) -> Result<ExportResult, String> {
+    mgr.run_response_export(&plugin_id, &data_json).await
+}
+
+#[tauri::command]
 pub async fn plugin_run_crypto(
     mgr: State<'_, PluginManager>,
     plugin_id: String,
