@@ -1413,6 +1413,30 @@
     background: var(--color-accent);
   }
 
+  /* Loading state: divider becomes animated progress bar */
+  .http-workbench-divider-loading {
+    position: relative;
+    height: 8px;
+    flex-shrink: 0;
+    cursor: row-resize;
+    background: var(--color-bg-primary);
+  }
+  .http-workbench-divider-loading::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 3px;
+    transform: translateY(-50%);
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+    background-size: 40% 100%;
+    background-repeat: no-repeat;
+    animation: progress-indeterminate 1.2s ease-in-out infinite;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--color-accent) 40%, transparent);
+  }
+
   .http-response-head {
     display: flex;
     align-items: center;
@@ -2451,7 +2475,8 @@
 }
 
 @keyframes progress-indeterminate {
-  0%   { transform: translateX(-100%); }
+  0%   { transform: translateX(-120%); }
+  50%  { transform: translateX(180%); }
   100% { transform: translateX(350%); }
 }
 

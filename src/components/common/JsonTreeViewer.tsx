@@ -424,6 +424,40 @@ export function JsonTreeViewer({
     );
   }
 
+  // ── Lightweight virtualization for large JSON ──
+  // Only render lines visible in the scroll viewport + a generous buffer.
+  const ROW_HEIGHT = editorFontSize * 1.6; // matches lineHeight: 1.6
+  const OVERSCAN = 30; // extra rows above/below viewport
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(800);
+  const enableVirtualization = lines.length > 500;
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    if (enableVirtualization) setScrollTop(e.currentTarget.scrollTop);
+  }, [enableVirtualization]);
+
+  useEffect(() => {
+    if (!enableVirtualization || !viewportRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) setViewportHeight(entry.contentRect.height);
+    });
+    observer.observe(viewportRef.current);
+    return () => observer.disconnect();
+  }, [enableVirtualization]);
+
+  const { visibleLines, startIndex, topPad, bottomPad } = useMemo(() => {
+    if (!enableVirtualization) return { visibleLines: lines, startIndex: 0, topPad: 0, bottomPad: 0 };
+    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+    const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2;
+    const end = Math.min(lines.length, start + visibleCount);
+    return {
+      visibleLines: lines.slice(start, end),
+      startIndex: start,
+      topPad: start * ROW_HEIGHT,
+      bottomPad: Math.max(0, (lines.length - end) * ROW_HEIGHT),
+    };
+  }, [enableVirtualization, lines, scrollTop, viewportHeight, ROW_HEIGHT]);
+
   return (
     <div className={cn("flex h-full min-h-0 overflow-hidden bg-bg-input/88", className)} data-contextmenu-zone="json-tree" onContextMenu={(e) => e.preventDefault()}>
       {MenuComponent}
@@ -432,6 +466,7 @@ export function JsonTreeViewer({
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onMouseDownCapture={handleMouseDownCapture}
+        onScroll={handleScroll}
         className="flex-1 min-h-0 overflow-auto outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/35"
       >
         <div
@@ -451,16 +486,19 @@ export function JsonTreeViewer({
             lineHeight: 1.6,
           }}
         >
-          {lines.map((line, index) => (
+          {enableVirtualization && topPad > 0 && <div style={{ height: topPad }} />}
+          {visibleLines.map((line, i) => {
+            const index = startIndex + i;
+            return (
             <div
               key={line.id}
               className="grid items-start gap-3"
-              style={{ gridTemplateColumns: `${gutterWidth} minmax(0, 1fr)` }}
+              style={{ gridTemplateColumns: `${gutterWidth} minmax(0, 1fr)`, height: enableVirtualization ? ROW_HEIGHT : undefined }}
               onContextMenu={(e) => { if (line.kind !== 'close') handleLineContextMenu(e, line); }}
             >
               <div
                 aria-hidden="true"
-                className="select-none pr-2 text-right tabular-nums text-text-disabled"
+                className="select-none pr-2 text-right tabular-nums text-text-disabled cursor-default"
               >
                 {index + 1}
               </div>
@@ -472,7 +510,7 @@ export function JsonTreeViewer({
                 style={{ paddingLeft: `${line.indent * 1.25}rem` }}
               >
                 {/* Fold button gutter — fixed width so brackets always align */}
-                <span className="shrink-0 w-4 flex items-center justify-center">
+                <span className="shrink-0 w-4 flex items-center justify-center cursor-pointer">
                   {line.kind === "open" && (
                     <FoldButton expanded onClick={() => togglePath(line.path)} />
                   )}
@@ -514,7 +552,9 @@ export function JsonTreeViewer({
                 </span>
               </div>
             </div>
-          ))}
+            );
+          })}
+          {enableVirtualization && bottomPad > 0 && <div style={{ height: bottomPad }} />}
         </div>
       </div>
     </div>

@@ -408,6 +408,87 @@ export function AssertionBuilder({
   const passedCount = testResults ? testResults.filter(tr => tr.passed).length : 0;
   const totalTested = testResults?.length || 0;
 
+  // ── Compact mode: minimal inline list for post-script side panel ──
+  if (compact) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border-default/60 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="pf-text-xs font-medium text-text-secondary">{t('assertion.title')}</span>
+            {totalTested > 0 && (
+              <span className={cn(
+                "pf-text-xxs font-semibold px-1.5 py-0.5 pf-rounded-md",
+                passedCount === totalTested ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500",
+              )}>
+                {passedCount}/{totalTested}
+              </span>
+            )}
+          </div>
+          <button onClick={() => handleAdd()} className="h-6 w-6 flex items-center justify-center pf-rounded-md text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors" title={t('assertion.add')}>
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {assertions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full px-3 text-center gap-2">
+              <p className="pf-text-xxs text-text-disabled leading-4">{t('assertion.empty')}</p>
+              <button onClick={() => handleAdd()} className="pf-text-xxs text-accent hover:underline">{t('assertion.addFirst')}</button>
+            </div>
+          ) : (
+            <div className="py-1">
+              {assertions.map((a) => {
+                const fieldOpt = FIELD_OPTIONS.find(f => f.value === a.field);
+                const opOpt = OP_OPTIONS.find(o => o.value === a.operator);
+                const result = getResult(a);
+                const testName = generateTestName(a);
+                return (
+                  <div key={a.id} className={cn(
+                    "group flex items-center gap-1.5 px-3 py-1.5 transition-colors",
+                    result?.passed === true && "bg-emerald-500/5",
+                    result?.passed === false && "bg-red-500/5",
+                  )}>
+                    {/* Status dot / checkbox */}
+                    {result ? (
+                      result.passed
+                        ? <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                        : <XCircle className="h-3 w-3 text-red-500 shrink-0" />
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={a.enabled}
+                        onChange={(e) => handleUpdate(a.id, { enabled: e.target.checked })}
+                        className="shrink-0 h-3 w-3"
+                      />
+                    )}
+                    {/* Inline description */}
+                    <span className={cn(
+                      "pf-text-xxs flex-1 min-w-0 truncate",
+                      !a.enabled && "text-text-disabled line-through",
+                      result?.passed === false ? "text-red-600" : "text-text-secondary",
+                    )} title={result?.error || testName}>
+                      <span className="font-medium text-text-primary">{fieldOpt?.label || a.field}</span>
+                      {a.fieldArg && <span className="text-text-disabled"> [{a.fieldArg}]</span>}
+                      <span className="text-text-tertiary"> {opOpt?.label || a.operator} </span>
+                      {!opOpt?.noExpected && <span className="font-mono text-accent">{a.expected}</span>}
+                    </span>
+                    {/* Delete on hover */}
+                    <button
+                      onClick={() => handleRemove(a.id)}
+                      className="shrink-0 h-4 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 text-text-disabled hover:text-red-500 transition-all"
+                    >
+                      <Trash2 className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Full mode: Tests tab with full editing ──
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -432,7 +513,7 @@ export function AssertionBuilder({
           )}
         </div>
         <div className="flex items-center gap-1">
-          {!compact && <PresetsDropdown onAdd={handleAdd} />}
+          <PresetsDropdown onAdd={handleAdd} />
           <button onClick={() => handleAdd()} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1">
             <Plus className="h-3 w-3" /> {t('assertion.add')}
           </button>
@@ -448,11 +529,11 @@ export function AssertionBuilder({
               <button onClick={() => handleAdd()} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-accent">
                 <Plus className="h-3 w-3" /> {t('assertion.addFirst')}
               </button>
-              {!compact && <PresetsDropdown onAdd={handleAdd} />}
+              <PresetsDropdown onAdd={handleAdd} />
             </div>
           </div>
         ) : (
-          <div className="p-2 space-y-2">
+          <div className="p-2 space-y-1.5">
             {assertions.map((a, idx) => {
               const fieldOpt = FIELD_OPTIONS.find(f => f.value === a.field);
               const opOpt = OP_OPTIONS.find(o => o.value === a.operator);
@@ -468,69 +549,46 @@ export function AssertionBuilder({
                   onDrop={() => handleDrop(idx)}
                   onDragEnd={handleDragEnd}
                   className={cn(
-                    "flex flex-col gap-1.5 p-2 pf-rounded-sm border transition-colors",
+                    "group/card pf-rounded-md border px-2.5 py-1.5 transition-colors",
                     !a.enabled && "opacity-50",
-                    result?.passed === true && "border-emerald-500/30 bg-emerald-500/5",
-                    result?.passed === false && "border-red-500/30 bg-red-500/5",
-                    result === undefined && "border-border-default/60",
+                    result?.passed === true && "border-emerald-500/20 bg-emerald-500/[0.02]",
+                    result?.passed === false && "border-red-500/20 bg-red-500/[0.02]",
+                    result === undefined && "border-border-default/40",
                     dragOverIdx === idx && "border-accent/60 bg-accent/5",
                   )}
                 >
-                  {/* Row 0: optional custom name */}
-                  {!compact && (
-                    <div className="flex items-center gap-1.5">
-                      <GripVertical className="h-3 w-3 text-text-disabled cursor-grab shrink-0" />
-                      <input
-                        type="text"
-                        value={a.name}
-                        onChange={(e) => handleUpdate(a.id, { name: e.target.value })}
-                        placeholder={t('assertion.testName')}
-                        className="wb-field-sm pf-text-xs flex-1 text-text-tertiary italic"
-                      />
-                    </div>
-                  )}
-
-                  {/* Row 1: enable + field + arg */}
-                  <div className="flex items-center gap-1.5">
-                    {compact && <GripVertical className="h-3 w-3 text-text-disabled cursor-grab shrink-0" />}
+                  {/* Single row: handle + checkbox + [Field] [Arg] [Op] [Expected] + status + actions */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <GripVertical className="h-3 w-3 text-text-disabled/30 cursor-grab shrink-0" />
                     <input
                       type="checkbox"
                       checked={a.enabled}
                       onChange={(e) => handleUpdate(a.id, { enabled: e.target.checked })}
-                      className="shrink-0"
+                      className="shrink-0 h-3 w-3"
                     />
 
-                    {/* Field */}
                     <select
                       value={a.field}
                       onChange={(e) => {
                         const field = e.target.value as AssertionField;
                         const defaults: Partial<Assertion> = { field, fieldArg: '' };
-                        if (field === 'status') {
-                          defaults.operator = 'equals';
-                          defaults.expected = '200';
-                        } else if (field === 'duration') {
-                          defaults.operator = 'lt';
-                          defaults.expected = '500';
-                        }
+                        if (field === 'status') { defaults.operator = 'equals'; defaults.expected = '200'; }
+                        else if (field === 'duration') { defaults.operator = 'lt'; defaults.expected = '500'; }
                         handleUpdate(a.id, defaults);
                       }}
-                      className="wb-field-sm pf-text-xs min-w-[100px]"
+                      className="wb-field-sm pf-text-xs"
                     >
-                      {FIELD_OPTIONS.map(f => (
-                        <option key={f.value} value={f.value}>{f.label}</option>
-                      ))}
+                      {FIELD_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                     </select>
 
-                    {/* Field arg (header name / JSON path) */}
                     {fieldOpt?.hasArg && (
-                      <div className="relative flex-1 min-w-[80px] flex items-center gap-0.5">
+                      <div className="relative flex items-center gap-0.5">
                         <input
                           type="text"
                           value={a.fieldArg}
                           onChange={(e) => handleUpdate(a.id, { fieldArg: e.target.value })}
                           placeholder={fieldOpt.argPlaceholder}
-                          className="wb-field-sm pf-text-xs flex-1 font-mono"
+                          className="wb-field-sm pf-text-xs w-[100px] font-mono"
                         />
                         {a.field === 'bodyJson' && response && (
                           <>
@@ -553,34 +611,12 @@ export function AssertionBuilder({
                       </div>
                     )}
 
-                    {/* Result indicator */}
-                    {result && (
-                      <span className="ml-auto shrink-0">
-                        {result.passed
-                          ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                          : <XCircle className="h-3.5 w-3.5 text-red-500" />}
-                      </span>
-                    )}
-
-                    {/* Actions */}
-                    <button onClick={() => handleDuplicate(a.id)} className="shrink-0 p-0.5 text-text-disabled hover:text-text-secondary transition-colors" title={t('assertion.duplicate')}>
-                      <Copy className="h-3 w-3" />
-                    </button>
-                    <button onClick={() => handleRemove(a.id)} className="shrink-0 p-0.5 text-text-disabled hover:text-red-500 transition-colors">
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-
-                  {/* Row 2: operator + expected */}
-                  <div className="flex items-center gap-1.5 pl-5">
                     <select
                       value={a.operator}
                       onChange={(e) => handleUpdate(a.id, { operator: e.target.value as AssertionOp })}
-                      className="wb-field-sm pf-text-xs min-w-[80px]"
+                      className="wb-field-sm pf-text-xs w-[72px]"
                     >
-                      {OP_OPTIONS.map(o => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
+                      {OP_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
 
                     {!opOpt?.noExpected && (
@@ -589,26 +625,37 @@ export function AssertionBuilder({
                         value={a.expected}
                         onChange={(e) => handleUpdate(a.id, { expected: e.target.value })}
                         placeholder={t('assertion.expectedValue')}
-                        className="wb-field-sm pf-text-xs flex-1 font-mono"
+                        className="wb-field-sm pf-text-xs flex-1 min-w-[60px] font-mono"
                       />
                     )}
+
+                    {result && (
+                      result.passed
+                        ? <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                        : <XCircle className="h-3 w-3 text-red-500 shrink-0" />
+                    )}
+
+                    <div className="flex items-center gap-0 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0">
+                      <button onClick={() => handleDuplicate(a.id)} className="p-0.5 text-text-disabled hover:text-text-secondary" title={t('assertion.duplicate')}>
+                        <Copy className="h-2.5 w-2.5" />
+                      </button>
+                      <button onClick={() => handleRemove(a.id)} className="p-0.5 text-text-disabled hover:text-red-500">
+                        <Trash2 className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Row 3: actual value preview */}
-                  {!compact && a.enabled && (
-                    <div className="pl-5 pf-text-xxs text-text-disabled truncate">
-                      {actualValue !== undefined ? (
-                        <span><span className="text-text-tertiary">{t('assertion.actualValue')}:</span> <span className="font-mono text-text-secondary">{actualValue}</span></span>
-                      ) : response ? null : (
-                        <span className="italic">{t('assertion.noResponse')}</span>
+                  {/* Actual value + error — only when relevant */}
+                  {a.enabled && (actualValue !== undefined || (result && !result.passed)) && (
+                    <div className="mt-1 pl-[30px] flex items-center gap-3 pf-text-xxs">
+                      {actualValue !== undefined && (
+                        <span className="text-text-disabled truncate">
+                          {t('assertion.actualValue')}: <span className="font-mono text-text-secondary">{actualValue}</span>
+                        </span>
                       )}
-                    </div>
-                  )}
-
-                  {/* Error message */}
-                  {result && !result.passed && result.error && (
-                    <div className="pl-5 pf-text-xxs text-red-500 truncate" title={result.error}>
-                      {result.error}
+                      {result && !result.passed && result.error && (
+                        <span className="text-red-500 truncate" title={result.error}>{result.error}</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -639,59 +686,48 @@ export function TestResultsPanel({ testResults }: { testResults?: TestResult[] }
   const failed = testResults.length - passed;
 
   return (
-    <div className="h-full overflow-auto p-3">
-      <div className="flex min-h-full flex-col gap-2.5">
-        {/* Summary */}
-        <div className="response-summary-row">
+    <div className="h-full overflow-auto p-4">
+      <div className="flex min-h-full flex-col gap-3">
+        {/* Summary bar */}
+        <div className="flex items-center gap-3">
           <div className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 pf-rounded-lg pf-text-xs font-semibold",
-            failed === 0
-              ? "bg-emerald-500/10 text-emerald-600"
-              : "bg-red-500/10 text-red-500",
+            "inline-flex items-center gap-1.5 px-2.5 py-1 pf-rounded-md pf-text-xs font-semibold",
+            failed === 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500",
           )}>
-            {failed === 0 ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+            {failed === 0 ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
             {t('assertion.passCount', { passed, total: testResults.length })}
           </div>
-          {passed > 0 && (
-            <span className="pf-text-xs text-emerald-600">
-              {passed} {t('assertion.testPassed')}
-            </span>
-          )}
-          {failed > 0 && (
-            <span className="pf-text-xs text-red-500">
-              {failed} {t('assertion.testFailed')}
-            </span>
-          )}
+          {passed > 0 && <span className="pf-text-xxs text-emerald-600">{passed} {t('assertion.testPassed')}</span>}
+          {failed > 0 && <span className="pf-text-xxs text-red-500">{failed} {t('assertion.testFailed')}</span>}
         </div>
 
-        {/* Results list */}
-        <div className="response-table-frame w-full">
-          <div className="overflow-x-auto">
-            <table className="response-table min-w-full">
-              <thead>
-                <tr>
-                  <th className="w-[32px]" />
-                  <th className="min-w-[200px]">{t('assertion.title')}</th>
-                  <th className="w-[200px]">{t('assertion.error')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {testResults.map((tr, i) => (
-                  <tr key={i} className={tr.passed ? '' : 'bg-red-500/[0.03]'}>
-                    <td className="text-center">
-                      {tr.passed
-                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 inline" />
-                        : <XCircle className="h-3.5 w-3.5 text-red-500 inline" />}
-                    </td>
-                    <td className={cn("response-table-key", !tr.passed && "text-red-600")}>{tr.name}</td>
-                    <td className="response-table-value pf-text-xxs text-red-500 truncate" title={tr.error || ''}>
-                      {tr.error || '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {/* Results list — clean card style */}
+        <div className="space-y-1.5">
+          {testResults.map((tr, i) => (
+            <div
+              key={i}
+              className={cn(
+                "flex items-start gap-2.5 px-3 py-2 pf-rounded-lg border transition-colors",
+                tr.passed
+                  ? "border-emerald-500/20 bg-emerald-500/[0.03]"
+                  : "border-red-500/20 bg-red-500/[0.03]",
+              )}
+            >
+              {tr.passed
+                ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                : <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />}
+              <div className="min-w-0 flex-1">
+                <div className={cn("pf-text-xs font-medium", tr.passed ? "text-text-primary" : "text-red-600")}>
+                  {tr.name}
+                </div>
+                {tr.error && (
+                  <div className="mt-1 pf-text-xxs text-red-500/80 leading-4 break-words">
+                    {tr.error}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

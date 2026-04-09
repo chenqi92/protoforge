@@ -168,7 +168,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
       >
         <DialogTitle className="sr-only">{t('plugin.centerTitle')}</DialogTitle>
 
-        <div className="flex h-full min-h-[680px] flex-col">
+        <div className="flex h-[min(88vh,800px)] min-h-0 flex-col">
           {/* Header */}
           <div className="flex shrink-0 items-start justify-between border-b border-border-default/80 px-6 py-5">
             <div className="flex items-center gap-4">

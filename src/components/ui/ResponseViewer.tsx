@@ -5,8 +5,8 @@
  * 支持插件渲染器（如 Excel）— 通过 contributes.responseRenderers 动态注入 Tab
  */
 
-import { useState, useMemo, useCallback, useEffect, useDeferredValue } from 'react';
-import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive, Filter, ScanSearch, Music } from 'lucide-react';
+import { lazy, Suspense, useState, useMemo, useCallback, useEffect, useDeferredValue } from 'react';
+import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive, Filter, ScanSearch, Music, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { JsonTreeViewer } from '@/components/common/JsonTreeViewer';
@@ -110,21 +110,24 @@ export function ReadonlyCodeBlock({
   language = 'json',
   minHeightClassName = 'min-h-[320px]',
   wrapLines = true,
+  /** For JSON: 'editor' (Monaco) or 'tree' (JsonTreeViewer). Controlled externally. */
+  jsonViewMode = 'editor',
 }: {
   value: string;
   language?: string;
   minHeightClassName?: string;
   wrapLines?: boolean;
+  jsonViewMode?: 'editor' | 'tree';
 }) {
   if (language === 'json') {
     return (
       <div className={cn("flex h-full min-h-0 overflow-hidden", minHeightClassName)}>
         <div className="flex-1 min-h-0">
-          <JsonTreeViewer
-            value={value}
-            className="h-full"
-            wrapLines={wrapLines}
-          />
+          {jsonViewMode === 'editor' ? (
+            <MonacoReadonlyViewer value={value} language="json" />
+          ) : (
+            <JsonTreeViewer value={value} className="h-full" wrapLines={wrapLines} />
+          )}
         </div>
       </div>
     );
@@ -144,6 +147,23 @@ export function ReadonlyCodeBlock({
   );
 }
 
+/* ── Monaco readonly viewer for response body ── */
+const LazyCodeEditor = lazy(() => import('@/components/common/CodeEditor').then((m) => ({ default: m.CodeEditor })));
+
+function MonacoReadonlyViewer({ value, language }: { value: string; language: string }) {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-full text-text-tertiary pf-text-xs"><Loader2 className="w-4 h-4 animate-spin mr-2" />Loading...</div>}>
+      <LazyCodeEditor
+        value={value}
+        language={language}
+        readOnly
+        height="100%"
+        stickyScroll={false}
+      />
+    </Suspense>
+  );
+}
+
 /* ── Main Component ── */
 export function ResponseViewer({ body, contentType, responseHeaders, isBinary, modes, compact, className }: ResponseViewerProps) {
   const { t } = useTranslation();
@@ -154,6 +174,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   const [isRegexMode, setIsRegexMode] = useState(false);
   const [jsonFilterKeys, setJsonFilterKeys] = useState<Set<string>>(new Set());
   const [showKeyFilter, setShowKeyFilter] = useState(false);
+  const [jsonViewMode, setJsonViewMode] = useState<'editor' | 'tree'>('editor');
   const deferredSearchText = useDeferredValue(searchText);
 
   // 插件渲染器匹配
@@ -392,6 +413,24 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                 {modeLabels[mode]}
               </button>
             ))}
+            {/* Pretty/Tree sub-toggle — inline when JSON is active */}
+            {activeBuiltinMode === 'json' && (
+              <>
+                <span className="mx-1 h-3 w-px bg-border-default/60 shrink-0" />
+                <button
+                  onClick={() => setJsonViewMode('editor')}
+                  className={cn('response-viewer-tab !pf-text-xxs', jsonViewMode === 'editor' && 'is-active')}
+                >
+                  Pretty
+                </button>
+                <button
+                  onClick={() => setJsonViewMode('tree')}
+                  className={cn('response-viewer-tab !pf-text-xxs', jsonViewMode === 'tree' && 'is-active')}
+                >
+                  Tree
+                </button>
+              </>
+            )}
             {/* 插件渲染器 tab */}
             {matchedRenderers.map((pt, idx) => (
               <button
@@ -576,6 +615,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                   language={jsonData !== null ? 'json' : isXml ? 'xml' : 'plaintext'}
                   minHeightClassName=""
                   wrapLines={wordWrap}
+                  jsonViewMode={jsonViewMode}
                 />
               </div>
             </div>

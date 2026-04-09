@@ -28,7 +28,7 @@ import { VariableInlineInput } from "./VariableInlineInput";
 import { AuthPanel } from "./AuthPanel";
 import { HttpSseResponsePanel, type SseEvent } from "./HttpSsePanel";
 import { GraphQLBodyEditor, MonacoEditorSurface, EditorSurfaceFallback } from "./GraphQLBodyEditor";
-import { ResponseMetaPill, HttpRequestErrorPanel, ResponseHeaderMetric } from "./HttpResponseParts";
+import { ResponseMetaPill, HttpRequestErrorPanel, HttpRequestErrorBanner, ResponseHeaderMetric } from "./HttpResponseParts";
 import { ExportPluginDropdown } from "./ExportPluginDropdown";
 import { BinaryPicker } from "./BinaryPicker";
 import { AssertionBuilder, TestResultsPanel, generateAssertionCode, type Assertion } from "./AssertionBuilder";
@@ -928,19 +928,11 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
             </div>
           </Panel>
 
-          <PanelResizeHandle className="http-workbench-divider" />
+          {/* Divider — becomes animated progress bar when loading */}
+          <PanelResizeHandle className={loading && !isSseMode ? "http-workbench-divider-loading" : "http-workbench-divider"} />
 
           {/* Response Panel */}
           <Panel minSize="18" defaultSize={responseDefaultSize} className="http-workbench-section relative">
-            {/* Loading Overlay */}
-            {loading && !isSseMode && (
-              <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-bg-primary/50 backdrop-blur-[2px] transition-all duration-300">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-accent/20 bg-accent/10 shadow-[0_0_15px_rgba(var(--accent),0.15)] mb-4">
-                  <Loader2 className="w-7 h-7 animate-spin text-accent" />
-                </div>
-                <p className="pf-text-sm font-medium text-text-primary animate-pulse">{t('http.sending', '请求发送中...')}</p>
-              </div>
-            )}
 
             {isSseMode ? (
               <HttpSseResponsePanel
@@ -950,13 +942,20 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 onClear={() => setSseEvents([])}
                 listRef={sseListRef}
               />
-            ) : error ? (
+            ) : error && !response ? (
               <HttpRequestErrorPanel
                 error={error}
                 onDismiss={() => setError(tabId, null)}
               />
             ) : response ? (
               <>
+                {/* Error banner — shown on top when error + previous response exists */}
+                {error && (
+                  <HttpRequestErrorBanner
+                    error={error}
+                    onDismiss={() => setError(tabId, null)}
+                  />
+                )}
                 {/* Script results notification */}
                 {(scriptResults.pre || scriptResults.post) && (
                   <div className="px-3 py-1.5 bg-bg-secondary/60 border-b border-border-default flex items-center gap-3 pf-text-xs flex-wrap shrink-0">
