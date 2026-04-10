@@ -1,5 +1,6 @@
-// ProtoForge Workflow Workspace — visual workflow orchestration
-// Layout: sidebar (workflow list + node palette) | canvas (React Flow) | right panel (config + results)
+// ProtoForge Workflow Workspace — visual workflow orchestration (Enhanced)
+// Layout: sidebar (workflow list + categorized node palette) | canvas (React Flow) | right panel (config + results)
+// Features: resizable panels, categorized drag cards, custom node shapes, edge labels, fullscreen mode
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
@@ -12,10 +13,15 @@ import {
   useEdgesState,
   useReactFlow,
   ReactFlowProvider,
+  BaseEdge,
+  EdgeLabelRenderer,
+  getBezierPath,
   type Node,
   type Edge,
+  type EdgeProps,
   type Connection,
   type NodeTypes,
+  type EdgeTypes,
   type OnConnect,
   Handle,
   Position,
@@ -27,7 +33,9 @@ import {
   Plus, Trash2, Play, Square, Save, Search, Loader2, Pencil,
   Globe, Plug, Radio, Clock, Code, Filter, Lock, Unlock,
   ChevronRight, ChevronDown, X, CheckCircle2, XCircle,
-  Workflow as WorkflowIcon,
+  Workflow as WorkflowIcon, Maximize2, Minimize2,
+  GitBranch, Repeat, Columns, Variable, MessageSquare,
+  CheckSquare, PlayCircle, StopCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -36,7 +44,7 @@ import { useWorkflowStore } from '@/stores/workflowStore';
 import type {
   Workflow, FlowNode, FlowEdge, NodeType, NodeResult, ExecutionStatus,
 } from '@/types/workflow';
-import { NODE_TYPE_META } from '@/types/workflow';
+import { NODE_TYPE_META, NODE_CATEGORIES } from '@/types/workflow';
 
 // ── Icon mapping ──
 const NODE_ICONS: Record<NodeType, typeof Globe> = {
@@ -48,6 +56,14 @@ const NODE_ICONS: Record<NodeType, typeof Globe> = {
   extractData: Filter,
   base64Encode: Lock,
   base64Decode: Unlock,
+  condition: GitBranch,
+  loop: Repeat,
+  parallel: Columns,
+  setVariable: Variable,
+  log: MessageSquare,
+  assertion: CheckSquare,
+  start: PlayCircle,
+  end: StopCircle,
 };
 
 // ── Default configs per node type ──
@@ -61,14 +77,29 @@ function defaultConfig(nodeType: NodeType): Record<string, unknown> {
     case 'extractData': return { source: '', mode: 'jsonPath', expression: '' };
     case 'base64Encode': return { input: '' };
     case 'base64Decode': return { input: '' };
+    case 'condition': return { expression: '' };
+    case 'loop': return { iterations: 3 };
+    case 'parallel': return { maxConcurrency: 0 };
+    case 'setVariable': return { key: '', value: '' };
+    case 'log': return { message: '', level: 'info' };
+    case 'assertion': return { target: '', operator: 'equals', expected: '', name: '' };
+    case 'start': return {};
+    case 'end': return {};
   }
 }
 
 // ═══════════════════════════════════════════
-//  Custom React Flow Node
+//  Custom React Flow Nodes (multiple shapes)
 // ═══════════════════════════════════════════
 
-function FlowNodeComponent({ data }: { data: { label: string; nodeType: NodeType; status?: ExecutionStatus } }) {
+interface FlowNodeData {
+  label: string;
+  nodeType: NodeType;
+  status?: ExecutionStatus;
+}
+
+/** Standard rectangle node */
+function RectangleNode({ data }: { data: FlowNodeData }) {
   const Icon = NODE_ICONS[data.nodeType] || Globe;
   const meta = NODE_TYPE_META[data.nodeType];
   const isRunning = data.status === 'running';
@@ -101,18 +132,118 @@ function FlowNodeComponent({ data }: { data: { label: string; nodeType: NodeType
   );
 }
 
-const nodeTypes: NodeTypes = { flowNode: FlowNodeComponent };
+/** Circle node (start/end) */
+function CircleNode({ data }: { data: FlowNodeData }) {
+  const Icon = NODE_ICONS[data.nodeType] || Globe;
+  const meta = NODE_TYPE_META[data.nodeType];
+  const isEnd = data.nodeType === 'end';
+  const isRunning = data.status === 'running';
+  const isDone = data.status === 'completed';
+  const isFailed = data.status === 'failed';
+
+  return (
+    <div className={cn(
+      'flex h-14 w-14 items-center justify-center rounded-full border-2 bg-bg-primary shadow-sm transition-colors',
+      isEnd && 'ring-2 ring-offset-1',
+      isRunning && 'border-amber-500 ring-amber-500/20',
+      isDone && 'border-emerald-500',
+      isFailed && 'border-red-500',
+      !isRunning && !isDone && !isFailed && 'border-border-default',
+    )} style={isEnd && !isRunning && !isDone && !isFailed ? { boxShadow: `0 0 0 3px ${meta.color}40` } : undefined}>
+      {data.nodeType !== 'start' && (
+        <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-accent !border-2 !border-bg-primary" />
+      )}
+      <Icon className="h-5 w-5" style={{ color: meta.color }} />
+      {data.nodeType !== 'end' && (
+        <Handle type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-accent !border-2 !border-bg-primary" />
+      )}
+    </div>
+  );
+}
+
+/** Diamond node (condition) */
+function DiamondNode({ data }: { data: FlowNodeData }) {
+  const Icon = NODE_ICONS[data.nodeType] || Globe;
+  const meta = NODE_TYPE_META[data.nodeType];
+  const isRunning = data.status === 'running';
+  const isDone = data.status === 'completed';
+  const isFailed = data.status === 'failed';
+
+  return (
+    <div className="relative" style={{ width: 80, height: 80 }}>
+      <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-accent !border-2 !border-bg-primary" style={{ top: -6 }} />
+      <div
+        className={cn(
+          'absolute inset-0 border-2 bg-bg-primary shadow-sm transition-colors',
+          isRunning && 'border-amber-500 ring-2 ring-amber-500/20',
+          isDone && 'border-emerald-500',
+          isFailed && 'border-red-500',
+          !isRunning && !isDone && !isFailed && 'border-border-default',
+        )}
+        style={{ transform: 'rotate(45deg)', borderRadius: 8 }}
+      />
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <Icon className="h-4 w-4" style={{ color: meta.color }} />
+        <span className="pf-text-xxs font-semibold text-text-primary mt-0.5 truncate max-w-[60px]">{data.label}</span>
+      </div>
+      {/* Two source handles: left (false) and right (true), plus bottom */}
+      <Handle type="source" position={Position.Bottom} id="bottom" className="!w-3 !h-3 !bg-accent !border-2 !border-bg-primary" style={{ bottom: -6 }} />
+      <Handle type="source" position={Position.Right} id="right" className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-bg-primary" style={{ right: -6 }} />
+      <Handle type="source" position={Position.Left} id="left" className="!w-3 !h-3 !bg-red-500 !border-2 !border-bg-primary" style={{ left: -6 }} />
+    </div>
+  );
+}
+
+const nodeTypes: NodeTypes = {
+  flowNode: RectangleNode,
+  circleNode: CircleNode,
+  diamondNode: DiamondNode,
+};
+
+// ═══════════════════════════════════════════
+//  Custom Edge with label
+// ═══════════════════════════════════════════
+
+function LabeledEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd, style }: EdgeProps) {
+  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const edgeLabel = (data as Record<string, unknown> | undefined)?.label as string | undefined;
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
+      {edgeLabel && (
+        <EdgeLabelRenderer>
+          <div
+            className="pf-text-xxs font-medium px-1.5 py-0.5 pf-rounded-md bg-bg-primary border border-border-default/60 text-text-secondary shadow-sm pointer-events-auto"
+            style={{ position: 'absolute', transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+          >
+            {edgeLabel}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+}
+
+const edgeTypes: EdgeTypes = { labeled: LabeledEdge };
 
 // ═══════════════════════════════════════════
 //  Workflow ↔ React Flow Conversion
 // ═══════════════════════════════════════════
+
+function getNodeRfType(nodeType: NodeType): string {
+  const meta = NODE_TYPE_META[nodeType];
+  if (meta.shape === 'circle') return 'circleNode';
+  if (meta.shape === 'diamond') return 'diamondNode';
+  return 'flowNode';
+}
 
 function toRfNodes(nodes: FlowNode[], nodeResults: NodeResult[]): Node[] {
   return nodes.map((n, i) => {
     const result = nodeResults.find((r) => r.nodeId === n.id);
     return {
       id: n.id,
-      type: 'flowNode',
+      type: getNodeRfType(n.nodeType),
       position: n.position || { x: 250, y: i * 120 },
       data: { label: n.name, nodeType: n.nodeType, status: result?.status },
     };
@@ -124,13 +255,17 @@ function toRfEdges(edges: FlowEdge[]): Edge[] {
     id: e.id,
     source: e.sourceNodeId,
     target: e.targetNodeId,
+    sourceHandle: e.sourceHandle || undefined,
+    type: e.label ? 'labeled' : 'default',
+    data: e.label ? { label: e.label } : undefined,
     markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
     style: { strokeWidth: 2 },
+    animated: false,
   }));
 }
 
 // ═══════════════════════════════════════════
-//  Node Config Panel
+//  Node Config Panel (enhanced with new types)
 // ═══════════════════════════════════════════
 
 function NodeConfigPanel({
@@ -260,6 +395,94 @@ function NodeConfigPanel({
             <textarea rows={4} value={(config.input as string) || ''} onChange={(e) => updateConfig('input', e.target.value)} className={textareaCls} />
           </div>
         )}
+
+        {/* ── New node types ── */}
+        {node.nodeType === 'condition' && (
+          <div>
+            <label className={labelCls}>{t('workflow.nodeFields.condExpression')}</label>
+            <input value={(config.expression as string) || ''} onChange={(e) => updateConfig('expression', e.target.value)} placeholder="{{prev.status}} == 200" className={cn(fieldCls, 'font-mono')} />
+            <p className="pf-text-xxs text-text-disabled mt-1">支持模板变量引用，求值结果为 true/false</p>
+          </div>
+        )}
+
+        {node.nodeType === 'loop' && (
+          <div>
+            <label className={labelCls}>{t('workflow.nodeFields.iterations')}</label>
+            <input type="number" min={1} value={(config.iterations as number) || 3} onChange={(e) => updateConfig('iterations', Number(e.target.value))} className={fieldCls} />
+          </div>
+        )}
+
+        {node.nodeType === 'parallel' && (
+          <div>
+            <label className={labelCls}>{t('workflow.nodeFields.maxConcurrency')}</label>
+            <input type="number" min={0} value={(config.maxConcurrency as number) || 0} onChange={(e) => updateConfig('maxConcurrency', Number(e.target.value))} className={fieldCls} />
+            <p className="pf-text-xxs text-text-disabled mt-1">0 = 不限制并行度</p>
+          </div>
+        )}
+
+        {node.nodeType === 'setVariable' && (
+          <>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.varKey')}</label>
+              <input value={(config.key as string) || ''} onChange={(e) => updateConfig('key', e.target.value)} placeholder="myVar" className={fieldCls} />
+            </div>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.varValue')}</label>
+              <input value={(config.value as string) || ''} onChange={(e) => updateConfig('value', e.target.value)} placeholder="{{prev.data.token}}" className={cn(fieldCls, 'font-mono')} />
+            </div>
+          </>
+        )}
+
+        {node.nodeType === 'log' && (
+          <>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.logMessage')}</label>
+              <textarea rows={3} value={(config.message as string) || ''} onChange={(e) => updateConfig('message', e.target.value)} placeholder="Current status: {{prev.status}}" className={textareaCls} />
+            </div>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.logLevel')}</label>
+              <select value={(config.level as string) || 'info'} onChange={(e) => updateConfig('level', e.target.value)} className={fieldCls}>
+                <option value="info">Info</option>
+                <option value="warn">Warn</option>
+                <option value="error">Error</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        {node.nodeType === 'assertion' && (
+          <>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.assertName')}</label>
+              <input value={(config.name as string) || ''} onChange={(e) => updateConfig('name', e.target.value)} placeholder="Status check" className={fieldCls} />
+            </div>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.assertTarget')}</label>
+              <input value={(config.target as string) || ''} onChange={(e) => updateConfig('target', e.target.value)} placeholder="{{prev.status}}" className={cn(fieldCls, 'font-mono')} />
+            </div>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.assertOperator')}</label>
+              <select value={(config.operator as string) || 'equals'} onChange={(e) => updateConfig('operator', e.target.value)} className={fieldCls}>
+                <option value="equals">Equals</option>
+                <option value="notEquals">Not Equals</option>
+                <option value="contains">Contains</option>
+                <option value="greaterThan">Greater Than</option>
+                <option value="lessThan">Less Than</option>
+                <option value="matches">Matches (Regex)</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.assertExpected')}</label>
+              <input value={(config.expected as string) || ''} onChange={(e) => updateConfig('expected', e.target.value)} placeholder="200" className={cn(fieldCls, 'font-mono')} />
+            </div>
+          </>
+        )}
+
+        {(node.nodeType === 'start' || node.nodeType === 'end') && (
+          <div className="pf-text-xs text-text-disabled text-center py-4">
+            {t(`workflow.nodeDescs.${node.nodeType}`)}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -346,6 +569,43 @@ function ExecutionPanel({
 }
 
 // ═══════════════════════════════════════════
+//  Node Palette Card
+// ═══════════════════════════════════════════
+
+function NodeCard({ nodeType, onAdd }: { nodeType: NodeType; onAdd: (nt: NodeType) => void }) {
+  const { t } = useTranslation();
+  const meta = NODE_TYPE_META[nodeType];
+  const Icon = NODE_ICONS[nodeType];
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      draggable
+      onClick={() => onAdd(nodeType)}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('application/protoforge-node-type', nodeType);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="relative flex items-center gap-2 w-full px-2 py-1.5 pf-rounded-lg text-left hover:bg-bg-hover/60 transition-all cursor-grab active:cursor-grabbing border border-transparent hover:border-border-default/40 group"
+    >
+      <div className="flex h-7 w-7 items-center justify-center pf-rounded-md shrink-0" style={{ backgroundColor: meta.color + '15' }}>
+        <Icon className="h-3.5 w-3.5" style={{ color: meta.color }} />
+      </div>
+      <span className="pf-text-xs font-medium text-text-primary truncate flex-1">{t(`workflow.nodeTypes.${nodeType}`)}</span>
+      {/* Tooltip on hover */}
+      {hovered && (
+        <div className="absolute left-full ml-2 z-[300] w-48 p-2 pf-rounded-lg bg-bg-elevated border border-border-default/60 shadow-lg pointer-events-none">
+          <div className="pf-text-xs font-semibold text-text-primary mb-0.5">{t(`workflow.nodeTypes.${nodeType}`)}</div>
+          <div className="pf-text-xxs text-text-disabled leading-4">{t(`workflow.nodeDescs.${nodeType}`)}</div>
+        </div>
+      )}
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════
 //  Main Workspace
 // ═══════════════════════════════════════════
 
@@ -381,11 +641,18 @@ function WorkflowWorkspaceInner() {
   const subscribeProgress = useWorkflowStore((s) => s.subscribeProgress);
 
   const [search, setSearch] = useState('');
+  const [nodeSearch, setNodeSearch] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [rightPanel, setRightPanel] = useState<'config' | 'results'>('config');
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [nodePaletteExpanded, setNodePaletteExpanded] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  // Resizable sidebar width via drag handle
+  const [sidebarWidth, setSidebarWidth] = useState(260);
+  const [rightPanelWidth, setRightPanelWidth] = useState(300);
+  const resizingRef = useRef<'left' | 'right' | null>(null);
+  const resizeStartRef = useRef({ x: 0, width: 0 });
 
   // Active workflow data — local editing state
   const activeWorkflow = useMemo(() => workflows.find((w) => w.id === activeWorkflowId) || null, [workflows, activeWorkflowId]);
@@ -411,8 +678,7 @@ function WorkflowWorkspaceInner() {
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const reactFlowInstance = useReactFlow();
 
-  // Rebuild RF nodes only on structural changes (add/remove node/edge) or execution status,
-  // NOT on position changes — React Flow manages positions internally via onNodesChange.
+  // Rebuild RF nodes only on structural changes
   useEffect(() => {
     if (!localWorkflow) { setRfNodes([]); setRfEdges([]); return; }
     setRfNodes(toRfNodes(localWorkflow.nodes, nodeResults));
@@ -428,6 +694,29 @@ function WorkflowWorkspaceInner() {
 
   // Fetch on mount
   useEffect(() => { fetchWorkflows(); }, [fetchWorkflows]);
+
+  // ── Resize handlers ──
+  const handleResizeStart = useCallback((side: 'left' | 'right', e: React.MouseEvent) => {
+    e.preventDefault();
+    resizingRef.current = side;
+    resizeStartRef.current = { x: e.clientX, width: side === 'left' ? sidebarWidth : rightPanelWidth };
+
+    const onMove = (ev: MouseEvent) => {
+      const delta = ev.clientX - resizeStartRef.current.x;
+      if (resizingRef.current === 'left') {
+        setSidebarWidth(Math.max(180, Math.min(500, resizeStartRef.current.width + delta)));
+      } else {
+        setRightPanelWidth(Math.max(200, Math.min(600, resizeStartRef.current.width - delta)));
+      }
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [sidebarWidth, rightPanelWidth]);
 
   // ── Handlers ──
 
@@ -453,12 +742,9 @@ function WorkflowWorkspaceInner() {
     await runWf(localWorkflow.id);
   }, [localWorkflow, dirty, saveWf, runWf]);
 
-  // Let React Flow handle position updates internally (no flicker).
-  // Only sync final positions back to localWorkflow on drag end.
   const handleNodesChange: typeof onNodesChange = useCallback((changes) => {
     onNodesChange(changes);
     for (const change of changes) {
-      // 'position' change with dragging=false means drag ended
       if (change.type === 'position' && change.dragging === false && change.position) {
         setLocalWorkflow((prev) => {
           if (!prev) return prev;
@@ -471,7 +757,6 @@ function WorkflowWorkspaceInner() {
         });
         setDirty(true);
       }
-      // Handle node removal from canvas (e.g. backspace in RF)
       if (change.type === 'remove') {
         setLocalWorkflow((prev) => {
           if (!prev) return prev;
@@ -488,13 +773,14 @@ function WorkflowWorkspaceInner() {
   }, [onNodesChange, setDirty, bumpStructure]);
 
   const onConnect: OnConnect = useCallback((connection: Connection) => {
-    setRfEdges((eds) => addEdge({ ...connection, markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 }, style: { strokeWidth: 2 } }, eds));
+    setRfEdges((eds) => addEdge({ ...connection, type: 'labeled', markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 }, style: { strokeWidth: 2 } }, eds));
     setLocalWorkflow((prev) => {
       if (!prev) return prev;
       const newEdge: FlowEdge = {
         id: crypto.randomUUID(),
         sourceNodeId: connection.source,
         targetNodeId: connection.target,
+        sourceHandle: connection.sourceHandle || undefined,
       };
       return { ...prev, edges: [...prev.edges, newEdge] };
     });
@@ -524,7 +810,6 @@ function WorkflowWorkspaceInner() {
     addNodeAtPosition(nodeType, { x: 250, y: localWorkflow.nodes.length * 120 + 60 });
   }, [localWorkflow, addNodeAtPosition]);
 
-  // Drag-and-drop from palette onto canvas
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -580,13 +865,21 @@ function WorkflowWorkspaceInner() {
     const wf = workflows.find((w) => w.id === renamingId);
     if (wf) {
       await saveWf({ ...wf, name: renameValue.trim() });
-      // If renaming the active workflow, update local state too
       if (localWorkflow && localWorkflow.id === renamingId) {
         setLocalWorkflow((prev) => prev ? { ...prev, name: renameValue.trim() } : prev);
       }
     }
     setRenamingId(null);
   }, [renamingId, renameValue, workflows, saveWf, localWorkflow]);
+
+  const toggleCategory = useCallback((catId: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
+  }, []);
 
   const selectedNode = localWorkflow?.nodes.find((n) => n.id === selectedNodeId) || null;
   const isRunning = executionStatus === 'running';
@@ -601,10 +894,23 @@ function WorkflowWorkspaceInner() {
     }
   }, [selectedNodeId, handleDeleteNode]);
 
+  // Filtered node categories for search
+  const filteredCategories = useMemo(() => {
+    if (!nodeSearch.trim()) return NODE_CATEGORIES;
+    const q = nodeSearch.toLowerCase();
+    return NODE_CATEGORIES.map((cat) => ({
+      ...cat,
+      nodes: cat.nodes.filter((nt) => {
+        const meta = NODE_TYPE_META[nt];
+        return meta.label.toLowerCase().includes(q) || nt.toLowerCase().includes(q);
+      }),
+    })).filter((cat) => cat.nodes.length > 0);
+  }, [nodeSearch]);
+
   return (
-    <div className="flex h-full min-h-0 bg-bg-app" onKeyDown={handleKeyDown} tabIndex={-1}>
-      {/* ── Left Sidebar: workflow list + node palette ── */}
-      <div className="w-[240px] shrink-0 flex flex-col border-r border-border-default/60 bg-bg-primary/60">
+    <div className={cn('flex h-full min-h-0 bg-bg-app', isFullscreen && 'fixed inset-0 z-[900]')} onKeyDown={handleKeyDown} tabIndex={-1}>
+      {/* ── Left Sidebar: workflow list + categorized node palette ── */}
+      <div className="shrink-0 flex flex-col border-r border-border-default/60 bg-bg-primary/60" style={{ width: sidebarWidth }}>
         {/* Workflow list header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-border-default/60 shrink-0">
           <span className="pf-text-xs font-semibold text-text-secondary">{t('workflow.title')}</span>
@@ -626,7 +932,7 @@ function WorkflowWorkspaceInner() {
         </div>
 
         {/* Workflow list */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto" style={{ maxHeight: '40%' }}>
           {loading ? (
             <div className="flex items-center justify-center py-8"><Loader2 className="h-4 w-4 animate-spin text-text-disabled" /></div>
           ) : filteredWorkflows.length === 0 ? (
@@ -687,47 +993,58 @@ function WorkflowWorkspaceInner() {
           )}
         </div>
 
-        {/* Node palette — collapsible */}
+        {/* ── Node Palette — categorized cards with search ── */}
         {localWorkflow && (
-          <div className="border-t border-border-default/60 flex flex-col min-h-0">
-            <button
-              onClick={() => setNodePaletteExpanded(!nodePaletteExpanded)}
-              className="flex items-center gap-1.5 px-3 py-2 pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider hover:text-text-tertiary transition-colors shrink-0"
-            >
-              {nodePaletteExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              {t('workflow.addNode')}
-            </button>
-            {nodePaletteExpanded && (
-              <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2 space-y-1">
-                {(Object.keys(NODE_TYPE_META) as NodeType[]).map((nt) => {
-                  const meta = NODE_TYPE_META[nt];
-                  const Icon = NODE_ICONS[nt];
-                  return (
-                    <button
-                      key={nt}
-                      draggable
-                      onClick={() => handleAddNode(nt)}
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('application/protoforge-node-type', nt);
-                        e.dataTransfer.effectAllowed = 'move';
-                      }}
-                      className="flex items-center gap-2.5 w-full px-2.5 py-2 pf-rounded-lg text-left hover:bg-bg-hover/60 transition-colors cursor-grab active:cursor-grabbing border border-transparent hover:border-border-default/40"
-                    >
-                      <div className="flex h-7 w-7 items-center justify-center pf-rounded-md shrink-0" style={{ backgroundColor: meta.color + '15' }}>
-                        <Icon className="h-3.5 w-3.5" style={{ color: meta.color }} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="pf-text-xs font-medium text-text-primary truncate">{t(`workflow.nodeTypes.${nt}`)}</div>
-                        <div className="pf-text-xxs text-text-disabled truncate leading-4">{t(`workflow.nodeDescs.${nt}`)}</div>
-                      </div>
-                    </button>
-                  );
-                })}
+          <div className="border-t border-border-default/60 flex flex-col flex-1 min-h-0">
+            {/* Palette header with search */}
+            <div className="px-3 py-2 border-b border-border-default/30 shrink-0">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider">{t('workflow.addNode')}</span>
               </div>
-            )}
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-text-disabled" />
+                <input
+                  value={nodeSearch} onChange={(e) => setNodeSearch(e.target.value)}
+                  placeholder={t('workflow.searchNodes')}
+                  className="h-6 w-full pf-rounded-md border border-border-default/40 bg-bg-secondary/30 pl-6 pr-2 pf-text-xxs text-text-primary outline-none placeholder:text-text-disabled focus:border-accent/40"
+                />
+              </div>
+            </div>
+
+            {/* Categories */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2">
+              {filteredCategories.map((cat) => {
+                const isCollapsed = collapsedCategories.has(cat.id);
+                return (
+                  <div key={cat.id} className="mt-1.5">
+                    <button
+                      onClick={() => toggleCategory(cat.id)}
+                      className="flex items-center gap-1 w-full px-1 py-1 pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider hover:text-text-tertiary transition-colors"
+                    >
+                      {isCollapsed ? <ChevronRight className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
+                      {t(cat.labelKey)}
+                      <span className="pf-text-xxs text-text-disabled/50 ml-auto normal-case tracking-normal">{cat.nodes.length}</span>
+                    </button>
+                    {!isCollapsed && (
+                      <div className="space-y-0.5 mt-0.5">
+                        {cat.nodes.map((nt) => (
+                          <NodeCard key={nt} nodeType={nt} onAdd={handleAddNode} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
+
+      {/* ── Left resize handle ── */}
+      <div
+        className="w-[3px] shrink-0 cursor-col-resize hover:bg-accent/30 active:bg-accent/50 transition-colors"
+        onMouseDown={(e) => handleResizeStart('left', e)}
+      />
 
       {/* ── Center: Canvas ── */}
       <div className="flex-1 min-w-0 flex flex-col">
@@ -750,6 +1067,14 @@ function WorkflowWorkspaceInner() {
                 <Play className="h-3 w-3" /> {t('workflow.run')}
               </button>
             )}
+            <div className="w-[1px] h-4 bg-border-default shrink-0" />
+            <button
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="wb-icon-btn"
+              title={isFullscreen ? t('workflow.exitFullscreen') : t('workflow.fullscreen')}
+            >
+              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            </button>
           </div>
         )}
 
@@ -766,9 +1091,10 @@ function WorkflowWorkspaceInner() {
               onDragOver={handleDragOver}
               onDrop={handleDrop}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
               fitView
               colorMode={theme === 'dark' ? 'dark' : 'light'}
-              defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 }, style: { strokeWidth: 2 } }}
+              defaultEdgeOptions={{ type: 'labeled', markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 }, style: { strokeWidth: 2 } }}
             >
               <Background gap={16} size={1} />
               <Controls showInteractive={false} />
@@ -790,9 +1116,17 @@ function WorkflowWorkspaceInner() {
         </div>
       </div>
 
+      {/* ── Right resize handle ── */}
+      {localWorkflow && (selectedNode || nodeResults.length > 0) && (
+        <div
+          className="w-[3px] shrink-0 cursor-col-resize hover:bg-accent/30 active:bg-accent/50 transition-colors"
+          onMouseDown={(e) => handleResizeStart('right', e)}
+        />
+      )}
+
       {/* ── Right Panel: Config / Results ── */}
       {localWorkflow && (selectedNode || nodeResults.length > 0) && (
-        <div className="w-[300px] shrink-0 border-l border-border-default/60 bg-bg-primary/60 flex flex-col">
+        <div className="shrink-0 border-l border-border-default/60 bg-bg-primary/60 flex flex-col" style={{ width: rightPanelWidth }}>
           {/* Panel tabs */}
           <div className="flex border-b border-border-default/60 shrink-0">
             <button

@@ -70,6 +70,15 @@ pub enum NodeType {
     ExtractData,
     Base64Encode,
     Base64Decode,
+    // Phase 1 新增 — 流程控制 & 辅助
+    Condition,
+    Loop,
+    Parallel,
+    SetVariable,
+    Log,
+    Assertion,
+    Start,
+    End,
 }
 
 /// 节点间的连线
@@ -516,6 +525,14 @@ async fn execute_node(
         NodeType::ExtractData => execute_extract_node(config, context).await,
         NodeType::Base64Encode => execute_base64_node(config, true).await,
         NodeType::Base64Decode => execute_base64_node(config, false).await,
+        // Phase 1: 占位执行器
+        NodeType::Start | NodeType::End => Ok(serde_json::json!({})),
+        NodeType::Log => execute_log_node(config).await,
+        NodeType::SetVariable => execute_set_variable_node(config, context).await,
+        NodeType::Assertion => execute_assertion_node(config, context).await,
+        NodeType::Condition => execute_condition_node(config, context).await,
+        NodeType::Loop => Ok(serde_json::json!({ "iterations": config.get("iterations").and_then(|v| v.as_u64()).unwrap_or(1) })),
+        NodeType::Parallel => Ok(serde_json::json!({ "note": "Parallel execution planned for Phase 2" })),
     }
 }
 
@@ -841,6 +858,136 @@ async fn execute_base64_node(
 
     Ok(serde_json::json!({
         "value": result,
+    }))
+}
+
+/// 日志输出节点
+async fn execute_log_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    let message = config
+        .get("message")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let level = config
+        .get("level")
+        .and_then(|v| v.as_str())
+        .unwrap_or("info")
+        .to_string();
+    // Log the message
+    match level.as_str() {
+        "warn" => log::warn!("[workflow:log] {}", message),
+        "error" => log::error!("[workflow:log] {}", message),
+        _ => log::info!("[workflow:log] {}", message),
+    }
+    Ok(serde_json::json!({
+        "message": message,
+        "level": level,
+    }))
+}
+
+/// 设置变量节点
+async fn execute_set_variable_node(
+    config: &serde_json::Value,
+    _context: &FlowContext,
+) -> Result<serde_json::Value, String> {
+    let key = config
+        .get("key")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let value = config
+        .get("value")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    if key.is_empty() {
+        return Err("变量名不能为空".to_string());
+    }
+    Ok(serde_json::json!({
+        "key": key,
+        "value": value,
+    }))
+}
+
+/// 断言节点
+async fn execute_assertion_node(
+    config: &serde_json::Value,
+    _context: &FlowContext,
+) -> Result<serde_json::Value, String> {
+    let target = config
+        .get("target")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let operator = config
+        .get("operator")
+        .and_then(|v| v.as_str())
+        .unwrap_or("equals")
+        .to_string();
+    let expected = config
+        .get("expected")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let name = config
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Assertion")
+        .to_string();
+
+    let passed = match operator.as_str() {
+        "equals" => target == expected,
+        "notEquals" => target != expected,
+        "contains" => target.contains(&expected),
+        "greaterThan" => {
+            target.parse::<f64>().unwrap_or(0.0) > expected.parse::<f64>().unwrap_or(0.0)
+        }
+        "lessThan" => {
+            target.parse::<f64>().unwrap_or(0.0) < expected.parse::<f64>().unwrap_or(0.0)
+        }
+        "matches" => {
+            regex_lite::Regex::new(&expected)
+                .map(|re| re.is_match(&target))
+                .unwrap_or(false)
+        }
+        _ => false,
+    };
+
+    if passed {
+        Ok(serde_json::json!({
+            "name": name,
+            "passed": true,
+            "target": target,
+            "operator": operator,
+            "expected": expected,
+        }))
+    } else {
+        Err(format!(
+            "断言失败 [{}]: '{}' {} '{}'",
+            name, target, operator, expected
+        ))
+    }
+}
+
+/// 条件判断节点 — Phase 1 仅求值表达式，不做分支路由
+async fn execute_condition_node(
+    config: &serde_json::Value,
+    _context: &FlowContext,
+) -> Result<serde_json::Value, String> {
+    let expression = config
+        .get("expression")
+        .and_then(|v| v.as_str())
+        .unwrap_or("true")
+        .to_string();
+    // 简单求值：检查是否为 "true" 或非空非零
+    let result = match expression.trim().to_lowercase().as_str() {
+        "true" | "1" | "yes" => true,
+        "false" | "0" | "no" | "" => false,
+        _ => !expression.trim().is_empty(),
+    };
+    Ok(serde_json::json!({
+        "expression": expression,
+        "result": result,
     }))
 }
 

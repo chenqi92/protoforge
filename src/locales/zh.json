@@ -1946,6 +1946,18 @@
     "error": "错误",
     "noOutput": "无输出",
     "rename": "重命名",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
+    "searchNodes": "搜索节点...",
+    "edgeLabel": "边标签",
+    "edgeCondition": "条件表达式",
+    "categories": {
+      "trigger": "触发",
+      "network": "网络请求",
+      "flow": "流程控制",
+      "data": "数据处理",
+      "test": "验证"
+    },
     "nodeTypes": {
       "httpRequest": "HTTP 请求",
       "tcpSend": "TCP 发送",
@@ -1954,7 +1966,15 @@
       "script": "脚本",
       "extractData": "数据提取",
       "base64Encode": "Base64 编码",
-      "base64Decode": "Base64 解码"
+      "base64Decode": "Base64 解码",
+      "condition": "条件判断",
+      "loop": "循环",
+      "parallel": "并行执行",
+      "setVariable": "设置变量",
+      "log": "日志输出",
+      "assertion": "断言",
+      "start": "开始",
+      "end": "结束"
     },
     "nodeDescs": {
       "httpRequest": "发送 HTTP/HTTPS 请求并获取响应",
@@ -1964,7 +1984,15 @@
       "script": "执行自定义 JavaScript 脚本",
       "extractData": "从上一节点输出提取数据",
       "base64Encode": "将输入编码为 Base64",
-      "base64Decode": "将 Base64 解码为原文"
+      "base64Decode": "将 Base64 解码为原文",
+      "condition": "根据条件走不同分支",
+      "loop": "重复执行指定次数",
+      "parallel": "并行执行多个子流程",
+      "setVariable": "设置或更新变量值",
+      "log": "输出日志信息到控制台",
+      "assertion": "断言验证数据是否符合预期",
+      "start": "流程起始节点",
+      "end": "流程终止节点"
     },
     "nodeFields": {
       "method": "方法",
@@ -1981,7 +2009,18 @@
       "source": "数据源",
       "mode": "提取模式",
       "expression": "表达式",
-      "input": "输入"
+      "input": "输入",
+      "condExpression": "条件表达式",
+      "iterations": "循环次数",
+      "maxConcurrency": "最大并行数",
+      "varKey": "变量名",
+      "varValue": "变量值",
+      "logMessage": "日志内容",
+      "logLevel": "日志级别",
+      "assertTarget": "断言目标",
+      "assertOperator": "比较操作",
+      "assertExpected": "期望值",
+      "assertName": "测试名称"
     },
     "emptyCanvas": "拖拽左侧节点到画布开始编排",
     "selectNode": "点击节点查看配置",

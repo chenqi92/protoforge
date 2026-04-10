@@ -1924,6 +1924,18 @@
     "error": "Error",
     "noOutput": "No output",
     "rename": "Rename",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit Fullscreen",
+    "searchNodes": "Search nodes...",
+    "edgeLabel": "Edge Label",
+    "edgeCondition": "Condition Expression",
+    "categories": {
+      "trigger": "Trigger",
+      "network": "Network",
+      "flow": "Flow Control",
+      "data": "Data",
+      "test": "Verify"
+    },
     "nodeTypes": {
       "httpRequest": "HTTP Request",
       "tcpSend": "TCP Send",
@@ -1932,7 +1944,15 @@
       "script": "Script",
       "extractData": "Extract Data",
       "base64Encode": "Base64 Encode",
-      "base64Decode": "Base64 Decode"
+      "base64Decode": "Base64 Decode",
+      "condition": "Condition",
+      "loop": "Loop",
+      "parallel": "Parallel",
+      "setVariable": "Set Variable",
+      "log": "Log",
+      "assertion": "Assertion",
+      "start": "Start",
+      "end": "End"
     },
     "nodeDescs": {
       "httpRequest": "Send HTTP/HTTPS request and get response",
@@ -1942,7 +1962,15 @@
       "script": "Execute custom JavaScript code",
       "extractData": "Extract data from previous node output",
       "base64Encode": "Encode input to Base64",
-      "base64Decode": "Decode Base64 to plaintext"
+      "base64Decode": "Decode Base64 to plaintext",
+      "condition": "Branch based on condition",
+      "loop": "Repeat execution N times",
+      "parallel": "Execute sub-flows in parallel",
+      "setVariable": "Set or update a variable",
+      "log": "Output log message to console",
+      "assertion": "Assert data matches expectation",
+      "start": "Flow start node",
+      "end": "Flow end node"
     },
     "nodeFields": {
       "method": "Method",
@@ -1959,7 +1987,18 @@
       "source": "Source",
       "mode": "Mode",
       "expression": "Expression",
-      "input": "Input"
+      "input": "Input",
+      "condExpression": "Condition Expression",
+      "iterations": "Iterations",
+      "maxConcurrency": "Max Concurrency",
+      "varKey": "Variable Name",
+      "varValue": "Variable Value",
+      "logMessage": "Log Message",
+      "logLevel": "Log Level",
+      "assertTarget": "Assert Target",
+      "assertOperator": "Operator",
+      "assertExpected": "Expected Value",
+      "assertName": "Test Name"
     },
     "emptyCanvas": "Drag nodes from the left panel onto the canvas",
     "selectNode": "Click a node to configure it",
