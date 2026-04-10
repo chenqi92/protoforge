@@ -6,7 +6,7 @@
  */
 
 import { lazy, Suspense, useState, useMemo, useCallback, useEffect, useDeferredValue } from 'react';
-import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive, Filter, Music, Loader2 } from 'lucide-react';
+import { Copy, Check, WrapText, Search, Minimize2, Maximize2, Download, FileBox, HardDrive, Filter, Music, Loader2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 // JsonTreeViewer removed — using Monaco exclusively for JSON
@@ -166,7 +166,9 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
   const [isRegexMode, setIsRegexMode] = useState(false);
   const [jsonFilterKeys, setJsonFilterKeys] = useState<Set<string>>(new Set());
   const [showKeyFilter, setShowKeyFilter] = useState(false);
+  const [filterValue, setFilterValue] = useState('');
   const deferredSearchText = useDeferredValue(searchText);
+  const deferredFilterValue = useDeferredValue(filterValue);
 
   // 插件渲染器匹配
   const installedPlugins = usePluginStore((s) => s.installedPlugins);
@@ -366,44 +368,104 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
     }
   }, [showSearch, deferredSearchText, prettyBody, body, activeTab, isRegexMode]);
 
-  // 提取 JSON 中可用的 keys
+  // 递归提取 JSON 所有层级的 keys（深度 + 数组采样限制，防止大数据卡顿）
   const availableJsonKeys = useMemo<string[]>(() => {
     if (!jsonData) return [];
     const keys = new Set<string>();
-    if (Array.isArray(jsonData)) {
-      // 数组：提取每个对象元素的 keys
-      for (const item of jsonData) {
-        if (item && typeof item === 'object' && !Array.isArray(item)) {
-          for (const key of Object.keys(item)) keys.add(key);
+    const MAX_DEPTH = 5;
+    const MAX_SAMPLE = 20;
+    const MAX_KEYS = 500;
+
+    function collect(obj: unknown, depth: number) {
+      if (depth > MAX_DEPTH || keys.size >= MAX_KEYS || !obj || typeof obj !== 'object') return;
+      if (Array.isArray(obj)) {
+        const limit = Math.min(obj.length, MAX_SAMPLE);
+        for (let i = 0; i < limit; i++) collect(obj[i], depth);
+      } else {
+        for (const [key, val] of Object.entries(obj as Record<string, unknown>)) {
+          keys.add(key);
+          if (keys.size >= MAX_KEYS) return;
+          if (val && typeof val === 'object') collect(val, depth + 1);
         }
       }
-    } else if (typeof jsonData === 'object' && jsonData !== null) {
-      // 对象：提取顶层 keys
-      for (const key of Object.keys(jsonData)) keys.add(key);
     }
+
+    collect(jsonData, 0);
     return Array.from(keys).sort();
   }, [jsonData]);
 
-  // 根据 key 过滤后的 JSON 展示内容
+  // 按搜索文本过滤可见 chips
+  const visibleJsonKeys = useMemo(() => {
+    if (!deferredSearchText) return availableJsonKeys;
+    const lower = deferredSearchText.toLowerCase();
+    return availableJsonKeys.filter(k => k.toLowerCase().includes(lower));
+  }, [availableJsonKeys, deferredSearchText]);
+
+  // 根据 key 过滤后的 JSON 展示内容（支持 key 投影 + key=value 行筛选两种模式）
   const filteredPrettyBody = useMemo(() => {
     if (jsonFilterKeys.size === 0 || !jsonData) return prettyBody;
-    const filterObj = (obj: any): any => {
-      if (!obj || typeof obj !== 'object') return obj;
+
+    const selectedKeys = jsonFilterKeys;
+    const valueFilter = deferredFilterValue.trim();
+
+    /** Mode A: 投影 — 仅保留选中 key，递归保持链路结构 */
+    function projectKeys(obj: unknown): unknown {
+      if (obj == null || typeof obj !== 'object') return undefined;
       if (Array.isArray(obj)) {
-        return obj.map(item => filterObj(item));
+        const mapped = obj.map(item => projectKeys(item)).filter(v => v !== undefined);
+        return mapped.length > 0 ? mapped : undefined;
       }
-      const filtered: Record<string, any> = {};
-      for (const key of jsonFilterKeys) {
-        if (key in obj) filtered[key] = obj[key];
+      const result: Record<string, unknown> = {};
+      let has = false;
+      for (const [key, val] of Object.entries(obj as Record<string, unknown>)) {
+        if (selectedKeys.has(key)) {
+          result[key] = val; has = true;
+        } else if (val && typeof val === 'object') {
+          const nested = projectKeys(val);
+          if (nested !== undefined) { result[key] = nested; has = true; }
+        }
       }
-      return filtered;
-    };
+      return has ? result : undefined;
+    }
+
+    /** Mode B: 行筛选 — 筛选数组中 key=value 匹配的项，保留完整对象和链路 */
+    function filterByValue(obj: unknown): unknown {
+      if (obj == null || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) {
+        const hasTargetKey = obj.some(item =>
+          item && typeof item === 'object' && !Array.isArray(item) &&
+          [...selectedKeys].some(k => k in (item as Record<string, unknown>))
+        );
+        if (hasTargetKey) {
+          const lv = valueFilter.toLowerCase();
+          return obj.filter(item => {
+            if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+            const rec = item as Record<string, unknown>;
+            return [...selectedKeys].some(key => {
+              const v = rec[key];
+              if (v === undefined) return false;
+              const sv = typeof v === 'string' ? v : JSON.stringify(v);
+              return sv.toLowerCase().includes(lv);
+            });
+          });
+        }
+        const mapped = obj.map(item => filterByValue(item));
+        return mapped;
+      }
+      const result: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+        result[k] = (v && typeof v === 'object') ? filterByValue(v) : v;
+      }
+      return result;
+    }
+
     try {
-      return JSON.stringify(filterObj(jsonData), null, 2);
+      const filtered = valueFilter ? filterByValue(jsonData) : projectKeys(jsonData);
+      return JSON.stringify(filtered ?? (Array.isArray(jsonData) ? [] : {}), null, 2);
     } catch {
       return prettyBody;
     }
-  }, [jsonData, jsonFilterKeys, prettyBody]);
+  }, [jsonData, jsonFilterKeys, deferredFilterValue, prettyBody]);
 
   // 当 JSON 数据变化时，清除不再存在的 key 过滤
   useEffect(() => {
@@ -415,6 +477,11 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
       }
     }
   }, [availableJsonKeys]);
+
+  // value 过滤仅在单 key 选中时有意义
+  useEffect(() => {
+    if (jsonFilterKeys.size === 0) setFilterValue('');
+  }, [jsonFilterKeys.size]);
 
 
   const modeLabels: Record<ViewMode, string> = {
@@ -541,9 +608,9 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
               <button
                 onClick={() => {
                   if (showKeyFilter) {
-                    // Collapsing: also clear all selected keys
                     setShowKeyFilter(false);
                     setJsonFilterKeys(new Set());
+                    setFilterValue('');
                   } else {
                     setShowKeyFilter(true);
                   }
@@ -572,34 +639,65 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
             )}
           </div>
 
-          {/* Key chips row — inline below search */}
+          {/* Key chips row — 按搜索文本过滤，渲染上限 200 */}
           {showKeyFilter && activeBuiltinMode === 'json' && availableJsonKeys.length > 0 && (
-            <div className="flex items-center gap-1 px-3 pb-1.5 overflow-x-auto scrollbar-hide">
-              {availableJsonKeys.map(key => {
-                const isActive = jsonFilterKeys.has(key);
-                return (
-                  <button
-                    key={key}
-                    onClick={() => {
-                      setJsonFilterKeys(prev => {
-                        const next = new Set(prev);
-                        if (next.has(key)) next.delete(key);
-                        else next.add(key);
-                        return next;
-                      });
-                    }}
-                    className={cn(
-                      'inline-flex items-center gap-1 h-[22px] px-2 pf-rounded-sm text-[11px] font-mono whitespace-nowrap transition-all shrink-0 border',
-                      isActive
-                        ? 'bg-accent/10 text-accent border-accent/25 shadow-[0_0_0_1px_rgba(59,130,246,0.06)]'
-                        : 'bg-bg-primary/80 text-text-tertiary border-border-default/60 hover:bg-bg-hover hover:text-text-secondary hover:border-border-default'
-                    )}
-                  >
-                    {isActive && <Check className="w-2.5 h-2.5" />}
-                    {key}
-                  </button>
-                );
-              })}
+            <div className="flex flex-col gap-1 px-3 pb-1.5">
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+                {visibleJsonKeys.slice(0, 200).map(key => {
+                  const isActive = jsonFilterKeys.has(key);
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setJsonFilterKeys(prev => {
+                          const next = new Set(prev);
+                          if (next.has(key)) next.delete(key);
+                          else next.add(key);
+                          return next;
+                        });
+                      }}
+                      className={cn(
+                        'inline-flex items-center gap-1 h-[22px] px-2 pf-rounded-sm text-[11px] font-mono whitespace-nowrap transition-all shrink-0 border',
+                        isActive
+                          ? 'bg-accent/10 text-accent border-accent/25 shadow-[0_0_0_1px_rgba(59,130,246,0.06)]'
+                          : 'bg-bg-primary/80 text-text-tertiary border-border-default/60 hover:bg-bg-hover hover:text-text-secondary hover:border-border-default'
+                      )}
+                    >
+                      {isActive && <Check className="w-2.5 h-2.5" />}
+                      {key}
+                    </button>
+                  );
+                })}
+                {visibleJsonKeys.length > 200 && (
+                  <span className="text-text-disabled text-[10px] shrink-0 pl-1">
+                    {t('response.moreKeys', { count: visibleJsonKeys.length - 200, defaultValue: `… 还有 ${visibleJsonKeys.length - 200} 个` })}
+                  </span>
+                )}
+                {deferredSearchText && visibleJsonKeys.length === 0 && (
+                  <span className="text-text-disabled text-[11px]">
+                    {t('response.noMatchingKeys', { defaultValue: '无匹配 Key' })}
+                  </span>
+                )}
+              </div>
+
+              {/* Value 过滤输入 — 选中 key 后出现 */}
+              {jsonFilterKeys.size > 0 && (
+                <div className="flex items-center gap-1.5 h-[26px] px-2 rounded-md border border-border-default/60 bg-bg-primary/60">
+                  <span className="text-accent/60 font-mono text-[11px] shrink-0">{[...jsonFilterKeys].join(', ')}</span>
+                  <span className="text-text-disabled text-[11px] shrink-0">=</span>
+                  <input
+                    value={filterValue}
+                    onChange={(e) => setFilterValue(e.target.value)}
+                    placeholder={t('response.filterValuePlaceholder', { defaultValue: '输入值筛选匹配项…' })}
+                    className="flex-1 min-w-0 h-full bg-transparent outline-none text-text-primary placeholder:text-text-disabled font-mono text-[11px]"
+                  />
+                  {filterValue && (
+                    <button onClick={() => setFilterValue('')} className="text-text-disabled hover:text-text-secondary shrink-0">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -626,9 +724,18 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                 <div className="flex items-center gap-1.5 pf-rounded-sm bg-accent/6 border border-accent/15 px-2.5 py-1 shrink-0" style={{ fontSize: 'var(--fs-xxs)' }}>
                   <Filter className="w-2.5 h-2.5 text-accent/60" />
                   <span className="text-accent/80">
-                    {t('response.filterActive', { count: jsonFilterKeys.size, defaultValue: `已过滤 ${jsonFilterKeys.size} 个 Key` })}
+                    {deferredFilterValue
+                      ? t('response.filterActiveWithValue', {
+                          keys: [...jsonFilterKeys].join(', '),
+                          value: deferredFilterValue,
+                          defaultValue: `筛选 ${[...jsonFilterKeys].join(', ')} = "${deferredFilterValue}"`,
+                        })
+                      : t('response.filterActive', { count: jsonFilterKeys.size, defaultValue: `已过滤 ${jsonFilterKeys.size} 个 Key` })
+                    }
                   </span>
-                  <span className="text-accent/50 font-mono truncate">{[...jsonFilterKeys].join(', ')}</span>
+                  {!deferredFilterValue && (
+                    <span className="text-accent/50 font-mono truncate">{[...jsonFilterKeys].join(', ')}</span>
+                  )}
                 </div>
               )}
               <div className="flex-1 min-h-0">

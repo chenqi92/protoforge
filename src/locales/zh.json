@@ -1399,7 +1399,11 @@
     "tableName": "表名",
     "changePath": "切换",
     "exportSuccess": "导出成功",
-    "exportFailed": "导出失败"
+    "exportFailed": "导出失败",
+    "filterValuePlaceholder": "输入值筛选匹配项…",
+    "filterActiveWithValue": "筛选 {{keys}} = \"{{value}}\"",
+    "noMatchingKeys": "无匹配 Key",
+    "moreKeys": "… 还有 {{count}} 个"
   },
   "history": {
     "lastWeek": "7 天内",

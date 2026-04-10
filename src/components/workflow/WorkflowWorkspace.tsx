@@ -105,6 +105,7 @@ function RectangleNode({ data }: { data: FlowNodeData }) {
   const isRunning = data.status === 'running';
   const isDone = data.status === 'completed';
   const isFailed = data.status === 'failed';
+  const hCls = '!w-3 !h-3 !bg-accent !border-2 !border-bg-primary';
 
   return (
     <div className={cn(
@@ -114,7 +115,15 @@ function RectangleNode({ data }: { data: FlowNodeData }) {
       isFailed && 'border-red-500',
       !isRunning && !isDone && !isFailed && 'border-border-default',
     )}>
-      <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-accent !border-2 !border-bg-primary" />
+      {/* Each direction has both source+target so you can drag from AND drop onto any point */}
+      <Handle type="target" position={Position.Top} id="top-target" className={hCls} />
+      <Handle type="source" position={Position.Top} id="top-source" className={cn(hCls, '!bg-transparent')} />
+      <Handle type="target" position={Position.Bottom} id="bottom-target" className={cn(hCls, '!bg-transparent')} />
+      <Handle type="source" position={Position.Bottom} id="bottom-source" className={hCls} />
+      <Handle type="target" position={Position.Left} id="left-target" className={hCls} />
+      <Handle type="source" position={Position.Left} id="left-source" className={cn(hCls, '!bg-transparent')} />
+      <Handle type="target" position={Position.Right} id="right-target" className={cn(hCls, '!bg-transparent')} />
+      <Handle type="source" position={Position.Right} id="right-source" className={hCls} />
       <div className="flex items-center gap-2">
         <div className="flex h-7 w-7 items-center justify-center rounded-md" style={{ backgroundColor: meta.color + '20' }}>
           <Icon className="h-3.5 w-3.5" style={{ color: meta.color }} />
@@ -127,7 +136,6 @@ function RectangleNode({ data }: { data: FlowNodeData }) {
         {isDone && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
         {isFailed && <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-accent !border-2 !border-bg-primary" />
     </div>
   );
 }
@@ -137,9 +145,11 @@ function CircleNode({ data }: { data: FlowNodeData }) {
   const Icon = NODE_ICONS[data.nodeType] || Globe;
   const meta = NODE_TYPE_META[data.nodeType];
   const isEnd = data.nodeType === 'end';
+  const isStart = data.nodeType === 'start';
   const isRunning = data.status === 'running';
   const isDone = data.status === 'completed';
   const isFailed = data.status === 'failed';
+  const hCls = '!w-3 !h-3 !bg-accent !border-2 !border-bg-primary';
 
   return (
     <div className={cn(
@@ -150,13 +160,16 @@ function CircleNode({ data }: { data: FlowNodeData }) {
       isFailed && 'border-red-500',
       !isRunning && !isDone && !isFailed && 'border-border-default',
     )} style={isEnd && !isRunning && !isDone && !isFailed ? { boxShadow: `0 0 0 3px ${meta.color}40` } : undefined}>
-      {data.nodeType !== 'start' && (
-        <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-accent !border-2 !border-bg-primary" />
-      )}
+      {/* Start: only source handles (outgoing). End: only target handles (incoming). */}
+      {!isStart && <Handle type="target" position={Position.Top} id="top-target" className={hCls} />}
+      {!isStart && <Handle type="target" position={Position.Left} id="left-target" className={hCls} />}
+      {!isStart && <Handle type="target" position={Position.Bottom} id="bottom-target" className={cn(hCls, '!bg-transparent')} />}
+      {!isStart && <Handle type="target" position={Position.Right} id="right-target" className={cn(hCls, '!bg-transparent')} />}
       <Icon className="h-5 w-5" style={{ color: meta.color }} />
-      {data.nodeType !== 'end' && (
-        <Handle type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-accent !border-2 !border-bg-primary" />
-      )}
+      {!isEnd && <Handle type="source" position={Position.Bottom} id="bottom-source" className={hCls} />}
+      {!isEnd && <Handle type="source" position={Position.Right} id="right-source" className={hCls} />}
+      {!isEnd && <Handle type="source" position={Position.Top} id="top-source" className={cn(hCls, '!bg-transparent')} />}
+      {!isEnd && <Handle type="source" position={Position.Left} id="left-source" className={cn(hCls, '!bg-transparent')} />}
     </div>
   );
 }
@@ -168,10 +181,15 @@ function DiamondNode({ data }: { data: FlowNodeData }) {
   const isRunning = data.status === 'running';
   const isDone = data.status === 'completed';
   const isFailed = data.status === 'failed';
+  const hCls = '!w-3 !h-3 !bg-accent !border-2 !border-bg-primary';
 
   return (
     <div className="relative" style={{ width: 80, height: 80 }}>
-      <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-accent !border-2 !border-bg-primary" style={{ top: -6 }} />
+      {/* Each direction: source + target overlaid */}
+      <Handle type="target" position={Position.Top} id="top-target" className={hCls} style={{ top: -5 }} />
+      <Handle type="source" position={Position.Top} id="top-source" className={cn(hCls, '!bg-transparent')} style={{ top: -5 }} />
+      <Handle type="target" position={Position.Left} id="left-target" className={hCls} style={{ left: -5 }} />
+      <Handle type="source" position={Position.Left} id="left-source" className="!w-3 !h-3 !bg-red-500 !border-2 !border-bg-primary" style={{ left: -5 }} />
       <div
         className={cn(
           'absolute inset-0 border-2 bg-bg-primary shadow-sm transition-colors',
@@ -186,10 +204,10 @@ function DiamondNode({ data }: { data: FlowNodeData }) {
         <Icon className="h-4 w-4" style={{ color: meta.color }} />
         <span className="pf-text-xxs font-semibold text-text-primary mt-0.5 truncate max-w-[60px]">{data.label}</span>
       </div>
-      {/* Two source handles: left (false) and right (true), plus bottom */}
-      <Handle type="source" position={Position.Bottom} id="bottom" className="!w-3 !h-3 !bg-accent !border-2 !border-bg-primary" style={{ bottom: -6 }} />
-      <Handle type="source" position={Position.Right} id="right" className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-bg-primary" style={{ right: -6 }} />
-      <Handle type="source" position={Position.Left} id="left" className="!w-3 !h-3 !bg-red-500 !border-2 !border-bg-primary" style={{ left: -6 }} />
+      <Handle type="target" position={Position.Bottom} id="bottom-target" className={cn(hCls, '!bg-transparent')} style={{ bottom: -5 }} />
+      <Handle type="source" position={Position.Bottom} id="bottom-source" className={hCls} style={{ bottom: -5 }} />
+      <Handle type="target" position={Position.Right} id="right-target" className={cn(hCls, '!bg-transparent')} style={{ right: -5 }} />
+      <Handle type="source" position={Position.Right} id="right-source" className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-bg-primary" style={{ right: -5 }} />
     </div>
   );
 }
@@ -532,6 +550,7 @@ function ExecutionPanel({
           const meta = NODE_TYPE_META[result.nodeType];
           const Icon = NODE_ICONS[result.nodeType] || Globe;
           const expanded = expandedNode === result.nodeId;
+          const summary = getResultSummary(result);
           return (
             <div key={result.nodeId} className="border-b border-border-default/30">
               <button
@@ -543,9 +562,12 @@ function ExecutionPanel({
                 {result.status === 'running' && <Loader2 className="h-3 w-3 animate-spin text-amber-500 shrink-0" />}
                 {result.status === 'pending' && <Clock className="h-3 w-3 text-text-disabled shrink-0" />}
                 <Icon className="h-3 w-3 shrink-0" style={{ color: meta.color }} />
-                <span className="pf-text-xs font-medium text-text-primary flex-1 truncate">{result.nodeName}</span>
-                <span className="pf-text-xxs text-text-disabled">{result.durationMs}ms</span>
-                {expanded ? <ChevronDown className="h-3 w-3 text-text-disabled" /> : <ChevronRight className="h-3 w-3 text-text-disabled" />}
+                <div className="flex-1 min-w-0">
+                  <span className="pf-text-xs font-medium text-text-primary truncate block">{result.nodeName}</span>
+                  {summary && <span className="pf-text-xxs text-text-disabled truncate block">{summary}</span>}
+                </div>
+                <span className="pf-text-xxs text-text-disabled shrink-0">{result.durationMs}ms</span>
+                {expanded ? <ChevronDown className="h-3 w-3 text-text-disabled shrink-0" /> : <ChevronRight className="h-3 w-3 text-text-disabled shrink-0" />}
               </button>
               {expanded && (
                 <div className="px-4 pb-3">
@@ -554,10 +576,7 @@ function ExecutionPanel({
                       {result.error}
                     </div>
                   )}
-                  <div className="pf-text-xxs text-text-tertiary mb-1">{t('workflow.output')}:</div>
-                  <pre className="pf-text-xxs font-mono text-text-secondary bg-bg-secondary/40 p-2 pf-rounded-md overflow-x-auto max-h-[200px] overflow-y-auto">
-                    {result.output != null ? JSON.stringify(result.output, null, 2) : t('workflow.noOutput')}
-                  </pre>
+                  {renderNodeOutput(result, t)}
                 </div>
               )}
             </div>
@@ -569,7 +588,209 @@ function ExecutionPanel({
 }
 
 // ═══════════════════════════════════════════
-//  Node Palette Card
+//  Result formatting helpers
+// ═══════════════════════════════════════════
+
+/** Get a short one-line summary for the result list */
+function getResultSummary(result: NodeResult): string | null {
+  const out = result.output as Record<string, unknown> | null;
+  if (!out || typeof out !== 'object') return null;
+  switch (result.nodeType) {
+    case 'httpRequest': {
+      const status = out.status ?? out.statusCode ?? '';
+      const url = (out.url as string) || '';
+      return status ? `${status} ${url ? url.substring(0, 40) : ''}` : null;
+    }
+    case 'tcpSend':
+    case 'udpSend':
+      return `${out.sentBytes ?? 0} bytes -> ${(out.address as string) || (out.target as string) || ''}`;
+    case 'delay':
+      return `${out.delayMs ?? 0}ms`;
+    case 'log':
+      return `[${(out.level as string) || 'info'}] ${((out.message as string) || '').substring(0, 50)}`;
+    case 'setVariable':
+      return `${out.key} = ${((out.value as string) || '').substring(0, 30)}`;
+    case 'assertion':
+      return out.passed ? `PASS: ${out.name}` : `FAIL: ${out.name}`;
+    case 'condition':
+      return `${out.expression} -> ${out.result}`;
+    case 'extractData':
+      return `${((out.value as string) || '').substring(0, 50)}`;
+    case 'base64Encode':
+    case 'base64Decode':
+      return `${((out.value as string) || '').substring(0, 50)}`;
+    case 'loop':
+      return `${out.iterations} iterations`;
+    case 'start':
+    case 'end':
+      return null;
+    default:
+      return null;
+  }
+}
+
+/** Render structured output for each node type */
+function renderNodeOutput(result: NodeResult, t: (key: string) => string) {
+  const out = result.output as Record<string, unknown> | null;
+  const kvCls = 'flex items-start gap-2 py-1 border-b border-border-default/20 last:border-0';
+  const keyCls = 'pf-text-xxs font-semibold text-text-tertiary shrink-0 w-16';
+  const valCls = 'pf-text-xxs text-text-secondary break-all flex-1 font-mono';
+
+  // Null / empty output
+  if (out == null || (typeof out === 'object' && Object.keys(out).length === 0)) {
+    return <div className="pf-text-xxs text-text-disabled py-2">{t('workflow.noOutput')}</div>;
+  }
+
+  // Special rendering per node type
+  switch (result.nodeType) {
+    case 'httpRequest': {
+      const status = out.status ?? out.statusCode;
+      const headers = out.headers as Record<string, string> | undefined;
+      const body = out.body as string | undefined;
+      return (
+        <div className="space-y-1">
+          {status != null && (
+            <div className={kvCls}><span className={keyCls}>Status</span><span className={valCls}>{String(status)}</span></div>
+          )}
+          {Boolean(out.url) && (
+            <div className={kvCls}><span className={keyCls}>URL</span><span className={valCls}>{String(out.url)}</span></div>
+          )}
+          {headers && Object.keys(headers).length > 0 && (
+            <details className="mt-1">
+              <summary className="pf-text-xxs text-text-tertiary cursor-pointer hover:text-text-secondary">Headers ({Object.keys(headers).length})</summary>
+              <div className="mt-1 space-y-0.5">
+                {Object.entries(headers).slice(0, 20).map(([k, v]) => (
+                  <div key={k} className="pf-text-xxs font-mono text-text-disabled"><span className="text-text-tertiary">{k}:</span> {v}</div>
+                ))}
+              </div>
+            </details>
+          )}
+          {body != null && (
+            <details className="mt-1">
+              <summary className="pf-text-xxs text-text-tertiary cursor-pointer hover:text-text-secondary">Body</summary>
+              <pre className="pf-text-xxs font-mono text-text-secondary bg-bg-secondary/40 p-2 pf-rounded-md overflow-x-auto max-h-[200px] overflow-y-auto mt-1">
+                {typeof body === 'string' ? body : JSON.stringify(body, null, 2)}
+              </pre>
+            </details>
+          )}
+          {/* Fallback: show raw if no structured fields */}
+          {status == null && !body && (
+            <pre className="pf-text-xxs font-mono text-text-secondary bg-bg-secondary/40 p-2 pf-rounded-md overflow-x-auto max-h-[200px] overflow-y-auto">
+              {JSON.stringify(out, null, 2)}
+            </pre>
+          )}
+        </div>
+      );
+    }
+    case 'tcpSend':
+    case 'udpSend': {
+      return (
+        <div className="space-y-1">
+          <div className={kvCls}><span className={keyCls}>Sent</span><span className={valCls}>{String(out.sent || '')}</span></div>
+          <div className={kvCls}><span className={keyCls}>Bytes</span><span className={valCls}>{String(out.sentBytes ?? 0)}</span></div>
+          <div className={kvCls}><span className={keyCls}>Target</span><span className={valCls}>{String(out.address || out.target || '')}</span></div>
+          {out.response != null && (
+            <details className="mt-1">
+              <summary className="pf-text-xxs text-text-tertiary cursor-pointer">Response</summary>
+              <pre className="pf-text-xxs font-mono text-text-secondary bg-bg-secondary/40 p-2 pf-rounded-md overflow-x-auto max-h-[150px] overflow-y-auto mt-1">
+                {typeof out.response === 'string' ? out.response : JSON.stringify(out.response, null, 2)}
+              </pre>
+            </details>
+          )}
+        </div>
+      );
+    }
+    case 'delay':
+      return <div className={kvCls}><span className={keyCls}>Delay</span><span className={valCls}>{String(out.delayMs)}ms</span></div>;
+    case 'log':
+      return (
+        <div className={cn('p-2 pf-rounded-md pf-text-xxs font-mono', out.level === 'error' ? 'bg-red-500/5 text-red-500' : out.level === 'warn' ? 'bg-amber-500/5 text-amber-600' : 'bg-bg-secondary/40 text-text-secondary')}>
+          [{String(out.level).toUpperCase()}] {String(out.message)}
+        </div>
+      );
+    case 'setVariable':
+      return (
+        <div className="space-y-1">
+          <div className={kvCls}><span className={keyCls}>Key</span><span className={valCls}>{String(out.key)}</span></div>
+          <div className={kvCls}><span className={keyCls}>Value</span><span className={valCls}>{String(out.value)}</span></div>
+        </div>
+      );
+    case 'assertion': {
+      const passed = Boolean(out.passed);
+      return (
+        <div className={cn('p-2 pf-rounded-md pf-text-xxs border', passed ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20')}>
+          <div className="flex items-center gap-1.5 mb-1">
+            {passed ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <XCircle className="h-3 w-3 text-red-500" />}
+            <span className={cn('font-semibold', passed ? 'text-emerald-600' : 'text-red-500')}>{String(out.name || 'Assertion')}</span>
+          </div>
+          <div className="font-mono text-text-disabled">{String(out.target)} {String(out.operator)} {String(out.expected)}</div>
+        </div>
+      );
+    }
+    case 'condition':
+      return (
+        <div className="space-y-1">
+          <div className={kvCls}><span className={keyCls}>Expr</span><span className={valCls}>{String(out.expression)}</span></div>
+          <div className={kvCls}><span className={keyCls}>Result</span><span className={cn(valCls, out.result ? 'text-emerald-500' : 'text-red-500')}>{String(out.result)}</span></div>
+        </div>
+      );
+    case 'extractData':
+    case 'base64Encode':
+    case 'base64Decode':
+      return (
+        <div className="space-y-1">
+          <div className="pf-text-xxs text-text-tertiary mb-1">{t('workflow.output')}:</div>
+          <pre className="pf-text-xxs font-mono text-text-secondary bg-bg-secondary/40 p-2 pf-rounded-md overflow-x-auto max-h-[200px] overflow-y-auto">
+            {String(out.value || '')}
+          </pre>
+        </div>
+      );
+    case 'script': {
+      const logs = out.logs as string[] | undefined;
+      const tests = out.testResults as Array<{ name: string; passed: boolean }> | undefined;
+      return (
+        <div className="space-y-1.5">
+          {logs && logs.length > 0 && (
+            <div>
+              <div className="pf-text-xxs text-text-tertiary mb-0.5">Console:</div>
+              <div className="bg-bg-secondary/40 p-1.5 pf-rounded-md max-h-[120px] overflow-y-auto">
+                {logs.map((log, i) => <div key={i} className="pf-text-xxs font-mono text-text-secondary">{log}</div>)}
+              </div>
+            </div>
+          )}
+          {tests && tests.length > 0 && (
+            <div>
+              <div className="pf-text-xxs text-text-tertiary mb-0.5">Tests:</div>
+              {tests.map((test, i) => (
+                <div key={i} className="flex items-center gap-1.5 pf-text-xxs">
+                  {test.passed ? <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" /> : <XCircle className="h-2.5 w-2.5 text-red-500" />}
+                  <span className="text-text-secondary">{test.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {(!logs || logs.length === 0) && (!tests || tests.length === 0) && (
+            <div className="pf-text-xxs text-text-disabled">{t('workflow.noOutput')}</div>
+          )}
+        </div>
+      );
+    }
+    default: {
+      // Fallback: render as JSON
+      return (
+        <div>
+          <div className="pf-text-xxs text-text-tertiary mb-1">{t('workflow.output')}:</div>
+          <pre className="pf-text-xxs font-mono text-text-secondary bg-bg-secondary/40 p-2 pf-rounded-md overflow-x-auto max-h-[200px] overflow-y-auto">
+            {JSON.stringify(out, null, 2)}
+          </pre>
+        </div>
+      );
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+//  Node Palette Card (compact grid card)
 // ═══════════════════════════════════════════
 
 function NodeCard({ nodeType, onAdd }: { nodeType: NodeType; onAdd: (nt: NodeType) => void }) {
@@ -588,15 +809,15 @@ function NodeCard({ nodeType, onAdd }: { nodeType: NodeType; onAdd: (nt: NodeTyp
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="relative flex items-center gap-2 w-full px-2 py-1.5 pf-rounded-lg text-left hover:bg-bg-hover/60 transition-all cursor-grab active:cursor-grabbing border border-transparent hover:border-border-default/40 group"
+      className="relative flex flex-col items-center justify-center p-1.5 pf-rounded-lg hover:bg-bg-hover/60 transition-all cursor-grab active:cursor-grabbing border border-transparent hover:border-border-default/40 group aspect-square"
     >
-      <div className="flex h-7 w-7 items-center justify-center pf-rounded-md shrink-0" style={{ backgroundColor: meta.color + '15' }}>
-        <Icon className="h-3.5 w-3.5" style={{ color: meta.color }} />
+      <div className="flex h-6 w-6 items-center justify-center pf-rounded-md mb-0.5" style={{ backgroundColor: meta.color + '15' }}>
+        <Icon className="h-3 w-3" style={{ color: meta.color }} />
       </div>
-      <span className="pf-text-xs font-medium text-text-primary truncate flex-1">{t(`workflow.nodeTypes.${nodeType}`)}</span>
+      <span className="pf-text-xxs font-medium text-text-primary truncate w-full text-center leading-tight">{t(`workflow.nodeTypes.${nodeType}`)}</span>
       {/* Tooltip on hover */}
       {hovered && (
-        <div className="absolute left-full ml-2 z-[300] w-48 p-2 pf-rounded-lg bg-bg-elevated border border-border-default/60 shadow-lg pointer-events-none">
+        <div className="absolute left-full ml-2 top-0 z-[300] w-44 p-2 pf-rounded-lg bg-bg-elevated border border-border-default/60 shadow-lg pointer-events-none">
           <div className="pf-text-xs font-semibold text-text-primary mb-0.5">{t(`workflow.nodeTypes.${nodeType}`)}</div>
           <div className="pf-text-xxs text-text-disabled leading-4">{t(`workflow.nodeDescs.${nodeType}`)}</div>
         </div>
@@ -1026,7 +1247,7 @@ function WorkflowWorkspaceInner() {
                       <span className="pf-text-xxs text-text-disabled/50 ml-auto normal-case tracking-normal">{cat.nodes.length}</span>
                     </button>
                     {!isCollapsed && (
-                      <div className="space-y-0.5 mt-0.5">
+                      <div className="grid gap-1 mt-0.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))' }}>
                         {cat.nodes.map((nt) => (
                           <NodeCard key={nt} nodeType={nt} onAdd={handleAddNode} />
                         ))}

@@ -24,7 +24,9 @@
       "Bash(xargs ls:*)",
       "Bash(ls:*)",
       "Bash(find E:\\\\workspace-freq\\\\protoforge:*)",
-      "Bash(find \"E:\\\\workspace-freq\\\\protoforge\\\\src\" -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec grep -l \"http\\\\|fetch\\\\|import.*http\" {} \\\\;)"
+      "Bash(find \"E:\\\\workspace-freq\\\\protoforge\\\\src\" -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec grep -l \"http\\\\|fetch\\\\|import.*http\" {} \\\\;)",
+      "Bash(cat)",
+      "Read(//tmp/**)"
     ]
   }
 }

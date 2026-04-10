@@ -1377,7 +1377,11 @@
     "tableName": "Table Name",
     "changePath": "Change",
     "exportSuccess": "Export successful",
-    "exportFailed": "Export failed"
+    "exportFailed": "Export failed",
+    "filterValuePlaceholder": "Filter by value…",
+    "filterActiveWithValue": "Filtering {{keys}} = \"{{value}}\"",
+    "noMatchingKeys": "No matching keys",
+    "moreKeys": "… and {{count}} more"
   },
   "history": {
     "lastWeek": "Last 7 Days",

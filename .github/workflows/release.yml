@@ -13,6 +13,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: short
+  # Monaco Editor 完整本地打包后 Vite 转译内存需求增大
+  NODE_OPTIONS: --max-old-space-size=8192
 
 jobs:
   # ────────────────────────────────────────────────────────────────

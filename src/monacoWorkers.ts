@@ -25,3 +25,6 @@ self.MonacoEnvironment = {
 
 // ── 2. 注入本地 monaco 实例，阻止 loader 从 CDN 加载 ──
 loader.config({ monaco });
+
+// ── 3. 挂载到 window，供 GlobalContextMenu 等通过 window.monaco.editor.getEditors() 访问 ──
+(window as any).monaco = monaco;
