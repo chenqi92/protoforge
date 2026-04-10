@@ -5,6 +5,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type {
   Workflow,
   WorkflowProgressEvent,
+  WorkflowExecution,
   NodeResult,
   ExecutionStatus,
 } from '@/types/workflow';
@@ -128,11 +129,12 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ executionId: null, executionStatus: null, executionError: null, executionProgress: null, nodeResults: [] }),
 
   subscribeProgress: async () => {
-    return listen<WorkflowProgressEvent>('workflow-progress', (event) => {
+    const unlistenProgress = await listen<WorkflowProgressEvent>('workflow-progress', (event) => {
       const progress = event.payload;
       // Use functional set() to read + write state atomically, avoiding race conditions
       // when multiple progress events arrive in quick succession
       set((state) => {
+        if (state.executionId && progress.executionId !== state.executionId) return state;
         let nodeResults = state.nodeResults;
         if (progress.nodeResult) {
           const idx = nodeResults.findIndex((r) => r.nodeId === progress.nodeResult!.nodeId);
@@ -144,11 +146,31 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           }
         }
         return {
+          executionId: state.executionId ?? progress.executionId,
           executionProgress: progress,
           executionStatus: progress.status,
           nodeResults,
         };
       });
     });
+
+    const unlistenCompleted = await listen<WorkflowExecution>('workflow-completed', (event) => {
+      const execution = event.payload;
+      set((state) => {
+        if (state.executionId && execution.executionId !== state.executionId) return state;
+        return {
+          executionId: execution.executionId,
+          executionStatus: execution.status,
+          executionProgress: state.executionProgress,
+          nodeResults: execution.nodeResults,
+          executionError: execution.status === 'failed' ? state.executionError : null,
+        };
+      });
+    });
+
+    return () => {
+      unlistenProgress();
+      unlistenCompleted();
+    };
   },
 }));

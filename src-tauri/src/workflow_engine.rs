@@ -68,13 +68,21 @@ pub enum NodeType {
     Delay,
     Script,
     ExtractData,
+    JsonParse,
+    JsonStringify,
+    TextTransform,
     Base64Encode,
     Base64Decode,
+    UrlEncode,
+    UrlDecode,
+    Hash,
     // Phase 1 新增 — 流程控制 & 辅助
     Condition,
     Loop,
     Parallel,
     SetVariable,
+    Timestamp,
+    Uuid,
     Log,
     Assertion,
     Start,
@@ -91,6 +99,10 @@ pub struct FlowEdge {
     /// 可选条件表达式（预留，Phase 1 不使用）
     #[serde(default)]
     pub condition: Option<String>,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub source_handle: Option<String>,
 }
 
 /// 流程变量（用户预定义的初始变量）
@@ -229,6 +241,10 @@ impl FlowContext {
         self.node_outputs.insert(node_id.to_string(), output);
     }
 
+    pub fn set_variable(&mut self, key: &str, value: &str) {
+        self.variables.insert(key.to_string(), value.to_string());
+    }
+
     /// 解析模板字符串，替换 {{variable}} 引用
     /// 支持：
     /// - {{var_name}} — 引用预定义变量
@@ -336,11 +352,11 @@ fn topological_sort(nodes: &[FlowNode], edges: &[FlowEdge]) -> Result<Vec<String
 
 /// 运行流程
 pub async fn run_workflow(
+    execution_id: String,
     workflow: &Workflow,
     app: tauri::AppHandle,
     cancel_token: CancellationToken,
 ) -> WorkflowExecution {
-    let execution_id = uuid::Uuid::new_v4().to_string();
     let started_at = chrono::Utc::now().to_rfc3339();
     let start_time = Instant::now();
 
@@ -426,6 +442,25 @@ pub async fn run_workflow(
 
         let node_result = match exec_result {
             Ok(output) => {
+                if node.node_type == NodeType::SetVariable {
+                    if let (Some(key), Some(value)) = (
+                        output.get("key").and_then(|v| v.as_str()),
+                        output.get("value").and_then(|v| v.as_str()),
+                    ) {
+                        context.set_variable(key, value);
+                    }
+                }
+                if node.node_type == NodeType::Script {
+                    if let Some(env_updates) = output.get("envUpdates").and_then(|v| v.as_object()) {
+                        for (key, value) in env_updates {
+                            let resolved = value
+                                .as_str()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| value.to_string());
+                            context.set_variable(key, &resolved);
+                        }
+                    }
+                }
                 // 将输出写入上下文供后续节点使用
                 context.set_node_output(&node.id, output.clone());
                 NodeResult {
@@ -523,16 +558,31 @@ async fn execute_node(
         NodeType::Delay => execute_delay_node(config).await,
         NodeType::Script => execute_script_node(config, context).await,
         NodeType::ExtractData => execute_extract_node(config, context).await,
+        NodeType::JsonParse => execute_json_parse_node(config).await,
+        NodeType::JsonStringify => execute_json_stringify_node(config).await,
+        NodeType::TextTransform => execute_text_transform_node(config).await,
         NodeType::Base64Encode => execute_base64_node(config, true).await,
         NodeType::Base64Decode => execute_base64_node(config, false).await,
+        NodeType::UrlEncode => execute_url_codec_node(config, true).await,
+        NodeType::UrlDecode => execute_url_codec_node(config, false).await,
+        NodeType::Hash => execute_hash_node(config).await,
         // Phase 1: 占位执行器
-        NodeType::Start | NodeType::End => Ok(serde_json::json!({})),
+        NodeType::Start => Ok(serde_json::json!({ "state": "started", "at": chrono::Utc::now().to_rfc3339() })),
+        NodeType::End => Ok(serde_json::json!({ "state": "finished", "at": chrono::Utc::now().to_rfc3339() })),
         NodeType::Log => execute_log_node(config).await,
         NodeType::SetVariable => execute_set_variable_node(config, context).await,
+        NodeType::Timestamp => execute_timestamp_node(config).await,
+        NodeType::Uuid => execute_uuid_node().await,
         NodeType::Assertion => execute_assertion_node(config, context).await,
         NodeType::Condition => execute_condition_node(config, context).await,
-        NodeType::Loop => Ok(serde_json::json!({ "iterations": config.get("iterations").and_then(|v| v.as_u64()).unwrap_or(1) })),
-        NodeType::Parallel => Ok(serde_json::json!({ "note": "Parallel execution planned for Phase 2" })),
+        NodeType::Loop => Ok(serde_json::json!({
+            "iterations": config.get("iterations").and_then(|v| v.as_u64()).unwrap_or(1),
+            "note": "Loop body execution is planned for a future phase"
+        })),
+        NodeType::Parallel => Ok(serde_json::json!({
+            "maxConcurrency": config.get("maxConcurrency").and_then(|v| v.as_u64()).unwrap_or(0),
+            "note": "Parallel execution is planned for a future phase"
+        })),
     }
 }
 
@@ -802,6 +852,100 @@ async fn execute_extract_node(
     }))
 }
 
+async fn execute_json_parse_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    let input = config
+        .get("input")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+
+    if input.is_empty() {
+        return Err("JSON 输入不能为空".to_string());
+    }
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&input).map_err(|e| format!("JSON 解析失败: {}", e))?;
+
+    Ok(serde_json::json!({
+        "kind": json_value_kind(&parsed),
+        "value": parsed,
+    }))
+}
+
+async fn execute_json_stringify_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    let input = config
+        .get("input")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let pretty = config
+        .get("pretty")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+
+    let value = match serde_json::from_str::<serde_json::Value>(&input) {
+        Ok(parsed) => parsed,
+        Err(_) => serde_json::Value::String(input),
+    };
+
+    let result = if pretty {
+        serde_json::to_string_pretty(&value).map_err(|e| format!("JSON 序列化失败: {}", e))?
+    } else {
+        serde_json::to_string(&value).map_err(|e| format!("JSON 序列化失败: {}", e))?
+    };
+
+    Ok(serde_json::json!({
+        "kind": json_value_kind(&value),
+        "pretty": pretty,
+        "value": result,
+    }))
+}
+
+async fn execute_text_transform_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct TextTransformConfig {
+        input: String,
+        operation: TextTransformOperation,
+        #[serde(default)]
+        search: String,
+        #[serde(default)]
+        replacement: String,
+    }
+
+    #[derive(Clone, Copy, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    enum TextTransformOperation {
+        Trim,
+        Uppercase,
+        Lowercase,
+        Replace,
+    }
+
+    let cfg: TextTransformConfig = serde_json::from_value(config.clone())
+        .map_err(|e| format!("文本转换节点配置解析失败: {}", e))?;
+
+    let value = match cfg.operation {
+        TextTransformOperation::Trim => cfg.input.trim().to_string(),
+        TextTransformOperation::Uppercase => cfg.input.to_uppercase(),
+        TextTransformOperation::Lowercase => cfg.input.to_lowercase(),
+        TextTransformOperation::Replace => cfg.input.replace(&cfg.search, &cfg.replacement),
+    };
+
+    Ok(serde_json::json!({
+        "operation": match cfg.operation {
+            TextTransformOperation::Trim => "trim",
+            TextTransformOperation::Uppercase => "uppercase",
+            TextTransformOperation::Lowercase => "lowercase",
+            TextTransformOperation::Replace => "replace",
+        },
+        "value": value,
+        "search": cfg.search,
+        "replacement": cfg.replacement,
+    }))
+}
+
 /// 简易 JSON 路径提取（支持点分路径和数组索引）
 /// 例如: "data.items[0].name"
 fn extract_json_path(json: &serde_json::Value, path: &str) -> Option<String> {
@@ -858,6 +1002,61 @@ async fn execute_base64_node(
 
     Ok(serde_json::json!({
         "value": result,
+    }))
+}
+
+async fn execute_url_codec_node(
+    config: &serde_json::Value,
+    encode: bool,
+) -> Result<serde_json::Value, String> {
+    let input = config
+        .get("input")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let value = if encode {
+        percent_encode(&input)
+    } else {
+        percent_decode(&input)?
+    };
+
+    Ok(serde_json::json!({
+        "value": value,
+        "mode": if encode { "encode" } else { "decode" },
+    }))
+}
+
+async fn execute_hash_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    use sha1::Digest as _;
+
+    let input = config
+        .get("input")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let algorithm = config
+        .get("algorithm")
+        .and_then(|v| v.as_str())
+        .unwrap_or("sha256");
+
+    let value = match algorithm {
+        "sha1" => {
+            let mut hasher = sha1::Sha1::new();
+            hasher.update(input.as_bytes());
+            format!("{:x}", hasher.finalize())
+        }
+        "sha256" => {
+            let mut hasher = sha2::Sha256::new();
+            hasher.update(input.as_bytes());
+            format!("{:x}", hasher.finalize())
+        }
+        _ => return Err(format!("不支持的哈希算法: {}", algorithm)),
+    };
+
+    Ok(serde_json::json!({
+        "algorithm": algorithm,
+        "value": value,
     }))
 }
 
@@ -991,6 +1190,38 @@ async fn execute_condition_node(
     }))
 }
 
+async fn execute_timestamp_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    let format = config
+        .get("format")
+        .and_then(|v| v.as_str())
+        .unwrap_or("iso8601");
+    let now = chrono::Utc::now();
+    let unix = now.timestamp();
+    let unix_ms = now.timestamp_millis();
+    let iso = now.to_rfc3339();
+
+    let value = match format {
+        "unix" => unix.to_string(),
+        "unixMs" => unix_ms.to_string(),
+        "iso8601" => iso.clone(),
+        other => return Err(format!("不支持的时间格式: {}", other)),
+    };
+
+    Ok(serde_json::json!({
+        "format": format,
+        "value": value,
+        "unix": unix,
+        "unixMs": unix_ms,
+        "iso8601": iso,
+    }))
+}
+
+async fn execute_uuid_node() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({
+        "value": uuid::Uuid::new_v4().to_string(),
+    }))
+}
+
 // ═══════════════════════════════════════════
 //  数据编解码工具
 // ═══════════════════════════════════════════
@@ -1001,6 +1232,17 @@ fn default_encoding() -> String {
 
 fn default_local_addr() -> String {
     "0.0.0.0:0".to_string()
+}
+
+fn json_value_kind(value: &serde_json::Value) -> &'static str {
+    match value {
+        serde_json::Value::Null => "null",
+        serde_json::Value::Bool(_) => "boolean",
+        serde_json::Value::Number(_) => "number",
+        serde_json::Value::String(_) => "string",
+        serde_json::Value::Array(_) => "array",
+        serde_json::Value::Object(_) => "object",
+    }
 }
 
 /// 将字符串数据按编码方式转为字节
@@ -1028,6 +1270,52 @@ fn decode_response_data(data: &[u8], encoding: &str) -> String {
             .join(" "),
         _ => String::from_utf8_lossy(data).to_string(), // utf8 default
     }
+}
+
+fn percent_encode(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for byte in input.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
+            b' ' => out.push_str("%20"),
+            _ => out.push_str(&format!("%{:02X}", byte)),
+        }
+    }
+    out
+}
+
+fn percent_decode(input: &str) -> Result<String, String> {
+    let bytes = input.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut idx = 0;
+
+    while idx < bytes.len() {
+        match bytes[idx] {
+            b'%' => {
+                if idx + 2 >= bytes.len() {
+                    return Err("URL 解码失败: 不完整的百分号转义".to_string());
+                }
+                let hex = std::str::from_utf8(&bytes[idx + 1..idx + 3])
+                    .map_err(|e| format!("URL 解码失败: {}", e))?;
+                let value = u8::from_str_radix(hex, 16)
+                    .map_err(|e| format!("URL 解码失败: {}", e))?;
+                out.push(value);
+                idx += 3;
+            }
+            b'+' => {
+                out.push(b' ');
+                idx += 1;
+            }
+            byte => {
+                out.push(byte);
+                idx += 1;
+            }
+        }
+    }
+
+    String::from_utf8(out).map_err(|e| format!("URL 解码后非 UTF-8: {}", e))
 }
 
 // ═══════════════════════════════════════════

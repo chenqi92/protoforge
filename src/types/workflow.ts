@@ -39,13 +39,21 @@ export type NodeType =
   | 'delay'
   | 'script'
   | 'extractData'
+  | 'jsonParse'
+  | 'jsonStringify'
+  | 'textTransform'
   | 'base64Encode'
   | 'base64Decode'
+  | 'urlEncode'
+  | 'urlDecode'
+  | 'hash'
   // Phase 1 新增 — 流程控制 & 辅助
   | 'condition'
   | 'loop'
   | 'parallel'
   | 'setVariable'
+  | 'timestamp'
+  | 'uuid'
   | 'log'
   | 'assertion'
   | 'start'
@@ -184,9 +192,39 @@ export interface ExtractDataNodeConfig {
   expression: string;
 }
 
+/** JSON 解析节点配置 */
+export interface JsonParseNodeConfig {
+  input: string;
+}
+
+/** JSON 序列化节点配置 */
+export interface JsonStringifyNodeConfig {
+  input: string;
+  pretty?: boolean;
+}
+
+/** 文本转换节点配置 */
+export interface TextTransformNodeConfig {
+  input: string;
+  operation: 'trim' | 'uppercase' | 'lowercase' | 'replace';
+  search?: string;
+  replacement?: string;
+}
+
 /** Base64 编解码节点配置 */
 export interface Base64NodeConfig {
   input: string;
+}
+
+/** URL 编解码节点配置 */
+export interface UrlCodecNodeConfig {
+  input: string;
+}
+
+/** 哈希节点配置 */
+export interface HashNodeConfig {
+  input: string;
+  algorithm: 'sha1' | 'sha256';
 }
 
 /** 条件判断节点配置 */
@@ -211,6 +249,11 @@ export interface ParallelNodeConfig {
 export interface SetVariableNodeConfig {
   key: string;
   value: string;
+}
+
+/** 时间戳节点配置 */
+export interface TimestampNodeConfig {
+  format: 'unixMs' | 'unix' | 'iso8601';
 }
 
 /** 日志输出节点配置 */
@@ -238,12 +281,20 @@ export type NodeConfigMap = {
   delay: DelayNodeConfig;
   script: ScriptNodeConfig;
   extractData: ExtractDataNodeConfig;
+  jsonParse: JsonParseNodeConfig;
+  jsonStringify: JsonStringifyNodeConfig;
+  textTransform: TextTransformNodeConfig;
   base64Encode: Base64NodeConfig;
   base64Decode: Base64NodeConfig;
+  urlEncode: UrlCodecNodeConfig;
+  urlDecode: UrlCodecNodeConfig;
+  hash: HashNodeConfig;
   condition: ConditionNodeConfig;
   loop: LoopNodeConfig;
   parallel: ParallelNodeConfig;
   setVariable: SetVariableNodeConfig;
+  timestamp: TimestampNodeConfig;
+  uuid: StartEndNodeConfig;
   log: LogNodeConfig;
   assertion: AssertionNodeConfig;
   start: StartEndNodeConfig;
@@ -273,10 +324,18 @@ export const NODE_TYPE_META: Record<NodeType, { label: string; icon: string; col
   delay:         { label: '延时等待',    icon: 'clock',       color: '#f59e0b', shape: 'rectangle' },
   // 数据处理
   extractData:   { label: '数据提取',    icon: 'filter',      color: '#06b6d4', shape: 'rectangle' },
+  jsonParse:     { label: 'JSON 解析',   icon: 'file-json',   color: '#0ea5e9', shape: 'rectangle' },
+  jsonStringify: { label: 'JSON 序列化', icon: 'braces',      color: '#0284c7', shape: 'rectangle' },
+  textTransform: { label: '文本转换',    icon: 'case-sensitive', color: '#f97316', shape: 'rectangle' },
   setVariable:   { label: '设置变量',    icon: 'variable',    color: '#14b8a6', shape: 'rectangle' },
   script:        { label: '脚本',        icon: 'code',        color: '#ef4444', shape: 'rectangle' },
   base64Encode:  { label: 'Base64 编码', icon: 'lock',        color: '#64748b', shape: 'rectangle' },
   base64Decode:  { label: 'Base64 解码', icon: 'unlock',      color: '#64748b', shape: 'rectangle' },
+  urlEncode:     { label: 'URL 编码',    icon: 'link-2',      color: '#6366f1', shape: 'rectangle' },
+  urlDecode:     { label: 'URL 解码',    icon: 'unlink-2',    color: '#818cf8', shape: 'rectangle' },
+  hash:          { label: '哈希计算',    icon: 'hash',        color: '#7c3aed', shape: 'rectangle' },
+  timestamp:     { label: '时间戳',      icon: 'calendar-clock', color: '#0f766e', shape: 'rectangle' },
+  uuid:          { label: 'UUID',        icon: 'fingerprint', color: '#4f46e5', shape: 'rectangle' },
   // 验证
   assertion:     { label: '断言',        icon: 'check-square',color: '#22c55e', shape: 'rectangle' },
   log:           { label: '日志输出',    icon: 'message-square',color:'#64748b', shape: 'rectangle' },
@@ -293,6 +352,8 @@ export const NODE_CATEGORIES: NodeCategory[] = [
   { id: 'trigger',  labelKey: 'workflow.categories.trigger',  nodes: ['start', 'end'] },
   { id: 'network',  labelKey: 'workflow.categories.network',  nodes: ['httpRequest', 'tcpSend', 'udpSend'] },
   { id: 'flow',     labelKey: 'workflow.categories.flow',     nodes: ['condition', 'loop', 'parallel', 'delay'] },
-  { id: 'data',     labelKey: 'workflow.categories.data',     nodes: ['extractData', 'setVariable', 'script', 'base64Encode', 'base64Decode'] },
+  { id: 'data',     labelKey: 'workflow.categories.data',     nodes: ['extractData', 'jsonParse', 'jsonStringify', 'textTransform', 'setVariable', 'script'] },
+  { id: 'codec',    labelKey: 'workflow.categories.codec',    nodes: ['base64Encode', 'base64Decode', 'urlEncode', 'urlDecode', 'hash'] },
+  { id: 'utility',  labelKey: 'workflow.categories.utility',  nodes: ['timestamp', 'uuid'] },
   { id: 'test',     labelKey: 'workflow.categories.test',     nodes: ['assertion', 'log'] },
 ];

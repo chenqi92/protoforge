@@ -1998,8 +1998,13 @@ pub async fn workflow_run(
     // 后台异步执行
     let app_clone = app.clone();
     tauri::async_runtime::spawn(async move {
-        let result =
-            workflow_engine::run_workflow(&workflow, app_clone.clone(), cancel_token).await;
+        let result = workflow_engine::run_workflow(
+            exec_id.clone(),
+            &workflow,
+            app_clone.clone(),
+            cancel_token,
+        )
+        .await;
 
         // 清理取消令牌
         {

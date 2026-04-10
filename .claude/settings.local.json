@@ -26,7 +26,10 @@
       "Bash(find E:\\\\workspace-freq\\\\protoforge:*)",
       "Bash(find \"E:\\\\workspace-freq\\\\protoforge\\\\src\" -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec grep -l \"http\\\\|fetch\\\\|import.*http\" {} \\\\;)",
       "Bash(cat)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "WebFetch(domain:reactflow.dev)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('src-tauri/tauri.conf.json', 'utf8'\\)\\); console.log\\('JSON valid'\\)\")",
+      "WebFetch(domain:schema.tauri.app)"
     ]
   }
 }

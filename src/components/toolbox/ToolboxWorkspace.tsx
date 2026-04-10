@@ -137,7 +137,7 @@ export const ToolboxWorkspace = memo(function ToolboxWorkspace() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {tools.map((tool) => {
                       const Icon = tool.icon;
                       const isActive = activeTool === tool.id;
@@ -146,17 +146,19 @@ export const ToolboxWorkspace = memo(function ToolboxWorkspace() {
                           key={tool.id}
                           onClick={() => setActiveTool(tool.id)}
                           className={cn(
-                            "flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center transition-all",
+                            "group flex flex-col items-center gap-1.5 pf-rounded-md border px-2 py-2.5 text-center transition-colors",
                             isActive
-                              ? "border-orange-500/50 bg-orange-500/10 shadow-sm"
-                              : "border-border-default/40 bg-bg-secondary/60 hover:border-border-strong hover:bg-bg-hover"
+                              ? "border-accent/40 bg-accent/8 text-text-primary"
+                              : "border-border-subtle bg-transparent hover:border-border-default hover:bg-bg-hover/60"
                           )}
                         >
                           <div className={cn(
-                            "flex h-8 w-8 items-center justify-center rounded-lg",
-                            isActive ? "bg-orange-500/20 text-orange-500" : "bg-bg-primary/80 text-text-tertiary"
+                            "flex h-7 w-7 items-center justify-center pf-rounded-sm transition-colors",
+                            isActive
+                              ? "bg-accent/15 text-accent"
+                              : "text-text-tertiary group-hover:text-text-secondary"
                           )}>
-                            <Icon className="h-4 w-4" />
+                            <Icon className="h-[15px] w-[15px]" />
                           </div>
                           <span className={cn(
                             "line-clamp-2 pf-text-xs font-medium leading-tight",

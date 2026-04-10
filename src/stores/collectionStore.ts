@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import type { Collection, CollectionItem } from '@/types/collections';
 import { nowISO } from '@/types/collections';
 import * as svc from '@/services/collectionService';
+import { extractVariableKeys, parseCollectionVariableEntries, type CollectionVariableEntry } from '@/lib/requestVariables';
 
 interface CollectionStore {
   collections: Collection[];
@@ -30,6 +31,8 @@ interface CollectionStore {
   saveRequest: (item: CollectionItem) => Promise<CollectionItem>;
   loadItems: (collectionId: string) => Promise<void>;
   deduplicateItems: (collectionId: string) => Promise<number>;
+  duplicateItem: (id: string, collectionId: string) => Promise<CollectionItem | null>;
+  copyItemToCollection: (id: string, sourceCollectionId: string, targetCollectionId: string, targetParentId: string | null, migrateVariables?: boolean) => Promise<CollectionItem | null>;
 }
 
 export const useCollectionStore = create<CollectionStore>((set, get) => ({
@@ -274,5 +277,85 @@ export const useCollectionStore = create<CollectionStore>((set, get) => ({
     const removed = await svc.deduplicateCollectionItems(collectionId);
     await get().fetchItems(collectionId);
     return removed;
+  },
+
+  duplicateItem: async (id: string, collectionId: string) => {
+    const items = get().items[collectionId] || [];
+    const item = items.find((i) => i.id === id);
+    if (!item) return null;
+    const now = nowISO();
+    const newItem: CollectionItem = {
+      ...item,
+      id: crypto.randomUUID(),
+      name: `${item.name} (copy)`,
+      sortOrder: item.sortOrder + 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const created = await svc.createCollectionItem(newItem);
+    set((s) => ({
+      items: {
+        ...s.items,
+        [collectionId]: [...(s.items[collectionId] || []), created],
+      },
+    }));
+    return created;
+  },
+
+  copyItemToCollection: async (id: string, sourceCollectionId: string, targetCollectionId: string, targetParentId: string | null, migrateVariables = true) => {
+    const sourceItems = get().items[sourceCollectionId] || [];
+    const item = sourceItems.find((i) => i.id === id);
+    if (!item) return null;
+
+    // Migrate collection-level variables referenced by the request
+    if (migrateVariables) {
+      const allText = [item.url, item.headers, item.queryParams, item.bodyContent, item.authConfig].join(' ');
+      const referencedKeys = extractVariableKeys(allText);
+
+      if (referencedKeys.length > 0) {
+        const sourceCollection = get().collections.find((c) => c.id === sourceCollectionId);
+        const targetCollection = get().collections.find((c) => c.id === targetCollectionId);
+        if (sourceCollection && targetCollection) {
+          const sourceVars = parseCollectionVariableEntries(sourceCollection.variables);
+          const targetVars = parseCollectionVariableEntries(targetCollection.variables);
+          const targetKeySet = new Set(targetVars.map((v) => v.key));
+
+          const missingVars: CollectionVariableEntry[] = [];
+          for (const key of referencedKeys) {
+            if (targetKeySet.has(key)) continue;
+            const sourceVar = sourceVars.find((v) => v.key === key);
+            if (sourceVar) missingVars.push(sourceVar);
+          }
+
+          if (missingVars.length > 0) {
+            const mergedVars = [...targetVars, ...missingVars];
+            const updated = { ...targetCollection, variables: JSON.stringify(mergedVars), updatedAt: nowISO() };
+            await svc.updateCollection(updated);
+            set((s) => ({
+              collections: s.collections.map((c) => (c.id === targetCollectionId ? updated : c)),
+            }));
+          }
+        }
+      }
+    }
+
+    const now = nowISO();
+    const newItem: CollectionItem = {
+      ...item,
+      id: crypto.randomUUID(),
+      collectionId: targetCollectionId,
+      parentId: targetParentId,
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const created = await svc.createCollectionItem(newItem);
+    set((s) => ({
+      items: {
+        ...s.items,
+        [targetCollectionId]: [...(s.items[targetCollectionId] || []), created],
+      },
+    }));
+    return created;
   },
 }));

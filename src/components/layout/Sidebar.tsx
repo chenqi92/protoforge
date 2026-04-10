@@ -5,7 +5,7 @@ import {
   FolderOpen, Clock, Search, Plus,
   ChevronRight, Download, Upload, Settings, Globe,
   MoreHorizontal, Folder, Zap, Edit3, Trash2, ExternalLink, Copy, FolderPlus,
-  ChevronsUpDown, BarChart3, Server,
+  ChevronsUpDown, BarChart3, Server, CopyPlus, FolderInput,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -377,6 +377,8 @@ function CollectionsView({ search, expanded, setExpanded }: {
   const moveItem = useCollectionStore((s) => s.moveItem);
   const reorderItems = useCollectionStore((s) => s.reorderItems);
   const deduplicateItems = useCollectionStore((s) => s.deduplicateItems);
+  const duplicateItem = useCollectionStore((s) => s.duplicateItem);
+  const copyItemToCollection = useCollectionStore((s) => s.copyItemToCollection);
 
   // Drag-and-drop state
   const [dragItemId, setDragItemId] = useState<string | null>(null);
@@ -681,10 +683,26 @@ function CollectionsView({ search, expanded, setExpanded }: {
   }, [openToolTab]);
 
   const handleItemContextMenu = (e: React.MouseEvent, item: CollectionItem) => {
+    // Build "Copy to Collection" entries for other collections
+    const copyToEntries: ContextMenuEntry[] = collections
+      .filter((c) => c.id !== item.collectionId)
+      .map((c) => ({
+        id: `copy-to-${c.id}`,
+        label: c.name,
+        icon: <FolderInput className="w-3.5 h-3.5" />,
+        onClick: () => void copyItemToCollection(item.id, item.collectionId, c.id, null),
+      }));
+
     const menuItems: ContextMenuEntry[] = [
       { id: "open", label: t('sidebar.openInNewTab'), icon: <ExternalLink className="w-3.5 h-3.5" />, onClick: () => handleOpenItem(item, { forceNewTab: true }) },
       { id: "rename", label: t('contextMenu.rename'), icon: <Edit3 className="w-3.5 h-3.5" />, onClick: () => startRename(item.id, item.name) },
       { id: "copy-url", label: t('sidebar.copyUrl'), icon: <Copy className="w-3.5 h-3.5" />, onClick: () => { if (item.url) void copyTextToClipboard(item.url); } },
+      { id: "duplicate", label: t('sidebar.duplicateRequest'), icon: <CopyPlus className="w-3.5 h-3.5" />, onClick: () => void duplicateItem(item.id, item.collectionId) },
+      ...(copyToEntries.length > 0 ? [
+        { type: "divider" as const },
+        { id: "copy-to-header", label: t('sidebar.copyToCollection'), icon: <FolderInput className="w-3.5 h-3.5" />, disabled: true, onClick: () => {} },
+        ...copyToEntries,
+      ] : []),
       { type: "divider" },
       { id: "generate-mock", label: t('sidebar.generateMock'), icon: <Server className="w-3.5 h-3.5" />, onClick: () => handleGenerateMock(item) },
       { type: "divider" },
@@ -777,28 +795,35 @@ function CollectionsView({ search, expanded, setExpanded }: {
               }}
               onDragEnd={() => { setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); setDropPosition(null); }}
               onDragOver={(e) => {
-                if (!dragItemId || dragItemId === item.id || dragCollectionId !== item.collectionId) return;
+                if (!dragItemId || dragItemId === item.id) return;
                 e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
+                e.dataTransfer.dropEffect = dragCollectionId !== item.collectionId ? 'copy' : 'move';
                 // 3-zone detection: top 25% = before, middle 50% = inside (move into folder), bottom 25% = after
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                 const relY = e.clientY - rect.top;
                 const h = rect.height;
-                const pos = relY < h * 0.25 ? 'before' : relY > h * 0.75 ? 'after' : null;
+                // Cross-collection: always drop inside folder
+                const pos = dragCollectionId !== item.collectionId ? null : (relY < h * 0.25 ? 'before' : relY > h * 0.75 ? 'after' : null);
                 setDropTargetId(folderDropKey);
                 setDropPosition(pos);
               }}
               onDragLeave={() => { if (dropTargetId === folderDropKey) { setDropTargetId(null); setDropPosition(null); } }}
               onDrop={(e) => {
                 e.preventDefault();
-                if (dragItemId && dragCollectionId === item.collectionId && dragItemId !== item.id) {
-                  if (folderDropPos === 'before' || folderDropPos === 'after') {
-                    // Reorder relative to this folder
-                    reorderItems(dragItemId, item.id, item.collectionId, folderDropPos);
-                  } else {
-                    // Move into folder (middle zone or no position)
-                    moveItem(dragItemId, item.collectionId, item.id);
+                if (dragItemId && dragItemId !== item.id) {
+                  if (dragCollectionId && dragCollectionId !== item.collectionId) {
+                    // Cross-collection: copy into this folder
+                    void copyItemToCollection(dragItemId, dragCollectionId, item.collectionId, item.id);
                     setExpanded((prev) => ({ ...prev, [`folder:${item.id}`]: true }));
+                  } else if (dragCollectionId === item.collectionId) {
+                    if (folderDropPos === 'before' || folderDropPos === 'after') {
+                      // Reorder relative to this folder
+                      reorderItems(dragItemId, item.id, item.collectionId, folderDropPos);
+                    } else {
+                      // Move into folder (middle zone or no position)
+                      moveItem(dragItemId, item.collectionId, item.id);
+                      setExpanded((prev) => ({ ...prev, [`folder:${item.id}`]: true }));
+                    }
                   }
                 }
                 setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); setDropPosition(null);
@@ -885,9 +910,9 @@ function CollectionsView({ search, expanded, setExpanded }: {
           }}
           onDragEnd={() => { setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); setDropPosition(null); }}
           onDragOver={(e: React.DragEvent) => {
-            if (!dragItemId || dragItemId === item.id || dragCollectionId !== item.collectionId) return;
+            if (!dragItemId || dragItemId === item.id) return;
             e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
+            e.dataTransfer.dropEffect = dragCollectionId !== item.collectionId ? 'copy' : 'move';
             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
             const midY = rect.top + rect.height / 2;
             const pos = e.clientY < midY ? 'before' : 'after';
@@ -897,8 +922,13 @@ function CollectionsView({ search, expanded, setExpanded }: {
           onDragLeave={() => { if (dropTargetId === item.id) { setDropTargetId(null); setDropPosition(null); } }}
           onDrop={(e: React.DragEvent) => {
             e.preventDefault();
-            if (dragItemId && dragCollectionId === item.collectionId && dragItemId !== item.id && dropPosition) {
-              reorderItems(dragItemId, item.id, item.collectionId, dropPosition);
+            if (dragItemId && dragItemId !== item.id) {
+              if (dragCollectionId && dragCollectionId !== item.collectionId) {
+                // Cross-collection: copy to the same parent as the drop target
+                void copyItemToCollection(dragItemId, dragCollectionId, item.collectionId, item.parentId);
+              } else if (dragCollectionId === item.collectionId && dropPosition) {
+                reorderItems(dragItemId, item.id, item.collectionId, dropPosition);
+              }
             }
             setDragItemId(null); setDragCollectionId(null); setDropTargetId(null); setDropPosition(null);
           }}
@@ -928,9 +958,9 @@ function CollectionsView({ search, expanded, setExpanded }: {
               onClick={() => toggleExpand(col.id)}
               onContextMenu={(e) => handleFolderContextMenu(e, col)}
               onDragOver={(e) => {
-                if (dragItemId && dragCollectionId === col.id) {
+                if (dragItemId) {
                   e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
+                  e.dataTransfer.dropEffect = dragCollectionId !== col.id ? 'copy' : 'move';
                   setDropTargetId(`col:${col.id}`);
                 }
               }}
@@ -938,8 +968,14 @@ function CollectionsView({ search, expanded, setExpanded }: {
               onDrop={(e) => {
                 e.preventDefault();
                 setDropTargetId(null);
-                if (dragItemId && dragCollectionId === col.id) {
-                  moveItem(dragItemId, col.id, null);
+                if (dragItemId && dragCollectionId) {
+                  if (dragCollectionId !== col.id) {
+                    // Cross-collection: copy to root of target collection
+                    void copyItemToCollection(dragItemId, dragCollectionId, col.id, null);
+                  } else {
+                    // Same collection: move to root
+                    moveItem(dragItemId, col.id, null);
+                  }
                 }
                 setDragItemId(null);
                 setDragCollectionId(null);
