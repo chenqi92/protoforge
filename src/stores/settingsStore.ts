@@ -119,6 +119,27 @@ export const useSettingsStore = create<SettingsStore>()(
     {
       name: 'protoforge-settings',
       storage: createJSONStorage(() => safeStorage),
+      version: 1,
+      // Custom merge: deep-merge persisted `settings` onto current state's defaults so any
+      // field added to `defaultSettings` after a user's last save still gets its default value
+      // (instead of being `undefined` after rehydration). Without this, zustand persist does a
+      // shallow merge that replaces the entire `settings` object, losing any newly-introduced
+      // fields. This was the root cause of the proxy toggle showing as ON for upgraded users —
+      // their persisted state had no `proxyEnabled`, leaving it `undefined`, which made Base UI's
+      // Switch lock into uncontrolled mode on first render and behave inconsistently.
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState ?? {}) as Partial<SettingsStore> & {
+          settings?: Partial<AppSettings>;
+        };
+        return {
+          ...currentState,
+          ...persisted,
+          settings: {
+            ...currentState.settings,
+            ...(persisted.settings ?? {}),
+          },
+        };
+      },
       migrate: (persistedState: unknown) => {
         const state = persistedState as { settings?: Record<string, unknown> };
         if (state?.settings) {
@@ -130,7 +151,6 @@ export const useSettingsStore = create<SettingsStore>()(
         }
         return state as unknown as SettingsStore;
       },
-      version: 1,
     }
   )
 );

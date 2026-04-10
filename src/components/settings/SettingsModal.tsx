@@ -617,7 +617,7 @@ function ProxySection({ settings, update }: SectionProps) {
     <>
       <SettingRow label={t('settings.proxy.enable')} desc={t('settings.proxy.enableDesc')}>
         <Switch
-          checked={settings.proxyEnabled}
+          checked={settings.proxyEnabled === true}
           onCheckedChange={(checked) => update("proxyEnabled", checked)}
         />
       </SettingRow>
