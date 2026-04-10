@@ -2056,7 +2056,63 @@
       "fitView": "Fit View",
       "selectAll": "Select All Nodes",
       "clearCanvasConfirm": "Are you sure you want to clear all nodes and edges in the current workflow?",
-      "deleteEdgeTip": "Delete edge"
+      "deleteEdgeTip": "Delete edge",
+      "copy": "Copy",
+      "paste": "Paste",
+      "autoLayout": "Auto Layout"
+    },
+    "undo": "Undo",
+    "redo": "Redo",
+    "autoLayout": "Auto Layout",
+    "autoLayoutVertical": "Vertical Layout",
+    "autoLayoutHorizontal": "Horizontal Layout",
+    "import": "Import",
+    "export": "Export",
+    "importJson": "Import from JSON",
+    "exportJson": "Export as JSON",
+    "importSuccess": "Imported successfully",
+    "importFailed": "Import failed: {{error}}",
+    "invalidJson": "Invalid JSON or not a workflow file",
+    "result": {
+      "passed": "{{count}} passed",
+      "failed": "{{count}} failed",
+      "total": "{{count}} total",
+      "totalDuration": "{{ms}}ms total",
+      "showOnlyFailed": "Only failed",
+      "showAll": "Show all",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "jumpToNode": "Locate on canvas",
+      "copy": "Copy",
+      "copied": "Copied",
+      "noFailedResults": "No failed nodes"
+    },
+    "timing": {
+      "title": "Timing",
+      "connect": "Connect",
+      "ttfb": "TTFB",
+      "download": "Download",
+      "total": "Total"
+    },
+    "search": {
+      "placeholder": "Search nodes...",
+      "noResults": "No matches",
+      "matchCount": "{{current}}/{{total}}",
+      "next": "Next",
+      "previous": "Previous",
+      "close": "Close"
+    },
+    "exportPng": "Export as PNG",
+    "align": {
+      "left": "Align Left",
+      "centerH": "Align Center Horizontally",
+      "right": "Align Right",
+      "top": "Align Top",
+      "centerV": "Align Center Vertically",
+      "bottom": "Align Bottom",
+      "distributeH": "Distribute Horizontally",
+      "distributeV": "Distribute Vertically",
+      "tooltip": "Align and distribute (≥2 nodes)"
     }
   }
 }

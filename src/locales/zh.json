@@ -2078,7 +2078,63 @@
       "fitView": "适应视图",
       "selectAll": "全选节点",
       "clearCanvasConfirm": "确定要清空当前工作流的所有节点和连线吗？",
-      "deleteEdgeTip": "删除连线"
+      "deleteEdgeTip": "删除连线",
+      "copy": "复制",
+      "paste": "粘贴",
+      "autoLayout": "自动布局"
+    },
+    "undo": "撤销",
+    "redo": "重做",
+    "autoLayout": "自动布局",
+    "autoLayoutVertical": "纵向自动布局",
+    "autoLayoutHorizontal": "横向自动布局",
+    "import": "导入",
+    "export": "导出",
+    "importJson": "从 JSON 导入",
+    "exportJson": "导出为 JSON",
+    "importSuccess": "导入成功",
+    "importFailed": "导入失败：{{error}}",
+    "invalidJson": "JSON 格式无效或不是工作流文件",
+    "result": {
+      "passed": "通过 {{count}}",
+      "failed": "失败 {{count}}",
+      "total": "共 {{count}}",
+      "totalDuration": "总耗时 {{ms}}ms",
+      "showOnlyFailed": "仅显示失败",
+      "showAll": "显示全部",
+      "expandAll": "全部展开",
+      "collapseAll": "全部收起",
+      "jumpToNode": "在画布中定位",
+      "copy": "复制",
+      "copied": "已复制",
+      "noFailedResults": "暂无失败节点"
+    },
+    "timing": {
+      "title": "时序",
+      "connect": "建连",
+      "ttfb": "首字节",
+      "download": "下载",
+      "total": "总计"
+    },
+    "search": {
+      "placeholder": "搜索节点...",
+      "noResults": "无匹配节点",
+      "matchCount": "{{current}}/{{total}}",
+      "next": "下一个",
+      "previous": "上一个",
+      "close": "关闭"
+    },
+    "exportPng": "导出为图片",
+    "align": {
+      "left": "左对齐",
+      "centerH": "水平居中",
+      "right": "右对齐",
+      "top": "顶对齐",
+      "centerV": "垂直居中",
+      "bottom": "底对齐",
+      "distributeH": "水平等距",
+      "distributeV": "垂直等距",
+      "tooltip": "对齐与分布（≥2 个节点）"
     }
   }
 }
