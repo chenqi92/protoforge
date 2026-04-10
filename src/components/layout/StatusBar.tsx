@@ -39,8 +39,10 @@ export function StatusBar({
   const installUpdate = useUpdateStore((s) => s.installUpdate);
   const restartApp = useUpdateStore((s) => s.restartApp);
 
-  const [showConfirm, setShowConfirm] = useState(false);
-  const confirmRef = useRef<HTMLDivElement>(null);
+  const error = useUpdateStore((s) => s.error);
+
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // 初始化版本号 + 启动时静默检查更新
   useEffect(() => {
@@ -51,15 +53,15 @@ export function StatusBar({
 
   // 点击对话框外部关闭
   useEffect(() => {
-    if (!showConfirm) return;
+    if (!showUpdateDialog) return;
     const handleClick = (e: MouseEvent) => {
-      if (confirmRef.current && !confirmRef.current.contains(e.target as Node)) {
-        setShowConfirm(false);
+      if (dialogRef.current && !dialogRef.current.contains(e.target as Node)) {
+        setShowUpdateDialog(false);
       }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [showConfirm]);
+  }, [showUpdateDialog]);
 
   const moduleLabel = t(`statusBar.${activeModule}`, { defaultValue: activeModule.toUpperCase() });
 
@@ -76,19 +78,15 @@ export function StatusBar({
   const isError = status === 'error';
 
   const handleVersionClick = () => {
-    if (hasUpdate) {
-      setShowConfirm(true);
-    } else if (isReady) {
-      restartApp();
-    } else if (isError) {
-      checkForUpdate();
-    } else if (!isChecking && !isDownloading) {
+    if (hasUpdate || isDownloading || isReady || isError) {
+      setShowUpdateDialog(true);
+    } else if (!isChecking) {
       checkForUpdate();
     }
   };
 
   const handleConfirmUpdate = () => {
-    setShowConfirm(false);
+    // 不关闭弹框，让进度在弹框内展示
     installUpdate();
   };
 
@@ -217,9 +215,9 @@ export function StatusBar({
         </div>
       </div>
 
-      {/* 更新确认对话框 */}
+      {/* 更新对话框 — 支持确认 / 下载进度 / 就绪 / 错误 等多状态 */}
       <AnimatePresence>
-        {showConfirm && updateInfo && (
+        {showUpdateDialog && (
           <>
             {/* 遮罩 */}
             <motion.div
@@ -227,80 +225,195 @@ export function StatusBar({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-[2px]"
-              onClick={() => setShowConfirm(false)}
+              onClick={() => setShowUpdateDialog(false)}
             />
             {/* 对话框 */}
             <motion.div
-              ref={confirmRef}
+              ref={dialogRef}
               initial={{ opacity: 0, scale: 0.92, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: 'spring', damping: 28, stiffness: 340 }}
               className="fixed left-1/2 top-1/2 z-[201] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border-default/80 bg-bg-elevated shadow-[0_24px_64px_rgba(0,0,0,0.2)] backdrop-blur-xl overflow-hidden"
             >
-              {/* 顶部渐变条 */}
-              <div className="h-1 bg-accent" />
+              {/* 顶部状态条 */}
+              <div className={cn("h-1", isReady ? "bg-emerald-500" : isError ? "bg-red-500" : "bg-accent")} />
 
               <div className="p-6 space-y-5">
-                {/* 标题 */}
-                <div className="space-y-1">
-                  <h3 className="pf-text-lg font-bold text-text-primary">
-                    {t('update.confirmTitle')}
-                  </h3>
-                  <p className="pf-text-sm text-text-tertiary">
-                    {t('update.confirmDesc', { version: updateInfo.version })}
-                  </p>
-                </div>
 
-                {/* 版本对比 */}
-                <div className="flex items-center gap-3 rounded-xl border border-border-default/60 bg-bg-secondary/60 px-4 py-3">
-                  <div className="flex-1 text-center">
-                    <div className="pf-text-xxs text-text-disabled uppercase tracking-wider mb-1">
-                      {t('update.currentVersion')}
+                {/* ── 下载中状态 ── */}
+                {isDownloading && (
+                  <>
+                    <div className="space-y-1">
+                      <h3 className="pf-text-lg font-bold text-text-primary">
+                        {t('update.downloadingTitle')}
+                      </h3>
+                      <p className="pf-text-sm text-text-tertiary">
+                        {t('update.downloadingDesc', { version: updateInfo?.version })}
+                      </p>
                     </div>
-                    <div className="pf-text-base font-mono font-semibold text-text-secondary">
-                      v{currentVersion}
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-text-disabled shrink-0" />
-                  <div className="flex-1 text-center">
-                    <div className="pf-text-xxs text-violet-500/80 uppercase tracking-wider mb-1">
-                      {t('update.latestVersion')}
-                    </div>
-                    <div className="pf-text-base font-mono font-bold text-violet-500">
-                      v{updateInfo.version}
-                    </div>
-                  </div>
-                </div>
 
-                {/* Release Notes */}
-                {updateInfo.body && (
-                  <div className="rounded-xl border border-border-default/40 bg-bg-primary/60 p-3 max-h-[120px] overflow-y-auto">
-                    <p className="pf-text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">
-                      {updateInfo.body.replace(/^#+\s.*$/gm, '').trim().slice(0, 400)}
-                    </p>
-                  </div>
+                    {/* 进度条 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between pf-text-sm">
+                        <span className="text-text-tertiary">{t('update.progress')}</span>
+                        <span className="font-mono font-semibold text-accent">{progress}%</span>
+                      </div>
+                      <div className="w-full h-2.5 bg-bg-input rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-accent rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${progress}%` }}
+                          transition={{ duration: 0.3, ease: 'easeOut' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-1">
+                      <button
+                        onClick={() => setShowUpdateDialog(false)}
+                        className="flex-1 h-9 rounded-xl pf-text-sm font-medium text-text-tertiary hover:text-text-primary hover:bg-bg-hover border border-border-default/60 transition-colors"
+                      >
+                        {t('update.backgroundDownload')}
+                      </button>
+                    </div>
+                  </>
                 )}
 
-                {/* 操作按钮 */}
-                <div className="flex items-center gap-3 pt-1">
-                  <button
-                    onClick={() => setShowConfirm(false)}
-                    className="flex-1 h-9 rounded-xl pf-text-sm font-medium text-text-tertiary hover:text-text-primary hover:bg-bg-hover border border-border-default/60 transition-colors"
-                  >
-                    {t('update.later')}
-                  </button>
-                  <button
-                    onClick={handleConfirmUpdate}
-                    className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl pf-text-sm font-semibold bg-accent hover:bg-accent-hover text-white shadow-sm transition-all active:scale-[0.97]"
-                  >
-                    {updateInfo.isFallback ? (
-                      <><ExternalLink className="w-3.5 h-3.5" /> {t('update.goDownload')}</>
-                    ) : (
-                      <><Download className="w-3.5 h-3.5" /> {t('update.downloadAndInstall')}</>
+                {/* ── 更新就绪状态 ── */}
+                {isReady && (
+                  <>
+                    <div className="flex flex-col items-center text-center gap-3 py-2">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/10">
+                        <CheckCircle className="h-6 w-6 text-emerald-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="pf-text-lg font-bold text-text-primary">
+                          {t('update.readyTitle')}
+                        </h3>
+                        <p className="pf-text-sm text-text-tertiary">
+                          {t('update.readyDesc', { version: updateInfo?.version })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-1">
+                      <button
+                        onClick={() => setShowUpdateDialog(false)}
+                        className="flex-1 h-9 rounded-xl pf-text-sm font-medium text-text-tertiary hover:text-text-primary hover:bg-bg-hover border border-border-default/60 transition-colors"
+                      >
+                        {t('update.later')}
+                      </button>
+                      <button
+                        onClick={restartApp}
+                        className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl pf-text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition-all active:scale-[0.97]"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        {t('update.restart')}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* ── 错误状态 ── */}
+                {isError && (
+                  <>
+                    <div className="flex flex-col items-center text-center gap-3 py-2">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10">
+                        <AlertTriangle className="h-6 w-6 text-red-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="pf-text-lg font-bold text-text-primary">
+                          {t('update.errorTitle')}
+                        </h3>
+                        <p className="pf-text-sm text-text-tertiary">
+                          {t('update.errorDesc', { error: error || t('update.failed') })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-1">
+                      <button
+                        onClick={() => setShowUpdateDialog(false)}
+                        className="flex-1 h-9 rounded-xl pf-text-sm font-medium text-text-tertiary hover:text-text-primary hover:bg-bg-hover border border-border-default/60 transition-colors"
+                      >
+                        {t('update.close')}
+                      </button>
+                      <button
+                        onClick={() => checkForUpdate()}
+                        className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl pf-text-sm font-semibold bg-accent hover:bg-accent-hover text-white shadow-sm transition-all active:scale-[0.97]"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        {t('update.retry')}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* ── 有新版本 — 确认更新 ── */}
+                {hasUpdate && updateInfo && (
+                  <>
+                    <div className="space-y-1">
+                      <h3 className="pf-text-lg font-bold text-text-primary">
+                        {t('update.confirmTitle')}
+                      </h3>
+                      <p className="pf-text-sm text-text-tertiary">
+                        {t('update.confirmDesc', { version: updateInfo.version })}
+                      </p>
+                    </div>
+
+                    {/* 版本对比 */}
+                    <div className="flex items-center gap-3 rounded-xl border border-border-default/60 bg-bg-secondary/60 px-4 py-3">
+                      <div className="flex-1 text-center">
+                        <div className="pf-text-xxs text-text-disabled uppercase tracking-wider mb-1">
+                          {t('update.currentVersion')}
+                        </div>
+                        <div className="pf-text-base font-mono font-semibold text-text-secondary">
+                          v{currentVersion}
+                        </div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-text-disabled shrink-0" />
+                      <div className="flex-1 text-center">
+                        <div className="pf-text-xxs text-violet-500/80 uppercase tracking-wider mb-1">
+                          {t('update.latestVersion')}
+                        </div>
+                        <div className="pf-text-base font-mono font-bold text-violet-500">
+                          v{updateInfo.version}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Release Notes */}
+                    {updateInfo.body && (
+                      <div className="rounded-xl border border-border-default/40 bg-bg-primary/60 p-3 max-h-[120px] overflow-y-auto">
+                        <p className="pf-text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">
+                          {updateInfo.body.replace(/^#+\s.*$/gm, '').trim().slice(0, 400)}
+                        </p>
+                      </div>
                     )}
-                  </button>
-                </div>
+
+                    {/* 操作按钮 */}
+                    <div className="flex items-center gap-3 pt-1">
+                      <button
+                        onClick={() => setShowUpdateDialog(false)}
+                        className="flex-1 h-9 rounded-xl pf-text-sm font-medium text-text-tertiary hover:text-text-primary hover:bg-bg-hover border border-border-default/60 transition-colors"
+                      >
+                        {t('update.later')}
+                      </button>
+                      <button
+                        onClick={handleConfirmUpdate}
+                        className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl pf-text-sm font-semibold bg-accent hover:bg-accent-hover text-white shadow-sm transition-all active:scale-[0.97]"
+                      >
+                        {updateInfo.isFallback ? (
+                          <><ExternalLink className="w-3.5 h-3.5" /> {t('update.goDownload')}</>
+                        ) : (
+                          <><Download className="w-3.5 h-3.5" /> {t('update.downloadAndInstall')}</>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                )}
+
               </div>
             </motion.div>
           </>

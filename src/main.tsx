@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "./monacoWorkers"; // Monaco Worker 本地加载 — 必须在编辑器组件前
 import "./i18n"; // i18n 初始化 — 必须在组件渲染前
 import "./styles/fonts.css"; // 本地捆绑字体 — 必须在 index.css 前
 import "./index.css";

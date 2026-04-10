@@ -1418,7 +1418,15 @@
     "latestVersion": "Latest",
     "newAvailable": "New version",
     "goDownload": "Go to Download",
-    "downloadAndInstall": "Update Now"
+    "downloadAndInstall": "Update Now",
+    "downloadingTitle": "Downloading Update",
+    "downloadingDesc": "Downloading v{{version}}, please wait…",
+    "readyTitle": "Update Ready",
+    "readyDesc": "v{{version}} has been downloaded. Restart the application to complete the update.",
+    "errorTitle": "Update Failed",
+    "errorDesc": "An error occurred during the update: {{error}}",
+    "backgroundDownload": "Background",
+    "close": "Close"
   },
   "toolbox": {
     "crc": {

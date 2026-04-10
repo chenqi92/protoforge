@@ -34,6 +34,10 @@ interface UpdateStore {
 
 const GITHUB_REPO = 'chenqi92/protoforge';
 
+// 缓存 Tauri update 对象，避免 installUpdate 时重复调用 check()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _pendingUpdate: any = null;
+
 /** 语义化版本比较：a > b 返回正数，a < b 返回负数，相等返回 0 */
 function compareVersions(a: string, b: string): number {
   const pa = a.replace(/^v/, '').split('.').map(Number);
@@ -76,6 +80,7 @@ export const useUpdateStore = create<UpdateStore>()((set, get) => ({
       const { check } = await import('@tauri-apps/plugin-updater');
       const update = await check();
       if (update) {
+        _pendingUpdate = update;
         set({
           updateInfo: {
             version: update.version,
@@ -142,7 +147,7 @@ export const useUpdateStore = create<UpdateStore>()((set, get) => ({
       }
     } catch (err) {
       console.warn('GitHub API fallback also failed:', err);
-      set({ status: 'up-to-date', lastCheckTime: Date.now() });
+      set({ status: 'error', error: err instanceof Error ? err.message : String(err), lastCheckTime: Date.now() });
     }
   },
 
@@ -160,18 +165,23 @@ export const useUpdateStore = create<UpdateStore>()((set, get) => ({
       return;
     }
 
-    // Tauri 原生安装
+    // Tauri 原生安装 — 复用已缓存的 update 对象，避免重复 check()
     set({ status: 'downloading', progress: 0 });
     try {
-      const { check } = await import('@tauri-apps/plugin-updater');
-      const update = await check();
+      let update = _pendingUpdate;
+      if (!update) {
+        const { check } = await import('@tauri-apps/plugin-updater');
+        update = await check();
+        _pendingUpdate = update;
+      }
       if (!update) return;
 
       let downloaded = 0;
       let contentLength = 0;
 
-      await update.downloadAndInstall((event) => {
+      await update.downloadAndInstall((event: { event: string; data: unknown }) => {
         if (event.event === 'Started') {
+          downloaded = 0;
           contentLength = (event.data as { contentLength?: number })?.contentLength || 0;
         } else if (event.event === 'Progress') {
           downloaded += (event.data as { chunkLength: number }).chunkLength;
@@ -179,11 +189,12 @@ export const useUpdateStore = create<UpdateStore>()((set, get) => ({
             set({ progress: Math.round((downloaded / contentLength) * 100) });
           }
         } else if (event.event === 'Finished') {
-          set({ status: 'ready' });
+          set({ status: 'ready', progress: 100 });
         }
       });
 
-      set({ status: 'ready' });
+      set({ status: 'ready', progress: 100 });
+      _pendingUpdate = null;
     } catch (err: unknown) {
       set({
         error: err instanceof Error ? err.message : String(err),

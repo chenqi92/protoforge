@@ -19,7 +19,12 @@
       "Bash(grep -n \"response\\\\\\\\.status\\\\|response\\\\\\\\.body\\\\|response\\\\\\\\.headers\\\\|response\\\\\\\\.duration\\\\|response\\\\\\\\.timing\" /E/workspace-freq/protoforge/src/components/http/HttpWorkspace.tsx)",
       "Bash(grep -n \"zh\\\\.json\\\\|i18n\" /e/workspace-freq/protoforge/src/locales/*.json)",
       "Bash(grep:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(ls -la /e/workspace-freq/protoforge/node_modules/.pnpm/@monaco-editor*)",
+      "Bash(xargs ls:*)",
+      "Bash(ls:*)",
+      "Bash(find E:\\\\workspace-freq\\\\protoforge:*)",
+      "Bash(find \"E:\\\\workspace-freq\\\\protoforge\\\\src\" -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec grep -l \"http\\\\|fetch\\\\|import.*http\" {} \\\\;)"
     ]
   }
 }
