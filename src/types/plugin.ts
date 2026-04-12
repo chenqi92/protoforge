@@ -39,6 +39,8 @@ export interface PluginManifest {
   hasUpdate?: boolean;
   /** 远程仓库最新版本号 */
   latestVersion?: string;
+  /** 已从远程仓库移除（本地仍安装） */
+  removedFromRegistry?: boolean;
   /** 图标命名空间 — 仅 icon-pack 类型插件需要 */
   iconNamespace?: string;
 }

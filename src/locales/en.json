@@ -1148,6 +1148,8 @@
     "update": "Update",
     "updatePlugin": "Update Plugin",
     "updateAvailable": "Update Available",
+    "removedFromRegistry": "Removed from Registry",
+    "deprecated": "Deprecated",
     "cryptoTool": "Crypto Tool",
     "cryptoToolDesc": "Encryption, decryption and hashing tools",
     "iconPack": "Icon Library",

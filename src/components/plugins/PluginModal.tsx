@@ -470,6 +470,11 @@ function PluginCard({
                 {t('plugin.updateAvailable')}
               </span>
             )}
+            {plugin.removedFromRegistry && (
+              <span className="flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-red-500/15 px-1.5 pf-text-3xs font-semibold text-red-600">
+                {t('plugin.removedFromRegistry', '已从仓库移除')}
+              </span>
+            )}
           </div>
           <p className="pf-text-xs text-text-tertiary mt-0.5 line-clamp-2 leading-4">{pluginT(plugin, 'description')}</p>
 
@@ -479,8 +484,11 @@ function PluginCard({
               <span className={cn("pf-text-3xs font-medium px-1.5 py-[2px] rounded-full border shrink-0", cat.accentClassName)}>
                 {t(cat.label)}
               </span>
-              {plugin.source === "remote" && (
+              {plugin.source === "remote" && !plugin.removedFromRegistry && (
                 <span className="pf-text-3xs font-medium px-1.5 py-[2px] rounded-full bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 shrink-0">{t('plugin.remote')}</span>
+              )}
+              {plugin.removedFromRegistry && (
+                <span className="pf-text-3xs font-medium px-1.5 py-[2px] rounded-full bg-red-500/10 text-red-600 border border-red-500/20 shrink-0">{t('plugin.deprecated', '已废弃')}</span>
               )}
               <span className="pf-text-3xs text-text-disabled">
                 v{plugin.version}
@@ -572,6 +580,11 @@ function PluginDetail({
                   <span className="pf-text-xxs font-semibold px-2 py-[2px] rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/20 flex items-center gap-1">
                     <ArrowUpCircle className="w-3 h-3" />
                     {t('plugin.updateAvailable')}
+                  </span>
+                )}
+                {plugin.removedFromRegistry && (
+                  <span className="pf-text-xxs font-semibold px-2 py-[2px] rounded-full bg-red-500/15 text-red-600 border border-red-500/20">
+                    {t('plugin.removedFromRegistry', '已从仓库移除')}
                   </span>
                 )}
               </div>

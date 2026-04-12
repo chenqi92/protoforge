@@ -47,8 +47,14 @@ export const usePluginStore = create<PluginStore>((set, get) => ({
         pluginService.listPlugins(),
         pluginService.listAvailablePlugins(),
       ]);
+      // 标记已从远程仓库移除的本地插件
+      const remoteIds = new Set(available.map((p) => p.id));
+      const markedInstalled = installed.map((p) => ({
+        ...p,
+        removedFromRegistry: p.source === 'remote' && !remoteIds.has(p.id),
+      }));
       set({
-        installedPlugins: installed,
+        installedPlugins: markedInstalled,
         availablePlugins: available,
         loading: false,
         initialized: true,

@@ -1149,6 +1149,8 @@
     "update": "升级",
     "updatePlugin": "升级插件",
     "updateAvailable": "有新版本",
+    "removedFromRegistry": "已从仓库移除",
+    "deprecated": "已废弃",
     "cryptoTool": "加密工具",
     "cryptoToolDesc": "加密解密、编码哈希工具",
     "iconPack": "图标仓库",
