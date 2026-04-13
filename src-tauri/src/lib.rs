@@ -427,6 +427,8 @@ pub fn run() {
             // Toolbox
             toolbox::toolbox_resize_screenshots,
             toolbox::toolbox_generate_icons,
+            toolbox::toolbox_compress_images,
+            toolbox::toolbox_merge_images,
             toolbox::toolbox_list_directory,
             toolbox::toolbox_batch_rename,
             // DevTools

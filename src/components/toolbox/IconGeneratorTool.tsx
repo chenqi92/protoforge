@@ -7,6 +7,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { ImagePlus, FolderOutput, Sparkles, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateIcons, type BatchResult, type IconPlatforms } from "@/services/toolboxService";
+import { ToolboxToolPane } from "./ToolboxToolPane";
 
 interface PlatformDef {
   key: keyof IconPlatforms;
@@ -87,7 +88,7 @@ export function IconGeneratorTool() {
     .map((p) => t(p.labelKey));
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <ToolboxToolPane>
       {/* 选择源图片 */}
       <section>
         <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.selectSource`)}</h3>
@@ -218,6 +219,6 @@ export function IconGeneratorTool() {
           </div>
         </section>
       )}
-    </div>
+    </ToolboxToolPane>
   );
 }

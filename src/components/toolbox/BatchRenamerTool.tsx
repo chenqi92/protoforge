@@ -7,6 +7,7 @@ import { FolderOpen, RefreshCw, CheckCircle2, AlertCircle, File, Folder, Loader2
 import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { listDirectory, batchRename, type FileEntry, type BatchResult } from "@/services/toolboxService";
+import { ToolboxToolPane } from "./ToolboxToolPane";
 
 type RenameOp = "prefix" | "suffix" | "searchReplace" | "sequence";
 type SeqType = "number" | "chinese" | "letter" | "letterUpper" | "roman";
@@ -231,7 +232,7 @@ export function BatchRenamerTool() {
   ];
 
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <ToolboxToolPane>
       {/* 目录选择 */}
       <section className="flex items-center gap-3">
         <button onClick={handleSelectDir} className="wb-ghost-btn gap-2 px-3 py-2">
@@ -381,7 +382,7 @@ export function BatchRenamerTool() {
       {/* 预览表格 */}
       {hasDir && (
         <section>
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex items-center gap-3">
             <h3 className="pf-text-sm font-semibold text-text-primary">
               {t(`${k}.preview`)}
               {changedCount > 0 && (
@@ -528,6 +529,6 @@ export function BatchRenamerTool() {
           </div>
         </div>
       )}
-    </div>
+    </ToolboxToolPane>
   );
 }
