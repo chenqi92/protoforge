@@ -223,7 +223,7 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
                       {item.id}
                     </button>
                     <span className="text-text-tertiary truncate">{item.name}</span>
-                    <span className={cn("pf-text-3xs px-1 rounded", item.status === 'ON' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-400')}>
+                    <span className={cn("pf-text-3xs px-1 rounded", item.status === 'ON' ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-300' : 'bg-red-500/10 text-red-400')}>
                       {item.status}
                     </span>
                     <button
@@ -257,7 +257,7 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
                 className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowLeft className="w-4 h-4" /></button>
               <button onClick={() => handlePtz('stop')}
-                className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors"
+                className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-300 hover:bg-red-500/20 transition-colors"
               ><RotateCcw className="w-3.5 h-3.5" /></button>
               <button onMouseDown={() => handlePtz('right')} onMouseUp={() => handlePtz('stop')}
                 className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"

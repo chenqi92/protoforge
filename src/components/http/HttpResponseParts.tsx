@@ -26,17 +26,17 @@ export function HttpRequestErrorBanner({
     <div className="shrink-0 border-b border-red-500/20 bg-red-500/[0.04]">
       <div className="flex items-center gap-2 px-3 py-2">
         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/10 shrink-0">
-          <XCircle className="h-3 w-3 text-red-500" />
+          <XCircle className="h-3 w-3 text-red-500 dark:text-red-300" />
         </div>
         <span className="pf-text-xs font-semibold text-red-600 dark:text-red-400">{t('http.requestFailed')}</span>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="pf-text-xxs text-red-500/70 hover:text-red-500 transition-colors"
+          className="pf-text-xxs text-red-500/70 hover:text-red-500 dark:text-red-300 transition-colors"
         >
           {expanded ? t('http.hideDetails', '收起') : t('http.errorDetails')}
         </button>
         <div className="flex-1" />
-        <button onClick={onDismiss} className="p-0.5 text-red-400/60 hover:text-red-500 transition-colors">
+        <button onClick={onDismiss} className="p-0.5 text-red-400/60 hover:text-red-500 dark:text-red-300 transition-colors">
           <X className="h-3 w-3" />
         </button>
       </div>
@@ -62,7 +62,7 @@ export function HttpRequestErrorPanel({
   return (
     <div className="flex h-full min-h-0 flex-col items-center justify-center px-6 text-center">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
-        <XCircle className="h-6 w-6 text-red-500" />
+        <XCircle className="h-6 w-6 text-red-500 dark:text-red-300" />
       </div>
       <p className="pf-text-lg font-semibold text-text-primary">{t('http.requestFailed')}</p>
       <p className="mt-1.5 max-w-[420px] pf-text-xs leading-5 text-text-secondary">{t('http.requestFailedDesc')}</p>

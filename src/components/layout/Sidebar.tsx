@@ -284,7 +284,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
                     </button>
                     <button
                       onClick={() => useHistoryStore.getState().clearAll()}
-                      className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
+                      className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500 dark:text-red-300"
                       title={t('sidebar.clearAll', '清空历史')}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -583,11 +583,11 @@ function CollectionsView({ search, expanded, setExpanded }: {
   };
 
   const methodColors: Record<string, { text: string; bg: string }> = {
-    GET: { text: "text-emerald-600", bg: "bg-emerald-500/8" },
-    POST: { text: "text-amber-600", bg: "bg-amber-500/8" },
-    PUT: { text: "text-blue-600", bg: "bg-blue-500/8" },
-    DELETE: { text: "text-red-600", bg: "bg-red-500/8" },
-    PATCH: { text: "text-violet-600", bg: "bg-violet-500/8" },
+    GET: { text: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/8" },
+    POST: { text: "text-amber-600 dark:text-amber-300", bg: "bg-amber-500/8" },
+    PUT: { text: "text-blue-600 dark:text-blue-300", bg: "bg-blue-500/8" },
+    DELETE: { text: "text-red-600 dark:text-red-300", bg: "bg-red-500/8" },
+    PATCH: { text: "text-violet-600 dark:text-violet-300", bg: "bg-violet-500/8" },
   };
 
   const exportPostman = useCollectionStore((s) => s.exportPostman);
@@ -845,7 +845,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
               >
                 <ChevronRight className="w-3 h-3 shrink-0 text-text-disabled" />
               </motion.div>
-              <Folder className="w-3 h-3 shrink-0 text-amber-500/50" fill="currentColor" />
+              <Folder className="w-3 h-3 shrink-0 text-amber-500 dark:text-amber-300/50" fill="currentColor" />
               {isRenamingItem ? (
                 <input
                   value={renameValue}
@@ -991,7 +991,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
               >
                 <ChevronRight className="w-3 h-3 shrink-0 text-text-disabled" />
               </motion.div>
-              <Folder className="w-3.5 h-3.5 shrink-0 text-amber-500/70" fill="currentColor" strokeWidth={1.5} />
+              <Folder className="w-3.5 h-3.5 shrink-0 text-amber-500 dark:text-amber-300/70" fill="currentColor" strokeWidth={1.5} />
               {renamingId === col.id ? (
                 <input
                   value={renameValue}
@@ -1101,7 +1101,7 @@ function RequestItemWithTooltip({
     const headers = (() => { try { const h = JSON.parse(item.headers || "[]"); return Array.isArray(h) ? h.filter((h: any) => h.key && h.enabled !== false && !h.isAuto) : []; } catch { return []; } })();
     if (headers.length > 0) summary.push({ label: t('http.headers'), value: headers.map((h: any) => h.key).join(', ') });
     // Auth
-    if (item.authType && item.authType !== "none") summary.push({ label: t('http.auth'), value: item.authType === "bearer" ? "Bearer Token" : item.authType === "basic" ? "Basic Auth" : item.authType === "apiKey" ? "API Key" : item.authType === "oauth2" ? "OAuth 2.0" : item.authType, accent: "text-amber-500" });
+    if (item.authType && item.authType !== "none") summary.push({ label: t('http.auth'), value: item.authType === "bearer" ? "Bearer Token" : item.authType === "basic" ? "Basic Auth" : item.authType === "apiKey" ? "API Key" : item.authType === "oauth2" ? "OAuth 2.0" : item.authType, accent: "text-amber-500 dark:text-amber-300" });
     // Body
     if (item.bodyType && item.bodyType !== "none") summary.push({ label: t('http.body'), value: item.bodyType === "json" ? "JSON" : item.bodyType === "formUrlencoded" ? "URL-Encoded" : item.bodyType === "formData" ? "Form-Data" : item.bodyType === "binary" ? "Binary" : item.bodyType === "graphql" ? "GraphQL" : item.bodyType.toUpperCase() });
     return summary;
@@ -1230,7 +1230,7 @@ function RequestItemWithTooltip({
                 onClick={handleCopy}
                 className={cn(
                   "flex items-center gap-1 px-1.5 py-[2px] rounded pf-text-xxs font-medium transition-colors",
-                  copied ? "text-emerald-500" : "hover:opacity-80"
+                  copied ? "text-emerald-500 dark:text-emerald-300" : "hover:opacity-80"
                 )}
                 style={{ color: copied ? undefined : 'var(--shell-copy)' }}
               >
@@ -1274,11 +1274,11 @@ function HistoryView({ search }: { search: string }) {
   };
 
   const methodColors: Record<string, { text: string; bg: string }> = {
-    GET: { text: "text-emerald-600", bg: "bg-emerald-500/8" },
-    POST: { text: "text-amber-600", bg: "bg-amber-500/8" },
-    PUT: { text: "text-blue-600", bg: "bg-blue-500/8" },
-    DELETE: { text: "text-red-600", bg: "bg-red-500/8" },
-    PATCH: { text: "text-violet-600", bg: "bg-violet-500/8" },
+    GET: { text: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/8" },
+    POST: { text: "text-amber-600 dark:text-amber-300", bg: "bg-amber-500/8" },
+    PUT: { text: "text-blue-600 dark:text-blue-300", bg: "bg-blue-500/8" },
+    DELETE: { text: "text-red-600 dark:text-red-300", bg: "bg-red-500/8" },
+    PATCH: { text: "text-violet-600 dark:text-violet-300", bg: "bg-violet-500/8" },
   };
 
   // 按日期分组
@@ -1399,7 +1399,7 @@ function HistoryView({ search }: { search: string }) {
                     {h.status ? (
                       <span className={cn(
                         "pf-text-3xs tabular-nums font-bold",
-                        h.status < 400 ? "text-emerald-500" : "text-red-500"
+                        h.status < 400 ? "text-emerald-500 dark:text-emerald-300" : "text-red-500 dark:text-red-300"
                       )}>
                         {h.status}
                       </span>
@@ -1416,7 +1416,7 @@ function HistoryView({ search }: { search: string }) {
       ))}
       {/* Write error banner */}
       {writeError && (
-        <div className="mx-2 my-1 px-2 py-1 pf-rounded-sm bg-red-500/10 text-red-500 pf-text-xxs truncate" title={writeError}>
+        <div className="mx-2 my-1 px-2 py-1 pf-rounded-sm bg-red-500/10 text-red-500 dark:text-red-300 pf-text-xxs truncate" title={writeError}>
           {t('history.writeFailed')}: {writeError}
         </div>
       )}
@@ -1486,10 +1486,10 @@ function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
                 "w-[6px] h-[6px] pf-rounded-xs shrink-0",
                 isActive ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" : "bg-border-strong"
               )} />
-              <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-emerald-600" : "text-text-disabled")} />
+              <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-emerald-600 dark:text-emerald-300" : "text-text-disabled")} />
               <span className={cn("truncate flex-1 text-left", isActive && "font-medium")}>{env.name}</span>
               {isActive && (
-                <span className="pf-rounded-sm bg-emerald-500/10 px-1.5 py-0.5 pf-text-3xs font-semibold text-emerald-600 shrink-0">{t('sidebar.active')}</span>
+                <span className="pf-rounded-sm bg-emerald-500/10 px-1.5 py-0.5 pf-text-3xs font-semibold text-emerald-600 dark:text-emerald-300 shrink-0">{t('sidebar.active')}</span>
               )}
             </button>
           </div>

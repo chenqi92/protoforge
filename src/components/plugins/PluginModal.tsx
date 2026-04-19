@@ -35,56 +35,56 @@ const categories: CategoryMeta[] = [
     label: "plugin.allPlugins",
     desc: "plugin.allPluginsDesc",
     icon: Puzzle,
-    accentClassName: "bg-blue-500/10 text-blue-600 ring-1 ring-inset ring-blue-500/15",
+    accentClassName: "bg-blue-500/10 text-blue-600 dark:text-blue-300 ring-1 ring-inset ring-blue-500/15",
   },
   {
     id: "protocol-parser",
     label: "plugin.protocolParser",
     desc: "plugin.protocolParserDesc",
     icon: Code2,
-    accentClassName: "bg-blue-500/10 text-blue-600 ring-1 ring-inset ring-blue-500/15",
+    accentClassName: "bg-blue-500/10 text-blue-600 dark:text-blue-300 ring-1 ring-inset ring-blue-500/15",
   },
   {
     id: "request-hook",
     label: "plugin.requestHook",
     desc: "plugin.requestHookDesc",
     icon: Terminal,
-    accentClassName: "bg-amber-500/10 text-amber-600 ring-1 ring-inset ring-amber-500/15",
+    accentClassName: "bg-amber-500/10 text-amber-600 dark:text-amber-300 ring-1 ring-inset ring-amber-500/15",
   },
   {
     id: "response-renderer",
     label: "plugin.responseRenderer",
     desc: "plugin.responseRendererDesc",
     icon: Sparkles,
-    accentClassName: "bg-violet-500/10 text-violet-600 ring-1 ring-inset ring-violet-500/15",
+    accentClassName: "bg-violet-500/10 text-violet-600 dark:text-violet-300 ring-1 ring-inset ring-violet-500/15",
   },
   {
     id: "data-generator",
     label: "plugin.dataGenerator",
     desc: "plugin.dataGeneratorDesc",
     icon: Wand2,
-    accentClassName: "bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/15",
+    accentClassName: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/15",
   },
   {
     id: "export-format",
     label: "plugin.exportFormat",
     desc: "plugin.exportFormatDesc",
     icon: FileOutput,
-    accentClassName: "bg-cyan-500/10 text-cyan-600 ring-1 ring-inset ring-cyan-500/15",
+    accentClassName: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 ring-1 ring-inset ring-cyan-500/15",
   },
   {
     id: "sidebar-panel",
     label: "plugin.sidebarPanel",
     desc: "plugin.sidebarPanelDesc",
     icon: LayoutDashboard,
-    accentClassName: "bg-rose-500/10 text-rose-600 ring-1 ring-inset ring-rose-500/15",
+    accentClassName: "bg-rose-500/10 text-rose-600 dark:text-rose-300 ring-1 ring-inset ring-rose-500/15",
   },
   {
     id: "crypto-tool",
     label: "plugin.cryptoTool",
     desc: "plugin.cryptoToolDesc",
     icon: Lock,
-    accentClassName: "bg-orange-500/10 text-orange-600 ring-1 ring-inset ring-orange-500/15",
+    accentClassName: "bg-orange-500/10 text-orange-600 dark:text-orange-300 ring-1 ring-inset ring-orange-500/15",
   },
   {
     id: "icon-pack",
@@ -271,7 +271,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                         {count > 0 && (
                           <span className={cn(
                             "min-w-[18px] rounded-full px-1.5 py-[1px] text-center pf-text-3xs font-medium leading-tight",
-                            isActive ? "bg-violet-500/15 text-violet-600" : "bg-bg-secondary/90 text-text-disabled"
+                            isActive ? "bg-violet-500/15 text-violet-600 dark:text-violet-300" : "bg-bg-secondary/90 text-text-disabled"
                           )}>
                             {count}
                           </span>
@@ -317,7 +317,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                   <div className="flex items-center gap-2">
                     {/* Search */}
                     <div className="relative group">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled group-focus-within:text-violet-500 transition-colors" />
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled group-focus-within:text-violet-500 dark:text-violet-300 transition-colors" />
                       <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -465,13 +465,13 @@ function PluginCard({
               </span>
             )}
             {plugin.hasUpdate && (
-              <span className="flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 pf-text-3xs font-semibold text-amber-600">
+              <span className="flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 pf-text-3xs font-semibold text-amber-600 dark:text-amber-300">
                 <ArrowUpCircle className="w-3 h-3" />
                 {t('plugin.updateAvailable')}
               </span>
             )}
             {plugin.removedFromRegistry && (
-              <span className="flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-red-500/15 px-1.5 pf-text-3xs font-semibold text-red-600">
+              <span className="flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-red-500/15 px-1.5 pf-text-3xs font-semibold text-red-600 dark:text-red-300">
                 {t('plugin.removedFromRegistry', '已从仓库移除')}
               </span>
             )}
@@ -485,10 +485,10 @@ function PluginCard({
                 {t(cat.label)}
               </span>
               {plugin.source === "remote" && !plugin.removedFromRegistry && (
-                <span className="pf-text-3xs font-medium px-1.5 py-[2px] rounded-full bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 shrink-0">{t('plugin.remote')}</span>
+                <span className="pf-text-3xs font-medium px-1.5 py-[2px] rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 border border-cyan-500/20 shrink-0">{t('plugin.remote')}</span>
               )}
               {plugin.removedFromRegistry && (
-                <span className="pf-text-3xs font-medium px-1.5 py-[2px] rounded-full bg-red-500/10 text-red-600 border border-red-500/20 shrink-0">{t('plugin.deprecated', '已废弃')}</span>
+                <span className="pf-text-3xs font-medium px-1.5 py-[2px] rounded-full bg-red-500/10 text-red-600 dark:text-red-300 border border-red-500/20 shrink-0">{t('plugin.deprecated', '已废弃')}</span>
               )}
               <span className="pf-text-3xs text-text-disabled">
                 v{plugin.version}
@@ -509,7 +509,7 @@ function PluginCard({
             plugin.hasUpdate
               ? "bg-warning hover:bg-warning/90 text-white shadow-sm"
               : plugin.installed
-                ? "text-text-tertiary border border-border-default hover:text-red-500 hover:border-red-200 dark:hover:border-red-500/30"
+                ? "text-text-tertiary border border-border-default hover:text-red-500 dark:text-red-300 hover:border-red-200 dark:hover:border-red-500/30"
                 : "bg-accent hover:bg-accent-hover text-white shadow-sm"
           )}
         >
@@ -569,7 +569,7 @@ function PluginDetail({
                 <span className="pf-text-xs text-text-disabled">
                   v{plugin.version}
                   {plugin.hasUpdate && plugin.latestVersion && (
-                    <span className="text-amber-600 font-semibold"> → v{plugin.latestVersion}</span>
+                    <span className="text-amber-600 dark:text-amber-300 font-semibold"> → v{plugin.latestVersion}</span>
                   )}
                 </span>
                 <span className={cn("pf-text-xxs font-medium px-2 py-[2px] rounded-full border flex items-center gap-1", cat.accentClassName)}>
@@ -577,13 +577,13 @@ function PluginDetail({
                   {t(cat.label)}
                 </span>
                 {plugin.hasUpdate && (
-                  <span className="pf-text-xxs font-semibold px-2 py-[2px] rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/20 flex items-center gap-1">
+                  <span className="pf-text-xxs font-semibold px-2 py-[2px] rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/20 flex items-center gap-1">
                     <ArrowUpCircle className="w-3 h-3" />
                     {t('plugin.updateAvailable')}
                   </span>
                 )}
                 {plugin.removedFromRegistry && (
-                  <span className="pf-text-xxs font-semibold px-2 py-[2px] rounded-full bg-red-500/15 text-red-600 border border-red-500/20">
+                  <span className="pf-text-xxs font-semibold px-2 py-[2px] rounded-full bg-red-500/15 text-red-600 dark:text-red-300 border border-red-500/20">
                     {t('plugin.removedFromRegistry', '已从仓库移除')}
                   </span>
                 )}
@@ -605,7 +605,7 @@ function PluginDetail({
             plugin.hasUpdate
               ? "bg-warning hover:bg-warning/90 text-white shadow-sm"
               : plugin.installed
-                ? "text-red-500 border-2 border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10"
+                ? "text-red-500 dark:text-red-300 border-2 border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10"
                 : "bg-accent hover:bg-accent-hover text-white shadow-sm"
           )}
         >

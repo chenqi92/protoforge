@@ -271,7 +271,7 @@ export function CookieManagerModal({ open, onClose }: CookieManagerModalProps) {
               {totalCount > 0 && (
                 <button
                   onClick={handleClearAll}
-                  className="flex h-8 items-center gap-1.5 pf-rounded-lg border border-border-default/80 bg-bg-primary/72 px-3 pf-text-xs font-medium text-red-500 transition-colors hover:bg-red-500/8"
+                  className="flex h-8 items-center gap-1.5 pf-rounded-lg border border-border-default/80 bg-bg-primary/72 px-3 pf-text-xs font-medium text-red-500 dark:text-red-300 transition-colors hover:bg-red-500/8"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   {t("cookieManager.clearAll")}
@@ -296,7 +296,7 @@ export function CookieManagerModal({ open, onClose }: CookieManagerModalProps) {
           {/* Auto-save notice */}
           {!autoSave && (
             <div className="mx-6 mt-4 flex items-center gap-3 pf-rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-300" />
               <div className="min-w-0 flex-1">
                 <p className="pf-text-xs font-medium text-amber-700 dark:text-amber-400">
                   {t("cookieManager.autoSaveOff")}
@@ -378,7 +378,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10">
-        <Cookie className="h-8 w-8 text-amber-500/60" />
+        <Cookie className="h-8 w-8 text-amber-500 dark:text-amber-300/60" />
       </div>
       <div className="text-center">
         <p className="pf-text-base font-semibold text-text-secondary">{t("cookieManager.empty")}</p>
@@ -442,12 +442,12 @@ function DomainGroup({
         </span>
 
         {secureCnt > 0 && (
-          <span className="flex items-center gap-0.5 pf-text-xs text-emerald-600">
+          <span className="flex items-center gap-0.5 pf-text-xs text-emerald-600 dark:text-emerald-300">
             <Shield className="h-3 w-3" /> {secureCnt}
           </span>
         )}
         {httpOnlyCnt > 0 && (
-          <span className="pf-text-xs text-blue-600">HttpOnly {httpOnlyCnt}</span>
+          <span className="pf-text-xs text-blue-600 dark:text-blue-300">HttpOnly {httpOnlyCnt}</span>
         )}
 
         <div className="ml-auto flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -466,7 +466,7 @@ function DomainGroup({
               e.stopPropagation();
               onClearDomain();
             }}
-            className="flex h-6 w-6 items-center justify-center pf-rounded-md text-text-tertiary hover:bg-red-500/10 hover:text-red-500"
+            className="flex h-6 w-6 items-center justify-center pf-rounded-md text-text-tertiary hover:bg-red-500/10 hover:text-red-500 dark:text-red-300"
             title={t("cookieManager.clearDomain")}
           >
             <Trash2 className="h-3 w-3" />
@@ -519,7 +519,7 @@ function DomainGroup({
                       <td className="px-3 py-2 text-text-tertiary">{cookie.path || "/"}</td>
                       <td className="px-3 py-2 text-text-tertiary">
                         {expired ? (
-                          <span className="text-red-500">{t("cookieManager.expired")}</span>
+                          <span className="text-red-500 dark:text-red-300">{t("cookieManager.expired")}</span>
                         ) : cookie.expires ? (
                           formatDate(cookie.expires)
                         ) : (
@@ -529,17 +529,17 @@ function DomainGroup({
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap gap-1">
                           {cookie.httpOnly && (
-                            <span className="inline-flex pf-rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">
+                            <span className="inline-flex pf-rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-300">
                               HttpOnly
                             </span>
                           )}
                           {cookie.secure && (
-                            <span className="inline-flex pf-rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
+                            <span className="inline-flex pf-rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
                               Secure
                             </span>
                           )}
                           {cookie.sameSite && (
-                            <span className="inline-flex pf-rounded-md bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium text-violet-600">
+                            <span className="inline-flex pf-rounded-md bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-300">
                               {cookie.sameSite}
                             </span>
                           )}
@@ -556,7 +556,7 @@ function DomainGroup({
                           </button>
                           <button
                             onClick={() => onRemoveCookie(cookie)}
-                            className="flex h-6 w-6 items-center justify-center pf-rounded-md text-text-tertiary hover:bg-red-500/10 hover:text-red-500"
+                            className="flex h-6 w-6 items-center justify-center pf-rounded-md text-text-tertiary hover:bg-red-500/10 hover:text-red-500 dark:text-red-300"
                             title={t("cookieManager.deleteCookie")}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -596,7 +596,7 @@ function CookieForm({
 
   const fieldCls =
     "h-8 w-full pf-rounded-lg border border-border-default/60 bg-bg-secondary/40 px-3 pf-text-xs text-text-primary outline-none placeholder:text-text-disabled focus:border-accent/40 focus:ring-1 focus:ring-accent/20";
-  const errorCls = "mt-1 pf-text-xs text-red-500";
+  const errorCls = "mt-1 pf-text-xs text-red-500 dark:text-red-300";
 
   return (
     <div className="mx-auto w-full max-w-[560px] p-6">
@@ -608,7 +608,7 @@ function CookieForm({
         {/* Name */}
         <div>
           <label className="pf-text-xs font-semibold text-text-secondary">
-            {t("cookieManager.name")} <span className="text-red-500">*</span>
+            {t("cookieManager.name")} <span className="text-red-500 dark:text-red-300">*</span>
           </label>
           <input
             value={form.name}
@@ -636,7 +636,7 @@ function CookieForm({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="pf-text-xs font-semibold text-text-secondary">
-              {t("cookieManager.domain")} <span className="text-red-500">*</span>
+              {t("cookieManager.domain")} <span className="text-red-500 dark:text-red-300">*</span>
             </label>
             <input
               value={form.domain}

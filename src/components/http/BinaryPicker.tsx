@@ -20,7 +20,7 @@ export function BinaryPicker({ filePath, fileName, onChange }: { filePath: strin
             <p className="pf-text-base font-medium text-text-primary truncate max-w-xs">{fileName}</p>
             <p className="pf-text-xs text-text-disabled font-mono truncate max-w-xs">{filePath}</p>
           </div>
-          <button onClick={() => onChange('', '')} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-red-500 transition-colors" title={t('http.removeFile')}>
+          <button onClick={() => onChange('', '')} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-red-500 dark:text-red-300 transition-colors" title={t('http.removeFile')}>
             <X className="w-4 h-4" />
           </button>
         </div>

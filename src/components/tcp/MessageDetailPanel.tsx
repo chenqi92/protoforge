@@ -109,10 +109,10 @@ export function MessageDetailPanel({ message, displayFormat, compact: _compact =
             <span className={cn(
               "pf-rounded-sm px-2 py-0.5 pf-text-3xs font-bold uppercase",
               message.direction === "sent"
-                ? "bg-blue-500/10 text-blue-600"
+                ? "bg-blue-500/10 text-blue-600 dark:text-blue-300"
                 : message.direction === "received"
-                  ? "bg-emerald-500/10 text-emerald-600"
-                  : "bg-amber-500/10 text-amber-600"
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                  : "bg-amber-500/10 text-amber-600 dark:text-amber-300"
             )}>
               {messageDirectionLabel}
             </span>
@@ -135,7 +135,7 @@ export function MessageDetailPanel({ message, displayFormat, compact: _compact =
               className="wb-icon-btn !h-7 !w-7"
               title={t("tcp.messageDetail.copyPayload", "复制当前内容")}
             >
-              {copiedKey === "payload" ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+              {copiedKey === "payload" ? <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
           )}
           {activeTab === "hex" && (
@@ -144,7 +144,7 @@ export function MessageDetailPanel({ message, displayFormat, compact: _compact =
               className="wb-icon-btn !h-7 !w-7"
               title={t("tcp.messageDetail.copyRawHex", "复制原始 HEX")}
             >
-              {copiedKey === "raw" ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+              {copiedKey === "raw" ? <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
           )}
           {message.direction !== "system" && activeTab !== "protocol" && (

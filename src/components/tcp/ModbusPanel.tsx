@@ -363,7 +363,7 @@ function ModbusFunctionPanel({
           className={cn(
             "flex h-8 w-full items-center justify-center gap-1.5 pf-rounded-sm border pf-text-xs font-semibold transition-colors",
             pollingEnabled && connected
-              ? "border-amber-500/40 bg-amber-500/12 text-amber-500"
+              ? "border-amber-500/40 bg-amber-500/12 text-amber-500 dark:text-amber-300"
               : "border-border-default/60 text-text-disabled hover:text-text-secondary disabled:opacity-50"
           )}
           title={t('serial.modbus.pollingToggle', '轮询')}
@@ -609,12 +609,12 @@ function ModbusResponseTable({
             </div>
           )}
           {transaction.success ? (
-            <span className="flex items-center gap-1 pf-text-xxs text-emerald-500">
+            <span className="flex items-center gap-1 pf-text-xxs text-emerald-500 dark:text-emerald-300">
               <CheckCircle2 className="w-3 h-3" />
               {formatDuration(transaction.durationMs)}
             </span>
           ) : (
-            <span className="flex items-center gap-1 pf-text-xxs text-red-500">
+            <span className="flex items-center gap-1 pf-text-xxs text-red-500 dark:text-red-300">
               <AlertCircle className="w-3 h-3" />
               {transaction.error}
             </span>
@@ -667,7 +667,7 @@ function ModbusResponseTable({
                   <td className="px-3 py-1.5 text-text-secondary">
                     {row.address} (0x{row.address.toString(16).toUpperCase().padStart(4, "0")})
                   </td>
-                  <td className={cn("px-3 py-1.5 font-medium", isCoil && (row.value ? "text-emerald-500" : "text-text-tertiary"))}>
+                  <td className={cn("px-3 py-1.5 font-medium", isCoil && (row.value ? "text-emerald-500 dark:text-emerald-300" : "text-text-tertiary"))}>
                     {isCoil ? (row.value ? "ON" : "OFF") : row.value}
                   </td>
                   {!isCoil && (
@@ -693,7 +693,7 @@ function ModbusResponseTable({
       ) : transaction.error ? (
         <div className="px-3 py-4 pf-text-sm text-red-400 text-center">{transaction.error}</div>
       ) : resp?.writeCount !== undefined ? (
-        <div className="px-3 py-3 pf-text-sm text-emerald-500 text-center">
+        <div className="px-3 py-3 pf-text-sm text-emerald-500 dark:text-emerald-300 text-center">
           ✓ {t('serial.modbus.wrote', '已写入')} {resp.writeCount} {t('serial.modbus.registers', '个寄存器')}
         </div>
       ) : null}
@@ -743,8 +743,8 @@ function ModbusTransactionLog({
           <div className="flex items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-2">
               {tx.success
-                ? <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                : <AlertCircle className="w-3 h-3 text-red-500 shrink-0" />}
+                ? <CheckCircle2 className="w-3 h-3 text-emerald-500 dark:text-emerald-300 shrink-0" />
+                : <AlertCircle className="w-3 h-3 text-red-500 dark:text-red-300 shrink-0" />}
               <span className="font-semibold text-text-primary">
                 {t(FC_I18N_KEY[tx.functionCode], `FC${String(tx.functionCode).padStart(2, "0")}`)}
               </span>
@@ -1161,11 +1161,11 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                             key={r.unitId}
                             className={cn(
                               "flex items-center gap-2 pf-rounded-sm px-2.5 py-2 pf-text-xxs font-mono",
-                              r.ok ? "bg-emerald-500/5 text-emerald-600" : "bg-bg-secondary/20 text-text-disabled"
+                              r.ok ? "bg-emerald-500/5 text-emerald-600 dark:text-emerald-300" : "bg-bg-secondary/20 text-text-disabled"
                             )}
                           >
                             {r.ok
-                              ? <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-500" />
+                              ? <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-500 dark:text-emerald-300" />
                               : <span className="h-3 w-3 shrink-0" />}
                             <span className="font-semibold">UID {r.unitId}</span>
                             <span className="text-text-disabled">{r.ms}ms</span>
@@ -1257,7 +1257,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                     <div className="pf-text-3xs uppercase tracking-[0.08em] text-text-disabled">
                       {t('serial.modbus.successRate', '成功')}
                     </div>
-                    <div className={cn("mt-1 pf-text-xs font-semibold", successCount === transactions.length && transactions.length > 0 ? "text-emerald-500" : "text-text-secondary")}>
+                    <div className={cn("mt-1 pf-text-xs font-semibold", successCount === transactions.length && transactions.length > 0 ? "text-emerald-500 dark:text-emerald-300" : "text-text-secondary")}>
                       {successCount} / {transactions.length}
                     </div>
                   </div>
@@ -1275,7 +1275,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                       UID {lastTransaction.unitId} · Addr {lastTransaction.startAddress}
                       {lastTransaction.quantity > 1 ? ` × ${lastTransaction.quantity}` : ""}
                     </div>
-                    <div className={cn("mt-1 pf-text-xxs", lastTransaction.success ? "text-emerald-500" : "text-red-500")}>
+                    <div className={cn("mt-1 pf-text-xxs", lastTransaction.success ? "text-emerald-500 dark:text-emerald-300" : "text-red-500 dark:text-red-300")}>
                       {lastTransaction.success ? t('serial.modbus.execute', '执行') : lastTransaction.error}
                     </div>
                   </div>
@@ -1346,7 +1346,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
         {transactions.length > 0 && (
           <>
             <div className="w-[1px] h-3 bg-border-default" />
-            <span className={cn("font-medium", successCount === transactions.length ? "text-emerald-500" : "text-amber-500")}>
+            <span className={cn("font-medium", successCount === transactions.length ? "text-emerald-500 dark:text-emerald-300" : "text-amber-500 dark:text-amber-300")}>
               ✓ {successCount} / {transactions.length}
             </span>
           </>

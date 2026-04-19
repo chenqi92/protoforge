@@ -124,8 +124,8 @@ export function StatusBar({
     if (isReady) {
       return (
         <>
-          <CheckCircle className="h-3 w-3 text-emerald-500" />
-          <span className="text-emerald-500 font-medium">{t('update.readyToRestart')}</span>
+          <CheckCircle className="h-3 w-3 text-emerald-500 dark:text-emerald-300" />
+          <span className="text-emerald-500 dark:text-emerald-300 font-medium">{t('update.readyToRestart')}</span>
         </>
       );
     }
@@ -144,11 +144,11 @@ export function StatusBar({
     if (hasUpdate) {
       return (
         <>
-          <ArrowDownCircle className="h-3 w-3 text-violet-500 animate-bounce" />
+          <ArrowDownCircle className="h-3 w-3 text-violet-500 dark:text-violet-300 animate-bounce" />
           <span className="text-text-disabled">v{currentVersion}</span>
           <ArrowRight className="h-2.5 w-2.5 text-text-disabled" />
-          <span className="text-violet-500 font-semibold">v{latestVersion}</span>
-          <span className="text-[10px] text-violet-500/80">{t('update.newAvailable')}</span>
+          <span className="text-violet-500 dark:text-violet-300 font-semibold">v{latestVersion}</span>
+          <span className="text-[10px] text-violet-500 dark:text-violet-300/80">{t('update.newAvailable')}</span>
         </>
       );
     }
@@ -285,7 +285,7 @@ export function StatusBar({
                   <>
                     <div className="flex flex-col items-center text-center gap-3 py-2">
                       <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/10">
-                        <CheckCircle className="h-6 w-6 text-emerald-500" />
+                        <CheckCircle className="h-6 w-6 text-emerald-500 dark:text-emerald-300" />
                       </div>
                       <div className="space-y-1">
                         <h3 className="pf-text-lg font-bold text-text-primary">
@@ -374,10 +374,10 @@ export function StatusBar({
                       </div>
                       <ArrowRight className="h-4 w-4 text-text-disabled shrink-0" />
                       <div className="flex-1 text-center">
-                        <div className="pf-text-xxs text-violet-500/80 uppercase tracking-wider mb-1">
+                        <div className="pf-text-xxs text-violet-500 dark:text-violet-300/80 uppercase tracking-wider mb-1">
                           {t('update.latestVersion')}
                         </div>
-                        <div className="pf-text-base font-mono font-bold text-violet-500">
+                        <div className="pf-text-base font-mono font-bold text-violet-500 dark:text-violet-300">
                           v{updateInfo.version}
                         </div>
                       </div>
@@ -435,7 +435,7 @@ function CookieJarButton() {
     >
       <Cookie className="h-3 w-3" />
       {cookieCount > 0 && (
-        <span className="font-semibold text-amber-500">{cookieCount}</span>
+        <span className="font-semibold text-amber-500 dark:text-amber-300">{cookieCount}</span>
       )}
     </button>
   );

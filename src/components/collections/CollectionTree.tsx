@@ -83,7 +83,7 @@ function TreeItem({
         >
           <GripVertical className="w-3 h-3 text-text-disabled opacity-0 group-hover:opacity-50 cursor-grab shrink-0" />
           {expanded ? <ChevronDown className="w-3 h-3 text-text-disabled" /> : <ChevronRight className="w-3 h-3 text-text-disabled" />}
-          <Folder className="w-3.5 h-3.5 text-amber-500/50 shrink-0" fill="currentColor" />
+          <Folder className="w-3.5 h-3.5 text-amber-500 dark:text-amber-300/50 shrink-0" fill="currentColor" />
           <span className="pf-text-xs text-text-primary truncate flex-1">{item.name}</span>
           <span className="pf-text-xxs text-text-disabled">{folderChildren.length}</span>
         </div>
@@ -347,7 +347,7 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
                 <span className="pf-text-xs font-medium text-text-primary truncate flex-1">{col.name}</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); onRunCollection?.(col.id, col.name); }}
-                  className="p-0.5 opacity-0 group-hover:opacity-100 text-emerald-500 hover:text-emerald-600 transition-all"
+                  className="p-0.5 opacity-0 group-hover:opacity-100 text-emerald-500 hover:text-emerald-600 dark:text-emerald-300 transition-all"
                   title={t('runner.run')}
                 >
                   <Play className="w-3 h-3" />

@@ -84,9 +84,9 @@ export function getMethodKindLabel(kind: GrpcMethodKind): string {
 
 export function getMethodKindColor(kind: GrpcMethodKind): string {
   switch (kind) {
-    case 'unary': return 'text-emerald-500';
-    case 'serverStreaming': return 'text-blue-500';
-    case 'clientStreaming': return 'text-amber-500';
-    case 'bidiStreaming': return 'text-purple-500';
+    case 'unary': return 'text-emerald-500 dark:text-emerald-300';
+    case 'serverStreaming': return 'text-blue-500 dark:text-blue-300';
+    case 'clientStreaming': return 'text-amber-500 dark:text-amber-300';
+    case 'bidiStreaming': return 'text-purple-500 dark:text-purple-300';
   }
 }

@@ -532,7 +532,7 @@ export function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; 
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); handleRemoveFile(i, fi); }}
-                              className="shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-red-500/15 hover:text-red-500 text-text-disabled transition-colors"
+                              className="shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-red-500/15 hover:text-red-500 dark:text-red-300 text-text-disabled transition-colors"
                               title={`移除 ${name}`}
                             >
                               <X className="w-2.5 h-2.5" />

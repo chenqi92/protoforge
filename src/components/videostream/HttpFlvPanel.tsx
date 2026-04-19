@@ -125,13 +125,13 @@ export function HttpFlvPanel({ sessionKey, connected }: HttpFlvPanelProps) {
                 >
                   <span className={cn(
                     "w-12 shrink-0 font-semibold",
-                    tag.type === 'video' ? 'text-blue-500' : tag.type === 'audio' ? 'text-emerald-500' : 'text-amber-500'
+                    tag.type === 'video' ? 'text-blue-500 dark:text-blue-300' : tag.type === 'audio' ? 'text-emerald-500 dark:text-emerald-300' : 'text-amber-500 dark:text-amber-300'
                   )}>
                     {tag.type}
                   </span>
                   <span className="text-text-tertiary w-16 shrink-0">{tag.size}B</span>
                   <span className="text-text-disabled">{tag.timestamp}ms</span>
-                  {tag.keyframe && <span className="text-amber-500 pf-text-3xs">KEY</span>}
+                  {tag.keyframe && <span className="text-amber-500 dark:text-amber-300 pf-text-3xs">KEY</span>}
                 </button>
               ))}
             </div>

@@ -156,9 +156,9 @@ export function HttpSseResponsePanel({
 
           <span className={cn("http-response-status",
             status === 'connected'
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:text-emerald-200 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300"
               : status === 'connecting'
-                ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300"
+                ? "border-amber-200 bg-amber-50 text-amber-700 dark:text-amber-200 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300"
                 : status === 'error'
                   ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300"
                   : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-300"
@@ -185,7 +185,7 @@ export function HttpSseResponsePanel({
         {events.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary/35">
-              <Waves className="h-7 w-7 text-orange-500/40" />
+              <Waves className="h-7 w-7 text-orange-500 dark:text-orange-300/40" />
             </div>
             <div className="pf-text-md font-semibold text-text-secondary">{t('sse.emptyTitle')}</div>
             <div className="mt-2 max-w-xl pf-text-sm leading-6 text-text-tertiary">{t('sse.emptyDesc')}</div>

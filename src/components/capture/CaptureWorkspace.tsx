@@ -16,12 +16,12 @@ import { invoke } from "@tauri-apps/api/core";
 
 // ── HTTP Method 颜色 ──
 const methodColors: Record<string, { text: string; bg: string }> = {
-  GET: { text: "text-emerald-600", bg: "bg-emerald-500/15" },
-  POST: { text: "text-amber-600", bg: "bg-amber-500/15" },
-  PUT: { text: "text-blue-600", bg: "bg-blue-500/15" },
-  DELETE: { text: "text-red-600", bg: "bg-red-500/15" },
-  PATCH: { text: "text-violet-600", bg: "bg-violet-500/15" },
-  HEAD: { text: "text-cyan-600", bg: "bg-cyan-500/15" },
+  GET: { text: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/15" },
+  POST: { text: "text-amber-600 dark:text-amber-300", bg: "bg-amber-500/15" },
+  PUT: { text: "text-blue-600 dark:text-blue-300", bg: "bg-blue-500/15" },
+  DELETE: { text: "text-red-600 dark:text-red-300", bg: "bg-red-500/15" },
+  PATCH: { text: "text-violet-600 dark:text-violet-300", bg: "bg-violet-500/15" },
+  HEAD: { text: "text-cyan-600 dark:text-cyan-300", bg: "bg-cyan-500/15" },
   OPTIONS: { text: "text-gray-600", bg: "bg-gray-500/15" },
 };
 
@@ -30,9 +30,9 @@ const MAX_VISIBLE_CAPTURE_ENTRIES = 500;
 // ── 状态码颜色 ──
 function statusColor(status?: number): string {
   if (!status) return "text-text-disabled";
-  if (status < 300) return "text-emerald-600";
-  if (status < 400) return "text-amber-600";
-  return "text-red-500";
+  if (status < 300) return "text-emerald-600 dark:text-emerald-300";
+  if (status < 400) return "text-amber-600 dark:text-amber-300";
+  return "text-red-500 dark:text-red-300";
 }
 
 // ── 格式化大小 ──
@@ -311,7 +311,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
           ) : null}
           {caTrusted !== null ? (
             <span className="wb-request-meta">
-              <Shield className={cn("h-3 w-3", caTrusted ? "text-emerald-600" : "text-orange-600")} />
+              <Shield className={cn("h-3 w-3", caTrusted ? "text-emerald-600 dark:text-emerald-300" : "text-orange-600 dark:text-orange-300")} />
               {caTrusted ? t('capture.caTrustedTitle') : t('capture.caNotTrustedTitle')}
             </span>
           ) : null}
@@ -327,7 +327,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 pf-rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2.5 pf-text-xs text-red-600 flex items-center gap-2">
+            <div className="mt-2 pf-rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2.5 pf-text-xs text-red-600 dark:text-red-300 flex items-center gap-2">
               <X className="w-3.5 h-3.5 shrink-0" />
               <span className="min-w-0 break-all">{storeError}</span>
             </div>
@@ -355,10 +355,10 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                   "shrink-0 mt-0.5 w-6 h-6 rounded-full flex items-center justify-center",
                   caTrusted ? "bg-emerald-500/20" : "bg-orange-500/20"
                 )}>
-                  <Shield className={cn("w-3.5 h-3.5", caTrusted ? "text-emerald-600" : "text-orange-600")} />
+                  <Shield className={cn("w-3.5 h-3.5", caTrusted ? "text-emerald-600 dark:text-emerald-300" : "text-orange-600 dark:text-orange-300")} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className={cn("font-semibold mb-1", caTrusted ? "text-emerald-700" : "text-orange-700")}>
+                  <div className={cn("font-semibold mb-1", caTrusted ? "text-emerald-700 dark:text-emerald-200" : "text-orange-700 dark:text-orange-200")}>
                     {caTrusted ? t('capture.caTrustedTitle') : t('capture.caNotTrustedTitle')}
                   </div>
                   <p className="text-text-tertiary pf-text-xxs mb-2 leading-relaxed">
@@ -367,7 +367,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                   {caPath && (
                     <code className={cn(
                       "font-mono pf-text-xxs px-1.5 py-0.5 rounded break-all",
-                      caTrusted ? "bg-emerald-500/10 text-emerald-700" : "bg-orange-500/10 text-orange-700"
+                      caTrusted ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-200" : "bg-orange-500/10 text-orange-700 dark:text-orange-200"
                     )}>{caPath}</code>
                   )}
                   {!caTrusted && (
@@ -401,8 +401,8 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                     <div className={cn(
                       "mt-2 px-2.5 py-1.5 rounded-lg pf-text-xxs",
                       caInstallStatus.ok
-                        ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-                        : "bg-red-500/10 text-red-500 border border-red-500/20"
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20"
+                        : "bg-red-500/10 text-red-500 dark:text-red-300 border border-red-500/20"
                     )}>
                       {caInstallStatus.msg}
                     </div>
@@ -530,7 +530,7 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
               <div className="border-t border-border-default/60 pt-3 pf-text-xs text-text-tertiary">
                 <p className="font-medium text-text-secondary">{t('capture.general')}</p>
                 <div className="mt-2 flex items-start gap-1.5 pf-text-xxs text-text-disabled">
-                  <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-[1px]" />
+                  <Lightbulb className="w-3 h-3 text-amber-500 dark:text-amber-300 shrink-0 mt-[1px]" />
                   <span>{t('capture.httpsHint')}</span>
                 </div>
               </div>
@@ -669,7 +669,7 @@ function DetailPanel({
       <div className="flex-1 flex min-h-0">
         {/* Request 面板 */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-border-default/50">
-          <BurpTabStrip label="Request" activeTab={reqTab} onChange={setReqTab} color="text-orange-500" />
+          <BurpTabStrip label="Request" activeTab={reqTab} onChange={setReqTab} color="text-orange-500 dark:text-orange-300" />
           <div className="flex-1 overflow-auto">
             {reqTab === "raw" && <RawView type="request" entry={entry} />}
             {reqTab === "headers" && <HeadersTableView headers={entry.requestHeaders} />}
@@ -678,7 +678,7 @@ function DetailPanel({
         </div>
         {/* Response 面板 */}
         <div className="flex-1 flex flex-col min-w-0">
-          <BurpTabStrip label="Response" activeTab={resTab} onChange={setResTab} color="text-emerald-500" />
+          <BurpTabStrip label="Response" activeTab={resTab} onChange={setResTab} color="text-emerald-500 dark:text-emerald-300" />
           <div className="flex-1 overflow-auto">
             {resTab === "raw" && <RawView type="response" entry={entry} />}
             {resTab === "headers" && <HeadersTableView headers={entry.responseHeaders} />}

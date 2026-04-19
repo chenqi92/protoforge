@@ -86,7 +86,7 @@ export function ExportPluginDropdown({ config }: { config: import("@/types/http"
       <button
         ref={btnRef}
         onClick={handleToggle}
-        className="wb-icon-btn hover:text-indigo-600"
+        className="wb-icon-btn hover:text-indigo-600 dark:text-indigo-300"
         title={t('http.export', '导出')}
         disabled={!config.url.trim()}
       >
@@ -189,7 +189,7 @@ export function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (da
         ref={btnRef}
         onClick={handleOpen}
         className={cn(
-          "shrink-0 pf-rounded-sm text-text-disabled transition-colors hover:bg-bg-hover hover:text-purple-500",
+          "shrink-0 pf-rounded-sm text-text-disabled transition-colors hover:bg-bg-hover hover:text-purple-500 dark:text-purple-300",
           showLabel ? "flex items-center gap-1 px-2 py-1 pf-text-xs" : "p-1"
         )}
         title={t('http.mockGenerator', '数据生成')}
@@ -214,7 +214,7 @@ export function InlineMockButton({ onInsert, label: showLabel }: { onInsert: (da
                   disabled={loading}
                   className="w-full flex items-center gap-1.5 pf-rounded-sm px-2.5 py-1.5 text-left pf-text-xs text-text-primary hover:bg-bg-hover transition-colors"
                 >
-                  <Wand2 className="w-3 h-3 text-purple-500/60 shrink-0" />
+                  <Wand2 className="w-3 h-3 text-purple-500 dark:text-purple-300/60 shrink-0" />
                   <span className="font-medium truncate">{item.generator.name}</span>
                 </button>
               ))}

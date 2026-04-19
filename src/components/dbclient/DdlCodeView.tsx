@@ -37,7 +37,7 @@ export const DdlCodeView = memo(function DdlCodeView({ text, showToolbar = true 
         <div className="flex items-center justify-end px-3 py-1 border-b border-border-default/30 shrink-0">
           <button onClick={handleCopy}
             className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors">
-            {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+            {copied ? <Check size={12} className="text-emerald-500 dark:text-emerald-300" /> : <Copy size={12} />}
             <span>{copied ? "已复制" : "复制"}</span>
           </button>
         </div>
@@ -74,7 +74,7 @@ function DdlLine({ line }: { line: string }) {
   while ((m = regex.exec(line)) !== null) {
     const [full, str, backtick, dblQuote, word] = m;
     if (str) {
-      parts.push(<span key={key++} className="text-emerald-500">{full}</span>);
+      parts.push(<span key={key++} className="text-emerald-500 dark:text-emerald-300">{full}</span>);
     } else if (backtick || dblQuote) {
       parts.push(<span key={key++} className="text-text-primary">{full}</span>);
     } else if (word) {

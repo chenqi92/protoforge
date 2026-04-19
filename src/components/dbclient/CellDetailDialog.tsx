@@ -103,7 +103,7 @@ export function CellDetailDialog({ value, column, rowIndex, onClose }: CellDetai
               className="flex items-center gap-1 px-2 py-1 pf-rounded-sm pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors"
               title={t("dbClient.copyCell")}
             >
-              {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+              {copied ? <Check size={12} className="text-emerald-500 dark:text-emerald-300" /> : <Copy size={12} />}
               <span>{copied ? t("dbClient.copied") : t("dbClient.copyCell")}</span>
             </button>
             <button

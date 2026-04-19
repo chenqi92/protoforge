@@ -135,11 +135,11 @@ export function MessageLog({
           {stats && hasTraffic ? (
             <div className="mt-1 flex flex-wrap items-center gap-3 pf-text-xs text-text-tertiary">
               <span className="inline-flex items-center gap-1">
-                <ArrowUpRight className="h-3 w-3 text-blue-500" />
+                <ArrowUpRight className="h-3 w-3 text-blue-500 dark:text-blue-300" />
                 {formatSize(stats.sentBytes)} ({stats.sentCount})
               </span>
               <span className="inline-flex items-center gap-1">
-                <ArrowDownLeft className="h-3 w-3 text-emerald-500" />
+                <ArrowDownLeft className="h-3 w-3 text-emerald-500 dark:text-emerald-300" />
                 {formatSize(stats.receivedBytes)} ({stats.receivedCount})
               </span>
             </div>
@@ -176,7 +176,7 @@ export function MessageLog({
           {messages.length > 0 ? (
             <button
               onClick={onClear}
-              className="wb-icon-btn hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+              className="wb-icon-btn hover:bg-red-50 hover:text-red-500 dark:text-red-300 dark:hover:bg-red-500/10"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -211,7 +211,7 @@ export function MessageLog({
                       className={cn(
                         "pf-rounded-sm border px-2.5 py-1 pf-text-xxs font-semibold",
                         connected
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
                           : "border-border-default/60 bg-bg-secondary/78 text-text-tertiary"
                       )}
                     >
@@ -254,11 +254,11 @@ export function MessageLog({
                 >
                   <div className="shrink-0">
                     {m.direction === "sent" ? (
-                      <span className="pf-rounded-sm bg-blue-500/10 px-2 py-0.5 pf-text-3xs font-bold text-blue-600">TX</span>
+                      <span className="pf-rounded-sm bg-blue-500/10 px-2 py-0.5 pf-text-3xs font-bold text-blue-600 dark:text-blue-300">TX</span>
                     ) : m.direction === "received" ? (
-                      <span className="pf-rounded-sm bg-emerald-500/10 px-2 py-0.5 pf-text-3xs font-bold text-emerald-600">RX</span>
+                      <span className="pf-rounded-sm bg-emerald-500/10 px-2 py-0.5 pf-text-3xs font-bold text-emerald-600 dark:text-emerald-300">RX</span>
                     ) : (
-                      <span className="pf-rounded-sm bg-amber-500/10 px-2 py-0.5 pf-text-3xs font-bold text-amber-600">SYS</span>
+                      <span className="pf-rounded-sm bg-amber-500/10 px-2 py-0.5 pf-text-3xs font-bold text-amber-600 dark:text-amber-300">SYS</span>
                     )}
                   </div>
 
@@ -297,12 +297,12 @@ export function MessageLog({
                       onClick={() => handleCopy(displayData, m.id)}
                       className="pf-rounded-md p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-accent group-hover:opacity-100"
                     >
-                      {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                     {hasParserPlugin && m.direction === 'received' && (
                       <button
                         onClick={() => handleParseMessage(m.data)}
-                        className="pf-rounded-md p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-blue-500 group-hover:opacity-100"
+                        className="pf-rounded-md p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-blue-500 dark:text-blue-300 group-hover:opacity-100"
                         title={t('parser.parse', '\u89e3\u6790')}
                       >
                         <FileCode2 className="h-3.5 w-3.5" />

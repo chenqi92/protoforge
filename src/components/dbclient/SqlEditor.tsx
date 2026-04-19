@@ -304,11 +304,11 @@ export const SqlEditor = memo(function SqlEditor({
               )}
             >
               {tab.kind === "structure" ? (
-                <Pencil size={11} className="shrink-0 text-amber-500" />
+                <Pencil size={11} className="shrink-0 text-amber-500 dark:text-amber-300" />
               ) : tab.kind === "query" ? (
                 <FileText size={11} className="shrink-0 opacity-60" />
               ) : (
-                <Table2 size={11} className="shrink-0 text-blue-500" />
+                <Table2 size={11} className="shrink-0 text-blue-500 dark:text-blue-300" />
               )}
               <span className="truncate">{tab.label}</span>
               {tab.kind === "query" && tab.queryRunning && (
@@ -353,7 +353,7 @@ export const SqlEditor = memo(function SqlEditor({
               className={cn(
                 "flex items-center gap-1.5 pf-rounded-sm px-3 py-1 pf-text-xs font-medium transition-colors",
                 queryRunning
-                  ? "bg-red-500/15 text-red-600 hover:bg-red-500/25"
+                  ? "bg-red-500/15 text-red-600 dark:text-red-300 hover:bg-red-500/25"
                   : "bg-accent/15 text-accent hover:bg-accent/25",
                 !connected && "opacity-40 cursor-not-allowed",
               )}
@@ -384,7 +384,7 @@ export const SqlEditor = memo(function SqlEditor({
             {/* 结果状态 */}
             {queryResult && !queryRunning && (
               <div className="flex items-center gap-1.5 pf-text-xs text-text-tertiary">
-                <CheckCircle2 size={12} className="text-emerald-500" />
+                <CheckCircle2 size={12} className="text-emerald-500 dark:text-emerald-300" />
                 {queryResult.rows.length} {t("dbClient.rows")}
                 <span className="text-text-quaternary">·</span>
                 <Clock size={11} />
@@ -393,7 +393,7 @@ export const SqlEditor = memo(function SqlEditor({
             )}
 
             {queryError && !queryRunning && (
-              <div className="flex items-center gap-1.5 pf-text-xs text-red-500 truncate min-w-0">
+              <div className="flex items-center gap-1.5 pf-text-xs text-red-500 dark:text-red-300 truncate min-w-0">
                 <AlertCircle size={12} className="shrink-0" />
                 <span className="truncate">{queryError}</span>
               </div>

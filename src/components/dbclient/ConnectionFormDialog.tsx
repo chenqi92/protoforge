@@ -21,10 +21,10 @@ import { DB_TYPE_LABELS, DB_TYPE_DEFAULTS } from "@/types/dbclient";
 
 // 每种数据库类型的图标和颜色
 const DB_META: Record<DbType, { icon: typeof Database; color: string; bg: string }> = {
-  postgresql: { icon: Database, color: "text-blue-600", bg: "bg-blue-500/10 ring-blue-500/20" },
-  mysql:      { icon: Server,   color: "text-orange-600", bg: "bg-orange-500/10 ring-orange-500/20" },
-  sqlite:     { icon: FileBox,  color: "text-emerald-600", bg: "bg-emerald-500/10 ring-emerald-500/20" },
-  influxdb:   { icon: Activity, color: "text-purple-600", bg: "bg-purple-500/10 ring-purple-500/20" },
+  postgresql: { icon: Database, color: "text-blue-600 dark:text-blue-300", bg: "bg-blue-500/10 ring-blue-500/20" },
+  mysql:      { icon: Server,   color: "text-orange-600 dark:text-orange-300", bg: "bg-orange-500/10 ring-orange-500/20" },
+  sqlite:     { icon: FileBox,  color: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/10 ring-emerald-500/20" },
+  influxdb:   { icon: Activity, color: "text-purple-600 dark:text-purple-300", bg: "bg-purple-500/10 ring-purple-500/20" },
 };
 
 interface ConnectionFormDialogProps {
@@ -354,7 +354,7 @@ export function ConnectionFormDialog({
           {testResult && (
             <div className={cn(
               "flex items-center gap-2.5 pf-rounded-lg px-4 py-3",
-              testResult.ok ? "bg-emerald-500/8 text-emerald-600 ring-1 ring-emerald-500/15" : "bg-red-500/8 text-red-500 ring-1 ring-red-500/15",
+              testResult.ok ? "bg-emerald-500/8 text-emerald-600 dark:text-emerald-300 ring-1 ring-emerald-500/15" : "bg-red-500/8 text-red-500 dark:text-red-300 ring-1 ring-red-500/15",
             )}>
               {testResult.ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
               <span className="pf-text-sm truncate flex-1">{testResult.msg}</span>

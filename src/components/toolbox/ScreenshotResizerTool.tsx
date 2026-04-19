@@ -243,13 +243,13 @@ export function ScreenshotResizerTool() {
         {result && (
           <div className="flex items-center gap-3">
             {result.success_count > 0 && (
-              <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600">
+              <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600 dark:text-emerald-300">
                 <CheckCircle2 className="h-4 w-4" />
                 {t(`${k}.successCount`, { count: result.success_count })}
               </span>
             )}
             {result.errors.length > 0 && (
-              <span className="flex items-center gap-1.5 pf-text-sm text-rose-600">
+              <span className="flex items-center gap-1.5 pf-text-sm text-rose-600 dark:text-rose-300">
                 <AlertCircle className="h-4 w-4" />
                 {t(`${k}.errorCount`, { count: result.errors.length })}
               </span>
@@ -262,7 +262,7 @@ export function ScreenshotResizerTool() {
       {processing && (
         <section className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
           <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
-            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+            <Loader2 className="h-4 w-4 animate-spin text-orange-500 dark:text-orange-300" />
             <span>
               {t(`${k}.processing`)} {selectedImages.length} {t(`${k}.selectImages`).toLowerCase()} × {selectedSizes.size} {t(`${k}.targetSizes`).toLowerCase()}
               {totalTasks > 0 && <span className="text-text-disabled"> ({totalTasks} {t(`${k}.selectImages`).toLowerCase()})</span>}
@@ -279,7 +279,7 @@ export function ScreenshotResizerTool() {
         <section className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
           <div className="space-y-1">
             {result.errors.map((err, i) => (
-              <div key={i} className="pf-text-xs text-rose-600">{err}</div>
+              <div key={i} className="pf-text-xs text-rose-600 dark:text-rose-300">{err}</div>
             ))}
           </div>
         </section>

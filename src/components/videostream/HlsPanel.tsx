@@ -117,7 +117,7 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
                 {playlist.segments.map((seg, i) => (
                   <div key={i} className="flex items-center gap-2 px-2 py-1 pf-text-xxs font-mono">
                     <span className="text-text-disabled w-6 shrink-0">#{seg.sequence}</span>
-                    <span className="text-emerald-500 w-12 shrink-0">{seg.duration.toFixed(1)}s</span>
+                    <span className="text-emerald-500 dark:text-emerald-300 w-12 shrink-0">{seg.duration.toFixed(1)}s</span>
                     <span className="text-text-tertiary truncate flex-1">{seg.uri}</span>
                   </div>
                 ))}

@@ -409,13 +409,13 @@ export const DataGrid = memo(function DataGrid({
         <div className="flex items-center gap-2 border-b border-border-default/50 px-3 py-1.5 bg-amber-500/5 shrink-0">
           {pendingEdits.length > 0 && (
             <>
-              <span className="pf-text-xs text-amber-600 font-medium">{pendingEdits.length} {t("dbClient.pendingChanges")}</span>
-              <button onClick={onApplyEdits} className="flex items-center gap-1 pf-rounded-sm bg-emerald-500/15 px-2 py-0.5 pf-text-xs font-medium text-emerald-600 hover:bg-emerald-500/25"><Save size={11} />{t("dbClient.apply")}</button>
+              <span className="pf-text-xs text-amber-600 dark:text-amber-300 font-medium">{pendingEdits.length} {t("dbClient.pendingChanges")}</span>
+              <button onClick={onApplyEdits} className="flex items-center gap-1 pf-rounded-sm bg-emerald-500/15 px-2 py-0.5 pf-text-xs font-medium text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/25"><Save size={11} />{t("dbClient.apply")}</button>
               <button onClick={onDiscardEdits} className="flex items-center gap-1 pf-rounded-sm bg-bg-secondary px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover"><Undo2 size={11} />{t("dbClient.discard")}</button>
             </>
           )}
           {selectedRows.size > 0 && editable && tableMeta && tableMeta.pkColumns.length > 0 && (
-            <button onClick={handleDeleteSel} className="flex items-center gap-1 pf-rounded-sm bg-red-500/15 px-2 py-0.5 pf-text-xs font-medium text-red-600 hover:bg-red-500/25 ml-auto"><Trash2 size={11} />{t("dbClient.deleteSelected", { count: selectedRows.size })}</button>
+            <button onClick={handleDeleteSel} className="flex items-center gap-1 pf-rounded-sm bg-red-500/15 px-2 py-0.5 pf-text-xs font-medium text-red-600 dark:text-red-300 hover:bg-red-500/25 ml-auto"><Trash2 size={11} />{t("dbClient.deleteSelected", { count: selectedRows.size })}</button>
           )}
         </div>
       )}
@@ -438,7 +438,7 @@ export const DataGrid = memo(function DataGrid({
                   <div className="flex items-center gap-1 overflow-hidden">
                     <span className="shrink-0">{col.name}</span>
                     <span className="text-text-quaternary font-normal truncate" title={col.dataType}>{simplifyType(col.dataType)}</span>
-                    {col.isPrimaryKey && <span className="text-amber-500 font-normal shrink-0" title={t("dbClient.primaryKey")}>PK</span>}
+                    {col.isPrimaryKey && <span className="text-amber-500 dark:text-amber-300 font-normal shrink-0" title={t("dbClient.primaryKey")}>PK</span>}
                     {onSort && (
                       <button className="ml-auto shrink-0 p-0.5 pf-rounded-sm hover:bg-bg-hover" onClick={e => { e.stopPropagation(); onSort(col.name); }} title={t("dbClient.sortedBy")}>
                         {sorted && sortDir === "ASC" ? <ArrowUp size={10} className="text-accent" /> : sorted && sortDir === "DESC" ? <ArrowDown size={10} className="text-accent" /> : <ArrowUp size={10} className="text-text-quaternary opacity-30" />}
@@ -614,11 +614,11 @@ export const DataGrid = memo(function DataGrid({
 // ── 单元格值 ──
 function CellValue({ value, t }: { value: SqlValue; t: (k: string) => string }) {
   if (value.type === "Null") return <span className="italic text-text-quaternary truncate">{t("dbClient.null")}</span>;
-  if (value.type === "Bool") return <span className={cn("truncate", value.value ? "text-emerald-600" : "text-text-tertiary")}>{value.value ? "true" : "false"}</span>;
-  if (value.type === "Int" || value.type === "Float") return <span className="tabular-nums text-blue-600 truncate">{String(value.value)}</span>;
+  if (value.type === "Bool") return <span className={cn("truncate", value.value ? "text-emerald-600 dark:text-emerald-300" : "text-text-tertiary")}>{value.value ? "true" : "false"}</span>;
+  if (value.type === "Int" || value.type === "Float") return <span className="tabular-nums text-blue-600 dark:text-blue-300 truncate">{String(value.value)}</span>;
   if (value.type === "Bytes") return <span className="italic text-text-quaternary truncate">{t("dbClient.binaryValue")}</span>;
-  if (value.type === "Json") return <span className="text-amber-600 truncate">{JSON.stringify(value.value)}</span>;
-  if (value.type === "Timestamp") return <span className="text-purple-600 tabular-nums truncate">{value.value}</span>;
+  if (value.type === "Json") return <span className="text-amber-600 dark:text-amber-300 truncate">{JSON.stringify(value.value)}</span>;
+  if (value.type === "Timestamp") return <span className="text-purple-600 dark:text-purple-300 tabular-nums truncate">{value.value}</span>;
   if (value.type === "Array") return <span className="text-text-secondary truncate">[{value.value.length} {t("dbClient.items")}]</span>;
   return <span className="text-text-primary truncate">{value.value}</span>;
 }
@@ -645,7 +645,7 @@ function InlineCellEditor({ value, column, onSave, onCancel, t }: { value: SqlVa
         onBlur={save} placeholder={isNull ? "NULL" : ""}
         className={cn("flex-1 min-w-0 pf-rounded-sm border border-accent-primary bg-bg-primary px-1.5 py-0.5 pf-text-xs text-text-primary focus:outline-none", isNull && "italic text-text-quaternary")} />
       <button onMouseDown={e => { e.preventDefault(); setIsNull(!isNull); }}
-        className={cn("shrink-0 pf-rounded-sm px-1 py-0.5 pf-text-xs", isNull ? "bg-amber-500/20 text-amber-600" : "text-text-quaternary hover:bg-bg-hover")}
+        className={cn("shrink-0 pf-rounded-sm px-1 py-0.5 pf-text-xs", isNull ? "bg-amber-500/20 text-amber-600 dark:text-amber-300" : "text-text-quaternary hover:bg-bg-hover")}
         title={t("dbClient.toggleNull")}>N</button>
     </div>
   );

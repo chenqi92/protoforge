@@ -232,7 +232,7 @@ export function EnvironmentEditor() {
                     </span>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteEnv(env.id); }}
-                      className="w-6 h-6 flex items-center justify-center rounded text-text-disabled hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                      className="w-6 h-6 flex items-center justify-center rounded text-text-disabled hover:text-red-500 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -242,7 +242,7 @@ export function EnvironmentEditor() {
             </div>
             {/* Active env indicator */}
             {activeEnvId && (
-              <div className="shrink-0 px-3 py-2 border-t border-border-default pf-text-xs text-emerald-600 font-medium flex items-center gap-1.5">
+              <div className="shrink-0 px-3 py-2 border-t border-border-default pf-text-xs text-emerald-600 dark:text-emerald-300 font-medium flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 {t('env.active')}: {environments.find((e) => e.id === activeEnvId)?.name || ''}
               </div>
@@ -258,7 +258,7 @@ export function EnvironmentEditor() {
                     {t('env.varsOf', { name: environments.find((e) => e.id === selectedEnvId)?.name })}
                   </span>
                   <div className="flex items-center gap-2">
-                    {dirty && <span className="pf-text-xs text-amber-500 font-medium">{t('env.unsaved')}</span>}
+                    {dirty && <span className="pf-text-xs text-amber-500 dark:text-amber-300 font-medium">{t('env.unsaved')}</span>}
                     <button
                       onClick={handleSaveVariables}
                       disabled={!dirty}
@@ -305,13 +305,13 @@ export function EnvironmentEditor() {
                         />
                         <button
                           onClick={() => updateVar(i, { isSecret: v.isSecret === 1 ? 0 : 1 })}
-                          className={cn("w-16 h-[34px] flex items-center justify-center rounded-md pf-text-xs border transition-colors", v.isSecret === 1 ? "bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-500/10 dark:border-amber-500/30" : "border-border-default text-text-disabled hover:text-text-secondary")}
+                          className={cn("w-16 h-[34px] flex items-center justify-center rounded-md pf-text-xs border transition-colors", v.isSecret === 1 ? "bg-amber-50 border-amber-200 text-amber-600 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30" : "border-border-default text-text-disabled hover:text-text-secondary")}
                           title={v.isSecret === 1 ? t('env.unmarkSecret') : t('env.markSecret')}
                         >
                           {v.isSecret === 1 ? <Lock className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                         </button>
                         <div className="w-8 flex justify-center">
-                          <button onClick={() => removeVar(i)} className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
+                          <button onClick={() => removeVar(i)} className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:text-red-300 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
                         </div>
                       </div>
                     ))}
@@ -380,7 +380,7 @@ export function EnvironmentEditor() {
                     className={cn("input-field flex-1 font-mono pf-text-base py-1.5", !v.enabled && "opacity-40")}
                   />
                   <div className="w-8 flex justify-center">
-                    <button onClick={() => setGlobalEditing((prev) => prev.filter((_, j) => j !== i))} className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
+                    <button onClick={() => setGlobalEditing((prev) => prev.filter((_, j) => j !== i))} className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:text-red-300 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
                   </div>
                 </div>
               ))}

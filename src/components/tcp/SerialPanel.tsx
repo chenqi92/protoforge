@@ -575,7 +575,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string; compact?: bool
                       className={cn(
                         "h-[22px] px-2 pf-rounded-xs pf-text-xxs font-semibold uppercase tracking-wide border transition-colors",
                         dtr
-                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
+                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 dark:text-emerald-300"
                           : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
                       )}
                       title="Data Terminal Ready"
@@ -587,7 +587,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string; compact?: bool
                       className={cn(
                         "h-[22px] px-2 pf-rounded-xs pf-text-xxs font-semibold uppercase tracking-wide border transition-colors",
                         rts
-                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
+                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 dark:text-emerald-300"
                           : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
                       )}
                       title="Request To Send"

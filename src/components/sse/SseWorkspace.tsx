@@ -132,9 +132,9 @@ export function SseWorkspace() {
           <div className="wb-panel-header shrink-0">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <span className={cn("wb-status-chip",
-                status === 'connected' ? "text-emerald-600" :
-                status === 'connecting' ? "text-amber-600" :
-                status === 'error' ? "text-red-500" :
+                status === 'connected' ? "text-emerald-600 dark:text-emerald-300" :
+                status === 'connecting' ? "text-amber-600 dark:text-amber-300" :
+                status === 'error' ? "text-red-500 dark:text-red-300" :
                 "text-text-tertiary"
               )}>
                 <span className={cn("w-2 h-2 pf-rounded-xs",
@@ -145,11 +145,11 @@ export function SseWorkspace() {
                 )} />
                 {status === 'idle' ? t('sse.idle') : status === 'connecting' ? t('sse.connecting') : status === 'connected' ? t('sse.connected') : status === 'disconnected' ? t('sse.disconnected') : t('sse.error')}
               </span>
-              {errorMsg ? <span className="truncate pf-text-sm text-red-500">{errorMsg}</span> : null}
+              {errorMsg ? <span className="truncate pf-text-sm text-red-500 dark:text-red-300">{errorMsg}</span> : null}
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
               <span className="pf-text-xxs text-text-disabled">{t('sse.eventCount', { count: events.length })}</span>
-              <button onClick={() => setEvents([])} className="wb-icon-btn hover:text-red-500 transition-colors">
+              <button onClick={() => setEvents([])} className="wb-icon-btn hover:text-red-500 dark:text-red-300 transition-colors">
                 <Trash2 className="w-3 h-3" />
               </button>
             </div>
@@ -158,7 +158,7 @@ export function SseWorkspace() {
             {events.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
                 <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
-                  <Waves className="h-8 w-8 opacity-20 text-orange-500" />
+                  <Waves className="h-8 w-8 opacity-20 text-orange-500 dark:text-orange-300" />
                 </div>
                 <p className="pf-text-base font-medium">{t('sse.emptyTitle')}</p>
                 <p className="mt-1 pf-text-xs">{t('sse.emptyDesc')}</p>
@@ -169,7 +169,7 @@ export function SseWorkspace() {
                   <div key={i} className="px-4 py-3 transition-colors hover:bg-bg-hover/35">
                     <div className="mb-1.5 flex items-center gap-2">
                       <span className="pf-text-xxs font-mono text-text-disabled">{new Date(evt.timestamp).toLocaleTimeString()}</span>
-                      <span className="pf-rounded-sm bg-orange-500/10 px-1.5 py-0.5 pf-text-xxs font-bold text-orange-600">{evt.eventType}</span>
+                      <span className="pf-rounded-sm bg-orange-500/10 px-1.5 py-0.5 pf-text-xxs font-bold text-orange-600 dark:text-orange-300">{evt.eventType}</span>
                       {evt.id && <span className="pf-text-xxs text-text-disabled">id: {evt.id}</span>}
                     </div>
                     <pre className="whitespace-pre-wrap break-all pf-text-sm font-mono text-text-secondary">{evt.data}</pre>

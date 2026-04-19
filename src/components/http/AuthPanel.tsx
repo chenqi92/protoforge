@@ -510,7 +510,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
               className={cn(
                 "px-3 py-1.5 pf-text-xs font-medium rounded-lg border transition-all flex items-center gap-1.5",
                 refreshing
-                  ? "border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-600 cursor-wait"
+                  ? "border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300 cursor-wait"
                   : "border-border-default bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary"
               )}
             >
@@ -523,7 +523,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
           {config.accessToken && (
             <button
               onClick={handleClearToken}
-              className="px-3 py-1.5 pf-text-xs font-medium rounded-lg border border-border-default bg-bg-secondary hover:bg-red-50 dark:hover:bg-red-500/10 text-text-secondary hover:text-red-600 transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 pf-text-xs font-medium rounded-lg border border-border-default bg-bg-secondary hover:bg-red-50 dark:hover:bg-red-500/10 text-text-secondary hover:text-red-600 dark:text-red-300 transition-all flex items-center gap-1.5"
             >
               <Trash2 className="w-3 h-3" />
               {t('http.oauth2.clearToken')}

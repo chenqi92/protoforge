@@ -181,13 +181,13 @@ export function IconGeneratorTool() {
         {result && (
           <div className="flex items-center gap-3">
             {result.success_count > 0 && (
-              <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600">
+              <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600 dark:text-emerald-300">
                 <CheckCircle2 className="h-4 w-4" />
                 {t("toolWorkbench.toolbox.screenshotResizer.successCount", { count: result.success_count })}
               </span>
             )}
             {result.errors.length > 0 && (
-              <span className="flex items-center gap-1.5 pf-text-sm text-rose-600">
+              <span className="flex items-center gap-1.5 pf-text-sm text-rose-600 dark:text-rose-300">
                 <AlertCircle className="h-4 w-4" />
                 {t("toolWorkbench.toolbox.screenshotResizer.errorCount", { count: result.errors.length })}
               </span>
@@ -200,7 +200,7 @@ export function IconGeneratorTool() {
       {processing && (
         <section className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
           <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
-            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+            <Loader2 className="h-4 w-4 animate-spin text-orange-500 dark:text-orange-300" />
             <span>{t(`${k}.generating`)} {selectedPlatformNames.join(", ")}</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-orange-500/20">
@@ -214,7 +214,7 @@ export function IconGeneratorTool() {
         <section className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
           <div className="space-y-1">
             {result.errors.map((err, i) => (
-              <div key={i} className="pf-text-xs text-rose-600">{err}</div>
+              <div key={i} className="pf-text-xs text-rose-600 dark:text-rose-300">{err}</div>
             ))}
           </div>
         </section>

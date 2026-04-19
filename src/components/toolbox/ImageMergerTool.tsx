@@ -1185,7 +1185,7 @@ export function ImageMergerTool() {
                               removeItem(item.id);
                             }}
                             title={t(`${k}.remove`)}
-                            className="flex h-5 w-5 items-center justify-center rounded text-rose-500 hover:bg-rose-500/10"
+                            className="flex h-5 w-5 items-center justify-center rounded text-rose-500 dark:text-rose-300 hover:bg-rose-500/10"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -1338,13 +1338,13 @@ export function ImageMergerTool() {
         </button>
 
         {result && (
-          <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600">
+          <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600 dark:text-emerald-300">
             <CheckCircle2 className="h-4 w-4" />
             {t(`${k}.exportSuccess`, { size: formatBytes(result.size) })}
           </span>
         )}
         {error && (
-          <span className="flex items-center gap-1.5 pf-text-sm text-rose-600">
+          <span className="flex items-center gap-1.5 pf-text-sm text-rose-600 dark:text-rose-300">
             <AlertCircle className="h-4 w-4" />
             {error}
           </span>
@@ -1372,7 +1372,7 @@ export function ImageMergerTool() {
                 </div>
                 <span className="max-w-[140px] truncate">{fileNameOf(item.src)}</span>
                 {item.rotation !== 0 && (
-                  <span className="pf-text-xs text-amber-600">{item.rotation}°</span>
+                  <span className="pf-text-xs text-amber-600 dark:text-amber-300">{item.rotation}°</span>
                 )}
                 <button
                   onClick={(e) => {
@@ -1381,7 +1381,7 @@ export function ImageMergerTool() {
                   }}
                   className="opacity-0 group-hover:opacity-100"
                 >
-                  <Trash2 className="h-3 w-3 text-rose-500" />
+                  <Trash2 className="h-3 w-3 text-rose-500 dark:text-rose-300" />
                 </button>
               </div>
             ))}

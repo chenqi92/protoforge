@@ -96,7 +96,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
           {stunServers.map((s, i) => (
             <div key={i} className="flex min-w-0 items-center gap-1">
               <span className="min-w-0 flex-1 truncate rounded bg-bg-secondary/30 px-2 py-1 pf-text-xxs font-mono text-text-secondary">{s}</span>
-              <button onClick={() => setStunServers(prev => prev.filter((_, j) => j !== i))} className="text-text-disabled hover:text-red-500 p-0.5">
+              <button onClick={() => setStunServers(prev => prev.filter((_, j) => j !== i))} className="text-text-disabled hover:text-red-500 dark:text-red-300 p-0.5">
                 <Trash2 className="w-3 h-3" />
               </button>
             </div>
@@ -174,7 +174,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
             iceCandidates.map((c, i) => (
               <div key={i} className="flex min-w-0 items-center gap-2 px-2 py-1 pf-text-xxs font-mono">
                 <span className={cn("px-1 rounded pf-text-3xs font-bold",
-                  c.type === 'host' ? 'bg-blue-500/10 text-blue-500' : c.type === 'srflx' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                  c.type === 'host' ? 'bg-blue-500/10 text-blue-500 dark:text-blue-300' : c.type === 'srflx' ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-300' : 'bg-amber-500/10 text-amber-500 dark:text-amber-300'
                 )}>{c.type}</span>
                 <span className="min-w-0 flex-1 truncate text-text-primary">{c.address}:{c.port}</span>
                 <span className="shrink-0 text-text-disabled">{c.protocol}</span>

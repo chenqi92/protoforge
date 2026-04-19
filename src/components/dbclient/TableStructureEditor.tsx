@@ -63,7 +63,7 @@ export const TableStructureEditor = memo(function TableStructureEditor({
         <div className="flex-1" />
 
         {tab.applyError && (
-          <div className="flex items-center gap-1 pf-text-xs text-red-500 truncate max-w-[300px]">
+          <div className="flex items-center gap-1 pf-text-xs text-red-500 dark:text-red-300 truncate max-w-[300px]">
             <AlertCircle size={12} className="shrink-0" />
             <span className="truncate">{tab.applyError}</span>
           </div>
@@ -114,7 +114,7 @@ export const TableStructureEditor = memo(function TableStructureEditor({
                     isModified && "bg-amber-500/5",
                   )}>
                     <td className="px-2 py-0.5 text-center text-text-quaternary tabular-nums">
-                      {col.isPrimaryKey && <span className="text-amber-500" title="Primary Key">🔑</span>}
+                      {col.isPrimaryKey && <span className="text-amber-500 dark:text-amber-300" title="Primary Key">🔑</span>}
                       {!col.isPrimaryKey && (i + 1)}
                     </td>
                     <td className="px-1 py-0.5">
@@ -150,7 +150,7 @@ export const TableStructureEditor = memo(function TableStructureEditor({
                             <ChevronDown size={11} />
                           </button>
                         )}
-                        <button onClick={() => handleRemove(i)} className="p-0.5 text-text-quaternary hover:text-red-500 rounded hover:bg-red-500/10"
+                        <button onClick={() => handleRemove(i)} className="p-0.5 text-text-quaternary hover:text-red-500 dark:text-red-300 rounded hover:bg-red-500/10"
                           title="删除列">
                           <Trash2 size={11} />
                         </button>

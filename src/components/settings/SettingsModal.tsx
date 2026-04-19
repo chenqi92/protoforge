@@ -54,28 +54,28 @@ const sections: SectionMeta[] = [
     labelKey: "settings.sections.general",
     descKey: "settings.sections.generalDesc",
     icon: Globe,
-    accentClassName: "bg-blue-500/10 text-blue-600 ring-1 ring-inset ring-blue-500/15",
+    accentClassName: "bg-blue-500/10 text-blue-600 dark:text-blue-300 ring-1 ring-inset ring-blue-500/15",
   },
   {
     id: "request",
     labelKey: "settings.sections.request",
     descKey: "settings.sections.requestDesc",
     icon: Send,
-    accentClassName: "bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/15",
+    accentClassName: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/15",
   },
   {
     id: "proxy",
     labelKey: "settings.sections.proxy",
     descKey: "settings.sections.proxyDesc",
     icon: Shield,
-    accentClassName: "bg-amber-500/10 text-amber-600 ring-1 ring-inset ring-amber-500/15",
+    accentClassName: "bg-amber-500/10 text-amber-600 dark:text-amber-300 ring-1 ring-inset ring-amber-500/15",
   },
   {
     id: "data",
     labelKey: "settings.sections.data",
     descKey: "settings.sections.dataDesc",
     icon: Database,
-    accentClassName: "bg-violet-500/10 text-violet-600 ring-1 ring-inset ring-violet-500/15",
+    accentClassName: "bg-violet-500/10 text-violet-600 dark:text-violet-300 ring-1 ring-inset ring-violet-500/15",
   },
 ];
 
@@ -209,7 +209,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               <div className="shrink-0 border-t border-border-default/60 px-3 py-3">
                 <button
                   onClick={handleReset}
-                  className="flex w-full items-center gap-2 pf-rounded-xl border border-border-default/80 bg-bg-primary/72 px-3.5 py-3 pf-text-sm font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500"
+                  className="flex w-full items-center gap-2 pf-rounded-xl border border-border-default/80 bg-bg-primary/72 px-3.5 py-3 pf-text-sm font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500 dark:text-red-300"
                 >
                   <RotateCcw className="h-4 w-4" />
                   {t('settings.resetDefaults')}
@@ -508,7 +508,7 @@ function UpdateSettingRow() {
           </span>
         )}
         {isUpToDate && (
-          <span className="flex items-center gap-1 pf-text-xs text-emerald-600">
+          <span className="flex items-center gap-1 pf-text-xs text-emerald-600 dark:text-emerald-300">
             <CheckCircle className="h-3.5 w-3.5" />
             {t('update.upToDate')}
           </span>

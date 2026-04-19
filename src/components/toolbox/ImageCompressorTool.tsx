@@ -315,13 +315,13 @@ export function ImageCompressorTool() {
         {result && (
           <div className="flex items-center gap-3">
             {result.successCount > 0 && (
-              <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600">
+              <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600 dark:text-emerald-300">
                 <CheckCircle2 className="h-4 w-4" />
                 {t(`${k}.successCount`, { count: result.successCount })}
               </span>
             )}
             {result.errors.length > 0 && (
-              <span className="flex items-center gap-1.5 pf-text-sm text-rose-600">
+              <span className="flex items-center gap-1.5 pf-text-sm text-rose-600 dark:text-rose-300">
                 <AlertCircle className="h-4 w-4" />
                 {t(`${k}.errorCount`, { count: result.errors.length })}
               </span>
@@ -334,7 +334,7 @@ export function ImageCompressorTool() {
       {processing && (
         <section className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
           <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
-            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+            <Loader2 className="h-4 w-4 animate-spin text-orange-500 dark:text-orange-300" />
             <span>
               {t(`${k}.processing`)} {selectedImages.length}{" "}
               {t(`${k}.selectImages`).toLowerCase()}
@@ -353,7 +353,7 @@ export function ImageCompressorTool() {
       {result && savedRatio && result.successCount > 0 && (
         <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
               <ArrowDownToLine className="h-4 w-4" />
             </div>
             <div className="flex-1">
@@ -403,7 +403,7 @@ export function ImageCompressorTool() {
                       <td
                         className={cn(
                           "px-3 py-1.5 text-right font-mono",
-                          ratio > 0 ? "text-emerald-600" : "text-rose-600"
+                          ratio > 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"
                         )}
                       >
                         {ratio > 0 ? "-" : "+"}
@@ -423,7 +423,7 @@ export function ImageCompressorTool() {
         <section className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
           <div className="space-y-1">
             {result.errors.map((err, i) => (
-              <div key={i} className="pf-text-xs text-rose-600">
+              <div key={i} className="pf-text-xs text-rose-600 dark:text-rose-300">
                 {err}
               </div>
             ))}

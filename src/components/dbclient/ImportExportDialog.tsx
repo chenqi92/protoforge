@@ -189,7 +189,7 @@ function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
 
               {result && (
                 <div className={cn("flex items-start gap-2 rounded-md px-3 py-2 text-xs",
-                  result.ok ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500")}>
+                  result.ok ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-red-500/10 text-red-500 dark:text-red-300")}>
                   {result.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
                   <span className="break-all">{result.msg}</span>
                 </div>
@@ -245,7 +245,7 @@ function ImportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
         <DialogTitle className="sr-only">导入</DialogTitle>
         <div className="p-4 space-y-3">
           {!ok ? (
-            <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-600">当前数据库类型不支持导入</div>
+            <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-300">当前数据库类型不支持导入</div>
           ) : (
             <>
               <Fld label="导入文件">
@@ -271,7 +271,7 @@ function ImportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
 
               {result && (
                 <div className={cn("flex items-start gap-2 rounded-md px-3 py-2 text-xs",
-                  result.ok ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500")}>
+                  result.ok ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-red-500/10 text-red-500 dark:text-red-300")}>
                   {result.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
                   <span className="break-all">{result.msg}</span>
                 </div>

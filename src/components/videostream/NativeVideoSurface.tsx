@@ -620,7 +620,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors"
           title={recording ? "停止录制" : "开始录制"}
         >
-          <Circle className={`w-3 h-3 ${recording ? "fill-red-500 text-red-500" : ""}`} />
+          <Circle className={`w-3 h-3 ${recording ? "fill-red-500 text-red-500 dark:text-red-300" : ""}`} />
         </button>
         <div className="flex-1" />
         {status && !loading && <span className="pf-text-3xs text-white/40 font-mono">{status}</span>}

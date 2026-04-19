@@ -75,7 +75,9 @@ interface SettingsStore {
 }
 
 const defaultSettings: AppSettings = {
-  theme: 'light',
+  // Default to system — respect OS preference on first launch (Linear default).
+  // Existing users retain their persisted choice via the store's migration logic.
+  theme: 'system',
   language: 'zh-CN',
   fontSize: 13,
   fontFamily: 'inter',

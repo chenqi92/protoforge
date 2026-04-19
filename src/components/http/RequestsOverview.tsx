@@ -100,15 +100,15 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
             {t('overview.newRequest', 'New Request')}
           </button>
           <button onClick={() => onNewTab('ws')} className="wb-ghost-btn h-8 gap-1.5 px-3">
-            <Plus className="h-3.5 w-3.5 text-cyan-500" />
+            <Plus className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-300" />
             WebSocket
           </button>
           <button onClick={() => onNewTab('mqtt')} className="wb-ghost-btn h-8 gap-1.5 px-3">
-            <Plus className="h-3.5 w-3.5 text-emerald-500" />
+            <Plus className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" />
             MQTT
           </button>
           <button onClick={onOpenEnvModal} className="wb-ghost-btn h-8 gap-1.5 px-3">
-            <Variable className="h-3.5 w-3.5 text-amber-500" />
+            <Variable className="h-3.5 w-3.5 text-amber-500 dark:text-amber-300" />
             {t('overview.manageEnv', 'Environments')}
           </button>
         </div>
@@ -180,7 +180,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                       {entry.status && (
                         <span className={cn(
                           'shrink-0 font-mono pf-text-xxs font-medium',
-                          entry.status < 300 ? 'text-emerald-600' : entry.status < 400 ? 'text-amber-600' : 'text-red-500'
+                          entry.status < 300 ? 'text-emerald-600 dark:text-emerald-300' : entry.status < 400 ? 'text-amber-600 dark:text-amber-300' : 'text-red-500 dark:text-red-300'
                         )}>
                           {entry.status}
                         </span>
@@ -202,7 +202,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
             {/* Active Environment */}
             <section>
               <h2 className="mb-3 flex items-center gap-2 pf-text-sm font-semibold text-text-primary">
-                <Globe2 className="h-4 w-4 text-emerald-500/70" />
+                <Globe2 className="h-4 w-4 text-emerald-500 dark:text-emerald-300/70" />
                 {t('overview.environment', 'Environment')}
               </h2>
               <div className="pf-rounded-md border border-border-default/60 bg-bg-primary">
@@ -228,7 +228,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                   <div className="border-t border-border-subtle/50">
                     {enabledEnvVars.slice(0, 8).map((v) => (
                       <div key={v.id} className="flex items-center gap-2 px-3.5 py-1.5 pf-text-xxs">
-                        <Braces className="h-3 w-3 shrink-0 text-emerald-500/50" />
+                        <Braces className="h-3 w-3 shrink-0 text-emerald-500 dark:text-emerald-300/50" />
                         <span className="font-mono font-semibold text-text-secondary">{v.key}</span>
                         <span className="text-text-disabled">=</span>
                         <span className={cn(
@@ -259,7 +259,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
             {/* Global Variables */}
             <section>
               <h2 className="mb-3 flex items-center gap-2 pf-text-sm font-semibold text-text-primary">
-                <Variable className="h-4 w-4 text-amber-500/70" />
+                <Variable className="h-4 w-4 text-amber-500 dark:text-amber-300/70" />
                 {t('overview.globalVars', 'Global Variables')}
                 <span className="ml-1 rounded-full bg-bg-tertiary px-2 py-0.5 pf-text-xxs font-medium text-text-tertiary">
                   {enabledGlobalVars.length}
@@ -279,7 +279,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                         i > 0 && 'border-t border-border-subtle/40'
                       )}
                     >
-                      <KeyRound className="h-3 w-3 shrink-0 text-amber-500/50" />
+                      <KeyRound className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-300/50" />
                       <span className="font-mono font-semibold text-text-secondary">{v.key}</span>
                       <span className="text-text-disabled">=</span>
                       <span className="min-w-0 flex-1 truncate font-mono text-text-tertiary">{v.value}</span>
@@ -307,7 +307,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                   label={t('overview.totalEnvs', 'Environments')}
                   value={environments.length}
                   icon={<Globe2 className="h-4 w-4" />}
-                  color="text-emerald-500/60"
+                  color="text-emerald-500 dark:text-emerald-300/60"
                 />
               </div>
             </section>
@@ -356,17 +356,17 @@ function CollectionCard({
       <div className="flex shrink-0 items-center gap-1.5">
         {hasAuth && (
           <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-emerald-500/10" title={t('overview.authConfigured', 'Auth configured')}>
-            <Shield className="h-3 w-3 text-emerald-500/70" />
+            <Shield className="h-3 w-3 text-emerald-500 dark:text-emerald-300/70" />
           </span>
         )}
         {hasVars && (
           <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-amber-500/10" title={t('overview.varsConfigured', 'Variables defined')}>
-            <Braces className="h-3 w-3 text-amber-500/70" />
+            <Braces className="h-3 w-3 text-amber-500 dark:text-amber-300/70" />
           </span>
         )}
         {hasScripts && (
           <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-violet-500/10" title={t('overview.scriptsConfigured', 'Scripts configured')}>
-            <FileJson className="h-3 w-3 text-violet-500/70" />
+            <FileJson className="h-3 w-3 text-violet-500 dark:text-violet-300/70" />
           </span>
         )}
         <ChevronRight className="h-3.5 w-3.5 text-text-disabled transition-transform group-hover:translate-x-0.5" />

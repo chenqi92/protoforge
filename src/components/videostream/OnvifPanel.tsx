@@ -293,7 +293,7 @@ export function OnvifPanel({
                 className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowLeft className="w-4 h-4" /></button>
               <button onClick={handlePtzStop}
-                className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors"
+                className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-300 hover:bg-red-500/20 transition-colors"
               ><RotateCcw className="w-3.5 h-3.5" /></button>
               <button onMouseDown={() => handlePtz('right')} onMouseUp={handlePtzStop}
                 className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
@@ -348,7 +348,7 @@ export function OnvifPanel({
             <div className="max-h-[200px] overflow-y-auto space-y-0.5 pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-1">
               {presets.map((p) => (
                 <div key={p.token} className="flex items-center gap-2 px-2 py-1 pf-rounded-xs hover:bg-bg-hover/50 pf-text-xxs transition-colors">
-                  <Star className="w-3 h-3 text-amber-500 shrink-0" />
+                  <Star className="w-3 h-3 text-amber-500 dark:text-amber-300 shrink-0" />
                   <span className="text-text-primary flex-1 truncate">{p.name || `Preset ${p.token}`}</span>
                   <button onClick={() => handleGotoPreset(p.token)} className="text-accent hover:underline shrink-0">
                     {t('videostream.onvif.goto', '转到')}

@@ -108,7 +108,7 @@ function FieldRow({
             <p className="pf-text-xs text-text-secondary italic">{field.description}</p>
           )}
           {field.isDeprecated && (
-            <p className="pf-text-xs text-amber-500 flex items-center gap-1">
+            <p className="pf-text-xs text-amber-500 dark:text-amber-300 flex items-center gap-1">
               <AlertTriangle className="h-3 w-3" />
               {field.deprecationReason || 'Deprecated'}
             </p>

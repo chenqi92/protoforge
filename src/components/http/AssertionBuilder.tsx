@@ -418,7 +418,7 @@ export function AssertionBuilder({
             {totalTested > 0 && (
               <span className={cn(
                 "pf-text-xxs font-semibold px-1.5 py-0.5 pf-rounded-md",
-                passedCount === totalTested ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500",
+                passedCount === totalTested ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-red-500/10 text-red-500 dark:text-red-300",
               )}>
                 {passedCount}/{totalTested}
               </span>
@@ -450,8 +450,8 @@ export function AssertionBuilder({
                     {/* Status dot / checkbox */}
                     {result ? (
                       result.passed
-                        ? <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                        : <XCircle className="h-3 w-3 text-red-500 shrink-0" />
+                        ? <CheckCircle2 className="h-3 w-3 text-emerald-500 dark:text-emerald-300 shrink-0" />
+                        : <XCircle className="h-3 w-3 text-red-500 dark:text-red-300 shrink-0" />
                     ) : (
                       <input
                         type="checkbox"
@@ -464,7 +464,7 @@ export function AssertionBuilder({
                     <span className={cn(
                       "pf-text-xxs flex-1 min-w-0 truncate",
                       !a.enabled && "text-text-disabled line-through",
-                      result?.passed === false ? "text-red-600" : "text-text-secondary",
+                      result?.passed === false ? "text-red-600 dark:text-red-300" : "text-text-secondary",
                     )} title={result?.error || testName}>
                       <span className="font-medium text-text-primary">{fieldOpt?.label || a.field}</span>
                       {a.fieldArg && <span className="text-text-disabled"> [{a.fieldArg}]</span>}
@@ -474,7 +474,7 @@ export function AssertionBuilder({
                     {/* Delete on hover */}
                     <button
                       onClick={() => handleRemove(a.id)}
-                      className="shrink-0 h-4 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 text-text-disabled hover:text-red-500 transition-all"
+                      className="shrink-0 h-4 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 text-text-disabled hover:text-red-500 dark:text-red-300 transition-all"
                     >
                       <Trash2 className="h-2.5 w-2.5" />
                     </button>
@@ -501,8 +501,8 @@ export function AssertionBuilder({
             <span className={cn(
               "inline-flex items-center gap-1 pf-text-xxs font-semibold px-1.5 py-0.5 pf-rounded-md",
               passedCount === totalTested
-                ? "bg-emerald-500/10 text-emerald-600"
-                : "bg-red-500/10 text-red-500",
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                : "bg-red-500/10 text-red-500 dark:text-red-300",
             )}>
               {passedCount === totalTested ? (
                 <><CheckCircle2 className="h-3 w-3" /> {t('assertion.allPassed')}</>
@@ -631,15 +631,15 @@ export function AssertionBuilder({
 
                     {result && (
                       result.passed
-                        ? <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                        : <XCircle className="h-3 w-3 text-red-500 shrink-0" />
+                        ? <CheckCircle2 className="h-3 w-3 text-emerald-500 dark:text-emerald-300 shrink-0" />
+                        : <XCircle className="h-3 w-3 text-red-500 dark:text-red-300 shrink-0" />
                     )}
 
                     <div className="flex items-center gap-0 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0">
                       <button onClick={() => handleDuplicate(a.id)} className="p-0.5 text-text-disabled hover:text-text-secondary" title={t('assertion.duplicate')}>
                         <Copy className="h-2.5 w-2.5" />
                       </button>
-                      <button onClick={() => handleRemove(a.id)} className="p-0.5 text-text-disabled hover:text-red-500">
+                      <button onClick={() => handleRemove(a.id)} className="p-0.5 text-text-disabled hover:text-red-500 dark:text-red-300">
                         <Trash2 className="h-2.5 w-2.5" />
                       </button>
                     </div>
@@ -654,7 +654,7 @@ export function AssertionBuilder({
                         </span>
                       )}
                       {result && !result.passed && result.error && (
-                        <span className="text-red-500 truncate" title={result.error}>{result.error}</span>
+                        <span className="text-red-500 dark:text-red-300 truncate" title={result.error}>{result.error}</span>
                       )}
                     </div>
                   )}
@@ -692,13 +692,13 @@ export function TestResultsPanel({ testResults }: { testResults?: TestResult[] }
         <div className="flex items-center gap-3">
           <div className={cn(
             "inline-flex items-center gap-1.5 px-2.5 py-1 pf-rounded-md pf-text-xs font-semibold",
-            failed === 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-500",
+            failed === 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-red-500/10 text-red-500 dark:text-red-300",
           )}>
             {failed === 0 ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
             {t('assertion.passCount', { passed, total: testResults.length })}
           </div>
-          {passed > 0 && <span className="pf-text-xxs text-emerald-600">{passed} {t('assertion.testPassed')}</span>}
-          {failed > 0 && <span className="pf-text-xxs text-red-500">{failed} {t('assertion.testFailed')}</span>}
+          {passed > 0 && <span className="pf-text-xxs text-emerald-600 dark:text-emerald-300">{passed} {t('assertion.testPassed')}</span>}
+          {failed > 0 && <span className="pf-text-xxs text-red-500 dark:text-red-300">{failed} {t('assertion.testFailed')}</span>}
         </div>
 
         {/* Results list — clean card style */}
@@ -714,14 +714,14 @@ export function TestResultsPanel({ testResults }: { testResults?: TestResult[] }
               )}
             >
               {tr.passed
-                ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                : <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />}
+                ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300 shrink-0 mt-0.5" />
+                : <XCircle className="h-3.5 w-3.5 text-red-500 dark:text-red-300 shrink-0 mt-0.5" />}
               <div className="min-w-0 flex-1">
-                <div className={cn("pf-text-xs font-medium", tr.passed ? "text-text-primary" : "text-red-600")}>
+                <div className={cn("pf-text-xs font-medium", tr.passed ? "text-text-primary" : "text-red-600 dark:text-red-300")}>
                   {tr.name}
                 </div>
                 {tr.error && (
-                  <div className="mt-1 pf-text-xxs text-red-500/80 leading-4 break-words">
+                  <div className="mt-1 pf-text-xxs text-red-500 dark:text-red-300/80 leading-4 break-words">
                     {tr.error}
                   </div>
                 )}

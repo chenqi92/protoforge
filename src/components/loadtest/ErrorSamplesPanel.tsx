@@ -27,8 +27,8 @@ export function ErrorSamplesPanel({ samples }: ErrorSamplesPanelProps) {
 
   const statusColor = (s: number) => {
     if (s === 0) return "text-gray-500 bg-gray-500/10";
-    if (s < 400) return "text-amber-600 bg-amber-500/10";
-    return "text-red-600 bg-red-500/10";
+    if (s < 400) return "text-amber-600 dark:text-amber-300 bg-amber-500/10";
+    return "text-red-600 dark:text-red-300 bg-red-500/10";
   };
 
   return (
@@ -67,7 +67,7 @@ export function ErrorSamplesPanel({ samples }: ErrorSamplesPanelProps) {
               </td>
               <td className="px-2 py-1 text-right text-text-secondary tabular-nums">{r.latencyMs}ms</td>
               <td className="px-2 py-1 text-right text-text-disabled tabular-nums">{formatB(r.bytes)}</td>
-              <td className="px-3 py-1 text-red-500/80 truncate">
+              <td className="px-3 py-1 text-red-500 dark:text-red-300/80 truncate">
                 <span className="text-[11px]" title={r.errorMsg || ""}>{r.errorMsg || "-"}</span>
               </td>
             </tr>

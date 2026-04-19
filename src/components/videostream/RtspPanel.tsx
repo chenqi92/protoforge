@@ -131,7 +131,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
               className={cn(
                 "h-7 px-2.5 pf-rounded-sm pf-text-xxs font-semibold transition-colors",
                 method === 'TEARDOWN'
-                  ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
+                  ? "bg-red-500/10 text-red-500 dark:text-red-300 hover:bg-red-500/20 border border-red-500/20"
                   : "bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20",
                 "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
@@ -151,7 +151,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
             </label>
             <button
               onClick={() => setRtspResponses([])}
-              className="pf-text-3xs text-text-disabled hover:text-red-500 transition-colors"
+              className="pf-text-3xs text-text-disabled hover:text-red-500 dark:text-red-300 transition-colors"
             >
               {t('sidebar.clearAll', '清空')}
             </button>
@@ -161,7 +161,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
               <div key={i} className="flex items-center gap-2 px-2 py-1 pf-rounded-xs bg-bg-secondary/30 pf-text-xxs font-mono">
                 <span className="text-text-disabled">{r.time}</span>
                 <span className="text-accent font-semibold">{r.method}</span>
-                <span className={cn("flex-1 truncate", r.status.startsWith('200') ? 'text-emerald-500' : 'text-red-400')}>
+                <span className={cn("flex-1 truncate", r.status.startsWith('200') ? 'text-emerald-500 dark:text-emerald-300' : 'text-red-400')}>
                   {r.status}
                 </span>
               </div>

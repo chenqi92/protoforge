@@ -37,8 +37,8 @@ const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", 
 const LazyScriptEditor = lazy(() => import("./ScriptEditor").then((module) => ({ default: module.ScriptEditor })));
 
 const methodTextColor: Record<string, string> = {
-  GET: "text-emerald-600", POST: "text-amber-600", PUT: "text-blue-600",
-  DELETE: "text-red-500", PATCH: "text-violet-600", HEAD: "text-cyan-600", OPTIONS: "text-gray-500",
+  GET: "text-emerald-600 dark:text-emerald-300", POST: "text-amber-600 dark:text-amber-300", PUT: "text-blue-600 dark:text-blue-300",
+  DELETE: "text-red-500 dark:text-red-300", PATCH: "text-violet-600 dark:text-violet-300", HEAD: "text-cyan-600 dark:text-cyan-300", OPTIONS: "text-gray-500",
 };
 
 const methodDotColor: Record<string, string> = {
@@ -57,9 +57,9 @@ function mergeScriptScopeUpdates(
 
 function getHttpStatusTone(status: number) {
   if (status < 200) return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-300";
-  if (status < 300) return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300";
-  if (status < 400) return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300";
-  if (status < 500) return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-300";
+  if (status < 300) return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:text-emerald-200 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300";
+  if (status < 400) return "border-amber-200 bg-amber-50 text-amber-700 dark:text-amber-200 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300";
+  if (status < 500) return "border-orange-200 bg-orange-50 text-orange-700 dark:text-orange-200 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-300";
   return "border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300";
 }
 
@@ -716,7 +716,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                   pushLoadTestConfig(config);
                 }}
                 disabled={!config.url.trim() || isSseMode}
-                className="wb-icon-btn hover:text-rose-600"
+                className="wb-icon-btn hover:text-rose-600 dark:text-rose-300"
                 title={t('http.sendToLoadtest')}
               >
                 <Flame className="w-3.5 h-3.5" />
@@ -960,13 +960,13 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 {(scriptResults.pre || scriptResults.post) && (
                   <div className="px-3 py-1.5 bg-bg-secondary/60 border-b border-border-default flex items-center gap-3 pf-text-xs flex-wrap shrink-0">
                     {scriptResults.pre && (
-                      <span className={cn("flex items-center gap-1 font-medium", scriptResults.pre.success ? "text-emerald-600" : "text-red-500")}>
+                      <span className={cn("flex items-center gap-1 font-medium", scriptResults.pre.success ? "text-emerald-600 dark:text-emerald-300" : "text-red-500 dark:text-red-300")}>
                         {scriptResults.pre.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                         {t('http.preScript')}{scriptResults.pre.success ? t('http.preScriptPass') : t('http.preScriptFail')}
                       </span>
                     )}
                     {scriptResults.post && (
-                      <span className={cn("flex items-center gap-1 font-medium", scriptResults.post.success ? "text-emerald-600" : "text-red-500")}>
+                      <span className={cn("flex items-center gap-1 font-medium", scriptResults.post.success ? "text-emerald-600 dark:text-emerald-300" : "text-red-500 dark:text-red-300")}>
                         {scriptResults.post.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                         {t('http.postScript')}{scriptResults.post.success ? t('http.preScriptPass') : t('http.preScriptFail')}
                       </span>
@@ -1015,7 +1015,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                       className="wb-icon-btn"
                       title={t('http.copyResponse')}
                     >
-                      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      {copied ? <Check className="w-4 h-4 text-emerald-500 dark:text-emerald-300" /> : <Copy className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>

@@ -49,13 +49,13 @@ const sourceIcons: Record<LogSource, typeof Globe> = {
 };
 
 const sourceColors: Record<LogSource, string> = {
-  http: 'text-emerald-500',
-  tcp: 'text-blue-500',
-  udp: 'text-violet-500',
-  ws: 'text-amber-500',
-  mqtt: 'text-cyan-500',
-  serial: 'text-amber-500',
-  modbus: 'text-violet-500',
+  http: 'text-emerald-500 dark:text-emerald-300',
+  tcp: 'text-blue-500 dark:text-blue-300',
+  udp: 'text-violet-500 dark:text-violet-300',
+  ws: 'text-amber-500 dark:text-amber-300',
+  mqtt: 'text-cyan-500 dark:text-cyan-300',
+  serial: 'text-amber-500 dark:text-amber-300',
+  modbus: 'text-violet-500 dark:text-violet-300',
   system: 'text-text-tertiary',
 };
 
@@ -222,7 +222,7 @@ function ActivityLogsView() {
             {entries.length > 0 && (
               <button
                 onClick={clearAll}
-                className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500"
+                className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500 dark:text-red-300"
                 title={t('sidebar.clearAll', '清空')}
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -274,9 +274,9 @@ function ActivityLogsView() {
           filteredEntries.map((entry) => {
             const SourceIcon = sourceIcons[entry.source] || ScrollText;
             const dirIcon = entry.direction === 'sent'
-              ? <ArrowUpRight className="w-3 h-3 text-amber-500" />
+              ? <ArrowUpRight className="w-3 h-3 text-amber-500 dark:text-amber-300" />
               : entry.direction === 'received'
-                ? <ArrowDownRight className="w-3 h-3 text-emerald-500" />
+                ? <ArrowDownRight className="w-3 h-3 text-emerald-500 dark:text-emerald-300" />
                 : null;
 
             return (

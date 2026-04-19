@@ -273,7 +273,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
                       </button>
                       <button
                         onClick={() => removeVar(i)}
-                        className="w-6 h-6 flex items-center justify-center text-text-disabled hover:text-red-500 transition-colors rounded hover:bg-red-500/8"
+                        className="w-6 h-6 flex items-center justify-center text-text-disabled hover:text-red-500 dark:text-red-300 transition-colors rounded hover:bg-red-500/8"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>

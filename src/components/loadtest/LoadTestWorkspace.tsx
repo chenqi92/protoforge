@@ -459,7 +459,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                     <div key={i} className="mb-2 flex items-center gap-2">
                       <input value={h.key} onChange={(e) => { const n = [...headers]; n[i].key = e.target.value; setHeaders(n); }} disabled={running} placeholder="Header Key" className="cfg-input flex-1 text-left" />
                       <input value={h.value} onChange={(e) => { const n = [...headers]; n[i].value = e.target.value; setHeaders(n); }} disabled={running} placeholder="Header Value" className="cfg-input flex-1 text-left" />
-                      <button onClick={() => setHeaders(headers.filter((_, j) => j !== i))} disabled={running || headers.length <= 1} className="wb-icon-btn shrink-0 hover:text-red-500 disabled:opacity-50"><Trash2 className="w-3 h-3" /></button>
+                      <button onClick={() => setHeaders(headers.filter((_, j) => j !== i))} disabled={running || headers.length <= 1} className="wb-icon-btn shrink-0 hover:text-red-500 dark:text-red-300 disabled:opacity-50"><Trash2 className="w-3 h-3" /></button>
                     </div>
                   ))}
                   <button onClick={() => setHeaders([...headers, { key: "", value: "" }])} disabled={running} className="wb-ghost-btn"><Plus className="w-3 h-3" />{t('loadtest.addHeader')}</button>
@@ -559,13 +559,13 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
             <div className="flex items-center gap-1 px-4 py-2.5 bg-bg-secondary/32 border-b border-border-default overflow-x-auto">
               <BarChart3 className="w-4 h-4 text-text-tertiary mr-1 shrink-0" />
               {([
-                { key: "rps" as const, label: "RPS", activeColor: "text-rose-600", barColor: "bg-rose-500" },
-                { key: "latency" as const, label: t('loadtest.latency'), activeColor: "text-blue-600", barColor: "bg-blue-500" },
-                { key: "error" as const, label: t('loadtest.errorRate'), activeColor: "text-red-500", barColor: "bg-red-500" },
-                { key: "throughput" as const, label: t('loadtest.throughput'), activeColor: "text-cyan-500", barColor: "bg-cyan-500" },
-                { key: "concurrency" as const, label: t('loadtest.concurrency'), activeColor: "text-emerald-500", barColor: "bg-emerald-500" },
-                { key: "scatter" as const, label: t('loadtest.scatterPlot'), activeColor: "text-rose-500", barColor: "bg-rose-500" },
-                ...(errorSamples.length > 0 ? [{ key: "errorSamples" as const, label: t('loadtest.errorSamples', '错误样本'), activeColor: "text-red-500", barColor: "bg-red-500" }] : []),
+                { key: "rps" as const, label: "RPS", activeColor: "text-rose-600 dark:text-rose-300", barColor: "bg-rose-500" },
+                { key: "latency" as const, label: t('loadtest.latency'), activeColor: "text-blue-600 dark:text-blue-300", barColor: "bg-blue-500" },
+                { key: "error" as const, label: t('loadtest.errorRate'), activeColor: "text-red-500 dark:text-red-300", barColor: "bg-red-500" },
+                { key: "throughput" as const, label: t('loadtest.throughput'), activeColor: "text-cyan-500 dark:text-cyan-300", barColor: "bg-cyan-500" },
+                { key: "concurrency" as const, label: t('loadtest.concurrency'), activeColor: "text-emerald-500 dark:text-emerald-300", barColor: "bg-emerald-500" },
+                { key: "scatter" as const, label: t('loadtest.scatterPlot'), activeColor: "text-rose-500 dark:text-rose-300", barColor: "bg-rose-500" },
+                ...(errorSamples.length > 0 ? [{ key: "errorSamples" as const, label: t('loadtest.errorSamples', '错误样本'), activeColor: "text-red-500 dark:text-red-300", barColor: "bg-red-500" }] : []),
               ]).map((tab) => (
                 <button
                   key={tab.key}
@@ -576,7 +576,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                   )}
                 >
                   {tab.label}
-                  {tab.key === "errorSamples" && <span className="ml-1 text-[10px] bg-red-500/15 text-red-600 px-1.5 py-0.5 rounded-full tabular-nums">{errorSamples.length}</span>}
+                  {tab.key === "errorSamples" && <span className="ml-1 text-[10px] bg-red-500/15 text-red-600 dark:text-red-300 px-1.5 py-0.5 rounded-full tabular-nums">{errorSamples.length}</span>}
                   {chartTab === tab.key ? <span className={cn("absolute inset-x-2 bottom-0 h-[2px] rounded-full", tab.barColor)} /> : null}
                 </button>
               ))}
@@ -673,13 +673,13 @@ function formatBytes(bytes: number): string {
 
 function MetricCard({ label, value, icon, color, sub }: { label: string; value: string; icon: React.ReactNode; color: string; sub: string }) {
   const cm: Record<string, { bg: string; text: string; iconBg: string }> = {
-    rose:    { bg: "bg-rose-500/5",       text: "text-rose-600",    iconBg: "bg-rose-500/10" },
-    blue:    { bg: "bg-blue-500/5",      text: "text-blue-600",    iconBg: "bg-blue-500/10" },
-    emerald: { bg: "bg-emerald-500/5",   text: "text-emerald-600", iconBg: "bg-emerald-500/10" },
-    red:     { bg: "bg-red-500/5",       text: "text-red-600",     iconBg: "bg-red-500/10" },
-    violet:  { bg: "bg-violet-500/5",    text: "text-violet-600",  iconBg: "bg-violet-500/10" },
-    cyan:    { bg: "bg-cyan-500/5",      text: "text-cyan-600",    iconBg: "bg-cyan-500/10" },
-    amber:   { bg: "bg-amber-500/5",     text: "text-amber-600",   iconBg: "bg-amber-500/10" },
+    rose:    { bg: "bg-rose-500/5",       text: "text-rose-600 dark:text-rose-300",    iconBg: "bg-rose-500/10" },
+    blue:    { bg: "bg-blue-500/5",      text: "text-blue-600 dark:text-blue-300",    iconBg: "bg-blue-500/10" },
+    emerald: { bg: "bg-emerald-500/5",   text: "text-emerald-600 dark:text-emerald-300", iconBg: "bg-emerald-500/10" },
+    red:     { bg: "bg-red-500/5",       text: "text-red-600 dark:text-red-300",     iconBg: "bg-red-500/10" },
+    violet:  { bg: "bg-violet-500/5",    text: "text-violet-600 dark:text-violet-300",  iconBg: "bg-violet-500/10" },
+    cyan:    { bg: "bg-cyan-500/5",      text: "text-cyan-600 dark:text-cyan-300",    iconBg: "bg-cyan-500/10" },
+    amber:   { bg: "bg-amber-500/5",     text: "text-amber-600 dark:text-amber-300",   iconBg: "bg-amber-500/10" },
   };
   const c = cm[color] || cm.rose;
   return (

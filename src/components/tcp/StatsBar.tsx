@@ -55,7 +55,7 @@ export function StatsBar({ stats, connected, statusText, connectedSince, autoRec
           {statusText}
         </span>
         {autoReconnect && !connected && (
-          <span className="flex items-center gap-0.5 text-amber-500">
+          <span className="flex items-center gap-0.5 text-amber-500 dark:text-amber-300">
             <RefreshCw className="w-2.5 h-2.5" />
             <span className="pf-text-xxs">自动重连</span>
           </span>
@@ -66,14 +66,14 @@ export function StatsBar({ stats, connected, statusText, connectedSince, autoRec
 
       {/* Sent */}
       <div className="flex items-center gap-1 text-text-tertiary">
-        <ArrowUp className="w-3 h-3 text-blue-500" />
+        <ArrowUp className="w-3 h-3 text-blue-500 dark:text-blue-300" />
         <span>{formatBytes(stats.sentBytes)}</span>
         <span className="opacity-50">({stats.sentCount})</span>
       </div>
 
       {/* Received */}
       <div className="flex items-center gap-1 text-text-tertiary">
-        <ArrowDown className="w-3 h-3 text-emerald-500" />
+        <ArrowDown className="w-3 h-3 text-emerald-500 dark:text-emerald-300" />
         <span>{formatBytes(stats.receivedBytes)}</span>
         <span className="opacity-50">({stats.receivedCount})</span>
       </div>

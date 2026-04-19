@@ -76,9 +76,9 @@ export const QueryHistoryPanel = memo(function QueryHistoryPanel({
           >
             <div className="flex items-center gap-1.5 mb-1">
               {entry.status === "success" ? (
-                <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />
+                <CheckCircle2 size={11} className="text-emerald-500 dark:text-emerald-300 shrink-0" />
               ) : (
-                <XCircle size={11} className="text-red-500 shrink-0" />
+                <XCircle size={11} className="text-red-500 dark:text-red-300 shrink-0" />
               )}
               <span className="pf-text-xs text-text-tertiary truncate">
                 {entry.databaseName}
@@ -101,7 +101,7 @@ export const QueryHistoryPanel = memo(function QueryHistoryPanel({
             </div>
 
             {entry.errorMessage && (
-              <div className="mt-1 pf-text-xs text-red-500 line-clamp-2">
+              <div className="mt-1 pf-text-xs text-red-500 dark:text-red-300 line-clamp-2">
                 {entry.errorMessage}
               </div>
             )}

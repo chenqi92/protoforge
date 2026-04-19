@@ -865,7 +865,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                 )}
                 {filteredMessages.length > 0 && (
                   <button onClick={() => { setMessageMap(prev => ({ ...prev, [mode]: [] })); setSelectedMsgId(null); }}
-                    className="pf-text-3xs text-text-disabled hover:text-red-500 transition-colors ml-2"
+                    className="pf-text-3xs text-text-disabled hover:text-red-500 dark:text-red-300 transition-colors ml-2"
                   >{t('sidebar.clearAll', '清空')}</button>
                 )}
               </div>
@@ -893,7 +893,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                           >
                             <div className="flex items-center gap-2">
                               <span className={cn("pf-text-3xs font-bold uppercase w-10 shrink-0",
-                                msg.direction === 'sent' ? 'text-amber-500' : msg.direction === 'received' ? 'text-emerald-500' : 'text-blue-400'
+                                msg.direction === 'sent' ? 'text-amber-500 dark:text-amber-300' : msg.direction === 'received' ? 'text-emerald-500 dark:text-emerald-300' : 'text-blue-400'
                               )}>
                                 {msg.direction === 'sent' ? '→ SENT' : msg.direction === 'received' ? '← RECV' : 'ℹ INFO'}
                               </span>

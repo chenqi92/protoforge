@@ -30,7 +30,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
       <div className="w-[480px] max-h-[80vh] rounded-2xl border border-border-default bg-bg-surface shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border-default shrink-0">
-          <Unlock className={cn('w-4.5 h-4.5', isError ? 'text-red-400' : 'text-emerald-500')} />
+          <Unlock className={cn('w-4.5 h-4.5', isError ? 'text-red-400' : 'text-emerald-500 dark:text-emerald-300')} />
           <div className="flex-1">
             <div className="font-semibold text-text-primary" style={{ fontSize: 'var(--fs-base)' }}>
               {isError ? '操作失败' : '解密结果'}

@@ -234,7 +234,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
           className="h-7 px-2 rounded-md flex items-center gap-1 pf-text-xs text-text-tertiary hover:bg-bg-hover disabled:opacity-50 transition-colors"
           title={t('http.script.copyScript')}
         >
-          {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+          {copied ? <Check className="w-3 h-3 text-emerald-500 dark:text-emerald-300" /> : <Copy className="w-3 h-3" />}
         </button>
 
         <button

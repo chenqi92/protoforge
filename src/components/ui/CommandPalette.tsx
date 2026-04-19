@@ -151,8 +151,8 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
                   </div>
                   <span className={cn("pf-text-xxs uppercase tracking-wider shrink-0",
                     item.type === 'action' ? "text-accent/60" :
-                    item.type === 'collection' ? "text-blue-500/60" :
-                    item.type === 'environment' ? "text-emerald-500/60" :
+                    item.type === 'collection' ? "text-blue-500 dark:text-blue-300/60" :
+                    item.type === 'environment' ? "text-emerald-500 dark:text-emerald-300/60" :
                     "text-text-disabled"
                   )}>
                     {item.type === 'action' ? t('commandPalette.typeAction') : item.type === 'collection' ? t('commandPalette.typeCollection') : item.type === 'environment' ? t('commandPalette.typeEnvironment') : item.type === 'history' ? t('commandPalette.typeHistory') : t('commandPalette.typeRequest')}

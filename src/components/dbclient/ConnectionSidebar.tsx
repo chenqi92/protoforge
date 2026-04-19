@@ -256,7 +256,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
 
       {/* 连接错误 */}
       {connectionError && !connecting && (
-        <div className="border-b border-border-default/50 px-3 py-2 pf-text-xs text-red-500 bg-red-500/5 break-words">
+        <div className="border-b border-border-default/50 px-3 py-2 pf-text-xs text-red-500 dark:text-red-300 bg-red-500/5 break-words">
           {connectionError}
         </div>
       )}
@@ -296,7 +296,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                   {connecting && !isActive ? (
                     <Loader2 size={13} className="shrink-0 animate-spin text-accent" />
                   ) : (
-                    <Server size={13} className={cn("shrink-0", isActive ? "text-emerald-500" : "text-text-tertiary")} />
+                    <Server size={13} className={cn("shrink-0", isActive ? "text-emerald-500 dark:text-emerald-300" : "text-text-tertiary")} />
                   )}
 
                   <div className="flex min-w-0 flex-1 flex-col">
@@ -314,7 +314,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                   </div>
 
                   {isActive && (
-                    <Circle size={6} className="fill-emerald-500 text-emerald-500 shrink-0" />
+                    <Circle size={6} className="fill-emerald-500 text-emerald-500 dark:text-emerald-300 shrink-0" />
                   )}
                 </div>
 
@@ -368,7 +368,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                                   {/* Tables */}
                                   {dbSchema.tables.length > 0 && (
                                     <SchemaGroup
-                                      icon={<Table2 size={11} className="text-blue-500" />}
+                                      icon={<Table2 size={11} className="text-blue-500 dark:text-blue-300" />}
                                       label={t("dbClient.tables")}
                                       count={dbSchema.tables.length}
                                       expanded={expandedNodes.has(`tables:${conn.id}:${db.name}`)}
@@ -389,7 +389,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                                   {/* Views */}
                                   {dbSchema.views.length > 0 && (
                                     <SchemaGroup
-                                      icon={<Eye size={11} className="text-purple-500" />}
+                                      icon={<Eye size={11} className="text-purple-500 dark:text-purple-300" />}
                                       label={t("dbClient.views")}
                                       count={dbSchema.views.length}
                                       expanded={expandedNodes.has(`views:${conn.id}:${db.name}`)}
@@ -410,7 +410,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                                   {/* Functions */}
                                   {dbSchema.functions.length > 0 && (
                                     <SchemaGroup
-                                      icon={<FunctionSquare size={11} className="text-amber-500" />}
+                                      icon={<FunctionSquare size={11} className="text-amber-500 dark:text-amber-300" />}
                                       label={t("dbClient.functions")}
                                       count={dbSchema.functions.length}
                                       expanded={expandedNodes.has(`functions:${conn.id}:${db.name}`)}

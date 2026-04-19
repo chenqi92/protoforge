@@ -26,12 +26,12 @@ import {
 
 // ── HTTP Method 颜色 ──
 const methodColors: Record<string, { text: string; bg: string }> = {
-  GET: { text: "text-emerald-600", bg: "bg-emerald-500/15" },
-  POST: { text: "text-amber-600", bg: "bg-amber-500/15" },
-  PUT: { text: "text-blue-600", bg: "bg-blue-500/15" },
-  DELETE: { text: "text-red-600", bg: "bg-red-500/15" },
-  PATCH: { text: "text-violet-600", bg: "bg-violet-500/15" },
-  HEAD: { text: "text-cyan-600", bg: "bg-cyan-500/15" },
+  GET: { text: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/15" },
+  POST: { text: "text-amber-600 dark:text-amber-300", bg: "bg-amber-500/15" },
+  PUT: { text: "text-blue-600 dark:text-blue-300", bg: "bg-blue-500/15" },
+  DELETE: { text: "text-red-600 dark:text-red-300", bg: "bg-red-500/15" },
+  PATCH: { text: "text-violet-600 dark:text-violet-300", bg: "bg-violet-500/15" },
+  HEAD: { text: "text-cyan-600 dark:text-cyan-300", bg: "bg-cyan-500/15" },
   OPTIONS: { text: "text-gray-600", bg: "bg-gray-500/15" },
   ANY: { text: "text-pink-600", bg: "bg-pink-500/15" },
 };
@@ -41,9 +41,9 @@ function getMethodColor(method?: string) {
 }
 
 function statusColor(status: number): string {
-  if (status < 300) return "text-emerald-600";
-  if (status < 400) return "text-amber-600";
-  return "text-red-500";
+  if (status < 300) return "text-emerald-600 dark:text-emerald-300";
+  if (status < 400) return "text-amber-600 dark:text-amber-300";
+  return "text-red-500 dark:text-red-300";
 }
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
@@ -267,8 +267,8 @@ function ControlBar({
           className={cn(
             "flex items-center gap-1.5 rounded-md px-3 py-1.5 pf-text-sm font-medium transition-colors",
             running
-              ? "bg-red-500/15 text-red-600 hover:bg-red-500/25"
-              : "bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25",
+              ? "bg-red-500/15 text-red-600 dark:text-red-300 hover:bg-red-500/25"
+              : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/25",
             starting && "opacity-50 cursor-not-allowed",
           )}
         >
@@ -309,7 +309,7 @@ function ControlBar({
         {/* 代理开关 */}
         <button
           onClick={() => setShowProxy(!showProxy)}
-          className={cn("p-1 rounded hover:bg-bg-hover transition-colors", proxyTarget ? "text-emerald-500" : "text-text-tertiary hover:text-text-primary")}
+          className={cn("p-1 rounded hover:bg-bg-hover transition-colors", proxyTarget ? "text-emerald-500 dark:text-emerald-300" : "text-text-tertiary hover:text-text-primary")}
           title={t("mockServer.proxyTarget")}
         >
           <Globe className="h-3.5 w-3.5" />
@@ -322,7 +322,7 @@ function ControlBar({
         </div>
 
         {error && (
-          <div className="flex items-center gap-1 pf-text-xs text-red-500">
+          <div className="flex items-center gap-1 pf-text-xs text-red-500 dark:text-red-300">
             <AlertCircle className="h-3 w-3" />
             <span className="max-w-48 truncate">{error}</span>
           </div>
@@ -503,14 +503,14 @@ function RouteListItem({
           title={route.enabled ? t("mockServer.disable") : t("mockServer.enable")}
         >
           {route.enabled ? (
-            <ToggleRight className="h-3.5 w-3.5 text-emerald-500" />
+            <ToggleRight className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" />
           ) : (
             <ToggleLeft className="h-3.5 w-3.5" />
           )}
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          className="p-0.5 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500"
+          className="p-0.5 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500 dark:text-red-300"
           title={t("mockServer.deleteRoute")}
         >
           <Trash2 className="h-3 w-3" />
@@ -735,7 +735,7 @@ function ExamplesTabContent({ route, update }: { route: MockRoute; update: (p: P
               className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
             <input type="number" value={ex.statusCode} onChange={(e) => updateExample(ex.id, { statusCode: parseInt(e.target.value, 10) || 200 })} min={100} max={599}
               className="w-16 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
-            <button onClick={() => removeExample(ex.id)} className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500">
+            <button onClick={() => removeExample(ex.id)} className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500 dark:text-red-300">
               <Trash2 className="h-3 w-3" />
             </button>
           </div>
@@ -815,7 +815,7 @@ function SequenceTabContent({ route, update }: { route: MockRoute; update: (p: P
             <input type="number" value={item.delayMs ?? ""} onChange={(e) => updateItem(idx, { delayMs: e.target.value ? parseInt(e.target.value, 10) : undefined })} placeholder="delay ms"
               className="w-20 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary focus:border-accent focus:outline-none" />
             <div className="flex-1" />
-            <button onClick={() => removeItem(idx)} className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500">
+            <button onClick={() => removeItem(idx)} className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500 dark:text-red-300">
               <Trash2 className="h-3 w-3" />
             </button>
           </div>
@@ -909,7 +909,7 @@ function ResponseHeadersEditor({
           />
           <button
             onClick={() => commit(rows.filter((r) => r._id !== row._id))}
-            className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500"
+            className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500 dark:text-red-300"
           >
             <Trash2 className="h-3 w-3" />
           </button>
@@ -1073,7 +1073,7 @@ function RequestLogPanel({
                     <ChevronRight className="inline h-2.5 w-2.5" />
                     {log.matchedPattern}
                     {log.delayMs > 0 && (
-                      <span className="ml-1 text-amber-500">
+                      <span className="ml-1 text-amber-500 dark:text-amber-300">
                         <Clock className="inline h-2.5 w-2.5" /> +{log.delayMs}ms
                       </span>
                     )}

@@ -568,7 +568,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
               className="h-6 w-6 flex items-center justify-center rounded-md text-text-tertiary hover:bg-bg-hover transition-colors"
               title={t('response.copy')}
             >
-              {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+              {copied ? <Check className="w-3 h-3 text-emerald-500 dark:text-emerald-300" /> : <Copy className="w-3 h-3" />}
             </button>
 
             {/* Response Export — only for JSON responses */}
@@ -589,7 +589,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder={isRegexMode ? t('response.regexPlaceholder', { defaultValue: '正则表达式...' }) : t('response.searchPlaceholder')}
-              className={cn('flex-1 h-6 bg-transparent outline-none text-text-primary placeholder:text-text-tertiary', searchMeta.regexError && 'text-red-500')} style={{ fontSize: 'var(--fs-sm)' }}
+              className={cn('flex-1 h-6 bg-transparent outline-none text-text-primary placeholder:text-text-tertiary', searchMeta.regexError && 'text-red-500 dark:text-red-300')} style={{ fontSize: 'var(--fs-sm)' }}
               autoFocus
             />
             {/* Regex toggle */}
@@ -1029,7 +1029,7 @@ function BinaryFileCard({ contentType, fileSize, body, responseHeaders }: {
         <div className="flex-1 min-h-0 flex items-center justify-center">
           <div className="flex flex-col items-center gap-5">
             <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-violet-500/10">
-              <Music className="w-8 h-8 text-violet-500" />
+              <Music className="w-8 h-8 text-violet-500 dark:text-violet-300" />
             </div>
             <span className="font-semibold text-text-primary" style={{ fontSize: 'var(--fs-base)' }}>
               {fileName || fileTypeLabel}

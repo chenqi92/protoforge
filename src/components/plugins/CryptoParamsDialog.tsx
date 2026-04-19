@@ -42,7 +42,7 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
 
   const isEncrypt = mode === 'encrypt';
   const Icon = isEncrypt ? Lock : Unlock;
-  const iconColor = isEncrypt ? 'text-amber-500' : 'text-emerald-500';
+  const iconColor = isEncrypt ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-500 dark:text-emerald-300';
   const btnColor = isEncrypt
     ? 'bg-warning hover:bg-warning/90'
     : 'bg-success hover:bg-success/90';

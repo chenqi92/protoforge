@@ -226,7 +226,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                       >
                         <div className={cn("w-[5px] h-[5px] rounded-full shrink-0", isActiveEnv ? "bg-emerald-500" : "bg-border-strong")} />
                         <span className="truncate flex-1">{env.name}</span>
-                        {isActiveEnv && <span className="pf-text-3xs text-emerald-600 font-semibold">ON</span>}
+                        {isActiveEnv && <span className="pf-text-3xs text-emerald-600 dark:text-emerald-300 font-semibold">ON</span>}
                       </button>
                     );
                   })}
@@ -254,7 +254,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                         className={cn(
                           "ml-1 px-2 py-0.5 rounded-md pf-text-3xs font-semibold transition-colors",
                           activeEnvId === selectedTab
-                            ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/20"
                             : "bg-bg-hover text-text-disabled hover:text-text-secondary"
                         )}
                       >
@@ -264,7 +264,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                     {!isGlobal && (
                       <button
                         onClick={() => handleDeleteEnv(selectedTab)}
-                        className="ml-1 px-1.5 py-0.5 rounded-md pf-text-3xs text-red-500/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                        className="ml-1 px-1.5 py-0.5 rounded-md pf-text-3xs text-red-500/60 hover:text-red-500 dark:text-red-300 hover:bg-red-500/10 transition-colors"
                       >
                         删除环境
                       </button>
@@ -368,7 +368,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                             <td className="px-2 py-1.5">
                               <button
                                 onClick={() => isGlobal ? deleteGlobalVar(v.id) : deleteEnvVar(v.id)}
-                                className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-500/10 hover:text-red-500 text-text-disabled transition-all"
+                                className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-500/10 hover:text-red-500 dark:text-red-300 text-text-disabled transition-all"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -384,7 +384,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                 <div className="shrink-0 flex items-center justify-between px-4 py-2 border-t border-border-subtle/50 pf-text-3xs text-text-disabled">
                   <span>共 {currentVars.length} 个变量 · {currentVars.filter((v) => v.enabled).length} 个已启用</span>
                   {!isGlobal && activeEnvId === selectedTab && (
-                    <span className="text-emerald-600 font-medium">● 当前激活</span>
+                    <span className="text-emerald-600 dark:text-emerald-300 font-medium">● 当前激活</span>
                   )}
                 </div>
               </div>
