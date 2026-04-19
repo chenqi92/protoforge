@@ -273,8 +273,9 @@
     -webkit-user-select: text;
   }
 
-  /* Scrollbar — Linear-style: thin, near-invisible, smoothly darkening on hover. */
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  /* Scrollbar — Linear-style: thin, near-invisible, smoothly darkening on hover.
+     Horizontal (height) narrower than vertical — horizontal bars are rarer and less intrusive. */
+  ::-webkit-scrollbar { width: 10px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
     background: transparent;

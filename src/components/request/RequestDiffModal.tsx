@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import "@/monacoWorkers"; // Must run before Monaco editor mounts
 import { DiffEditor, useMonaco } from "@monaco-editor/react";
 import { GitCompareArrows, FileText, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";

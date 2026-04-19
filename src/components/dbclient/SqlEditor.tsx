@@ -8,6 +8,7 @@ import {
   Copy, ClipboardPaste, Search, Pencil,
   ArrowLeftFromLine, ArrowRightFromLine,
 } from "lucide-react";
+import "@/monacoWorkers"; // Must run before Monaco editor mounts
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { languages } from "monaco-editor";
 import { cn } from "@/lib/utils";

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, ChevronLeft, ChevronRight, X, Copy, Trash2, Edit3, ArrowRightFromLine, List, GitCompareArrows } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -7,7 +7,8 @@ import type { RequestProtocol } from "@/stores/appStore";
 import { useAppStore } from "@/stores/appStore";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
 import type { HttpRequestMode } from "@/types/http";
-import { RequestDiffModal } from "@/components/request/RequestDiffModal";
+// Lazy — keeps Monaco editor (4MB+) out of the initial bundle; loads only when user opens diff modal
+const RequestDiffModal = lazy(() => import("@/components/request/RequestDiffModal").then((m) => ({ default: m.RequestDiffModal })));
 
 export interface Tab {
   id: string;
@@ -328,11 +329,13 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
       ) : null}
 
       {diffTabId && (
-        <RequestDiffModal
-          open
-          onClose={() => setDiffTabId(null)}
-          sourceTabId={diffTabId}
-        />
+        <Suspense fallback={null}>
+          <RequestDiffModal
+            open
+            onClose={() => setDiffTabId(null)}
+            sourceTabId={diffTabId}
+          />
+        </Suspense>
       )}
     </div>
   );

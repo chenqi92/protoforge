@@ -5,6 +5,29 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ProtoForge</title>
+    <!-- Theme-first bootstrap: apply .dark class before any CSS arrives to avoid FOUC -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('protoforge-settings');
+          var mode = 'system';
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed && parsed.state && parsed.state.settings && parsed.state.settings.theme) {
+              mode = parsed.state.settings.theme;
+            }
+          }
+          var dark = mode === 'dark' || (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) { /* Tracking Prevention may block localStorage */ }
+      })();
+    </script>
+    <!-- Critical CSS inline — paint with correct bg/text before the external stylesheet arrives -->
+    <style>
+      html, body { margin: 0; padding: 0; background: #f7f8f8; color: #0f1011; font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+      html.dark, html.dark body { background: #08090a; color: #f7f8f8; }
+      html, body, #root { height: 100%; overflow: hidden; }
+    </style>
   </head>
 
   <body>

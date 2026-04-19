@@ -464,7 +464,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                     key={entry.id}
                     entry={entry}
                     isSelected={entry.id === selectedEntryId}
-                    onClick={() => setSelectedEntry(entry.id)}
+                    onSelect={setSelectedEntry}
                   />
                 ))}
                 {filteredEntries.length > MAX_VISIBLE_CAPTURE_ENTRIES && (
@@ -566,15 +566,16 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
 }
 
 // ── 请求行 ──
-function RequestRow({
+const RequestRow = memo(function RequestRow({
   entry,
   isSelected,
-  onClick,
+  onSelect,
 }: {
   entry: CapturedEntry;
   isSelected: boolean;
-  onClick: () => void;
+  onSelect: (id: string) => void;
 }) {
+  const onClick = useCallback(() => onSelect(entry.id), [entry.id, onSelect]);
   const mc = methodColors[entry.method] || { text: "text-text-tertiary", bg: "bg-gray-500/10" };
 
   // 精简 content-type 显示
@@ -616,7 +617,8 @@ function RequestRow({
       </span>
     </div>
   );
-}
+});
+RequestRow.displayName = "RequestRow";
 
 // ── Burp Suite 风格详情面板 ──
 type BurpTab = "raw" | "headers" | "hex";

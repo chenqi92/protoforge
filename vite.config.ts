@@ -17,6 +17,13 @@ export default defineConfig(async () => ({
     },
   },
   build: {
+    // Strip modulepreload hints for huge, genuinely-lazy chunks (Monaco, HLS).
+    // Browser still fetches them when dynamic import() runs — we just skip the
+    // idle pre-fetch so initial page doesn't spend bandwidth on unused code.
+    modulePreload: {
+      resolveDependencies: (_filename, deps) =>
+        deps.filter((d) => !d.includes("vendor-monaco") && !d.includes("vendor-hls")),
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

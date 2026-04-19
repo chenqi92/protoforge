@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import '@/monacoWorkers'; // Must run before Monaco editor mounts — configures workers + injects local monaco instance into the loader
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { useThemeStore } from '@/stores/themeStore';
 import { useSettingsStore } from '@/stores/settingsStore';

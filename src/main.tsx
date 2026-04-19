@@ -1,7 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "./monacoWorkers"; // Monaco Worker 本地加载 — 必须在编辑器组件前
-import "./i18n"; // i18n 初始化 — 必须在组件渲染前
+// Note: `./monacoWorkers` is now imported lazily inside Monaco-using components
+// (CodeEditor, SqlEditor, RequestDiffModal) to keep Monaco out of the initial bundle.
+import { initI18n } from "./i18n"; // i18n 初始化 — 只加载当前语言
 import "./styles/fonts.css"; // 本地捆绑字体 — 必须在 index.css 前
 import "./index.css";
 
@@ -10,6 +11,8 @@ const params = new URLSearchParams(window.location.search);
 const windowType = params.get("window");
 
 async function renderApp() {
+  // Initialize i18n and load the active language bundle in parallel with the window module import
+  const i18nReady = initI18n();
   let Component: React.ComponentType;
 
   switch (windowType) {
@@ -59,6 +62,9 @@ async function renderApp() {
       break;
     }
   }
+
+  // Wait for i18n before first render so translations are available on mount
+  await i18nReady;
 
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
