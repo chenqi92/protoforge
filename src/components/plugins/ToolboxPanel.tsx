@@ -532,7 +532,7 @@ function SidebarSection({ title, icon, defaultOpen = true, children }: {
         </span>
         <span className="flex-1 text-[length:var(--fs-sidebar)] font-semibold text-text-primary">{title}</span>
         <svg
-          className={cn("w-3.5 h-3.5 text-text-tertiary transition-transform duration-200", open && "rotate-180")}
+          className={cn("w-3.5 h-3.5 text-text-tertiary transition-transform", open && "rotate-180")}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

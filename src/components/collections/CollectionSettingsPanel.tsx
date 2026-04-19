@@ -128,7 +128,7 @@ function OverviewTab({ collection }: { collection: Collection }) {
         <input
           value={name}
           onChange={(e) => { setName(e.target.value); setDirty(true); }}
-          className="w-full h-9 px-3 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary transition-all"
+          className="w-full h-9 px-3 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)] text-text-primary transition-all"
         />
       </div>
 
@@ -139,7 +139,7 @@ function OverviewTab({ collection }: { collection: Collection }) {
           onChange={(e) => { setDescription(e.target.value); setDirty(true); }}
           rows={4}
           placeholder={t('collectionSettings.descPlaceholder')}
-          className="w-full px-3 py-2 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] text-text-primary placeholder:text-text-tertiary resize-none transition-all"
+          className="w-full px-3 py-2 pf-text-base bg-bg-secondary border border-border-default rounded-md outline-none focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)] text-text-primary placeholder:text-text-tertiary resize-none transition-all"
         />
       </div>
 

@@ -322,7 +322,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder={t('plugin.searchPlaceholder')}
-                        className="h-8 w-[200px] pf-rounded-md border border-border-default/80 bg-bg-primary/78 pl-8 pr-3 pf-text-sm text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-violet-400 focus:shadow-[0_0_0_2px_rgba(124,58,237,0.08)]"
+                        className="h-8 w-[200px] pf-rounded-md border border-border-default/80 bg-bg-primary/78 pl-8 pr-3 pf-text-sm text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
                       />
                     </div>
                     {/* Refresh */}
@@ -342,7 +342,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
               <div className="flex min-h-0 flex-1 overflow-hidden">
                 {/* Grid */}
                 <div className={cn(
-                  "flex-1 overflow-auto p-4 transition-all duration-200",
+                  "flex-1 overflow-auto p-4 transition-opacity",
                   selectedPlugin ? "w-[42%]" : "w-full"
                 )}>
                   {loading ? (

@@ -273,14 +273,78 @@
     -webkit-user-select: text;
   }
 
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  /* Scrollbar — Linear-style: thin, near-invisible, smoothly darkening on hover. */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 8px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--color-text-tertiary); }
+  ::-webkit-scrollbar-thumb {
+    background: transparent;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+    transition: background-color 0.2s ease;
+  }
+  *:hover > ::-webkit-scrollbar-thumb,
+  *:focus > ::-webkit-scrollbar-thumb,
+  ::-webkit-scrollbar:hover ::-webkit-scrollbar-thumb,
+  ::-webkit-scrollbar-thumb:hover,
+  :hover::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.18);
+    background-clip: padding-box;
+  }
+  :root.dark :hover::-webkit-scrollbar-thumb,
+  :root.dark ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.28);
+    background-clip: padding-box;
+  }
+  :root.dark ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.28);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner { background: transparent; }
 
   ::selection { background: var(--color-accent-muted); color: var(--color-text-primary); }
 
   input, textarea, select { font-family: var(--font-sans); font-size: var(--fs-base); }
+
+  /* Linear form labels: tight letter-spacing signature at label sizes.
+     Applies to all <label> elements; override with `tracking-normal` if needed. */
+  label { letter-spacing: -0.01em; }
+
+  /* Default kbd element styling — unified Linear keycap treatment.
+     Individual sites can override via Tailwind utilities (higher specificity). */
+  kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 18px;
+    min-width: 18px;
+    padding: 0 5px;
+    border: 1px solid var(--color-border-default);
+    border-radius: 4px;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--fw-emphasis);
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: nowrap;
+    vertical-align: baseline;
+  }
+
+  /* Default focus-visible ring for interactive elements that don't set their own.
+     Custom focus styles (shadcn ring-*, focus:shadow-[...], outline-none, outline-hidden)
+     win via specificity, so this is a polite fallback — not a global override. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+    border-radius: inherit;
+  }
 }
 
 @layer utilities {
@@ -1765,25 +1829,29 @@
     flex-shrink: 0;
   }
 
+  /* HTTP status pill — Linear caption treatment: tight negative tracking, tabular nums, semibold */
   .http-response-status {
     display: inline-flex;
     align-items: center;
     gap: 7px;
     min-height: 28px;
-    padding: 0 11px;
+    padding: 0 12px;
     border: 1px solid var(--color-border-default);
     border-radius: 999px;
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
-    letter-spacing: 0.01em;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
   .http-response-status-dot {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
     border-radius: 999px;
     flex-shrink: 0;
+    /* Subtle ring echoing the pill border for cohesion */
+    box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 18%, transparent);
   }
 
   .http-response-meta-pill {
@@ -2512,6 +2580,32 @@
   0%   { transform: translateX(-120%); }
   50%  { transform: translateX(180%); }
   100% { transform: translateX(350%); }
+}
+
+/* Linear-style skeleton shimmer: subtle diagonal gradient sweep across the surface.
+   Use `.pf-shimmer` on any placeholder block to get it — more refined than `animate-pulse`'s global opacity bounce. */
+@keyframes pf-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.pf-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.04) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: pf-shimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+:root.dark .pf-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
 }
 
 /* Suppress react-resizable-panels v4.7 separator blue focus/active outlines */

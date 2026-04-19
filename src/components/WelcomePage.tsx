@@ -49,21 +49,21 @@ function FeatureCard({ item, index, onAction }: { item: FeatureItem; index: numb
       className={cn(
         // Linear aesthetic: subtle surface stack — light mode uses pure white cards on off-white bg,
         // dark mode uses near-zero white opacity and hover-via-opacity-step (no shadows on dark).
-        "group relative overflow-hidden rounded-2xl border p-4 text-left transition-colors duration-200",
+        "group relative overflow-hidden rounded-2xl border p-4 text-left transition-colors",
         "bg-card border-border-subtle hover:border-border-default hover:bg-muted",
         "dark:bg-white/[0.02] dark:hover:bg-white/[0.045] dark:border-white/[0.06] dark:hover:border-white/[0.09]",
         "active:scale-[0.99]"
       )}
     >
       <div className="relative z-10 flex items-start gap-3">
-        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-[1.04]", item.iconColor)}>
+        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-[1.04]", item.iconColor)}>
           <Icon className="h-[18px] w-[18px]" />
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="pf-text-sm font-[590] tracking-[-0.01em] text-text-primary leading-tight">{t(item.labelKey)}</h3>
           <p className="mt-1 pf-text-xs leading-relaxed text-text-tertiary line-clamp-2">{t(item.descKey)}</p>
         </div>
-        <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-disabled opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0.5" />
+        <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-disabled opacity-0 transition-[opacity,transform] group-hover:opacity-100 group-hover:translate-x-0.5" />
       </div>
     </motion.button>
   );

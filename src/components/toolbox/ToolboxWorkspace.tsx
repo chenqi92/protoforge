@@ -236,7 +236,7 @@ export const ToolboxWorkspace = memo(function ToolboxWorkspace() {
                           onClick={() => setActiveTool(tool.id)}
                           title={tool.fromPlugin ? tool.labelKey : t(tool.labelKey)}
                           className={cn(
-                            "group relative flex h-[82px] w-[104px] shrink-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border px-2 py-2 text-center transition-all duration-200",
+                            "group relative flex h-[82px] w-[104px] shrink-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border px-2 py-2 text-center transition-colors",
                             isActive
                               ? cn(style.cardActive, "text-text-primary -translate-y-px")
                               : "border-border-subtle bg-bg-secondary/40 hover:-translate-y-0.5 hover:border-border-default hover:bg-bg-hover/70 hover:shadow-sm"

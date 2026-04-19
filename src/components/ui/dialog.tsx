@@ -30,7 +30,7 @@ function DialogOverlay({
       data-slot="dialog-overlay"
       className={cn(
         // Linear uses rgba(0,0,0,0.85) for modal backdrop — strong focus isolation.
-        "fixed inset-0 isolate z-50 bg-black/20 dark:bg-black/70 backdrop-blur-sm duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/20 dark:bg-black/70 backdrop-blur-sm duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -53,7 +53,7 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           // Linear dialog: near-black bg on dark, multi-layer shadow + ring border for depth.
-          "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] gap-4 rounded-xl bg-popover p-4 text-sm ring-1 ring-foreground/10 shadow-[0_8px_24px_-4px_rgba(0,0,0,0.12),0_2px_8px_-2px_rgba(0,0,0,0.08)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.5)] duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] gap-4 rounded-xl bg-popover p-4 text-sm ring-1 ring-foreground/10 shadow-[0_8px_24px_-4px_rgba(0,0,0,0.12),0_2px_8px_-2px_rgba(0,0,0,0.08)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.5)] duration-150 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
           className
         )}
         {...props}

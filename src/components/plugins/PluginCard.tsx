@@ -40,7 +40,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
 
   return (
     <div
-      className="group relative rounded-xl border border-border-default bg-bg-primary hover:border-border-strong transition-colors duration-200 overflow-hidden dark:bg-white/[0.02] dark:hover:bg-white/[0.035] dark:border-white/[0.06] dark:hover:border-white/[0.09]"
+      className="group relative rounded-xl border border-border-default bg-bg-primary hover:border-border-strong transition-colors overflow-hidden dark:bg-white/[0.02] dark:hover:bg-white/[0.035] dark:border-white/[0.06] dark:hover:border-white/[0.09]"
     >
       <div className="p-4">
         {/* Header */}

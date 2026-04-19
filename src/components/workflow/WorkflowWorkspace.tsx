@@ -176,6 +176,7 @@ function RectangleNode({ id, data }: { id: string; data: FlowNodeData }) {
   return (
     <div className={cn(
       'px-3 py-2 pf-rounded-lg border-2 bg-bg-primary shadow-sm min-w-[160px] transition-colors',
+      'animate-in fade-in-0 zoom-in-95 duration-150',
       isRunning && 'border-amber-500 ring-2 ring-amber-500/20',
       isDone && 'border-emerald-500',
       isFailed && 'border-red-500',
@@ -221,6 +222,7 @@ function CircleNode({ id, data }: { id: string; data: FlowNodeData }) {
   return (
     <div className={cn(
       'flex h-14 w-14 items-center justify-center rounded-full border-2 bg-bg-primary shadow-sm transition-colors',
+      'animate-in fade-in-0 zoom-in-95 duration-150',
       isEnd && 'ring-2 ring-offset-1',
       isRunning && 'border-amber-500 ring-amber-500/20',
       isDone && 'border-emerald-500',
@@ -252,7 +254,7 @@ function DiamondNode({ id, data }: { id: string; data: FlowNodeData }) {
   const hCls = '!w-3 !h-3 !bg-accent !border-2 !border-bg-primary';
 
   return (
-    <div className="relative" style={{ width: 80, height: 80 }}>
+    <div className="relative animate-in fade-in-0 zoom-in-95 duration-150" style={{ width: 80, height: 80 }}>
       <NodeActionToolbar nodeId={id} data={data} />
       {/* Each direction: source + target overlaid */}
       <Handle type="target" position={Position.Top} id="top-target" className={hCls} style={{ top: -5 }} />

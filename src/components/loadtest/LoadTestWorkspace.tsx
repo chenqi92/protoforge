@@ -523,7 +523,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
             <div className="flex items-center gap-2 mb-1">
               <div className="flex-1 h-2 bg-bg-secondary rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+                  className="h-full bg-accent rounded-full transition-[width] duration-500 ease-out"
                   style={{ width: `${progress.pct}%` }}
                 />
               </div>
@@ -722,7 +722,7 @@ function StatusCodeBar({ codes }: { codes: Record<number, number> }) {
           <div key={e.code} className="flex items-center gap-3">
             <span className={cn("pf-text-xs font-bold px-2 py-0.5 rounded text-white min-w-[48px] text-center", getColor(e.code))}>{e.code === 0 ? "ERR" : e.code}</span>
             <div className="flex-1 h-5 bg-bg-input rounded-full overflow-hidden">
-              <div className={cn("h-full rounded-full transition-all duration-500", getColor(e.code), "opacity-70")} style={{ width: `${(e.count / maxCount) * 100}%` }} />
+              <div className={cn("h-full rounded-full transition-[width] duration-300", getColor(e.code), "opacity-70")} style={{ width: `${(e.count / maxCount) * 100}%` }} />
             </div>
             <span className="pf-text-sm font-mono text-text-secondary tabular-nums min-w-[60px] text-right">
               {e.count} <span className="text-text-disabled pf-text-xxs">({((e.count / total) * 100).toFixed(1)}%)</span>
