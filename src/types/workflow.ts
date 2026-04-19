@@ -34,8 +34,11 @@ export interface NodePosition {
 /** 节点类型 — 每种类型对应独立的配置 schema */
 export type NodeType =
   | 'httpRequest'
+  | 'wsSend'
   | 'tcpSend'
   | 'udpSend'
+  | 'mqttPublish'
+  | 'dbQuery'
   | 'delay'
   | 'script'
   | 'extractData'
@@ -165,6 +168,15 @@ export interface TcpSendNodeConfig {
   readTimeoutMs?: number;
 }
 
+/** WebSocket 发送节点配置 */
+export interface WsSendNodeConfig {
+  url: string;
+  headersJson: string;
+  message: string;
+  messageType?: 'text' | 'hex';
+  waitTimeoutMs?: number;
+}
+
 /** UDP 发送节点配置 */
 export interface UdpSendNodeConfig {
   targetHost: string;
@@ -173,6 +185,37 @@ export interface UdpSendNodeConfig {
   encoding?: 'utf8' | 'hex';
   localAddr?: string;
   readTimeoutMs?: number;
+}
+
+/** MQTT 发布节点配置 */
+export interface MqttPublishNodeConfig {
+  brokerUrl: string;
+  clientId: string;
+  topic: string;
+  payload: string;
+  qos?: 0 | 1 | 2;
+  retain?: boolean;
+  username?: string;
+  password?: string;
+  cleanSession?: boolean;
+  keepAliveSecs?: number;
+}
+
+/** 数据库查询节点配置 */
+export interface DbQueryNodeConfig {
+  dbType: 'postgresql' | 'mysql' | 'sqlite' | 'influxdb';
+  mode: 'query' | 'statement';
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password: string;
+  sslEnabled?: boolean;
+  filePath?: string;
+  org?: string;
+  token?: string;
+  influxVersion?: '1.x' | '2.x' | '3.x';
+  sql: string;
 }
 
 /** 延时节点配置 */
@@ -276,8 +319,11 @@ export type StartEndNodeConfig = Record<string, never>;
 /** 节点类型到配置类型的映射 */
 export type NodeConfigMap = {
   httpRequest: HttpNodeConfig;
+  wsSend: WsSendNodeConfig;
   tcpSend: TcpSendNodeConfig;
   udpSend: UdpSendNodeConfig;
+  mqttPublish: MqttPublishNodeConfig;
+  dbQuery: DbQueryNodeConfig;
   delay: DelayNodeConfig;
   script: ScriptNodeConfig;
   extractData: ExtractDataNodeConfig;
@@ -315,8 +361,11 @@ export const NODE_TYPE_META: Record<NodeType, { label: string; icon: string; col
   end:           { label: '结束',        icon: 'stop-circle', color: '#ef4444', shape: 'circle' },
   // 网络请求
   httpRequest:   { label: 'HTTP 请求',   icon: 'globe',       color: '#3b82f6', shape: 'rectangle' },
+  wsSend:        { label: 'WebSocket',   icon: 'zap',         color: '#f59e0b', shape: 'rectangle' },
   tcpSend:       { label: 'TCP 发送',    icon: 'plug',        color: '#10b981', shape: 'rectangle' },
   udpSend:       { label: 'UDP 发送',    icon: 'radio',       color: '#8b5cf6', shape: 'rectangle' },
+  mqttPublish:   { label: 'MQTT 发布',   icon: 'radio',       color: '#7c3aed', shape: 'rectangle' },
+  dbQuery:       { label: '数据库查询',  icon: 'database',    color: '#d97706', shape: 'rectangle' },
   // 流程控制
   condition:     { label: '条件判断',    icon: 'git-branch',  color: '#f59e0b', shape: 'diamond' },
   loop:          { label: '循环',        icon: 'repeat',      color: '#06b6d4', shape: 'rectangle' },
@@ -350,7 +399,8 @@ export interface NodeCategory {
 
 export const NODE_CATEGORIES: NodeCategory[] = [
   { id: 'trigger',  labelKey: 'workflow.categories.trigger',  nodes: ['start', 'end'] },
-  { id: 'network',  labelKey: 'workflow.categories.network',  nodes: ['httpRequest', 'tcpSend', 'udpSend'] },
+  { id: 'network',  labelKey: 'workflow.categories.network',  nodes: ['httpRequest', 'wsSend', 'tcpSend', 'udpSend', 'mqttPublish'] },
+  { id: 'integration', labelKey: 'workflow.categories.integration', nodes: ['dbQuery'] },
   { id: 'flow',     labelKey: 'workflow.categories.flow',     nodes: ['condition', 'loop', 'parallel', 'delay'] },
   { id: 'data',     labelKey: 'workflow.categories.data',     nodes: ['extractData', 'jsonParse', 'jsonStringify', 'textTransform', 'setVariable', 'script'] },
   { id: 'codec',    labelKey: 'workflow.categories.codec',    nodes: ['base64Encode', 'base64Decode', 'urlEncode', 'urlDecode', 'hash'] },

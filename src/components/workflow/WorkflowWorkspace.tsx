@@ -34,7 +34,7 @@ import '@xyflow/react/dist/style.css';
 
 import {
   Plus, Trash2, Play, Square, Save, Search, Loader2, Pencil,
-  Globe, Plug, Radio, Clock, Code, Filter, Lock, Unlock,
+  Globe, Plug, Radio, Zap, Database, Clock, Code, Filter, Lock, Unlock,
   ChevronRight, ChevronDown, X, CheckCircle2, XCircle,
   Workflow as WorkflowIcon, Maximize2, Minimize2,
   GitBranch, Repeat, Columns, Variable, MessageSquare,
@@ -64,8 +64,11 @@ import { NODE_TYPE_META, NODE_CATEGORIES } from '@/types/workflow';
 // ── Icon mapping ──
 const NODE_ICONS: Record<NodeType, typeof Globe> = {
   httpRequest: Globe,
+  wsSend: Zap,
   tcpSend: Plug,
   udpSend: Radio,
+  mqttPublish: Radio,
+  dbQuery: Database,
   delay: Clock,
   script: Code,
   extractData: Filter,
@@ -93,8 +96,11 @@ const NODE_ICONS: Record<NodeType, typeof Globe> = {
 function defaultConfig(nodeType: NodeType): Record<string, unknown> {
   switch (nodeType) {
     case 'httpRequest': return { method: 'GET', url: '', headers: {}, queryParams: {}, timeoutMs: 30000, followRedirects: true, sslVerify: true };
+    case 'wsSend': return { url: '', headersJson: '', message: '', messageType: 'text', waitTimeoutMs: 5000 };
     case 'tcpSend': return { host: '127.0.0.1', port: 8080, data: '', encoding: 'utf8', readTimeoutMs: 5000 };
     case 'udpSend': return { targetHost: '127.0.0.1', targetPort: 8080, data: '', encoding: 'utf8', readTimeoutMs: 5000 };
+    case 'mqttPublish': return { brokerUrl: 'mqtt://localhost:1883', clientId: 'protoforge-workflow', topic: '', payload: '', qos: 0, retain: false, cleanSession: true, keepAliveSecs: 30, username: '', password: '' };
+    case 'dbQuery': return { dbType: 'postgresql', mode: 'query', host: 'localhost', port: 5432, database: '', username: '', password: '', sslEnabled: false, filePath: '', org: '', token: '', influxVersion: '2.x', sql: 'SELECT 1' };
     case 'delay': return { delayMs: 1000 };
     case 'script': return { script: '' };
     case 'extractData': return { source: '', mode: 'jsonPath', expression: '' };
@@ -415,6 +421,13 @@ function NodeConfigPanel({
   const fieldCls = 'h-8 w-full pf-rounded-lg border border-border-default/60 bg-bg-secondary/40 px-3 pf-text-xs text-text-primary outline-none placeholder:text-text-disabled focus:border-accent/40 focus:ring-1 focus:ring-accent/20';
   const labelCls = 'pf-text-xs font-semibold text-text-secondary mb-1 block';
   const textareaCls = 'w-full pf-rounded-lg border border-border-default/60 bg-bg-secondary/40 px-3 py-2 pf-text-xs text-text-primary font-mono outline-none placeholder:text-text-disabled focus:border-accent/40 focus:ring-1 focus:ring-accent/20 resize-none';
+  const dbPortDefaults: Record<string, number> = {
+    postgresql: 5432,
+    mysql: 3306,
+    sqlite: 0,
+    influxdb: 8086,
+  };
+  const dbType = (config.dbType as string) || 'postgresql';
 
   return (
     <div className="flex flex-col h-full">
@@ -458,6 +471,36 @@ function NodeConfigPanel({
           </>
         )}
 
+        {node.nodeType === 'wsSend' && (
+          <>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.url')}</label>
+              <input value={(config.url as string) || ''} onChange={(e) => updateConfig('url', e.target.value)} placeholder="wss://echo.websocket.events" className={fieldCls} />
+            </div>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.headersJson')}</label>
+              <textarea rows={4} value={(config.headersJson as string) || ''} onChange={(e) => updateConfig('headersJson', e.target.value)} placeholder='{"Authorization":"Bearer {{token}}"}' className={textareaCls} />
+            </div>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.message')}</label>
+              <textarea rows={5} value={(config.message as string) || ''} onChange={(e) => updateConfig('message', e.target.value)} placeholder='{"type":"ping"}' className={textareaCls} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.messageType')}</label>
+                <select value={(config.messageType as string) || 'text'} onChange={(e) => updateConfig('messageType', e.target.value)} className={fieldCls}>
+                  <option value="text">{t('workflow.messageTypes.text')}</option>
+                  <option value="hex">{t('workflow.messageTypes.hex')}</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.waitTimeoutMs')}</label>
+                <input type="number" value={(config.waitTimeoutMs as number) ?? 5000} onChange={(e) => updateConfig('waitTimeoutMs', Number(e.target.value))} className={fieldCls} />
+              </div>
+            </div>
+          </>
+        )}
+
         {(node.nodeType === 'tcpSend' || node.nodeType === 'udpSend') && (
           <>
             <div className="grid grid-cols-2 gap-2">
@@ -480,6 +523,179 @@ function NodeConfigPanel({
                 <option value="utf8">UTF-8</option>
                 <option value="hex">Hex</option>
               </select>
+            </div>
+          </>
+        )}
+
+        {node.nodeType === 'mqttPublish' && (
+          <>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.brokerUrl')}</label>
+              <input value={(config.brokerUrl as string) || ''} onChange={(e) => updateConfig('brokerUrl', e.target.value)} placeholder="mqtt://localhost:1883" className={fieldCls} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.clientId')}</label>
+                <input value={(config.clientId as string) || ''} onChange={(e) => updateConfig('clientId', e.target.value)} className={fieldCls} />
+              </div>
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.topic')}</label>
+                <input value={(config.topic as string) || ''} onChange={(e) => updateConfig('topic', e.target.value)} placeholder="devices/demo" className={fieldCls} />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.payload')}</label>
+              <textarea rows={5} value={(config.payload as string) || ''} onChange={(e) => updateConfig('payload', e.target.value)} placeholder='{"status":"ok"}' className={textareaCls} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.qos')}</label>
+                <select value={String((config.qos as number) ?? 0)} onChange={(e) => updateConfig('qos', Number(e.target.value))} className={fieldCls}>
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.keepAliveSecs')}</label>
+                <input type="number" value={(config.keepAliveSecs as number) ?? 30} onChange={(e) => updateConfig('keepAliveSecs', Number(e.target.value))} className={fieldCls} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.username')}</label>
+                <input value={(config.username as string) || ''} onChange={(e) => updateConfig('username', e.target.value)} className={fieldCls} />
+              </div>
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.password')}</label>
+                <input type="password" value={(config.password as string) || ''} onChange={(e) => updateConfig('password', e.target.value)} className={fieldCls} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex items-center gap-2 pf-text-xs text-text-secondary">
+                <input
+                  type="checkbox"
+                  checked={Boolean(config.retain)}
+                  onChange={(e) => updateConfig('retain', e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-border-default/60"
+                />
+                {t('workflow.nodeFields.retain')}
+              </label>
+              <label className="flex items-center gap-2 pf-text-xs text-text-secondary">
+                <input
+                  type="checkbox"
+                  checked={Boolean(config.cleanSession ?? true)}
+                  onChange={(e) => updateConfig('cleanSession', e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-border-default/60"
+                />
+                {t('workflow.nodeFields.cleanSession')}
+              </label>
+            </div>
+          </>
+        )}
+
+        {node.nodeType === 'dbQuery' && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.dbType')}</label>
+                <select
+                  value={dbType}
+                  onChange={(e) => {
+                    const nextType = e.target.value;
+                    onChange({
+                      config: {
+                        ...config,
+                        dbType: nextType,
+                        port: dbPortDefaults[nextType] ?? (config.port as number) ?? 0,
+                      },
+                    });
+                  }}
+                  className={fieldCls}
+                >
+                  <option value="postgresql">{t('workflow.dbTypes.postgresql')}</option>
+                  <option value="mysql">{t('workflow.dbTypes.mysql')}</option>
+                  <option value="sqlite">{t('workflow.dbTypes.sqlite')}</option>
+                  <option value="influxdb">{t('workflow.dbTypes.influxdb')}</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.dbMode')}</label>
+                <select value={(config.mode as string) || 'query'} onChange={(e) => updateConfig('mode', e.target.value)} className={fieldCls}>
+                  <option value="query">{t('workflow.dbModes.query')}</option>
+                  <option value="statement">{t('workflow.dbModes.statement')}</option>
+                </select>
+              </div>
+            </div>
+            {dbType !== 'sqlite' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={labelCls}>{t('workflow.nodeFields.host')}</label>
+                  <input value={(config.host as string) || ''} onChange={(e) => updateConfig('host', e.target.value)} className={fieldCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>{t('workflow.nodeFields.port')}</label>
+                  <input type="number" value={(config.port as number) ?? dbPortDefaults[dbType] ?? 0} onChange={(e) => updateConfig('port', Number(e.target.value))} className={fieldCls} />
+                </div>
+              </div>
+            )}
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.database')}</label>
+              <input value={(config.database as string) || ''} onChange={(e) => updateConfig('database', e.target.value)} placeholder={dbType === 'influxdb' ? 'bucket' : 'database'} className={fieldCls} />
+            </div>
+            {dbType === 'sqlite' ? (
+              <div>
+                <label className={labelCls}>{t('workflow.nodeFields.filePath')}</label>
+                <input value={(config.filePath as string) || ''} onChange={(e) => updateConfig('filePath', e.target.value)} placeholder="/path/to/demo.db" className={fieldCls} />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={labelCls}>{t('workflow.nodeFields.username')}</label>
+                  <input value={(config.username as string) || ''} onChange={(e) => updateConfig('username', e.target.value)} className={fieldCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>{t('workflow.nodeFields.password')}</label>
+                  <input type="password" value={(config.password as string) || ''} onChange={(e) => updateConfig('password', e.target.value)} className={fieldCls} />
+                </div>
+              </div>
+            )}
+            {dbType === 'influxdb' && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={labelCls}>{t('workflow.nodeFields.org')}</label>
+                    <input value={(config.org as string) || ''} onChange={(e) => updateConfig('org', e.target.value)} className={fieldCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>{t('workflow.nodeFields.influxVersion')}</label>
+                    <select value={(config.influxVersion as string) || '2.x'} onChange={(e) => updateConfig('influxVersion', e.target.value)} className={fieldCls}>
+                      <option value="1.x">1.x</option>
+                      <option value="2.x">2.x</option>
+                      <option value="3.x">3.x</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>{t('workflow.nodeFields.token')}</label>
+                  <input type="password" value={(config.token as string) || ''} onChange={(e) => updateConfig('token', e.target.value)} className={fieldCls} />
+                </div>
+              </>
+            )}
+            {(dbType === 'postgresql' || dbType === 'mysql') && (
+              <label className="flex items-center gap-2 pf-text-xs text-text-secondary">
+                <input
+                  type="checkbox"
+                  checked={Boolean(config.sslEnabled)}
+                  onChange={(e) => updateConfig('sslEnabled', e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-border-default/60"
+                />
+                {t('workflow.nodeFields.sslEnabled')}
+              </label>
+            )}
+            <div>
+              <label className={labelCls}>{t('workflow.nodeFields.sql')}</label>
+              <textarea rows={8} value={(config.sql as string) || ''} onChange={(e) => updateConfig('sql', e.target.value)} placeholder="SELECT 1" className={cn(textareaCls, 'min-h-[160px]')} />
             </div>
           </>
         )}
@@ -1017,9 +1233,17 @@ function getResultSummary(result: NodeResult): string | null {
       const url = (out.url as string) || '';
       return status ? `${status} ${url ? url.substring(0, 40) : ''}` : null;
     }
+    case 'wsSend':
+      return `${String(out.messageType || 'text')} -> ${String(out.url || '').substring(0, 32)}${out.response != null ? ' / recv' : ''}`;
     case 'tcpSend':
     case 'udpSend':
       return `${out.sentBytes ?? 0} bytes -> ${(out.address as string) || (out.target as string) || ''}`;
+    case 'mqttPublish':
+      return `${String(out.topic || '')} @ ${String(out.brokerUrl || '').substring(0, 28)}`;
+    case 'dbQuery':
+      return String(out.mode) === 'statement'
+        ? `${out.affectedRows ?? 0} rows affected`
+        : `${out.rowCount ?? 0} rows / ${out.executionTimeMs ?? 0}ms`;
     case 'delay':
       return `${out.delayMs ?? 0}ms`;
     case 'jsonParse':
@@ -1166,6 +1390,43 @@ function NodeOutputView({ result }: { result: NodeResult }) {
         </div>
       );
     }
+    case 'wsSend': {
+      const responseStr = out.response == null
+        ? null
+        : (typeof out.response === 'string' ? out.response : JSON.stringify(out.response, null, 2));
+      return (
+        <div className="space-y-1">
+          <div className={kvCls}><span className={keyCls}>URL</span><span className={valCls}>{String(out.url || '')}</span></div>
+          <div className={kvCls}><span className={keyCls}>Type</span><span className={valCls}>{String(out.messageType || 'text')}</span></div>
+          <div className={kvCls}><span className={keyCls}>Bytes</span><span className={valCls}>{String(out.sentBytes ?? 0)}</span></div>
+          <div className={kvCls}><span className={keyCls}>Wait</span><span className={valCls}>{String(out.waitTimeoutMs ?? 0)}ms</span></div>
+          {out.headers != null && (
+            <details className="mt-1">
+              <summary className="pf-text-xxs text-text-tertiary cursor-pointer select-none">Headers</summary>
+              <div className="mt-1">
+                <CodeBlock text={JSON.stringify(out.headers, null, 2)} maxHeight={140} />
+              </div>
+            </details>
+          )}
+          <details className="mt-1" open>
+            <summary className="pf-text-xxs text-text-tertiary cursor-pointer select-none">Message</summary>
+            <div className="mt-1">
+              <CodeBlock text={String(out.sent || '')} maxHeight={150} />
+            </div>
+          </details>
+          {responseStr != null && (
+            <details className="mt-1" open>
+              <summary className="pf-text-xxs text-text-tertiary cursor-pointer select-none">
+                Response {out.responseType ? `(${String(out.responseType)})` : ''}
+              </summary>
+              <div className="mt-1">
+                <CodeBlock text={responseStr} maxHeight={180} />
+              </div>
+            </details>
+          )}
+        </div>
+      );
+    }
     case 'tcpSend':
     case 'udpSend': {
       const responseStr = out.response == null
@@ -1187,6 +1448,53 @@ function NodeOutputView({ result }: { result: NodeResult }) {
         </div>
       );
     }
+    case 'mqttPublish':
+      return (
+        <div className="space-y-1">
+          <div className={kvCls}><span className={keyCls}>Broker</span><span className={valCls}>{String(out.brokerUrl || '')}</span></div>
+          <div className={kvCls}><span className={keyCls}>Client</span><span className={valCls}>{String(out.clientId || '')}</span></div>
+          <div className={kvCls}><span className={keyCls}>Topic</span><span className={valCls}>{String(out.topic || '')}</span></div>
+          <div className={kvCls}><span className={keyCls}>QoS</span><span className={valCls}>{String(out.qos ?? 0)} / retain={String(Boolean(out.retain))}</span></div>
+          <div className={kvCls}><span className={keyCls}>State</span><span className={cn(valCls, out.published ? 'text-emerald-500' : 'text-text-secondary')}>{String(out.published ? 'published' : 'queued')}</span></div>
+          <details className="mt-1" open>
+            <summary className="pf-text-xxs text-text-tertiary cursor-pointer select-none">Payload</summary>
+            <div className="mt-1">
+              <CodeBlock text={String(out.payload || '')} maxHeight={180} />
+            </div>
+          </details>
+        </div>
+      );
+    case 'dbQuery':
+      return (
+        <div className="space-y-1">
+          <div className={kvCls}><span className={keyCls}>DB</span><span className={valCls}>{String(out.dbType || '')} / {String(out.database || '')}</span></div>
+          <div className={kvCls}><span className={keyCls}>Mode</span><span className={valCls}>{String(out.mode || '')}</span></div>
+          {Boolean(out.serverVersion) && <div className={kvCls}><span className={keyCls}>Server</span><span className={valCls}>{String(out.serverVersion)}</span></div>}
+          {String(out.mode) === 'statement' ? (
+            <div className={kvCls}><span className={keyCls}>Rows</span><span className={valCls}>{String(out.affectedRows ?? 0)}</span></div>
+          ) : (
+            <>
+              <div className={kvCls}><span className={keyCls}>Rows</span><span className={valCls}>{String(out.rowCount ?? 0)}</span></div>
+              <div className={kvCls}><span className={keyCls}>Cols</span><span className={valCls}>{String(out.columnCount ?? 0)}</span></div>
+            </>
+          )}
+          <div className={kvCls}><span className={keyCls}>Time</span><span className={valCls}>{String(out.executionTimeMs ?? 0)}ms</span></div>
+          {Array.isArray(out.warnings) && out.warnings.length > 0 && (
+            <details className="mt-1">
+              <summary className="pf-text-xxs text-text-tertiary cursor-pointer select-none">Warnings ({out.warnings.length})</summary>
+              <div className="mt-1">
+                <CodeBlock text={JSON.stringify(out.warnings, null, 2)} maxHeight={120} />
+              </div>
+            </details>
+          )}
+          <details className="mt-1" open>
+            <summary className="pf-text-xxs text-text-tertiary cursor-pointer select-none">Result</summary>
+            <div className="mt-1">
+              <CodeBlock text={JSON.stringify(out, null, 2)} maxHeight={240} />
+            </div>
+          </details>
+        </div>
+      );
     case 'delay':
       return <div className={kvCls}><span className={keyCls}>Delay</span><span className={valCls}>{String(out.delayMs)}ms</span></div>;
     case 'log': {

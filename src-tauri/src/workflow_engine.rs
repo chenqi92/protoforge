@@ -63,8 +63,11 @@ pub struct NodePosition {
 #[serde(rename_all = "camelCase")]
 pub enum NodeType {
     HttpRequest,
+    WsSend,
     TcpSend,
     UdpSend,
+    MqttPublish,
+    DbQuery,
     Delay,
     Script,
     ExtractData,
@@ -553,8 +556,11 @@ async fn execute_node(
 ) -> Result<serde_json::Value, String> {
     match node_type {
         NodeType::HttpRequest => execute_http_node(config).await,
+        NodeType::WsSend => execute_ws_send_node(config).await,
         NodeType::TcpSend => execute_tcp_send_node(config).await,
         NodeType::UdpSend => execute_udp_send_node(config).await,
+        NodeType::MqttPublish => execute_mqtt_publish_node(config).await,
+        NodeType::DbQuery => execute_db_query_node(config).await,
         NodeType::Delay => execute_delay_node(config).await,
         NodeType::Script => execute_script_node(config, context).await,
         NodeType::ExtractData => execute_extract_node(config, context).await,
@@ -600,6 +606,157 @@ async fn execute_http_node(config: &serde_json::Value) -> Result<serde_json::Val
     let response = http_client::execute_request(request).await?;
 
     serde_json::to_value(&response).map_err(|e| format!("HTTP 响应序列化失败: {}", e))
+}
+
+/// WebSocket 发送节点 — 连接 → 发送 → 可选等待一帧响应 → 关闭
+async fn execute_ws_send_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    use futures_util::{SinkExt, StreamExt};
+    use std::collections::HashMap;
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+    use tokio_tungstenite::tungstenite::http;
+    use tokio_tungstenite::tungstenite::Message;
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct WsSendNodeConfig {
+        url: String,
+        #[serde(default)]
+        headers_json: String,
+        #[serde(default)]
+        message: String,
+        #[serde(default = "default_ws_message_type")]
+        message_type: String,
+        #[serde(default = "default_wait_timeout_ms")]
+        wait_timeout_ms: u64,
+    }
+
+    let cfg: WsSendNodeConfig = serde_json::from_value(config.clone())
+        .map_err(|e| format!("WebSocket 节点配置解析失败: {}", e))?;
+
+    let headers = if cfg.headers_json.trim().is_empty() {
+        None
+    } else {
+        Some(
+            serde_json::from_str::<HashMap<String, String>>(&cfg.headers_json)
+                .map_err(|e| format!("WebSocket Headers JSON 解析失败: {}", e))?,
+        )
+    };
+
+    let mut request = cfg
+        .url
+        .clone()
+        .into_client_request()
+        .map_err(|e| format!("WebSocket URL 无效: {}", e))?;
+
+    let mut reserved_header_conflict = false;
+    if let Some(hdrs) = &headers {
+        for (key, value) in hdrs {
+            if is_reserved_ws_header(key) {
+                reserved_header_conflict = true;
+                continue;
+            }
+            let header_name = http::header::HeaderName::from_bytes(key.as_bytes())
+                .map_err(|e| format!("无效的 WebSocket Header 名称 {}: {}", key, e))?;
+            let header_value = http::HeaderValue::from_str(value)
+                .map_err(|e| format!("无效的 WebSocket Header 值 {}: {}", key, e))?;
+            request.headers_mut().insert(header_name, header_value);
+        }
+    }
+
+    let (mut ws_stream, _response) = tokio_tungstenite::connect_async(request)
+        .await
+        .map_err(|e| {
+            let message = e.to_string();
+            if reserved_header_conflict && message.to_ascii_lowercase().contains("sec-websocket-key")
+            {
+                "请求头包含 WebSocket 握手保留字段，请移除 Host / Connection / Upgrade / Sec-WebSocket-* 相关 Header".to_string()
+            } else {
+                format!("WebSocket 连接失败: {}", message)
+            }
+        })?;
+
+    let message_bytes = encode_data(&cfg.message, &cfg.message_type)?;
+    let sent_bytes = message_bytes.len();
+    let outbound = if cfg.message_type == "hex" {
+        Message::Binary(message_bytes.into())
+    } else {
+        Message::Text(cfg.message.clone().into())
+    };
+
+    ws_stream
+        .send(outbound)
+        .await
+        .map_err(|e| format!("WebSocket 发送失败: {}", e))?;
+
+    let response_payload = if cfg.wait_timeout_ms == 0 {
+        None
+    } else {
+        match tokio::time::timeout(
+            std::time::Duration::from_millis(cfg.wait_timeout_ms),
+            ws_stream.next(),
+        )
+        .await
+        {
+            Ok(Some(Ok(msg))) => Some(match msg {
+                Message::Text(text) => serde_json::json!({
+                    "response": text.to_string(),
+                    "responseType": "text",
+                    "responseSize": text.len(),
+                }),
+                Message::Binary(bin) => serde_json::json!({
+                    "response": decode_response_data(&bin, "hex"),
+                    "responseType": "binary",
+                    "responseSize": bin.len(),
+                }),
+                Message::Ping(payload) => serde_json::json!({
+                    "response": decode_response_data(&payload, "hex"),
+                    "responseType": "ping",
+                    "responseSize": payload.len(),
+                }),
+                Message::Pong(payload) => serde_json::json!({
+                    "response": decode_response_data(&payload, "hex"),
+                    "responseType": "pong",
+                    "responseSize": payload.len(),
+                }),
+                Message::Close(frame) => serde_json::json!({
+                    "response": frame
+                        .as_ref()
+                        .map(|close| close.reason.to_string())
+                        .unwrap_or_else(|| "closed".to_string()),
+                    "responseType": "close",
+                    "responseSize": 0,
+                }),
+                Message::Frame(frame) => serde_json::json!({
+                    "response": format!("{:?}", frame),
+                    "responseType": "frame",
+                    "responseSize": 0,
+                }),
+            }),
+            Ok(Some(Err(e))) => return Err(format!("WebSocket 读取响应失败: {}", e)),
+            Ok(None) | Err(_) => None,
+        }
+    };
+
+    let _ = ws_stream.close(None).await;
+
+    let mut output = serde_json::json!({
+        "url": cfg.url,
+        "headers": headers.unwrap_or_default(),
+        "sent": cfg.message,
+        "sentBytes": sent_bytes,
+        "messageType": cfg.message_type,
+        "waitTimeoutMs": cfg.wait_timeout_ms,
+    });
+
+    if let Some(response) = response_payload {
+        if let (Some(out_obj), Some(resp_obj)) = (output.as_object_mut(), response.as_object()) {
+            for (key, value) in resp_obj {
+                out_obj.insert(key.clone(), value.clone());
+            }
+        }
+    }
+
+    Ok(output)
 }
 
 /// TCP 发送节点 — 连接 → 发送 → 可选等待响应 → 关闭
@@ -733,6 +890,198 @@ async fn execute_udp_send_node(config: &serde_json::Value) -> Result<serde_json:
         "target": target,
         "response": response_data,
     }))
+}
+
+/// MQTT 发布节点 — 连接 → 等待 ConnAck → 发布 → 断开
+async fn execute_mqtt_publish_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct MqttPublishNodeConfig {
+        broker_url: String,
+        client_id: String,
+        topic: String,
+        payload: String,
+        #[serde(default)]
+        qos: u8,
+        #[serde(default)]
+        retain: bool,
+        #[serde(default)]
+        username: String,
+        #[serde(default)]
+        password: String,
+        #[serde(default = "default_true")]
+        clean_session: bool,
+        #[serde(default = "default_keep_alive_secs")]
+        keep_alive_secs: u64,
+    }
+
+    let cfg: MqttPublishNodeConfig = serde_json::from_value(config.clone())
+        .map_err(|e| format!("MQTT 节点配置解析失败: {}", e))?;
+
+    let url =
+        url::Url::parse(&cfg.broker_url).map_err(|e| format!("MQTT Broker URL 解析失败: {}", e))?;
+    let host = url.host_str().unwrap_or("localhost").to_string();
+    let port = url.port().unwrap_or(1883);
+
+    let mut mqtt_options = rumqttc::MqttOptions::new(&cfg.client_id, host, port);
+    mqtt_options.set_keep_alive(std::time::Duration::from_secs(cfg.keep_alive_secs.max(5)));
+    mqtt_options.set_clean_session(cfg.clean_session);
+    if !cfg.username.is_empty() {
+        mqtt_options.set_credentials(&cfg.username, &cfg.password);
+    }
+
+    let mqtt_qos = parse_mqtt_qos(cfg.qos)?;
+    let (client, mut eventloop) = rumqttc::AsyncClient::new(mqtt_options, 32);
+
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            match eventloop.poll().await {
+                Ok(rumqttc::Event::Incoming(rumqttc::Incoming::ConnAck(_))) => break Ok(()),
+                Ok(rumqttc::Event::Incoming(rumqttc::Incoming::Disconnect)) => {
+                    break Err("MQTT Broker 已断开连接".to_string())
+                }
+                Ok(_) => {}
+                Err(e) => break Err(format!("MQTT 连接失败: {}", e)),
+            }
+        }
+    })
+    .await
+    .map_err(|_| "MQTT 连接超时".to_string())??;
+
+    client
+        .publish(&cfg.topic, mqtt_qos, cfg.retain, cfg.payload.as_bytes())
+        .await
+        .map_err(|e| format!("MQTT 发布失败: {}", e))?;
+
+    if cfg.qos > 0 {
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                match eventloop.poll().await {
+                    Ok(rumqttc::Event::Incoming(rumqttc::Incoming::PubAck(_))) => break,
+                    Ok(rumqttc::Event::Incoming(rumqttc::Incoming::Disconnect)) => break,
+                    Ok(_) => {}
+                    Err(_) => break,
+                }
+            }
+        })
+        .await;
+    } else {
+        let _ = tokio::time::timeout(std::time::Duration::from_millis(200), eventloop.poll()).await;
+    }
+
+    let _ = client.disconnect().await;
+
+    Ok(serde_json::json!({
+        "brokerUrl": cfg.broker_url,
+        "clientId": cfg.client_id,
+        "topic": cfg.topic,
+        "payload": cfg.payload,
+        "qos": cfg.qos,
+        "retain": cfg.retain,
+        "published": true,
+        "keepAliveSecs": cfg.keep_alive_secs,
+        "cleanSession": cfg.clean_session,
+    }))
+}
+
+/// 数据库查询节点 — 独立建立连接并执行一次 SQL
+async fn execute_db_query_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct DbQueryNodeConfig {
+        db_type: String,
+        mode: String,
+        host: String,
+        port: u16,
+        database: String,
+        username: String,
+        password: String,
+        #[serde(default)]
+        ssl_enabled: bool,
+        #[serde(default)]
+        file_path: Option<String>,
+        #[serde(default)]
+        org: Option<String>,
+        #[serde(default)]
+        token: Option<String>,
+        #[serde(default)]
+        influx_version: Option<String>,
+        sql: String,
+    }
+
+    let cfg: DbQueryNodeConfig = serde_json::from_value(config.clone())
+        .map_err(|e| format!("数据库节点配置解析失败: {}", e))?;
+
+    let manager = crate::db_client::DbConnectionManager::new();
+    let session_id = format!("workflow-db-{}", uuid::Uuid::new_v4());
+    let conn_cfg = crate::db_client::ConnectionConfig {
+        db_type: cfg.db_type.clone(),
+        host: cfg.host.clone(),
+        port: cfg.port,
+        database: cfg.database.clone(),
+        username: cfg.username.clone(),
+        password: cfg.password.clone(),
+        ssl_enabled: cfg.ssl_enabled,
+        file_path: cfg.file_path.clone(),
+        org: cfg.org.clone(),
+        token: cfg.token.clone(),
+        influx_version: cfg.influx_version.clone(),
+        retention_policy: None,
+    };
+
+    let result = async {
+        let server_info = manager.connect(&session_id, &conn_cfg).await?;
+        let driver_arc = manager.get_driver_arc(&session_id).await?;
+
+        match cfg.mode.as_str() {
+            "query" => {
+                let query_result = {
+                    let driver = driver_arc.lock().await;
+                    driver
+                        .execute_query_in_database(&cfg.sql, &cfg.database)
+                        .await?
+                };
+
+                Ok(serde_json::json!({
+                    "dbType": cfg.db_type,
+                    "database": cfg.database,
+                    "mode": cfg.mode,
+                    "serverType": server_info.server_type,
+                    "serverVersion": server_info.version,
+                    "columns": query_result.columns,
+                    "rows": query_result.rows,
+                    "affectedRows": query_result.affected_rows,
+                    "executionTimeMs": query_result.execution_time_ms,
+                    "truncated": query_result.truncated,
+                    "totalRows": query_result.total_rows,
+                    "warnings": query_result.warnings,
+                    "rowCount": query_result.rows.len(),
+                    "columnCount": query_result.columns.len(),
+                }))
+            }
+            "statement" => {
+                let affected_rows = {
+                    let driver = driver_arc.lock().await;
+                    driver.execute_statement(&cfg.sql).await?
+                };
+
+                Ok(serde_json::json!({
+                    "dbType": cfg.db_type,
+                    "database": cfg.database,
+                    "mode": cfg.mode,
+                    "serverType": server_info.server_type,
+                    "serverVersion": server_info.version,
+                    "affectedRows": affected_rows,
+                    "executionTimeMs": 0,
+                }))
+            }
+            other => Err(format!("不支持的数据库执行模式: {}", other)),
+        }
+    }
+    .await;
+
+    let _ = manager.disconnect(&session_id).await;
+    result
 }
 
 /// 延时节点
@@ -1230,8 +1579,46 @@ fn default_encoding() -> String {
     "utf8".to_string()
 }
 
+fn default_ws_message_type() -> String {
+    "text".to_string()
+}
+
+fn default_wait_timeout_ms() -> u64 {
+    5000
+}
+
+fn default_keep_alive_secs() -> u64 {
+    30
+}
+
+fn default_true() -> bool {
+    true
+}
+
 fn default_local_addr() -> String {
     "0.0.0.0:0".to_string()
+}
+
+fn is_reserved_ws_header(header_name: &str) -> bool {
+    matches!(
+        header_name.to_ascii_lowercase().as_str(),
+        "host"
+            | "connection"
+            | "upgrade"
+            | "sec-websocket-key"
+            | "sec-websocket-version"
+            | "sec-websocket-extensions"
+            | "sec-websocket-accept"
+    )
+}
+
+fn parse_mqtt_qos(qos: u8) -> Result<rumqttc::QoS, String> {
+    match qos {
+        0 => Ok(rumqttc::QoS::AtMostOnce),
+        1 => Ok(rumqttc::QoS::AtLeastOnce),
+        2 => Ok(rumqttc::QoS::ExactlyOnce),
+        _ => Err(format!("无效的 MQTT QoS: {}，仅支持 0 / 1 / 2", qos)),
+    }
 }
 
 fn json_value_kind(value: &serde_json::Value) -> &'static str {

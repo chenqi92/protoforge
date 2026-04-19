@@ -6,6 +6,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { ImagePlus, FolderOutput, Play, CheckCircle2, AlertCircle, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resizeScreenshots, type BatchResult } from "@/services/toolboxService";
+import { ToolboxToolPane } from "./ToolboxToolPane";
 
 interface SizePreset {
   id: string;
@@ -107,7 +108,7 @@ export function ScreenshotResizerTool() {
   const totalTasks = selectedImages.length * selectedSizes.size;
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <ToolboxToolPane>
       {/* 选择图片 */}
       <section>
         <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.selectImages`)}</h3>
@@ -158,12 +159,13 @@ export function ScreenshotResizerTool() {
 
       {/* 目标尺寸 */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center gap-4">
           <h3 className="pf-text-sm font-semibold text-text-primary">{t(`${k}.targetSizes`)}</h3>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <button onClick={selectAll} className="pf-text-xs text-accent hover:underline">
               {t(`${k}.selectAll`)}
             </button>
+            <span className="text-text-disabled">·</span>
             <button onClick={deselectAll} className="pf-text-xs text-text-tertiary hover:underline">
               {t(`${k}.deselectAll`)}
             </button>
@@ -282,6 +284,6 @@ export function ScreenshotResizerTool() {
           </div>
         </section>
       )}
-    </div>
+    </ToolboxToolPane>
   );
 }
