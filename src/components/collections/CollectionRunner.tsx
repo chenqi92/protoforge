@@ -103,7 +103,7 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
   };
 
   const methodColor = (m: string) => {
-    const map: Record<string, string> = { GET: 'text-emerald-600', POST: 'text-amber-600', PUT: 'text-blue-600', DELETE: 'text-red-600', PATCH: 'text-violet-600' };
+    const map: Record<string, string> = { GET: 'text-emerald-600 dark:text-emerald-300', POST: 'text-amber-600 dark:text-amber-300', PUT: 'text-blue-600 dark:text-blue-300', DELETE: 'text-red-600 dark:text-red-300', PATCH: 'text-violet-600 dark:text-violet-300' };
     return map[m?.toUpperCase()] || 'text-text-secondary';
   };
 
@@ -170,11 +170,11 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
               <h3 className="pf-text-xs font-bold text-text-disabled uppercase tracking-wider mb-2">{t('runner.results')}</h3>
               <div className="grid grid-cols-2 gap-2 pf-text-4xl font-bold">
                 <div className="text-center">
-                  <p className="text-emerald-600">{summary.passed}</p>
+                  <p className="text-emerald-600 dark:text-emerald-300">{summary.passed}</p>
                   <p className="pf-text-3xs text-text-disabled font-normal">{t('runner.passed')}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-red-500">{summary.failed}</p>
+                  <p className="text-red-500 dark:text-red-300">{summary.failed}</p>
                   <p className="pf-text-3xs text-text-disabled font-normal">{t('runner.failed')}</p>
                 </div>
               </div>
@@ -198,7 +198,7 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
               <div key={i} className={cn("flex items-center gap-3 px-3 py-2 rounded-md border transition-colors",
                 r.success ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"
               )}>
-                {r.success ? <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+                {r.success ? <CheckCircle className="w-4 h-4 text-emerald-500 dark:text-emerald-300 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 dark:text-red-300 shrink-0" />}
                 <span className={cn("pf-text-xxs font-bold w-10 shrink-0", methodColor(r.method))}>{r.method}</span>
                 <div className="flex-1 min-w-0">
                   <p className="pf-text-sm font-medium text-text-primary truncate">{r.name}</p>
@@ -206,13 +206,13 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
                 </div>
                 {r.status && (
                   <span className={cn("pf-text-xs font-mono font-bold px-1.5 py-0.5 rounded",
-                    r.status < 300 ? "text-emerald-600 bg-emerald-500/10" :
-                    r.status < 400 ? "text-amber-600 bg-amber-500/10" :
-                    "text-red-500 bg-red-500/10"
+                    r.status < 300 ? "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10" :
+                    r.status < 400 ? "text-amber-600 dark:text-amber-300 bg-amber-500/10" :
+                    "text-red-500 dark:text-red-300 bg-red-500/10"
                   )}>{r.status}</span>
                 )}
                 <span className="pf-text-xxs text-text-disabled shrink-0">{r.durationMs}ms</span>
-                {r.error && <span className="pf-text-xxs text-red-500 max-w-[120px] truncate" title={r.error}>{r.error}</span>}
+                {r.error && <span className="pf-text-xxs text-red-500 dark:text-red-300 max-w-[120px] truncate" title={r.error}>{r.error}</span>}
               </div>
             ))
           )}

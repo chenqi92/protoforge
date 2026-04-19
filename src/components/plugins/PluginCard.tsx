@@ -13,8 +13,8 @@ interface PluginCardProps {
 }
 
 const typeLabels: Record<string, { label: string; color: string }> = {
-  "protocol-parser": { label: "Protocol Parser", color: "text-blue-600 bg-blue-500/10" },
-  "ui-panel": { label: "UI Extension", color: "text-violet-600 bg-violet-500/10" },
+  "protocol-parser": { label: "Protocol Parser", color: "text-blue-700 dark:text-blue-300 bg-blue-500/10" },
+  "ui-panel": { label: "UI Extension", color: "text-violet-700 dark:text-violet-300 bg-violet-500/10" },
 };
 
 export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) {
@@ -40,7 +40,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
 
   return (
     <div
-      className="group relative rounded-xl border border-border-default bg-bg-primary hover:border-border-strong hover:shadow-md transition-all duration-200 overflow-hidden"
+      className="group relative rounded-xl border border-border-default bg-bg-primary hover:border-border-strong transition-colors duration-200 overflow-hidden dark:bg-white/[0.02] dark:hover:bg-white/[0.035] dark:border-white/[0.06] dark:hover:border-white/[0.09]"
     >
       <div className="p-4">
         {/* Header */}
@@ -89,8 +89,8 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
           className={cn(
             "w-full h-8 rounded-lg flex items-center justify-center gap-1.5 pf-text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-wait",
             plugin.installed
-              ? "text-red-500 border border-red-200 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/10"
-              : "text-white bg-accent hover:bg-accent-hover shadow-sm hover:shadow-md"
+              ? "text-red-600 dark:text-red-300 border border-red-200 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/10"
+              : "text-white bg-accent hover:bg-accent-hover"
           )}
         >
           {loading ? (

@@ -57,25 +57,25 @@ const sourceItems: SourceMeta[] = [
     label: 'import.fileImport',
     desc: 'import.fileImportDesc',
     icon: FileJson,
-    accentClassName: 'bg-blue-500/10 text-blue-600 ring-1 ring-inset ring-blue-500/15',
+    accentClassName: 'bg-blue-500/10 text-blue-600 dark:text-blue-300 ring-1 ring-inset ring-blue-500/15',
   },
   {
     id: 'swagger',
     label: 'import.openApiImport',
     desc: 'import.openApiImportDesc',
     icon: Globe,
-    accentClassName: 'bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/15',
+    accentClassName: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/15',
   },
 ];
 
 const METHOD_COLORS: Record<string, { text: string; bg: string }> = {
-  GET: { text: 'text-emerald-600', bg: 'bg-emerald-500/10' },
-  POST: { text: 'text-amber-600', bg: 'bg-amber-500/10' },
-  PUT: { text: 'text-blue-600', bg: 'bg-blue-500/10' },
-  DELETE: { text: 'text-red-600', bg: 'bg-red-500/10' },
-  PATCH: { text: 'text-violet-600', bg: 'bg-violet-500/10' },
+  GET: { text: 'text-emerald-600 dark:text-emerald-300', bg: 'bg-emerald-500/10' },
+  POST: { text: 'text-amber-600 dark:text-amber-300', bg: 'bg-amber-500/10' },
+  PUT: { text: 'text-blue-600 dark:text-blue-300', bg: 'bg-blue-500/10' },
+  DELETE: { text: 'text-red-600 dark:text-red-300', bg: 'bg-red-500/10' },
+  PATCH: { text: 'text-violet-600 dark:text-violet-300', bg: 'bg-violet-500/10' },
   HEAD: { text: 'text-slate-600', bg: 'bg-slate-500/10' },
-  OPTIONS: { text: 'text-cyan-600', bg: 'bg-cyan-500/10' },
+  OPTIONS: { text: 'text-cyan-600 dark:text-cyan-300', bg: 'bg-cyan-500/10' },
 };
 
 const inputClassName =
@@ -232,8 +232,8 @@ function AlertMessage({
 }) {
   return (
     <div className={cn('flex items-start gap-2 pf-rounded-xl border border-red-500/15 bg-red-500/5 px-3 py-3', className)}>
-      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-      <p className="break-all whitespace-pre-wrap pf-text-xs leading-5 text-red-600">{error}</p>
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500 dark:text-red-300" />
+      <p className="break-all whitespace-pre-wrap pf-text-xs leading-5 text-red-600 dark:text-red-300">{error}</p>
     </div>
   );
 }
@@ -356,7 +356,7 @@ function ImportModeToggle({
         className={cn(
           'flex items-center gap-1.5 pf-rounded-md px-3 py-1.5 pf-text-xs font-medium transition-all',
           mode === 'merge'
-            ? 'bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/20'
+            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/20'
             : 'text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
         )}
       >
@@ -481,7 +481,7 @@ function FileImportView({
               loading
                 ? 'border-accent/40 bg-accent/8 text-accent'
                 : success
-                  ? 'border-emerald-500/40 bg-emerald-500/8 text-emerald-600'
+                  ? 'border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-300'
                   : 'border-border-default/80 bg-bg-secondary/50 text-text-disabled group-hover:border-accent/50 group-hover:bg-accent/8 group-hover:text-accent'
             )}
           >

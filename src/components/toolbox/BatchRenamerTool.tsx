@@ -385,7 +385,7 @@ export function BatchRenamerTool() {
             <h3 className="pf-text-sm font-semibold text-text-primary">
               {t(`${k}.preview`)}
               {changedCount > 0 && (
-                <span className="ml-2 font-normal text-orange-500">({changedCount})</span>
+                <span className="ml-2 font-normal text-orange-500 dark:text-orange-300">({changedCount})</span>
               )}
             </h3>
             {changedCount === 0 && preview.length > 0 && (
@@ -411,7 +411,7 @@ export function BatchRenamerTool() {
                       <td className="px-3 py-1.5 pf-text-sm text-text-secondary">
                         <span className="inline-flex items-center gap-1.5">
                           {row.isDir
-                            ? <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                            ? <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500 dark:text-amber-300" />
                             : <File className="h-3.5 w-3.5 shrink-0 text-text-disabled" />}
                           <span className="truncate">{row.original}</span>
                         </span>
@@ -419,7 +419,7 @@ export function BatchRenamerTool() {
                       <td className="px-1 py-1.5 text-center">
                         <ArrowRight className="mx-auto h-3 w-3 text-text-disabled" />
                       </td>
-                      <td className="px-3 py-1.5 pf-text-sm font-medium text-orange-600 truncate">{row.renamed}</td>
+                      <td className="px-3 py-1.5 pf-text-sm font-medium text-orange-600 dark:text-orange-300 truncate">{row.renamed}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -454,13 +454,13 @@ export function BatchRenamerTool() {
           {result && (
             <div className="flex items-center gap-3">
               {result.success_count > 0 && (
-                <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600">
+                <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600 dark:text-emerald-300">
                   <CheckCircle2 className="h-4 w-4" />
                   {t("toolWorkbench.toolbox.screenshotResizer.successCount", { count: result.success_count })}
                 </span>
               )}
               {result.errors.length > 0 && (
-                <span className="flex items-center gap-1.5 pf-text-sm text-rose-600">
+                <span className="flex items-center gap-1.5 pf-text-sm text-rose-600 dark:text-rose-300">
                   <AlertCircle className="h-4 w-4" />
                   {t("toolWorkbench.toolbox.screenshotResizer.errorCount", { count: result.errors.length })}
                 </span>
@@ -474,7 +474,7 @@ export function BatchRenamerTool() {
       {processing && (
         <section className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
           <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
-            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+            <Loader2 className="h-4 w-4 animate-spin text-orange-500 dark:text-orange-300" />
             <span>{t(`${k}.apply`)}... {changedCount} {t(`${k}.includeFiles`).toLowerCase()}</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-orange-500/20">
@@ -488,7 +488,7 @@ export function BatchRenamerTool() {
         <section className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
           <div className="space-y-1">
             {result.errors.map((err, i) => (
-              <div key={i} className="pf-text-xs text-rose-600">{err}</div>
+              <div key={i} className="pf-text-xs text-rose-600 dark:text-rose-300">{err}</div>
             ))}
           </div>
         </section>
@@ -500,7 +500,7 @@ export function BatchRenamerTool() {
           <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-primary p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-2 pf-text-base font-semibold text-text-primary">{t(`${k}.apply`)}</h3>
             <p className="mb-1 pf-text-sm text-text-secondary">{t(`${k}.applyConfirm`)}</p>
-            <p className="mb-5 pf-text-sm text-orange-600">{changedCount} {t(`${k}.includeFiles`).toLowerCase()}</p>
+            <p className="mb-5 pf-text-sm text-orange-600 dark:text-orange-300">{changedCount} {t(`${k}.includeFiles`).toLowerCase()}</p>
 
             {changedItems.length > 0 && (
               <div className="mb-5 max-h-40 overflow-auto rounded-lg border border-border-default/40 bg-bg-secondary">
@@ -508,7 +508,7 @@ export function BatchRenamerTool() {
                   <div key={i} className="flex items-center gap-2 border-b border-border-default/20 px-3 py-1.5 last:border-b-0">
                     <span className="min-w-0 flex-1 truncate pf-text-xs text-text-secondary">{row.original}</span>
                     <ArrowRight className="h-3 w-3 shrink-0 text-text-disabled" />
-                    <span className="min-w-0 flex-1 truncate pf-text-xs font-medium text-orange-600">{row.renamed}</span>
+                    <span className="min-w-0 flex-1 truncate pf-text-xs font-medium text-orange-600 dark:text-orange-300">{row.renamed}</span>
                   </div>
                 ))}
                 {changedItems.length > 5 && (

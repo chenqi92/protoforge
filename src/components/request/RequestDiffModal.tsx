@@ -189,11 +189,11 @@ export function RequestDiffModal({ open, onClose, sourceTabId }: RequestDiffModa
     if (monaco) {
       monaco.editor.defineTheme("protoforge-dark", {
         base: "vs-dark", inherit: true, rules: [],
-        colors: { "editor.background": "#0f172a", "editor.lineHighlightBackground": "#1e293b" },
+        colors: { "editor.background": "#0f1011", "editor.lineHighlightBackground": "#191a1b" },
       });
       monaco.editor.defineTheme("protoforge-light", {
         base: "vs", inherit: true, rules: [],
-        colors: { "editor.background": "#ffffff", "editor.lineHighlightBackground": "#f1f5f9" },
+        colors: { "editor.background": "#ffffff", "editor.lineHighlightBackground": "#f5f6f7" },
       });
     }
   }, [monaco]);

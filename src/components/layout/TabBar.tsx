@@ -35,16 +35,16 @@ const protocolLabels: Record<RequestProtocol, string> = {
 };
 
 const protocolColors: Record<RequestProtocol, string> = {
-  http: "bg-emerald-500/15 text-emerald-600",
-  ws: "bg-amber-500/15 text-amber-600",
-  mqtt: "bg-purple-500/15 text-purple-600",
-  grpc: "bg-cyan-500/15 text-cyan-600",
+  http: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  ws: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  mqtt: "bg-purple-500/15 text-purple-700 dark:text-purple-300",
+  grpc: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
 };
 
 const modeBadgeColors: Record<HttpRequestMode, string> = {
-  rest: "bg-emerald-500/15 text-emerald-600",
-  graphql: "bg-fuchsia-500/15 text-fuchsia-600",
-  sse: "bg-orange-500/15 text-orange-600",
+  rest: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  graphql: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300",
+  sse: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
 };
 
 const modeLabels: Record<HttpRequestMode, string> = {
@@ -54,13 +54,13 @@ const modeLabels: Record<HttpRequestMode, string> = {
 };
 
 const methodBadgeColors: Record<string, string> = {
-  GET: "bg-emerald-500/15 text-emerald-600",
-  POST: "bg-amber-500/15 text-amber-600",
-  PUT: "bg-blue-500/15 text-blue-600",
-  DELETE: "bg-red-500/15 text-red-600",
-  PATCH: "bg-violet-500/15 text-violet-600",
-  HEAD: "bg-cyan-500/15 text-cyan-600",
-  OPTIONS: "bg-gray-500/15 text-gray-600",
+  GET: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  POST: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  PUT: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  DELETE: "bg-red-500/15 text-red-700 dark:text-red-300",
+  PATCH: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+  HEAD: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
+  OPTIONS: "bg-gray-500/15 text-gray-700 dark:text-gray-300",
 };
 
 export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, onReorder }: TabBarProps) {

@@ -484,7 +484,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
                 <div className="p-4 space-y-5 overflow-auto h-full">
                   <div className="space-y-3 max-w-xl">
                     <label className="flex items-center gap-3 p-3 pf-rounded-md border border-border-default/50 bg-bg-secondary/20 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 text-amber-600">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-300">
                         <Loader2 className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -496,7 +496,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
 
                     <div className="pf-rounded-md border border-border-default/50 bg-bg-secondary/20 overflow-hidden">
                       <label className="flex items-center gap-3 p-3 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/10 text-blue-600">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-300">
                           <Zap className="w-4 h-4" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -544,9 +544,9 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
 
                 <span className={cn("http-response-status",
                   connected
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:text-emerald-200 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300"
                     : connecting
-                      ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300"
+                      ? "border-amber-200 bg-amber-50 text-amber-700 dark:text-amber-200 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300"
                       : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-300"
                 )}>
                   <span className={cn("http-response-status-dot",
@@ -560,7 +560,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
                   <span className="http-response-meta-value font-mono">{messages.length}</span>
                 </span>
 
-                <button onClick={() => setMessages([])} className="wb-icon-btn hover:bg-red-500/10 hover:text-red-500 transition-colors" title={t('ws.clearMessages')} disabled={messages.length === 0}>
+                <button onClick={() => setMessages([])} className="wb-icon-btn hover:bg-red-500/10 hover:text-red-500 dark:text-red-300 transition-colors" title={t('ws.clearMessages')} disabled={messages.length === 0}>
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -573,7 +573,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
               {filteredMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center px-6 text-text-disabled">
                   <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default bg-bg-secondary shadow-sm">
-                    <Zap className="w-8 h-8 opacity-20 text-amber-500" />
+                    <Zap className="w-8 h-8 opacity-20 text-amber-500 dark:text-amber-300" />
                   </div>
                   <p className="pf-text-md font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
                   <p className="mt-1 pf-text-sm">{searchQuery ? '' : t('ws.emptyDesc')}</p>
@@ -693,7 +693,7 @@ function WsMessageRow({
       >
         {/* 方向箭头 */}
         {message.direction === "sent" ? (
-          <ArrowUp className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+          <ArrowUp className="h-3.5 w-3.5 shrink-0 text-emerald-500 dark:text-emerald-300" />
         ) : (
           <ArrowDown className="h-3.5 w-3.5 shrink-0 text-sky-500" />
         )}

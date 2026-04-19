@@ -6,37 +6,37 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ===== ProtoForge Design System v5 — Refined Light (Default) + Dark ===== */
+/* ===== ProtoForge Design System v6 — Linear-inspired (Light default + Dark) ===== */
 @theme {
-  /* ---- Light Theme (default) — warmer neutrals, less blue-gray ---- */
-  --color-bg-app: #f0f1f5;
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #f7f8fa;
-  --color-bg-tertiary: #eff0f3;
+  /* ---- Light Theme (default) — Linear light neutrals: clean, cool, near-white ---- */
+  --color-bg-app: #f7f8f8;          /* Linear light bg */
+  --color-bg-primary: #ffffff;       /* pure white card surface */
+  --color-bg-secondary: #f5f6f7;     /* Linear subtle surface */
+  --color-bg-tertiary: #f0f1f3;
   --color-bg-surface: #ffffff;
   --color-bg-elevated: #ffffff;
-  --color-bg-hover: #f0f1f5;
-  --color-bg-active: #e5e7ec;
-  --color-bg-input: #f8f9fb;
-  --color-bg-sidebar: #f5f6f8;
-  --color-bg-inset: #ecedf1;
+  --color-bg-hover: #f0f1f3;
+  --color-bg-active: #e6e8ec;
+  --color-bg-input: #f7f8f8;
+  --color-bg-sidebar: #f3f4f5;       /* Linear light subtle surface */
+  --color-bg-inset: #ececf0;
 
-  --color-border-default: #e3e5ea;
-  --color-border-subtle: #eff0f4;
-  --color-border-strong: #cdd0d8;
+  --color-border-default: #e6e6e6;   /* Linear light border alt */
+  --color-border-subtle: #eef0f2;
+  --color-border-strong: #d0d6e0;    /* Linear light border */
   --color-border-focus: var(--color-accent);
-  --color-border-sidebar: #e0e2e7;
+  --color-border-sidebar: #e6e6e6;
 
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #4b5563;
-  --color-text-tertiary: #8591a3;
-  --color-text-disabled: #b4bfce;
+  --color-text-primary: #0f1011;     /* Linear panel-dark as high-contrast text */
+  --color-text-secondary: #3e4249;
+  --color-text-tertiary: #62666d;    /* Linear quaternary text as light-mode tertiary */
+  --color-text-disabled: #8a8f98;    /* Linear tertiary text as light-mode disabled */
 
-  /* Accent colors — overridden by data-accent attribute */
-  --color-accent: #5b6af0;
-  --color-accent-hover: #4f5de6;
-  --color-accent-soft: rgba(91, 106, 240, 0.08);
-  --color-accent-muted: rgba(91, 106, 240, 0.15);
+  /* Accent colors — Linear signature indigo-violet. Overridden by data-accent attribute */
+  --color-accent: #5e6ad2;           /* Linear brand indigo */
+  --color-accent-hover: #7170ff;     /* Linear accent violet */
+  --color-accent-soft: rgba(94, 106, 210, 0.08);
+  --color-accent-muted: rgba(94, 106, 210, 0.15);
 
   --color-success: #10b981;
   --color-warning: #f59e0b;
@@ -99,16 +99,30 @@
   --z-tooltip: 1000;
   --z-toast: 9999;
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans: 'Inter Variable', 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Menlo', 'Fira Code', monospace;
+
+  /* Linear signature weights: 400 reads, 510 emphasises, 590 announces */
+  --fw-regular: 400;
+  --fw-emphasis: 510;
+  --fw-semibold: 590;
+
+  /* Retarget Tailwind's font-weight utilities to Linear's triad.
+     Tailwind's `font-medium`/`font-semibold`/`font-bold` now map to Linear weights —
+     any class already in the codebase automatically picks up the signature feel. */
+  --font-weight-normal: 400;
+  --font-weight-medium: 510;
+  --font-weight-semibold: 590;
+  --font-weight-bold: 590;
 }
 
 /* ===== Accent Color Schemes ===== */
 :root[data-accent="indigo"], :root:not([data-accent]) {
-  --color-accent: #5b6af0;
-  --color-accent-hover: #4f5de6;
-  --color-accent-soft: rgba(91, 106, 240, 0.08);
-  --color-accent-muted: rgba(91, 106, 240, 0.15);
+  /* Linear brand indigo (#5e6ad2) → accent violet (#7170ff) → light violet (#828fff) */
+  --color-accent: #5e6ad2;
+  --color-accent-hover: #7170ff;
+  --color-accent-soft: rgba(94, 106, 210, 0.08);
+  --color-accent-muted: rgba(94, 106, 210, 0.18);
 }
 :root[data-accent="cyan"] {
   --color-accent: #06b6d4;
@@ -131,67 +145,80 @@
   --color-accent-muted: rgba(124, 58, 237, 0.15);
 }
 
-/* ===== Dark Theme ===== */
-.dark {
-  --color-bg-app: #0c0c0e;
-  --color-bg-primary: #141416;
-  --color-bg-secondary: #1a1a1e;
-  --color-bg-tertiary: #27272a;
-  --color-bg-surface: #141416;
-  --color-bg-elevated: #1a1a1e;
-  --color-bg-hover: #27272a;
-  --color-bg-active: #3f3f46;
-  --color-bg-input: #1a1a1e;
-  --color-bg-sidebar: #111113;
-  --color-bg-inset: #0f0f11;
+/* ===== Dark Theme — Linear's luminance-stacking model =====
+   Elevation communicated through background opacity steps + semi-transparent white borders,
+   NOT through drop shadows (which are nearly invisible on dark).
+   NOTE: `:root.dark` (not `.dark`) — same specificity as the shadcn `:root` light block
+   further down, but declared later would still lose to it. Adding `:root` to the selector
+   bumps specificity so dark overrides win regardless of source order.
+*/
+:root.dark {
+  --color-bg-app: #08090a;           /* Linear marketing black — deepest canvas */
+  --color-bg-primary: #0f1011;       /* Linear panel-dark — main surface */
+  --color-bg-secondary: #141516;     /* Linear line-tint — subtle elevation */
+  --color-bg-tertiary: #191a1b;      /* Linear level-3 surface */
+  --color-bg-surface: #0f1011;
+  --color-bg-elevated: #191a1b;      /* dropdowns, popovers */
+  --color-bg-hover: #191a1b;
+  --color-bg-active: #28282c;        /* Linear secondary surface — lightest dark */
+  --color-bg-input: #0f1011;
+  --color-bg-sidebar: #0f1011;
+  --color-bg-inset: #08090a;
 
-  --color-border-default: #252529;
-  --color-border-subtle: #1a1a1e;
-  --color-border-strong: #3f3f46;
+  /* Borders: Linear uses semi-transparent white almost exclusively on dark.
+     Solid dark borders (#23252a etc.) kept only where high contrast demanded. */
+  --color-border-default: rgba(255, 255, 255, 0.08);
+  --color-border-subtle: rgba(255, 255, 255, 0.05);
+  --color-border-strong: #3e3e44;
   --color-border-focus: var(--color-accent);
-  --color-border-sidebar: #222226;
+  --color-border-sidebar: rgba(255, 255, 255, 0.06);
 
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #a1a1aa;
-  --color-text-tertiary: #71717a;
-  --color-text-disabled: #52525b;
+  --color-text-primary: #f7f8f8;     /* Linear primary — near-white, not pure #fff */
+  --color-text-secondary: #d0d6e0;   /* Linear silver-gray body text */
+  --color-text-tertiary: #8a8f98;    /* Linear tertiary — muted metadata */
+  --color-text-disabled: #62666d;    /* Linear quaternary — disabled, timestamps */
 
-  --shadow-soft: 0 8px 30px rgba(0,0,0,0.3);
-  --shadow-panel: 0 0 0 1px rgba(0,0,0,0.2), 0 2px 8px -2px rgba(0,0,0,0.3);
-  --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+  /* Linear shadow philosophy: ring-shadow + inset for dark surfaces */
+  --shadow-xs: 0 1.2px 0 0 rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.2);
+  --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-inset: inset 0 0 12px 0 rgba(0, 0, 0, 0.2);
 }
 
-/* ── shadcn dark theme variables mapped to ProtoForge tokens ── */
-.dark {
-  --background: #0c0c0e;
-  --foreground: #f8fafc;
-  --card: #141416;
-  --card-foreground: #f8fafc;
-  --popover: #1a1a1e;
-  --popover-foreground: #f8fafc;
+/* ── shadcn dark theme variables mapped to ProtoForge + Linear tokens ── */
+:root.dark {
+  --background: #08090a;
+  --foreground: #f7f8f8;
+  --card: #0f1011;
+  --card-foreground: #f7f8f8;
+  --popover: #191a1b;
+  --popover-foreground: #f7f8f8;
   --primary: var(--color-accent);
   --primary-foreground: #ffffff;
-  --secondary: #27272a;
-  --secondary-foreground: #a1a1aa;
-  --muted: #27272a;
-  --muted-foreground: #71717a;
-  --accent-foreground: #f8fafc;
+  --secondary: #191a1b;
+  --secondary-foreground: #d0d6e0;
+  --muted: #191a1b;
+  --muted-foreground: #8a8f98;
+  --accent-foreground: #f7f8f8;
   --destructive: #ef4444;
-  --border: #252529;
-  --input: #252529;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.08);
   --ring: var(--color-accent);
   --chart-1: var(--color-accent);
   --chart-2: #10b981;
   --chart-3: #f59e0b;
-  --chart-4: #8b5cf6;
+  --chart-4: #7170ff;
   --chart-5: #ef4444;
-  --sidebar: #111113;
-  --sidebar-foreground: #f8fafc;
+  --sidebar: #0f1011;
+  --sidebar-foreground: #d0d6e0;
   --sidebar-primary: var(--color-accent);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #27272a;
-  --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: #222226;
+  --sidebar-accent: #191a1b;
+  --sidebar-accent-foreground: #f7f8f8;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
   --sidebar-ring: var(--color-accent);
 }
 
@@ -228,7 +255,12 @@
     font-family: var(--font-sans);
     font-size: var(--fs-base);
     line-height: 1.5;
+    /* Linear's signature OpenType features — single-story 'a' (cv01) + geometric alternates (ss03).
+       Fundamental to Linear's typeface identity. */
+    font-feature-settings: "cv01", "ss03";
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     user-select: none;
     -webkit-user-select: none;
   }
@@ -323,25 +355,27 @@
 
   /* dark input-field — no special shadow needed */
 
+  /* Linear-style primary: solid brand indigo → accent violet on hover. No gradient, no glow. */
   .btn-primary {
-    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
-    color: white;
-    font-weight: 500;
+    background: var(--color-accent);
+    color: #ffffff;
+    font-weight: var(--fw-emphasis);
     border: none;
     border-radius: var(--radius-sm);
     padding: 8px 18px;
     cursor: pointer;
-    box-shadow: var(--shadow-sm);
-    transition: all var(--transition-fast);
+    box-shadow: none;
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
   }
-  .btn-primary:hover { 
-    opacity: 0.95; 
-    box-shadow: var(--shadow-md), var(--shadow-glow);
-    transform: translateY(-1px);
+  .btn-primary:hover {
+    background: var(--color-accent-hover);
   }
-  .btn-primary:active { 
-    transform: translateY(1px); 
-    box-shadow: var(--shadow-sm);
+  .btn-primary:active {
+    transform: translateY(1px);
+  }
+  .btn-primary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-bg-app), 0 0 0 4px var(--color-accent-muted);
   }
 
   /* Load test config inputs — unified with wb-field-sm (28px) */
@@ -431,7 +465,7 @@
     background: var(--color-bg-secondary);
     color: var(--color-text-secondary);
     font-size: var(--fs-xs);
-    font-weight: 500;
+    font-weight: var(--fw-emphasis);
     white-space: nowrap;
     box-shadow: none;
   }
@@ -457,7 +491,7 @@
     border-radius: 9px;
     color: var(--color-text-tertiary);
     font-size: var(--fs-xs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     transition: all var(--transition-fast);
     white-space: nowrap;
   }
@@ -504,7 +538,7 @@
     flex-shrink: 0;
     color: var(--color-text-tertiary);
     font-size: var(--fs-xxs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     white-space: nowrap;
   }
 
@@ -666,7 +700,7 @@
     border-radius: 10px;
     color: #ffffff;
     font-size: var(--fs-xs);
-    font-weight: 700;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.01em;
     box-shadow: var(--shadow-sm);
     white-space: nowrap;
@@ -702,7 +736,7 @@
     flex-shrink: 0;
     color: var(--color-text-tertiary);
     font-size: var(--fs-xxs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.02em;
     white-space: nowrap;
   }
@@ -778,7 +812,7 @@
     min-width: 0;
     text-align: left;
     font-size: var(--fs-xxs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.01em;
     white-space: nowrap;
   }
@@ -829,7 +863,7 @@
     border-radius: 11px;
     color: #ffffff;
     font-size: var(--fs-xs);
-    font-weight: 700;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.01em;
     box-shadow: var(--shadow-sm);
     white-space: nowrap;
@@ -850,7 +884,7 @@
     flex-shrink: 0;
     color: var(--color-text-tertiary);
     font-size: var(--fs-xxs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.02em;
     white-space: nowrap;
   }
@@ -902,7 +936,7 @@
     border-radius: 8px;
     color: #ffffff;
     font-size: var(--fs-xs);
-    font-weight: 700;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.01em;
     box-shadow: var(--shadow-sm);
     white-space: nowrap;
@@ -948,7 +982,7 @@
     flex-shrink: 0;
     color: var(--color-text-tertiary);
     font-size: var(--fs-xxs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     white-space: nowrap;
   }
 
@@ -978,7 +1012,7 @@
     background: var(--color-bg-primary);
     color: var(--color-text-secondary);
     font-size: var(--fs-xxs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     white-space: nowrap;
   }
 
@@ -1021,7 +1055,7 @@
     border-radius: 12px;
     color: #ffffff;
     font-size: var(--fs-sm);
-    font-weight: 700;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.01em;
     box-shadow: var(--shadow-sm);
     white-space: nowrap;
@@ -1126,7 +1160,7 @@
     background: var(--color-bg-secondary);
     color: var(--color-text-secondary);
     font-size: var(--fs-sm);
-    font-weight: 500;
+    font-weight: var(--fw-emphasis);
     transition: all var(--transition-fast);
     white-space: nowrap;
     flex-shrink: 0;
@@ -1149,7 +1183,7 @@
     border-radius: var(--radius-btn);
     color: #ffffff;
     font-size: var(--fs-sm);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     box-shadow: var(--shadow-sm);
     transition: transform var(--transition-fast), filter var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
     white-space: nowrap;
@@ -1189,7 +1223,7 @@
     background: var(--color-accent);
     color: #ffffff;
     font-size: var(--fs-xs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     white-space: nowrap;
     flex-shrink: 0;
     transition: background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast);
@@ -1253,7 +1287,7 @@
     background: var(--color-accent-soft);
     color: var(--color-accent);
     font-size: var(--fs-xxs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     white-space: nowrap;
     transition: background var(--transition-fast), border-color var(--transition-fast);
   }
@@ -1342,7 +1376,7 @@
     border-radius: 8px;
     color: var(--color-text-tertiary);
     font-size: var(--fs-sm);
-    font-weight: 500;
+    font-weight: var(--fw-emphasis);
     white-space: nowrap;
     transition: all var(--transition-fast);
   }
@@ -1475,7 +1509,7 @@
     border-radius: 8px;
     color: var(--color-text-tertiary);
     font-size: var(--fs-sm);
-    font-weight: 500;
+    font-weight: var(--fw-emphasis);
     white-space: nowrap;
     transition: all var(--transition-fast);
   }
@@ -1510,7 +1544,7 @@
     border-radius: 8px;
     color: var(--color-text-tertiary);
     font-size: var(--fs-sm);
-    font-weight: 500;
+    font-weight: var(--fw-emphasis);
     white-space: nowrap;
     transition: all var(--transition-fast);
   }
@@ -1560,7 +1594,7 @@
     text-align: left;
     color: var(--color-text-secondary);
     font-size: var(--fs-xxs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0;
     text-transform: none;
     background: color-mix(in srgb, var(--color-bg-primary) 98%, #fff);
@@ -1702,7 +1736,7 @@
     gap: 4px;
     color: var(--color-text-disabled);
     font-size: var(--fs-xs);
-    font-weight: 500;
+    font-weight: var(--fw-emphasis);
     opacity: 0;
     transition: all var(--transition-fast);
   }
@@ -1740,7 +1774,7 @@
     border: 1px solid var(--color-border-default);
     border-radius: 999px;
     font-size: var(--fs-xs);
-    font-weight: 700;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.01em;
     white-space: nowrap;
   }
@@ -1769,7 +1803,7 @@
   .http-response-meta-label {
     color: var(--color-text-tertiary);
     font-size: var(--fs-xxs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     line-height: 1;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -1778,7 +1812,7 @@
   .http-response-meta-value {
     color: var(--color-text-primary);
     font-size: var(--fs-sm);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     line-height: 1;
     white-space: nowrap;
   }
@@ -1813,7 +1847,7 @@
   .response-summary-label {
     color: var(--color-text-tertiary);
     font-size: var(--fs-3xs);
-    font-weight: 700;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -1821,7 +1855,7 @@
   .response-summary-value {
     color: var(--color-text-primary);
     font-size: var(--fs-lg);
-    font-weight: 700;
+    font-weight: var(--fw-semibold);
     line-height: 1.2;
     letter-spacing: -0.01em;
     white-space: nowrap;
@@ -1860,7 +1894,7 @@
     background: color-mix(in srgb, var(--color-bg-secondary) 68%, transparent);
     color: var(--color-text-tertiary);
     font-size: var(--fs-xs);
-    font-weight: 700;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.04em;
     text-align: left;
   }
@@ -1897,7 +1931,7 @@
 
   .response-table-key {
     color: var(--color-text-secondary);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     word-break: break-word;
   }
 
@@ -1941,7 +1975,7 @@
     border-radius: 9px;
     color: var(--color-text-tertiary);
     font-size: var(--fs-xs);
-    font-weight: 500;
+    font-weight: var(--fw-emphasis);
     transition: all var(--transition-fast);
   }
 
@@ -1992,7 +2026,7 @@
     border: 1px solid var(--color-border-default);
     color: var(--color-text-secondary);
     font-size: var(--fs-xxs);
-    font-weight: 500;
+    font-weight: var(--fw-emphasis);
   }
 
   /* ── Variable Inline Input (contentEditable) ── */
@@ -2037,7 +2071,7 @@
   .variable-inline-token {
     border-radius: 5px;
     padding: 1px 4px;
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     white-space: pre;
     transition: filter 0.15s ease;
   }
@@ -2210,7 +2244,7 @@
     background: var(--color-accent);
     color: #fff;
     font-size: var(--fs-xs);
-    font-weight: 600;
+    font-weight: var(--fw-semibold);
     cursor: pointer;
     transition: all var(--transition-fast);
   }
@@ -2282,7 +2316,7 @@
     text-align: left;
     color: var(--color-text-secondary);
     font-size: var(--fs-xxs);
-    font-weight: 700;
+    font-weight: var(--fw-semibold);
     letter-spacing: 0.03em;
     text-transform: uppercase;
     white-space: nowrap;
@@ -2297,7 +2331,7 @@
 
   .plugin-table-row-num {
     color: var(--color-text-disabled);
-    font-weight: 500;
+    font-weight: var(--fw-emphasis);
     background: color-mix(in srgb, var(--color-bg-secondary) 50%, transparent);
     border-right: 1px solid color-mix(in srgb, var(--color-border-default) 60%, transparent) !important;
     min-width: 42px;
@@ -2384,38 +2418,38 @@
   /* Radius: use ProtoForge's radius values, not shadcn's calc-based ones */
 }
 
-/* ── shadcn light theme variables mapped to ProtoForge tokens ── */
+/* ── shadcn light theme variables mapped to ProtoForge + Linear tokens ── */
 :root {
-  --background: #f0f1f5;
-  --foreground: #0f172a;
+  --background: #f7f8f8;             /* Linear light bg */
+  --foreground: #0f1011;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #0f1011;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover-foreground: #0f1011;
   --primary: var(--color-accent);
   --primary-foreground: #ffffff;
-  --secondary: #eff0f3;
-  --secondary-foreground: #4b5563;
-  --muted: #f0f1f5;
-  --muted-foreground: #9ca3af;
-  --accent-foreground: #0f172a;
+  --secondary: #f0f1f3;
+  --secondary-foreground: #3e4249;
+  --muted: #f3f4f5;                  /* Linear light subtle surface */
+  --muted-foreground: #8a8f98;       /* Linear tertiary gray */
+  --accent-foreground: #0f1011;
   --destructive: #ef4444;
-  --border: #e3e5ea;
-  --input: #e3e5ea;
+  --border: #e6e6e6;                 /* Linear light border alt */
+  --input: #e6e6e6;
   --ring: var(--color-accent);
   --radius: 0.5rem;
   --chart-1: var(--color-accent);
   --chart-2: #10b981;
   --chart-3: #f59e0b;
-  --chart-4: #8b5cf6;
+  --chart-4: #7170ff;
   --chart-5: #ef4444;
-  --sidebar: #f5f6f8;
-  --sidebar-foreground: #0f172a;
+  --sidebar: #f3f4f5;
+  --sidebar-foreground: #0f1011;
   --sidebar-primary: var(--color-accent);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f0f1f5;
-  --sidebar-accent-foreground: #0f172a;
-  --sidebar-border: #e0e2e7;
+  --sidebar-accent: #f0f1f3;
+  --sidebar-accent-foreground: #0f1011;
+  --sidebar-border: #e6e6e6;
   --sidebar-ring: var(--color-accent);
 }
 

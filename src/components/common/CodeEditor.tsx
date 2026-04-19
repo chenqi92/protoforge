@@ -29,13 +29,19 @@ export function CodeEditor({
   
   useEffect(() => {
     if (monaco) {
+      // Linear dark: #0f1011 panel bg + #191a1b line highlight — matches --color-bg-primary / --color-bg-tertiary
       monaco.editor.defineTheme('protoforge-dark', {
         base: 'vs-dark',
         inherit: true,
         rules: [],
         colors: {
-          'editor.background': '#0f172a', // Tailwind slate-900
-          'editor.lineHighlightBackground': '#1e293b',
+          'editor.background': '#0f1011',
+          'editor.lineHighlightBackground': '#191a1b',
+          'editorLineNumber.foreground': '#62666d',
+          'editorLineNumber.activeForeground': '#d0d6e0',
+          'editorCursor.foreground': '#f7f8f8',
+          'editorIndentGuide.background1': '#191a1b',
+          'editorIndentGuide.activeBackground1': '#28282c',
         }
       });
       monaco.editor.defineTheme('protoforge-light', {
@@ -44,7 +50,9 @@ export function CodeEditor({
         rules: [],
         colors: {
           'editor.background': '#ffffff',
-          'editor.lineHighlightBackground': '#f1f5f9',
+          'editor.lineHighlightBackground': '#f5f6f7',
+          'editorLineNumber.foreground': '#8a8f98',
+          'editorLineNumber.activeForeground': '#0f1011',
         }
       });
     }

@@ -62,7 +62,7 @@ export function TitleBar({
     <div
       {...frameGestures}
       data-titlebar
-      className="relative flex h-[var(--titlebar-height)] shrink-0 items-center gap-3 border-b border-border-default/50 bg-bg-primary/85 px-3 backdrop-blur-xl shadow-xs select-none"
+      className="relative flex h-[var(--titlebar-height)] shrink-0 items-center gap-3 border-b border-border-subtle bg-bg-primary/80 px-3 backdrop-blur-xl select-none dark:bg-[#0f1011]/80 dark:border-white/[0.06]"
     >
       <div className="w-[70px] shrink-0" />
 
@@ -80,10 +80,10 @@ export function TitleBar({
                 key={workbench.id}
                 onClick={() => onSelectWorkbench(workbench.id)}
                 className={cn(
-                  "flex h-8 items-center gap-2 pf-rounded-sm px-3 pf-text-sm font-medium transition-all",
+                  "flex h-8 items-center gap-2 pf-rounded-sm px-3 pf-text-sm font-[510] tracking-[-0.005em] transition-colors",
                   isActive
-                    ? "bg-bg-primary text-text-primary shadow-sm ring-1 ring-border-default/50"
-                    : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",
+                    ? "bg-bg-primary text-text-primary shadow-sm ring-1 ring-border-default/50 dark:bg-white/[0.06] dark:ring-white/[0.06] dark:shadow-none"
+                    : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary dark:hover:bg-white/[0.04]",
                 )}
                 title={label}
               >

@@ -706,7 +706,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
       {/* Content */}
       <div
         className={cn(
-          "flex-1 min-h-0 overflow-auto bg-[linear-gradient(180deg,rgba(148,163,184,0.05),transparent_22%)]",
+          "flex-1 min-h-0 overflow-auto",
           // JSON 模式 Monaco/Tree 自带 padding，不加外层 padding
           activeBuiltinMode === 'json' ? '' : 'px-3 py-2',
         )}

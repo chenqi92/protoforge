@@ -163,11 +163,11 @@ export function StatusBar({
 
   return (
     <>
-      <div data-statusbar className="flex h-[var(--statusbar-height)] shrink-0 items-center justify-between border-t border-border-default/50 bg-bg-secondary px-4 pf-text-xs text-text-tertiary select-none">
+      <div data-statusbar className="flex h-[var(--statusbar-height)] shrink-0 items-center justify-between border-t border-border-subtle bg-bg-secondary px-4 pf-text-xs text-text-tertiary select-none dark:bg-[#0f1011] dark:border-white/[0.06]">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 font-medium text-text-secondary">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
-            <span className="text-text-secondary tracking-wider">{moduleLabel}</span>
+          <div className="flex items-center gap-1.5 font-[510] text-text-secondary">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className="text-text-secondary tracking-[-0.005em]">{moduleLabel}</span>
           </div>
         </div>
 

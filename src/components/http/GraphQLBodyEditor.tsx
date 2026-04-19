@@ -173,7 +173,7 @@ export function GraphQLBodyEditor({
           </button>
           {schema && (
             <>
-              <span className="pf-text-xxs text-emerald-500 flex items-center gap-1">
+              <span className="pf-text-xxs text-emerald-500 dark:text-emerald-300 flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3" />
                 {t('http.graphql.schemaLoaded')}
               </span>
@@ -187,7 +187,7 @@ export function GraphQLBodyEditor({
             </>
           )}
           {schemaError && (
-            <span className="pf-text-xxs text-red-500 flex items-center gap-1 truncate max-w-[300px]" title={schemaError}>
+            <span className="pf-text-xxs text-red-500 dark:text-red-300 flex items-center gap-1 truncate max-w-[300px]" title={schemaError}>
               <AlertCircle className="h-3 w-3 shrink-0" />
               {schemaError}
             </span>
@@ -234,8 +234,8 @@ export function GraphQLBodyEditor({
                 <span className={cn(
                   "inline-flex items-center gap-1 rounded-full px-2 py-0.5 pf-text-xxs font-semibold",
                   variableState.valid
-                    ? "bg-emerald-500/10 text-emerald-600"
-                    : "bg-red-500/10 text-red-500"
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                    : "bg-red-500/10 text-red-500 dark:text-red-300"
                 )}>
                   {variableState.valid ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
                   {variableState.label}

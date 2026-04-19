@@ -12,11 +12,11 @@ const options: Array<{
   iconBgClass: string;
   description: string;
 }> = [
-  { kind: "http", label: "HTTP", icon: FileText, activeClass: "text-emerald-600", iconBgClass: "bg-emerald-500/12", description: "REST Request" },
-  { kind: "graphql", label: "GraphQL", icon: Braces, activeClass: "text-fuchsia-600", iconBgClass: "bg-fuchsia-500/12", description: "Schema Query" },
-  { kind: "ws", label: "WebSocket", icon: Zap, activeClass: "text-amber-600", iconBgClass: "bg-amber-500/12", description: "Live Connection" },
-  { kind: "mqtt", label: "MQTT", icon: Radio, activeClass: "text-violet-600", iconBgClass: "bg-violet-500/12", description: "Message Broker" },
-  { kind: "grpc", label: "gRPC", icon: Network, activeClass: "text-cyan-600", iconBgClass: "bg-cyan-500/12", description: "RPC Framework" },
+  { kind: "http", label: "HTTP", icon: FileText, activeClass: "text-emerald-600 dark:text-emerald-300", iconBgClass: "bg-emerald-500/12", description: "REST Request" },
+  { kind: "graphql", label: "GraphQL", icon: Braces, activeClass: "text-fuchsia-600 dark:text-fuchsia-300", iconBgClass: "bg-fuchsia-500/12", description: "Schema Query" },
+  { kind: "ws", label: "WebSocket", icon: Zap, activeClass: "text-amber-600 dark:text-amber-300", iconBgClass: "bg-amber-500/12", description: "Live Connection" },
+  { kind: "mqtt", label: "MQTT", icon: Radio, activeClass: "text-violet-600 dark:text-violet-300", iconBgClass: "bg-violet-500/12", description: "Message Broker" },
+  { kind: "grpc", label: "gRPC", icon: Network, activeClass: "text-cyan-600 dark:text-cyan-300", iconBgClass: "bg-cyan-500/12", description: "RPC Framework" },
 ];
 
 export type RequestKind = RequestProtocol | Extract<HttpRequestMode, "graphql">;

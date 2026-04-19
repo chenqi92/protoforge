@@ -109,11 +109,11 @@ function statusColor(code: number) {
 
 function methodColor(method: string) {
   const colors: Record<string, string> = {
-    GET: 'bg-emerald-500/15 text-emerald-600',
-    POST: 'bg-amber-500/15 text-amber-600',
-    PUT: 'bg-blue-500/15 text-blue-600',
-    DELETE: 'bg-red-500/15 text-red-600',
-    PATCH: 'bg-violet-500/15 text-violet-600',
+    GET: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+    POST: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+    PUT: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
+    DELETE: 'bg-red-500/15 text-red-700 dark:text-red-300',
+    PATCH: 'bg-violet-500/15 text-violet-700 dark:text-violet-300',
   };
   return colors[method] || 'bg-gray-500/10 text-text-tertiary';
 }

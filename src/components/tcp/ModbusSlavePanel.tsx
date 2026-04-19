@@ -878,17 +878,17 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                           key={i}
                           className={cn(
                             "flex items-center gap-3 px-3 py-0.5 transition-colors hover:bg-bg-hover/30",
-                            ev.eventType === 'error' && "bg-red-500/5 text-red-500"
+                            ev.eventType === 'error' && "bg-red-500/5 text-red-500 dark:text-red-300"
                           )}
                         >
                           <span className="w-[100px] shrink-0 text-text-disabled">
                             {new Date(ev.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </span>
                           {ev.eventType === 'error' ? (
-                            <span className="text-red-500">{ev.rawHex}</span>
+                            <span className="text-red-500 dark:text-red-300">{ev.rawHex}</span>
                           ) : (
                             <>
-                              <span className="w-[180px] shrink-0 font-semibold text-violet-500">
+                              <span className="w-[180px] shrink-0 font-semibold text-violet-500 dark:text-violet-300">
                                 {fcLabel(ev.functionCode)}
                               </span>
                               {ev.clientAddr ? (

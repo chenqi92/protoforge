@@ -103,10 +103,10 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-[var(--z-tooltip)]" onClick={onClose} />
-      <div className="fixed left-1/2 top-[15%] z-[var(--z-tooltip)] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden pf-rounded-xl border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
+      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[var(--z-tooltip)] dark:bg-black/70" onClick={onClose} />
+      <div className="fixed left-1/2 top-[15%] z-[var(--z-tooltip)] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden pf-rounded-xl border border-border-default bg-popover text-popover-foreground shadow-[0_12px_32px_-4px_rgba(0,0,0,0.14),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)]">
         {/* Search Input */}
-        <div className="flex items-center gap-3 border-b border-border-default/80 bg-bg-primary/78 px-5 py-3">
+        <div className="flex items-center gap-3 border-b border-border-subtle px-5 py-3 dark:border-white/[0.05]">
           <Search className="w-4 h-4 text-text-disabled shrink-0" />
           <input
             ref={inputRef}
@@ -122,7 +122,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
         </div>
 
         {/* Results */}
-        <div className="flex-1 overflow-auto bg-bg-secondary/18 py-2.5">
+        <div className="flex-1 overflow-auto py-2.5">
           {items.length === 0 ? (
             <div className="flex items-center justify-center h-20 text-text-disabled pf-text-base">
               {t('commandPalette.noResults')}
@@ -137,7 +137,9 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
                   onMouseEnter={() => setSelectedIdx(i)}
                   className={cn(
                     "mx-2 flex w-[calc(100%-1rem)] items-center gap-3 pf-rounded-lg px-4 py-3 text-left transition-colors",
-                    i === selectedIdx ? "bg-bg-primary/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]" : "hover:bg-bg-hover/70"
+                    i === selectedIdx
+                      ? "bg-muted dark:bg-white/[0.06]"
+                      : "hover:bg-muted/60 dark:hover:bg-white/[0.03]"
                   )}
                 >
                   <Icon className={cn("w-4 h-4 shrink-0", i === selectedIdx ? "text-accent" : "text-text-disabled")} />
@@ -162,7 +164,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
         </div>
 
         {/* Footer hint */}
-        <div className="flex items-center gap-4 border-t border-border-default/80 bg-bg-primary/78 px-4 py-2.5 pf-text-xxs text-text-disabled">
+        <div className="flex items-center gap-4 border-t border-border-subtle bg-muted/30 px-4 py-2.5 pf-text-xxs text-text-tertiary dark:border-white/[0.05] dark:bg-white/[0.02]">
           <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default pf-text-3xs">↑↓</kbd> {t('commandPalette.select')}</span>
           <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default pf-text-3xs">Enter</kbd> {t('commandPalette.confirm')}</span>
           <span><kbd className="px-1 py-0.5 rounded bg-bg-secondary border border-border-default pf-text-3xs">Esc</kbd> {t('commandPalette.closeLabel')}</span>

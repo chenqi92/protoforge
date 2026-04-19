@@ -316,7 +316,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setTlsEnabled((v) => !v)}
-              className={cn("wb-ghost-btn pf-text-xs inline-flex items-center gap-1", tlsEnabled && "text-emerald-500")}
+              className={cn("wb-ghost-btn pf-text-xs inline-flex items-center gap-1", tlsEnabled && "text-emerald-500 dark:text-emerald-300")}
               title={t('grpc.tlsEnabled')}
             >
               <Lock className="h-3.5 w-3.5" /> {t('grpc.tls')}
@@ -333,7 +333,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
 
       {/* Error bar */}
       {protoError && (
-        <div className="px-4 py-1.5 bg-red-500/10 text-red-500 pf-text-xs border-b border-red-500/20 truncate">
+        <div className="px-4 py-1.5 bg-red-500/10 text-red-500 dark:text-red-300 pf-text-xs border-b border-red-500/20 truncate">
           {protoError}
         </div>
       )}
@@ -374,17 +374,17 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                       <>
                         <button
                           onClick={handleStreamSend}
-                          className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-emerald-500"
+                          className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-emerald-500 dark:text-emerald-300"
                         >
                           <Play className="h-3 w-3" /> {t('grpc.streamSend')}
                         </button>
-                        <button onClick={handleCloseSend} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-amber-500">
+                        <button onClick={handleCloseSend} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-amber-500 dark:text-amber-300">
                           {t('grpc.closeSend')}
                         </button>
                       </>
                     )}
                     {streaming && (
-                      <button onClick={handleCancel} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-red-500">
+                      <button onClick={handleCancel} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-red-500 dark:text-red-300">
                         <Square className="h-3.5 w-3.5" /> {t('grpc.cancel')}
                       </button>
                     )}
@@ -424,18 +424,18 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                       <span>Response</span>
                       {response && (
                         <>
-                          <span className="text-emerald-500">{response.statusCode === 0 ? "OK" : `Code ${response.statusCode}`}</span>
+                          <span className="text-emerald-500 dark:text-emerald-300">{response.statusCode === 0 ? "OK" : `Code ${response.statusCode}`}</span>
                           <span className="text-text-tertiary">{response.durationMs}ms</span>
                         </>
                       )}
-                      {streaming && <span className="text-blue-500 inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Streaming ({streamMessages.length})</span>}
+                      {streaming && <span className="text-blue-500 dark:text-blue-300 inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Streaming ({streamMessages.length})</span>}
                       <button onClick={handleCopy} className="ml-auto p-0.5 text-text-tertiary hover:text-text-secondary">
                         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       </button>
                     </div>
                     <div className="flex-1 min-h-0 overflow-auto">
                       {error && (
-                        <div className="px-4 py-3 text-red-500 pf-text-xs whitespace-pre-wrap">{error}</div>
+                        <div className="px-4 py-3 text-red-500 dark:text-red-300 pf-text-xs whitespace-pre-wrap">{error}</div>
                       )}
                       {response && (
                         <ResponseViewer
@@ -451,9 +451,9 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                               <div key={i} className="px-4 py-2">
                                 <div className="pf-text-xxs text-text-disabled mb-1 flex items-center gap-1.5">
                                   {isSent ? (
-                                    <Send className="h-2.5 w-2.5 text-amber-500" />
+                                    <Send className="h-2.5 w-2.5 text-amber-500 dark:text-amber-300" />
                                   ) : (
-                                    <ChevronDown className="h-2.5 w-2.5 text-emerald-500" />
+                                    <ChevronDown className="h-2.5 w-2.5 text-emerald-500 dark:text-emerald-300" />
                                   )}
                                   <span>#{i + 1} — {new Date(msg.timestamp).toLocaleTimeString()}</span>
                                 </div>

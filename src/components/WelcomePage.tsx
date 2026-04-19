@@ -47,20 +47,23 @@ function FeatureCard({ item, index, onAction }: { item: FeatureItem; index: numb
       transition={{ delay: 0.08 + index * 0.04, duration: 0.32, ease: "easeOut" }}
       onClick={() => onAction?.(item.action)}
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border-default/60 p-4 text-left transition-all duration-300",
-        "hover:border-border-strong/70 hover:shadow-[0_8px_28px_rgba(15,23,42,0.06)] active:scale-[0.985]",
-        item.color
+        // Linear aesthetic: subtle surface stack — light mode uses pure white cards on off-white bg,
+        // dark mode uses near-zero white opacity and hover-via-opacity-step (no shadows on dark).
+        "group relative overflow-hidden rounded-2xl border p-4 text-left transition-colors duration-200",
+        "bg-card border-border-subtle hover:border-border-default hover:bg-muted",
+        "dark:bg-white/[0.02] dark:hover:bg-white/[0.045] dark:border-white/[0.06] dark:hover:border-white/[0.09]",
+        "active:scale-[0.99]"
       )}
     >
       <div className="relative z-10 flex items-start gap-3">
-        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110", item.iconColor)}>
+        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-[1.04]", item.iconColor)}>
           <Icon className="h-[18px] w-[18px]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="pf-text-sm font-semibold text-text-primary leading-tight">{t(item.labelKey)}</h3>
+          <h3 className="pf-text-sm font-[590] tracking-[-0.01em] text-text-primary leading-tight">{t(item.labelKey)}</h3>
           <p className="mt-1 pf-text-xs leading-relaxed text-text-tertiary line-clamp-2">{t(item.descKey)}</p>
         </div>
-        <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-disabled opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0.5" />
+        <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-disabled opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0.5" />
       </div>
     </motion.button>
   );
@@ -81,14 +84,15 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
           transition={{ duration: 0.4, ease: "easeOut" }}
           className="flex flex-col items-center text-center"
         >
-          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-accent/8 px-3 py-1 pf-text-xs font-medium text-accent">
+          <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-accent/[0.06] px-3 py-1 pf-text-xs font-[510] text-accent">
             <Sparkles className="h-3 w-3" />
             <span>{t('welcome.badge')}</span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-text-primary">
+          {/* Linear-style display: weight 510, aggressive negative tracking, tight line-height */}
+          <h1 className="text-[40px] font-[510] leading-[1.05] tracking-[-0.03em] text-text-primary">
             {t('welcome.title')}
           </h1>
-          <p className="mt-2 max-w-lg pf-text-base leading-relaxed text-text-secondary">
+          <p className="mt-3 max-w-lg pf-text-base leading-relaxed text-text-secondary">
             {t('welcome.subtitle')}
           </p>
         </motion.div>
@@ -101,7 +105,7 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
             transition={{ delay: 0.06, duration: 0.35 }}
             className="mb-3"
           >
-            <h2 className="pf-text-base font-semibold text-text-primary">{t('welcome.requestFeatures')}</h2>
+            <h2 className="pf-text-base font-[590] tracking-[-0.015em] text-text-primary">{t('welcome.requestFeatures')}</h2>
             <p className="mt-0.5 pf-text-xs text-text-disabled">{t('welcome.requestFeaturesDesc')}</p>
           </motion.div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -119,7 +123,7 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
             transition={{ delay: 0.18, duration: 0.35 }}
             className="mb-3"
           >
-            <h2 className="pf-text-base font-semibold text-text-primary">{t('welcome.toolFeatures')}</h2>
+            <h2 className="pf-text-base font-[590] tracking-[-0.015em] text-text-primary">{t('welcome.toolFeatures')}</h2>
             <p className="mt-0.5 pf-text-xs text-text-disabled">{t('welcome.toolFeaturesDesc')}</p>
           </motion.div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
@@ -134,18 +138,18 @@ export function WelcomePage({ onAction }: WelcomePageProps) {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.35 }}
-          className="flex flex-wrap items-center justify-center gap-6 border-t border-border-subtle/60 pt-5 pf-text-xs text-text-disabled"
+          className="flex flex-wrap items-center justify-center gap-6 border-t border-border-subtle pt-5 pf-text-xs text-text-tertiary"
         >
           <div className="flex items-center gap-1.5">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 pf-text-xxs font-mono shadow-sm">{mod}+N</kbd>
+            <kbd className="rounded-md border border-border-default bg-background px-1.5 py-0.5 pf-text-xxs font-mono font-[510] text-text-secondary">{mod}+N</kbd>
             <span>{t('welcome.newRequest')}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 pf-text-xxs font-mono shadow-sm">{mod}+K</kbd>
+            <kbd className="rounded-md border border-border-default bg-background px-1.5 py-0.5 pf-text-xxs font-mono font-[510] text-text-secondary">{mod}+K</kbd>
             <span>{t('welcome.commandPalette')}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <kbd className="rounded-md border border-border-default bg-bg-secondary px-1.5 py-0.5 pf-text-xxs font-mono shadow-sm">{mod}+,</kbd>
+            <kbd className="rounded-md border border-border-default bg-background px-1.5 py-0.5 pf-text-xxs font-mono font-[510] text-text-secondary">{mod}+,</kbd>
             <span>{t('welcome.preferences')}</span>
           </div>
         </motion.div>
