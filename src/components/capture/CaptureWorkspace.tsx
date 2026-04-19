@@ -348,7 +348,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
               "mt-3 pf-rounded-md border px-4 py-3 pf-text-xs",
               caTrusted
                 ? "border-emerald-500/20 bg-emerald-500/5"
-                : "border-orange-500/30 bg-gradient-to-r from-orange-500/10 to-amber-500/10"
+                : "border-orange-500/30 bg-orange-500/8"
             )}>
               <div className="flex items-start gap-3">
                 <div className={cn(

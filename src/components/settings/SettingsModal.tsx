@@ -121,7 +121,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       }}
     >
       <DialogContent
-        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden pf-rounded-xl border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[920px]"
+        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden pf-rounded-xl border border-border-default bg-bg-primary p-0 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)] sm:max-w-[920px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
@@ -129,7 +129,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         <div className="flex h-full min-h-0 flex-1 flex-col">
           <div className="flex shrink-0 items-center justify-between border-b border-border-default/80 px-6 py-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center pf-rounded-xl bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
+              <div className="flex h-11 w-11 items-center justify-center pf-rounded-xl bg-accent">
                 <Settings className="h-5 w-5 text-white" />
               </div>
 
@@ -153,7 +153,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)]">
-            <aside className="flex min-h-0 flex-col border-r border-border-default/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
+            <aside className="flex min-h-0 flex-col border-r border-border-default/80 bg-bg-secondary/60 dark:bg-white/[0.02]">
               <div className="shrink-0 px-4 pb-3 pt-4">
                 <p className="pf-text-xxs font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('settings.categoryNav')}

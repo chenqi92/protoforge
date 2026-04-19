@@ -277,7 +277,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
         <>
           <div className="fixed inset-0 z-[220]" onClick={() => setShowTabMenu(false)} />
           <div
-            className="fixed z-[221] w-[240px] overflow-hidden pf-rounded-md border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+            className="fixed z-[221] w-[240px] overflow-hidden pf-rounded-md border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_2px_4px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl"
             style={{ top: tabMenuPos.top, left: tabMenuPos.left }}
           >
             <div className="px-2.5 pb-0.5 pt-1.5 pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-disabled">

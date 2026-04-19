@@ -61,50 +61,44 @@ interface AccentStyle {
   topBar: string;
 }
 
+// Linear aesthetic: keep colored icons as functional identifiers, drop card gradients + tinted shadows + topBar decoration.
+// Active card uses neutral surface + subtle accent border tint; idle uses whisper-thin border only.
 const ACCENT_STYLES: Record<ToolboxAccent, AccentStyle> = {
   sky: {
-    cardActive:
-      "border-sky-500/60 bg-gradient-to-br from-sky-500/15 via-sky-400/8 to-transparent shadow-sm shadow-sky-500/15",
-    iconIdle: "bg-sky-500/10 text-sky-500/80 group-hover:bg-sky-500/15 group-hover:text-sky-500",
+    cardActive: "border-sky-500/40 bg-sky-500/[0.04]",
+    iconIdle: "bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:bg-sky-500/15",
     iconActive: "bg-sky-500/20 text-sky-600 dark:text-sky-400",
-    topBar: "bg-gradient-to-r from-sky-500 to-cyan-400",
+    topBar: "bg-sky-500/70",
   },
   violet: {
-    cardActive:
-      "border-violet-500/60 bg-gradient-to-br from-violet-500/15 via-violet-400/8 to-transparent shadow-sm shadow-violet-500/15",
-    iconIdle:
-      "bg-violet-500/10 text-violet-500/80 group-hover:bg-violet-500/15 group-hover:text-violet-500",
+    cardActive: "border-violet-500/40 bg-violet-500/[0.04]",
+    iconIdle: "bg-violet-500/10 text-violet-600 dark:text-violet-400 group-hover:bg-violet-500/15",
     iconActive: "bg-violet-500/20 text-violet-600 dark:text-violet-400",
-    topBar: "bg-gradient-to-r from-violet-500 to-fuchsia-400",
+    topBar: "bg-violet-500/70",
   },
   emerald: {
-    cardActive:
-      "border-emerald-500/60 bg-gradient-to-br from-emerald-500/15 via-emerald-400/8 to-transparent shadow-sm shadow-emerald-500/15",
-    iconIdle:
-      "bg-emerald-500/10 text-emerald-500/80 group-hover:bg-emerald-500/15 group-hover:text-emerald-500",
+    cardActive: "border-emerald-500/40 bg-emerald-500/[0.04]",
+    iconIdle: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500/15",
     iconActive: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
-    topBar: "bg-gradient-to-r from-emerald-500 to-teal-400",
+    topBar: "bg-emerald-500/70",
   },
   amber: {
-    cardActive:
-      "border-amber-500/60 bg-gradient-to-br from-amber-500/15 via-amber-400/8 to-transparent shadow-sm shadow-amber-500/15",
-    iconIdle: "bg-amber-500/10 text-amber-500/80 group-hover:bg-amber-500/15 group-hover:text-amber-500",
+    cardActive: "border-amber-500/40 bg-amber-500/[0.04]",
+    iconIdle: "bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:bg-amber-500/15",
     iconActive: "bg-amber-500/20 text-amber-600 dark:text-amber-400",
-    topBar: "bg-gradient-to-r from-amber-500 to-orange-400",
+    topBar: "bg-amber-500/70",
   },
   rose: {
-    cardActive:
-      "border-rose-500/60 bg-gradient-to-br from-rose-500/15 via-rose-400/8 to-transparent shadow-sm shadow-rose-500/15",
-    iconIdle: "bg-rose-500/10 text-rose-500/80 group-hover:bg-rose-500/15 group-hover:text-rose-500",
+    cardActive: "border-rose-500/40 bg-rose-500/[0.04]",
+    iconIdle: "bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:bg-rose-500/15",
     iconActive: "bg-rose-500/20 text-rose-600 dark:text-rose-400",
-    topBar: "bg-gradient-to-r from-rose-500 to-pink-400",
+    topBar: "bg-rose-500/70",
   },
   slate: {
-    cardActive:
-      "border-slate-500/60 bg-gradient-to-br from-slate-500/15 via-slate-400/8 to-transparent shadow-sm shadow-slate-500/15",
-    iconIdle: "bg-slate-500/10 text-slate-500/80 group-hover:bg-slate-500/15 group-hover:text-slate-500",
+    cardActive: "border-slate-500/40 bg-slate-500/[0.04]",
+    iconIdle: "bg-slate-500/10 text-slate-600 dark:text-slate-400 group-hover:bg-slate-500/15",
     iconActive: "bg-slate-500/20 text-slate-600 dark:text-slate-400",
-    topBar: "bg-gradient-to-r from-slate-500 to-zinc-400",
+    topBar: "bg-slate-500/70",
   },
 };
 

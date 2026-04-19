@@ -176,8 +176,8 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
             {/* Header */}
             <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-border-subtle">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 flex items-center justify-center border border-emerald-500/10">
-                  <Zap className="w-4 h-4 text-emerald-600" />
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                  <Zap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
                   <h2 className="pf-text-md font-semibold text-text-primary">环境变量管理</h2>

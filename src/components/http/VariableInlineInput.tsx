@@ -424,7 +424,7 @@ function VariableHoverPopover({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        "fixed z-[var(--z-toast)] pf-rounded-xl border border-border-default/85 bg-bg-primary/98 shadow-[0_18px_46px_rgba(15,23,42,0.14)] backdrop-blur-xl",
+        "fixed z-[var(--z-toast)] pf-rounded-xl border border-border-default/85 bg-bg-primary/98 shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_2px_4px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl",
         "animate-[varPopIn_0.15s_ease-out]",
         "var-popover-resizable group/popover"
       )}

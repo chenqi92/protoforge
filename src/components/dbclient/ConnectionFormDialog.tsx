@@ -171,7 +171,7 @@ export function ConnectionFormDialog({
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent
-        className="w-[540px] max-w-[96vw] max-h-[88vh] gap-0 overflow-hidden pf-rounded-xl border border-border-default/40 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.22)] sm:max-w-[540px]"
+        className="w-[540px] max-w-[96vw] max-h-[88vh] gap-0 overflow-hidden pf-rounded-xl border border-border-default/40 bg-bg-primary p-0 shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_2px_4px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.5)] sm:max-w-[540px]"
         showCloseButton
       >
         <DialogTitle className="sr-only">

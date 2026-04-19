@@ -163,7 +163,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { setSelectedPlugin(null); onClose(); } }}>
       <DialogContent
-        className="w-[1080px] max-w-[96vw] min-h-[680px] max-h-[88vh] gap-0 overflow-hidden pf-rounded-xl border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[1080px]"
+        className="w-[1080px] max-w-[96vw] min-h-[680px] max-h-[88vh] gap-0 overflow-hidden pf-rounded-xl border border-border-default bg-bg-primary p-0 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)] sm:max-w-[1080px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('plugin.centerTitle')}</DialogTitle>
@@ -172,7 +172,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
           {/* Header */}
           <div className="flex shrink-0 items-start justify-between border-b border-border-default/80 px-6 py-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center pf-rounded-xl bg-[linear-gradient(135deg,#7c3aed,#a855f7)] shadow-[0_12px_28px_rgba(124,58,237,0.24)]">
+              <div className="flex h-11 w-11 items-center justify-center pf-rounded-xl bg-accent">
                 <Puzzle className="h-5 w-5 text-white" />
               </div>
               <div className="min-w-0">
@@ -232,7 +232,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
           {/* Body: sidebar + content */}
           <div className="grid min-h-0 flex-1 grid-cols-[232px_minmax(0,1fr)]">
             {/* Sidebar */}
-            <aside className="flex min-h-0 flex-col border-r border-border-default/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-4 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
+            <aside className="flex min-h-0 flex-col border-r border-border-default bg-bg-secondary/60 p-4 dark:bg-white/[0.02]">
               <div className="px-1 pb-3">
                 <p className="pf-text-xxs font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('plugin.categories')}
@@ -448,7 +448,7 @@ function PluginCard({
         "group cursor-pointer pf-rounded-xl border p-3.5 transition-all hover:-translate-y-[1px]",
         selected
           ? "border-violet-300 dark:border-violet-500/30 bg-bg-primary/92 shadow-[0_4px_16px_rgba(124,58,237,0.08)]"
-          : "border-border-default/60 bg-bg-primary/78 hover:border-border-default hover:shadow-[0_4px_16px_rgba(15,23,42,0.06)]",
+          : "border-border-default/60 bg-bg-primary/78 hover:border-border-default hover:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.06)] dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] dark:hover:shadow-none",
       )}
     >
       <div className="flex items-start gap-3">

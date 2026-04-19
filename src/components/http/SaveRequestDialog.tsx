@@ -92,7 +92,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[74vh] w-[520px] max-w-[92vw] flex-col overflow-hidden pf-rounded-xl border border-white/60 bg-bg-primary shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
+      <div className="flex max-h-[74vh] w-[520px] max-w-[92vw] flex-col overflow-hidden pf-rounded-xl border border-border-default bg-bg-primary shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)]">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border-default/80 bg-bg-primary/78 px-5 py-4">
           <h2 className="pf-text-lg font-semibold text-text-primary flex items-center gap-2">

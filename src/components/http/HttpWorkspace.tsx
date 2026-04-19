@@ -622,7 +622,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
               {showMethods && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowMethods(false)} />
-                  <div className="absolute left-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden pf-rounded-lg border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+                  <div className="absolute left-0 top-full z-50 mt-2 min-w-[140px] overflow-hidden pf-rounded-lg border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_2px_4px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl">
                     {METHODS.map((m) => (
                       <button
                         key={m}
@@ -685,7 +685,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
               />
             </div>
             {urlSuggestions.length > 0 && urlFocused && urlRectRef.current && createPortal(
-              <div className="fixed z-[var(--z-toast)] max-h-[220px] overflow-y-auto pf-rounded-xl border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_20px_48px_rgba(15,23,42,0.14)]"
+              <div className="fixed z-[var(--z-toast)] max-h-[220px] overflow-y-auto pf-rounded-xl border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_2px_4px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.5)]"
                 style={{ top: (urlRectRef.current.bottom + 2), left: urlRectRef.current.left, width: urlRectRef.current.width }}>
                 {urlSuggestions.map((u, i) => (
                   <button key={u} onMouseDown={(e) => { e.preventDefault(); updateHttpConfig(tabId, { url: u }); setUrlFocused(false); }}

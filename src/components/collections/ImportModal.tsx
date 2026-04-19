@@ -79,7 +79,7 @@ const METHOD_COLORS: Record<string, { text: string; bg: string }> = {
 };
 
 const inputClassName =
-  'h-9 pf-rounded-md border border-border-default/80 bg-bg-secondary/60 px-3 pf-text-sm text-text-primary outline-none transition-all focus:border-accent focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)]';
+  'h-9 pf-rounded-md border border-border-default bg-bg-input px-3 pf-text-sm text-text-primary outline-none transition-colors focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]';
 
 export function ImportModal({ open, onClose }: ImportModalProps) {
   const { t } = useTranslation();
@@ -98,7 +98,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
       }}
     >
       <DialogContent
-        className="w-[1080px] max-w-[96vw] h-[88vh] gap-0 overflow-hidden pf-rounded-xl border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[1080px]"
+        className="w-[1080px] max-w-[96vw] h-[88vh] gap-0 overflow-hidden pf-rounded-xl border border-border-default bg-bg-primary p-0 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)] sm:max-w-[1080px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('import.title')}</DialogTitle>
@@ -106,7 +106,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
         <div className="flex h-full overflow-hidden flex-col">
           <div className="flex shrink-0 items-start justify-between border-b border-border-default/80 px-6 py-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center pf-rounded-xl bg-[linear-gradient(135deg,#2563eb,#0ea5e9)] shadow-[0_12px_28px_rgba(37,99,235,0.24)]">
+              <div className="flex h-11 w-11 items-center justify-center pf-rounded-xl bg-accent">
                 <Download className="h-5 w-5 text-white" />
               </div>
 
@@ -133,7 +133,7 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-[248px_minmax(0,1fr)]">
-            <aside className="flex min-h-0 flex-col border-r border-border-default/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.78),rgba(255,255,255,0.42))] p-5 dark:bg-[linear-gradient(180deg,rgba(24,24,27,0.92),rgba(18,18,20,0.8))]">
+            <aside className="flex min-h-0 flex-col border-r border-border-default bg-bg-secondary/60 p-5 dark:bg-white/[0.02]">
               <div className="px-1 pb-3">
                 <p className="pf-text-xxs font-semibold uppercase tracking-[0.18em] text-text-disabled">
                   {t('import.sourceTitle')}
@@ -153,10 +153,10 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                       key={item.id}
                       onClick={() => setActiveSource(item.id)}
                       className={cn(
-                        'group flex w-full items-center gap-3 pf-rounded-xl px-3.5 py-3 text-left transition-all',
+                        'group flex w-full items-center gap-3 pf-rounded-xl px-3.5 py-3 text-left transition-colors',
                         isActive
-                          ? 'bg-bg-primary/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-border-default'
-                          : 'text-text-tertiary hover:bg-bg-primary/68 hover:text-text-primary'
+                          ? 'bg-bg-primary ring-1 ring-border-default dark:bg-white/[0.06] dark:ring-white/[0.08]'
+                          : 'text-text-tertiary hover:bg-bg-hover hover:text-text-primary dark:hover:bg-white/[0.03]'
                       )}
                     >
                       <div
@@ -214,7 +214,7 @@ function PanelCard({
   return (
     <div
       className={cn(
-        'overflow-hidden pf-rounded-xl border border-border-default/80 bg-bg-primary/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.76)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
+        'overflow-hidden pf-rounded-xl border border-border-default bg-bg-primary dark:bg-white/[0.02]',
         className
       )}
     >

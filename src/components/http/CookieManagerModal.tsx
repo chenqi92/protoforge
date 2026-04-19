@@ -245,7 +245,7 @@ export function CookieManagerModal({ open, onClose }: CookieManagerModalProps) {
       }}
     >
       <DialogContent
-        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden pf-rounded-xl border border-white/65 bg-bg-primary p-0 shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:max-w-[920px]"
+        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden pf-rounded-xl border border-border-default bg-bg-primary p-0 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)] sm:max-w-[920px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t("cookieManager.title")}</DialogTitle>
@@ -254,7 +254,7 @@ export function CookieManagerModal({ open, onClose }: CookieManagerModalProps) {
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between border-b border-border-default/80 px-6 py-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center pf-rounded-xl bg-[linear-gradient(135deg,#f59e0b,#f97316)] shadow-[0_12px_28px_rgba(245,158,11,0.24)]">
+              <div className="flex h-11 w-11 items-center justify-center pf-rounded-xl bg-accent">
                 <Cookie className="h-5 w-5 text-white" />
               </div>
               <div className="min-w-0">
