@@ -199,29 +199,27 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
   }, [tabId]);
 
   // ─── Export ───
-  const handleExportJson = useCallback(() => {
+  const handleExportJson = useCallback(async () => {
     const data = { config: buildConfig(), summary, snapshots };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const u = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = u;
-    a.download = `loadtest-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
-    a.click();
-    URL.revokeObjectURL(u);
+    const defaultName = `loadtest-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const path = await save({ defaultPath: defaultName, filters: [{ name: "JSON", extensions: ["json"] }] });
+    if (!path) return;
+    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+    await writeTextFile(path, JSON.stringify(data, null, 2));
   }, [summary, snapshots, buildConfig]);
 
-  const handleExportCsv = useCallback(() => {
+  const handleExportCsv = useCallback(async () => {
     if (snapshots.length === 0) return;
     const csvHeaders = ["elapsed_secs","total_requests","total_errors","rps","avg_latency_ms","min_latency_ms","max_latency_ms","p50_ms","p95_ms","p99_ms","bytes_downloaded","active_connections","ttfb_avg_ms"];
     const rows = snapshots.map(s => [s.elapsedSecs,s.totalRequests,s.totalErrors,s.rps.toFixed(2),s.avgLatencyMs.toFixed(2),s.minLatencyMs,s.maxLatencyMs,s.p50Ms,s.p95Ms,s.p99Ms,s.bytesDownloaded,s.activeConnections,s.ttfbAvgMs.toFixed(2)].join(","));
     const csv = [csvHeaders.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const u = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = u;
-    a.download = `loadtest-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
-    a.click();
-    URL.revokeObjectURL(u);
+    const defaultName = `loadtest-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const path = await save({ defaultPath: defaultName, filters: [{ name: "CSV", extensions: ["csv"] }] });
+    if (!path) return;
+    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+    await writeTextFile(path, csv);
   }, [snapshots]);
 
   // ─── Progress ───

@@ -6,6 +6,7 @@ import {
   Trash2, Play, Square,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import * as mbSvc from "@/services/modbusService";
@@ -396,7 +397,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
         setRunning(false);
         setStartedAt(null);
       } catch (err) {
-        console.error('Stop slave failed', err);
+        toast.error('Modbus Slave 停止失败: ' + String(err));
       }
     } else {
       setStarting(true);

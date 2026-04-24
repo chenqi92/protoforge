@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, FolderOpen, Plus, Save, ChevronRight, ChevronDown } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useCollectionStore } from '@/stores/collectionStore';
@@ -24,11 +25,13 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
   const [newCollectionName, setNewCollectionName] = useState('');
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       fetchCollections();
       setName(config.name || 'Untitled Request');
+      setErrorMsg(null);
     }
   }, [isOpen, config.name, fetchCollections]);
 
@@ -50,6 +53,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
 
   const handleCreateCollection = async () => {
     if (!newCollectionName.trim()) return;
+    setErrorMsg(null);
     try {
       const { createCollection } = useCollectionStore.getState();
       await createCollection(newCollectionName.trim());
@@ -57,13 +61,14 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
       setShowNewCollection(false);
       setNewCollectionName('');
     } catch (err) {
-      console.error('创建集合失败:', err);
+      setErrorMsg(t('saveDialog.createFailed', { defaultValue: '创建集合失败' }) + ': ' + (err instanceof Error ? err.message : String(err)));
     }
   };
 
   const handleSave = async () => {
     if (!selectedCollectionId || !name.trim()) return;
     setSaving(true);
+    setErrorMsg(null);
     try {
       const now = new Date().toISOString();
       const item = buildCollectionItemFromHttpConfig({
@@ -78,9 +83,10 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
       });
       const saved = await saveRequest(item);
       onSaved?.(saved);
+      toast.success(t('saveDialog.saveSuccess', { defaultValue: '请求已保存' }));
       onClose();
     } catch (err) {
-      console.error('保存失败:', err);
+      setErrorMsg(t('saveDialog.saveFailed', { defaultValue: '保存失败' }) + ': ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
@@ -191,6 +197,11 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
         </div>
 
         {/* Footer */}
+        {errorMsg && (
+          <div className="shrink-0 border-t border-red-500/30 bg-red-500/8 px-5 py-2 pf-text-sm text-red-500">
+            {errorMsg}
+          </div>
+        )}
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border-default/80 bg-bg-primary/78 px-5 py-3">
           <button
             onClick={onClose}

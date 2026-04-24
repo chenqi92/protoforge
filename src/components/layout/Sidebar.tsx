@@ -23,6 +23,7 @@ import { generateCurlFromItem } from "@/lib/curlGenerator";
 import { resolveVariableTemplate } from "@/lib/requestVariables";
 import { usePluginStore } from "@/stores/pluginStore";
 import { RequestStatsPanel } from "@/components/plugins/RequestStatsPanel";
+import { toast } from "sonner";
 
 type SidebarView = "collections" | "history" | "environments" | "stats";
 
@@ -122,9 +123,10 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
       if (path) {
         const { writeTextFile } = await import('@tauri-apps/plugin-fs');
         await writeTextFile(path, content);
+        toast.success(t('sidebar.exportSuccess', { defaultValue: '导出成功' }));
       }
     } catch (e) {
-      console.error('History export failed:', e);
+      toast.error(t('sidebar.exportFailed', { defaultValue: '导出失败' }) + ': ' + String(e));
     }
   };
 
@@ -145,9 +147,10 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
       if (path) {
         const { writeTextFile } = await import('@tauri-apps/plugin-fs');
         await writeTextFile(path, JSON.stringify(data, null, 2));
+        toast.success(t('sidebar.exportSuccess', { defaultValue: '导出成功' }));
       }
     } catch (e) {
-      console.error('Environment export failed:', e);
+      toast.error(t('sidebar.exportFailed', { defaultValue: '导出失败' }) + ': ' + String(e));
     }
   };
 
@@ -188,8 +191,9 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
       // Refresh store
       await fetchEnvironments();
       await fetchGlobalVariables();
+      toast.success(t('sidebar.importSuccess', { defaultValue: '导入成功' }));
     } catch (e) {
-      console.error('Environment import failed:', e);
+      toast.error(t('sidebar.importFailed', { defaultValue: '导入失败' }) + ': ' + String(e));
     }
   };
 
@@ -604,8 +608,9 @@ function CollectionsView({ search, expanded, setExpanded }: {
       if (!filePath) return;
       const { writeTextFile } = await import('@tauri-apps/plugin-fs');
       await writeTextFile(filePath, json);
+      toast.success(t('sidebar.exportSuccess', { defaultValue: '导出成功' }));
     } catch (e) {
-      console.error('Export failed:', e);
+      toast.error(t('sidebar.exportFailed', { defaultValue: '导出失败' }) + ': ' + String(e));
     }
   };
 
@@ -627,7 +632,9 @@ function CollectionsView({ search, expanded, setExpanded }: {
       { id: "deduplicate", label: t('sidebar.deduplicate', { defaultValue: '一键去重' }), icon: <Zap className="w-3.5 h-3.5" />, onClick: async () => {
         const removed = await deduplicateItems(col.id);
         if (removed > 0) {
-          console.log(`去重完成，移除 ${removed} 条重复项`);
+          toast.success(t('sidebar.deduplicateDone', { count: removed, defaultValue: `去重完成，移除 ${removed} 条重复项` }));
+        } else {
+          toast.info(t('sidebar.deduplicateNone', { defaultValue: '未发现重复项' }));
         }
       }},
       { type: "divider" },

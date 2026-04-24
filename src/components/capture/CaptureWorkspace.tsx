@@ -13,6 +13,7 @@ import { useCaptureStore, getCaptureStore, destroyCaptureStore } from "@/stores/
 import type { CapturedEntry } from "@/types/capture";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
 
 // ── HTTP Method 颜色 ──
 const methodColors: Record<string, { text: string; bg: string }> = {
@@ -150,7 +151,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       try {
         await startCapture(p);
       } catch (e) {
-        console.error("启动代理失败:", e);
+        toast.error("启动代理失败: " + String(e));
       }
     }
   }, [running, portInput, startCapture, stopCapture]);
@@ -160,7 +161,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       const path = await exportCaCert();
       setCaPath(path);
     } catch (e) {
-      console.error(e);
+      toast.error("导出证书失败: " + String(e));
     }
   }, [exportCaCert]);
 
@@ -181,7 +182,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       setShowBrowserInput(false);
       setBrowserUrl("");
     } catch (e) {
-      console.error("打开浏览器失败:", e);
+      toast.error("打开浏览器失败: " + String(e));
     }
   }, [running, browserUrl, portInput]);
 

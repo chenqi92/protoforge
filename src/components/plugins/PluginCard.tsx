@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Download, Trash2, Check, Loader2, Tag } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import type { PluginManifest } from "@/types/plugin";
@@ -30,7 +31,7 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
         await onInstall?.(plugin.id);
       }
     } catch (err) {
-      console.error('Plugin action failed:', err);
+      toast.error((plugin.installed ? t('plugin.uninstallFailed', { defaultValue: '卸载失败' }) : t('plugin.installFailed', { defaultValue: '安装失败' })) + ': ' + String(err));
     } finally {
       setLoading(false);
     }

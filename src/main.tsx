@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { Toaster } from "sonner";
 // Note: `./monacoWorkers` is now imported lazily inside Monaco-using components
 // (CodeEditor, SqlEditor, RequestDiffModal) to keep Monaco out of the initial bundle.
 import { initI18n } from "./i18n"; // i18n 初始化 — 只加载当前语言
@@ -69,6 +70,13 @@ async function renderApp() {
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
       <Component />
+      <Toaster
+        position="bottom-right"
+        theme="system"
+        richColors
+        closeButton
+        toastOptions={{ style: { fontSize: "var(--fs-sm)" } }}
+      />
     </React.StrictMode>,
   );
 }

@@ -3,6 +3,7 @@
 
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import { toast } from "sonner";
 import type {
   ConnectionConfig,
   SavedConnection,
@@ -821,8 +822,9 @@ function createDbClientSessionStore(sessionId: string) {
           tabs: updateTab<TableDataTab>(s.tabs, tab.id, () => ({ pendingEdits: [] })),
         }));
         await get().refreshTableTab(tab.id);
+        toast.success("已保存修改");
       } catch (e) {
-        console.error("Apply edits failed:", e);
+        toast.error("保存修改失败: " + String(e));
         throw e;
       }
     },
@@ -836,8 +838,9 @@ function createDbClientSessionStore(sessionId: string) {
           tab.tablePrimaryKeys, pkValues,
         );
         await get().refreshTableTab(tab.id);
+        toast.success(`已删除 ${pkValues.length} 行`);
       } catch (e) {
-        console.error("Delete rows failed:", e);
+        toast.error("删除行失败: " + String(e));
         throw e;
       }
     },

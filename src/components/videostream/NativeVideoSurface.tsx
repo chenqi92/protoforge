@@ -60,13 +60,14 @@ function codecToMime(codec: string, hasAudio: boolean): string {
   return `video/mp4; codecs="avc1.42E01E${audio}"`;
 }
 
-function triggerDownload(blob: Blob, fileName: string) {
-  const objectUrl = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = objectUrl;
-  anchor.download = fileName;
-  anchor.click();
-  URL.revokeObjectURL(objectUrl);
+async function triggerDownload(blob: Blob, fileName: string) {
+  const ext = fileName.split(".").pop() || "bin";
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const path = await save({ defaultPath: fileName, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
+  if (!path) return;
+  const { writeFile } = await import("@tauri-apps/plugin-fs");
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  await writeFile(path, bytes);
 }
 
 function screenshotFileName() {
@@ -471,7 +472,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
         onErrorRef.current?.("截图失败：生成图片数据为空。");
         return;
       }
-      triggerDownload(blob, screenshotFileName());
+      triggerDownload(blob, screenshotFileName()).catch((e) => onErrorRef.current?.(`保存截图失败: ${String(e)}`));
     }, "image/png");
   }, []);
 
@@ -515,7 +516,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
         setRecording(false);
         setStatus("");
         const blob = new Blob(recordChunksRef.current, { type: mimeType });
-        triggerDownload(blob, recordingFileName());
+        triggerDownload(blob, recordingFileName()).catch((e) => onErrorRef.current?.(`保存录制失败: ${String(e)}`));
         recordChunksRef.current = [];
       };
       recorder.start(1000);

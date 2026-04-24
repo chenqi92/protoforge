@@ -1,6 +1,7 @@
 // ProtoForge Workflow Store — manages workflow list, active editing, execution state
 
 import { create } from 'zustand';
+import { toast } from 'sonner';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type {
   Workflow,
@@ -121,7 +122,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       await api.cancelWorkflow(executionId);
       set({ executionStatus: 'cancelled' });
     } catch (e) {
-      console.error('[workflow] cancel failed:', e);
+      toast.error('取消执行失败: ' + String(e));
     }
   },
 

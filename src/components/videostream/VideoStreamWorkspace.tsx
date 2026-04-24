@@ -848,14 +848,13 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                   </div>
                 )}
                 {filteredMessages.length > 0 && (
-                  <button onClick={() => {
-                    const blob = new Blob([JSON.stringify(filteredMessages, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `protocol-messages-${mode}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
+                  <button onClick={async () => {
+                    const defaultName = `protocol-messages-${mode}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+                    const { save } = await import('@tauri-apps/plugin-dialog');
+                    const path = await save({ defaultPath: defaultName, filters: [{ name: 'JSON', extensions: ['json'] }] });
+                    if (!path) return;
+                    const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+                    await writeTextFile(path, JSON.stringify(filteredMessages, null, 2));
                   }}
                     className="pf-text-3xs text-text-disabled hover:text-accent transition-colors"
                     title={t('videostream.exportMessages', '导出报文')}

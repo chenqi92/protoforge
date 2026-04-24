@@ -8,6 +8,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Globe, Layers } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useEnvStore } from '@/stores/envStore';
 import { useTranslation } from 'react-i18next';
@@ -83,8 +84,9 @@ export function SetEnvVariableDialog() {
         await saveVariables(scope, newVars);
       }
       setPending(null);
+      toast.success(t('env.variableSaved', { defaultValue: '变量已保存' }));
     } catch (err) {
-      console.error('Failed to save env variable:', err);
+      toast.error((t('env.saveVariableFailed', { defaultValue: '保存变量失败' }) as string) + ': ' + String(err));
     } finally {
       setSaving(false);
     }

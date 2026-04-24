@@ -50,10 +50,8 @@ function createCaptureSessionStore(sessionId: string) {
       try {
         await captureService.startProxy(sessionId, p);
         set({ running: true, port: p, error: null });
-        console.log(`[CAPTURE] 代理已启动: session=${sessionId}, port=${p}`);
       } catch (e) {
         const msg = String(e);
-        console.error(`[CAPTURE] 代理启动失败: ${msg}`);
         set({ error: msg });
         throw e;
       }
@@ -107,7 +105,6 @@ function createCaptureSessionStore(sessionId: string) {
       if (!listenerPromise) {
         listenerPromise = listen<CapturedEntry>("capture-event", (event) => {
           const entry = event.payload;
-          console.log("[CAPTURE] 收到事件:", entry.sessionId, "期望:", sessionId, "url:", entry.url, "匹配:", entry.sessionId === sessionId);
           if (entry.sessionId !== sessionId) {
             return;
           }

@@ -199,62 +199,63 @@ function ControlBar({
     }
   }, [store, portInput]);
 
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     const routes = store.getState().exportRoutes();
     const json = JSON.stringify(routes, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `mock-routes-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const path = await save({
+      defaultPath: `mock-routes-${Date.now()}.json`,
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (!path) return;
+    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+    await writeTextFile(path, json);
   }, [store]);
 
-  const handleImport = useCallback(() => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        const parsed = JSON.parse(text);
-        if (!Array.isArray(parsed)) return;
-        // 基本校验：每项必须有 id, pattern, statusCode
-        const valid = parsed.every(
-          (r: unknown) =>
-            typeof r === "object" && r !== null &&
-            "pattern" in r && "statusCode" in r
-        );
-        if (!valid) {
-          console.error("导入失败: JSON 格式不符合 MockRoute 结构");
-          return;
-        }
-        // 确保每条路由都有 id 和新增字段的默认值
-        const routes = parsed.map((r: Record<string, unknown>) => ({
-          id: (r.id as string) || crypto.randomUUID(),
-          method: (r.method as string | undefined) ?? "GET",
-          pattern: (r.pattern as string) ?? "/",
-          statusCode: (r.statusCode as number) ?? 200,
-          headers: (r.headers as Record<string, string>) ?? {},
-          bodyTemplate: (r.bodyTemplate as string) ?? "",
-          delayMs: r.delayMs as number | undefined,
-          priority: (r.priority as number) ?? 0,
-          enabled: (r.enabled as boolean) ?? true,
-          description: (r.description as string) ?? "",
-          examples: (r.examples as MockRoute["examples"]) ?? [],
-          script: r.script as string | undefined,
-          sequence: (r.sequence as MockRoute["sequence"]) ?? [],
-          sequenceLoop: (r.sequenceLoop as boolean) ?? true,
-        }));
-        store.getState().importRoutes(routes);
-      } catch (e) {
-        console.error("导入失败:", e);
+  const handleImport = useCallback(async () => {
+    const { open, message } = await import("@tauri-apps/plugin-dialog");
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (!selected || typeof selected !== "string") return;
+    try {
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      const text = await readTextFile(selected);
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        await message("JSON 格式不符合 MockRoute 结构（应为数组）", { title: "导入失败", kind: "error" });
+        return;
       }
-    };
-    input.click();
+      const valid = parsed.every(
+        (r: unknown) =>
+          typeof r === "object" && r !== null &&
+          "pattern" in r && "statusCode" in r
+      );
+      if (!valid) {
+        await message("JSON 格式不符合 MockRoute 结构", { title: "导入失败", kind: "error" });
+        return;
+      }
+      const routes = parsed.map((r: Record<string, unknown>) => ({
+        id: (r.id as string) || crypto.randomUUID(),
+        method: (r.method as string | undefined) ?? "GET",
+        pattern: (r.pattern as string) ?? "/",
+        statusCode: (r.statusCode as number) ?? 200,
+        headers: (r.headers as Record<string, string>) ?? {},
+        bodyTemplate: (r.bodyTemplate as string) ?? "",
+        delayMs: r.delayMs as number | undefined,
+        priority: (r.priority as number) ?? 0,
+        enabled: (r.enabled as boolean) ?? true,
+        description: (r.description as string) ?? "",
+        examples: (r.examples as MockRoute["examples"]) ?? [],
+        script: r.script as string | undefined,
+        sequence: (r.sequence as MockRoute["sequence"]) ?? [],
+        sequenceLoop: (r.sequenceLoop as boolean) ?? true,
+      }));
+      store.getState().importRoutes(routes);
+    } catch (e) {
+      await message(String(e), { title: "导入失败", kind: "error" });
+    }
   }, [store]);
 
   return (

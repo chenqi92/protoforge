@@ -202,13 +202,21 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
   }, [response, t]);
 
   useEffect(() => {
-    const unlistenEvent = listen<SseEvent>(`sse-event-${sseConnId}`, (event) => {
+    let cancelled = false;
+    let stopEvent: (() => void) | undefined;
+    let stopStatus: (() => void) | undefined;
+
+    listen<SseEvent>(`sse-event-${sseConnId}`, (event) => {
       setSseEvents((prev) => {
         const next = [...prev, event.payload];
         return next.length > 5000 ? next.slice(-5000) : next;
       });
+    }).then((fn) => {
+      if (cancelled) fn();
+      else stopEvent = fn;
     });
-    const unlistenStatus = listen<string>(`sse-status-${sseConnId}`, (event) => {
+
+    listen<string>(`sse-status-${sseConnId}`, (event) => {
       const nextStatus = event.payload;
       if (nextStatus === "connecting") {
         setSseStatus("connecting");
@@ -225,13 +233,17 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
       }
       if (nextStatus.startsWith("error:")) {
         setSseStatus("error");
-        setSseError(nextStatus.slice(6));
+        setSseError(nextStatus.replace(/^error:\s*/, ""));
       }
+    }).then((fn) => {
+      if (cancelled) fn();
+      else stopStatus = fn;
     });
 
     return () => {
-      unlistenEvent.then((fn) => fn());
-      unlistenStatus.then((fn) => fn());
+      cancelled = true;
+      stopEvent?.();
+      stopStatus?.();
       void invoke("sse_disconnect", { connId: sseConnId }).catch(() => {});
     };
   }, [sseConnId]);

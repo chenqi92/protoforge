@@ -447,13 +447,15 @@ function ToolWorkbenchPanel({
                 <span className="truncate">{label}</span>
                 {visibleSessions.length > 1 ? (
                   <button
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
                       const sessionKeys = getToolSessionConnectionKeys(tool, session.id);
                       if (hasActiveConnectionsForKeys(sessionKeys)) {
                         const labels = getActiveConnectionLabelsForKeys(sessionKeys);
                         const msg = `此会话存在活跃连接：\n${labels.join('\n')}\n\n确定要关闭吗？`;
-                        if (!window.confirm(msg)) return;
+                        const { confirm } = await import('@tauri-apps/plugin-dialog');
+                        const ok = await confirm(msg, { title: t('tabBar.closeTab'), kind: 'warning' });
+                        if (!ok) return;
                       }
                       onCloseSession(tool, session.id);
                     }}

@@ -99,14 +99,16 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
     );
   }
 
-  // HTML 渲染模式
+  // HTML 渲染模式 — 使用 iframe sandbox 隔离插件 HTML，阻断脚本 / 跨域 / 表单提交
   if (result.type === 'html' && result.html) {
     return (
-      <div className={cn('flex-1 overflow-auto p-2', className)}>
-        <div
-          className="plugin-html-content"
+      <div className={cn('flex-1 overflow-hidden p-2', className)}>
+        <iframe
+          className="h-full w-full border-0 bg-transparent"
+          sandbox=""
+          title={`plugin-${pluginId}`}
+          srcDoc={result.html}
           style={{ fontSize: 'var(--fs-sm)' }}
-          dangerouslySetInnerHTML={{ __html: result.html }}
         />
       </div>
     );

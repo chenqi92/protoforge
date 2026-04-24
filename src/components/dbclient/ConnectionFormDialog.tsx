@@ -8,6 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { getDbClientStoreApi } from "@/stores/dbClientStore";
 import type {
@@ -126,8 +127,13 @@ export function ConnectionFormDialog({
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) return; setSaving(true);
-    try { await getDbClientStoreApi(sessionId).getState().saveConnection(buildSaveReq()); onClose(); }
-    catch (e) { console.error("Save failed:", e); }
+    try {
+      await getDbClientStoreApi(sessionId).getState().saveConnection(buildSaveReq());
+      toast.success(t("dbClient.saveSuccess", { defaultValue: "连接已保存" }));
+      onClose();
+    } catch (e) {
+      toast.error((t("dbClient.saveFailed", { defaultValue: "保存失败" }) as string) + ": " + String(e));
+    }
     setSaving(false);
   }, [sessionId, editingConnection, name, dbType, host, port, database, username, password, sslEnabled, filePath, org, token, influxVersion, retentionPolicy, onClose]);
 
@@ -138,7 +144,9 @@ export function ConnectionFormDialog({
       await store.saveConnection(buildSaveReq());
       await store.connect(buildConfig());
       onClose();
-    } catch (e) { console.error("Save+Connect failed:", e); }
+    } catch (e) {
+      toast.error((t("dbClient.connectFailed", { defaultValue: "连接失败" }) as string) + ": " + String(e));
+    }
     setSaving(false);
   }, [sessionId, editingConnection, name, dbType, host, port, database, username, password, sslEnabled, filePath, org, token, influxVersion, retentionPolicy, onClose]);
 

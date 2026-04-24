@@ -9,6 +9,7 @@ import {
   Table2, Eye, FunctionSquare, RefreshCw, PlugZap,
   Download, Upload, Copy, Code2, FileText,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import {
@@ -78,9 +79,9 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
         s.toggleNode(`conn:${conn.id}`);
       }
     } catch (e) {
-      console.error("Connect saved failed:", e);
+      toast.error((t("dbClient.connectFailed", { defaultValue: "连接失败" }) as string) + ": " + String(e));
     }
-  }, [sessionId]);
+  }, [sessionId, t]);
 
   const handleDisconnect = useCallback(() => {
     getDbClientStoreApi(sessionId).getState().disconnect();

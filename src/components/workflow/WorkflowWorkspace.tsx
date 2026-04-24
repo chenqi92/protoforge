@@ -49,6 +49,7 @@ import {
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter,
   ArrowUp, ArrowDown,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { useContextMenu, type ContextMenuEntry } from '@/components/ui/ContextMenu';
@@ -2547,8 +2548,9 @@ function WorkflowWorkspaceInner() {
       if (!path) return;
       const { writeTextFile } = await import('@tauri-apps/plugin-fs');
       await writeTextFile(path, json);
+      toast.success(t('workflow.exportSuccess', { defaultValue: '工作流已导出' }));
     } catch (e) {
-      console.error('[workflow] export failed:', e);
+      toast.error(t('workflow.exportFailed', { error: String(e), defaultValue: '导出失败: ' + String(e) }));
     }
   }, [localWorkflow, t]);
 
@@ -2613,8 +2615,9 @@ function WorkflowWorkspaceInner() {
       for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
       const { writeFile } = await import('@tauri-apps/plugin-fs');
       await writeFile(filePath, bytes);
+      toast.success(t('workflow.exportSuccess', { defaultValue: '工作流已导出' }));
     } catch (e) {
-      console.error('[workflow] export PNG failed:', e);
+      toast.error(t('workflow.exportFailed', { error: String(e), defaultValue: '导出失败: ' + String(e) }));
     }
   }, [localWorkflow, reactFlowInstance, theme, t]);
 
@@ -2654,8 +2657,9 @@ function WorkflowWorkspaceInner() {
       };
       await saveWf(merged);
       setActiveId(created.id);
+      toast.success(t('workflow.importSuccess', { defaultValue: '工作流已导入' }));
     } catch (e) {
-      console.error('[workflow] import failed:', e);
+      toast.error(t('workflow.importFailed', { error: String(e), defaultValue: '导入失败: ' + String(e) }));
     }
   }, [t, createWf, saveWf, setActiveId]);
 

@@ -6,6 +6,7 @@ import {
   FileOutput, LayoutDashboard, ChevronRight, ArrowUpCircle, Lock, Palette,
   type LucideIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PluginIcon } from "@/components/plugins/PluginIcon";
 import { useTranslation } from 'react-i18next';
@@ -435,7 +436,12 @@ function PluginCard({
       if (plugin.hasUpdate) await onUpdate(plugin.id);
       else if (plugin.installed) await onUninstall(plugin.id);
       else await onInstall(plugin.id);
-    } catch (err) { console.error("Plugin action failed:", err); }
+    } catch (err) {
+      const label = plugin.hasUpdate ? t('plugin.updateFailed', { defaultValue: '更新失败' })
+        : plugin.installed ? t('plugin.uninstallFailed', { defaultValue: '卸载失败' })
+        : t('plugin.installFailed', { defaultValue: '安装失败' });
+      toast.error(`${label}: ${String(err)}`);
+    }
     finally { setLoading(false); }
   };
 
@@ -548,7 +554,12 @@ function PluginDetail({
       if (plugin.hasUpdate) await onUpdate(plugin.id);
       else if (plugin.installed) await onUninstall(plugin.id);
       else await onInstall(plugin.id);
-    } catch (err) { console.error("Plugin action failed:", err); }
+    } catch (err) {
+      const label = plugin.hasUpdate ? t('plugin.updateFailed', { defaultValue: '更新失败' })
+        : plugin.installed ? t('plugin.uninstallFailed', { defaultValue: '卸载失败' })
+        : t('plugin.installFailed', { defaultValue: '安装失败' });
+      toast.error(`${label}: ${String(err)}`);
+    }
     finally { setLoading(false); }
   };
 

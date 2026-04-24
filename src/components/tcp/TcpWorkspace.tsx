@@ -190,16 +190,16 @@ export const TcpWorkspace = memo(function TcpWorkspace({
     updateToolSession("tcpudp", sessionId, { tcpMode: mode });
   }, [mode, sessionId, updateToolSession]);
 
-  const handleModeChange = useCallback((nextMode: SocketMode) => {
+  const handleModeChange = useCallback(async (nextMode: SocketMode) => {
     if (nextMode === mode) return;
 
     const relatedSessionKeys = [sessionKey, splitKey];
     if (hasActiveConnectionsForKeys(relatedSessionKeys)) {
       const labels = getActiveConnectionLabelsForKeys(relatedSessionKeys);
       const message = `当前会话存在活跃连接：\n${labels.join("\n")}\n\n切换类型会断开当前会话，是否继续？`;
-      if (!window.confirm(message)) {
-        return;
-      }
+      const { confirm } = await import("@tauri-apps/plugin-dialog");
+      const ok = await confirm(message, { title: "切换连接类型", kind: "warning" });
+      if (!ok) return;
     }
 
     if (!(nextMode in SPLIT_PAIR)) {
