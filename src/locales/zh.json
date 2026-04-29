@@ -257,6 +257,20 @@
         "colCompressed": "压缩后",
         "colSaved": "节省"
       },
+      "imageUrlToBase64": {
+        "name": "图片链接转 Base64",
+        "desc": "输入图片 URL，读取图片并输出 Base64 字符串",
+        "imageUrl": "图片链接",
+        "urlPlaceholder": "https://example.com/image.png",
+        "convert": "转换",
+        "converting": "正在读取...",
+        "includePrefix": "包含 data: URI 前缀",
+        "success": "读取成功（{{mime}}，{{size}}）",
+        "output": "Base64 输出",
+        "preview": "预览",
+        "copy": "复制",
+        "copied": "已复制"
+      },
       "iconGenerator": {
         "name": "图标生成器",
         "desc": "将图片转换为各平台图标格式",

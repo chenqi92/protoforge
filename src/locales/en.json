@@ -257,6 +257,20 @@
         "colCompressed": "Compressed",
         "colSaved": "Saved"
       },
+      "imageUrlToBase64": {
+        "name": "Image URL to Base64",
+        "desc": "Fetch an image from a URL and output its Base64 string",
+        "imageUrl": "Image URL",
+        "urlPlaceholder": "https://example.com/image.png",
+        "convert": "Convert",
+        "converting": "Fetching...",
+        "includePrefix": "Include data: URI prefix",
+        "success": "Fetched ({{mime}}, {{size}})",
+        "output": "Base64 Output",
+        "preview": "Preview",
+        "copy": "Copy",
+        "copied": "Copied"
+      },
       "iconGenerator": {
         "name": "Icon Generator",
         "desc": "Convert images to platform-specific icon formats",

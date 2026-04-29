@@ -18,6 +18,7 @@ import {
   Image,
   FolderOpen,
   Puzzle,
+  Link as LinkIcon,
 } from "lucide-react";
 import { usePluginStore } from "@/stores/pluginStore";
 import { ScreenshotResizerTool } from "./ScreenshotResizerTool";
@@ -25,6 +26,7 @@ import { IconGeneratorTool } from "./IconGeneratorTool";
 import { BatchRenamerTool } from "./BatchRenamerTool";
 import { ImageCompressorTool } from "./ImageCompressorTool";
 import { ImageMergerTool } from "./ImageMergerTool";
+import { ImageUrlToBase64Tool } from "./ImageUrlToBase64Tool";
 
 export type ToolboxToolId = string;
 export type ToolboxAccent =
@@ -137,6 +139,14 @@ const BUILTIN_TOOLS: ToolboxToolDef[] = [
     accent: "amber",
   },
   {
+    id: "image-url-to-base64",
+    labelKey: "toolWorkbench.toolbox.imageUrlToBase64.name",
+    descKey: "toolWorkbench.toolbox.imageUrlToBase64.desc",
+    icon: LinkIcon,
+    group: "image",
+    accent: "slate",
+  },
+  {
     id: "batch-renamer",
     labelKey: "toolWorkbench.toolbox.batchRenamer.name",
     descKey: "toolWorkbench.toolbox.batchRenamer.desc",
@@ -159,6 +169,7 @@ function BuiltinToolContent({ toolId }: { toolId: string }) {
     case "icon-generator": return <IconGeneratorTool />;
     case "image-compressor": return <ImageCompressorTool />;
     case "image-merger": return <ImageMergerTool />;
+    case "image-url-to-base64": return <ImageUrlToBase64Tool />;
     case "batch-renamer": return <BatchRenamerTool />;
     default: return null;
   }
