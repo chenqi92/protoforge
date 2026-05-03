@@ -8,18 +8,19 @@
 
 /* ===== ProtoForge Design System v6 — Linear-inspired (Light default + Dark) ===== */
 @theme {
-  /* ---- Light Theme (default) — Linear light neutrals: clean, cool, near-white ---- */
-  --color-bg-app: #f7f8f8;          /* Linear light bg */
-  --color-bg-primary: #ffffff;       /* pure white card surface */
-  --color-bg-secondary: #f5f6f7;     /* Linear subtle surface */
-  --color-bg-tertiary: #f0f1f3;
-  --color-bg-surface: #ffffff;
-  --color-bg-elevated: #ffffff;
-  --color-bg-hover: #f0f1f3;
-  --color-bg-active: #e6e8ec;
-  --color-bg-input: #f7f8f8;
-  --color-bg-sidebar: #f3f4f5;       /* Linear light subtle surface */
-  --color-bg-inset: #ececf0;
+  /* ---- Light theme — 10 distinct surface levels.
+     Convention: chrome 略灰深 / content 主区最亮（白）/ input 略凹陷 / popover 用 shadow 区分。 */
+  --color-bg-inset: #e4e7ed;         /* L-2 deepest (code) */
+  --color-bg-app: #eef0f4;           /* L-1 window frame */
+  --color-bg-sidebar: #f1f3f6;       /* L0 chrome */
+  --color-bg-input: #f3f5f8;         /* L0' input — 比 primary 略凹 */
+  --color-bg-primary: #ffffff;       /* L1 main panel — 最亮 */
+  --color-bg-surface: #ffffff;       /* alias L1 */
+  --color-bg-secondary: #f7f8fb;     /* L2 cards */
+  --color-bg-hover: #f1f3f6;         /* L2' row hover */
+  --color-bg-tertiary: #ebeef2;      /* L3 table headers */
+  --color-bg-elevated: #ffffff;      /* L4 popover — 用 shadow 浮起，因为白上加白没法 */
+  --color-bg-active: #e2e6ec;        /* L5 selected / pressed */
 
   --color-border-default: #e6e6e6;   /* Linear light border alt */
   --color-border-subtle: #eef0f2;
@@ -56,19 +57,27 @@
   --tabbar-height: 38px;
   --statusbar-height: 28px;
 
-  /* Radius — standardized 5-tier scale */
-  --radius-xs: 5px;
-  --radius-sm: 7px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  /* Radius — collapsed to 3-tier sharper scale (was 5/7/10/14/18 → too round + 5 levels noisy).
+     Now: 3 levels. Anything that referenced larger radii (lg/xl) bottoms out at 8px (md).
+     Naming kept (xs/sm/md/lg/xl) to avoid breaking ~600 existing call-sites. */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;   /* was 14px */
+  --radius-xl: 8px;   /* was 18px — collapsed onto lg */
 
   /* Semantic radius aliases */
-  --radius-btn: var(--radius-sm);
-  --radius-field: var(--radius-sm);
-  --radius-panel: var(--radius-lg);
-  --radius-card: var(--radius-md);
-  --radius-chip: var(--radius-xs);
+  --radius-btn: var(--radius-md);    /* 6px */
+  --radius-field: var(--radius-md);  /* 6px — input/select */
+  --radius-panel: var(--radius-lg);  /* 8px — modal/sheet outer */
+  --radius-card: var(--radius-md);   /* 6px — cards */
+  --radius-chip: var(--radius-xs);   /* 3px — badge/method chip */
+
+  /* Cap Tailwind's larger radii at 8px so leftover `rounded-2xl` / `rounded-3xl` calls
+     don't break the new sharper scale. Components using these classes auto-shrink. */
+  --radius-2xl: 8px;   /* was 16px */
+  --radius-3xl: 10px;  /* was 24px */
+  --radius-4xl: 12px;  /* was 32px */
 
   /* Button height tiers */
   --btn-height-xs: 24px;
@@ -153,17 +162,30 @@
    bumps specificity so dark overrides win regardless of source order.
 */
 :root.dark {
-  --color-bg-app: #08090a;           /* Linear marketing black — deepest canvas */
-  --color-bg-primary: #0f1011;       /* Linear panel-dark — main surface */
-  --color-bg-secondary: #141516;     /* Linear line-tint — subtle elevation */
-  --color-bg-tertiary: #191a1b;      /* Linear level-3 surface */
-  --color-bg-surface: #0f1011;
-  --color-bg-elevated: #191a1b;      /* dropdowns, popovers */
-  --color-bg-hover: #191a1b;
-  --color-bg-active: #28282c;        /* Linear secondary surface — lightest dark */
-  --color-bg-input: #0f1011;
-  --color-bg-sidebar: #0f1011;
-  --color-bg-inset: #08090a;
+  /* Surface layering — 10 distinct levels (was 5 collapsed onto 10 token names).
+     Convention: chrome 深陷 / content 主区最亮 / popover 真悬浮 / input 凹陷.
+       L-2 inset    最深（代码 / 凹陷区域）
+       L-1 app      窗口边
+       L0  sidebar  chrome（侧栏 / 标题栏 / 状态栏）
+       L0' input    输入控件（比 primary 深一档，凹陷感）
+       L1  primary  主面板（焦点）
+       L2  secondary 卡片
+       L2' hover    row hover（明显可见）
+       L3  tertiary 表头 / 强 hover
+       L4  elevated popover / dropdown / modal（最浮）
+       L5  active   选中 / 按下
+  */
+  --color-bg-inset: #050608;         /* L-2 deepest (code) */
+  --color-bg-app: #08090b;           /* L-1 window frame */
+  --color-bg-sidebar: #0b0d11;       /* L0 chrome */
+  --color-bg-input: #0c0f14;         /* L0' input — 比 primary 深一档（凹）*/
+  --color-bg-primary: #11141a;       /* L1 main panel */
+  --color-bg-surface: #11141a;       /* alias L1 */
+  --color-bg-secondary: #161b22;     /* L2 cards */
+  --color-bg-hover: #1a1f27;         /* L2' row hover */
+  --color-bg-tertiary: #1f242d;      /* L3 table headers / strong hover */
+  --color-bg-elevated: #252a34;      /* L4 popover / dropdown / modal — clearly floating */
+  --color-bg-active: #2d333d;        /* L5 selected / pressed */
 
   /* Borders: Linear uses semi-transparent white almost exclusively on dark.
      Solid dark borders (#23252a etc.) kept only where high contrast demanded. */
@@ -228,23 +250,26 @@
     @apply border-border outline-ring/50; }
 
   :root {
-    --fs-base: var(--app-font-size, 13px);    /* 13px — body / default */
-    --fs-sm: calc(var(--fs-base) - 1px);       /* 12px */
-    --fs-xs: calc(var(--fs-base) - 2px);       /* 11px */
-    --fs-xxs: calc(var(--fs-base) - 3px);      /* 10px */
-    --fs-3xs: calc(var(--fs-base) - 4px);      /*  9px */
-    --fs-md: calc(var(--fs-base) + 1px);       /* 14px */
-    --fs-lg: calc(var(--fs-base) + 2px);       /* 15px */
-    --fs-xl: calc(var(--fs-base) + 3px);       /* 16px */
-    --fs-2xl: calc(var(--fs-base) + 4px);      /* 17px */
-    --fs-3xl: calc(var(--fs-base) + 5px);      /* 18px */
-    --fs-4xl: calc(var(--fs-base) + 7px);      /* 20px */
-    --fs-5xl: calc(var(--fs-base) + 9px);      /* 22px */
-    --fs-6xl: calc(var(--fs-base) + 13px);     /* 26px */
-    --fs-mono: calc(var(--fs-base) - 1px);     /* code / editor */
-    /* Sidebar: 与右侧表格 --fs-xs 一致 */
-    --fs-sidebar: calc(var(--fs-base) - 1px);  /* 12px — sidebar items */
-    --fs-sidebar-sm: calc(var(--fs-base) - 2px); /* 11px — sidebar small text */
+    /* Font size scale — bumped to eliminate illegible micro sizes (was 9-13, now 10-13)
+       and widened upper end so titles are visibly bigger than body (was 14-26, now 14-32).
+       Token names preserved (3xs/xxs/xs/sm/base/md/lg/xl/...) to avoid breaking 1700+ call-sites. */
+    --fs-base: var(--app-font-size, 13px);     /* 13px — body / default */
+    --fs-sm:   calc(var(--fs-base) - 1px);     /* 12px — secondary text */
+    --fs-xs:   calc(var(--fs-base) - 1px);     /* 12px — was 11px (611 uses; bumped to readable) */
+    --fs-xxs:  calc(var(--fs-base) - 2px);     /* 11px — was 10px (badges / kbd) */
+    --fs-3xs:  calc(var(--fs-base) - 3px);     /* 10px — was 9px (illegible; bumped to min readable) */
+    --fs-md:   calc(var(--fs-base) + 1px);     /* 14px — emphasis */
+    --fs-lg:   calc(var(--fs-base) + 3px);     /* 16px — was 15px (title) */
+    --fs-xl:   calc(var(--fs-base) + 5px);     /* 18px — was 16px */
+    --fs-2xl:  calc(var(--fs-base) + 7px);     /* 20px — was 17px */
+    --fs-3xl:  calc(var(--fs-base) + 9px);     /* 22px — was 18px */
+    --fs-4xl:  calc(var(--fs-base) + 13px);    /* 26px — was 20px (heading) */
+    --fs-5xl:  calc(var(--fs-base) + 17px);    /* 30px — was 22px */
+    --fs-6xl:  calc(var(--fs-base) + 19px);    /* 32px — was 26px (display) */
+    --fs-mono: calc(var(--fs-base) - 1px);     /* 12px — code / editor */
+    /* Sidebar: 与右侧表格一致 */
+    --fs-sidebar: calc(var(--fs-base) - 1px);   /* 12px — sidebar items */
+    --fs-sidebar-sm: calc(var(--fs-base) - 2px);/* 11px — sidebar small text */
   }
 
   html, body, #root {
