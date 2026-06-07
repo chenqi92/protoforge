@@ -13,34 +13,35 @@ interface ScriptEditorProps {
   type: 'pre' | 'post';
 }
 
-// 常用代码片段模板
-const BASE_SNIPPETS: Record<string, { label: string; code: string }[]> = {
+// 常用代码片段模板。labelKey/labelZh 由组件内 t() 解析为用户可见文案
+const BASE_SNIPPETS: Record<string, { labelKey: string; labelZh: string; code: string }[]> = {
   pre: [
-    { label: '设置环境变量', code: '// pm.environment.set("key", "value");\n' },
-    { label: '设置目录变量', code: '// pm.folderVariables.set("token", "value");\n' },
-    { label: '设置集合变量', code: '// pm.collectionVariables.set("token", "value");\n' },
-    { label: '生成 UUID', code: '// const uuid = crypto.randomUUID();\n// pm.environment.set("requestId", uuid);\n' },
-    { label: '时间戳', code: '// const ts = Date.now().toString();\n// pm.environment.set("timestamp", ts);\n// pm.request.headers.set("X-Timestamp", ts);\n' },
-    { label: '随机数', code: '// pm.environment.set("random", Math.floor(Math.random() * 10000).toString());\n' },
-    { label: 'Base64 编码', code: '// const encoded = btoa("username:password");\n// pm.environment.set("auth", encoded);\n' },
-    { label: '当前请求加 Header', code: '// pm.request.headers.set("Authorization", "Bearer " + pm.variables.get("token"));\n' },
-    { label: 'Bearer Token 签名', code: '// 自定义 Token 生成逻辑\n// const token = generateToken(secret, payload);\n// pm.collectionVariables.set("token", token);\n// pm.request.headers.set("Authorization", "Bearer " + token);\n' },
+    { labelKey: 'http.script.snippet.setEnvVar', labelZh: '设置环境变量', code: '// pm.environment.set("key", "value");\n' },
+    { labelKey: 'http.script.snippet.setFolderVar', labelZh: '设置目录变量', code: '// pm.folderVariables.set("token", "value");\n' },
+    { labelKey: 'http.script.snippet.setCollectionVar', labelZh: '设置集合变量', code: '// pm.collectionVariables.set("token", "value");\n' },
+    { labelKey: 'http.script.snippet.genUuid', labelZh: '生成 UUID', code: '// const uuid = crypto.randomUUID();\n// pm.environment.set("requestId", uuid);\n' },
+    { labelKey: 'http.script.snippet.timestamp', labelZh: '时间戳', code: '// const ts = Date.now().toString();\n// pm.environment.set("timestamp", ts);\n// pm.request.headers.set("X-Timestamp", ts);\n' },
+    { labelKey: 'http.script.snippet.random', labelZh: '随机数', code: '// pm.environment.set("random", Math.floor(Math.random() * 10000).toString());\n' },
+    { labelKey: 'http.script.snippet.base64Encode', labelZh: 'Base64 编码', code: '// const encoded = btoa("username:password");\n// pm.environment.set("auth", encoded);\n' },
+    { labelKey: 'http.script.snippet.addHeader', labelZh: '当前请求加 Header', code: '// pm.request.headers.set("Authorization", "Bearer " + pm.variables.get("token"));\n' },
+    { labelKey: 'http.script.snippet.bearerTokenSign', labelZh: 'Bearer Token 签名', code: '// 自定义 Token 生成逻辑\n// const token = generateToken(secret, payload);\n// pm.collectionVariables.set("token", token);\n// pm.request.headers.set("Authorization", "Bearer " + token);\n' },
   ],
   post: [
-    { label: '断言状态码', code: '// pm.test("Status is 200", () => {\n//   if (pm.response.code !== 200) {\n//     throw new Error("Unexpected status: " + pm.response.code);\n//   }\n// });\n' },
-    { label: '断言响应体包含', code: '// pm.test("Body contains key", () => {\n//   const json = pm.response.json();\n//   if (!json || !json.data) {\n//     throw new Error("Missing data field");\n//   }\n// });\n' },
-    { label: '提取并保存变量', code: '// const json = pm.response.json();\n// pm.environment.set("token", json.data.token);\n' },
-    { label: '提取到集合变量', code: '// const json = pm.response.json();\n// pm.collectionVariables.set("token", json.data.token);\n' },
-    { label: '断言响应时间', code: '// pm.test("Response time < 500ms", () => {\n//   if (pm.response.responseTime >= 500) {\n//     throw new Error("Response too slow: " + pm.response.responseTime);\n//   }\n// });\n' },
-    { label: '遍历数组断言', code: '// const items = pm.response.json().data || [];\n// pm.test("All items have id", () => {\n//   items.forEach((item) => {\n//     if (!item.id) throw new Error("Item missing id");\n//   });\n// });\n' },
-    { label: '保存下一页地址', code: '// const json = pm.response.json();\n// pm.environment.set("nextPageUrl", json.links?.next || "");\n' },
+    { labelKey: 'http.script.snippet.assertStatus', labelZh: '断言状态码', code: '// pm.test("Status is 200", () => {\n//   if (pm.response.code !== 200) {\n//     throw new Error("Unexpected status: " + pm.response.code);\n//   }\n// });\n' },
+    { labelKey: 'http.script.snippet.assertBodyContains', labelZh: '断言响应体包含', code: '// pm.test("Body contains key", () => {\n//   const json = pm.response.json();\n//   if (!json || !json.data) {\n//     throw new Error("Missing data field");\n//   }\n// });\n' },
+    { labelKey: 'http.script.snippet.extractSaveVar', labelZh: '提取并保存变量', code: '// const json = pm.response.json();\n// pm.environment.set("token", json.data.token);\n' },
+    { labelKey: 'http.script.snippet.extractToCollection', labelZh: '提取到集合变量', code: '// const json = pm.response.json();\n// pm.collectionVariables.set("token", json.data.token);\n' },
+    { labelKey: 'http.script.snippet.assertResponseTime', labelZh: '断言响应时间', code: '// pm.test("Response time < 500ms", () => {\n//   if (pm.response.responseTime >= 500) {\n//     throw new Error("Response too slow: " + pm.response.responseTime);\n//   }\n// });\n' },
+    { labelKey: 'http.script.snippet.iterateAssert', labelZh: '遍历数组断言', code: '// const items = pm.response.json().data || [];\n// pm.test("All items have id", () => {\n//   items.forEach((item) => {\n//     if (!item.id) throw new Error("Item missing id");\n//   });\n// });\n' },
+    { labelKey: 'http.script.snippet.saveNextPage', labelZh: '保存下一页地址', code: '// const json = pm.response.json();\n// pm.environment.set("nextPageUrl", json.links?.next || "");\n' },
   ],
 };
 
 // 加密解密插件代码片段
-const CRYPTO_SNIPPETS: { label: string; code: string }[] = [
+const CRYPTO_SNIPPETS: { labelKey: string; labelZh: string; code: string }[] = [
   {
-    label: 'Base64 编码',
+    labelKey: 'http.script.snippet.cryptoBase64Encode',
+    labelZh: 'Base64 编码',
     code: `// Base64 编码
 var result = encrypt("base64", "要编码的字符串", {});
 if (result.success) {
@@ -49,7 +50,8 @@ if (result.success) {
 `,
   },
   {
-    label: 'Base64 解码',
+    labelKey: 'http.script.snippet.cryptoBase64Decode',
+    labelZh: 'Base64 解码',
     code: `// Base64 解码
 var result = decrypt("base64", "aGVsbG8gd29ybGQ=", {});
 if (result.success) {
@@ -58,7 +60,8 @@ if (result.success) {
 `,
   },
   {
-    label: 'MD5 哈希',
+    labelKey: 'http.script.snippet.cryptoMd5',
+    labelZh: 'MD5 哈希',
     code: `// MD5 哈希
 var result = encrypt("md5", "要哈希的字符串", {});
 if (result.success) {
@@ -67,7 +70,8 @@ if (result.success) {
 `,
   },
   {
-    label: 'SHA-256 哈希',
+    labelKey: 'http.script.snippet.cryptoSha256',
+    labelZh: 'SHA-256 哈希',
     code: `// SHA-256 哈希
 var result = encrypt("sha256", "要哈希的字符串", {});
 if (result.success) {
@@ -76,7 +80,8 @@ if (result.success) {
 `,
   },
   {
-    label: 'AES-CBC 加密',
+    labelKey: 'http.script.snippet.cryptoAesCbcEncrypt',
+    labelZh: 'AES-CBC 加密',
     code: `// AES-CBC 加密（密钥需 16/24/32 字节，IV 需 16 字节）
 var result = encrypt("aes-cbc", "要加密的明文", {
   key: "1234567890123456",
@@ -90,7 +95,8 @@ if (result.success) {
 `,
   },
   {
-    label: 'AES-CBC 解密',
+    labelKey: 'http.script.snippet.cryptoAesCbcDecrypt',
+    labelZh: 'AES-CBC 解密',
     code: `// AES-CBC 解密
 var result = decrypt("aes-cbc", pm.environment.get("encrypted"), {
   key: "1234567890123456",
@@ -104,7 +110,8 @@ if (result.success) {
 `,
   },
   {
-    label: 'URL 编码',
+    labelKey: 'http.script.snippet.cryptoUrlEncode',
+    labelZh: 'URL 编码',
     code: `// URL 编码
 var result = encrypt("url-encode", "需要编码的内容&key=value", {});
 if (result.success) {
@@ -113,7 +120,8 @@ if (result.success) {
 `,
   },
   {
-    label: '请求签名（MD5）',
+    labelKey: 'http.script.snippet.cryptoRequestSignMd5',
+    labelZh: '请求签名（MD5）',
     code: `// 使用 MD5 对请求参数签名
 var timestamp = Date.now().toString();
 var secret = "your-api-secret";
@@ -181,7 +189,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
         <div className="flex items-center gap-1.5 text-text-tertiary">
           <Code className="w-3.5 h-3.5" />
           <span className="pf-text-sm font-medium">
-            {type === 'pre' ? t('http.script.preScriptTitle') : t('http.script.postScriptTitle')}
+            {type === 'pre' ? t('http.script.preScriptTitle', '前置脚本') : t('http.script.postScriptTitle', '后置测试脚本')}
           </span>
         </div>
 
@@ -201,7 +209,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
             className="h-7 px-2.5 rounded-md flex items-center gap-1 pf-text-xs font-medium text-text-tertiary hover:bg-bg-hover hover:text-text-secondary transition-colors"
           >
             <BookOpen className="w-3 h-3" />
-            {t('http.script.snippets')}
+            {t('http.script.snippets', '代码片段')}
             <ChevronDown className="w-3 h-3" />
           </button>
           {showSnippets && createPortal(
@@ -217,7 +225,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
                     onClick={() => insertSnippet(s.code)}
                     className="w-full px-3 py-2 text-left pf-text-sm text-text-secondary hover:bg-bg-hover transition-colors"
                   >
-                    {s.label}
+                    {t(s.labelKey, s.labelZh)}
                   </button>
                 ))}
               </div>
@@ -232,7 +240,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
           onClick={handleCopy}
           disabled={!value}
           className="h-7 px-2 rounded-md flex items-center gap-1 pf-text-xs text-text-tertiary hover:bg-bg-hover disabled:opacity-50 transition-colors"
-          title={t('http.script.copyScript')}
+          title={t('http.script.copyScript', '复制脚本')}
         >
           {copied ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
         </button>
@@ -241,7 +249,7 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
           onClick={handleClear}
           disabled={!value}
           className="h-7 px-2 rounded-md flex items-center gap-1 pf-text-xs text-text-tertiary hover:bg-bg-hover disabled:opacity-50 transition-colors"
-          title={t('http.script.clear')}
+          title={t('http.script.clear', '清空')}
         >
           <Eraser className="w-3 h-3" />
         </button>
@@ -261,8 +269,8 @@ export function ScriptEditor({ value, onChange, type }: ScriptEditorProps) {
 
       {/* Helper text */}
       <p className="mt-2 pf-text-xs text-text-disabled shrink-0">
-        {t('http.script.helperText')} ·
-        {type === 'pre' ? ` ${t('http.script.preScriptHelper')}` : ` ${t('http.script.postScriptHelper')}`}
+        {t('http.script.helperText', '支持 Tab 缩进 · 使用「代码片段」快速插入常用模板')} ·
+        {type === 'pre' ? ` ${t('http.script.preScriptHelper', '在请求发送之前执行')}` : ` ${t('http.script.postScriptHelper', '在收到响应之后执行')}`}
       </p>
     </div>
   );

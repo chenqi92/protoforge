@@ -92,6 +92,7 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
 
 /* ── DB domain — host the existing ConnectionSidebar in the contextual frame ── */
 function DbSidebar({ tl }: { tl: (zh: string, en: string) => string }) {
+  const { t } = useTranslation();
   const def = FORGE_DOMAINS.find((d) => d.id === "db")!;
   const Icon = DOMAIN_ICONS[def.icon] ?? Database;
   const toolSessions = useAppStore((s) => s.toolSessions);
@@ -107,7 +108,7 @@ function DbSidebar({ tl }: { tl: (zh: string, en: string) => string }) {
         Icon={Icon}
         title={tl(def.zh, def.en)}
         onNew={() => addToolSession("dbclient")}
-        newTitle={tl("新建连接", "New connection")}
+        newTitle={t('sidebar.newConnection', '新建连接')}
       />
       <div className="min-h-0 flex-1 overflow-hidden">
         {sessionId ? (
@@ -115,9 +116,9 @@ function DbSidebar({ tl }: { tl: (zh: string, en: string) => string }) {
         ) : (
           <EmptyHint
             Icon={Icon}
-            label={tl("暂无数据库连接", "No connections")}
-            sub={tl("连接数据库后即可浏览表结构与执行查询", "Connect a database to browse schemas and run queries")}
-            actionLabel={tl("新建连接", "New connection")}
+            label={t('sidebar.noConnections', '暂无数据库连接')}
+            sub={t('sidebar.noConnectionsHint', '连接数据库后即可浏览表结构与执行查询')}
+            actionLabel={t('sidebar.newConnection', '新建连接')}
             onAction={() => addToolSession("dbclient")}
           />
         )}
@@ -134,6 +135,7 @@ function DomainListSidebar({
   domain: ForgeDomainId;
   tl: (zh: string, en: string) => string;
 }) {
+  const { t } = useTranslation();
   const def = FORGE_DOMAINS.find((d) => d.id === domain)!;
   const Icon = DOMAIN_ICONS[def.icon] ?? Globe;
   const [search, setSearch] = useState("");
@@ -198,7 +200,7 @@ function DomainListSidebar({
         Icon={Icon}
         title={tl(def.zh, def.en)}
         onNew={handleNew}
-        newTitle={tl("新建", "New")}
+        newTitle={t('sidebar.newSession', '新建')}
         summary={summaryPill}
       />
 
@@ -209,7 +211,7 @@ function DomainListSidebar({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={tl("搜索会话…", "Search sessions…")}
+            placeholder={t('sidebar.searchSessions', '搜索会话…')}
             className="h-[28px] w-full pf-rounded-sm border border-border-default bg-bg-app pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
           />
         </div>
@@ -220,15 +222,15 @@ function DomainListSidebar({
           search ? (
             <EmptyHint
               Icon={Icon}
-              label={tl("无匹配会话", "No matches")}
-              sub={tl("尝试其他关键词", "Try another keyword")}
+              label={t('sidebar.noSessionMatch', '无匹配会话')}
+              sub={t('sidebar.tryAnotherKeyword', '尝试其他关键词')}
             />
           ) : (
             <EmptyHint
               Icon={Icon}
-              label={tl("暂无会话", "No sessions")}
-              sub={tl(`新建一个 ${def.zh} 会话开始使用`, `Create a new ${def.en} session to get started`)}
-              actionLabel={tl("新建", "New")}
+              label={t('sidebar.noSessions', '暂无会话')}
+              sub={t('sidebar.noSessionsHint', { defaultValue: `新建一个 ${def.zh} 会话开始使用`, name: tl(def.zh, def.en) })}
+              actionLabel={t('sidebar.newSession', '新建')}
               onAction={handleNew}
             />
           )
@@ -1731,7 +1733,7 @@ function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
     const isActive = env.id === activeEnvId;
     showMenu(e, [
       { id: "activate", label: isActive ? t('sidebar.deactivate') : t('sidebar.activate'), icon: <Zap className="w-3.5 h-3.5" />, onClick: () => setActive(isActive ? null : env.id) },
-      { id: "edit-vars", label: "管理变量", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: onOpenEnvModal },
+      { id: "edit-vars", label: t('sidebar.manageVariables', '管理变量'), icon: <Edit3 className="w-3.5 h-3.5" />, onClick: onOpenEnvModal },
     ]);
   };
 
@@ -1788,7 +1790,7 @@ function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
           className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-dashed border-border-default text-[length:var(--fs-sidebar)] text-text-tertiary hover:border-accent hover:text-accent transition-colors"
         >
           <Zap className="w-3.5 h-3.5" />
-          <span>管理变量</span>
+          <span>{t('sidebar.manageVariables', '管理变量')}</span>
         </button>
       </div>
 

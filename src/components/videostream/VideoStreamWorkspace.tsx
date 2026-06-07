@@ -4,6 +4,7 @@ import { memo, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorPlay, GripHorizontal, GripVertical, History, X, Download, Loader, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { cn } from "@/lib/utils";
 import { modeLikelyNeedsFfmpeg, resolvePlaybackTarget, supportsIntegratedPlayback } from "@/lib/videoPlayback";
 import { useAppStore } from "@/stores/appStore";
@@ -152,7 +153,7 @@ function getPlaybackTransportLabel(mode: VideoProtocol): string {
   }
 }
 
-function getVideoUrlPlaceholder(mode: VideoProtocol): string {
+function getVideoUrlPlaceholder(mode: VideoProtocol, t: TFunction): string {
   switch (mode) {
     case "rtsp":
       return "rtsp://admin:password@192.168.1.100:554/stream1";
@@ -163,7 +164,7 @@ function getVideoUrlPlaceholder(mode: VideoProtocol): string {
     case "hls":
       return "https://example.com/live/index.m3u8";
     case "webrtc":
-      return "webrtc:// / https:// / wss:// 媒体地址";
+      return t('video.workspace.webrtcPlaceholder', 'webrtc:// / https:// / wss:// 媒体地址');
     case "srt":
       return "srt://live.example.com:9000";
     default:
@@ -352,16 +353,16 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
 
   const handleDownloadFfmpeg = useCallback(async () => {
     setPlayerError(null);
-    setFfmpegProgressText("准备下载 FFmpeg...");
+    setFfmpegProgressText(t('video.workspace.ffmpegPreparing', '准备下载 FFmpeg...'));
     try {
       await vsSvc.ffmpegDownload();
       await refreshFfmpegStatus();
-      setFfmpegProgressText("FFmpeg 安装完成");
+      setFfmpegProgressText(t('video.workspace.ffmpegInstalled', 'FFmpeg 安装完成'));
     } catch (error) {
       setPlayerError(String(error));
       await refreshFfmpegStatus();
     }
-  }, [refreshFfmpegStatus]);
+  }, [refreshFfmpegStatus, t]);
 
   const resolveActiveUrl = useCallback(() => {
     const explicitUrl = streamUrl.trim();
@@ -419,10 +420,10 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
     if (!activeUrl) return;
     if (!supportsIntegratedPlayback(effectivePlaybackMode, activeUrl)) {
       setPlayerError(effectivePlaybackMode === "webrtc"
-        ? "当前仅支持直接输入可播放的 WebRTC 媒体地址，例如 webrtc/http/ws 网关地址；面板里的 SDP/ICE 调试流程本身不是播放器地址。"
+        ? t('video.workspace.webrtcAddressOnly', '当前仅支持直接输入可播放的 WebRTC 媒体地址，例如 webrtc/http/ws 网关地址；面板里的 SDP/ICE 调试流程本身不是播放器地址。')
         : assistantActive
-          ? "当前助手会话需要先拿到实际媒体地址，再按对应播放协议启动播放。请填写 RTSP、HLS、HTTP-FLV、SRT 或 WebRTC 地址。"
-          : "GB28181 需要先拿到实际媒体地址，再启动播放。请在面板里的“媒体地址”或顶部 URL 栏填写 RTSP、HLS、HTTP-FLV 或 WebRTC 网关地址。");
+          ? t('video.workspace.assistantNeedsAddress', '当前助手会话需要先拿到实际媒体地址，再按对应播放协议启动播放。请填写 RTSP、HLS、HTTP-FLV、SRT 或 WebRTC 地址。')
+          : t('video.workspace.gb28181NeedsAddress', 'GB28181 需要先拿到实际媒体地址，再启动播放。请在面板里的“媒体地址”或顶部 URL 栏填写 RTSP、HLS、HTTP-FLV 或 WebRTC 网关地址。'));
       return;
     }
 
@@ -431,7 +432,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
       const status = ffmpegStatus ?? await vsSvc.ffmpegStatus().catch(() => null);
       if (status) setFfmpegStatus(status);
       if (status && !status.available) {
-        setPlayerError("FFmpeg 未安装，当前模式无法启动内置播放器。");
+        setPlayerError(t('video.workspace.ffmpegMissing', 'FFmpeg 未安装，当前模式无法启动内置播放器。'));
         return;
       }
     }
@@ -476,7 +477,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
         await vsSvc.disconnectStream(sessionKey).catch(() => {});
       }
     }
-  }, [showPlayer, resolveActiveUrl, effectivePlaybackMode, ffmpegStatus, buildConnectConfig, sessionKey, handleDisconnectPlayer, assistantActive]);
+  }, [showPlayer, resolveActiveUrl, effectivePlaybackMode, ffmpegStatus, buildConnectConfig, sessionKey, handleDisconnectPlayer, assistantActive, t]);
 
   const selectedMsg = selectedMsgId ? filteredMessages.find(m => m.id === selectedMsgId) : null;
 
@@ -529,14 +530,14 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
     ? resolvePlaybackTarget(effectivePlaybackMode, activePlaybackUrl).requiresFfmpeg
     : modeLikelyNeedsFfmpeg(effectivePlaybackMode);
   const playbackStateLabel = playerError && !showPlayer
-    ? "错误"
+    ? t('video.workspace.stateError', '错误')
     : !showPlayer
-      ? "未播放"
+      ? t('video.workspace.stateIdle', '未播放')
       : connecting
-        ? "启动中"
+        ? t('video.workspace.stateStarting', '启动中')
         : playbackReady
-          ? "播放中"
-          : "等待中";
+          ? t('video.workspace.statePlaying', '播放中')
+          : t('video.workspace.stateWaiting', '等待中');
   const playbackDotClass = playerError && !showPlayer
     ? "s-err"
     : !showPlayer
@@ -571,7 +572,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
               placeholder={
                 assistantActive
                   ? t('videostream.assistantAddressPlaceholder', { defaultValue: '等待助手自动填充，或手动输入可播放媒体地址' })
-                  : getVideoUrlPlaceholder(effectivePlaybackMode)
+                  : getVideoUrlPlaceholder(effectivePlaybackMode, t)
               }
               disabled={showPlayer}
               className="wb-request-input disabled:opacity-60"
@@ -602,7 +603,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
             title={t(activePlaybackMode.hintKey)}
           >
             {activePlaybackMode.icon}
-            播放面板 · {t(activePlaybackMode.labelKey)}
+            {t('video.workspace.playbackPanel', '播放面板')} · {t(activePlaybackMode.labelKey)}
           </button>
           {ASSISTANT_MODES.map((assistantMode) => (
             <button
@@ -723,7 +724,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
       {ffmpegRequired && ffmpegStatus && !ffmpegStatus.available && (
         <div className="shrink-0 flex items-center gap-2 pf-rounded-sm border border-warning/20 bg-warning/8 px-3 py-2 mt-2">
           <span className="pf-text-xxs text-warning flex-1">
-            内置播放器依赖 FFmpeg。当前未检测到可用安装{ffmpegProgressText ? `，${ffmpegProgressText}` : "。"}
+            {t('video.workspace.ffmpegBanner', '内置播放器依赖 FFmpeg。当前未检测到可用安装')}{ffmpegProgressText ? `，${ffmpegProgressText}` : t('video.workspace.ffmpegBannerPeriod', '。')}
           </span>
           <button
             onClick={handleDownloadFfmpeg}
@@ -731,7 +732,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
             className="h-7 px-2.5 pf-rounded-sm bg-warning text-white pf-text-xxs font-semibold hover:bg-warning/90 disabled:opacity-60"
           >
             <Download className="w-3 h-3" />
-            {ffmpegStatus.downloading ? "下载中..." : "下载 FFmpeg"}
+            {ffmpegStatus.downloading ? t('video.workspace.downloading', '下载中...') : t('video.workspace.downloadFfmpeg', '下载 FFmpeg')}
           </button>
         </div>
       )}
@@ -805,7 +806,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                             <div className="flex flex-col items-center gap-2 text-white/75">
                               <Loader className="w-6 h-6 animate-spin" />
                               <span className="pf-text-xxs font-mono">
-                                {playbackPathLabel === "本地 HLS 网关" ? "启动本地媒体网关..." : "等待播放器初始化..."}
+                                {playbackPathLabel === "本地 HLS 网关" ? t('video.workspace.startingGateway', '启动本地媒体网关...') : t('video.workspace.waitingPlayer', '等待播放器初始化...')}
                               </span>
                             </div>
                           </div>
@@ -817,7 +818,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                               ? surfacePlaying
                                 ? t('video.status.live', '直播')
                                 : t('video.status.paused', '已暂停')
-                              : connecting ? "启动中" : "等待中"}
+                              : connecting ? t('video.workspace.stateStarting', '启动中') : t('video.workspace.stateWaiting', '等待中')}
                           </span>
                           <span className="pf-pill">{getPlaybackTransportLabel(effectivePlaybackMode)}</span>
                           {playbackReady && streamInfo && streamInfo.width > 0 ? (
@@ -830,11 +831,11 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                         <div className="mb-1 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-white/10 bg-white/5">
                           <MonitorPlay className="h-7 w-7 text-text-disabled/70" />
                         </div>
-                        <span className="pf-text-base font-medium text-text-secondary">等待视频流接入</span>
+                        <span className="pf-text-base font-medium text-text-secondary">{t('video.workspace.waitingStreamTitle', '等待视频流接入')}</span>
                         <span className="pf-text-xs text-text-disabled/80">
                           {assistantActive
-                            ? `填入媒体地址后按 ${t(activePlaybackMode.labelKey)} 播放`
-                            : `填入 ${t(activePlaybackMode.labelKey)} 地址并点击播放`}
+                            ? t('video.workspace.assistantPlayHint', '填入媒体地址后按 {{mode}} 播放', { mode: t(activePlaybackMode.labelKey) })
+                            : t('video.workspace.playHint', '填入 {{mode}} 地址并点击播放', { mode: t(activePlaybackMode.labelKey) })}
                         </span>
                       </div>
                     )}
@@ -940,7 +941,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                       </div>
                       {filteredMessages.length > MAX_VISIBLE_VIDEO_MESSAGES ? (
                         <div className="border-t border-border-subtle px-3 py-1.5 pf-text-xxs text-text-disabled">
-                          {`为保证性能，仅显示最近 ${MAX_VISIBLE_VIDEO_MESSAGES} 条协议报文`}
+                          {t('video.workspace.messageLimit', '为保证性能，仅显示最近 {{count}} 条协议报文', { count: MAX_VISIBLE_VIDEO_MESSAGES })}
                         </div>
                       ) : null}
                     </>

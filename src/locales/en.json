@@ -79,7 +79,17 @@
     "activate": "Set Active",
     "active": "Active",
     "envVariables": "Environment Variables",
-    "envVariablesHint": "Click \"Add\" to create the first environment"
+    "envVariablesHint": "Click \"Add\" to create the first environment",
+    "manageVariables": "Manage Variables",
+    "newConnection": "New connection",
+    "noConnections": "No connections",
+    "noConnectionsHint": "Connect a database to browse schemas and run queries",
+    "newSession": "New",
+    "searchSessions": "Search sessions…",
+    "noSessionMatch": "No matches",
+    "tryAnotherKeyword": "Try another keyword",
+    "noSessions": "No sessions",
+    "noSessionsHint": "Create a new {{name}} session to get started"
   },
   "contextMenu": {
     "newRequest": "New Request",
@@ -536,7 +546,33 @@
       "extractAndSave": "Extract and Save Variable",
       "assertResponseTime": "Assert Response Time",
       "iterateAssert": "Iterate Array Assert",
-      "chainRequest": "Chain Request Setup"
+      "chainRequest": "Chain Request Setup",
+      "snippet": {
+        "setEnvVar": "Set environment variable",
+        "setFolderVar": "Set folder variable",
+        "setCollectionVar": "Set collection variable",
+        "genUuid": "Generate UUID",
+        "timestamp": "Timestamp",
+        "random": "Random number",
+        "base64Encode": "Base64 encode",
+        "addHeader": "Add header to current request",
+        "bearerTokenSign": "Bearer token signing",
+        "assertStatus": "Assert status code",
+        "assertBodyContains": "Assert response body contains",
+        "extractSaveVar": "Extract and save variable",
+        "extractToCollection": "Extract to collection variable",
+        "assertResponseTime": "Assert response time",
+        "iterateAssert": "Iterate array and assert",
+        "saveNextPage": "Save next page URL",
+        "cryptoBase64Encode": "Base64 encode",
+        "cryptoBase64Decode": "Base64 decode",
+        "cryptoMd5": "MD5 hash",
+        "cryptoSha256": "SHA-256 hash",
+        "cryptoAesCbcEncrypt": "AES-CBC encrypt",
+        "cryptoAesCbcDecrypt": "AES-CBC decrypt",
+        "cryptoUrlEncode": "URL encode",
+        "cryptoRequestSignMd5": "Request signing (MD5)"
+      }
     },
     "tests": "Tests",
     "logs": "logs",
@@ -1236,7 +1272,29 @@
     "cryptoTool": "Crypto Tool",
     "cryptoToolDesc": "Encryption, decryption and hashing tools",
     "iconPack": "Icon Library",
-    "iconPackDesc": "Custom icon libraries for other plugins"
+    "iconPackDesc": "Custom icon libraries for other plugins",
+    "requestStats": {
+      "title": "Request Stats",
+      "clear": "Clear stats",
+      "empty": {
+        "title": "No request data yet",
+        "hint": "Stats will appear here automatically after you send HTTP requests"
+      },
+      "card": {
+        "total": "Total",
+        "successRate": "Success rate",
+        "success": "Success",
+        "failed": "Failed"
+      },
+      "latency": {
+        "title": "Response time",
+        "avg": "Avg",
+        "min": "Fastest",
+        "max": "Slowest"
+      },
+      "statusDist": "Status code distribution",
+      "methodDist": "Method distribution"
+    }
   },
   "commandPalette": {
     "placeholder": "Search actions, requests, collections...",
@@ -1279,6 +1337,67 @@
     "onvif": {
       "empty": "No devices found",
       "emptyHint": "No ONVIF devices found after scanning — connect manually below"
+    },
+    "surface": {
+      "loadingHls": "Loading HLS...",
+      "hlsNativeFailed": "HLS: native browser playback failed",
+      "hlsUnsupported": "HLS: this runtime supports neither hls.js nor native HLS",
+      "waitingStream": "Waiting for stream data...",
+      "mseAppendFailed": "MSE append failed: {{error}}",
+      "codecUnsupported": "Browser does not support codec: {{mime}}",
+      "buffering": "Buffering...",
+      "mseError": "MSE error: {{error}}",
+      "bufferBusy": "Front-end buffer busy, catching up to live stream...",
+      "noFrameToCapture": "No video frame available to capture.",
+      "captureNoContext": "Screenshot failed: could not create canvas context.",
+      "captureFailed": "Screenshot failed: {{error}}",
+      "captureEmpty": "Screenshot failed: generated image data is empty.",
+      "captureSaveFailed": "Failed to save screenshot: {{error}}",
+      "recordUnsupported": "This runtime does not support video recording.",
+      "recorderUnsupported": "This runtime does not support MediaRecorder.",
+      "recording": "Recording...",
+      "recordSaveFailed": "Failed to save recording: {{error}}",
+      "recordStartFailed": "Failed to start recording: {{error}}",
+      "emptyTitle": "Play once you have a stream URL",
+      "emptyHint": "Waiting for signal · no signal",
+      "screenshot": "Screenshot",
+      "stopRecording": "Stop recording",
+      "startRecording": "Start recording"
+    },
+    "easyplayer": {
+      "loadingCore": "Loading EasyPlayer core...",
+      "paused": "Paused",
+      "recording": "Recording...",
+      "recordSaved": "Recording saved",
+      "screenshotExported": "Screenshot exported",
+      "playerError": "Player error",
+      "initializing": "Initializing player...",
+      "emptyTitle": "Waiting for a playable media URL"
+    },
+    "workspace": {
+      "webrtcPlaceholder": "webrtc:// / https:// / wss:// media URL",
+      "ffmpegPreparing": "Preparing to download FFmpeg...",
+      "ffmpegInstalled": "FFmpeg installed",
+      "webrtcAddressOnly": "Only a directly playable WebRTC media URL is supported here, e.g. a webrtc/http/ws gateway address; the panel's SDP/ICE debugging flow is not itself a player URL.",
+      "assistantNeedsAddress": "This assistant session needs an actual media URL first, then playback starts with the matching protocol. Enter an RTSP, HLS, HTTP-FLV, SRT or WebRTC address.",
+      "gb28181NeedsAddress": "GB28181 needs an actual media URL before playback. Enter an RTSP, HLS, HTTP-FLV or WebRTC gateway address in the panel's \"Media URL\" field or the top URL bar.",
+      "ffmpegMissing": "FFmpeg is not installed; the built-in player cannot start in this mode.",
+      "stateError": "Error",
+      "stateIdle": "Not playing",
+      "stateStarting": "Starting",
+      "statePlaying": "Playing",
+      "stateWaiting": "Waiting",
+      "playbackPanel": "Playback panel",
+      "ffmpegBanner": "The built-in player depends on FFmpeg. No available installation was detected",
+      "ffmpegBannerPeriod": ".",
+      "downloading": "Downloading...",
+      "downloadFfmpeg": "Download FFmpeg",
+      "startingGateway": "Starting local media gateway...",
+      "waitingPlayer": "Waiting for player to initialize...",
+      "waitingStreamTitle": "Waiting for a video stream",
+      "assistantPlayHint": "Enter a media URL, then play via {{mode}}",
+      "playHint": "Enter a {{mode}} address and click Play",
+      "messageLimit": "For performance, only the latest {{count}} protocol messages are shown"
     }
   },
   "common": {
@@ -1397,25 +1516,45 @@
     "varsDesc": "Collection-level variables can be referenced in all requests using {{key}}"
   },
   "env": {
-    "title": "Environment Management",
-    "envVars": "Environment Variables",
-    "globalVars": "Global Variables",
-    "newEnvPlaceholder": "New environment...",
-    "noEnvs": "No environments",
-    "selectEnv": "Select an environment",
-    "selectEnvHint": "Or create a new one from the left panel",
-    "unsaved": "● Unsaved",
-    "save": "Save",
-    "varName": "Variable Name",
-    "varValue": "Value",
-    "secret": "Secret",
-    "unmarkSecret": "Unmark as secret",
-    "markSecret": "Mark as secret",
-    "addVar": "Add Variable",
-    "globalVarsDesc": "Global variables are available in all environments with lower priority than environment variables",
-    "addGlobalVar": "Add Global Variable",
-    "active": "Active",
-    "varsOf": "Variables of {{name}}"
+    "export": "Export Environments",
+    "import": "Import Environments",
+    "modal": {
+      "title": "Environment Variables",
+      "subtitle": "Manage global variables and environment-specific variables"
+    },
+    "tab": {
+      "global": "Global Variables"
+    },
+    "section": {
+      "environments": "Environments"
+    },
+    "action": {
+      "newEnvironment": "New Environment",
+      "activate": "Activate",
+      "deleteEnvironment": "Delete Environment",
+      "add": "Add",
+      "showValue": "Show value",
+      "hideValue": "Hide value"
+    },
+    "status": {
+      "activated": "Activated",
+      "currentActive": "Currently active"
+    },
+    "search": {
+      "placeholder": "Search variables..."
+    },
+    "hint": {
+      "envOverride": "Environment variables override global variables with the same name (higher priority)",
+      "globalScope": "Global variables apply across all environments; environment variables can override global ones with the same name"
+    },
+    "empty": {
+      "noMatch": "No matching variables found",
+      "noVars": "No variables yet",
+      "hint": "Click the \"Add\" button above to create a new variable"
+    },
+    "footer": {
+      "stats": "{{total}} variables · {{enabled}} enabled"
+    }
   },
   "runner": {
     "run": "Run",
@@ -1493,10 +1632,6 @@
     "loading": "Loading...",
     "entryCount": "{{count}} entries loaded",
     "writeFailed": "Save failed"
-  },
-  "env": {
-    "export": "Export Environments",
-    "import": "Import Environments"
   },
   "update": {
     "checking": "Checking for updates…",
@@ -1897,7 +2032,26 @@
     "copy": "Copy",
     "rowsSelected": "rows selected",
     "page": "page",
-    "exportFormat": "Export Format"
+    "exportFormat": "Export Format",
+    "exportComplete": "Export complete: {{size}}, took {{ms}}ms",
+    "exportDialogTitle": "Export",
+    "selectAllNone": "Select all / none",
+    "autoDetect": "Auto-detect",
+    "importComplete": "Import complete, took {{ms}}ms",
+    "importWarnings": " ({{count}} warnings)",
+    "importDialogTitle": "Import",
+    "cannotLoadStructure": "Unable to load table structure",
+    "addColumn": "Add column",
+    "sqlPreview": "SQL preview",
+    "discardChanges": "Discard",
+    "applyChanges": "Apply changes",
+    "colName": "Name",
+    "colType": "Type",
+    "colNullable": "Nullable",
+    "colDefault": "Default",
+    "colComment": "Comment",
+    "colActions": "Actions",
+    "deleteColumn": "Delete column"
   },
   "assertion": {
     "title": "Assertions",
@@ -2011,10 +2165,10 @@
     "cancelled": "Cancelled",
     "pending": "Pending",
     "noWorkflows": "No workflows yet",
-      "noWorkflowsHint": "Create your first workflow to orchestrate API requests and script nodes",
-      "addNode": "Add Node",
-      "addNodeHint": "Drag onto the canvas, or click to add at the default position",
-      "nodeConfig": "Node Config",
+    "noWorkflowsHint": "Create your first workflow to orchestrate API requests and script nodes",
+    "addNode": "Add Node",
+    "addNodeHint": "Drag onto the canvas, or click to add at the default position",
+    "nodeConfig": "Node Config",
     "variables": "Variables",
     "addVariable": "Add Variable",
     "variableKey": "Key",
@@ -2033,74 +2187,74 @@
     "searchNodes": "Search nodes...",
     "edgeLabel": "Edge Label",
     "edgeCondition": "Condition Expression",
-      "categories": {
-        "trigger": "Trigger",
-        "network": "Network",
-        "integration": "Integration",
-        "flow": "Flow Control",
-        "data": "Data",
-        "codec": "Codec",
-        "utility": "Utility",
-        "test": "Verify"
-      },
-      "nodeTypes": {
-        "httpRequest": "HTTP Request",
-        "wsSend": "WebSocket Send",
-        "tcpSend": "TCP Send",
-        "udpSend": "UDP Send",
-        "mqttPublish": "MQTT Publish",
-        "dbQuery": "Database Query",
-        "delay": "Delay",
-        "script": "Script",
-        "extractData": "Extract Data",
-        "jsonParse": "JSON Parse",
-        "jsonStringify": "JSON Stringify",
-        "textTransform": "Text Transform",
-        "base64Encode": "Base64 Encode",
-        "base64Decode": "Base64 Decode",
-        "urlEncode": "URL Encode",
-        "urlDecode": "URL Decode",
-        "hash": "Hash",
-        "condition": "Condition",
-        "loop": "Loop",
-        "parallel": "Parallel",
-        "setVariable": "Set Variable",
-        "timestamp": "Timestamp",
-        "uuid": "UUID",
-        "log": "Log",
-        "assertion": "Assertion",
-        "start": "Start",
-        "end": "End"
-      },
+    "categories": {
+      "trigger": "Trigger",
+      "network": "Network",
+      "integration": "Integration",
+      "flow": "Flow Control",
+      "data": "Data",
+      "codec": "Codec",
+      "utility": "Utility",
+      "test": "Verify"
+    },
+    "nodeTypes": {
+      "httpRequest": "HTTP Request",
+      "wsSend": "WebSocket Send",
+      "tcpSend": "TCP Send",
+      "udpSend": "UDP Send",
+      "mqttPublish": "MQTT Publish",
+      "dbQuery": "Database Query",
+      "delay": "Delay",
+      "script": "Script",
+      "extractData": "Extract Data",
+      "jsonParse": "JSON Parse",
+      "jsonStringify": "JSON Stringify",
+      "textTransform": "Text Transform",
+      "base64Encode": "Base64 Encode",
+      "base64Decode": "Base64 Decode",
+      "urlEncode": "URL Encode",
+      "urlDecode": "URL Decode",
+      "hash": "Hash",
+      "condition": "Condition",
+      "loop": "Loop",
+      "parallel": "Parallel",
+      "setVariable": "Set Variable",
+      "timestamp": "Timestamp",
+      "uuid": "UUID",
+      "log": "Log",
+      "assertion": "Assertion",
+      "start": "Start",
+      "end": "End"
+    },
     "nodeDescs": {
       "httpRequest": "Send HTTP/HTTPS request and get response",
       "wsSend": "Establish a WebSocket connection and send a message",
       "tcpSend": "Establish TCP connection and send data",
       "udpSend": "Send UDP datagram",
-        "mqttPublish": "Connect to an MQTT broker and publish a message",
-        "dbQuery": "Connect to a database and execute a query or statement",
-        "delay": "Pause for specified milliseconds",
-        "script": "Execute custom JavaScript code",
-        "extractData": "Extract data from previous node output",
-        "jsonParse": "Parse a string into a JSON value",
-        "jsonStringify": "Serialize an object or text into a JSON string",
-        "textTransform": "Trim, change case, or replace text",
-        "base64Encode": "Encode input to Base64",
-        "base64Decode": "Decode Base64 to plaintext",
-        "urlEncode": "Percent-encode text for URLs",
-        "urlDecode": "Decode percent-encoded URL text",
-        "hash": "Calculate a text digest",
-        "condition": "Branch based on condition",
-        "loop": "Repeat execution N times",
-        "parallel": "Execute sub-flows in parallel",
-        "setVariable": "Set or update a variable",
-        "timestamp": "Generate the current timestamp or ISO time",
-        "uuid": "Generate a new UUID",
-        "log": "Output log message to console",
-        "assertion": "Assert data matches expectation",
-        "start": "Flow start node",
-        "end": "Flow end node"
-      },
+      "mqttPublish": "Connect to an MQTT broker and publish a message",
+      "dbQuery": "Connect to a database and execute a query or statement",
+      "delay": "Pause for specified milliseconds",
+      "script": "Execute custom JavaScript code",
+      "extractData": "Extract data from previous node output",
+      "jsonParse": "Parse a string into a JSON value",
+      "jsonStringify": "Serialize an object or text into a JSON string",
+      "textTransform": "Trim, change case, or replace text",
+      "base64Encode": "Encode input to Base64",
+      "base64Decode": "Decode Base64 to plaintext",
+      "urlEncode": "Percent-encode text for URLs",
+      "urlDecode": "Decode percent-encoded URL text",
+      "hash": "Calculate a text digest",
+      "condition": "Branch based on condition",
+      "loop": "Repeat execution N times",
+      "parallel": "Execute sub-flows in parallel",
+      "setVariable": "Set or update a variable",
+      "timestamp": "Generate the current timestamp or ISO time",
+      "uuid": "Generate a new UUID",
+      "log": "Output log message to console",
+      "assertion": "Assert data matches expectation",
+      "start": "Flow start node",
+      "end": "Flow end node"
+    },
     "nodeFields": {
       "method": "Method",
       "url": "URL",
@@ -2135,57 +2289,57 @@
       "encoding": "Encoding",
       "timeout": "Timeout (ms)",
       "delayMs": "Delay (ms)",
-        "script": "Script Code",
-        "source": "Source",
-        "mode": "Mode",
-        "expression": "Expression",
-        "input": "Input",
-        "pretty": "Pretty Output",
-        "transformOperation": "Transform Operation",
-        "search": "Search",
-        "replacement": "Replacement",
-        "hashAlgorithm": "Hash Algorithm",
-        "timeFormat": "Time Format",
-        "condExpression": "Condition Expression",
-        "iterations": "Iterations",
-        "maxConcurrency": "Max Concurrency",
-        "varKey": "Variable Name",
-        "varValue": "Variable Value",
+      "script": "Script Code",
+      "source": "Source",
+      "mode": "Mode",
+      "expression": "Expression",
+      "input": "Input",
+      "pretty": "Pretty Output",
+      "transformOperation": "Transform Operation",
+      "search": "Search",
+      "replacement": "Replacement",
+      "hashAlgorithm": "Hash Algorithm",
+      "timeFormat": "Time Format",
+      "condExpression": "Condition Expression",
+      "iterations": "Iterations",
+      "maxConcurrency": "Max Concurrency",
+      "varKey": "Variable Name",
+      "varValue": "Variable Value",
       "logMessage": "Log Message",
       "logLevel": "Log Level",
       "assertTarget": "Assert Target",
-        "assertOperator": "Operator",
-        "assertExpected": "Expected Value",
-        "assertName": "Test Name"
-      },
-      "operations": {
-        "trim": "Trim Whitespace",
-        "uppercase": "Uppercase",
-        "lowercase": "Lowercase",
-        "replace": "Find & Replace"
-      },
-      "messageTypes": {
-        "text": "Text",
-        "hex": "Hex Binary"
-      },
-      "dbTypes": {
-        "postgresql": "PostgreSQL",
-        "mysql": "MySQL",
-        "sqlite": "SQLite",
-        "influxdb": "InfluxDB"
-      },
-      "dbModes": {
-        "query": "Query Result Set",
-        "statement": "Execute Statement"
-      },
-      "timeFormats": {
-        "iso8601": "ISO 8601",
-        "unix": "Unix Seconds",
-        "unixMs": "Unix Milliseconds"
-      },
-      "emptyCanvas": "Drag nodes from the left panel onto the canvas",
-      "selectNode": "Click a node to configure it",
-      "resultPanel": "Execution Results",
+      "assertOperator": "Operator",
+      "assertExpected": "Expected Value",
+      "assertName": "Test Name"
+    },
+    "operations": {
+      "trim": "Trim Whitespace",
+      "uppercase": "Uppercase",
+      "lowercase": "Lowercase",
+      "replace": "Find & Replace"
+    },
+    "messageTypes": {
+      "text": "Text",
+      "hex": "Hex Binary"
+    },
+    "dbTypes": {
+      "postgresql": "PostgreSQL",
+      "mysql": "MySQL",
+      "sqlite": "SQLite",
+      "influxdb": "InfluxDB"
+    },
+    "dbModes": {
+      "query": "Query Result Set",
+      "statement": "Execute Statement"
+    },
+    "timeFormats": {
+      "iso8601": "ISO 8601",
+      "unix": "Unix Seconds",
+      "unixMs": "Unix Milliseconds"
+    },
+    "emptyCanvas": "Drag nodes from the left panel onto the canvas",
+    "selectNode": "Click a node to configure it",
+    "resultPanel": "Execution Results",
     "noResults": "Run the workflow to see results",
     "menu": {
       "deleteNode": "Delete Node",
@@ -2255,5 +2409,18 @@
       "distributeV": "Distribute Vertically",
       "tooltip": "Align and distribute (≥2 nodes)"
     }
+  },
+  "activityLog": {
+    "dragToResize": "Drag to resize",
+    "title": "Activity Log",
+    "filterPlaceholder": "Filter /regex/",
+    "filterAll": "All",
+    "clear": "Clear",
+    "close": "Close",
+    "empty": "No entries",
+    "noMatches": "No matches",
+    "emptyHint": "Network and protocol activity appears here",
+    "noMatchesHint": "Adjust the filter or regex",
+    "sendToParser": "Send to protocol parser"
   }
 }

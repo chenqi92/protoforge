@@ -34,9 +34,7 @@ const sourceTone: Record<LogSource, string> = {
 };
 
 export function ActivityLogDock({ onClose }: { onClose: () => void }) {
-  const { i18n } = useTranslation();
-  const zh = i18n.language?.startsWith("zh") ?? true;
-  const tl = (zhText: string, enText: string) => (zh ? zhText : enText);
+  const { t } = useTranslation();
 
   const entries = useActivityLogStore((s) => s.entries);
   const filterRegex = useActivityLogStore((s) => s.filterRegex);
@@ -121,14 +119,14 @@ export function ActivityLogDock({ onClose }: { onClose: () => void }) {
       <div
         onPointerDown={startResize}
         className="absolute -top-[3px] left-0 right-0 z-10 h-[7px] cursor-row-resize hover:bg-accent/30"
-        title={tl("拖动调整高度", "Drag to resize")}
+        title={t('activityLog.dragToResize', '拖动调整高度')}
       />
 
       {/* Header */}
       <div className="flex shrink-0 items-center gap-2 border-b border-border-default px-3 py-1.5">
         <Activity className="h-3.5 w-3.5 shrink-0 text-accent" />
         <span className="pf-text-sm font-semibold text-text-primary">
-          {tl("活动日志", "Activity Log")}
+          {t('activityLog.title', '活动日志')}
         </span>
 
         <div className="ml-auto flex items-center gap-2">
@@ -138,7 +136,7 @@ export function ActivityLogDock({ onClose }: { onClose: () => void }) {
             <input
               value={filterRegex}
               onChange={(e) => handleFilterChange(e.target.value)}
-              placeholder={tl("正则过滤 /regex/", "Filter /regex/")}
+              placeholder={t('activityLog.filterPlaceholder', '正则过滤 /regex/')}
               className={cn(
                 "h-[24px] w-[180px] pf-rounded-sm border bg-bg-app pl-7 pr-2 font-mono pf-text-xs text-text-primary outline-none transition-all placeholder:text-text-tertiary",
                 regexError ? "border-error focus:border-error" : "border-border-default focus:border-accent",
@@ -152,7 +150,7 @@ export function ActivityLogDock({ onClose }: { onClose: () => void }) {
             value={sourceFilter}
             onChange={setSourceFilter}
             options={[
-              { value: "all", label: tl("全部", "All") },
+              { value: "all", label: t('activityLog.filterAll', '全部') },
               { value: "http", label: "HTTP" },
               { value: "ws", label: "WS" },
               { value: "err", label: "Err" },
@@ -163,14 +161,14 @@ export function ActivityLogDock({ onClose }: { onClose: () => void }) {
             onClick={clearAll}
             disabled={entries.length === 0}
             className="flex h-[24px] w-[24px] items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-error disabled:opacity-40"
-            title={tl("清空", "Clear")}
+            title={t('activityLog.clear', '清空')}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={onClose}
             className="flex h-[24px] w-[24px] items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
-            title={tl("关闭", "Close")}
+            title={t('activityLog.close', '关闭')}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -185,12 +183,12 @@ export function ActivityLogDock({ onClose }: { onClose: () => void }) {
               <Activity className="h-5 w-5" />
             </div>
             <span className="pf-text-sm font-medium text-text-secondary">
-              {entries.length === 0 ? tl("暂无记录", "No entries") : tl("无匹配记录", "No matches")}
+              {entries.length === 0 ? t('activityLog.empty', '暂无记录') : t('activityLog.noMatches', '无匹配记录')}
             </span>
             <span className="pf-text-xs text-text-disabled">
               {entries.length === 0
-                ? tl("网络与协议活动会实时记录在这里", "Network and protocol activity appears here")
-                : tl("调整过滤条件或正则表达式", "Adjust the filter or regex")}
+                ? t('activityLog.emptyHint', '网络与协议活动会实时记录在这里')
+                : t('activityLog.noMatchesHint', '调整过滤条件或正则表达式')}
             </span>
           </div>
         ) : (
@@ -213,7 +211,7 @@ export function ActivityLogDock({ onClose }: { onClose: () => void }) {
                   onClick={() => handleParse(entry)}
                   disabled={!entry.rawData}
                   className="flex h-5 w-5 items-center justify-center justify-self-end pf-rounded-sm text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-accent group-hover:opacity-100 disabled:opacity-0"
-                  title={tl("发送到协议解析器", "Send to protocol parser")}
+                  title={t('activityLog.sendToParser', '发送到协议解析器')}
                 >
                   <FileCode2 className="h-3.5 w-3.5" />
                 </button>

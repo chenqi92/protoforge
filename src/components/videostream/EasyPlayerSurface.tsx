@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader, MonitorPlay } from "lucide-react";
 import { loadEasyPlayer } from "@/lib/easyPlayerLoader";
 import type { EasyPlayerInstance, EasyPlayerOptions } from "@/types/easyplayer";
@@ -12,6 +13,7 @@ interface EasyPlayerSurfaceProps {
 }
 
 export function EasyPlayerSurface({ url, liveMode = true, onReady, onError, onPlayingChange }: EasyPlayerSurfaceProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<EasyPlayerInstance | null>(null);
   const onReadyRef = useRef(onReady);
@@ -77,7 +79,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError, onPl
 
     const init = async () => {
       setLoading(true);
-      setStatus("加载 EasyPlayer 内核...");
+      setStatus(t('video.easyplayer.loadingCore', '加载 EasyPlayer 内核...'));
 
       try {
         const EasyPlayerCtor = await loadEasyPlayer();
@@ -145,25 +147,25 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError, onPl
         });
         bind(player, "pause", () => {
           if (cancelled) return;
-          setStatus("已暂停");
+          setStatus(t('video.easyplayer.paused', '已暂停'));
           onPlayingChangeRef.current?.(false);
         });
         bind(player, "recordStart", () => {
           if (cancelled) return;
           clearStatusTimer();
-          setStatus("录制中...");
+          setStatus(t('video.easyplayer.recording', '录制中...'));
         });
         bind(player, "recordEnd", () => {
           if (cancelled) return;
-          flashStatus("录制已保存");
+          flashStatus(t('video.easyplayer.recordSaved', '录制已保存'));
         });
         bind(player, "screenshot", () => {
           if (cancelled) return;
-          flashStatus("截图已导出");
+          flashStatus(t('video.easyplayer.screenshotExported', '截图已导出'));
         });
         bind(player, "screenshots", () => {
           if (cancelled) return;
-          flashStatus("截图已导出");
+          flashStatus(t('video.easyplayer.screenshotExported', '截图已导出'));
         });
         bind(player, "videoInfo", (payload) => {
           if (cancelled || typeof payload !== "object" || !payload) return;
@@ -187,7 +189,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError, onPl
               ? payload.message
               : payload
                 ? JSON.stringify(payload)
-                : "播放器异常";
+                : t('video.easyplayer.playerError', '播放器异常');
           onErrorRef.current?.(`EasyPlayer: ${message}`);
         });
 
@@ -209,7 +211,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError, onPl
       cancelled = true;
       void destroyPlayer();
     };
-  }, [liveMode, url]);
+  }, [liveMode, t, url]);
 
   return (
     <div className="relative h-full w-full bg-black">
@@ -219,7 +221,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError, onPl
         <div className="absolute inset-0 flex items-center justify-center bg-black/55 pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-white/80">
             <Loader className="w-6 h-6 animate-spin" />
-            <span className="pf-text-xxs font-mono">{status || "播放器初始化中..."}</span>
+            <span className="pf-text-xxs font-mono">{status || t('video.easyplayer.initializing', '播放器初始化中...')}</span>
           </div>
         </div>
       )}
@@ -236,7 +238,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError, onPl
             <div className="mb-1 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-white/10 bg-white/5">
               <MonitorPlay className="h-6 w-6 text-white/40" />
             </div>
-            <span className="pf-text-sm font-medium text-white/70">等待可播放的媒体地址</span>
+            <span className="pf-text-sm font-medium text-white/70">{t('video.easyplayer.emptyTitle', '等待可播放的媒体地址')}</span>
           </div>
         </div>
       )}
