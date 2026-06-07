@@ -1641,7 +1641,8 @@
     "show": "展开",
     "collapse": "收起",
     "expand": "展开",
-    "description": "说明"
+    "description": "说明",
+    "more": "更多"
   },
   "import": {
     "title": "导入集合",

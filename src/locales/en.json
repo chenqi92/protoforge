@@ -1617,7 +1617,8 @@
     "show": "Show",
     "collapse": "Collapse",
     "expand": "Expand",
-    "description": "Description"
+    "description": "Description",
+    "more": "More"
   },
   "import": {
     "title": "Import Collection",

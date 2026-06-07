@@ -1,6 +1,6 @@
 import { lazy, memo, Suspense, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Square, Braces } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Square, Braces, MoreHorizontal, Server, Terminal as TerminalIcon } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,11 @@ import { ResponseViewer } from "@/components/ui/ResponseViewer";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
 import { buildCollectionItemFromHttpConfig, getCollectionRequestSignatureFromConfig, getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
+import { generateCurlFromItem } from "@/lib/curlGenerator";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { generateMockFromRequest } from "@/lib/crossTool";
+import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
+import { toast } from "sonner";
 import { persistScriptVariableUpdates } from "@/lib/requestVariables";
 import { recordRequestStat } from "@/components/plugins/RequestStatsPanel";
 import { buildRequestPayload, resolveHttpConfig, sendHttpRequest, sendRequestWithScripts } from "@/services/httpService";
@@ -67,6 +72,9 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
   const setError = useAppStore((s) => s.setError);
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
   const saveRequestToCollection = useCollectionStore((s) => s.saveRequest);
+
+  const { showMenu, MenuComponent } = useContextMenu();
+  const moreBtnRef = useRef<HTMLButtonElement>(null);
 
   const [reqTab, setReqTab] = useState<"params" | "headers" | "body" | "auth" | "pre-script" | "post-script" | "tests">("params");
   const [resTab, setResTab] = useState<"body" | "headers" | "cookies" | "timing" | "tests">("body");
@@ -444,6 +452,39 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
     }
   }, [response]);
 
+  const handleGenerateMock = useCallback(() => {
+    generateMockFromRequest({
+      method: config.method,
+      url: config.url,
+      responseExample: activeTab.httpResponse?.body || "",
+      name: config.name,
+    });
+  }, [config.method, config.url, config.name, activeTab.httpResponse]);
+
+  const handleCopyAsCurl = useCallback(async () => {
+    const now = new Date().toISOString();
+    const item = buildCollectionItemFromHttpConfig({
+      config,
+      itemId: tabId,
+      collectionId: activeTab.linkedCollectionId ?? "",
+      parentId: null,
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const curl = generateCurlFromItem(item, activeTab.linkedCollectionId ?? null);
+    await copyTextToClipboard(curl);
+    toast.success(t('common.copied', '已复制'));
+  }, [config, tabId, activeTab.linkedCollectionId, t]);
+
+  const handleMoreMenu = useCallback((e: React.MouseEvent) => {
+    const menuItems: ContextMenuEntry[] = [
+      { id: "generate-mock", label: t('sidebar.generateMock'), icon: <Server className="w-3.5 h-3.5" />, onClick: handleGenerateMock },
+      { id: "copy-curl", label: t('capture.menu.copyCurl', '复制为 cURL'), icon: <TerminalIcon className="w-3.5 h-3.5" />, onClick: () => void handleCopyAsCurl() },
+    ];
+    showMenu(e, menuItems);
+  }, [t, handleGenerateMock, handleCopyAsCurl, showMenu]);
+
   const handleRequestKindChange = useCallback((kind: RequestKind) => {
     const activeKind: RequestKind = activeTab.protocol === "http" && config.requestMode === "graphql"
       ? "graphql"
@@ -711,6 +752,15 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 <Flame className="w-3.5 h-3.5" />
               </button>
               <ExportPluginDropdown config={config} />
+              <button
+                ref={moreBtnRef}
+                onClick={handleMoreMenu}
+                className="wb-icon-btn hover:text-accent"
+                title={t('common.more', '更多')}
+                disabled={!config.url.trim()}
+              >
+                <MoreHorizontal className="w-3.5 h-3.5" />
+              </button>
 
             </div>
             {!isSseMode && loading ? (
@@ -1300,6 +1350,8 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
         config={config}
         onSaved={syncSavedCollectionBinding}
       />
+
+      {MenuComponent}
     </div>
   );
 });
