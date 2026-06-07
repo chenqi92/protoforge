@@ -962,6 +962,13 @@
     }
   },
   "capture": {
+    "menu": {
+      "replay": "Replay request",
+      "editInHttp": "Edit & resend in HTTP",
+      "sendToParser": "Send to protocol parser",
+      "copyCurl": "Copy as cURL",
+      "breakpoint": "Add breakpoint"
+    },
     "proxyRunning": "Proxy running on",
     "proxyStopped": "Capture Stopped",
     "port": "Port",
@@ -1264,12 +1271,24 @@
     "scripts": "Scripts",
     "runner": "Runner"
   },
+  "video": {
+    "status": {
+      "live": "LIVE",
+      "paused": "Paused"
+    },
+    "onvif": {
+      "empty": "No devices found",
+      "emptyHint": "No ONVIF devices found after scanning — connect manually below"
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",
     "save": "Save",
     "delete": "Delete",
     "close": "Close",
+    "copy": "Copy",
+    "copied": "Copied",
     "refresh": "Refresh",
     "loading": "Loading...",
     "noData": "No data",

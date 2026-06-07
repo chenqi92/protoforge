@@ -33,6 +33,7 @@ export function OnvifPanel({
   const [presets, setPresets] = useState<OnvifPreset[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<string>('');
   const [discovering, setDiscovering] = useState(false);
+  const [hasScanned, setHasScanned] = useState(false);
   const [discoveredDevices, setDiscoveredDevices] = useState<{ host: string; port: number; name?: string }[]>([]);
   const [ptzSpeed, setPtzSpeed] = useState(5);
   const [newPresetName, setNewPresetName] = useState('');
@@ -55,6 +56,7 @@ export function OnvifPanel({
       const devices = await vsSvc.onvifDiscover();
       setDiscoveredDevices(devices as typeof discoveredDevices);
     } catch { /* */ }
+    setHasScanned(true);
     setDiscovering(false);
   }, []);
 
@@ -166,6 +168,19 @@ export function OnvifPanel({
                     <ChevronRight className="w-3 h-3 text-text-tertiary shrink-0" />
                   </button>
                 ))}
+              </div>
+            )}
+            {hasScanned && !discovering && discoveredDevices.length === 0 && (
+              <div className="flex flex-col items-center gap-1.5 pf-rounded-sm border border-border-default bg-bg-secondary px-4 py-5 text-center">
+                <div className="mb-0.5 flex h-12 w-12 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+                  <Video className="h-6 w-6 text-text-disabled/70" />
+                </div>
+                <span className="pf-text-xs font-medium text-text-secondary">
+                  {t('video.onvif.empty', '未发现设备')}
+                </span>
+                <span className="pf-text-3xs leading-relaxed text-text-disabled/80">
+                  {t('video.onvif.emptyHint', '扫描完成后未发现 ONVIF 设备，可在下方手动输入地址连接')}
+                </span>
               </div>
             )}
           </div>

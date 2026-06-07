@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Play, Square, Trash2, Shield, Search,
   ArrowUpDown, X, Lightbulb, Clock, Globe,
+  Send, Cpu, Copy, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -14,6 +15,10 @@ import type { CapturedEntry } from "@/types/capture";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
+import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { useAppStore } from "@/stores/appStore";
+import type { HttpMethod, KeyValue } from "@/types/http";
 
 // ── HTTP Method → Forge .pf-mtag tone class ──
 function methodTagClass(method: string): string {
@@ -54,6 +59,78 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(2)} s`;
 }
 
+// ── 抓包条目 → 完整 raw HTTP 报文（请求行 + 响应行，供协议解析器使用）──
+function buildRawEntryText(entry: CapturedEntry): string {
+  const httpVer = entry.httpVersion?.replace("HTTP_", "HTTP/").replace("_", ".") || "HTTP/1.1";
+  const pathAndQuery = (() => {
+    try {
+      const u = new URL(entry.url);
+      return u.pathname + u.search;
+    } catch {
+      return entry.path?.startsWith("/") ? entry.path : `/${entry.path || ""}`;
+    }
+  })();
+
+  const lines: string[] = [];
+  lines.push(`${entry.method} ${pathAndQuery} ${httpVer}`);
+  for (const [k, v] of entry.requestHeaders) lines.push(`${k}: ${v}`);
+  lines.push("");
+  if (entry.requestBody) lines.push(entry.requestBody);
+
+  lines.push("");
+  lines.push(`${httpVer} ${entry.status ?? "?"} ${entry.statusText ?? ""}`.trimEnd());
+  for (const [k, v] of entry.responseHeaders) lines.push(`${k}: ${v}`);
+  lines.push("");
+  if (entry.responseBody) lines.push(entry.responseBody);
+
+  return lines.join("\n");
+}
+
+// ── 抓包条目 → cURL（从 method/url/headers/body 直接构建，签名与 CapturedEntry 对齐）──
+function buildCurlFromEntry(entry: CapturedEntry): string {
+  const sq = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+  const parts: string[] = ["curl"];
+  const method = (entry.method || "GET").toUpperCase();
+  if (method !== "GET") parts.push(`-X ${method}`);
+
+  for (const [k, v] of entry.requestHeaders) {
+    const lk = k.toLowerCase();
+    // 跳过 HTTP/2 伪首部（:method/:path/...），cURL 不接受
+    if (lk.startsWith(":")) continue;
+    parts.push(`-H ${sq(`${k}: ${v}`)}`);
+  }
+
+  if (entry.requestBody) parts.push(`--data-raw ${sq(entry.requestBody)}`);
+
+  parts.push(sq(entry.url));
+  return parts.join(" \\\n  ");
+}
+
+// ── 抓包条目 → HTTP 工作区预填项 ──
+function entryToHttpPrefill(entry: CapturedEntry): {
+  method: HttpMethod;
+  url: string;
+  headers: KeyValue[];
+  bodyType: "none" | "raw";
+  rawBody: string;
+} {
+  const allowed: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+  const upper = (entry.method || "GET").toUpperCase() as HttpMethod;
+  const method = allowed.includes(upper) ? upper : "GET";
+  const headers: KeyValue[] = entry.requestHeaders
+    .filter(([k]) => !k.startsWith(":"))
+    .map(([key, value]) => ({ key, value, enabled: true }));
+  headers.push({ key: "", value: "", enabled: true });
+  const rawBody = entry.requestBody || "";
+  return {
+    method,
+    url: entry.url,
+    headers,
+    bodyType: rawBody ? "raw" : "none",
+    rawBody,
+  };
+}
+
 export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
   const running = useCaptureStore(sessionId, (s) => s.running);
@@ -71,6 +148,8 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
   const setDetailTab = useCaptureStore(sessionId, (s) => s.setDetailTab);
   const exportCaCert = useCaptureStore(sessionId, (s) => s.exportCaCert);
   const storeError = useCaptureStore(sessionId, (s) => s.error);
+
+  const { showMenu, MenuComponent } = useContextMenu();
 
   const [portInput, setPortInput] = useState(String(port));
   const [caPath, setCaPath] = useState<string | null>(null);
@@ -188,6 +267,72 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       toast.error("打开浏览器失败: " + String(e));
     }
   }, [running, browserUrl, portInput]);
+
+  // 请求行右键菜单 — 对齐原型 RequestRow context menu
+  const handleRowContextMenu = useCallback((e: React.MouseEvent, entry: CapturedEntry) => {
+    const items: ContextMenuEntry[] = [
+      {
+        id: "replay",
+        label: t('capture.menu.replay', '重放请求'),
+        icon: <Send className="h-3.5 w-3.5" />,
+        onClick: () => {
+          // 暂无代理重放后端 — 与原型一致，提示占位
+          toast(t('capture.menu.replay', '重放请求'));
+        },
+      },
+      {
+        id: "editInHttp",
+        label: t('capture.menu.editInHttp', '在 HTTP 中编辑重发'),
+        icon: <Pencil className="h-3.5 w-3.5" />,
+        onClick: () => {
+          const store = useAppStore.getState();
+          const prefill = entryToHttpPrefill(entry);
+          const tabId = store.addTab("http");
+          store.updateHttpConfig(tabId, {
+            method: prefill.method,
+            url: prefill.url,
+            headers: prefill.headers,
+            bodyType: prefill.bodyType,
+            rawBody: prefill.rawBody,
+            ...(prefill.bodyType === "raw"
+              ? { rawContentType: entry.requestContentType || "text/plain" }
+              : {}),
+          });
+        },
+      },
+      {
+        id: "sendToParser",
+        label: t('capture.menu.sendToParser', '发送到协议解析器'),
+        icon: <Cpu className="h-3.5 w-3.5" />,
+        onClick: () => {
+          window.dispatchEvent(
+            new CustomEvent("parse-protocol", { detail: { data: buildRawEntryText(entry) } })
+          );
+        },
+      },
+      {
+        id: "copyCurl",
+        label: t('capture.menu.copyCurl', '复制为 cURL'),
+        icon: <Copy className="h-3.5 w-3.5" />,
+        onClick: () => {
+          copyTextToClipboard(buildCurlFromEntry(entry))
+            .then(() => toast.success(t('common.copied', '已复制')))
+            .catch(() => toast.error(String(t('common.copy', '复制'))));
+        },
+      },
+      { type: "divider" },
+      {
+        id: "breakpoint",
+        label: t('capture.menu.breakpoint', '添加断点'),
+        icon: <Shield className="h-3.5 w-3.5" />,
+        onClick: () => {
+          // 暂无断点后端 — 与原型一致，提示占位
+          toast(t('capture.menu.breakpoint', '添加断点'));
+        },
+      },
+    ];
+    showMenu(e, items);
+  }, [showMenu, t]);
 
   // 过滤后的条目
   const filteredEntries = useMemo(() => (
@@ -472,6 +617,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                     entry={entry}
                     isSelected={entry.id === selectedEntryId}
                     onSelect={setSelectedEntry}
+                    onContextMenu={handleRowContextMenu}
                   />
                 ))}
                 {filteredEntries.length > MAX_VISIBLE_CAPTURE_ENTRIES && (
@@ -502,6 +648,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
         </div>
       )}
       </div>
+      {MenuComponent}
     </div>
   );
 });
@@ -577,12 +724,15 @@ const RequestRow = memo(function RequestRow({
   entry,
   isSelected,
   onSelect,
+  onContextMenu,
 }: {
   entry: CapturedEntry;
   isSelected: boolean;
   onSelect: (id: string) => void;
+  onContextMenu: (e: React.MouseEvent, entry: CapturedEntry) => void;
 }) {
   const onClick = useCallback(() => onSelect(entry.id), [entry.id, onSelect]);
+  const handleContextMenu = useCallback((e: React.MouseEvent) => onContextMenu(e, entry), [entry, onContextMenu]);
   const mtagClass = methodTagClass(entry.method);
 
   // 精简 content-type 显示
@@ -593,6 +743,7 @@ const RequestRow = memo(function RequestRow({
   return (
     <div
       onClick={onClick}
+      onContextMenu={handleContextMenu}
       className={cn(
         "flex items-center h-[30px] px-3 cursor-pointer transition-colors border-b border-border-subtle/40",
         isSelected

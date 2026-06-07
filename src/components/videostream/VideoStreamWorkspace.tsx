@@ -339,6 +339,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
   const [showPlayer, setShowPlayer] = useState(false);
   const [playerUrl, setPlayerUrl] = useState<string | null>(null);
   const [playbackReady, setPlaybackReady] = useState(false);
+  const [surfacePlaying, setSurfacePlaying] = useState(true);
   const [playbackPathLabel, setPlaybackPathLabel] = useState<string | null>(null);
 
   const refreshFfmpegStatus = useCallback(async () => {
@@ -455,6 +456,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
     setPlayerUrl(playbackTarget.engine === "tauri-mse" || !playbackTarget.requiresPlayerLoad ? playbackTarget.url : null);
     setShowPlayer(true);
     setPlaying(true);
+    setSurfacePlaying(true);
     setConnecting(true);
     if (playbackTarget.engine === "tauri-mse") {
       await new Promise(r => requestAnimationFrame(() => setTimeout(r, 50)));
@@ -785,6 +787,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                           onStop={() => {
                             void handleDisconnectPlayer();
                           }}
+                          onPlayingChange={setSurfacePlaying}
                           onReady={() => {
                             setConnecting(false);
                             setConnected(true);
@@ -808,9 +811,13 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                           </div>
                         )}
                         <div className="pointer-events-none absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10">
-                          <span className={cn("pf-pill", playbackReady ? "err" : connecting ? "warn" : "")}>
-                            <span className={cn("pf-dot", playbackReady ? "s-live" : connecting ? "s-conn" : "s-idle")} />
-                            {playbackReady ? "LIVE" : connecting ? "启动中" : "等待中"}
+                          <span className={cn("pf-pill", playbackReady ? (surfacePlaying ? "err" : "") : connecting ? "warn" : "")}>
+                            <span className={cn("pf-dot", playbackReady ? (surfacePlaying ? "s-live" : "s-idle") : connecting ? "s-conn" : "s-idle")} />
+                            {playbackReady
+                              ? surfacePlaying
+                                ? t('video.status.live', '直播')
+                                : t('video.status.paused', '已暂停')
+                              : connecting ? "启动中" : "等待中"}
                           </span>
                           <span className="pf-pill">{getPlaybackTransportLabel(effectivePlaybackMode)}</span>
                           {playbackReady && streamInfo && streamInfo.width > 0 ? (

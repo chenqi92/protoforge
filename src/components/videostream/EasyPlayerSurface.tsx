@@ -8,19 +8,22 @@ interface EasyPlayerSurfaceProps {
   liveMode?: boolean;
   onReady?: () => void;
   onError?: (msg: string) => void;
+  onPlayingChange?: (playing: boolean) => void;
 }
 
-export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: EasyPlayerSurfaceProps) {
+export function EasyPlayerSurface({ url, liveMode = true, onReady, onError, onPlayingChange }: EasyPlayerSurfaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<EasyPlayerInstance | null>(null);
   const onReadyRef = useRef(onReady);
   const onErrorRef = useRef(onError);
+  const onPlayingChangeRef = useRef(onPlayingChange);
   const statusTimerRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
 
   onReadyRef.current = onReady;
   onErrorRef.current = onError;
+  onPlayingChangeRef.current = onPlayingChange;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -134,6 +137,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
           clearStatusTimer();
           setLoading(false);
           setStatus("");
+          onPlayingChangeRef.current?.(true);
           if (!readyNotified) {
             readyNotified = true;
             onReadyRef.current?.();
@@ -142,6 +146,7 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
         bind(player, "pause", () => {
           if (cancelled) return;
           setStatus("已暂停");
+          onPlayingChangeRef.current?.(false);
         });
         bind(player, "recordStart", () => {
           if (cancelled) return;

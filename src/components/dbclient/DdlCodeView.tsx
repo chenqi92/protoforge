@@ -1,6 +1,7 @@
 // DDL 代码视图 — DataGrip 风格，带行号和语法高亮
 
 import { memo, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Copy, Check } from "lucide-react";
 
 // SQL 关键字高亮
@@ -21,6 +22,7 @@ const SQL_KEYWORDS = new Set([
 const SQL_VALUES = new Set(["true", "false", "null", "current_timestamp"]);
 
 export const DdlCodeView = memo(function DdlCodeView({ text, showToolbar = true }: { text: string; showToolbar?: boolean }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const lines = text.split("\n");
 
@@ -38,7 +40,7 @@ export const DdlCodeView = memo(function DdlCodeView({ text, showToolbar = true 
           <button onClick={handleCopy}
             className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors">
             {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
-            <span>{copied ? "已复制" : "复制"}</span>
+            <span>{copied ? t("common.copied", "已复制") : t("common.copy", "复制")}</span>
           </button>
         </div>
       )}

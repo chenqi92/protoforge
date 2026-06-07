@@ -18,6 +18,7 @@ interface NativeVideoSurfaceProps {
   onError?: (msg: string) => void;
   onReady?: () => void;
   onStop?: () => void;
+  onPlayingChange?: (playing: boolean) => void;
   liveMode?: boolean;
 }
 
@@ -88,12 +89,18 @@ function preferredRecorderMimeType(): string | undefined {
   return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
 }
 
-export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, liveMode = true }: NativeVideoSurfaceProps) {
+export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, onPlayingChange, liveMode = true }: NativeVideoSurfaceProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordChunksRef = useRef<Blob[]>([]);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlayingState] = useState(false);
+  const onPlayingChangeRef = useRef(onPlayingChange);
+  onPlayingChangeRef.current = onPlayingChange;
+  const setPlaying = useCallback((next: boolean) => {
+    setPlayingState(next);
+    onPlayingChangeRef.current?.(next);
+  }, []);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(80);
   const [loading, setLoading] = useState(false);
