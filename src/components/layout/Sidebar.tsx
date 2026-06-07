@@ -7,6 +7,7 @@ import {
   MoreHorizontal, Folder, Zap, Edit3, Trash2, ExternalLink, Copy, FolderPlus,
   ChevronsUpDown, BarChart3, Server, CopyPlus, FolderInput,
   Radio, Database, Video, Gauge, Waves, Wrench, Network, Wifi,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ import {
 import { useCollectionStore } from "@/stores/collectionStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import { getMockServerStoreApi } from "@/stores/mockServerStore";
+import { sendRequestToWorkflow } from "@/lib/crossTool";
 import { useEnvStore } from "@/stores/envStore";
 import { ImportModal } from "@/components/collections/ImportModal";
 import type { HistoryEntrySummary, CollectionItem } from '@/types/collections';
@@ -953,6 +955,38 @@ function CollectionsView({ search, expanded, setExpanded }: {
     }, 100);
   }, [openToolTab]);
 
+  const handleSendToWorkflow = useCallback((item: CollectionItem) => {
+    // CollectionItem stores headers/queryParams as JSON-serialized KeyValue[].
+    const toRecord = (raw: string | undefined): Record<string, string> => {
+      const out: Record<string, string> = {};
+      if (!raw) return out;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          for (const p of parsed) {
+            const key = typeof p?.key === 'string' ? p.key.trim() : '';
+            const enabled = p?.enabled !== false;
+            if (key && enabled) out[key] = typeof p.value === 'string' ? p.value : String(p?.value ?? '');
+          }
+        } else if (parsed && typeof parsed === 'object') {
+          // Legacy object format
+          for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+            if (k.trim()) out[k] = String(v ?? '');
+          }
+        }
+      } catch { /* ignore malformed */ }
+      return out;
+    };
+    void sendRequestToWorkflow({
+      name: item.name,
+      method: item.method || 'GET',
+      url: item.url || '',
+      headers: toRecord(item.headers),
+      queryParams: toRecord(item.queryParams),
+      body: item.bodyContent || '',
+    });
+  }, []);
+
   const handleItemContextMenu = (e: React.MouseEvent, item: CollectionItem) => {
     // Build "Copy to Collection" entries for other collections
     const copyToEntries: ContextMenuEntry[] = collections
@@ -976,6 +1010,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
       ] : []),
       { type: "divider" },
       { id: "generate-mock", label: t('sidebar.generateMock'), icon: <Server className="w-3.5 h-3.5" />, onClick: () => handleGenerateMock(item) },
+      { id: "send-to-workflow", label: t('sidebar.sendToWorkflow', '转为 Workflow'), icon: <Workflow className="w-3.5 h-3.5" />, onClick: () => handleSendToWorkflow(item) },
       { type: "divider" },
       { id: "delete", label: t('contextMenu.delete'), icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, onClick: () => deleteItem(item.id, item.collectionId) },
     ];
