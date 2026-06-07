@@ -35,3 +35,34 @@ export interface ProxyStatusInfo {
   port: number;
   entryCount: number;
 }
+
+/** 断点匹配规则 — 与 Rust BreakpointRule 对齐 */
+export interface BreakpointRule {
+  id: string;
+  /** 为空表示通配；非空时需匹配（method 精确、host/path 包含） */
+  method?: string;
+  host?: string;
+  path?: string;
+  enabled: boolean;
+}
+
+/** 命中断点后被挂起的请求 — 与 Rust PausedRequest 对齐 */
+export interface PausedRequest {
+  sessionId: string;
+  id: string;
+  method: string;
+  url: string;
+  host: string;
+  path: string;
+  requestHeaders: [string, string][];
+  requestBody?: string;
+  timestamp: string;
+}
+
+/** 放行时携带的修改 — 与 Rust ResumeModification 对齐（全部可选） */
+export interface ResumeModification {
+  method?: string;
+  url?: string;
+  headers?: [string, string][];
+  body?: string;
+}

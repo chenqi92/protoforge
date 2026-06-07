@@ -298,6 +298,11 @@ pub fn run() {
             commands::proxy_install_ca,
             commands::proxy_check_ca_trusted,
             commands::proxy_test_connection,
+            commands::proxy_replay_entry,
+            commands::proxy_set_breakpoints,
+            commands::proxy_list_breakpoints,
+            commands::proxy_list_paused,
+            commands::proxy_resume,
             // Plugins
             commands::plugin_list,
             commands::plugin_list_available,

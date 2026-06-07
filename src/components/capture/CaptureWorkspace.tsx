@@ -7,11 +7,19 @@ import {
   Play, Square, Trash2, Shield, Search,
   ArrowUpDown, X, Lightbulb, Clock, Globe,
   Send, Cpu, Copy, Pencil,
+  Ban, Plus, ArrowRight, Pause,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { useCaptureStore, getCaptureStore, destroyCaptureStore } from "@/stores/captureStore";
-import type { CapturedEntry } from "@/types/capture";
+import type { BreakpointRule, CapturedEntry, PausedRequest, ResumeModification } from "@/types/capture";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
@@ -149,12 +157,22 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
   const exportCaCert = useCaptureStore(sessionId, (s) => s.exportCaCert);
   const storeError = useCaptureStore(sessionId, (s) => s.error);
 
+  const replayEntry = useCaptureStore(sessionId, (s) => s.replayEntry);
+  const breakpoints = useCaptureStore(sessionId, (s) => s.breakpoints);
+  const pausedRequests = useCaptureStore(sessionId, (s) => s.pausedRequests);
+  const addBreakpoint = useCaptureStore(sessionId, (s) => s.addBreakpoint);
+  const removeBreakpoint = useCaptureStore(sessionId, (s) => s.removeBreakpoint);
+  const toggleBreakpoint = useCaptureStore(sessionId, (s) => s.toggleBreakpoint);
+  const resumePaused = useCaptureStore(sessionId, (s) => s.resumePaused);
+
   const { showMenu, MenuComponent } = useContextMenu();
 
   const [portInput, setPortInput] = useState(String(port));
   const [caPath, setCaPath] = useState<string | null>(null);
   const [caInstallStatus, setCaInstallStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [caTrusted, setCaTrusted] = useState<boolean | null>(null); // null = 未检查
+  const [showBreakpoints, setShowBreakpoints] = useState(false);
+  const [editingPaused, setEditingPaused] = useState<PausedRequest | null>(null);
   const listEndRef = useRef<HTMLDivElement>(null);
 
   // 检查 CA 是否已信任
@@ -177,13 +195,24 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
   // 初始化事件监听
   useEffect(() => {
     const store = getCaptureStore(sessionId);
-    const { refreshStatus: refresh, loadEntries: load, initListener: init } = store.getState();
+    const {
+      refreshStatus: refresh,
+      loadEntries: load,
+      initListener: init,
+      loadBreakpoints: loadBp,
+      loadPaused: loadPs,
+    } = store.getState();
     refresh();
     load();
+    loadBp();
+    loadPs();
     const unlistenPromise = init();
     return () => {
-      unlistenPromise.then((fn) => fn());
-      destroyCaptureStore(sessionId);
+      // 先解绑事件监听，再销毁 store，避免监听器尚未注册完成就被移出 map
+      unlistenPromise.then((fn) => {
+        fn();
+        destroyCaptureStore(sessionId);
+      });
     };
   }, [sessionId]);
 
@@ -276,8 +305,18 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
         label: t('capture.menu.replay', '重放请求'),
         icon: <Send className="h-3.5 w-3.5" />,
         onClick: () => {
-          // 暂无代理重放后端 — 与原型一致，提示占位
-          toast(t('capture.menu.replay', '重放请求'));
+          const tid = toast.loading(t('capture.replaying', '正在重放请求…'));
+          replayEntry(entry.id)
+            .then((res) => {
+              setSelectedEntry(res.id);
+              toast.success(
+                t('capture.replaySuccess', '重放完成 · HTTP {{status}}', { status: res.status ?? '—' }),
+                { id: tid }
+              );
+            })
+            .catch((e) => {
+              toast.error(t('capture.replayFailed', '重放失败: ') + String(e), { id: tid });
+            });
         },
       },
       {
@@ -324,15 +363,24 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       {
         id: "breakpoint",
         label: t('capture.menu.breakpoint', '添加断点'),
-        icon: <Shield className="h-3.5 w-3.5" />,
+        icon: <Ban className="h-3.5 w-3.5" />,
         onClick: () => {
-          // 暂无断点后端 — 与原型一致，提示占位
-          toast(t('capture.menu.breakpoint', '添加断点'));
+          addBreakpoint({ method: entry.method, host: entry.host, path: entry.path, enabled: true })
+            .then(() =>
+              toast.success(
+                t('capture.breakpointAdded', '已添加断点：{{method}} {{host}}{{path}}', {
+                  method: entry.method,
+                  host: entry.host,
+                  path: entry.path,
+                })
+              )
+            )
+            .catch((err) => toast.error(String(err)));
         },
       },
     ];
     showMenu(e, items);
-  }, [showMenu, t]);
+  }, [showMenu, t, replayEntry, setSelectedEntry, addBreakpoint]);
 
   // 过滤后的条目
   const filteredEntries = useMemo(() => (
@@ -405,6 +453,30 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
               <Shield className="h-3.5 w-3.5" />
               {t('capture.caCert')}
             </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowBreakpoints((v) => !v)}
+                className={cn("wb-ghost-btn", breakpoints.some((b) => b.enabled) && "text-accent")}
+                title={t('capture.breakpoints', '断点')}
+              >
+                <Ban className="h-3.5 w-3.5" />
+                {t('capture.breakpoints', '断点')}
+                {breakpoints.length > 0 && (
+                  <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent/15 px-1 pf-text-3xs font-semibold text-accent">
+                    {breakpoints.length}
+                  </span>
+                )}
+              </button>
+              {showBreakpoints && (
+                <BreakpointsPanel
+                  rules={breakpoints}
+                  onAdd={addBreakpoint}
+                  onToggle={toggleBreakpoint}
+                  onRemove={removeBreakpoint}
+                  onClose={() => setShowBreakpoints(false)}
+                />
+              )}
+            </div>
             <div className="relative">
               <button
                 onClick={() => running ? setShowBrowserInput(!showBrowserInput) : undefined}
@@ -572,6 +644,66 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
         )}
       </AnimatePresence>
 
+      {/* 断点命中 — 挂起请求面板 */}
+      <AnimatePresence>
+        {pausedRequests.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-3 pf-rounded-md border border-warning/30 bg-warning/[0.08] px-4 py-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="pf-status-chip">
+                  <span className="pf-dot s-conn" />
+                  {t('capture.pausedTitle', '断点命中 · 等待放行')}
+                </span>
+                <span className="pf-pill warn">{pausedRequests.length}</span>
+                <span className="flex-1" />
+                <button
+                  onClick={() => pausedRequests.forEach((p) => resumePaused(p.id))}
+                  className="wb-ghost-btn pf-text-xxs"
+                  title={t('capture.resumeAll', '全部放行')}
+                >
+                  <ArrowRight className="h-3.5 w-3.5" />
+                  {t('capture.resumeAll', '全部放行')}
+                </button>
+              </div>
+              <div className="space-y-1">
+                {pausedRequests.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-2 pf-rounded-sm bg-bg-secondary/40 px-2.5 py-1.5"
+                  >
+                    <span className={cn("pf-mtag pf-text-3xs", methodTagClass(p.method))}>{p.method}</span>
+                    <span className="flex-1 min-w-0 truncate font-mono pf-text-xxs" title={p.url}>
+                      <span className="text-text-tertiary">{p.host}</span>
+                      <span className="text-text-primary">{p.path}</span>
+                    </span>
+                    <button
+                      onClick={() => setEditingPaused(p)}
+                      className="wb-icon-btn"
+                      title={t('capture.pausedEdit', '查看 / 编辑')}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => resumePaused(p.id)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 pf-rounded-sm bg-accent hover:bg-accent-hover text-white pf-text-xxs font-semibold transition-colors"
+                      title={t('capture.resume', '放行')}
+                    >
+                      <ArrowRight className="h-3 w-3" />
+                      {t('capture.resume', '放行')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 运行状态指示 */}
       {running && (
         <div className="relative mt-3 h-[2px] shrink-0 overflow-hidden rounded-full bg-accent/20">
@@ -648,12 +780,286 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
         </div>
       )}
       </div>
+      {editingPaused && (
+        <PausedEditor
+          paused={editingPaused}
+          onResume={resumePaused}
+          onClose={() => setEditingPaused(null)}
+        />
+      )}
       {MenuComponent}
     </div>
   );
 });
 
 CaptureWorkspace.displayName = "CaptureWorkspace";
+
+// ── 断点规则管理面板（弹出层）──
+function BreakpointsPanel({
+  rules,
+  onAdd,
+  onToggle,
+  onRemove,
+  onClose,
+}: {
+  rules: BreakpointRule[];
+  onAdd: (rule: Omit<BreakpointRule, "id">) => Promise<void>;
+  onToggle: (id: string) => Promise<void>;
+  onRemove: (id: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [method, setMethod] = useState("");
+  const [host, setHost] = useState("");
+  const [path, setPath] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose();
+    };
+    // 延迟绑定，避免触发本次打开的点击
+    const id = setTimeout(() => document.addEventListener("mousedown", handler), 0);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener("mousedown", handler);
+    };
+  }, [onClose]);
+
+  const methods = ["", "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+
+  const handleAdd = () => {
+    if (!host.trim() && !path.trim() && !method.trim()) return;
+    onAdd({
+      method: method.trim() || undefined,
+      host: host.trim() || undefined,
+      path: path.trim() || undefined,
+      enabled: true,
+    });
+    setHost("");
+    setPath("");
+    setMethod("");
+  };
+
+  return (
+    <div
+      ref={panelRef}
+      className="absolute right-0 top-full mt-1 z-50 w-[360px] pf-rounded-md border border-border-default bg-bg-primary p-2.5 shadow-lg"
+    >
+      <div className="flex items-center justify-between mb-2 px-0.5">
+        <span className="pf-text-xs font-semibold text-text-primary">
+          {t('capture.breakpointRules', '断点规则')}
+        </span>
+        <span className="pf-text-xxs text-text-tertiary">
+          {t('capture.breakpointRulesHint', '命中的请求将被挂起等待放行')}
+        </span>
+      </div>
+
+      {/* 规则列表 */}
+      <div className="max-h-[200px] overflow-auto space-y-1">
+        {rules.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <div className="w-10 h-10 mb-2 rounded-xl bg-accent/5 flex items-center justify-center border border-border-default/60">
+              <Ban className="w-4 h-4 text-accent/40" />
+            </div>
+            <p className="pf-text-xxs text-text-tertiary">
+              {t('capture.noBreakpoints', '暂无断点规则')}
+            </p>
+          </div>
+        ) : (
+          rules.map((r) => (
+            <div
+              key={r.id}
+              className="flex items-center gap-1.5 pf-rounded-sm bg-bg-secondary/40 px-2 py-1.5"
+            >
+              <button
+                onClick={() => onToggle(r.id)}
+                className={cn(
+                  "shrink-0 inline-flex items-center",
+                  r.enabled ? "text-accent" : "text-text-disabled"
+                )}
+                title={r.enabled ? t('capture.bpEnabled', '已启用') : t('capture.bpDisabled', '已停用')}
+              >
+                <span className={cn("pf-dot", r.enabled ? "s-live" : "s-idle")} />
+              </button>
+              <span className={cn("pf-mtag pf-text-3xs shrink-0", r.method ? methodTagClass(r.method) : "text-text-tertiary")}>
+                {r.method || t('capture.anyMethod', 'ANY')}
+              </span>
+              <span className="flex-1 min-w-0 truncate font-mono pf-text-xxs text-text-secondary" title={`${r.host ?? ''}${r.path ?? ''}`}>
+                {(r.host || '*') + (r.path || '')}
+              </span>
+              <button
+                onClick={() => onRemove(r.id)}
+                className="wb-icon-btn shrink-0"
+                title={t('capture.removeBreakpoint', '删除规则')}
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* 新增规则 */}
+      <div className="mt-2 pt-2 border-t border-border-default/60 flex items-center gap-1.5">
+        <select
+          value={method}
+          onChange={(e) => setMethod(e.target.value)}
+          className="wb-field-sm h-7 w-[72px] pf-text-xxs font-mono px-1.5"
+        >
+          {methods.map((m) => (
+            <option key={m || "any"} value={m}>
+              {m || t('capture.anyMethod', 'ANY')}
+            </option>
+          ))}
+        </select>
+        <input
+          value={host}
+          onChange={(e) => setHost(e.target.value)}
+          placeholder={t('capture.bpHostPlaceholder', 'Host（含匹配）')}
+          className="wb-field-sm h-7 flex-1 min-w-0 pf-text-xxs font-mono px-2"
+        />
+        <input
+          value={path}
+          onChange={(e) => setPath(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+          placeholder={t('capture.bpPathPlaceholder', 'Path（含匹配）')}
+          className="wb-field-sm h-7 flex-1 min-w-0 pf-text-xxs font-mono px-2"
+        />
+        <button onClick={handleAdd} className="wb-primary-btn h-7 px-2 shrink-0" title={t('capture.addRule', '新增规则')}>
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── 挂起请求编辑器（放行前可修改 method/url/headers/body）──
+function PausedEditor({
+  paused,
+  onResume,
+  onClose,
+}: {
+  paused: PausedRequest;
+  onResume: (pausedId: string, modified?: ResumeModification) => Promise<void>;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const originalHeadersText = paused.requestHeaders
+    .filter(([k]) => !k.startsWith(":"))
+    .map(([k, v]) => `${k}: ${v}`)
+    .join("\n");
+  const originalBody = paused.requestBody ?? "";
+
+  const [method, setMethod] = useState(paused.method);
+  const [url, setUrl] = useState(paused.url);
+  const [headersText, setHeadersText] = useState(originalHeadersText);
+  const [body, setBody] = useState(originalBody);
+
+  const parseHeaders = (text: string): [string, string][] =>
+    text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line): [string, string] | null => {
+        const idx = line.indexOf(":");
+        // 没有冒号的行不是合法首部，跳过
+        if (idx === -1) return null;
+        return [line.slice(0, idx).trim(), line.slice(idx + 1).trim()];
+      })
+      .filter((h): h is [string, string] => h !== null && h[0] !== "");
+
+  const buildModification = (): ResumeModification | undefined => {
+    const mod: ResumeModification = {};
+    if (method !== paused.method) mod.method = method;
+    if (url !== paused.url) mod.url = url;
+    if (headersText !== originalHeadersText) mod.headers = parseHeaders(headersText);
+    if (body !== originalBody) mod.body = body;
+    return Object.keys(mod).length > 0 ? mod : undefined;
+  };
+
+  const handleResume = (withChanges: boolean) => {
+    onResume(paused.id, withChanges ? buildModification() : undefined);
+    onClose();
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-[640px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pause className="h-4 w-4 text-warning" />
+            {t('capture.pausedEditorTitle', '编辑并放行请求')}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <input
+              value={method}
+              onChange={(e) => setMethod(e.target.value.toUpperCase())}
+              className="wb-field-sm h-8 w-[88px] pf-text-xs font-mono px-2 uppercase"
+            />
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="wb-field-sm h-8 flex-1 min-w-0 pf-text-xs font-mono px-2"
+            />
+          </div>
+
+          <div>
+            <label className="pf-text-xxs font-semibold text-text-tertiary uppercase tracking-[0.05em]">
+              {t('capture.requestHeaders', '请求头')}
+            </label>
+            <textarea
+              value={headersText}
+              onChange={(e) => setHeadersText(e.target.value)}
+              spellCheck={false}
+              rows={6}
+              className="mt-1 w-full pf-rounded-sm border border-border-default bg-bg-secondary/40 px-2 py-1.5 pf-text-xxs font-mono text-text-secondary resize-y focus:outline-none focus:border-accent"
+              placeholder={"Key: Value"}
+            />
+          </div>
+
+          <div>
+            <label className="pf-text-xxs font-semibold text-text-tertiary uppercase tracking-[0.05em]">
+              {t('capture.requestBody', '请求体')}
+            </label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              spellCheck={false}
+              rows={6}
+              className="mt-1 w-full pf-rounded-sm border border-border-default bg-bg-secondary/40 px-2 py-1.5 pf-text-xxs font-mono text-text-secondary resize-y focus:outline-none focus:border-accent"
+              placeholder={t('capture.noRequestBody', '无请求体')}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <button onClick={onClose} className="wb-ghost-btn">
+            {t('common.cancel', '取消')}
+          </button>
+          <button
+            onClick={() => handleResume(false)}
+            className="wb-ghost-btn"
+            title={t('capture.resumeOriginalHint', '按原样转发，忽略本次编辑')}
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+            {t('capture.resumeOriginal', '原样放行')}
+          </button>
+          <button
+            onClick={() => handleResume(true)}
+            className="wb-primary-btn bg-accent hover:bg-accent-hover"
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+            {t('capture.resumeModified', '修改并放行')}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // ── 空状态 ──
 function EmptyState({ running, port, embedded = false }: { running: boolean; port: number; embedded?: boolean }) {
