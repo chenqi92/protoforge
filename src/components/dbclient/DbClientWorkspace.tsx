@@ -1,4 +1,4 @@
-// 数据库客户端工作区 — 两栏布局：连接侧栏 | 编辑器/结果
+// 数据库客户端工作区 — 主区：编辑器/结果（可选自带连接侧栏，仅用于无上下文侧栏的独立窗口）
 // Query tab: SqlEditor(编辑器+工具栏) + ResultTabs(结果+历史)
 // Table tab: TableDataView(筛选+排序+数据网格)
 // Structure tab: TableStructureEditor(表结构编辑)
@@ -25,8 +25,12 @@ import type { QueryResult, SqlValue } from "@/types/dbclient";
 
 export const DbClientWorkspace = memo(function DbClientWorkspace({
   sessionId,
+  showConnectionSidebar = true,
 }: {
   sessionId: string;
+  // 主窗口内由上下文侧栏（DbSidebar）提供连接树，工作区无需重复渲染；
+  // 独立弹出窗口（DbClientWindow）无上下文侧栏，需自带连接树。
+  showConnectionSidebar?: boolean;
 }) {
   const { t } = useTranslation();
   const connected = useDbClientStore(sessionId, (s) => s.connected);
@@ -65,91 +69,97 @@ export const DbClientWorkspace = memo(function DbClientWorkspace({
     ref.resize("22%");
   }, [connPanelRef]);
 
+  const mainContent = connected ? (
+    activeTab?.kind === "structure" ? (
+      // Structure Tab: Tab 栏 + TableStructureEditor
+      <div className="flex h-full flex-col">
+        <div className="shrink-0">
+          <SqlEditor sessionId={sessionId} />
+        </div>
+        <div className="flex-1 min-h-0">
+          <TableStructureEditor sessionId={sessionId} tab={activeTab} />
+        </div>
+      </div>
+    ) : activeTab?.kind === "table" ? (
+      // Table Data Tab
+      <div className="flex h-full flex-col">
+        <div className="shrink-0">
+          <SqlEditor sessionId={sessionId} />
+        </div>
+        <div className="flex-1 min-h-0">
+          <TableDataView sessionId={sessionId} tab={activeTab} />
+        </div>
+      </div>
+    ) : (
+      // Query Tab: key={activeTabId} 确保各 tab 分割线独立
+      <PanelGroup orientation="vertical" key={activeTabId} onLayoutChanged={handleVerticalLayout}>
+        <Panel id="db-sql-editor" defaultSize={editorSize} minSize={15}>
+          <SqlEditor sessionId={sessionId} />
+        </Panel>
+
+        <PanelResizeHandle className="relative h-[7px] shrink-0 cursor-row-resize group flex items-center justify-center">
+          <div className="absolute inset-x-0 top-[3px] h-px bg-border-default/40 group-hover:bg-accent/40 transition-colors" />
+        </PanelResizeHandle>
+
+        <Panel id="db-results" defaultSize={resultsSize} minSize={15}>
+          <ResultTabs
+            sessionId={sessionId}
+            queryResult={queryResult}
+            isDdl={isDdlTab}
+          />
+        </Panel>
+      </PanelGroup>
+    )
+  ) : (
+    <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+        <Database className="h-8 w-8 opacity-20 text-accent" />
+      </div>
+      <p className="pf-text-base font-medium text-text-tertiary">
+        {t("dbClient.getStarted")}
+      </p>
+    </div>
+  );
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-bg-base" data-contextmenu-zone="dbclient" onContextMenu={(e) => e.preventDefault()}>
       <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-        <PanelGroup orientation="horizontal">
-          <Panel
-            id="db-connections"
-            defaultSize={22}
-            minSize="40px"
-            collapsible
-            collapsedSize="0px"
-            panelRef={connPanelRef}
-            onResize={handleConnPanelResize}
-            className="overflow-hidden"
-          >
-            <div className="h-full min-w-[200px]">
-              <ConnectionSidebar sessionId={sessionId} />
-            </div>
-          </Panel>
-
-          <PanelResizeHandle className="relative w-[7px] shrink-0 cursor-col-resize group flex items-center justify-center">
-            <div className="absolute inset-y-0 left-[3px] w-px bg-border-default/40 group-hover:bg-accent/40 transition-colors" />
-            {connPanelCollapsed && (
-              <button
-                onClick={handleConnPanelExpand}
-                className="absolute left-0 top-2 z-10 flex items-center justify-center w-6 h-6 rounded-r bg-bg-surface border border-l-0 border-border-default/50 text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors shadow-sm"
-              >
-                <PanelLeftOpen size={14} />
-              </button>
-            )}
-          </PanelResizeHandle>
-
-          <Panel id="db-main" defaultSize={78} minSize={40}>
-            {connected ? (
-              activeTab?.kind === "structure" ? (
-                // Structure Tab: Tab 栏 + TableStructureEditor
-                <div className="flex h-full flex-col">
-                  <div className="shrink-0">
-                    <SqlEditor sessionId={sessionId} />
-                  </div>
-                  <div className="flex-1 min-h-0">
-                    <TableStructureEditor sessionId={sessionId} tab={activeTab} />
-                  </div>
-                </div>
-              ) : activeTab?.kind === "table" ? (
-                // Table Data Tab
-                <div className="flex h-full flex-col">
-                  <div className="shrink-0">
-                    <SqlEditor sessionId={sessionId} />
-                  </div>
-                  <div className="flex-1 min-h-0">
-                    <TableDataView sessionId={sessionId} tab={activeTab} />
-                  </div>
-                </div>
-              ) : (
-                // Query Tab: key={activeTabId} 确保各 tab 分割线独立
-                <PanelGroup orientation="vertical" key={activeTabId} onLayoutChanged={handleVerticalLayout}>
-                  <Panel id="db-sql-editor" defaultSize={editorSize} minSize={15}>
-                    <SqlEditor sessionId={sessionId} />
-                  </Panel>
-
-                  <PanelResizeHandle className="relative h-[7px] shrink-0 cursor-row-resize group flex items-center justify-center">
-                    <div className="absolute inset-x-0 top-[3px] h-px bg-border-default/40 group-hover:bg-accent/40 transition-colors" />
-                  </PanelResizeHandle>
-
-                  <Panel id="db-results" defaultSize={resultsSize} minSize={15}>
-                    <ResultTabs
-                      sessionId={sessionId}
-                      queryResult={queryResult}
-                      isDdl={isDdlTab}
-                    />
-                  </Panel>
-                </PanelGroup>
-              )
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
-                  <Database className="h-8 w-8 opacity-20 text-accent" />
-                </div>
-                <p className="pf-text-base font-medium text-text-tertiary">
-                  {t("dbClient.getStarted")}
-                </p>
+        {showConnectionSidebar ? (
+          <PanelGroup orientation="horizontal">
+            <Panel
+              id="db-connections"
+              defaultSize={22}
+              minSize="40px"
+              collapsible
+              collapsedSize="0px"
+              panelRef={connPanelRef}
+              onResize={handleConnPanelResize}
+              className="overflow-hidden"
+            >
+              <div className="h-full min-w-[200px]">
+                <ConnectionSidebar sessionId={sessionId} />
               </div>
-            )}
-          </Panel>
-        </PanelGroup>
+            </Panel>
+
+            <PanelResizeHandle className="relative w-[7px] shrink-0 cursor-col-resize group flex items-center justify-center">
+              <div className="absolute inset-y-0 left-[3px] w-px bg-border-default/40 group-hover:bg-accent/40 transition-colors" />
+              {connPanelCollapsed && (
+                <button
+                  onClick={handleConnPanelExpand}
+                  className="absolute left-0 top-2 z-10 flex items-center justify-center w-6 h-6 rounded-r bg-bg-surface border border-l-0 border-border-default/50 text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors shadow-sm"
+                >
+                  <PanelLeftOpen size={14} />
+                </button>
+              )}
+            </PanelResizeHandle>
+
+            <Panel id="db-main" defaultSize={78} minSize={40}>
+              {mainContent}
+            </Panel>
+          </PanelGroup>
+        ) : (
+          <div className="h-full min-h-0 min-w-0">{mainContent}</div>
+        )}
       </div>
     </div>
   );
