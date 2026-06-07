@@ -170,6 +170,19 @@ export function TabBar({
     };
   }, [tabs.length, updateScrollState]);
 
+  // Maps a UNIFIED-strip index to the index within the request-tabs-only array
+  // (which is what onReorder→reorderTabs operates on). Request tabs are contiguous
+  // at the front of the unified strip, so the request-tab index is the count of
+  // request tabs before it. Returns -1 when the tab at that index isn't a request.
+  const toRequestIndex = (unifiedIndex: number): number => {
+    if (tabs[unifiedIndex]?.kind !== "request") return -1;
+    let requestIndex = 0;
+    for (let i = 0; i < unifiedIndex; i++) {
+      if (tabs[i].kind === "request") requestIndex++;
+    }
+    return requestIndex;
+  };
+
   const handleDragStart = (index: number) => {
     dragIndexRef.current = index;
   };
@@ -179,8 +192,18 @@ export function TabBar({
   };
   const handleDrop = (index: number) => {
     const from = dragIndexRef.current;
-    if (from !== null && from !== index && onReorder) {
-      onReorder(from, index);
+    // Only reorder when BOTH the dragged and target tabs are request tabs;
+    // tool sessions are not reorderable and would splice garbage into the array.
+    if (
+      from !== null &&
+      from !== index &&
+      onReorder &&
+      tabs[from]?.kind === "request" &&
+      tabs[index]?.kind === "request"
+    ) {
+      const fromReq = toRequestIndex(from);
+      const toReq = toRequestIndex(index);
+      if (fromReq >= 0 && toReq >= 0) onReorder(fromReq, toReq);
     }
     dragIndexRef.current = null;
     setDragOverIndex(null);
@@ -231,6 +254,7 @@ export function TabBar({
               tab={tab}
               isActive={tab.id === activeTabId}
               isDragOver={dragOverIndex === index}
+              draggable={tab.kind === "request"}
               totalTabs={tabs.length}
               onClick={() => onSelect(tab)}
               onClose={() => onClose(tab)}
@@ -348,6 +372,7 @@ function TabItem({
   tab,
   isActive,
   isDragOver,
+  draggable,
   totalTabs,
   onClick,
   onClose,
@@ -362,6 +387,7 @@ function TabItem({
   tab: UnifiedTab;
   isActive: boolean;
   isDragOver: boolean;
+  draggable: boolean;
   totalTabs: number;
   onClick: () => void;
   onClose: () => void;
@@ -482,7 +508,7 @@ function TabItem({
         onDoubleClick={handleDoubleClick}
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
-        draggable
+        draggable={draggable}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDrop={onDrop}

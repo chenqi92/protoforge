@@ -105,7 +105,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
             <Save className="w-4 h-4 text-accent" />
             {t('saveDialog.title')}
           </h2>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center pf-rounded-md text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary">
+          <button onClick={onClose} aria-label={t('common.close')} className="flex h-8 w-8 items-center justify-center pf-rounded-md text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary">
             <X className="w-4 h-4" />
           </button>
         </div>

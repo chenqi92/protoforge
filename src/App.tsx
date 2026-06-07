@@ -678,11 +678,16 @@ function SplitView({
   onCloseSplit: () => void;
   renderWorkspace: (tab: UnifiedTab) => React.ReactNode;
 }) {
+  const { t } = useTranslation();
   const leftTab = unifiedTabs.find((t) => t.id === activeTabId) ?? unifiedTabs[0] ?? null;
-  // Sensible default for the right pane: the next tab after the active one.
+  // Sensible default for the right pane: the next tab after the active one. Never
+  // the same context as the left pane (would render duplicate state side by side).
   const activeIndex = unifiedTabs.findIndex((t) => t.id === leftTab?.id);
-  const autoRight = unifiedTabs.length > 1 ? unifiedTabs[(activeIndex + 1) % unifiedTabs.length] : leftTab;
-  const rightTab = unifiedTabs.find((t) => t.id === splitRightId) ?? autoRight ?? leftTab;
+  const autoRight = unifiedTabs.length > 1 ? unifiedTabs[(activeIndex + 1) % unifiedTabs.length] : null;
+  const pickedRight = unifiedTabs.find((t) => t.id === splitRightId) ?? null;
+  // Reject a right pick that collides with the left pane; fall back to autoRight.
+  const rightTab =
+    pickedRight && pickedRight.id !== leftTab?.id ? pickedRight : autoRight;
 
   if (!leftTab) return null;
 
@@ -698,13 +703,26 @@ function SplitView({
       </Panel>
       <PanelResizeHandle className="relative w-[3px] shrink-0 cursor-col-resize bg-bg-app transition-colors hover:bg-accent/30" />
       <Panel className="min-w-0 overflow-hidden">
-        <SplitPane
-          tab={rightTab ?? leftTab}
-          unifiedTabs={unifiedTabs}
-          onPick={(t) => onPickRight(t.id)}
-          onClose={onCloseSplit}
-          renderWorkspace={renderWorkspace}
-        />
+        {rightTab ? (
+          <SplitPane
+            tab={rightTab}
+            unifiedTabs={unifiedTabs}
+            onPick={(t) => onPickRight(t.id)}
+            onClose={onCloseSplit}
+            renderWorkspace={renderWorkspace}
+          />
+        ) : (
+          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+            <div className="flex h-7 shrink-0 items-center justify-end border-b border-border-default/60 bg-bg-secondary/40 px-2">
+              <button onClick={onCloseSplit} className="wb-icon-btn shrink-0" title={t('tabBar.closeRight')}>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1 items-center justify-center bg-bg-primary px-4 text-center pf-text-sm text-text-tertiary">
+              {t('tabBar.selectTabForSplit', '打开另一个标签页以使用分屏')}
+            </div>
+          </div>
+        )}
       </Panel>
     </PanelGroup>
   );
@@ -844,7 +862,14 @@ function App() {
 
   // Forge backbone toggles, dispatched by useKeyboardShortcuts (⌘\ / ⌘B).
   useEffect(() => {
-    const toggleSplit = () => setSplitOpen((value) => !value);
+    const toggleSplit = () =>
+      setSplitOpen((value) => {
+        // Don't open split with fewer than 2 contexts — the right pane would
+        // just duplicate the left. Reads live count from the store (effect deps
+        // stay []), so it's never stale.
+        if (!value && useAppStore.getState().getUnifiedTabs().length < 2) return false;
+        return !value;
+      });
     const toggleSidebar = () => setRailSidebarCollapsed((value) => !value);
     window.addEventListener("toggle-split-view", toggleSplit);
     window.addEventListener("toggle-sidebar", toggleSidebar);
@@ -928,6 +953,12 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [activeWorkbench, activeTabId, activeToolSessionIds],
   );
+
+  // Auto-close split when fewer than 2 contexts remain (e.g. a tab was closed) —
+  // otherwise the right pane would duplicate the left.
+  useEffect(() => {
+    if (splitOpen && unifiedTabs.length < 2) setSplitOpen(false);
+  }, [splitOpen, unifiedTabs.length]);
 
   // 右侧面板默认折叠：首次切换到非 home 视图时折叠（此时 Panel 才真正挂载）
   const rightSidebarInitialized = useRef(false);
@@ -1463,7 +1494,13 @@ function App() {
                 onReorder={reorderTabs}
                 onToggleSidebar={() => setRailSidebarCollapsed((v) => !v)}
                 sidebarCollapsed={railSidebarCollapsed}
-                onToggleSplit={() => setSplitOpen((v) => !v)}
+                onToggleSplit={() =>
+                  setSplitOpen((v) => {
+                    // Need ≥2 contexts to split; otherwise the right pane duplicates the left.
+                    if (!v && unifiedTabs.length < 2) return false;
+                    return !v;
+                  })
+                }
                 splitActive={splitOpen}
               />
             )}

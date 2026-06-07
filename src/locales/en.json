@@ -576,7 +576,8 @@
         "interfaceTypes": "Interfaces",
         "unionTypes": "Unions",
         "scalarTypes": "Custom Scalars"
-      }
+      },
+      "loadingEditor": "Loading editor..."
     },
     "oauth2": {
       "fetchingToken": "Fetching...",
@@ -761,7 +762,8 @@
     "eventCount": "{{count}} event(s)",
     "autoScroll": "Auto Scroll",
     "emptyTitle": "Waiting for events...",
-    "emptyDesc": "Events will appear here after connecting to an SSE endpoint"
+    "emptyDesc": "Events will appear here after connecting to an SSE endpoint",
+    "truncatedHint": "Only rendering the latest {{max}} events, {{total}} total"
   },
   "mqtt": {
     "disconnect": "Disconnect",
@@ -1219,7 +1221,30 @@
     "openBrowserFailed": "Failed to open browser: ",
     "truncatedHint": "Only rendering the latest {{max}} requests, {{total}} total",
     "filter": "Filter",
-    "browserProxyReady": "Browser proxy ready"
+    "browserProxyReady": "Browser proxy ready",
+    "replaying": "Replaying request…",
+    "replaySuccess": "Replay complete · HTTP {{status}}",
+    "replayFailed": "Replay failed: ",
+    "breakpointAdded": "Breakpoint added: {{method}} {{host}}{{path}}",
+    "breakpoints": "Breakpoints",
+    "breakpointRules": "Breakpoint Rules",
+    "breakpointRulesHint": "Matching requests are paused for review",
+    "noBreakpoints": "No breakpoint rules",
+    "anyMethod": "ANY",
+    "addRule": "Add rule",
+    "removeBreakpoint": "Delete rule",
+    "bpEnabled": "Enabled",
+    "bpDisabled": "Disabled",
+    "bpHostPlaceholder": "Host (contains)",
+    "bpPathPlaceholder": "Path (contains)",
+    "pausedTitle": "Breakpoint hit · awaiting release",
+    "resume": "Forward",
+    "resumeAll": "Forward all",
+    "pausedEdit": "View / Edit",
+    "pausedEditorTitle": "Edit & forward request",
+    "resumeOriginal": "Forward as-is",
+    "resumeOriginalHint": "Forward unchanged, ignoring edits",
+    "resumeModified": "Apply & forward"
   },
   "loadtest": {
     "title": "HTTP Load Test",
@@ -1597,6 +1622,11 @@
       "assistantPlayHint": "Enter a media URL, then play via {{mode}}",
       "playHint": "Enter a {{mode}} address and click Play",
       "messageLimit": "For performance, only the latest {{count}} protocol messages are shown"
+    },
+    "engine": {
+      "easyplayer": "EasyPlayer direct",
+      "gatewayHls": "Local HLS gateway",
+      "nativeMse": "Native MSE"
     }
   },
   "common": {
@@ -1814,7 +1844,8 @@
     "closeRight": "Close Right",
     "closeLeft": "Close Left",
     "new": "New",
-    "closeTab": "Close tab"
+    "closeTab": "Close tab",
+    "selectTabForSplit": "Open another tab to use split view"
   },
   "toolWindow": {
     "mergeBack": "Merge Back to Main Window",
@@ -2172,7 +2203,16 @@
     "assistantAddressPlaceholder": "Waiting for the assistant to auto-fill, or enter a playable media address manually",
     "play": "Play",
     "assistantChip": "Assisted control",
-    "assistantHint": "The current assistant session handles discovery/control; playback still runs via {{mode}}"
+    "assistantHint": "The current assistant session handles discovery/control; playback still runs via {{mode}}",
+    "ptz": {
+      "up": "Up",
+      "down": "Down",
+      "left": "Left",
+      "right": "Right",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "stop": "Stop"
+    }
   },
   "overview": {
     "title": "API Workspace",
@@ -2775,5 +2815,8 @@
     "switchTab": "Switch tab",
     "dismiss": "Dismiss",
     "hint": "Keyboard shortcuts"
+  },
+  "auth": {
+    "toggleSecretVisibility": "Toggle secret visibility"
   }
 }

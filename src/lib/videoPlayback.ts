@@ -7,7 +7,6 @@ export interface PlaybackTarget {
   url: string;
   requiresPlayerLoad: boolean;
   requiresFfmpeg: boolean;
-  label: string;
 }
 
 const DIRECT_MEDIA_PROTOCOLS = new Set(["http:", "https:", "ws:", "wss:", "webrtc:"]);
@@ -54,7 +53,6 @@ export function resolvePlaybackTarget(mode: VideoProtocol, url: string): Playbac
       url: rawUrl,
       requiresPlayerLoad: false,
       requiresFfmpeg: false,
-      label: "EasyPlayer 直连",
     };
   }
 
@@ -64,7 +62,6 @@ export function resolvePlaybackTarget(mode: VideoProtocol, url: string): Playbac
       url: rawUrl,
       requiresPlayerLoad: true,
       requiresFfmpeg: true,
-      label: "本地 HLS 网关",
     };
   }
 
@@ -73,7 +70,6 @@ export function resolvePlaybackTarget(mode: VideoProtocol, url: string): Playbac
     url: `tauri:${rawUrl}`,
     requiresPlayerLoad: true,
     requiresFfmpeg: true,
-    label: "原生 MSE",
   };
 }
 

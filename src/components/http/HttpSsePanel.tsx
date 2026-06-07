@@ -201,7 +201,7 @@ export function HttpSseResponsePanel({
             ))}
             {reversedEvents.length > MAX_VISIBLE_SSE_EVENTS && (
               <div className="px-4 py-2 text-center pf-text-xxs text-text-disabled">
-                仅渲染最近 {MAX_VISIBLE_SSE_EVENTS} 条事件，共 {reversedEvents.length} 条
+                {t('sse.truncatedHint', { max: MAX_VISIBLE_SSE_EVENTS, total: reversedEvents.length, defaultValue: '仅渲染最近 {{max}} 条事件，共 {{total}} 条' })}
               </div>
             )}
 

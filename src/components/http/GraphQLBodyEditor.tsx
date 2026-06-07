@@ -9,12 +9,13 @@ import { GraphQLExplorer } from "./GraphQLExplorer";
 
 const LazyMonacoCodeEditor = lazy(() => import("@/components/common/CodeEditor").then((module) => ({ default: module.CodeEditor })));
 
-function EditorSurfaceFallback({ label = "加载编辑器..." }: { label?: string }) {
+function EditorSurfaceFallback({ label }: { label?: string }) {
+  const { t } = useTranslation();
   return (
     <div className="flex h-full min-h-0 items-center justify-center bg-bg-input/88 px-4">
       <div className="flex items-center gap-2 pf-text-sm text-text-tertiary">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span>{label}</span>
+        <span>{label ?? t('http.graphql.loadingEditor', '加载编辑器...')}</span>
       </div>
     </div>
   );

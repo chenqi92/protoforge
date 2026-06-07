@@ -3,6 +3,8 @@
 // 通过 Tauri Event 将捕获的请求/响应实时推送到前端
 
 use base64::Engine as _;
+use bytes::Bytes;
+use http::header::{CONTENT_LENGTH, HeaderName, HeaderValue};
 use http::uri::Uri;
 use http_body_util::{BodyExt, Empty, Full};
 use hudsucker::{
@@ -12,14 +14,14 @@ use hudsucker::{
     rustls::crypto::aws_lc_rs,
     *,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Emitter;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, oneshot};
 
 // ═══════════════════════════════════════════
 //  数据结构
@@ -67,6 +69,102 @@ pub struct ProxyStatusInfo {
     pub entry_count: usize,
 }
 
+/// 断点匹配规则（前端 ↔ 后端）
+/// method/host/path 任一为空表示通配；命中需同时满足所有非空字段。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BreakpointRule {
+    pub id: String,
+    #[serde(default)]
+    pub method: Option<String>,
+    #[serde(default)]
+    pub host: Option<String>,
+    #[serde(default)]
+    pub path: Option<String>,
+    pub enabled: bool,
+}
+
+/// 命中断点后被挂起的请求（后端 → 前端推送 / 查询）
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PausedRequest {
+    pub session_id: String,
+    pub id: String,
+    pub method: String,
+    pub url: String,
+    pub host: String,
+    pub path: String,
+    pub request_headers: Vec<(String, String)>,
+    pub request_body: Option<String>,
+    pub timestamp: String,
+}
+
+/// 放行时携带的修改（全部可选，缺省即按原样转发）
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResumeModification {
+    #[serde(default)]
+    pub method: Option<String>,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub headers: Option<Vec<(String, String)>>,
+    #[serde(default)]
+    pub body: Option<String>,
+}
+
+/// 判断请求是否命中某条断点规则
+fn breakpoint_matches(rule: &BreakpointRule, method: &str, host: &str, path: &str) -> bool {
+    if !rule.enabled {
+        return false;
+    }
+    if let Some(m) = rule.method.as_deref() {
+        let m = m.trim();
+        if !m.is_empty() && !m.eq_ignore_ascii_case(method) {
+            return false;
+        }
+    }
+    if let Some(h) = rule.host.as_deref() {
+        let h = h.trim();
+        if !h.is_empty() && !host.to_ascii_lowercase().contains(&h.to_ascii_lowercase()) {
+            return false;
+        }
+    }
+    if let Some(p) = rule.path.as_deref() {
+        let p = p.trim();
+        if !p.is_empty() && !path.contains(p) {
+            return false;
+        }
+    }
+    // 规则全为空（且 enabled）视为匹配所有请求
+    true
+}
+
+/// HeaderMap → Vec<(name, value)>（用于展示 / 推送）
+fn headers_to_vec(headers: &http::HeaderMap) -> Vec<(String, String)> {
+    headers
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("<binary>").to_string()))
+        .collect()
+}
+
+/// Vec<(name, value)> → HeaderMap（跳过 HTTP/2 伪首部及非法首部）
+fn vec_to_headers(pairs: &[(String, String)]) -> http::HeaderMap {
+    let mut map = http::HeaderMap::new();
+    for (k, v) in pairs {
+        if k.starts_with(':') {
+            continue;
+        }
+        if let (Ok(name), Ok(val)) = (
+            HeaderName::from_bytes(k.as_bytes()),
+            HeaderValue::from_str(v),
+        ) {
+            map.append(name, val);
+        }
+    }
+    map
+}
+
 // ═══════════════════════════════════════════
 //  代理状态管理
 // ═══════════════════════════════════════════
@@ -78,6 +176,17 @@ pub struct ProxySessionState {
     pub port: Arc<Mutex<u16>>,
     /// 使用 VecDeque 以便 O(1) 移除最旧条目（而非 Vec::remove(0) 的 O(n)）
     pub entries: Arc<Mutex<VecDeque<CapturedEntry>>>,
+    /// 当前生效的断点规则
+    pub breakpoints: Arc<Mutex<Vec<BreakpointRule>>>,
+    /// 命中断点后被挂起、等待放行的请求（按 paused_id 索引）。
+    /// 请求信息与放行通道存在同一项里，保证插入/移除原子，避免双锁竞态。
+    pub paused: Arc<Mutex<HashMap<String, PausedSlot>>>,
+}
+
+/// 一个被挂起请求的完整状态：展示信息 + 放行通道
+pub struct PausedSlot {
+    pub info: PausedRequest,
+    pub tx: oneshot::Sender<Option<ResumeModification>>,
 }
 
 impl ProxySessionState {
@@ -87,6 +196,8 @@ impl ProxySessionState {
             abort_handle: Arc::new(Mutex::new(None)),
             port: Arc::new(Mutex::new(9090)),
             entries: Arc::new(Mutex::new(VecDeque::new())),
+            breakpoints: Arc::new(Mutex::new(Vec::new())),
+            paused: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -145,6 +256,8 @@ struct CaptureHandler {
     session_id: String,
     entries: Arc<Mutex<VecDeque<CapturedEntry>>>,
     current_request: Arc<Mutex<Option<RequestMeta>>>,
+    breakpoints: Arc<Mutex<Vec<BreakpointRule>>>,
+    paused: Arc<Mutex<HashMap<String, PausedSlot>>>,
 }
 
 fn now_iso() -> String {
@@ -195,8 +308,8 @@ impl HttpHandler for CaptureHandler {
         _ctx: &HttpContext,
         req: Request<Body>,
     ) -> RequestOrResponse {
-        let method = req.method().to_string();
-        let url = extract_url(&req);
+        let mut method = req.method().to_string();
+        let mut url = extract_url(&req);
 
         log::info!(
             "[CAPTURE] 收到请求: {} {} (session={})",
@@ -211,51 +324,135 @@ impl HttpHandler for CaptureHandler {
             return req.into();
         }
 
-        let host = extract_host(&url);
-        let path = extract_path(&url);
+        let mut host = extract_host(&url);
+        let mut path = extract_path(&url);
         let http_version = format!("{:?}", req.version());
+        let entry_id = uuid::Uuid::new_v4().to_string();
 
-        // 提取请求头
-        let request_headers: Vec<(String, String)> = req
-            .headers()
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("<binary>").to_string()))
-            .collect();
+        // 拆分请求，读取 body（限制最大 2MB 避免内存爆炸）
+        let (mut parts, body) = req.into_parts();
+        let mut body_bytes = match body.collect().await {
+            Ok(collected) => collected.to_bytes(),
+            Err(_) => Bytes::new(),
+        };
 
-        let request_content_type = req
-            .headers()
+        // ── 断点拦截：命中规则时挂起请求，等待前端放行/修改 ──
+        let matched = {
+            let rules = self.breakpoints.lock().await;
+            rules
+                .iter()
+                .any(|r| breakpoint_matches(r, &method, &host, &path))
+        };
+
+        if matched {
+            let paused_id = uuid::Uuid::new_v4().to_string();
+            let (tx, rx) = oneshot::channel::<Option<ResumeModification>>();
+
+            let paused = PausedRequest {
+                session_id: self.session_id.clone(),
+                id: paused_id.clone(),
+                method: method.clone(),
+                url: url.clone(),
+                host: host.clone(),
+                path: path.clone(),
+                request_headers: headers_to_vec(&parts.headers),
+                request_body: String::from_utf8(body_bytes.to_vec()).ok(),
+                timestamp: now_iso(),
+            };
+
+            self.paused.lock().await.insert(
+                paused_id.clone(),
+                PausedSlot {
+                    info: paused.clone(),
+                    tx,
+                },
+            );
+
+            log::info!(
+                "[CAPTURE] 请求命中断点，已挂起: id={}, {} {}",
+                paused_id,
+                method,
+                url
+            );
+            if let Err(e) = self.app.emit("capture-breakpoint", &paused) {
+                log::error!("[CAPTURE] emit breakpoint 失败: {:?}", e);
+            }
+
+            // 阻塞当前请求直到收到放行信号（其它连接在各自任务中并行处理，不受影响）。
+            // 5 分钟超时兜底：避免被遗忘的挂起请求长期占用浏览器连接。
+            // Ok(Ok(m)) 收到放行(可能带修改)；Ok(Err) 通道被关闭；Err 超时 —— 后两者按原样放行。
+            let modification =
+                match tokio::time::timeout(std::time::Duration::from_secs(300), rx).await {
+                    Ok(Ok(m)) => m,
+                    Ok(Err(_)) => None,
+                    Err(_) => {
+                        log::warn!("[CAPTURE] 断点挂起超时，自动放行: id={}", paused_id);
+                        None
+                    }
+                };
+
+            // 清理挂起状态（resume/stop 可能已移除，remove 幂等）
+            self.paused.lock().await.remove(&paused_id);
+
+            if let Some(m) = modification {
+                if let Some(new_method) = m.method {
+                    if let Ok(parsed) = http::Method::from_bytes(new_method.as_bytes()) {
+                        parts.method = parsed;
+                    }
+                    method = new_method;
+                }
+                if let Some(new_url) = m.url {
+                    if let Ok(uri) = new_url.parse::<Uri>() {
+                        parts.uri = uri;
+                    }
+                    host = extract_host(&new_url);
+                    path = extract_path(&new_url);
+                    url = new_url;
+                }
+                if let Some(new_headers) = m.headers {
+                    parts.headers = vec_to_headers(&new_headers);
+                }
+                if let Some(new_body) = m.body {
+                    body_bytes = Bytes::from(new_body.into_bytes());
+                }
+                // body / headers 可能已变，重算 content-length 保证转发正确
+                parts.headers.remove(CONTENT_LENGTH);
+                if !body_bytes.is_empty() {
+                    if let Ok(val) = HeaderValue::from_str(&body_bytes.len().to_string()) {
+                        parts.headers.insert(CONTENT_LENGTH, val);
+                    }
+                }
+                log::info!(
+                    "[CAPTURE] 断点放行(已修改): id={}, {} {}",
+                    paused_id,
+                    method,
+                    url
+                );
+            } else {
+                log::info!("[CAPTURE] 断点放行: id={}, {} {}", paused_id, method, url);
+            }
+        }
+
+        // 提取最终请求头 / content-type（与实际转发内容保持一致）
+        let request_headers = headers_to_vec(&parts.headers);
+        let request_content_type = parts
+            .headers
             .get("content-type")
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_string());
 
-        let entry_id = uuid::Uuid::new_v4().to_string();
-
-        // 读取请求 body（限制最大 2MB 避免内存爆炸）
-        let (req_body_text, req_body_raw, req_body_size, new_req) = {
-            let (parts, body) = req.into_parts();
-            match body.collect().await {
-                Ok(collected) => {
-                    let bytes = collected.to_bytes();
-                    let size = bytes.len();
-                    let raw_b64 = if size > 0 && size <= 2 * 1024 * 1024 {
-                        Some(base64::engine::general_purpose::STANDARD.encode(&bytes))
-                    } else {
-                        None
-                    };
-                    let text = if size > 0 && size <= 2 * 1024 * 1024 {
-                        String::from_utf8(bytes.to_vec()).ok()
-                    } else {
-                        None
-                    };
-                    let new_body = Body::from(Full::new(bytes));
-                    (text, raw_b64, size, Request::from_parts(parts, new_body))
-                }
-                Err(_) => {
-                    let new_body = Body::from(Empty::new());
-                    (None, None, 0, Request::from_parts(parts, new_body))
-                }
-            }
+        let req_body_size = body_bytes.len();
+        let (req_body_text, req_body_raw) = if req_body_size > 0 && req_body_size <= 2 * 1024 * 1024
+        {
+            (
+                String::from_utf8(body_bytes.to_vec()).ok(),
+                Some(base64::engine::general_purpose::STANDARD.encode(&body_bytes)),
+            )
+        } else {
+            (None, None)
         };
+
+        let new_req = Request::from_parts(parts, Body::from(Full::new(body_bytes)));
 
         // 先推送"请求进行中"状态给前端
         let pending_entry = CapturedEntry {
@@ -586,6 +783,8 @@ pub async fn start_proxy(
         session_id: session_id.to_string(),
         entries: session.entries.clone(),
         current_request: Arc::new(Mutex::new(None)),
+        breakpoints: session.breakpoints.clone(),
+        paused: session.paused.clone(),
     };
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
@@ -628,6 +827,14 @@ pub async fn stop_proxy(state: &ProxyState, session_id: &str) -> Result<(), Stri
         return Ok(());
     }
 
+    // 释放所有挂起请求（按原样放行），避免连接任务在断点处永久阻塞
+    {
+        let mut paused = session.paused.lock().await;
+        for (_, slot) in paused.drain() {
+            let _ = slot.tx.send(None);
+        }
+    }
+
     let mut handle = session.abort_handle.lock().await;
     if let Some(h) = handle.take() {
         h.abort();
@@ -666,6 +873,206 @@ pub async fn clear_entries(state: &ProxyState, session_id: &str) {
     if let Some(session) = get_session(state, session_id).await {
         session.entries.lock().await.clear();
     }
+}
+
+// ═══════════════════════════════════════════
+//  断点 / 重放
+// ═══════════════════════════════════════════
+
+/// 设置断点规则（整组替换）；可在代理运行中实时调整
+pub async fn set_breakpoints(state: &ProxyState, session_id: &str, patterns: Vec<BreakpointRule>) {
+    let session = get_or_create_session(state, session_id).await;
+    *session.breakpoints.lock().await = patterns;
+}
+
+/// 获取当前断点规则
+pub async fn list_breakpoints(state: &ProxyState, session_id: &str) -> Vec<BreakpointRule> {
+    match get_session(state, session_id).await {
+        Some(session) => session.breakpoints.lock().await.clone(),
+        None => Vec::new(),
+    }
+}
+
+/// 获取当前被挂起、等待放行的请求
+pub async fn list_paused(state: &ProxyState, session_id: &str) -> Vec<PausedRequest> {
+    match get_session(state, session_id).await {
+        Some(session) => session
+            .paused
+            .lock()
+            .await
+            .values()
+            .map(|slot| slot.info.clone())
+            .collect(),
+        None => Vec::new(),
+    }
+}
+
+/// 放行一个被挂起的请求；modified 为 Some 时按修改内容转发
+pub async fn resume(
+    state: &ProxyState,
+    session_id: &str,
+    paused_id: &str,
+    modified: Option<ResumeModification>,
+) -> Result<(), String> {
+    let session = get_session(state, session_id).await.ok_or("会话不存在")?;
+    let slot = session.paused.lock().await.remove(paused_id);
+    match slot {
+        Some(slot) => {
+            slot.tx
+                .send(modified)
+                .map_err(|_| "请求已断开，无法放行".to_string())?;
+            Ok(())
+        }
+        None => Err("请求不存在或已放行".to_string()),
+    }
+}
+
+/// 重放一条已捕获的请求：按原始 method/url/headers/body 重新发起，
+/// 将新响应构造为一条 CapturedEntry，推送给前端并加入抓包列表后返回。
+pub async fn replay_entry(
+    app: tauri::AppHandle,
+    state: &ProxyState,
+    session_id: &str,
+    entry_id: &str,
+) -> Result<CapturedEntry, String> {
+    let session = get_session(state, session_id)
+        .await
+        .ok_or("会话不存在")?;
+
+    let original = {
+        let entries = session.entries.lock().await;
+        entries.iter().find(|e| e.id == entry_id).cloned()
+    }
+    .ok_or("未找到要重放的请求")?;
+
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
+
+    let method = reqwest::Method::from_bytes(original.method.as_bytes())
+        .map_err(|e| format!("无效的请求方法: {}", e))?;
+
+    let mut builder = client.request(method, &original.url);
+    for (k, v) in &original.request_headers {
+        // 跳过 HTTP/2 伪首部及由客户端自行管理的首部
+        if k.starts_with(':') {
+            continue;
+        }
+        let lk = k.to_ascii_lowercase();
+        if matches!(
+            lk.as_str(),
+            "host"
+                | "content-length"
+                | "connection"
+                | "proxy-connection"
+                | "transfer-encoding"
+                | "accept-encoding"
+        ) {
+            continue;
+        }
+        builder = builder.header(k, v);
+    }
+
+    // 优先使用原始字节（base64），回退到文本
+    let body_bytes: Vec<u8> = if let Some(raw) = &original.request_body_raw {
+        base64::engine::general_purpose::STANDARD
+            .decode(raw)
+            .map_err(|e| format!("解析请求体 base64 失败: {}", e))?
+    } else if let Some(text) = &original.request_body {
+        text.clone().into_bytes()
+    } else {
+        Vec::new()
+    };
+    if !body_bytes.is_empty() {
+        builder = builder.body(body_bytes.clone());
+    }
+
+    let start = std::time::Instant::now();
+    let resp = builder
+        .send()
+        .await
+        .map_err(|e| format!("重放请求失败: {}", e))?;
+
+    let status = resp.status().as_u16();
+    let status_text = resp.status().canonical_reason().unwrap_or("").to_string();
+    let http_version = format!("{:?}", resp.version());
+    let response_headers: Vec<(String, String)> = resp
+        .headers()
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("<binary>").to_string()))
+        .collect();
+    let content_type = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let resp_bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| format!("读取响应失败: {}", e))?;
+    let duration_ms = start.elapsed().as_millis() as u64;
+    let response_size = resp_bytes.len();
+    let (response_body, response_body_raw) = if response_size > 0 && response_size <= 2 * 1024 * 1024
+    {
+        (
+            String::from_utf8(resp_bytes.to_vec()).ok(),
+            Some(base64::engine::general_purpose::STANDARD.encode(&resp_bytes)),
+        )
+    } else {
+        (None, None)
+    };
+
+    let req_size = body_bytes.len();
+    let (req_body_text, req_body_raw) = if req_size > 0 && req_size <= 2 * 1024 * 1024 {
+        (
+            String::from_utf8(body_bytes.clone()).ok(),
+            Some(base64::engine::general_purpose::STANDARD.encode(&body_bytes)),
+        )
+    } else {
+        (None, None)
+    };
+
+    let entry = CapturedEntry {
+        session_id: session_id.to_string(),
+        id: uuid::Uuid::new_v4().to_string(),
+        method: original.method.clone(),
+        url: original.url.clone(),
+        host: original.host.clone(),
+        path: original.path.clone(),
+        status: Some(status),
+        status_text: Some(status_text),
+        request_headers: original.request_headers.clone(),
+        response_headers,
+        request_body: req_body_text,
+        response_body,
+        request_body_raw: req_body_raw,
+        response_body_raw,
+        content_type,
+        request_content_type: original.request_content_type.clone(),
+        request_size: req_size,
+        response_size,
+        duration_ms,
+        timestamp: now_iso(),
+        completed: true,
+        http_version: Some(http_version),
+    };
+
+    if let Err(e) = app.emit("capture-event", &entry) {
+        log::error!("[CAPTURE] emit replay entry 失败: {:?}", e);
+    }
+
+    {
+        let mut entries = session.entries.lock().await;
+        if entries.len() >= 5000 {
+            entries.pop_front();
+        }
+        entries.push_back(entry.clone());
+    }
+
+    Ok(entry)
 }
 
 /// 导出 CA 证书路径

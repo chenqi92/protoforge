@@ -62,7 +62,7 @@ export function AuthPanel({
                   placeholder="ey..."
                   className="wb-field w-full font-mono pf-text-xs pr-9"
                 />
-                <button type="button" onClick={() => toggleSecret('bearer')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
+                <button type="button" onClick={() => toggleSecret('bearer')} aria-label={t('auth.toggleSecretVisibility', '切换密文可见')} aria-pressed={!!showSecrets['bearer']} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors">
                   {showSecrets['bearer'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
@@ -78,7 +78,7 @@ export function AuthPanel({
                 <label className="pf-text-xs font-medium text-text-secondary">Password</label>
                 <div className="relative">
                   <input value={config.basicPassword} onChange={(e) => updateHttpConfig(tabId, { basicPassword: e.target.value })} type={showSecrets['basicPwd'] ? 'text' : 'password'} className="wb-field w-full pf-text-xs pr-9" />
-                  <button type="button" onClick={() => toggleSecret('basicPwd')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
+                  <button type="button" onClick={() => toggleSecret('basicPwd')} aria-label={t('auth.toggleSecretVisibility', '切换密文可见')} aria-pressed={!!showSecrets['basicPwd']} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors">
                     {showSecrets['basicPwd'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
@@ -105,7 +105,7 @@ export function AuthPanel({
                 <label className="pf-text-xs font-medium text-text-secondary">Value</label>
                 <div className="relative">
                   <input value={config.apiKeyValue} onChange={(e) => updateHttpConfig(tabId, { apiKeyValue: e.target.value })} type={showSecrets['apiKey'] ? 'text' : 'password'} className="wb-field w-full font-mono pf-text-xs pr-9" />
-                  <button type="button" onClick={() => toggleSecret('apiKey')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors" tabIndex={-1}>
+                  <button type="button" onClick={() => toggleSecret('apiKey')} aria-label={t('auth.toggleSecretVisibility', '切换密文可见')} aria-pressed={!!showSecrets['apiKey']} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-disabled hover:text-text-secondary transition-colors">
                     {showSecrets['apiKey'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>

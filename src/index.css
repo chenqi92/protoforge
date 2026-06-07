@@ -30,8 +30,8 @@
 
   --color-text-primary: #1a1d23;     /* <- Forge text */
   --color-text-secondary: #5a626e;   /* <- Forge text-2 */
-  --color-text-tertiary: #939aa6;    /* <- Forge text-3 */
-  --color-text-disabled: #939aa6;    /* <- Forge text-3 */
+  --color-text-tertiary: #6b7280;    /* <- Forge text-3 (AA ~4.8:1 on #fff) */
+  --color-text-disabled: #939aa6;    /* <- Forge text-3 (dimmer; disabled exempt) */
 
   /* Accent colors — Forge orange. Overridden by data-accent attribute */
   --color-accent: #ff6b35;           /* Forge orange */
@@ -208,8 +208,8 @@
 
   --color-text-primary: #e7eaf0;     /* <- Forge text */
   --color-text-secondary: #9aa3b2;   /* <- Forge text-2 */
-  --color-text-tertiary: #646d7c;    /* <- Forge text-3 */
-  --color-text-disabled: #646d7c;    /* <- Forge text-3 */
+  --color-text-tertiary: #8b94a3;    /* <- Forge text-3 (AA ~5.9:1 on #14171d) */
+  --color-text-disabled: #646d7c;    /* <- Forge text-3 (dimmer; disabled exempt) */
 
   /* Forge dark shadows: real drop shadows on near-black surfaces */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -234,7 +234,7 @@
   --secondary: #1a1e25;             /* Forge surface-2 */
   --secondary-foreground: #9aa3b2;   /* Forge text-2 */
   --muted: #1a1e25;                  /* Forge surface-2 */
-  --muted-foreground: #646d7c;       /* Forge text-3 */
+  --muted-foreground: #8b94a3;       /* Forge text-3 (AA on dark) */
   --accent-foreground: #e7eaf0;
   --destructive: #f85149;            /* Forge error */
   --border: #262b34;                 /* Forge border */
@@ -2623,7 +2623,7 @@
   --secondary: #f5f6f8;             /* Forge surface-2 */
   --secondary-foreground: #5a626e;   /* Forge text-2 */
   --muted: #f5f6f8;                  /* Forge surface-2 */
-  --muted-foreground: #939aa6;       /* Forge text-3 */
+  --muted-foreground: #6b7280;       /* Forge text-3 (AA on light) */
   --accent-foreground: #1a1d23;
   --destructive: #f85149;            /* Forge error */
   --border: #e0e3e8;                 /* Forge border */

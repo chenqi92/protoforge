@@ -238,6 +238,7 @@ export function EnvironmentEditor() {
                     </span>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteEnv(env.id); }}
+                      aria-label={t('contextMenu.delete', '删除')}
                       className="w-6 h-6 flex items-center justify-center pf-rounded-sm text-text-disabled hover:text-error hover:bg-error/10 opacity-0 group-hover:opacity-100 transition-all"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -322,7 +323,7 @@ export function EnvironmentEditor() {
                           {v.isSecret === 1 ? <Lock className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                         </button>
                         <div className="w-8 flex justify-center">
-                          <button onClick={() => removeVar(i)} className="w-7 h-7 pf-rounded-md flex items-center justify-center text-text-tertiary hover:bg-error/10 hover:text-error opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
+                          <button onClick={() => removeVar(i)} aria-label={t('contextMenu.delete', '删除')} className="w-7 h-7 pf-rounded-md flex items-center justify-center text-text-tertiary hover:bg-error/10 hover:text-error opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
                         </div>
                       </div>
                     ))}
@@ -393,7 +394,7 @@ export function EnvironmentEditor() {
                     className={cn("input-field flex-1 font-mono pf-text-sm py-1.5 text-text-secondary", !v.enabled && "opacity-40")}
                   />
                   <div className="w-8 flex justify-center">
-                    <button onClick={() => setGlobalEditing((prev) => prev.filter((_, j) => j !== i))} className="w-7 h-7 pf-rounded-md flex items-center justify-center text-text-tertiary hover:bg-error/10 hover:text-error opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
+                    <button onClick={() => setGlobalEditing((prev) => prev.filter((_, j) => j !== i))} aria-label={t('contextMenu.delete', '删除')} className="w-7 h-7 pf-rounded-md flex items-center justify-center text-text-tertiary hover:bg-error/10 hover:text-error opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
                   </div>
                 </div>
               ))}

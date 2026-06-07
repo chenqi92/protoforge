@@ -6,7 +6,7 @@ import { Camera, Radio, Film, ListVideo, Webcam, Shield, Zap, Aperture, MonitorP
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { cn } from "@/lib/utils";
-import { modeLikelyNeedsFfmpeg, resolvePlaybackTarget, supportsIntegratedPlayback } from "@/lib/videoPlayback";
+import { modeLikelyNeedsFfmpeg, resolvePlaybackTarget, supportsIntegratedPlayback, type PlaybackEngine } from "@/lib/videoPlayback";
 import { useAppStore } from "@/stores/appStore";
 import type {
   FfmpegStatus,
@@ -150,6 +150,17 @@ function getPlaybackTransportLabel(mode: VideoProtocol): string {
       return "SRT";
     default:
       return "RTSP/RTP";
+  }
+}
+
+function getPlaybackEngineLabel(engine: PlaybackEngine, t: TFunction): string {
+  switch (engine) {
+    case "easyplayer":
+      return t('video.engine.easyplayer', 'EasyPlayer 直连');
+    case "gateway-hls":
+      return t('video.engine.gatewayHls', '本地 HLS 网关');
+    case "tauri-mse":
+      return t('video.engine.nativeMse', '原生 MSE');
   }
 }
 
@@ -307,7 +318,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
             setConnecting(false);
             setPlaying(false);
             setPlaybackReady(false);
-            setPlaybackPathLabel(null);
+            setPlaybackEngine(null);
             setStreamInfo(null);
             setStats(null);
             break;
@@ -341,7 +352,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
   const [playerUrl, setPlayerUrl] = useState<string | null>(null);
   const [playbackReady, setPlaybackReady] = useState(false);
   const [surfacePlaying, setSurfacePlaying] = useState(true);
-  const [playbackPathLabel, setPlaybackPathLabel] = useState<string | null>(null);
+  const [playbackEngine, setPlaybackEngine] = useState<PlaybackEngine | null>(null);
 
   const refreshFfmpegStatus = useCallback(async () => {
     try {
@@ -404,7 +415,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
     setPlaying(false);
     setConnecting(false);
     setPlaybackReady(false);
-    setPlaybackPathLabel(null);
+    setPlaybackEngine(null);
     setPlayerUrl(null);
     setConnected(false);
     setStreamInfo(null);
@@ -453,7 +464,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
 
     // Set the expected player URL first so listeners are mounted before backend emits data.
     setPlaybackReady(false);
-    setPlaybackPathLabel(playbackTarget.label);
+    setPlaybackEngine(playbackTarget.engine);
     setPlayerUrl(playbackTarget.engine === "tauri-mse" || !playbackTarget.requiresPlayerLoad ? playbackTarget.url : null);
     setShowPlayer(true);
     setPlaying(true);
@@ -471,7 +482,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
         setConnecting(false);
         setPlaying(false);
         setPlaybackReady(false);
-        setPlaybackPathLabel(null);
+        setPlaybackEngine(null);
         setShowPlayer(false);
         setPlayerUrl(null);
         await vsSvc.disconnectStream(sessionKey).catch(() => {});
@@ -629,7 +640,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
               {t('videostream.assistantChip', { defaultValue: '辅助控制' })} · {t(activeAssistantMode.labelKey)}
             </span>
           ) : null}
-          {playbackPathLabel ? <span className="wb-request-meta">{playbackPathLabel}</span> : null}
+          {playbackEngine ? <span className="wb-request-meta">{getPlaybackEngineLabel(playbackEngine, t)}</span> : null}
           <span className="pf-text-xs text-text-tertiary">
             {assistantActive
               ? t('videostream.assistantHint', { defaultValue: `当前助手会话负责发现/控制，播放仍按 ${t(activePlaybackMode.labelKey)} 执行` })
@@ -806,7 +817,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                             <div className="flex flex-col items-center gap-2 text-white/75">
                               <Loader className="w-6 h-6 animate-spin" />
                               <span className="pf-text-xxs font-mono">
-                                {playbackPathLabel === "本地 HLS 网关" ? t('video.workspace.startingGateway', '启动本地媒体网关...') : t('video.workspace.waitingPlayer', '等待播放器初始化...')}
+                                {playbackEngine === "gateway-hls" ? t('video.workspace.startingGateway', '启动本地媒体网关...') : t('video.workspace.waitingPlayer', '等待播放器初始化...')}
                               </span>
                             </div>
                           </div>

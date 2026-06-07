@@ -10,24 +10,90 @@ import { create } from 'zustand';
 import type { IconContribution } from '@/types/plugin';
 
 // ── SVG 安全过滤 ────────────────────────────────
-// 移除 <script>、on* 事件属性、javascript: 协议等 XSS 风险
-const DANGEROUS_TAGS = /(<\s*\/?\s*(script|iframe|object|embed|form|link|meta|base|applet)[^>]*>)/gi;
-const DANGEROUS_ATTRS = /\s+(on\w+|xlink:href\s*=\s*["']javascript:|href\s*=\s*["']javascript:)[^"']*["']?/gi;
-const DANGEROUS_ENTITIES = /(&#x?[0-9a-fA-F]+;)/g;
+// 基于 DOM 解析 + 标签/属性白名单，防止存储型 XSS。
+// 正则只能 strip 已知模式，'<svg/onload=..>'、'<animate values=javascript:..>' 等
+// 变体会绕过，故改用 DOMParser 解析后遍历元素逐一裁剪。
+
+// 允许的 SVG 元素标签（小写）。script/foreignObject/animate* 等可执行或危险元素一律剔除。
+const ALLOWED_SVG_TAGS = new Set([
+  'svg',
+  'g',
+  'path',
+  'circle',
+  'rect',
+  'line',
+  'polyline',
+  'polygon',
+  'ellipse',
+  'defs',
+  'lineargradient',
+  'radialgradient',
+  'stop',
+  'clippath',
+  'mask',
+  'use',
+  'title',
+  'desc',
+  'text',
+  'tspan',
+  'marker',
+  'pattern',
+  'symbol',
+]);
+
+function isDangerousUrl(value: string): boolean {
+  const v = value.trim().toLowerCase();
+  return v.startsWith('javascript:') || v.startsWith('data:');
+}
+
+function isDangerousStyle(value: string): boolean {
+  const v = value.toLowerCase();
+  return v.includes('expression(') || v.includes('javascript:') || v.includes('url(');
+}
+
+function sanitizeElement(el: Element): void {
+  // (a) 标签不在白名单 → 整个子树移除
+  if (!ALLOWED_SVG_TAGS.has(el.tagName.toLowerCase())) {
+    el.remove();
+    return;
+  }
+
+  // (b) 逐一裁剪属性
+  for (const attr of Array.from(el.attributes)) {
+    const name = attr.name.toLowerCase();
+    const localName = name.includes(':') ? name.slice(name.indexOf(':') + 1) : name;
+    if (name.startsWith('on')) {
+      el.removeAttribute(attr.name);
+    } else if ((name === 'href' || localName === 'href') && isDangerousUrl(attr.value)) {
+      el.removeAttribute(attr.name);
+    } else if (name === 'style' && isDangerousStyle(attr.value)) {
+      el.removeAttribute(attr.name);
+    }
+  }
+
+  // 递归处理子元素（先收集快照，避免 remove 改变 live 集合）
+  for (const child of Array.from(el.children)) {
+    sanitizeElement(child);
+  }
+}
 
 function sanitizeSvg(raw: string): string {
-  let svg = raw;
-  // 移除危险标签
-  svg = svg.replace(DANGEROUS_TAGS, '');
-  // 移除危险属性
-  svg = svg.replace(DANGEROUS_ATTRS, '');
-  // 移除 HTML 实体编码的潜在注入
-  svg = svg.replace(DANGEROUS_ENTITIES, '');
-  // 确保是 SVG 根元素
-  if (!svg.trim().startsWith('<svg')) {
-    return '';
-  }
-  return svg;
+  if (typeof DOMParser === 'undefined') return '';
+
+  const doc = new DOMParser().parseFromString(raw, 'image/svg+xml');
+
+  // 解析失败（含 parsererror）→ 拒绝
+  if (doc.getElementsByTagName('parsererror').length > 0) return '';
+
+  const root = doc.documentElement;
+  if (!root || root.tagName.toLowerCase() !== 'svg') return '';
+
+  sanitizeElement(root);
+
+  // root 自身若被裁剪掉则返回空串
+  if (root.tagName.toLowerCase() !== 'svg') return '';
+
+  return new XMLSerializer().serializeToString(root);
 }
 
 // ── Store 类型 ────────────────────────────────────

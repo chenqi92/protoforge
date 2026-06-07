@@ -1135,7 +1135,10 @@ pub async fn export_load_test_report(
 //  Proxy Capture (抓包)
 // ═══════════════════════════════════════════
 
-use crate::proxy_capture::{self, CapturedEntry, ProxyState, ProxyStatusInfo};
+use crate::proxy_capture::{
+    self, BreakpointRule, CapturedEntry, PausedRequest, ProxyState, ProxyStatusInfo,
+    ResumeModification,
+};
 
 #[tauri::command]
 pub async fn proxy_start(
@@ -1299,6 +1302,57 @@ pub async fn proxy_check_ca_trusted(state: State<'_, ProxyState>) -> Result<bool
         let _ = _cert_path;
         Ok(false)
     }
+}
+
+/// 重放一条已抓取的请求，返回新生成的抓包条目
+#[tauri::command]
+pub async fn proxy_replay_entry(
+    app: tauri::AppHandle,
+    state: State<'_, ProxyState>,
+    session_id: String,
+    entry_id: String,
+) -> Result<CapturedEntry, String> {
+    proxy_capture::replay_entry(app, &state, &session_id, &entry_id).await
+}
+
+/// 设置断点规则（整组替换）
+#[tauri::command]
+pub async fn proxy_set_breakpoints(
+    state: State<'_, ProxyState>,
+    session_id: String,
+    patterns: Vec<BreakpointRule>,
+) -> Result<(), String> {
+    proxy_capture::set_breakpoints(&state, &session_id, patterns).await;
+    Ok(())
+}
+
+/// 获取当前断点规则
+#[tauri::command]
+pub async fn proxy_list_breakpoints(
+    state: State<'_, ProxyState>,
+    session_id: String,
+) -> Result<Vec<BreakpointRule>, String> {
+    Ok(proxy_capture::list_breakpoints(&state, &session_id).await)
+}
+
+/// 获取当前被挂起、等待放行的请求
+#[tauri::command]
+pub async fn proxy_list_paused(
+    state: State<'_, ProxyState>,
+    session_id: String,
+) -> Result<Vec<PausedRequest>, String> {
+    Ok(proxy_capture::list_paused(&state, &session_id).await)
+}
+
+/// 放行一个被挂起的请求（modified 为空则按原样转发）
+#[tauri::command]
+pub async fn proxy_resume(
+    state: State<'_, ProxyState>,
+    session_id: String,
+    paused_id: String,
+    modified: Option<ResumeModification>,
+) -> Result<(), String> {
+    proxy_capture::resume(&state, &session_id, &paused_id, modified).await
 }
 
 // ═══════════════════════════════════════════
