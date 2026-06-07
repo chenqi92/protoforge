@@ -1084,7 +1084,7 @@ function BinaryFileCard({ contentType, fileSize, body, responseHeaders }: {
             style={{ fontSize: 'var(--fs-sm)' }}
           >
             <Download className="h-4 w-4" />
-            {t('response.saveToFile', { defaultValue: '另存为文件' })}
+            {t('response.saveToFileFull', { defaultValue: '另存为文件' })}
           </button>
           <p className="max-w-[280px] text-center text-text-disabled leading-relaxed" style={{ fontSize: 'var(--fs-xxs)' }}>
             {t('response.binaryHint', { defaultValue: '该响应为二进制文件，无法作为文本预览。可切换到 Hex 查看字节数据。' })}
