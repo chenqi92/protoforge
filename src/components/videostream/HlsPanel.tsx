@@ -64,7 +64,7 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
               "h-7 px-2 pf-rounded-sm border pf-text-xxs font-medium transition-colors",
               autoRefresh
                 ? "border-accent/40 bg-accent-soft text-accent"
-                : "border-border-default/60 text-text-tertiary hover:text-text-secondary"
+                : "border-border-default text-text-tertiary hover:text-text-secondary"
             )}
           >
             {t('videostream.hls.autoRefresh', '自动刷新')}
@@ -75,7 +75,7 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
       {/* Playlist Info */}
       {playlist && (
         <div className="space-y-3">
-          <div className="pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-2 space-y-1 pf-text-xxs font-mono">
+          <div className="pf-rounded-sm border border-border-default bg-bg-inset p-2 space-y-1 pf-text-xxs font-mono">
             <div className="flex justify-between"><span className="text-text-disabled">Type</span><span className="text-text-primary">{playlist.playlistType === 'master' ? 'Master Playlist' : 'Media Playlist'}</span></div>
             {playlist.version && <div className="flex justify-between"><span className="text-text-disabled">Version</span><span className="text-text-primary">{playlist.version}</span></div>}
             {playlist.targetDuration && <div className="flex justify-between"><span className="text-text-disabled">Target Duration</span><span className="text-text-primary">{playlist.targetDuration}s</span></div>}
@@ -95,7 +95,7 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
                   <button
                     key={i}
                     onClick={() => setExpandedVariant(expandedVariant === i ? null : i)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 pf-rounded-xs bg-bg-secondary/30 hover:bg-bg-hover/50 text-left transition-colors"
+                    className="w-full flex items-center gap-2 px-2 py-1.5 pf-rounded-xs bg-bg-secondary hover:bg-bg-hover text-left transition-colors"
                   >
                     <ChevronRight className={cn("w-3 h-3 text-text-disabled transition-transform", expandedVariant === i && "rotate-90")} />
                     <span className="pf-text-xxs font-mono text-accent font-medium">{Math.round(v.bandwidth / 1000)}kbps</span>
@@ -113,11 +113,11 @@ export function HlsPanel({ sessionKey, connected, streamUrl }: HlsPanelProps) {
               <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
                 {t('videostream.hls.segments', '分片列表')} ({playlist.segments.length})
               </label>
-              <div className="max-h-[160px] overflow-y-auto space-y-0.5 pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-1">
+              <div className="max-h-[160px] overflow-y-auto space-y-0.5 pf-rounded-sm border border-border-default bg-bg-secondary p-1">
                 {playlist.segments.map((seg, i) => (
                   <div key={i} className="flex items-center gap-2 px-2 py-1 pf-text-xxs font-mono">
                     <span className="text-text-disabled w-6 shrink-0">#{seg.sequence}</span>
-                    <span className="text-emerald-500 dark:text-emerald-300 w-12 shrink-0">{seg.duration.toFixed(1)}s</span>
+                    <span className="text-success w-12 shrink-0">{seg.duration.toFixed(1)}s</span>
                     <span className="text-text-tertiary truncate flex-1">{seg.uri}</span>
                   </div>
                 ))}

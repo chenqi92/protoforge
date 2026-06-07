@@ -86,15 +86,16 @@ export function MessageDetailPanel({ message, displayFormat, compact: _compact =
             {t("tcp.messageDetail.title", "消息详情")}
           </span>
         </div>
-        <div className="flex flex-1 items-center justify-center px-6 text-center text-text-disabled">
-          <div>
-            <div className="pf-text-md font-semibold text-text-secondary">
-              {t("tcp.messageDetail.emptyTitle", "选中一条消息查看详情")}
-            </div>
-            <p className="mt-2 pf-text-sm leading-6 text-text-tertiary">
-              {t("tcp.messageDetail.emptyDesc", "这里会展示完整载荷、原始十六进制、时间戳以及来源地址，便于逐帧分析协议数据。")}
-            </p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-text-disabled">
+          <div className="mb-2 flex h-12 w-12 items-center justify-center pf-rounded-lg border border-border-default bg-bg-secondary shadow-sm">
+            <FileText className="h-5 w-5 opacity-30" />
           </div>
+          <div className="pf-text-md font-semibold text-text-secondary">
+            {t("tcp.messageDetail.emptyTitle", "选中一条消息查看详情")}
+          </div>
+          <p className="max-w-sm pf-text-sm leading-6 text-text-tertiary">
+            {t("tcp.messageDetail.emptyDesc", "这里会展示完整载荷、原始十六进制、时间戳以及来源地址，便于逐帧分析协议数据。")}
+          </p>
         </div>
       </div>
     );
@@ -109,10 +110,10 @@ export function MessageDetailPanel({ message, displayFormat, compact: _compact =
             <span className={cn(
               "pf-rounded-sm px-2 py-0.5 pf-text-3xs font-bold uppercase",
               message.direction === "sent"
-                ? "bg-blue-500/10 text-blue-600 dark:text-blue-300"
+                ? "bg-method-post/10 text-method-post"
                 : message.direction === "received"
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
-                  : "bg-amber-500/10 text-amber-600 dark:text-amber-300"
+                  ? "bg-method-get/10 text-method-get"
+                  : "bg-warning/10 text-warning"
             )}>
               {messageDirectionLabel}
             </span>
@@ -135,7 +136,7 @@ export function MessageDetailPanel({ message, displayFormat, compact: _compact =
               className="wb-icon-btn !h-7 !w-7"
               title={t("tcp.messageDetail.copyPayload", "复制当前内容")}
             >
-              {copiedKey === "payload" ? <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
+              {copiedKey === "payload" ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
           )}
           {activeTab === "hex" && (
@@ -144,7 +145,7 @@ export function MessageDetailPanel({ message, displayFormat, compact: _compact =
               className="wb-icon-btn !h-7 !w-7"
               title={t("tcp.messageDetail.copyRawHex", "复制原始 HEX")}
             >
-              {copiedKey === "raw" ? <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
+              {copiedKey === "raw" ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
           )}
           {message.direction !== "system" && activeTab !== "protocol" && (

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Play, Square, Trash2, Shield, Search,
   ArrowUpDown, X, Lightbulb, Clock, Globe,
+  Send, Cpu, Copy, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -14,26 +15,33 @@ import type { CapturedEntry } from "@/types/capture";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
+import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { useAppStore } from "@/stores/appStore";
+import type { HttpMethod, KeyValue } from "@/types/http";
 
-// ── HTTP Method 颜色 ──
-const methodColors: Record<string, { text: string; bg: string }> = {
-  GET: { text: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/15" },
-  POST: { text: "text-amber-600 dark:text-amber-300", bg: "bg-amber-500/15" },
-  PUT: { text: "text-blue-600 dark:text-blue-300", bg: "bg-blue-500/15" },
-  DELETE: { text: "text-red-600 dark:text-red-300", bg: "bg-red-500/15" },
-  PATCH: { text: "text-violet-600 dark:text-violet-300", bg: "bg-violet-500/15" },
-  HEAD: { text: "text-cyan-600 dark:text-cyan-300", bg: "bg-cyan-500/15" },
-  OPTIONS: { text: "text-gray-600", bg: "bg-gray-500/15" },
-};
+// ── HTTP Method → Forge .pf-mtag tone class ──
+function methodTagClass(method: string): string {
+  switch (method.toUpperCase()) {
+    case "GET": return "m-get";
+    case "POST": return "m-post";
+    case "PUT": return "m-put";
+    case "DELETE": return "m-del";
+    case "PATCH": return "m-patch";
+    case "HEAD": return "m-head";
+    case "OPTIONS": return "m-opt";
+    default: return "text-text-tertiary";
+  }
+}
 
 const MAX_VISIBLE_CAPTURE_ENTRIES = 500;
 
-// ── 状态码颜色 ──
+// ── 状态码颜色 (Forge status tokens) ──
 function statusColor(status?: number): string {
   if (!status) return "text-text-disabled";
-  if (status < 300) return "text-emerald-600 dark:text-emerald-300";
-  if (status < 400) return "text-amber-600 dark:text-amber-300";
-  return "text-red-500 dark:text-red-300";
+  if (status < 300) return "text-success";
+  if (status < 400) return "text-warning";
+  return "text-error";
 }
 
 // ── 格式化大小 ──
@@ -49,6 +57,78 @@ function formatDuration(ms: number): string {
   if (ms === 0) return "—";
   if (ms < 1000) return `${ms} ms`;
   return `${(ms / 1000).toFixed(2)} s`;
+}
+
+// ── 抓包条目 → 完整 raw HTTP 报文（请求行 + 响应行，供协议解析器使用）──
+function buildRawEntryText(entry: CapturedEntry): string {
+  const httpVer = entry.httpVersion?.replace("HTTP_", "HTTP/").replace("_", ".") || "HTTP/1.1";
+  const pathAndQuery = (() => {
+    try {
+      const u = new URL(entry.url);
+      return u.pathname + u.search;
+    } catch {
+      return entry.path?.startsWith("/") ? entry.path : `/${entry.path || ""}`;
+    }
+  })();
+
+  const lines: string[] = [];
+  lines.push(`${entry.method} ${pathAndQuery} ${httpVer}`);
+  for (const [k, v] of entry.requestHeaders) lines.push(`${k}: ${v}`);
+  lines.push("");
+  if (entry.requestBody) lines.push(entry.requestBody);
+
+  lines.push("");
+  lines.push(`${httpVer} ${entry.status ?? "?"} ${entry.statusText ?? ""}`.trimEnd());
+  for (const [k, v] of entry.responseHeaders) lines.push(`${k}: ${v}`);
+  lines.push("");
+  if (entry.responseBody) lines.push(entry.responseBody);
+
+  return lines.join("\n");
+}
+
+// ── 抓包条目 → cURL（从 method/url/headers/body 直接构建，签名与 CapturedEntry 对齐）──
+function buildCurlFromEntry(entry: CapturedEntry): string {
+  const sq = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+  const parts: string[] = ["curl"];
+  const method = (entry.method || "GET").toUpperCase();
+  if (method !== "GET") parts.push(`-X ${method}`);
+
+  for (const [k, v] of entry.requestHeaders) {
+    const lk = k.toLowerCase();
+    // 跳过 HTTP/2 伪首部（:method/:path/...），cURL 不接受
+    if (lk.startsWith(":")) continue;
+    parts.push(`-H ${sq(`${k}: ${v}`)}`);
+  }
+
+  if (entry.requestBody) parts.push(`--data-raw ${sq(entry.requestBody)}`);
+
+  parts.push(sq(entry.url));
+  return parts.join(" \\\n  ");
+}
+
+// ── 抓包条目 → HTTP 工作区预填项 ──
+function entryToHttpPrefill(entry: CapturedEntry): {
+  method: HttpMethod;
+  url: string;
+  headers: KeyValue[];
+  bodyType: "none" | "raw";
+  rawBody: string;
+} {
+  const allowed: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+  const upper = (entry.method || "GET").toUpperCase() as HttpMethod;
+  const method = allowed.includes(upper) ? upper : "GET";
+  const headers: KeyValue[] = entry.requestHeaders
+    .filter(([k]) => !k.startsWith(":"))
+    .map(([key, value]) => ({ key, value, enabled: true }));
+  headers.push({ key: "", value: "", enabled: true });
+  const rawBody = entry.requestBody || "";
+  return {
+    method,
+    url: entry.url,
+    headers,
+    bodyType: rawBody ? "raw" : "none",
+    rawBody,
+  };
 }
 
 export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { sessionId: string }) {
@@ -68,6 +148,8 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
   const setDetailTab = useCaptureStore(sessionId, (s) => s.setDetailTab);
   const exportCaCert = useCaptureStore(sessionId, (s) => s.exportCaCert);
   const storeError = useCaptureStore(sessionId, (s) => s.error);
+
+  const { showMenu, MenuComponent } = useContextMenu();
 
   const [portInput, setPortInput] = useState(String(port));
   const [caPath, setCaPath] = useState<string | null>(null);
@@ -151,19 +233,19 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       try {
         await startCapture(p);
       } catch (e) {
-        toast.error("启动代理失败: " + String(e));
+        toast.error(t('capture.startProxyFailed', '启动代理失败: ') + String(e));
       }
     }
-  }, [running, portInput, startCapture, stopCapture]);
+  }, [running, portInput, startCapture, stopCapture, t]);
 
   const handleExportCA = useCallback(async () => {
     try {
       const path = await exportCaCert();
       setCaPath(path);
     } catch (e) {
-      toast.error("导出证书失败: " + String(e));
+      toast.error(t('capture.exportCertFailed', '导出证书失败: ') + String(e));
     }
-  }, [exportCaCert]);
+  }, [exportCaCert, t]);
 
   const proxyServiceRef = useRef<string | null>(null);
   const [browserUrl, setBrowserUrl] = useState("");
@@ -182,9 +264,75 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       setShowBrowserInput(false);
       setBrowserUrl("");
     } catch (e) {
-      toast.error("打开浏览器失败: " + String(e));
+      toast.error(t('capture.openBrowserFailed', '打开浏览器失败: ') + String(e));
     }
-  }, [running, browserUrl, portInput]);
+  }, [running, browserUrl, portInput, t]);
+
+  // 请求行右键菜单 — 对齐原型 RequestRow context menu
+  const handleRowContextMenu = useCallback((e: React.MouseEvent, entry: CapturedEntry) => {
+    const items: ContextMenuEntry[] = [
+      {
+        id: "replay",
+        label: t('capture.menu.replay', '重放请求'),
+        icon: <Send className="h-3.5 w-3.5" />,
+        onClick: () => {
+          // 暂无代理重放后端 — 与原型一致，提示占位
+          toast(t('capture.menu.replay', '重放请求'));
+        },
+      },
+      {
+        id: "editInHttp",
+        label: t('capture.menu.editInHttp', '在 HTTP 中编辑重发'),
+        icon: <Pencil className="h-3.5 w-3.5" />,
+        onClick: () => {
+          const store = useAppStore.getState();
+          const prefill = entryToHttpPrefill(entry);
+          const tabId = store.addTab("http");
+          store.updateHttpConfig(tabId, {
+            method: prefill.method,
+            url: prefill.url,
+            headers: prefill.headers,
+            bodyType: prefill.bodyType,
+            rawBody: prefill.rawBody,
+            ...(prefill.bodyType === "raw"
+              ? { rawContentType: entry.requestContentType || "text/plain" }
+              : {}),
+          });
+        },
+      },
+      {
+        id: "sendToParser",
+        label: t('capture.menu.sendToParser', '发送到协议解析器'),
+        icon: <Cpu className="h-3.5 w-3.5" />,
+        onClick: () => {
+          window.dispatchEvent(
+            new CustomEvent("parse-protocol", { detail: { data: buildRawEntryText(entry) } })
+          );
+        },
+      },
+      {
+        id: "copyCurl",
+        label: t('capture.menu.copyCurl', '复制为 cURL'),
+        icon: <Copy className="h-3.5 w-3.5" />,
+        onClick: () => {
+          copyTextToClipboard(buildCurlFromEntry(entry))
+            .then(() => toast.success(t('common.copied', '已复制')))
+            .catch(() => toast.error(String(t('common.copy', '复制'))));
+        },
+      },
+      { type: "divider" },
+      {
+        id: "breakpoint",
+        label: t('capture.menu.breakpoint', '添加断点'),
+        icon: <Shield className="h-3.5 w-3.5" />,
+        onClick: () => {
+          // 暂无断点后端 — 与原型一致，提示占位
+          toast(t('capture.menu.breakpoint', '添加断点'));
+        },
+      },
+    ];
+    showMenu(e, items);
+  }, [showMenu, t]);
 
   // 过滤后的条目
   const filteredEntries = useMemo(() => (
@@ -215,7 +363,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
     <div className="flex h-full flex-col overflow-hidden p-3">
       <div className="shrink-0 space-y-2">
         <div className="wb-request-shell">
-          <span className={cn("wb-request-prefix", running ? "bg-emerald-500" : "bg-slate-400")}>
+          <span className={cn("wb-request-prefix", running ? "bg-success" : "bg-text-disabled")}>
             {running ? <Play className="h-3.5 w-3.5" fill="currentColor" /> : <Square className="h-3.5 w-3.5" fill="currentColor" />}
             {running ? t('capture.proxyRunning') : t('capture.proxyStopped')}
           </span>
@@ -296,23 +444,26 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
         </div>
 
         <div className="wb-request-secondary">
-          <span className="wb-request-meta">
-            <span className={cn("wb-request-meta-dot", running ? "bg-emerald-500" : "bg-text-disabled")} />
+          <span className="pf-status-chip">
+            <span className={cn("pf-dot", running ? "s-live" : "s-idle")} />
+            {running ? t('capture.proxyRunning') : t('capture.proxyStopped')}
+          </span>
+          <span className="pf-pill">
+            <Globe className="h-3 w-3" />
+            127.0.0.1:{port}
+          </span>
+          <span className="pf-pill">
             {t('capture.requestCount', { count: filteredEntries.length })}
           </span>
-          <span className="wb-request-meta">
-            <Clock className="h-3 w-3" />
-            {t('capture.port')} {port}
-          </span>
           {running ? (
-            <span className="wb-request-meta">
+            <span className="pf-pill">
               <Globe className="h-3 w-3" />
               {t('capture.browserProxyReady', { defaultValue: '浏览器代理可用' })}
             </span>
           ) : null}
           {caTrusted !== null ? (
-            <span className="wb-request-meta">
-              <Shield className={cn("h-3 w-3", caTrusted ? "text-emerald-600 dark:text-emerald-300" : "text-orange-600 dark:text-orange-300")} />
+            <span className={cn("pf-pill", caTrusted ? "ok" : "warn")}>
+              <Shield className="h-3 w-3" />
               {caTrusted ? t('capture.caTrustedTitle') : t('capture.caNotTrustedTitle')}
             </span>
           ) : null}
@@ -328,7 +479,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 pf-rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2.5 pf-text-xs text-red-600 dark:text-red-300 flex items-center gap-2">
+            <div className="mt-2 pf-rounded-md border border-error/30 bg-error/10 px-4 py-2.5 pf-text-xs text-error flex items-center gap-2">
               <X className="w-3.5 h-3.5 shrink-0" />
               <span className="min-w-0 break-all">{storeError}</span>
             </div>
@@ -348,18 +499,18 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
             <div className={cn(
               "mt-3 pf-rounded-md border px-4 py-3 pf-text-xs",
               caTrusted
-                ? "border-emerald-500/20 bg-emerald-500/5"
-                : "border-orange-500/30 bg-orange-500/8"
+                ? "border-success/20 bg-success/5"
+                : "border-warning/30 bg-warning/[0.08]"
             )}>
               <div className="flex items-start gap-3">
                 <div className={cn(
                   "shrink-0 mt-0.5 w-6 h-6 rounded-full flex items-center justify-center",
-                  caTrusted ? "bg-emerald-500/20" : "bg-orange-500/20"
+                  caTrusted ? "bg-success/20" : "bg-warning/20"
                 )}>
-                  <Shield className={cn("w-3.5 h-3.5", caTrusted ? "text-emerald-600 dark:text-emerald-300" : "text-orange-600 dark:text-orange-300")} />
+                  <Shield className={cn("w-3.5 h-3.5", caTrusted ? "text-success" : "text-warning")} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className={cn("font-semibold mb-1", caTrusted ? "text-emerald-700 dark:text-emerald-200" : "text-orange-700 dark:text-orange-200")}>
+                  <div className={cn("font-semibold mb-1", caTrusted ? "text-success" : "text-warning")}>
                     {caTrusted ? t('capture.caTrustedTitle') : t('capture.caNotTrustedTitle')}
                   </div>
                   <p className="text-text-tertiary pf-text-xxs mb-2 leading-relaxed">
@@ -367,8 +518,8 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                   </p>
                   {caPath && (
                     <code className={cn(
-                      "font-mono pf-text-xxs px-1.5 py-0.5 rounded break-all",
-                      caTrusted ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-200" : "bg-orange-500/10 text-orange-700 dark:text-orange-200"
+                      "font-mono pf-text-xxs px-1.5 py-0.5 pf-rounded-xs break-all",
+                      caTrusted ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
                     )}>{caPath}</code>
                   )}
                   {!caTrusted && (
@@ -384,14 +535,14 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                             setCaInstallStatus({ ok: false, msg: String(e) });
                           }
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white pf-text-xxs font-semibold transition-colors shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 pf-rounded-md bg-warning hover:bg-warning/90 text-white pf-text-xxs font-semibold transition-colors shadow-sm"
                       >
                         <Shield className="w-3 h-3" />
                         {t('capture.installCaCert')}
                       </button>
                       <button
                         onClick={handleExportCA}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-hover text-text-secondary pf-text-xxs font-medium transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 pf-rounded-md bg-bg-tertiary hover:bg-bg-hover text-text-secondary pf-text-xxs font-medium transition-colors"
                       >
                         {t('capture.exportCaCert')}
                       </button>
@@ -400,10 +551,10 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                   )}
                   {caInstallStatus && (
                     <div className={cn(
-                      "mt-2 px-2.5 py-1.5 rounded-lg pf-text-xxs",
+                      "mt-2 px-2.5 py-1.5 pf-rounded-md pf-text-xxs",
                       caInstallStatus.ok
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20"
-                        : "bg-red-500/10 text-red-500 dark:text-red-300 border border-red-500/20"
+                        ? "bg-success/10 text-success border border-success/20"
+                        : "bg-error/10 text-error border border-error/20"
                     )}>
                       {caInstallStatus.msg}
                     </div>
@@ -450,11 +601,11 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                 </div>
                 <span className="wb-tool-chip">{running ? t('capture.listening', { port: portInput }) : t('capture.awaitingStart')}</span>
               </div>
-              <div className="flex items-center h-8 bg-bg-secondary/60 border-b border-border-default/50 text-[10px] font-semibold text-text-tertiary uppercase tracking-[0.06em] select-none shrink-0 px-3">
-                <span className="w-[60px] shrink-0">{t('capture.method')}</span>
-                <span className="flex-1 min-w-0">URL</span>
-                <span className="w-[60px] shrink-0 text-center">{t('capture.status')}</span>
-                <span className="w-[80px] shrink-0 text-right">{t('capture.size')}</span>
+              <div className="flex items-center h-[26px] border-b border-border-default pf-text-xxs font-semibold text-text-tertiary uppercase tracking-[0.05em] select-none shrink-0 px-3">
+                <span className="w-[54px] shrink-0">{t('capture.method')}</span>
+                <span className="w-[52px] shrink-0 text-center">{t('capture.status')}</span>
+                <span className="flex-1 min-w-0">Host / Path</span>
+                <span className="w-[76px] shrink-0">{t('http.type')}</span>
                 <span className="w-[70px] shrink-0 text-right">{t('capture.size')}</span>
                 <span className="w-[70px] shrink-0 text-right">{t('capture.duration')}</span>
               </div>
@@ -466,11 +617,12 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                     entry={entry}
                     isSelected={entry.id === selectedEntryId}
                     onSelect={setSelectedEntry}
+                    onContextMenu={handleRowContextMenu}
                   />
                 ))}
                 {filteredEntries.length > MAX_VISIBLE_CAPTURE_ENTRIES && (
                   <div className="px-3 py-2 text-center pf-text-xxs text-text-disabled">
-                    仅渲染最近 {MAX_VISIBLE_CAPTURE_ENTRIES} 条请求，共 {filteredEntries.length} 条
+                    {t('capture.truncatedHint', '仅渲染最近 {{max}} 条请求，共 {{total}} 条', { max: MAX_VISIBLE_CAPTURE_ENTRIES, total: filteredEntries.length })}
                   </div>
                 )}
                 <div ref={listEndRef} />
@@ -496,6 +648,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
         </div>
       )}
       </div>
+      {MenuComponent}
     </div>
   );
 });
@@ -531,7 +684,7 @@ function EmptyState({ running, port, embedded = false }: { running: boolean; por
               <div className="border-t border-border-default/60 pt-3 pf-text-xs text-text-tertiary">
                 <p className="font-medium text-text-secondary">{t('capture.general')}</p>
                 <div className="mt-2 flex items-start gap-1.5 pf-text-xxs text-text-disabled">
-                  <Lightbulb className="w-3 h-3 text-amber-500 dark:text-amber-300 shrink-0 mt-[1px]" />
+                  <Lightbulb className="w-3 h-3 text-warning shrink-0 mt-[1px]" />
                   <span>{t('capture.httpsHint')}</span>
                 </div>
               </div>
@@ -571,13 +724,16 @@ const RequestRow = memo(function RequestRow({
   entry,
   isSelected,
   onSelect,
+  onContextMenu,
 }: {
   entry: CapturedEntry;
   isSelected: boolean;
   onSelect: (id: string) => void;
+  onContextMenu: (e: React.MouseEvent, entry: CapturedEntry) => void;
 }) {
   const onClick = useCallback(() => onSelect(entry.id), [entry.id, onSelect]);
-  const mc = methodColors[entry.method] || { text: "text-text-tertiary", bg: "bg-gray-500/10" };
+  const handleContextMenu = useCallback((e: React.MouseEvent) => onContextMenu(e, entry), [entry, onContextMenu]);
+  const mtagClass = methodTagClass(entry.method);
 
   // 精简 content-type 显示
   const shortType = entry.contentType
@@ -587,33 +743,33 @@ const RequestRow = memo(function RequestRow({
   return (
     <div
       onClick={onClick}
+      onContextMenu={handleContextMenu}
       className={cn(
-        "flex items-center h-[34px] px-3 pf-text-xs cursor-pointer transition-colors border-b border-border-subtle/40",
+        "flex items-center h-[30px] px-3 cursor-pointer transition-colors border-b border-border-subtle/40",
         isSelected
           ? "bg-accent-soft text-text-primary"
           : entry.completed
-          ? "hover:bg-bg-hover/60 text-text-secondary"
+          ? "hover:bg-bg-hover text-text-secondary"
           : "text-text-disabled animate-pulse"
       )}
     >
-      <span className="w-[60px] shrink-0">
-        <span className={cn("text-[10px] font-bold px-[4px] py-[1px] pf-rounded-xs tracking-wide", mc.text, mc.bg)}>
-          {entry.method}
-        </span>
+      <span className="w-[54px] shrink-0">
+        <span className={cn("pf-mtag pf-text-3xs", mtagClass)}>{entry.method}</span>
+      </span>
+      <span className={cn("w-[52px] shrink-0 text-center font-mono pf-text-xxs font-semibold tabular-nums", statusColor(entry.status))}>
+        {entry.status || <Clock className="inline w-3 h-3 text-text-disabled animate-pulse" />}
       </span>
       <span className="flex-1 min-w-0 truncate font-mono pf-text-xxs" title={entry.url}>
-        {entry.path || entry.url}
+        <span className="text-text-tertiary">{entry.host}</span>
+        <span className="text-text-primary">{entry.path?.startsWith("/") ? entry.path : entry.path ? `/${entry.path}` : ""}</span>
       </span>
-      <span className={cn("w-[60px] shrink-0 text-center font-mono pf-text-xxs font-medium", statusColor(entry.status))}>
-        {entry.status || <Clock className="w-3 h-3 text-text-disabled animate-pulse" />}
-      </span>
-      <span className="w-[80px] shrink-0 text-right pf-text-xxs text-text-disabled truncate" title={entry.contentType || ""}>
+      <span className="w-[76px] shrink-0 truncate pf-text-xxs text-text-tertiary" title={entry.contentType || ""}>
         {shortType}
       </span>
-      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xxs tabular-nums text-text-disabled">
+      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xxs tabular-nums text-text-tertiary">
         {formatSize(entry.responseSize)}
       </span>
-      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xxs tabular-nums text-text-disabled">
+      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xxs tabular-nums text-text-tertiary">
         {formatDuration(entry.durationMs)}
       </span>
     </div>
@@ -643,10 +799,7 @@ function DetailPanel({
       {/* 顶部状态栏 */}
       <div className={cn("shrink-0 flex items-center justify-between", embedded ? "wb-pane-header" : "wb-panel-header")}>
         <div className="flex items-center gap-2 pf-text-xs">
-          <span className={cn("font-mono text-[10px] font-bold px-[4px] py-[1px] pf-rounded-xs tracking-wide",
-            methodColors[entry.method]?.text || "text-text-tertiary",
-            methodColors[entry.method]?.bg || "bg-gray-500/10"
-          )}>
+          <span className={cn("pf-mtag pf-text-3xs", methodTagClass(entry.method))}>
             {entry.method}
           </span>
           <span className="font-mono pf-text-xxs text-text-secondary truncate max-w-[400px]" title={entry.url}>
@@ -672,7 +825,7 @@ function DetailPanel({
       <div className="flex-1 flex min-h-0">
         {/* Request 面板 */}
         <div className="flex-1 flex flex-col min-w-0 border-r border-border-default/50">
-          <BurpTabStrip label="Request" activeTab={reqTab} onChange={setReqTab} color="text-orange-500 dark:text-orange-300" />
+          <BurpTabStrip label="Request" activeTab={reqTab} onChange={setReqTab} color="text-accent" />
           <div className="flex-1 overflow-auto">
             {reqTab === "raw" && <RawView type="request" entry={entry} />}
             {reqTab === "headers" && <HeadersTableView headers={entry.requestHeaders} />}
@@ -681,7 +834,7 @@ function DetailPanel({
         </div>
         {/* Response 面板 */}
         <div className="flex-1 flex flex-col min-w-0">
-          <BurpTabStrip label="Response" activeTab={resTab} onChange={setResTab} color="text-emerald-500 dark:text-emerald-300" />
+          <BurpTabStrip label="Response" activeTab={resTab} onChange={setResTab} color="text-success" />
           <div className="flex-1 overflow-auto">
             {resTab === "raw" && <RawView type="response" entry={entry} />}
             {resTab === "headers" && <HeadersTableView headers={entry.responseHeaders} />}
@@ -712,22 +865,22 @@ function BurpTabStrip({
   ];
 
   return (
-    <div className="shrink-0 flex items-center gap-0.5 border-b border-border-default/50 px-2 h-8 bg-bg-secondary/40">
-      <span className={cn("pf-text-xs font-bold mr-2", color)}>{label}</span>
+    <div className="shrink-0 flex items-center gap-0.5 border-b border-border-default px-2.5 h-[33px]">
+      <span className={cn("pf-text-xs font-semibold mr-2", color)}>{label}</span>
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={cn(
-            "h-full px-2.5 pf-text-xxs font-medium transition-colors relative",
+            "h-full px-2.5 pf-text-sm font-medium transition-colors relative",
             activeTab === tab.id
               ? "text-text-primary"
-              : "text-text-disabled hover:text-text-secondary"
+              : "text-text-tertiary hover:text-text-secondary"
           )}
         >
           {tab.label}
           {activeTab === tab.id && (
-            <div className="absolute bottom-0 left-1 right-1 h-[2px] bg-accent rounded-full" />
+            <div className="absolute bottom-[-1px] left-2 right-2 h-[2px] bg-accent rounded-full" />
           )}
         </button>
       ))}

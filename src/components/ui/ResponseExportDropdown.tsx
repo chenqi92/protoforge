@@ -230,7 +230,7 @@ export function ResponseExportDropdown({ body }: { body: string }) {
         disabled={!hasArrays}
         className={cn(
           "h-6 w-6 flex items-center justify-center rounded-md transition-colors",
-          hasArrays ? "text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer" : "text-text-disabled cursor-not-allowed"
+          hasArrays ? "text-success hover:bg-success/10 cursor-pointer" : "text-text-disabled cursor-not-allowed"
         )}
         title={t('response.exportData', '导出数据')}
       >
@@ -285,8 +285,8 @@ export function ResponseExportDropdown({ body }: { body: string }) {
                   >
                     <span className="font-medium">{fmt.name}</span>
                     {state === 'loading' && <Loader2 className="w-3 h-3 animate-spin text-text-disabled" />}
-                    {state === 'done' && <Check className="w-3 h-3 text-emerald-500 dark:text-emerald-300" />}
-                    {state === 'error' && <span className="pf-text-xxs text-red-500 dark:text-red-300">!</span>}
+                    {state === 'done' && <Check className="w-3 h-3 text-success" />}
+                    {state === 'error' && <span className="pf-text-xxs text-error">!</span>}
                     {state === 'idle' && <span className="pf-text-xxs text-text-disabled">{fmt.extension}</span>}
                   </button>
                 );
@@ -305,7 +305,7 @@ export function ResponseExportDropdown({ body }: { body: string }) {
                     <label className="block pf-text-xs text-text-secondary">Measurement</label>
                     <input value={optionValues.measurement || ''} onChange={(e) => setOptionValues((p) => ({ ...p, measurement: e.target.value }))}
                       className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" placeholder="measurement" />
-                    <label className="block pf-text-xs text-text-secondary mt-2">Tag Keys (逗号分隔)</label>
+                    <label className="block pf-text-xs text-text-secondary mt-2">{t('export.tagKeys', 'Tag Keys (逗号分隔)')}</label>
                     <input value={optionValues.tagKeys || ''} onChange={(e) => setOptionValues((p) => ({ ...p, tagKeys: e.target.value }))}
                       className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" placeholder="device_id,city" />
                   </>
@@ -319,10 +319,10 @@ export function ResponseExportDropdown({ body }: { body: string }) {
                     {allColumns.length > 0 && (
                       <div>
                         <label className="block pf-text-xs text-text-secondary mb-1">
-                          字段选择 ({selectedCols.size}/{allColumns.length})
+                          {t('export.columnSelection', '字段选择')} ({selectedCols.size}/{allColumns.length})
                           <button className="ml-2 text-accent pf-text-xxs hover:underline"
                             onClick={() => setSelectedCols(selectedCols.size === allColumns.length ? new Set() : new Set(allColumns))}>
-                            {selectedCols.size === allColumns.length ? '取消全选' : '全选'}
+                            {selectedCols.size === allColumns.length ? t('export.deselectAll', '取消全选') : t('export.selectAll', '全选')}
                           </button>
                         </label>
                         <div className="max-h-[200px] overflow-auto border border-border-default/60 pf-rounded-sm">
@@ -361,7 +361,7 @@ export function ResponseExportDropdown({ body }: { body: string }) {
                     setStep(2);
                   }}
                   disabled={selectedFormat.id !== 'influxdb' && selectedCols.size === 0}
-                  className="px-3 py-1 pf-rounded-sm pf-text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50">
+                  className="px-3 py-1 pf-rounded-sm pf-text-xs font-medium bg-accent text-white hover:bg-accent-hover disabled:opacity-50">
                   {t('response.export', '导出')}
                 </button>
               </div>

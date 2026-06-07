@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import {
   ReactFlow,
   Background,
+  BackgroundVariant,
   Controls,
   MiniMap,
   NodeToolbar,
@@ -156,7 +157,7 @@ function NodeActionToolbar({ nodeId, data }: { nodeId: string; data: FlowNodeDat
           type="button"
           onClick={(e) => { e.stopPropagation(); data.onDelete?.(nodeId); }}
           title={t('workflow.menu.deleteNode')}
-          className="flex h-6 w-6 items-center justify-center pf-rounded-sm text-text-tertiary hover:bg-red-500 hover:text-white transition-colors"
+          className="flex h-6 w-6 items-center justify-center pf-rounded-sm text-text-tertiary hover:bg-error hover:text-white transition-colors"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -166,22 +167,25 @@ function NodeActionToolbar({ nodeId, data }: { nodeId: string; data: FlowNodeDat
 }
 
 /** Standard rectangle node */
-function RectangleNode({ id, data }: { id: string; data: FlowNodeData }) {
+function RectangleNode({ id, data, selected }: { id: string; data: FlowNodeData; selected?: boolean }) {
   const Icon = NODE_ICONS[data.nodeType] || Globe;
   const meta = NODE_TYPE_META[data.nodeType];
   const isRunning = data.status === 'running';
   const isDone = data.status === 'completed';
   const isFailed = data.status === 'failed';
   const hCls = '!w-3 !h-3 !bg-accent !border-2 !border-bg-primary';
+  const statusDot = isRunning ? 's-run' : isDone ? 's-ok' : isFailed ? 's-err' : 's-idle';
 
   return (
     <div className={cn(
-      'px-3 py-2 pf-rounded-lg border-2 bg-bg-primary shadow-sm min-w-[160px] transition-colors',
+      // .card frame — padding 8, surface bg, subtle border, accent ring on select/run
+      'px-2 py-2 pf-rounded-lg border bg-bg-surface shadow-sm min-w-[160px] transition-colors',
       'animate-in fade-in-0 zoom-in-95 duration-150',
-      isRunning && 'border-amber-500 ring-2 ring-amber-500/20',
-      isDone && 'border-emerald-500',
-      isFailed && 'border-red-500',
-      !isRunning && !isDone && !isFailed && 'border-border-default',
+      selected && 'border-accent ring-[3px] ring-accent/35',
+      !selected && isRunning && 'border-info ring-[3px] ring-info/20',
+      !selected && isDone && 'border-success',
+      !selected && isFailed && 'border-error',
+      !selected && !isRunning && !isDone && !isFailed && 'border-border-default',
     )}>
       <NodeActionToolbar nodeId={id} data={data} />
       {/* Each direction has both source+target so you can drag from AND drop onto any point */}
@@ -193,24 +197,20 @@ function RectangleNode({ id, data }: { id: string; data: FlowNodeData }) {
       <Handle type="source" position={Position.Left} id="left-source" className={cn(hCls, '!bg-transparent')} />
       <Handle type="target" position={Position.Right} id="right-target" className={cn(hCls, '!bg-transparent')} />
       <Handle type="source" position={Position.Right} id="right-source" className={hCls} />
-      <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md" style={{ backgroundColor: meta.color + '20' }}>
-          <Icon className="h-3.5 w-3.5" style={{ color: meta.color }} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="pf-text-xs font-semibold text-text-primary truncate">{data.label}</div>
-          <div className="pf-text-xxs text-text-disabled">{meta.label}</div>
-        </div>
-        {isRunning && <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500 dark:text-amber-300 shrink-0" />}
-        {isDone && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300 shrink-0" />}
-        {isFailed && <XCircle className="h-3.5 w-3.5 text-red-500 dark:text-red-300 shrink-0" />}
+      {/* type row: icon + uppercase type label + status dot */}
+      <div className="flex items-center gap-1.5 mb-1">
+        <Icon className="h-3 w-3 shrink-0" style={{ color: meta.color }} />
+        <span className="pf-text-3xs font-medium uppercase tracking-wide text-text-tertiary truncate">{meta.label}</span>
+        <span className={cn('pf-dot ml-auto', statusDot)} />
       </div>
+      {/* label row */}
+      <div className="pf-text-xs font-medium leading-tight text-text-primary truncate">{data.label}</div>
     </div>
   );
 }
 
 /** Circle node (start/end) */
-function CircleNode({ id, data }: { id: string; data: FlowNodeData }) {
+function CircleNode({ id, data, selected }: { id: string; data: FlowNodeData; selected?: boolean }) {
   const Icon = NODE_ICONS[data.nodeType] || Globe;
   const meta = NODE_TYPE_META[data.nodeType];
   const isEnd = data.nodeType === 'end';
@@ -222,14 +222,17 @@ function CircleNode({ id, data }: { id: string; data: FlowNodeData }) {
 
   return (
     <div className={cn(
-      'flex h-14 w-14 items-center justify-center rounded-full border-2 bg-bg-primary shadow-sm transition-colors',
+      'flex h-14 w-14 items-center justify-center rounded-full border-2 bg-bg-surface shadow-sm transition-colors',
       'animate-in fade-in-0 zoom-in-95 duration-150',
-      isEnd && 'ring-2 ring-offset-1',
-      isRunning && 'border-amber-500 ring-amber-500/20',
-      isDone && 'border-emerald-500',
-      isFailed && 'border-red-500',
-      !isRunning && !isDone && !isFailed && 'border-border-default',
-    )} style={isEnd && !isRunning && !isDone && !isFailed ? { boxShadow: `0 0 0 3px ${meta.color}40` } : undefined}>
+      selected && 'border-accent ring-[3px] ring-accent/35',
+      !selected && isRunning && 'border-info ring-[3px] ring-info/20',
+      !selected && isDone && 'border-success',
+      !selected && isFailed && 'border-error',
+      // End node (terminal) — subtle error-toned ring in its idle state
+      isEnd && !selected && !isRunning && !isDone && !isFailed && 'border-error ring-[3px] ring-error/25',
+      isStart && !selected && !isRunning && !isDone && !isFailed && 'border-success',
+      !isEnd && !isStart && !selected && !isRunning && !isDone && !isFailed && 'border-border-default',
+    )}>
       <NodeActionToolbar nodeId={id} data={data} />
       {/* Start: only source handles (outgoing). End: only target handles (incoming). */}
       {!isStart && <Handle type="target" position={Position.Top} id="top-target" className={hCls} />}
@@ -246,7 +249,7 @@ function CircleNode({ id, data }: { id: string; data: FlowNodeData }) {
 }
 
 /** Diamond node (condition) */
-function DiamondNode({ id, data }: { id: string; data: FlowNodeData }) {
+function DiamondNode({ id, data, selected }: { id: string; data: FlowNodeData; selected?: boolean }) {
   const Icon = NODE_ICONS[data.nodeType] || Globe;
   const meta = NODE_TYPE_META[data.nodeType];
   const isRunning = data.status === 'running';
@@ -261,14 +264,15 @@ function DiamondNode({ id, data }: { id: string; data: FlowNodeData }) {
       <Handle type="target" position={Position.Top} id="top-target" className={hCls} style={{ top: -5 }} />
       <Handle type="source" position={Position.Top} id="top-source" className={cn(hCls, '!bg-transparent')} style={{ top: -5 }} />
       <Handle type="target" position={Position.Left} id="left-target" className={hCls} style={{ left: -5 }} />
-      <Handle type="source" position={Position.Left} id="left-source" className="!w-3 !h-3 !bg-red-500 !border-2 !border-bg-primary" style={{ left: -5 }} />
+      <Handle type="source" position={Position.Left} id="left-source" className="!w-3 !h-3 !bg-error !border-2 !border-bg-primary" style={{ left: -5 }} />
       <div
         className={cn(
-          'absolute inset-0 border-2 bg-bg-primary shadow-sm transition-colors',
-          isRunning && 'border-amber-500 ring-2 ring-amber-500/20',
-          isDone && 'border-emerald-500',
-          isFailed && 'border-red-500',
-          !isRunning && !isDone && !isFailed && 'border-border-default',
+          'absolute inset-0 border-2 bg-bg-surface shadow-sm transition-colors',
+          selected && 'border-accent ring-[3px] ring-accent/35',
+          !selected && isRunning && 'border-info ring-2 ring-info/20',
+          !selected && isDone && 'border-success',
+          !selected && isFailed && 'border-error',
+          !selected && !isRunning && !isDone && !isFailed && 'border-border-default',
         )}
         style={{ transform: 'rotate(45deg)', borderRadius: 8 }}
       />
@@ -279,7 +283,7 @@ function DiamondNode({ id, data }: { id: string; data: FlowNodeData }) {
       <Handle type="target" position={Position.Bottom} id="bottom-target" className={cn(hCls, '!bg-transparent')} style={{ bottom: -5 }} />
       <Handle type="source" position={Position.Bottom} id="bottom-source" className={hCls} style={{ bottom: -5 }} />
       <Handle type="target" position={Position.Right} id="right-target" className={cn(hCls, '!bg-transparent')} style={{ right: -5 }} />
-      <Handle type="source" position={Position.Right} id="right-source" className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-bg-primary" style={{ right: -5 }} />
+      <Handle type="source" position={Position.Right} id="right-source" className="!w-3 !h-3 !bg-success !border-2 !border-bg-primary" style={{ right: -5 }} />
     </div>
   );
 }
@@ -335,7 +339,7 @@ function LabeledEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, t
               type="button"
               onClick={(e) => { e.stopPropagation(); onDelete?.(id); }}
               title={t('workflow.menu.deleteEdgeTip')}
-              className="flex h-4 w-4 items-center justify-center pf-rounded-sm bg-bg-primary border border-border-default text-text-tertiary hover:bg-red-500 hover:border-red-500 hover:text-white shadow-sm transition-colors"
+              className="flex h-4 w-4 items-center justify-center pf-rounded-sm bg-bg-primary border border-border-default text-text-tertiary hover:bg-error hover:border-error hover:text-white shadow-sm transition-colors"
             >
               <X className="h-2.5 w-2.5" strokeWidth={3} />
             </button>
@@ -828,7 +832,7 @@ function NodeConfigPanel({
           <div>
             <label className={labelCls}>{t('workflow.nodeFields.condExpression')}</label>
             <input value={(config.expression as string) || ''} onChange={(e) => updateConfig('expression', e.target.value)} placeholder="{{prev.status}} == 200" className={cn(fieldCls, 'font-mono')} />
-            <p className="pf-text-xxs text-text-disabled mt-1">支持模板变量引用，求值结果为 true/false</p>
+            <p className="pf-text-xxs text-text-disabled mt-1">{t('workflow.nodeFields.condExpressionHint', { defaultValue: '支持模板变量引用，求值结果为 true/false' })}</p>
           </div>
         )}
 
@@ -843,7 +847,7 @@ function NodeConfigPanel({
           <div>
             <label className={labelCls}>{t('workflow.nodeFields.maxConcurrency')}</label>
             <input type="number" min={0} value={(config.maxConcurrency as number) || 0} onChange={(e) => updateConfig('maxConcurrency', Number(e.target.value))} className={fieldCls} />
-            <p className="pf-text-xxs text-text-disabled mt-1">0 = 不限制并行度</p>
+            <p className="pf-text-xxs text-text-disabled mt-1">{t('workflow.nodeFields.maxConcurrencyHint', { defaultValue: '0 = 不限制并行度' })}</p>
           </div>
         )}
 
@@ -967,7 +971,7 @@ function CopyButton({ text, className, label }: { text: string; className?: stri
         className,
       )}
     >
-      {copied ? <Check className="h-3 w-3 text-emerald-500 dark:text-emerald-300" /> : <Copy className="h-3 w-3" />}
+      {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
     </button>
   );
 }
@@ -993,15 +997,15 @@ function HttpTimingBar({ timing }: { timing: Record<string, unknown> }) {
         <span className="pf-text-xxs font-semibold text-text-tertiary">{t('workflow.timing.title')}</span>
         <span className="pf-text-xxs font-mono text-text-secondary">{totalMs}ms</span>
       </div>
-      <div className="flex h-1.5 w-full pf-rounded-sm overflow-hidden bg-bg-secondary/60">
-        {connectPct > 0 && <div className="bg-violet-500/70" style={{ width: `${connectPct}%` }} title={`${t('workflow.timing.connect')} ${connectMs}ms`} />}
-        {waitPct > 0 && <div className="bg-amber-500/70" style={{ width: `${waitPct}%` }} title={`${t('workflow.timing.ttfb')} ${ttfbMs}ms`} />}
-        {downloadPct > 0 && <div className="bg-emerald-500/70" style={{ width: `${downloadPct}%` }} title={`${t('workflow.timing.download')} ${downloadMs}ms`} />}
+      <div className="flex h-1.5 w-full pf-rounded-sm overflow-hidden bg-bg-secondary">
+        {connectPct > 0 && <div className="bg-info/70" style={{ width: `${connectPct}%` }} title={`${t('workflow.timing.connect')} ${connectMs}ms`} />}
+        {waitPct > 0 && <div className="bg-warning/70" style={{ width: `${waitPct}%` }} title={`${t('workflow.timing.ttfb')} ${ttfbMs}ms`} />}
+        {downloadPct > 0 && <div className="bg-success/70" style={{ width: `${downloadPct}%` }} title={`${t('workflow.timing.download')} ${downloadMs}ms`} />}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 pf-text-xxs text-text-disabled">
-        {connectMs > 0 && <span><span className="inline-block w-1.5 h-1.5 bg-violet-500/70 rounded-sm mr-1 align-middle" />{t('workflow.timing.connect')}: <span className="font-mono text-text-secondary">{connectMs}ms</span></span>}
-        {ttfbMs > 0 && <span><span className="inline-block w-1.5 h-1.5 bg-amber-500/70 rounded-sm mr-1 align-middle" />{t('workflow.timing.ttfb')}: <span className="font-mono text-text-secondary">{Math.round(ttfbMs)}ms</span></span>}
-        {downloadMs > 0 && <span><span className="inline-block w-1.5 h-1.5 bg-emerald-500/70 rounded-sm mr-1 align-middle" />{t('workflow.timing.download')}: <span className="font-mono text-text-secondary">{downloadMs}ms</span></span>}
+        {connectMs > 0 && <span><span className="inline-block w-1.5 h-1.5 bg-info/70 rounded-sm mr-1 align-middle" />{t('workflow.timing.connect')}: <span className="font-mono text-text-secondary">{connectMs}ms</span></span>}
+        {ttfbMs > 0 && <span><span className="inline-block w-1.5 h-1.5 bg-warning/70 rounded-sm mr-1 align-middle" />{t('workflow.timing.ttfb')}: <span className="font-mono text-text-secondary">{Math.round(ttfbMs)}ms</span></span>}
+        {downloadMs > 0 && <span><span className="inline-block w-1.5 h-1.5 bg-success/70 rounded-sm mr-1 align-middle" />{t('workflow.timing.download')}: <span className="font-mono text-text-secondary">{downloadMs}ms</span></span>}
       </div>
     </div>
   );
@@ -1020,14 +1024,14 @@ function ExecutionStatsHeader({ nodeResults }: { nodeResults: NodeResult[] }) {
     return { passed, failed, total: nodeResults.length, totalMs };
   }, [nodeResults]);
   return (
-    <div className="flex items-center gap-2 px-4 py-2 border-b border-border-default/40 bg-bg-secondary/30 shrink-0 flex-wrap">
-      <span className="inline-flex items-center gap-1 pf-text-xxs font-medium text-emerald-600 dark:text-emerald-500 dark:text-emerald-300">
+    <div className="flex items-center gap-2 px-4 py-2 border-b border-border-default bg-bg-secondary shrink-0 flex-wrap">
+      <span className="inline-flex items-center gap-1 pf-text-xxs font-medium text-success">
         <CheckCircle2 className="h-3 w-3" />
         {t('workflow.result.passed', { count: stats.passed })}
       </span>
       <span className={cn(
         'inline-flex items-center gap-1 pf-text-xxs font-medium',
-        stats.failed > 0 ? 'text-red-500 dark:text-red-300' : 'text-text-disabled',
+        stats.failed > 0 ? 'text-error' : 'text-text-disabled',
       )}>
         <XCircle className="h-3 w-3" />
         {t('workflow.result.failed', { count: stats.failed })}
@@ -1101,7 +1105,7 @@ function ExecutionPanel({
   if (nodeResults.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-text-disabled pf-text-xs gap-2 px-4 text-center">
-        {status === 'running' ? <Loader2 className="h-6 w-6 animate-spin text-amber-500 dark:text-amber-300" /> : <WorkflowIcon className="h-8 w-8 opacity-30" />}
+        {status === 'running' ? <Loader2 className="h-6 w-6 animate-spin text-info" /> : <WorkflowIcon className="h-8 w-8 opacity-30" />}
         <p>
           {status === 'running' && progress
             ? t('workflow.step', { current: progress.currentStep + 1, total: progress.totalSteps })
@@ -1116,22 +1120,23 @@ function ExecutionPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default/60 shrink-0">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default shrink-0">
         <div className="flex items-center gap-2">
-          <span className="pf-text-xs font-semibold text-text-secondary">{t('workflow.resultPanel')}</span>
+          <Zap className="h-3.5 w-3.5 text-accent" />
+          <span className="pf-text-xs font-semibold text-text-secondary uppercase tracking-wider">{t('workflow.resultPanel')}</span>
           {progress && status === 'running' && (
-            <span className="pf-text-xxs text-amber-500 dark:text-amber-300 font-medium">
+            <span className="pf-text-xxs text-info font-medium">
               {t('workflow.step', { current: progress.currentStep + 1, total: progress.totalSteps })}
             </span>
           )}
-          {status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" />}
-          {status === 'failed' && <XCircle className="h-3.5 w-3.5 text-red-500 dark:text-red-300" />}
+          {status === 'completed' && <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
+          {status === 'failed' && <XCircle className="h-3.5 w-3.5 text-error" />}
         </div>
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => setShowOnlyFailed((v) => !v)}
             title={showOnlyFailed ? t('workflow.result.showAll') : t('workflow.result.showOnlyFailed')}
-            className={cn('wb-icon-btn', showOnlyFailed && 'text-red-500 dark:text-red-300')}
+            className={cn('wb-icon-btn', showOnlyFailed && 'text-error')}
           >
             <Filter className="h-3 w-3" />
           </button>
@@ -1172,18 +1177,18 @@ function ExecutionPanel({
                 else rowRefs.current.delete(result.nodeId);
               }}
               className={cn(
-                'border-b border-border-default/30',
-                isSelected && 'bg-accent/[0.04] border-l-2 border-l-accent',
+                'border-b border-border-subtle',
+                isSelected && 'bg-accent-soft border-l-2 border-l-accent',
               )}
             >
-              <div className="flex items-stretch w-full hover:bg-bg-hover/40 transition-colors">
+              <div className="flex items-stretch w-full hover:bg-bg-hover transition-colors">
                 <button
                   onClick={() => toggleExpanded(result.nodeId)}
                   className="flex items-center gap-2 flex-1 min-w-0 px-4 py-2 text-left"
                 >
-                  {result.status === 'completed' && <CheckCircle2 className="h-3 w-3 text-emerald-500 dark:text-emerald-300 shrink-0" />}
-                  {result.status === 'failed' && <XCircle className="h-3 w-3 text-red-500 dark:text-red-300 shrink-0" />}
-                  {result.status === 'running' && <Loader2 className="h-3 w-3 animate-spin text-amber-500 dark:text-amber-300 shrink-0" />}
+                  {result.status === 'completed' && <CheckCircle2 className="h-3 w-3 text-success shrink-0" />}
+                  {result.status === 'failed' && <XCircle className="h-3 w-3 text-error shrink-0" />}
+                  {result.status === 'running' && <Loader2 className="h-3 w-3 animate-spin text-info shrink-0" />}
                   {result.status === 'pending' && <Clock className="h-3 w-3 text-text-disabled shrink-0" />}
                   <Icon className="h-3 w-3 shrink-0" style={{ color: meta.color }} />
                   <div className="flex-1 min-w-0">
@@ -1206,7 +1211,7 @@ function ExecutionPanel({
               {expanded && (
                 <div className="px-4 pb-3">
                   {result.error && (
-                    <div className="pf-text-xxs text-red-500 dark:text-red-300 mb-2 p-2 pf-rounded-md bg-red-500/5 border border-red-500/20 flex items-start gap-2">
+                    <div className="pf-text-xxs text-error mb-2 p-2 pf-rounded-md bg-error/5 border border-error/20 flex items-start gap-2">
                       <span className="flex-1 break-all">{result.error}</span>
                       <CopyButton text={result.error} />
                     </div>
@@ -1341,7 +1346,7 @@ function NodeOutputView({ result }: { result: NodeResult }) {
       const isBinary = Boolean(out.isBinary);
       const timing = out.timing as Record<string, unknown> | undefined;
       const statusColor = typeof status === 'number'
-        ? (status >= 500 ? 'text-red-500 dark:text-red-300' : status >= 400 ? 'text-amber-500 dark:text-amber-300' : status >= 300 ? 'text-blue-500 dark:text-blue-300' : 'text-emerald-500 dark:text-emerald-300')
+        ? (status >= 500 ? 'text-error' : status >= 400 ? 'text-warning' : status >= 300 ? 'text-info' : 'text-success')
         : 'text-text-secondary';
       return (
         <div className="space-y-1">
@@ -1458,7 +1463,7 @@ function NodeOutputView({ result }: { result: NodeResult }) {
           <div className={kvCls}><span className={keyCls}>Client</span><span className={valCls}>{String(out.clientId || '')}</span></div>
           <div className={kvCls}><span className={keyCls}>Topic</span><span className={valCls}>{String(out.topic || '')}</span></div>
           <div className={kvCls}><span className={keyCls}>QoS</span><span className={valCls}>{String(out.qos ?? 0)} / retain={String(Boolean(out.retain))}</span></div>
-          <div className={kvCls}><span className={keyCls}>State</span><span className={cn(valCls, out.published ? 'text-emerald-500' : 'text-text-secondary')}>{String(out.published ? 'published' : 'queued')}</span></div>
+          <div className={kvCls}><span className={keyCls}>State</span><span className={cn(valCls, out.published ? 'text-success' : 'text-text-secondary')}>{String(out.published ? 'published' : 'queued')}</span></div>
           <details className="mt-1" open>
             <summary className="pf-text-xxs text-text-tertiary cursor-pointer select-none">Payload</summary>
             <div className="mt-1">
@@ -1504,10 +1509,10 @@ function NodeOutputView({ result }: { result: NodeResult }) {
       const level = String(out.level || 'info').toLowerCase();
       const msg = String(out.message || '');
       const wrapCls = level === 'error'
-        ? 'bg-red-500/5 text-red-500 dark:text-red-300'
+        ? 'bg-error/5 text-error'
         : level === 'warn'
-          ? 'bg-amber-500/5 text-amber-600 dark:text-amber-300'
-          : 'bg-bg-secondary/40 text-text-secondary';
+          ? 'bg-warning/5 text-warning'
+          : 'bg-bg-secondary text-text-secondary';
       return (
         <div className={cn('p-2 pf-rounded-md pf-text-xxs font-mono flex items-start gap-2 group', wrapCls)}>
           <span className="flex-1 break-all">[{level.toUpperCase()}] {msg}</span>
@@ -1549,10 +1554,10 @@ function NodeOutputView({ result }: { result: NodeResult }) {
     case 'assertion': {
       const passed = Boolean(out.passed);
       return (
-        <div className={cn('p-2 pf-rounded-md pf-text-xxs border', passed ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20')}>
+        <div className={cn('p-2 pf-rounded-md pf-text-xxs border', passed ? 'bg-success/5 border-success/20' : 'bg-error/5 border-error/20')}>
           <div className="flex items-center gap-1.5 mb-1">
-            {passed ? <CheckCircle2 className="h-3 w-3 text-emerald-500 dark:text-emerald-300" /> : <XCircle className="h-3 w-3 text-red-500 dark:text-red-300" />}
-            <span className={cn('font-semibold', passed ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-500 dark:text-red-300')}>{String(out.name || 'Assertion')}</span>
+            {passed ? <CheckCircle2 className="h-3 w-3 text-success" /> : <XCircle className="h-3 w-3 text-error" />}
+            <span className={cn('font-semibold', passed ? 'text-success' : 'text-error')}>{String(out.name || 'Assertion')}</span>
           </div>
           <div className="font-mono text-text-disabled">{String(out.target)} {String(out.operator)} {String(out.expected)}</div>
         </div>
@@ -1562,7 +1567,7 @@ function NodeOutputView({ result }: { result: NodeResult }) {
       return (
         <div className="space-y-1">
           <div className={kvCls}><span className={keyCls}>Expr</span><span className={valCls}>{String(out.expression)}</span></div>
-          <div className={kvCls}><span className={keyCls}>Result</span><span className={cn(valCls, out.result ? 'text-emerald-500 dark:text-emerald-300' : 'text-red-500 dark:text-red-300')}>{String(out.result)}</span></div>
+          <div className={kvCls}><span className={keyCls}>Result</span><span className={cn(valCls, out.result ? 'text-success' : 'text-error')}>{String(out.result)}</span></div>
         </div>
       );
     case 'extractData':
@@ -1590,7 +1595,7 @@ function NodeOutputView({ result }: { result: NodeResult }) {
                 <span>Console ({logs.length})</span>
                 <CopyButton text={logs.join('\n')} />
               </div>
-              <div className="bg-bg-secondary/40 p-1.5 pf-rounded-md max-h-[180px] overflow-y-auto space-y-0.5">
+              <div className="bg-bg-inset p-1.5 pf-rounded-md max-h-[180px] overflow-y-auto space-y-0.5">
                 {logs.map((log, i) => {
                   const lvl = getLogLineLevel(log);
                   return (
@@ -1598,8 +1603,8 @@ function NodeOutputView({ result }: { result: NodeResult }) {
                       key={i}
                       className={cn(
                         'pf-text-xxs font-mono break-all',
-                        lvl === 'error' && 'text-red-500 dark:text-red-300',
-                        lvl === 'warn' && 'text-amber-600 dark:text-amber-300',
+                        lvl === 'error' && 'text-error',
+                        lvl === 'warn' && 'text-warning',
                         lvl === 'debug' && 'text-text-disabled',
                         !lvl && 'text-text-secondary',
                         lvl === 'info' && 'text-text-secondary',
@@ -1618,7 +1623,7 @@ function NodeOutputView({ result }: { result: NodeResult }) {
                 <span>Variables ({Object.keys(envUpdates).length})</span>
                 <CopyButton text={Object.entries(envUpdates).map(([k, v]) => `${k}=${v}`).join('\n')} />
               </div>
-              <div className="bg-bg-secondary/40 p-1.5 pf-rounded-md space-y-0.5 max-h-[120px] overflow-y-auto">
+              <div className="bg-bg-inset p-1.5 pf-rounded-md space-y-0.5 max-h-[120px] overflow-y-auto">
                 {Object.entries(envUpdates).map(([key, value]) => (
                   <div key={key} className="pf-text-xxs font-mono text-text-secondary break-all">
                     <span className="text-text-tertiary">{key}</span> = {value}
@@ -1633,8 +1638,8 @@ function NodeOutputView({ result }: { result: NodeResult }) {
               <div className="space-y-0.5">
                 {tests.map((test, i) => (
                   <div key={i} className="flex items-center gap-1.5 pf-text-xxs">
-                    {test.passed ? <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500 dark:text-emerald-300 shrink-0" /> : <XCircle className="h-2.5 w-2.5 text-red-500 dark:text-red-300 shrink-0" />}
-                    <span className={cn('break-all', test.passed ? 'text-text-secondary' : 'text-red-500 dark:text-red-300')}>{test.name}</span>
+                    {test.passed ? <CheckCircle2 className="h-2.5 w-2.5 text-success shrink-0" /> : <XCircle className="h-2.5 w-2.5 text-error shrink-0" />}
+                    <span className={cn('break-all', test.passed ? 'text-text-secondary' : 'text-error')}>{test.name}</span>
                   </div>
                 ))}
               </div>
@@ -1799,6 +1804,19 @@ export function WorkflowWorkspace() {
 function WorkflowWorkspaceInner() {
   const { t } = useTranslation();
   const theme = useThemeStore((s) => s.resolved);
+
+  // Forge canvas chrome colors read from CSS vars (recompute on theme switch)
+  const flowColors = useMemo(() => {
+    const cs = getComputedStyle(document.documentElement);
+    const read = (v: string, fb: string) => cs.getPropertyValue(v).trim() || fb;
+    return {
+      grid: read('--color-border-strong', '#353c47'),
+      minimapBg: read('--color-bg-inset', '#0c0e12'),
+      minimapNode: read('--color-border-strong', '#353c47'),
+      minimapMask: read('--color-bg-app', '#0c0e12'),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme]);
 
   const workflows = useWorkflowStore((s) => s.workflows);
   const loading = useWorkflowStore((s) => s.loading);
@@ -2583,10 +2601,12 @@ function WorkflowWorkspaceInner() {
       // Wait one frame for layout to settle
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const { toPng } = await import('html-to-image');
+      const exportBg = getComputedStyle(document.documentElement)
+        .getPropertyValue('--color-bg-app').trim() || (theme === 'dark' ? '#0c0e12' : '#eef0f3');
       const dataUrl = await toPng(target, {
         width,
         height,
-        backgroundColor: theme === 'dark' ? '#0f0f12' : '#ffffff',
+        backgroundColor: exportBg,
         pixelRatio: 2,
         filter: (node) => {
           // Skip the controls/minimap/attribution since we want a clean export
@@ -2889,7 +2909,7 @@ function WorkflowWorkspaceInner() {
       <div className="shrink-0 flex flex-col border-r border-border-default/60 bg-bg-primary/60" style={{ width: sidebarWidth }}>
         {/* Workflow list header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-border-default/60 shrink-0">
-          <span className="pf-text-xs font-semibold text-text-secondary">{t('workflow.title')}</span>
+          <span className="pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t('workflow.title')}</span>
           <div className="flex items-center gap-0.5">
             <button onClick={handleImportJson} className="wb-icon-btn" title={t('workflow.importJson')}>
               <Upload className="h-3.5 w-3.5" />
@@ -2964,7 +2984,7 @@ function WorkflowWorkspaceInner() {
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDelete(w.id, w.name); }}
-                    className="p-0.5 text-text-disabled hover:text-red-500 dark:text-red-300"
+                    className="p-0.5 text-text-disabled hover:text-error"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -3037,11 +3057,18 @@ function WorkflowWorkspaceInner() {
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Toolbar */}
         {localWorkflow && (
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-border-default/60 bg-bg-primary/50 shrink-0">
-            <span className="pf-text-sm font-semibold text-text-primary truncate flex-1">
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-border-default bg-bg-surface shrink-0">
+            <span className="pf-text-sm font-semibold text-text-primary truncate">
               {localWorkflow.name}
               {dirty && <span className="text-text-disabled ml-1">*</span>}
             </span>
+            <span className={cn('pf-pill', isRunning && 'info')}>
+              <span className={cn('pf-dot', isRunning ? 's-run' : 's-idle')} />
+              {isRunning && executionProgress
+                ? t('workflow.step', { current: executionProgress.currentStep + 1, total: executionProgress.totalSteps })
+                : (localWorkflow.nodes?.length ?? 0)}
+            </span>
+            <div className="flex-1" />
             <button
               onClick={handleUndo}
               disabled={historyRef.current.length === 0}
@@ -3087,7 +3114,7 @@ function WorkflowWorkspaceInner() {
               <Save className="h-3 w-3" /> {t('workflow.save')}
             </button>
             {isRunning ? (
-              <button onClick={cancelExec} className="flex items-center gap-1 h-7 px-3 pf-rounded-lg bg-red-500 pf-text-xs font-semibold text-white hover:bg-red-600 transition-colors">
+              <button onClick={cancelExec} className="flex items-center gap-1 h-7 px-3 pf-rounded-lg bg-error pf-text-xs font-semibold text-white hover:bg-error/90 transition-colors">
                 <Square className="h-3 w-3" /> {t('workflow.stop')}
               </button>
             ) : (
@@ -3113,8 +3140,8 @@ function WorkflowWorkspaceInner() {
           {localWorkflow ? (
             <>
               {isPaletteDragging && (
-                <div className="pointer-events-none absolute inset-3 z-10 rounded-2xl border border-dashed border-accent/55 bg-accent/4 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.06)]">
-                  <div className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full border border-accent/20 bg-bg-elevated/95 px-3 py-1.5 pf-text-xxs font-medium text-accent shadow-sm">
+                <div className="pointer-events-none absolute inset-3 z-10 rounded-2xl border border-dashed border-accent/55 bg-accent/5">
+                  <div className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full border border-accent/20 bg-bg-elevated px-3 py-1.5 pf-text-xxs font-medium text-accent shadow-sm">
                     {t('workflow.emptyCanvas')}
                   </div>
                 </div>
@@ -3205,12 +3232,15 @@ function WorkflowWorkspaceInner() {
                 colorMode={theme === 'dark' ? 'dark' : 'light'}
                 defaultEdgeOptions={{ type: 'labeled', markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 }, style: { strokeWidth: 2 } }}
               >
-                <Background gap={16} size={1} />
+                <Background variant={BackgroundVariant.Dots} gap={16} size={1} color={flowColors.grid} />
                 <Controls showInteractive={false} />
                 <MiniMap
                   nodeStrokeWidth={3}
                   pannable
                   zoomable
+                  bgColor={flowColors.minimapBg}
+                  nodeColor={flowColors.minimapNode}
+                  maskColor={`color-mix(in srgb, ${flowColors.minimapMask} 60%, transparent)`}
                 />
               </ReactFlow>
               {ContextMenuComponent}

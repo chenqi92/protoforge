@@ -144,11 +144,11 @@ export function JsonEditorLite({
         >
           <code
             className={cn(
-              "[&_.json-token-key]:text-sky-600 dark:[&_.json-token-key]:text-sky-400",
-              "[&_.json-token-string]:text-emerald-600 dark:text-emerald-300 dark:[&_.json-token-string]:text-emerald-400",
-              "[&_.json-token-number]:text-amber-600 dark:text-amber-300 dark:[&_.json-token-number]:text-amber-400",
-              "[&_.json-token-boolean]:text-violet-600 dark:text-violet-300 dark:[&_.json-token-boolean]:text-violet-400",
-              "[&_.json-token-null]:text-rose-600 dark:text-rose-300 dark:[&_.json-token-null]:text-rose-400",
+              "[&_.json-token-key]:text-[#0550ae] dark:[&_.json-token-key]:text-[#79c0ff]",
+              "[&_.json-token-string]:text-[#0a7d33] dark:[&_.json-token-string]:text-[#a5d6a3]",
+              "[&_.json-token-number]:text-[#bc4c00] dark:[&_.json-token-number]:text-[#f0883e]",
+              "[&_.json-token-boolean]:text-[#cf222e] dark:[&_.json-token-boolean]:text-[#ff7b72]",
+              "[&_.json-token-null]:text-[#cf222e] dark:[&_.json-token-null]:text-[#ff7b72]",
               "[&_.json-token-punctuation]:text-text-tertiary"
             )}
             dangerouslySetInnerHTML={{ __html: highlightedHtml || "&nbsp;" }}
@@ -187,11 +187,11 @@ export function JsonEditorLite({
         >
           <code
             className={cn(
-              "[&_.json-token-key]:text-sky-600 dark:[&_.json-token-key]:text-sky-400",
-              "[&_.json-token-string]:text-emerald-600 dark:text-emerald-300 dark:[&_.json-token-string]:text-emerald-400",
-              "[&_.json-token-number]:text-amber-600 dark:text-amber-300 dark:[&_.json-token-number]:text-amber-400",
-              "[&_.json-token-boolean]:text-violet-600 dark:text-violet-300 dark:[&_.json-token-boolean]:text-violet-400",
-              "[&_.json-token-null]:text-rose-600 dark:text-rose-300 dark:[&_.json-token-null]:text-rose-400",
+              "[&_.json-token-key]:text-[#0550ae] dark:[&_.json-token-key]:text-[#79c0ff]",
+              "[&_.json-token-string]:text-[#0a7d33] dark:[&_.json-token-string]:text-[#a5d6a3]",
+              "[&_.json-token-number]:text-[#bc4c00] dark:[&_.json-token-number]:text-[#f0883e]",
+              "[&_.json-token-boolean]:text-[#cf222e] dark:[&_.json-token-boolean]:text-[#ff7b72]",
+              "[&_.json-token-null]:text-[#cf222e] dark:[&_.json-token-null]:text-[#ff7b72]",
               "[&_.json-token-punctuation]:text-text-tertiary"
             )}
             dangerouslySetInnerHTML={{ __html: highlightedHtml || "&nbsp;" }}

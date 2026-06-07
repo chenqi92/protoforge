@@ -57,25 +57,25 @@ const sourceItems: SourceMeta[] = [
     label: 'import.fileImport',
     desc: 'import.fileImportDesc',
     icon: FileJson,
-    accentClassName: 'bg-blue-500/10 text-blue-600 dark:text-blue-300 ring-1 ring-inset ring-blue-500/15',
+    accentClassName: 'bg-info/10 text-info ring-1 ring-inset ring-info/15',
   },
   {
     id: 'swagger',
     label: 'import.openApiImport',
     desc: 'import.openApiImportDesc',
     icon: Globe,
-    accentClassName: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/15',
+    accentClassName: 'bg-success/10 text-success ring-1 ring-inset ring-success/15',
   },
 ];
 
 const METHOD_COLORS: Record<string, { text: string; bg: string }> = {
-  GET: { text: 'text-emerald-600 dark:text-emerald-300', bg: 'bg-emerald-500/10' },
-  POST: { text: 'text-amber-600 dark:text-amber-300', bg: 'bg-amber-500/10' },
-  PUT: { text: 'text-blue-600 dark:text-blue-300', bg: 'bg-blue-500/10' },
-  DELETE: { text: 'text-red-600 dark:text-red-300', bg: 'bg-red-500/10' },
-  PATCH: { text: 'text-violet-600 dark:text-violet-300', bg: 'bg-violet-500/10' },
-  HEAD: { text: 'text-slate-600', bg: 'bg-slate-500/10' },
-  OPTIONS: { text: 'text-cyan-600 dark:text-cyan-300', bg: 'bg-cyan-500/10' },
+  GET: { text: 'text-method-get', bg: 'bg-method-get/10' },
+  POST: { text: 'text-method-post', bg: 'bg-method-post/10' },
+  PUT: { text: 'text-method-put', bg: 'bg-method-put/10' },
+  DELETE: { text: 'text-method-delete', bg: 'bg-method-delete/10' },
+  PATCH: { text: 'text-method-patch', bg: 'bg-method-patch/10' },
+  HEAD: { text: 'text-method-head', bg: 'bg-method-head/10' },
+  OPTIONS: { text: 'text-method-options', bg: 'bg-method-options/10' },
 };
 
 const inputClassName =
@@ -231,9 +231,9 @@ function AlertMessage({
   className?: string;
 }) {
   return (
-    <div className={cn('flex items-start gap-2 pf-rounded-xl border border-red-500/15 bg-red-500/5 px-3 py-3', className)}>
-      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500 dark:text-red-300" />
-      <p className="break-all whitespace-pre-wrap pf-text-xs leading-5 text-red-600 dark:text-red-300">{error}</p>
+    <div className={cn('flex items-start gap-2 pf-rounded-xl border border-error/15 bg-error/5 px-3 py-3', className)}>
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+      <p className="break-all whitespace-pre-wrap pf-text-xs leading-5 text-error">{error}</p>
     </div>
   );
 }
@@ -356,7 +356,7 @@ function ImportModeToggle({
         className={cn(
           'flex items-center gap-1.5 pf-rounded-md px-3 py-1.5 pf-text-xs font-medium transition-all',
           mode === 'merge'
-            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/20'
+            ? 'bg-success/10 text-success ring-1 ring-inset ring-success/20'
             : 'text-text-tertiary hover:bg-bg-hover hover:text-text-secondary'
         )}
       >
@@ -471,7 +471,7 @@ function FileImportView({
             loading
               ? 'cursor-wait bg-accent-soft/10'
               : success
-                ? 'bg-emerald-500/5 hover:bg-emerald-500/8'
+                ? 'bg-success/5 hover:bg-success/10'
                 : 'hover:bg-accent-soft/6'
           )}
         >
@@ -481,7 +481,7 @@ function FileImportView({
               loading
                 ? 'border-accent/40 bg-accent/8 text-accent'
                 : success
-                  ? 'border-emerald-500/40 bg-emerald-500/8 text-emerald-600 dark:text-emerald-300'
+                  ? 'border-success/40 bg-success/8 text-success'
                   : 'border-border-default/80 bg-bg-secondary/50 text-text-disabled group-hover:border-accent/50 group-hover:bg-accent/8 group-hover:text-accent'
             )}
           >
@@ -982,7 +982,7 @@ function SwaggerImportView({
                   <input
                     value={collectionName}
                     onChange={(event) => setCollectionName(event.target.value)}
-                    placeholder="例如: 支付中心 API"
+                    placeholder={t('import.collectionNamePlaceholder', { defaultValue: '例如: 支付中心 API' })}
                     className={inputClassName}
                   />
                 </div>
@@ -1103,7 +1103,7 @@ function SwaggerImportView({
                     <input
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
-                      placeholder="搜索路径、摘要或方法..."
+                      placeholder={t('import.searchEndpointsPlaceholder', { defaultValue: '搜索路径、摘要或方法...' })}
                       className={cn(inputClassName, 'w-full pl-9')}
                     />
                   </div>

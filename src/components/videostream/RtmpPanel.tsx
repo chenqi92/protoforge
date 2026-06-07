@@ -105,14 +105,14 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
               disabled={handshaking}
               className="btn-ghost-action flex-1"
             >
-              {handshaking ? '握手中...' : '握手'}
+              {handshaking ? t('videostream.rtmp.handshaking', '握手中...') : t('videostream.rtmp.handshakeBtn', '握手')}
             </button>
             <button
               onClick={handleConnect}
               disabled={!handshakePhases.some(p => p.status === 'done') || appConnected}
               className="btn-ghost-action flex-1"
             >
-              {appConnected ? '已连接' : 'Connect'}
+              {appConnected ? t('videostream.connected', '已连接') : 'Connect'}
             </button>
             <button
               onClick={handlePlay}
@@ -139,10 +139,10 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
         {showHandshake && (
           <div className="space-y-0.5 pl-1">
             {handshakePhases.map((p, i) => (
-              <div key={i} className="flex items-center gap-2 px-2 py-1 pf-rounded-xs pf-text-xxs font-mono">
+              <div key={i} className="flex items-center gap-2 px-2 py-1 pf-rounded-xs pf-text-xxs font-mono hover:bg-bg-hover transition-colors">
                 <span className={cn(
-                  "w-1.5 h-1.5 rounded-full shrink-0",
-                  p.status === 'done' ? 'bg-emerald-500' : p.status === 'active' ? 'bg-amber-500 animate-pulse' : p.status === 'error' ? 'bg-red-500' : 'bg-text-disabled/40'
+                  "pf-dot shrink-0",
+                  p.status === 'done' ? 's-ok' : p.status === 'active' ? 's-conn' : p.status === 'error' ? 's-err' : 's-idle'
                 )} />
                 <span className="text-accent font-semibold w-6">{p.phase}</span>
                 <span className="text-text-tertiary">{p.desc}</span>
@@ -157,7 +157,7 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
         <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           {t('videostream.rtmp.metadata', '元数据 (onMetaData)')}
         </label>
-        <div className="pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-2 pf-text-xs text-text-disabled text-center py-4">
+        <div className="pf-rounded-sm border border-border-default bg-bg-secondary p-2 pf-text-xs text-text-disabled text-center py-4">
           {connected
             ? t('videostream.rtmp.waitingMetadata', '等待元数据...')
             : t('videostream.rtmp.connectFirst', '连接后显示')}

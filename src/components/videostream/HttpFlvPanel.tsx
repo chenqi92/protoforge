@@ -67,7 +67,7 @@ export function HttpFlvPanel({ sessionKey, connected }: HttpFlvPanelProps) {
         <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
           FLV Header
         </label>
-        <div className="pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-2 pf-text-xxs font-mono space-y-0.5">
+        <div className="pf-rounded-sm border border-border-default bg-bg-inset p-2 pf-text-xxs font-mono space-y-0.5">
           {connected ? (
             <>
               <div className="flex justify-between"><span className="text-text-disabled">Signature</span><span className="text-text-primary">FLV</span></div>
@@ -107,31 +107,31 @@ export function HttpFlvPanel({ sessionKey, connected }: HttpFlvPanelProps) {
           </label>
           <span className="pf-text-3xs text-text-disabled">{filtered.length} tags</span>
         </div>
-        <div className="max-h-[200px] overflow-y-auto pf-rounded-sm border border-border-default/60 bg-bg-secondary/30">
+        <div className="max-h-[200px] overflow-y-auto pf-rounded-sm border border-border-default bg-bg-secondary">
           {filtered.length === 0 ? (
             <div className="pf-text-xs text-text-disabled text-center py-6">
               {connected ? t('videostream.flv.waitingTags', '等待 FLV Tag...') : t('videostream.flv.connectFirst', '连接后解析')}
             </div>
           ) : (
-            <div className="divide-y divide-border-default/20">
+            <div className="divide-y divide-border-subtle">
               {filtered.map((tag) => (
                 <button
                   key={tag.id}
                   onClick={() => setSelectedTag(tag)}
                   className={cn(
-                    "w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-bg-hover/50 transition-colors pf-text-xxs font-mono",
+                    "w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-bg-hover transition-colors pf-text-xxs font-mono",
                     selectedTag?.id === tag.id && "bg-accent/5"
                   )}
                 >
                   <span className={cn(
-                    "w-12 shrink-0 font-semibold",
-                    tag.type === 'video' ? 'text-blue-500 dark:text-blue-300' : tag.type === 'audio' ? 'text-emerald-500 dark:text-emerald-300' : 'text-amber-500 dark:text-amber-300'
+                    "w-12 shrink-0 font-bold uppercase",
+                    tag.type === 'video' ? 'text-method-post' : tag.type === 'audio' ? 'text-success' : 'text-warning'
                   )}>
                     {tag.type}
                   </span>
                   <span className="text-text-tertiary w-16 shrink-0">{tag.size}B</span>
                   <span className="text-text-disabled">{tag.timestamp}ms</span>
-                  {tag.keyframe && <span className="text-amber-500 dark:text-amber-300 pf-text-3xs">KEY</span>}
+                  {tag.keyframe && <span className="text-warning pf-text-3xs font-bold">KEY</span>}
                 </button>
               ))}
             </div>

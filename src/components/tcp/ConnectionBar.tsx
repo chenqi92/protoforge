@@ -21,28 +21,28 @@ const modeConfig: Record<SocketMode, { label: string; compactLabel: string; icon
     label: "TCP",
     compactLabel: "TCP",
     icon: <Network className="w-3.5 h-3.5" />,
-    badge: "bg-blue-500",
+    badge: "bg-accent-soft text-accent",
     gradient: "bg-accent hover:bg-accent-hover",
   },
   "tcp-server": {
     label: "TCP Server",
     compactLabel: "Server",
     icon: <Server className="w-3.5 h-3.5" />,
-    badge: "bg-indigo-500",
+    badge: "bg-accent-soft text-accent",
     gradient: "bg-accent hover:bg-accent-hover",
   },
   "udp-client": {
     label: "UDP",
     compactLabel: "UDP",
     icon: <Radio className="w-3.5 h-3.5" />,
-    badge: "bg-cyan-500",
+    badge: "bg-accent-soft text-accent",
     gradient: "bg-accent hover:bg-accent-hover",
   },
   "udp-server": {
     label: "UDP Server",
     compactLabel: "Server",
     icon: <Square className="w-3.5 h-3.5" />,
-    badge: "bg-teal-500",
+    badge: "bg-accent-soft text-accent",
     gradient: "bg-accent hover:bg-accent-hover",
   },
   // serial / modbus use dedicated panel components, not ConnectionBar — stubs required for TS exhaustiveness
@@ -50,14 +50,14 @@ const modeConfig: Record<SocketMode, { label: string; compactLabel: string; icon
     label: "Serial",
     compactLabel: "Serial",
     icon: <Usb className="w-3.5 h-3.5" />,
-    badge: "bg-amber-500",
+    badge: "bg-accent-soft text-accent",
     gradient: "bg-accent hover:bg-accent-hover",
   },
   "modbus": {
     label: "Modbus",
     compactLabel: "Modbus",
     icon: <Cpu className="w-3.5 h-3.5" />,
-    badge: "bg-violet-500",
+    badge: "bg-accent-soft text-accent",
     gradient: "bg-accent hover:bg-accent-hover",
   },
   // modbus-slave uses ModbusSlavePanel directly, stub required for TS exhaustiveness
@@ -65,7 +65,7 @@ const modeConfig: Record<SocketMode, { label: string; compactLabel: string; icon
     label: "Modbus Slave",
     compactLabel: "Slave",
     icon: <Cpu className="w-3.5 h-3.5" />,
-    badge: "bg-violet-600",
+    badge: "bg-accent-soft text-accent",
     gradient: "bg-accent hover:bg-accent-hover",
   },
 };
@@ -76,12 +76,14 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
   const isServer = mode === "tcp-server" || mode === "udp-server";
   const activeLabel = isServer ? (connected ? t('tcp.stopListening') : t('tcp.listen')) : (connected ? t('tcp.disconnect') : t('tcp.connect'));
   const connectingLabel = isServer ? t('tcp.starting') : t('tcp.connecting');
+  const stateDot = connected ? "s-live" : connecting ? "s-conn" : "s-idle";
 
   if (compact) {
     return (
       <div className="space-y-2.5">
         <div className="flex items-center gap-2 pf-rounded-md border border-border-default/60 bg-bg-secondary/35 p-1">
-          <div className={cn("flex h-8 shrink-0 items-center justify-center gap-1.5 pf-rounded-sm px-2.5 pf-text-xs font-semibold text-white shadow-sm", cfg.badge)}>
+          <div className={cn("flex h-8 shrink-0 items-center justify-center gap-1.5 pf-rounded-sm px-2.5 pf-text-xs font-semibold", cfg.badge)}>
+            <span className={cn("pf-dot shrink-0", stateDot)} />
             {cfg.icon}
             <span>{cfg.compactLabel}</span>
           </div>
@@ -125,7 +127,8 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
 
   return (
     <div className="flex min-h-[38px] items-center gap-2 pf-rounded-md border border-border-default/80 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
-      <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 pf-rounded-sm px-3 pf-text-xs font-semibold text-white shadow-sm", cfg.badge)}>
+      <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 pf-rounded-sm px-3 pf-text-xs font-semibold", cfg.badge)}>
+        <span className={cn("pf-dot shrink-0", stateDot)} />
         {cfg.icon}
         {cfg.label}
       </div>

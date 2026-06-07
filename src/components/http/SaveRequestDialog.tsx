@@ -198,7 +198,7 @@ export function SaveRequestDialog({ isOpen, onClose, config, onSaved }: SaveRequ
 
         {/* Footer */}
         {errorMsg && (
-          <div className="shrink-0 border-t border-red-500/30 bg-red-500/8 px-5 py-2 pf-text-sm text-red-500">
+          <div className="shrink-0 border-t border-error/30 bg-error/8 px-5 py-2 pf-text-sm text-error">
             {errorMsg}
           </div>
         )}

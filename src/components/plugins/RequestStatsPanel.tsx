@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import {
   BarChart3,
@@ -100,25 +101,28 @@ function useRequestStats(): StatsState {
 
 // 状态码颜色
 function statusColor(code: number) {
-  if (code >= 200 && code < 300) return 'text-emerald-500';
-  if (code >= 300 && code < 400) return 'text-blue-500';
-  if (code >= 400 && code < 500) return 'text-amber-500';
-  if (code >= 500) return 'text-red-500';
+  if (code >= 200 && code < 300) return 'text-success';
+  if (code >= 300 && code < 400) return 'text-info';
+  if (code >= 400 && code < 500) return 'text-warning';
+  if (code >= 500) return 'text-error';
   return 'text-text-tertiary';
 }
 
 function methodColor(method: string) {
   const colors: Record<string, string> = {
-    GET: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-    POST: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-    PUT: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
-    DELETE: 'bg-red-500/15 text-red-700 dark:text-red-300',
-    PATCH: 'bg-violet-500/15 text-violet-700 dark:text-violet-300',
+    GET: 'bg-method-get/15 text-method-get',
+    POST: 'bg-method-post/15 text-method-post',
+    PUT: 'bg-method-put/15 text-method-put',
+    DELETE: 'bg-method-delete/15 text-method-delete',
+    PATCH: 'bg-method-patch/15 text-method-patch',
+    HEAD: 'bg-method-head/15 text-method-head',
+    OPTIONS: 'bg-method-options/15 text-method-options',
   };
-  return colors[method] || 'bg-gray-500/10 text-text-tertiary';
+  return colors[method] || 'bg-bg-tertiary text-text-tertiary';
 }
 
 export function RequestStatsPanel() {
+  const { t } = useTranslation();
   const stats = useRequestStats();
   const successRate = stats.total > 0 ? ((stats.success / stats.total) * 100).toFixed(1) : '0.0';
 
@@ -132,13 +136,13 @@ export function RequestStatsPanel() {
       <div className="flex items-center justify-between px-1 mb-2">
         <span className="text-[length:var(--fs-sidebar)] font-semibold text-text-primary flex items-center gap-1.5">
           <BarChart3 className="w-3.5 h-3.5 text-accent" />
-          请求统计
+          {t('plugin.requestStats.title', '请求统计')}
         </span>
         {stats.total > 0 && (
           <button
             onClick={handleClear}
-            className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[length:var(--fs-sidebar-sm)] text-text-tertiary hover:text-red-500 hover:bg-bg-hover transition-colors"
-            title="清空统计"
+            className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[length:var(--fs-sidebar-sm)] text-text-tertiary hover:text-error hover:bg-bg-hover transition-colors"
+            title={t('plugin.requestStats.clear', '清空统计')}
           >
             <Trash2 className="w-3 h-3" />
           </button>
@@ -151,8 +155,8 @@ export function RequestStatsPanel() {
           <div className="mb-3 flex h-11 w-11 items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-hover shadow-sm">
             <Activity className="w-6 h-6 text-text-tertiary" />
           </div>
-          <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">暂无请求数据</p>
-          <p className="text-[length:var(--fs-sidebar-sm)] mt-1 text-text-disabled">发送 HTTP 请求后，统计数据会自动展示在这里</p>
+          <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">{t('plugin.requestStats.empty.title', '暂无请求数据')}</p>
+          <p className="text-[length:var(--fs-sidebar-sm)] mt-1 text-text-disabled">{t('plugin.requestStats.empty.hint', '发送 HTTP 请求后，统计数据会自动展示在这里')}</p>
         </div>
       )}
 
@@ -162,27 +166,27 @@ export function RequestStatsPanel() {
           <div className="grid grid-cols-2 gap-1.5">
             <StatCard
               icon={<Zap className="w-3.5 h-3.5" />}
-              label="总请求"
+              label={t('plugin.requestStats.card.total', '总请求')}
               value={stats.total.toString()}
               accent="text-accent"
             />
             <StatCard
               icon={<TrendingUp className="w-3.5 h-3.5" />}
-              label="成功率"
+              label={t('plugin.requestStats.card.successRate', '成功率')}
               value={`${successRate}%`}
-              accent={parseFloat(successRate) >= 90 ? 'text-emerald-500' : parseFloat(successRate) >= 50 ? 'text-amber-500' : 'text-red-500'}
+              accent={parseFloat(successRate) >= 90 ? 'text-success' : parseFloat(successRate) >= 50 ? 'text-warning' : 'text-error'}
             />
             <StatCard
               icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-              label="成功"
+              label={t('plugin.requestStats.card.success', '成功')}
               value={stats.success.toString()}
-              accent="text-emerald-500"
+              accent="text-success"
             />
             <StatCard
               icon={<XCircle className="w-3.5 h-3.5" />}
-              label="失败"
+              label={t('plugin.requestStats.card.failed', '失败')}
               value={stats.failed.toString()}
-              accent="text-red-500"
+              accent="text-error"
             />
           </div>
 
@@ -190,24 +194,24 @@ export function RequestStatsPanel() {
           <div className="rounded-lg border border-border-default/60 bg-bg-secondary/30 p-2">
             <p className="pf-text-3xs text-text-disabled mb-1.5 uppercase tracking-wider flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              响应时间
+              {t('plugin.requestStats.latency.title', '响应时间')}
             </p>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <p className="pf-text-3xs text-text-disabled">平均</p>
+                <p className="pf-text-3xs text-text-disabled">{t('plugin.requestStats.latency.avg', '平均')}</p>
                 <p className="text-[length:var(--fs-sidebar-sm)] font-semibold text-text-primary tabular-nums">
                   {stats.avgDuration.toFixed(0)}ms
                 </p>
               </div>
               <div>
-                <p className="pf-text-3xs text-text-disabled">最快</p>
-                <p className="text-[length:var(--fs-sidebar-sm)] font-semibold text-emerald-500 tabular-nums">
+                <p className="pf-text-3xs text-text-disabled">{t('plugin.requestStats.latency.min', '最快')}</p>
+                <p className="text-[length:var(--fs-sidebar-sm)] font-semibold text-success tabular-nums">
                   {stats.minDuration === Infinity ? '-' : `${stats.minDuration.toFixed(0)}ms`}
                 </p>
               </div>
               <div>
-                <p className="pf-text-3xs text-text-disabled">最慢</p>
-                <p className="text-[length:var(--fs-sidebar-sm)] font-semibold text-amber-500 tabular-nums">
+                <p className="pf-text-3xs text-text-disabled">{t('plugin.requestStats.latency.max', '最慢')}</p>
+                <p className="text-[length:var(--fs-sidebar-sm)] font-semibold text-warning tabular-nums">
                   {stats.maxDuration === 0 ? '-' : `${stats.maxDuration.toFixed(0)}ms`}
                 </p>
               </div>
@@ -217,7 +221,7 @@ export function RequestStatsPanel() {
           {/* Status Code Distribution */}
           {Object.keys(stats.statusCodes).length > 0 && (
             <div className="rounded-lg border border-border-default/60 bg-bg-secondary/30 p-2">
-              <p className="pf-text-3xs text-text-disabled mb-1.5 uppercase tracking-wider">状态码分布</p>
+              <p className="pf-text-3xs text-text-disabled mb-1.5 uppercase tracking-wider">{t('plugin.requestStats.statusDist', '状态码分布')}</p>
               <div className="space-y-1">
                 {Object.entries(stats.statusCodes)
                   .sort(([a], [b]) => Number(a) - Number(b))
@@ -228,7 +232,7 @@ export function RequestStatsPanel() {
                         <span className={cn('text-[length:var(--fs-sidebar-sm)] font-semibold tabular-nums w-8', statusColor(Number(code)))}>{code}</span>
                         <div className="flex-1 h-1.5 rounded-full bg-bg-secondary overflow-hidden">
                           <div
-                            className={cn('h-full rounded-full transition-all', Number(code) < 400 ? 'bg-emerald-500/60' : 'bg-red-500/60')}
+                            className={cn('h-full rounded-full transition-all', Number(code) < 400 ? 'bg-success/60' : 'bg-error/60')}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -243,7 +247,7 @@ export function RequestStatsPanel() {
           {/* Method Distribution */}
           {Object.keys(stats.methodCounts).length > 0 && (
             <div className="rounded-lg border border-border-default/60 bg-bg-secondary/30 p-2">
-              <p className="pf-text-3xs text-text-disabled mb-1.5 uppercase tracking-wider">方法分布</p>
+              <p className="pf-text-3xs text-text-disabled mb-1.5 uppercase tracking-wider">{t('plugin.requestStats.methodDist', '方法分布')}</p>
               <div className="flex flex-wrap gap-1">
                 {Object.entries(stats.methodCounts)
                   .sort(([, a], [, b]) => b - a)
@@ -280,9 +284,9 @@ function StatCard({
     <div className="rounded-lg border border-border-default/60 bg-bg-secondary/30 p-2 flex flex-col">
       <div className={cn('flex items-center gap-1 pf-text-3xs mb-0.5', accent)}>
         {icon}
-        <span className="text-text-disabled">{label}</span>
+        <span className="text-text-disabled uppercase tracking-wider">{label}</span>
       </div>
-      <span className={cn('text-[length:var(--fs-sidebar)] font-bold tabular-nums', accent)}>{value}</span>
+      <span className={cn('text-[length:var(--fs-sidebar)] font-bold tabular-nums font-mono', accent)}>{value}</span>
     </div>
   );
 }

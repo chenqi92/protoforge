@@ -11,7 +11,6 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { ToolboxToolPane } from "./ToolboxToolPane";
 
 interface ConversionResult {
@@ -101,9 +100,9 @@ export function ImageUrlToBase64Tool() {
     <ToolboxToolPane>
       {/* URL 输入 */}
       <section>
-        <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.imageUrl`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.imageUrl`)}</h3>
         <div className="flex items-center gap-2">
-          <div className="flex flex-1 items-center gap-2 rounded-md border border-border-default/60 bg-bg-secondary px-2.5 py-2 focus-within:border-orange-500/60">
+          <div className="flex flex-1 items-center gap-2 rounded-md border border-border-default bg-bg-input px-2.5 py-2 transition-colors focus-within:border-border-focus">
             <LinkIcon className="h-4 w-4 shrink-0 text-text-disabled" />
             <input
               type="url"
@@ -113,18 +112,13 @@ export function ImageUrlToBase64Tool() {
                 if (e.key === "Enter" && canConvert) handleConvert();
               }}
               placeholder={t(`${k}.urlPlaceholder`)}
-              className="flex-1 bg-transparent pf-text-sm text-text-primary outline-none placeholder:text-text-disabled"
+              className="flex-1 bg-transparent pf-text-sm font-mono text-text-primary outline-none placeholder:text-text-disabled"
             />
           </div>
           <button
             onClick={handleConvert}
             disabled={!canConvert}
-            className={cn(
-              "flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 pf-text-sm font-medium transition-colors",
-              canConvert
-                ? "bg-orange-500 text-white hover:bg-orange-600"
-                : "cursor-not-allowed bg-bg-secondary text-text-disabled"
-            )}
+            className="wb-primary-btn bg-accent hover:bg-accent-hover px-4"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             {loading ? t(`${k}.converting`) : t(`${k}.convert`)}
@@ -139,25 +133,41 @@ export function ImageUrlToBase64Tool() {
             type="checkbox"
             checked={includePrefix}
             onChange={(e) => setIncludePrefix(e.target.checked)}
-            className="accent-orange-500"
+            className="accent-accent"
           />
           {t(`${k}.includePrefix`)}
         </label>
       </section>
 
+      {/* 空状态 — 尚未转换且无错误 */}
+      {!result && !error && !loading && (
+        <section className="flex flex-col items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-border-strong bg-bg-secondary/40 px-6 py-10 text-center">
+          <LinkIcon className="h-7 w-7 text-text-disabled" />
+          <span className="pf-text-sm text-text-tertiary">{t(`${k}.desc`)}</span>
+        </section>
+      )}
+
+      {/* 加载状态 */}
+      {loading && (
+        <section className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-soft p-4 pf-text-sm text-text-secondary">
+          <Loader2 className="h-4 w-4 animate-spin text-accent" />
+          <span>{t(`${k}.converting`)}</span>
+        </section>
+      )}
+
       {/* 错误提示 */}
       {error && (
-        <section className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600 dark:text-rose-300" />
-          <div className="pf-text-xs text-rose-600 dark:text-rose-300">{error}</div>
+        <section className="flex items-start gap-2 rounded-lg border border-error/30 bg-error/5 p-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+          <div className="pf-text-xs font-mono text-error">{error}</div>
         </section>
       )}
 
       {/* 转换结果 */}
       {result && (
         <>
-          <section className="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+          <section className="flex items-center gap-3 rounded-lg border border-success/30 bg-success/5 p-3">
+            <CheckCircle2 className="h-4 w-4 text-success" />
             <div className="flex-1 pf-text-sm text-text-secondary">
               {t(`${k}.success`, {
                 mime: result.mimeType,
@@ -168,14 +178,14 @@ export function ImageUrlToBase64Tool() {
 
           <section>
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="pf-text-sm font-semibold text-text-primary">{t(`${k}.output`)}</h3>
+              <h3 className="pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.output`)}</h3>
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1.5 rounded-md border border-border-default/60 bg-bg-secondary px-2.5 py-1 pf-text-xs text-text-secondary transition-colors hover:border-orange-500/50 hover:text-text-primary"
+                className="flex items-center gap-1.5 rounded-md border border-border-default bg-bg-secondary px-2.5 py-1 pf-text-xs text-text-secondary transition-colors hover:border-accent/50 hover:text-text-primary"
               >
                 {copied ? (
                   <>
-                    <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-300" />
+                    <Check className="h-3 w-3 text-success" />
                     {t(`${k}.copied`)}
                   </>
                 ) : (
@@ -189,14 +199,14 @@ export function ImageUrlToBase64Tool() {
             <textarea
               readOnly
               value={output}
-              className="h-48 w-full resize-y rounded-md border border-border-default/60 bg-bg-secondary p-2.5 font-mono text-xs text-text-primary outline-none"
+              className="h-48 w-full resize-y rounded-md border border-border-default bg-bg-inset p-2.5 font-mono pf-text-xs text-text-primary outline-none"
               spellCheck={false}
             />
           </section>
 
           <section>
-            <h3 className="mb-2 pf-text-sm font-semibold text-text-primary">{t(`${k}.preview`)}</h3>
-            <div className="flex items-center justify-center rounded-lg border border-border-default/60 bg-bg-secondary p-3">
+            <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.preview`)}</h3>
+            <div className="flex items-center justify-center rounded-lg border border-border-default bg-bg-secondary p-3">
               <img
                 src={result.dataUrl}
                 alt="preview"

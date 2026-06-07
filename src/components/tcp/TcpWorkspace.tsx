@@ -196,9 +196,12 @@ export const TcpWorkspace = memo(function TcpWorkspace({
     const relatedSessionKeys = [sessionKey, splitKey];
     if (hasActiveConnectionsForKeys(relatedSessionKeys)) {
       const labels = getActiveConnectionLabelsForKeys(relatedSessionKeys);
-      const message = `当前会话存在活跃连接：\n${labels.join("\n")}\n\n切换类型会断开当前会话，是否继续？`;
+      const message = t('tcp.switchTypeConfirm', {
+        labels: labels.join("\n"),
+        defaultValue: '当前会话存在活跃连接：\n{{labels}}\n\n切换类型会断开当前会话，是否继续？',
+      });
       const { confirm } = await import("@tauri-apps/plugin-dialog");
-      const ok = await confirm(message, { title: "切换连接类型", kind: "warning" });
+      const ok = await confirm(message, { title: t('tcp.switchTypeTitle', '切换连接类型'), kind: "warning" });
       if (!ok) return;
     }
 
@@ -262,7 +265,7 @@ export const TcpWorkspace = memo(function TcpWorkspace({
           {pairedMode ? (
             <span className="wb-request-meta">
               <Columns2 className="h-3 w-3" />
-              双端配对 · {t(pairedMode.labelKey)}
+              {t('tcp.pairedLabel', '双端配对')} · {t(pairedMode.labelKey)}
             </span>
           ) : null}
           {canSplit && (
@@ -559,7 +562,7 @@ function TcpClientPanel({ sessionKey, compact = false }: { sessionKey: string; c
             state.systemMessage(`[CLOSED] ${t('tcp.system.disconnected')}`);
             unregisterConnection(sessionKey, connectionId);
             if (autoReconnectRef.current) {
-              state.systemMessage(`[INFO] 2s 后自动重连...`);
+              state.systemMessage(`[INFO] ${t('tcp.system.reconnecting', '2s 后自动重连...')}`);
               setTimeout(async () => {
                 if (!autoReconnectRef.current) return;
                 try {
@@ -665,7 +668,7 @@ function TcpClientPanel({ sessionKey, compact = false }: { sessionKey: string; c
                           ? "border-accent/40 bg-accent-soft text-accent"
                           : "border-border-default/60 bg-bg-secondary/40 text-text-tertiary hover:border-accent/30 hover:text-text-secondary"
                       )}
-                      title={autoReconnect ? "关闭自动重连" : "开启自动重连"}
+                      title={autoReconnect ? t('tcp.disableAutoReconnect', '关闭自动重连') : t('tcp.enableAutoReconnect', '开启自动重连')}
                     >
                       <span className={cn("w-1.5 h-1.5 rounded-full transition-colors", autoReconnect ? "bg-accent" : "bg-text-disabled")} />
                       {t('tcp.autoReconnect', '自动重连')}
@@ -885,7 +888,7 @@ function TcpServerPanel({ sessionKey, compact = false }: { sessionKey: string; c
                 ) : null}
               </div>
             </ProtocolSidebarSection>
-            {clients.length > 0 && (
+            {(running || clients.length > 0) && (
               <ClientList
                 clients={clients}
                 selectedClientId={selectedClientId}

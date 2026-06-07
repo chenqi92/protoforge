@@ -1,6 +1,7 @@
 // 表结构编辑器 — DataGrip 风格，列编辑 + SQL 预览
 
 import { memo, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Plus, Trash2, Loader2, AlertCircle, CheckCircle2,
   ChevronUp, ChevronDown, Code2,
@@ -19,6 +20,7 @@ export const TableStructureEditor = memo(function TableStructureEditor({
   sessionId: string;
   tab: TableStructureTab;
 }) {
+  const { t } = useTranslation();
   const store = getDbClientStoreApi(sessionId);
   const [showPreview, setShowPreview] = useState(true);
 
@@ -48,22 +50,29 @@ export const TableStructureEditor = memo(function TableStructureEditor({
     return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin text-text-tertiary" /></div>;
   }
   if (!tab.originalDescription) {
-    return <div className="flex h-full items-center justify-center pf-text-xs text-text-tertiary">无法加载表结构</div>;
+    return (
+      <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center pf-rounded-lg border border-error/20 bg-error/8">
+          <AlertCircle className="h-6 w-6 text-error opacity-80" />
+        </div>
+        <p className="pf-text-sm font-medium text-text-secondary">{t("dbClient.cannotLoadStructure", "无法加载表结构")}</p>
+      </div>
+    );
   }
 
   return (
     <div className="flex h-full flex-col">
       {/* 工具栏 */}
-      <div className="flex items-center gap-2 border-b border-border-default/50 px-3 py-1.5 shrink-0">
+      <div className="flex items-center gap-2 border-b border-border-default px-3 py-1.5 shrink-0">
         <button onClick={handleAdd}
           className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary">
-          <Plus size={12} /> 添加列
+          <Plus size={12} /> {t("dbClient.addColumn", "添加列")}
         </button>
 
         <div className="flex-1" />
 
         {tab.applyError && (
-          <div className="flex items-center gap-1 pf-text-xs text-red-500 dark:text-red-300 truncate max-w-[300px]">
+          <div className="flex items-center gap-1 pf-text-xs text-error truncate max-w-[300px]">
             <AlertCircle size={12} className="shrink-0" />
             <span className="truncate">{tab.applyError}</span>
           </div>
@@ -71,18 +80,18 @@ export const TableStructureEditor = memo(function TableStructureEditor({
 
         <button onClick={() => setShowPreview(!showPreview)}
           className={cn("flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs transition-colors",
-            showPreview ? "bg-accent/10 text-accent" : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary")}>
-          <Code2 size={12} /> SQL 预览
+            showPreview ? "bg-accent-soft text-accent" : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary")}>
+          <Code2 size={12} /> {t("dbClient.sqlPreview", "SQL 预览")}
         </button>
 
         <button onClick={handleDiscard} disabled={!hasChanges}
           className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover disabled:opacity-30">
-          放弃
+          {t("dbClient.discardChanges", "放弃")}
         </button>
         <button onClick={handleApply} disabled={!hasChanges || tab.loading}
           className="flex items-center gap-1 pf-rounded-sm px-2.5 py-0.5 pf-text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40">
           {tab.loading ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
-          应用修改
+          {t("dbClient.applyChanges", "应用修改")}
         </button>
       </div>
 
@@ -91,15 +100,15 @@ export const TableStructureEditor = memo(function TableStructureEditor({
         {/* 列编辑表格 */}
         <div className={cn("overflow-auto", showPreview && hasChanges ? "flex-1 min-h-0" : "flex-1")}>
           <table className="w-full border-collapse text-xs">
-            <thead className="sticky top-0 z-10 bg-bg-secondary">
-              <tr className="border-b border-border-default/50">
-                <th className="w-8 px-2 py-1.5 text-center text-text-quaternary font-medium">#</th>
-                <th className="px-2 py-1.5 text-left text-text-secondary font-medium min-w-[140px]">列名</th>
-                <th className="px-2 py-1.5 text-left text-text-secondary font-medium min-w-[140px]">类型</th>
-                <th className="w-14 px-2 py-1.5 text-center text-text-secondary font-medium">可空</th>
-                <th className="px-2 py-1.5 text-left text-text-secondary font-medium min-w-[120px]">默认值</th>
-                <th className="px-2 py-1.5 text-left text-text-secondary font-medium min-w-[140px]">注释</th>
-                <th className="w-20 px-2 py-1.5 text-center text-text-quaternary font-medium">操作</th>
+            <thead className="sticky top-0 z-10 bg-bg-tertiary">
+              <tr className="border-b border-border-default">
+                <th className="w-8 px-2 py-1.5 text-center text-text-tertiary font-semibold text-[11px] uppercase tracking-wider">#</th>
+                <th className="px-2 py-1.5 text-left text-text-tertiary font-semibold text-[11px] uppercase tracking-wider min-w-[140px]">{t("dbClient.colName", "列名")}</th>
+                <th className="px-2 py-1.5 text-left text-text-tertiary font-semibold text-[11px] uppercase tracking-wider min-w-[140px]">{t("dbClient.colType", "类型")}</th>
+                <th className="w-14 px-2 py-1.5 text-center text-text-tertiary font-semibold text-[11px] uppercase tracking-wider">{t("dbClient.colNullable", "可空")}</th>
+                <th className="px-2 py-1.5 text-left text-text-tertiary font-semibold text-[11px] uppercase tracking-wider min-w-[120px]">{t("dbClient.colDefault", "默认值")}</th>
+                <th className="px-2 py-1.5 text-left text-text-tertiary font-semibold text-[11px] uppercase tracking-wider min-w-[140px]">{t("dbClient.colComment", "注释")}</th>
+                <th className="w-20 px-2 py-1.5 text-center text-text-tertiary font-semibold text-[11px] uppercase tracking-wider">{t("dbClient.colActions", "操作")}</th>
               </tr>
             </thead>
             <tbody>
@@ -109,12 +118,12 @@ export const TableStructureEditor = memo(function TableStructureEditor({
                 const isModified = !isNew && orig && hasColumnDiff(orig, col);
                 return (
                   <tr key={i} className={cn(
-                    "border-b border-border-default/30 hover:bg-bg-hover/50 transition-colors",
-                    isNew && "bg-emerald-500/5",
-                    isModified && "bg-amber-500/5",
+                    "border-b border-border-subtle hover:bg-bg-hover/50 transition-colors",
+                    isNew && "bg-success/8",
+                    isModified && "bg-warning/8",
                   )}>
-                    <td className="px-2 py-0.5 text-center text-text-quaternary tabular-nums">
-                      {col.isPrimaryKey && <span className="text-amber-500 dark:text-amber-300" title="Primary Key">🔑</span>}
+                    <td className="px-2 py-0.5 text-center text-text-tertiary tabular-nums">
+                      {col.isPrimaryKey && <span className="text-warning font-semibold font-mono text-[10px]" title="Primary Key">PK</span>}
                       {!col.isPrimaryKey && (i + 1)}
                     </td>
                     <td className="px-1 py-0.5">
@@ -132,7 +141,7 @@ export const TableStructureEditor = memo(function TableStructureEditor({
                     <td className="px-1 py-0.5">
                       <input value={col.defaultValue ?? ""} onChange={e => handleUpdate(i, { defaultValue: e.target.value || null })}
                         placeholder="NULL"
-                        className="w-full px-1.5 py-0.5 bg-transparent border border-transparent hover:border-border-default focus:border-accent focus:bg-bg-secondary rounded text-text-primary font-mono outline-none placeholder:text-text-quaternary" />
+                        className="w-full px-1.5 py-0.5 bg-transparent border border-transparent hover:border-border-default focus:border-accent focus:bg-bg-secondary rounded text-text-primary font-mono outline-none placeholder:text-text-disabled" />
                     </td>
                     <td className="px-1 py-0.5">
                       <input value={col.comment ?? ""} onChange={e => handleUpdate(i, { comment: e.target.value || null })}
@@ -141,17 +150,17 @@ export const TableStructureEditor = memo(function TableStructureEditor({
                     <td className="px-1 py-0.5">
                       <div className="flex items-center justify-center gap-0.5">
                         {i > 0 && (
-                          <button onClick={() => handleMove(i, i - 1)} className="p-0.5 text-text-quaternary hover:text-text-primary rounded hover:bg-bg-hover">
+                          <button onClick={() => handleMove(i, i - 1)} className="p-0.5 text-text-tertiary hover:text-text-primary rounded hover:bg-bg-hover">
                             <ChevronUp size={11} />
                           </button>
                         )}
                         {i < tab.editedColumns.length - 1 && (
-                          <button onClick={() => handleMove(i, i + 1)} className="p-0.5 text-text-quaternary hover:text-text-primary rounded hover:bg-bg-hover">
+                          <button onClick={() => handleMove(i, i + 1)} className="p-0.5 text-text-tertiary hover:text-text-primary rounded hover:bg-bg-hover">
                             <ChevronDown size={11} />
                           </button>
                         )}
-                        <button onClick={() => handleRemove(i)} className="p-0.5 text-text-quaternary hover:text-red-500 dark:text-red-300 rounded hover:bg-red-500/10"
-                          title="删除列">
+                        <button onClick={() => handleRemove(i)} className="p-0.5 text-text-tertiary hover:text-error rounded hover:bg-error/10"
+                          title={t("dbClient.deleteColumn", "删除列")}>
                           <Trash2 size={11} />
                         </button>
                       </div>
@@ -166,10 +175,10 @@ export const TableStructureEditor = memo(function TableStructureEditor({
         {/* SQL 预览 */}
         {showPreview && hasChanges && (
           <>
-            <div className="shrink-0 border-t border-border-default/50 px-3 py-1 bg-bg-secondary/50">
-              <span className="pf-text-xs font-medium text-text-secondary">SQL 预览</span>
+            <div className="shrink-0 border-t border-border-default px-3 py-1 bg-bg-secondary">
+              <span className="pf-text-xs font-semibold uppercase tracking-wider text-text-tertiary">{t("dbClient.sqlPreview", "SQL 预览")}</span>
             </div>
-            <div className="h-[160px] shrink-0 border-t border-border-default/30">
+            <div className="h-[160px] shrink-0 border-t border-border-subtle">
               <DdlCodeView text={previewSql} showToolbar={false} />
             </div>
           </>

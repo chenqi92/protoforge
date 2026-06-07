@@ -998,7 +998,7 @@ export function ImageMergerTool() {
 
       {/* 快速布局（适配任意数量） */}
       <section>
-        <h3 className="mb-2 pf-text-sm font-semibold text-text-primary">{t(`${k}.layoutPresets`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.layoutPresets`)}</h3>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((preset) => {
             const Icon = preset.icon;
@@ -1008,8 +1008,8 @@ export function ImageMergerTool() {
                 onClick={() => applyLayout(preset.id)}
                 disabled={items.length === 0}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg border border-border-default/60 bg-bg-secondary px-3 py-2 pf-text-sm text-text-secondary transition-colors hover:border-amber-500/60 hover:bg-amber-500/10 hover:text-text-primary",
-                  "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border-default/60 disabled:hover:bg-bg-secondary disabled:hover:text-text-secondary",
+                  "flex items-center gap-1.5 rounded-md border border-border-default bg-bg-secondary px-3 py-2 pf-text-sm text-text-secondary transition-colors hover:border-accent/60 hover:bg-accent-soft hover:text-text-primary",
+                  "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border-default disabled:hover:bg-bg-secondary disabled:hover:text-text-secondary",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -1022,7 +1022,7 @@ export function ImageMergerTool() {
 
       {/* 模板库（按当前图片数量过滤） */}
       <section>
-        <h3 className="mb-2 pf-text-sm font-semibold text-text-primary">
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">
           {t(`${k}.templates`)}
           {items.length > 0 && (
             <span className="ml-2 pf-text-xs font-normal text-text-tertiary">
@@ -1031,7 +1031,7 @@ export function ImageMergerTool() {
           )}
         </h3>
         {matchingTemplates.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border-default/60 px-4 py-3 pf-text-xs text-text-disabled">
+          <div className="rounded-lg border border-dashed border-border-strong px-4 py-3 pf-text-xs text-text-disabled">
             {items.length === 0
               ? t(`${k}.templatesEmpty`)
               : t(`${k}.templatesNone`, { count: items.length })}
@@ -1050,8 +1050,8 @@ export function ImageMergerTool() {
                   className={cn(
                     "flex shrink-0 flex-col items-center gap-1 rounded-lg border p-1.5 transition-all",
                     isActive
-                      ? "border-amber-500/70 bg-amber-500/10 shadow-sm shadow-amber-500/20"
-                      : "border-border-default/60 bg-bg-secondary hover:-translate-y-0.5 hover:border-amber-500/50 hover:bg-amber-500/5",
+                      ? "border-accent/70 bg-accent-soft shadow-sm shadow-accent/20"
+                      : "border-border-default bg-bg-secondary hover:-translate-y-0.5 hover:border-accent/50 hover:bg-accent-soft",
                   )}
                   title={tpl.id}
                 >
@@ -1069,7 +1069,7 @@ export function ImageMergerTool() {
                         height={c.h * 24 - 2}
                         rx={2}
                         className={cn(
-                          isActive ? "fill-amber-500" : "fill-amber-500/55",
+                          isActive ? "fill-accent" : "fill-accent/55",
                         )}
                       />
                     ))}
@@ -1084,21 +1084,25 @@ export function ImageMergerTool() {
       {/* 画布 */}
       <section>
         <div className="mb-2 flex items-center gap-3">
-          <h3 className="pf-text-sm font-semibold text-text-primary">{t(`${k}.canvas`)}</h3>
+          <h3 className="pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.canvas`)}</h3>
           <span className="pf-text-xs text-text-disabled">
             {Math.round(canvasW)} × {Math.round(canvasH)} px · {(previewScale * 100).toFixed(0)}%
           </span>
         </div>
         <div
           ref={containerRef}
-          className="relative flex w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-border-default/60 bg-[linear-gradient(135deg,rgba(148,163,184,0.06)_25%,transparent_25%,transparent_50%,rgba(148,163,184,0.06)_50%,rgba(148,163,184,0.06)_75%,transparent_75%,transparent)] bg-[length:16px_16px]"
+          className="relative flex w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-border-strong bg-bg-inset bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-text-tertiary)_8%,transparent)_25%,transparent_25%,transparent_50%,color-mix(in_srgb,var(--color-text-tertiary)_8%,transparent)_50%,color-mix(in_srgb,var(--color-text-tertiary)_8%,transparent)_75%,transparent_75%,transparent)] bg-[length:16px_16px]"
           style={{ height: previewSize.h }}
         >
           {items.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 text-text-disabled">
+            <button
+              type="button"
+              onClick={handleSelectImages}
+              className="flex flex-col items-center gap-2 rounded-[10px] px-8 py-6 text-text-disabled transition-colors hover:text-text-tertiary"
+            >
               <Layers className="h-8 w-8" />
               <span className="pf-text-sm">{t(`${k}.canvasEmpty`)}</span>
-            </div>
+            </button>
           ) : (
             <div
               onPointerDown={handleCanvasPointerDown}
@@ -1121,7 +1125,7 @@ export function ImageMergerTool() {
                     className="pointer-events-none absolute z-10"
                     style={{ left, top, transform: "translate(-50%, -50%)" }}
                   >
-                    <span className="rounded bg-amber-500 px-1.5 py-px font-mono text-[10px] font-semibold leading-tight text-white shadow-md ring-1 ring-amber-600/40">
+                    <span className="rounded bg-accent px-1.5 py-px font-mono text-[10px] font-semibold leading-tight text-white shadow-md ring-1 ring-accent/40">
                       {Math.round(g.size)}
                     </span>
                   </div>
@@ -1142,8 +1146,8 @@ export function ImageMergerTool() {
                     className={cn(
                       "group absolute cursor-move select-none transition-shadow",
                       isSelected
-                        ? "outline outline-2 outline-amber-500 ring-2 ring-amber-500/30"
-                        : "outline outline-1 outline-transparent hover:outline-amber-500/50",
+                        ? "outline outline-2 outline-accent ring-2 ring-accent/30"
+                        : "outline outline-1 outline-transparent hover:outline-accent/50",
                     )}
                     style={{ left, top, width: dispW, height: dispH }}
                   >
@@ -1166,7 +1170,7 @@ export function ImageMergerTool() {
                     {isSelected && (
                       <>
                         {/* 工具条 */}
-                        <div className="absolute -top-8 left-0 z-20 flex items-center gap-1 rounded-md bg-bg-primary/95 px-1.5 py-1 shadow-lg ring-1 ring-border-default/60 backdrop-blur">
+                        <div className="absolute -top-8 left-0 z-20 flex items-center gap-1 rounded-md bg-bg-elevated/95 px-1.5 py-1 shadow-lg ring-1 ring-border-default backdrop-blur">
                           <button
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={(e) => {
@@ -1185,7 +1189,7 @@ export function ImageMergerTool() {
                               removeItem(item.id);
                             }}
                             title={t(`${k}.remove`)}
-                            className="flex h-5 w-5 items-center justify-center rounded text-rose-500 dark:text-rose-300 hover:bg-rose-500/10"
+                            className="flex h-5 w-5 items-center justify-center rounded text-error hover:bg-error/10"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -1197,7 +1201,7 @@ export function ImageMergerTool() {
                             key={corner}
                             onPointerDown={(e) => handleResizePointerDown(e, item, corner)}
                             className={cn(
-                              "absolute z-20 h-3 w-3 rounded-sm border-2 border-white bg-amber-500 shadow",
+                              "absolute z-20 h-3 w-3 rounded-sm border-2 border-white bg-accent shadow",
                               corner === "tl" && "-left-1.5 -top-1.5 cursor-nwse-resize",
                               corner === "tr" && "-right-1.5 -top-1.5 cursor-nesw-resize",
                               corner === "bl" && "-bottom-1.5 -left-1.5 cursor-nesw-resize",
@@ -1218,7 +1222,7 @@ export function ImageMergerTool() {
       {/* 设置 */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* 间距 + 吸附 */}
-        <div className="rounded-lg border border-border-default/60 bg-bg-secondary/60 p-3">
+        <div className="rounded-lg border border-border-default bg-bg-secondary/60 p-3">
           <h4 className="mb-2 pf-text-xs font-semibold uppercase tracking-wider text-text-tertiary">
             {t(`${k}.gapAndSnap`)}
           </h4>
@@ -1229,13 +1233,13 @@ export function ImageMergerTool() {
               max={120}
               value={gap}
               onChange={(e) => setGap(Number(e.target.value))}
-              className="flex-1 accent-amber-500"
+              className="flex-1 accent-accent"
             />
-            <div className="flex min-w-[64px] items-baseline justify-center gap-1 rounded-md bg-amber-500/15 px-2 py-1 ring-1 ring-amber-500/30">
-              <span className="font-mono text-base font-bold leading-none text-amber-700 dark:text-amber-300">
+            <div className="flex min-w-[64px] items-baseline justify-center gap-1 rounded-md bg-accent-soft px-2 py-1 ring-1 ring-accent/30">
+              <span className="font-mono text-base font-bold leading-none text-accent">
                 {gap}
               </span>
-              <span className="pf-text-xs font-medium text-amber-700/70 dark:text-amber-300/70">px</span>
+              <span className="pf-text-xs font-medium text-accent/70">px</span>
             </div>
           </div>
           <label className="mt-2 flex cursor-pointer items-center gap-2 pf-text-sm text-text-secondary">
@@ -1243,7 +1247,7 @@ export function ImageMergerTool() {
               type="checkbox"
               checked={snapEnabled}
               onChange={(e) => setSnapEnabled(e.target.checked)}
-              className="accent-amber-500"
+              className="accent-accent"
             />
             <Magnet className="h-3.5 w-3.5" />
             {t(`${k}.snapEnabled`)}
@@ -1251,7 +1255,7 @@ export function ImageMergerTool() {
         </div>
 
         {/* 背景 + 输出格式 */}
-        <div className="rounded-lg border border-border-default/60 bg-bg-secondary/60 p-3">
+        <div className="rounded-lg border border-border-default bg-bg-secondary/60 p-3">
           <h4 className="mb-2 pf-text-xs font-semibold uppercase tracking-wider text-text-tertiary">
             {t(`${k}.backgroundAndFormat`)}
           </h4>
@@ -1261,21 +1265,21 @@ export function ImageMergerTool() {
               value={bgColor}
               onChange={(e) => setBgColor(e.target.value)}
               disabled={transparent}
-              className="h-7 w-10 cursor-pointer rounded border border-border-default/60 bg-transparent disabled:opacity-40"
+              className="h-7 w-10 cursor-pointer rounded border border-border-default bg-transparent disabled:opacity-40"
             />
             <input
               type="text"
               value={bgColor}
               onChange={(e) => setBgColor(e.target.value)}
               disabled={transparent}
-              className="w-24 rounded-md border border-border-default/60 bg-bg-primary px-2 py-1 pf-text-xs font-mono text-text-primary outline-none focus:border-amber-500/60 disabled:opacity-40"
+              className="w-24 rounded-md border border-border-default bg-bg-input px-2 py-1 pf-text-xs font-mono text-text-primary outline-none focus:border-border-focus disabled:opacity-40"
             />
             <label className="flex cursor-pointer items-center gap-1 pf-text-xs text-text-secondary">
               <input
                 type="checkbox"
                 checked={transparent}
                 onChange={(e) => setTransparent(e.target.checked)}
-                className="accent-amber-500"
+                className="accent-accent"
               />
               {t(`${k}.transparent`)}
             </label>
@@ -1287,8 +1291,8 @@ export function ImageMergerTool() {
                 className={cn(
                   "flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 pf-text-xs transition-colors",
                   format === f
-                    ? "border-amber-500/60 bg-amber-500/10 text-text-primary"
-                    : "border-border-default/60 bg-bg-primary text-text-secondary",
+                    ? "border-accent/60 bg-accent-soft text-text-primary"
+                    : "border-border-default bg-bg-secondary text-text-secondary",
                 )}
               >
                 <input
@@ -1296,7 +1300,7 @@ export function ImageMergerTool() {
                   name="merge-format"
                   checked={format === f}
                   onChange={() => setFormat(f)}
-                  className="accent-amber-500"
+                  className="accent-accent"
                 />
                 {f.toUpperCase()}
               </label>
@@ -1309,7 +1313,7 @@ export function ImageMergerTool() {
                   max={100}
                   value={jpegQuality}
                   onChange={(e) => setJpegQuality(Number(e.target.value))}
-                  className="flex-1 accent-amber-500"
+                  className="flex-1 accent-accent"
                 />
                 <span className="w-8 pf-text-xs font-mono text-text-secondary">{jpegQuality}</span>
               </div>
@@ -1326,25 +1330,20 @@ export function ImageMergerTool() {
         <button
           onClick={handleExport}
           disabled={!canExport}
-          className={cn(
-            "flex items-center gap-2 rounded-lg px-5 py-2.5 pf-text-sm font-medium transition-colors",
-            canExport
-              ? "bg-amber-500 text-white hover:bg-amber-600"
-              : "cursor-not-allowed bg-bg-secondary text-text-disabled",
-          )}
+          className="wb-primary-btn bg-accent hover:bg-accent-hover px-5"
         >
           {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <SaveIcon className="h-4 w-4" />}
           {processing ? t(`${k}.exporting`) : t(`${k}.export`)}
         </button>
 
         {result && (
-          <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600 dark:text-emerald-300">
+          <span className="pf-status-chip text-success">
             <CheckCircle2 className="h-4 w-4" />
             {t(`${k}.exportSuccess`, { size: formatBytes(result.size) })}
           </span>
         )}
         {error && (
-          <span className="flex items-center gap-1.5 pf-text-sm text-rose-600 dark:text-rose-300">
+          <span className="pf-status-chip text-error">
             <AlertCircle className="h-4 w-4" />
             {error}
           </span>
@@ -1354,7 +1353,7 @@ export function ImageMergerTool() {
       {/* 已选图片缩略列表 */}
       {items.length > 0 && (
         <section>
-          <h3 className="mb-2 pf-text-sm font-semibold text-text-primary">{t(`${k}.imageList`)}</h3>
+          <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.imageList`)}</h3>
           <div className="flex flex-wrap gap-2">
             {items.map((item) => (
               <div
@@ -1363,16 +1362,16 @@ export function ImageMergerTool() {
                 className={cn(
                   "group flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1 pf-text-xs transition-colors",
                   selectedId === item.id
-                    ? "border-amber-500/60 bg-amber-500/10 text-text-primary"
-                    : "border-border-default/60 bg-bg-secondary text-text-secondary hover:border-border-strong",
+                    ? "border-accent/60 bg-accent-soft text-text-primary"
+                    : "border-border-default bg-bg-secondary text-text-secondary hover:border-border-strong",
                 )}
               >
-                <div className="h-6 w-6 overflow-hidden rounded-sm bg-bg-primary">
+                <div className="h-6 w-6 overflow-hidden rounded-sm bg-bg-inset">
                   <img src={item.url} alt="" className="h-full w-full object-cover" />
                 </div>
-                <span className="max-w-[140px] truncate">{fileNameOf(item.src)}</span>
+                <span className="max-w-[140px] truncate font-mono">{fileNameOf(item.src)}</span>
                 {item.rotation !== 0 && (
-                  <span className="pf-text-xs text-amber-600 dark:text-amber-300">{item.rotation}°</span>
+                  <span className="pf-text-xs text-accent">{item.rotation}°</span>
                 )}
                 <button
                   onClick={(e) => {
@@ -1381,7 +1380,7 @@ export function ImageMergerTool() {
                   }}
                   className="opacity-0 group-hover:opacity-100"
                 >
-                  <Trash2 className="h-3 w-3 text-rose-500 dark:text-rose-300" />
+                  <Trash2 className="h-3 w-3 text-error" />
                 </button>
               </div>
             ))}

@@ -1,6 +1,50 @@
 {
   "app": {
-    "name": "ProtoForge"
+    "name": "ProtoForge",
+    "windowTitle": {
+      "tcpudp": "TCP / UDP Debug"
+    },
+    "titleBar": {
+      "searchPlaceholder": "Search requests, commands, collections…",
+      "designRationale": "Design rationale / sitemap",
+      "switchToZh": "中文",
+      "langIndicatorZh": "中"
+    },
+    "loading": {
+      "collectionSettings": "Loading collection settings...",
+      "designSystem": "Loading design system..."
+    },
+    "dragToResizeWidth": "Drag to resize width",
+    "presetGroup": {
+      "playback": "Playback protocols",
+      "assistant": "Assistant protocols"
+    },
+    "session": {
+      "activeConnectionsWarning": "This session has active connections:",
+      "confirmClose": "Are you sure you want to close it?"
+    },
+    "sessionLabel": {
+      "modbusMaster": "Modbus Master",
+      "onvifAssistant": "ONVIF Assistant",
+      "gb28181Assistant": "GB28181 Assistant"
+    },
+    "preset": {
+      "tcpClientDesc": "Actively connect to a remote socket",
+      "tcpServerDesc": "Listen locally and accept clients",
+      "udpClientDesc": "Send datagrams to a fixed target",
+      "udpServerDesc": "Bind a local port to send/receive datagrams",
+      "serialDesc": "Serial debugging and passthrough",
+      "modbusMasterDesc": "Master polling and frame debugging",
+      "modbusSlaveDesc": "Slave register simulation",
+      "rtspDesc": "Pull streams from cameras and gateways",
+      "rtmpDesc": "Push/pull streaming and CDN integration",
+      "httpFlvDesc": "Browser-friendly low-latency FLV",
+      "hlsDesc": "m3u8 playback and segment analysis",
+      "webrtcDesc": "Real-time media and signaling debugging",
+      "srtDesc": "Low-latency reliable transport",
+      "onvifDesc": "Discover devices, fetch RTSP, control PTZ",
+      "gb28181Desc": "SIP registration, catalog query, and live view"
+    }
   },
   "titleBar": {
     "home": "Home",
@@ -36,7 +80,9 @@
     "mockserver": "Mock Server",
     "dbclient": "Database Client",
     "toolbox": "Toolbox",
-    "workflow": "Workflow"
+    "workflow": "Workflow",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
   },
   "sidebar": {
     "collections": "Collections",
@@ -79,7 +125,29 @@
     "activate": "Set Active",
     "active": "Active",
     "envVariables": "Environment Variables",
-    "envVariablesHint": "Click \"Add\" to create the first environment"
+    "envVariablesHint": "Click \"Add\" to create the first environment",
+    "manageVariables": "Manage Variables",
+    "newConnection": "New connection",
+    "noConnections": "No connections",
+    "noConnectionsHint": "Connect a database to browse schemas and run queries",
+    "newSession": "New",
+    "searchSessions": "Search sessions…",
+    "noSessionMatch": "No matches",
+    "tryAnotherKeyword": "Try another keyword",
+    "noSessions": "No sessions",
+    "noSessionsHint": "Create a new {{name}} session to get started",
+    "exportSuccess": "Export succeeded",
+    "exportFailed": "Export failed",
+    "importSuccess": "Import succeeded",
+    "importFailed": "Import failed",
+    "clearAll": "Clear history",
+    "deduplicate": "Deduplicate",
+    "deduplicateDone": "Deduplicated, removed {{removed}} duplicate(s)",
+    "deduplicateNone": "No duplicates found",
+    "noEnv": "No environments",
+    "noEnvHint": "Create an environment to manage variables and secrets",
+    "manageEnv": "Manage environments…",
+    "switchEnv": "Switch environment"
   },
   "contextMenu": {
     "newRequest": "New Request",
@@ -130,7 +198,20 @@
     "hideValue": "Hide Value",
     "copyUrl": "Copy URL",
     "copyMethodUrl": "Copy Method + URL",
-    "openInNewTab": "Open in New Tab"
+    "openInNewTab": "Open in New Tab",
+    "categoryEncode": "Encode",
+    "categoryHash": "Hash",
+    "categorySymmetric": "Symmetric Encryption",
+    "categoryAsymmetric": "Asymmetric Encryption",
+    "unknownError": "Unknown error",
+    "exportArrayRoot": "root",
+    "exportTagKeys": "Tag Keys (comma-separated)",
+    "exportTableName": "Table Name",
+    "exportFieldSelection": "Field Selection",
+    "deselectAll": "Deselect All",
+    "selectAllFields": "Select All",
+    "exportCancel": "Cancel",
+    "exportConfirm": "Export"
   },
   "toolWorkbench": {
     "tcpudp": {
@@ -336,7 +417,8 @@
     "popoutWindow": "Detach as Separate Window",
     "focusWindow": "Focus Detached Window",
     "dragToDetachSession": "Drag this tab to detach as a separate window",
-    "allSessionsDetached": "All instances are detached into separate windows"
+    "allSessionsDetached": "All instances are detached into separate windows",
+    "newTypedInstance": "New instance by type"
   },
   "welcome": {
     "badge": "Full-Protocol API Debugging Platform",
@@ -536,7 +618,33 @@
       "extractAndSave": "Extract and Save Variable",
       "assertResponseTime": "Assert Response Time",
       "iterateAssert": "Iterate Array Assert",
-      "chainRequest": "Chain Request Setup"
+      "chainRequest": "Chain Request Setup",
+      "snippet": {
+        "setEnvVar": "Set environment variable",
+        "setFolderVar": "Set folder variable",
+        "setCollectionVar": "Set collection variable",
+        "genUuid": "Generate UUID",
+        "timestamp": "Timestamp",
+        "random": "Random number",
+        "base64Encode": "Base64 encode",
+        "addHeader": "Add header to current request",
+        "bearerTokenSign": "Bearer token signing",
+        "assertStatus": "Assert status code",
+        "assertBodyContains": "Assert response body contains",
+        "extractSaveVar": "Extract and save variable",
+        "extractToCollection": "Extract to collection variable",
+        "assertResponseTime": "Assert response time",
+        "iterateAssert": "Iterate array and assert",
+        "saveNextPage": "Save next page URL",
+        "cryptoBase64Encode": "Base64 encode",
+        "cryptoBase64Decode": "Base64 decode",
+        "cryptoMd5": "MD5 hash",
+        "cryptoSha256": "SHA-256 hash",
+        "cryptoAesCbcEncrypt": "AES-CBC encrypt",
+        "cryptoAesCbcDecrypt": "AES-CBC decrypt",
+        "cryptoUrlEncode": "URL encode",
+        "cryptoRequestSignMd5": "Request signing (MD5)"
+      }
     },
     "tests": "Tests",
     "logs": "logs",
@@ -544,7 +652,33 @@
     "fetchingToken": "Fetching...",
     "getToken": "Get Token",
     "tokenExpiry": "Expires in {{time}}s",
-    "binaryDesc": "File will be sent as binary"
+    "binaryDesc": "File will be sent as binary",
+    "autoHeaders": {
+      "hide": "Click to hide",
+      "show": "Click to show default headers"
+    },
+    "formData": {
+      "addMoreFiles": "Add more files",
+      "removeFile": "Remove {{name}}"
+    },
+    "loadingPreScriptEditor": "Loading pre-request script editor...",
+    "loadingPostScriptEditor": "Loading post-response script editor...",
+    "variableResolvedValue": "Resolved value",
+    "export": "Export",
+    "exportAs": "Export as",
+    "mockGenerator": "Mock data",
+    "hideDetails": "Hide details",
+    "cancel": "Cancel",
+    "statusCode": "Status code",
+    "responseSize": "Response size",
+    "method": "Method",
+    "waterfall": "Waterfall",
+    "connectTimeDesc": "Time to establish the TCP connection, including DNS resolution and TLS handshake.",
+    "ttfbDesc": "Time waited from sending the request to receiving the first byte, reflecting server processing speed.",
+    "downloadDesc": "Time to download the response body, affected by bandwidth and response size.",
+    "responseExample": "Response example",
+    "fromSwagger": "From Swagger docs",
+    "hideValue": "Hide value"
   },
   "saveDialog": {
     "title": "Save Request",
@@ -557,7 +691,10 @@
     "noCollections": "No collections yet, create one first",
     "cancel": "Cancel",
     "saving": "Saving...",
-    "save": "Save"
+    "save": "Save",
+    "createFailed": "Failed to create collection",
+    "saveSuccess": "Request saved",
+    "saveFailed": "Save failed"
   },
   "ws": {
     "placeholder": "Enter WebSocket URL...",
@@ -602,7 +739,13 @@
     "preview": "Preview",
     "textView": "Text",
     "detailEmptyTitle": "Select a message to view details",
-    "detailEmptyDesc": "Click an event above to inspect it as JSON, text, or hex."
+    "detailEmptyDesc": "Click an event above to inspect it as JSON, text, or hex.",
+    "loadingEditor": "Loading editor...",
+    "connectedStreaming": "Connected · Streaming",
+    "heartbeatLabel": "Heartbeat",
+    "autoReconnectLabel": "Auto-reconnect",
+    "renderLimitNote": "Showing latest {{visible}} of {{total}} messages",
+    "filterAll": "All"
   },
   "sse": {
     "urlPlaceholder": "Enter SSE endpoint URL, e.g. https://api.example.com/events",
@@ -644,7 +787,8 @@
     "emptyTitle": "Waiting for messages...",
     "emptyDesc": "Messages will appear here after connecting to an MQTT broker and subscribing to topics",
     "sent": "Sent",
-    "received": "Received"
+    "received": "Received",
+    "messagesTruncated": "Showing only the latest {{visible}} of {{total}} messages"
   },
   "tcp": {
     "modes": {
@@ -725,7 +869,9 @@
       "udpServerClosed": "UDP server closed",
       "waitingSource": "Waiting for source address",
       "bindingUdpServer": "Binding UDP server...",
-      "waitingUdpServer": "Waiting to start UDP server"
+      "waitingUdpServer": "Waiting to start UDP server",
+      "reconnecting": "Auto-reconnecting in 2s...",
+      "idle": "Idle"
     },
     "sendPanel": {
       "title": "Send Panel",
@@ -777,7 +923,9 @@
       "broadcast": "Broadcast",
       "reply": "Reply",
       "rightClickEdit": "Right-click to edit",
-      "sendOptions": "Send Options"
+      "sendOptions": "Send Options",
+      "titleHint": "Enter the message, configure the format, and send it on the left.",
+      "timerHint": "Enable only when you need timed sending, to avoid accidentally triggering a send loop."
     },
     "messageLog": {
       "title": "Message Log",
@@ -819,7 +967,8 @@
       "received": "Received",
       "system": "System",
       "bytes": "{{count}} bytes",
-      "client": "Client"
+      "client": "Client",
+      "limitNotice": "For performance, only the latest {{count}} records are shown"
     },
     "messageDetail": {
       "title": "Message Detail",
@@ -836,7 +985,11 @@
       "connections": "{{count}} connection(s)",
       "broadcastAll": "Broadcast All",
       "broadcast": "Broadcast Mode",
-      "unicast": "Unicast Mode"
+      "unicast": "Unicast Mode",
+      "waiting": "Waiting for connections",
+      "emptyTitle": "No clients connected",
+      "emptyDesc": "Connected clients will be listed here; you can send to one directly or broadcast to all.",
+      "clients": "Clients"
     },
     "statsBar": {
       "status": "Connection Status",
@@ -850,7 +1003,15 @@
       "bytes": "{{bytes}}"
     },
     "autoReconnect": "Auto Reconnect",
-    "recentConnections": "Recent"
+    "recentConnections": "Recent",
+    "switchTypeConfirm": "There are active connections in the current session:\n{{labels}}\n\nSwitching the type will disconnect the current session. Continue?",
+    "switchTypeTitle": "Switch connection type",
+    "pairedLabel": "Paired",
+    "disableAutoReconnect": "Disable auto-reconnect",
+    "enableAutoReconnect": "Enable auto-reconnect",
+    "switchType": "Switch type",
+    "splitViewHint": "Dual-endpoint debugging view is currently on",
+    "splitViewGuide": "Enable the dual-endpoint view when you need to simulate both ends of a link"
   },
   "serial": {
     "portLabel": "Port",
@@ -932,7 +1093,19 @@
       "found": "found",
       "useThisUnit": "Use",
       "scanning": "Scanning...",
-      "scan": "Scan"
+      "scan": "Scan",
+      "pollingHint": "When enabled, the current function code repeats at a fixed interval for continuous monitoring.",
+      "waitingResponse": "Waiting for a request",
+      "noResponseYet": "No response yet",
+      "noResponseHint": "Configure a function code on the left and run it; the results will show registers, hex, and parsed values here.",
+      "sidebarConnectionDesc": "Pick a transport and target device, then connect; open the unit address scan when you need to find a device.",
+      "scanHint": "Scan common Unit IDs; once a responding device is found, bring it back to the form on the left in one click.",
+      "requestConfig": "Request config",
+      "requestConfigDesc": "Choose the function code, target address, and quantity; for write operations, enter the values to write directly.",
+      "sessionStatus": "Session status",
+      "sessionStatusDesc": "Keep track of the current connection, transactions, and the latest request result on the left.",
+      "successRate": "Success",
+      "lastTransaction": "Last request"
     },
     "modbusslave": {
       "modbusSlaveMode": "Slave Mode",
@@ -958,10 +1131,28 @@
       "started": "Slave started",
       "stopped": "Slave stopped",
       "error": "Error",
-      "startFailed": "Start failed"
+      "startFailed": "Start failed",
+      "stopFailed": "Failed to stop Modbus Slave",
+      "hex": "Hex",
+      "binary": "Binary",
+      "clearLog": "Clear log",
+      "sidebarTitle": "Slave config",
+      "sidebarDesc": "Configure TCP/RTU and the slave address, then start the simulated slave device.",
+      "browserTitle": "Register browser",
+      "browserDesc": "Switch register areas, page through, and batch-write the data on the current page.",
+      "sessionTitle": "Session status",
+      "statusDesc": "Check the current slave status, active register area, and request count at any time.",
+      "statusLabel": "Status"
     }
   },
   "capture": {
+    "menu": {
+      "replay": "Replay request",
+      "editInHttp": "Edit & resend in HTTP",
+      "sendToParser": "Send to protocol parser",
+      "copyCurl": "Copy as cURL",
+      "breakpoint": "Add breakpoint"
+    },
     "proxyRunning": "Proxy running on",
     "proxyStopped": "Capture Stopped",
     "port": "Port",
@@ -1021,7 +1212,13 @@
     "caNotTrustedDesc": "ProtoForge CA certificate is not installed in your system. HTTPS sites cannot be captured without it (browsers will reject the proxy certificate). Click to install automatically.",
     "caTrustedTitle": "CA Certificate Installed",
     "caTrustedDesc": "ProtoForge CA certificate is installed and trusted. HTTPS traffic can be captured normally.",
-    "testingProxy": "Testing proxy connectivity…"
+    "testingProxy": "Testing proxy connectivity…",
+    "startProxyFailed": "Failed to start proxy: ",
+    "exportCertFailed": "Failed to export certificate: ",
+    "openBrowserFailed": "Failed to open browser: ",
+    "truncatedHint": "Only rendering the latest {{max}} requests, {{total}} total",
+    "filter": "Filter",
+    "browserProxyReady": "Browser proxy ready"
   },
   "loadtest": {
     "title": "HTTP Load Test",
@@ -1083,7 +1280,18 @@
     "emptyResult": "Result Analysis",
     "emptyResultDesc": "Shows RPS, latency distribution, error rate and status codes",
     "bodyEmptyHint": "Leave empty when no body is needed; switch to JSON or RAW to add request payload",
-    "authEmptyHint": "No authentication for this request; switch to Bearer or Basic for authenticated endpoints"
+    "authEmptyHint": "No authentication for this request; switch to Bearer or Basic for authenticated endpoints",
+    "noErrors": "No error samples",
+    "time": "Time",
+    "statusShort": "Status",
+    "latencyCol": "Latency",
+    "sizeCol": "Size",
+    "errorMsg": "Error",
+    "basicConfig": "Basic config",
+    "latencyThreshold": "Latency threshold",
+    "enableThreshold": "Enable latency threshold assertion",
+    "noThresholdDesc": "No latency threshold enabled; only status codes ≥ 400 count as failures",
+    "errorSamples": "Error samples"
   },
   "settings": {
     "title": "Preferences",
@@ -1102,7 +1310,10 @@
       "proxy": "Proxy",
       "proxyDesc": "Proxy connection and authentication",
       "data": "Data",
-      "dataDesc": "History, saving, and local data policies"
+      "dataDesc": "History, saving, and local data policies",
+      "appearance": "Appearance",
+      "shortcuts": "Shortcuts",
+      "about": "About"
     },
     "general": {
       "theme": "Appearance",
@@ -1165,6 +1376,15 @@
       "every30s": "Every 30 seconds",
       "every1m": "Every 1 minute",
       "every5m": "Every 5 minutes"
+    },
+    "searchPlaceholder": "Search settings…",
+    "noMatch": "No matches",
+    "appearance": {
+      "themeGroup": "Theme",
+      "typographyGroup": "Typography"
+    },
+    "about": {
+      "updateGroup": "Updates"
     }
   },
   "plugin": {
@@ -1229,7 +1449,41 @@
     "cryptoTool": "Crypto Tool",
     "cryptoToolDesc": "Encryption, decryption and hashing tools",
     "iconPack": "Icon Library",
-    "iconPackDesc": "Custom icon libraries for other plugins"
+    "iconPackDesc": "Custom icon libraries for other plugins",
+    "requestStats": {
+      "title": "Request Stats",
+      "clear": "Clear stats",
+      "empty": {
+        "title": "No request data yet",
+        "hint": "Stats will appear here automatically after you send HTTP requests"
+      },
+      "card": {
+        "total": "Total",
+        "successRate": "Success rate",
+        "success": "Success",
+        "failed": "Failed"
+      },
+      "latency": {
+        "title": "Response time",
+        "avg": "Avg",
+        "min": "Fastest",
+        "max": "Slowest"
+      },
+      "statusDist": "Status code distribution",
+      "methodDist": "Method distribution"
+    },
+    "renderer": {
+      "processing": "Processing in plugin...",
+      "failed": "Plugin render failed",
+      "unknownError": "Unknown error",
+      "unknownType": "Plugin returned an unknown render type: ",
+      "emptySheet": "This sheet is empty",
+      "truncatedPrefix": "Showing first 500 rows of ",
+      "truncatedSuffix": " rows"
+    },
+    "uninstallFailed": "Uninstall failed",
+    "installFailed": "Install failed",
+    "updateFailed": "Update failed"
   },
   "commandPalette": {
     "placeholder": "Search actions, requests, collections...",
@@ -1254,7 +1508,16 @@
     "typeRequest": "Request",
     "select": "Select",
     "confirm": "Confirm",
-    "closeLabel": "Close"
+    "closeLabel": "Close",
+    "sectionGo": "Go to",
+    "sectionCmd": "Commands",
+    "sectionReq": "Requests"
+  },
+  "export": {
+    "tagKeys": "Tag Keys (comma-separated)",
+    "columnSelection": "Column selection",
+    "deselectAll": "Deselect all",
+    "selectAll": "Select all"
   },
   "collection": {
     "settings": "Collection Settings",
@@ -1264,18 +1527,98 @@
     "scripts": "Scripts",
     "runner": "Runner"
   },
+  "video": {
+    "status": {
+      "live": "LIVE",
+      "paused": "Paused"
+    },
+    "onvif": {
+      "empty": "No devices found",
+      "emptyHint": "No ONVIF devices found after scanning — connect manually below"
+    },
+    "surface": {
+      "loadingHls": "Loading HLS...",
+      "hlsNativeFailed": "HLS: native browser playback failed",
+      "hlsUnsupported": "HLS: this runtime supports neither hls.js nor native HLS",
+      "waitingStream": "Waiting for stream data...",
+      "mseAppendFailed": "MSE append failed: {{error}}",
+      "codecUnsupported": "Browser does not support codec: {{mime}}",
+      "buffering": "Buffering...",
+      "mseError": "MSE error: {{error}}",
+      "bufferBusy": "Front-end buffer busy, catching up to live stream...",
+      "noFrameToCapture": "No video frame available to capture.",
+      "captureNoContext": "Screenshot failed: could not create canvas context.",
+      "captureFailed": "Screenshot failed: {{error}}",
+      "captureEmpty": "Screenshot failed: generated image data is empty.",
+      "captureSaveFailed": "Failed to save screenshot: {{error}}",
+      "recordUnsupported": "This runtime does not support video recording.",
+      "recorderUnsupported": "This runtime does not support MediaRecorder.",
+      "recording": "Recording...",
+      "recordSaveFailed": "Failed to save recording: {{error}}",
+      "recordStartFailed": "Failed to start recording: {{error}}",
+      "emptyTitle": "Play once you have a stream URL",
+      "emptyHint": "Waiting for signal · no signal",
+      "screenshot": "Screenshot",
+      "stopRecording": "Stop recording",
+      "startRecording": "Start recording"
+    },
+    "easyplayer": {
+      "loadingCore": "Loading EasyPlayer core...",
+      "paused": "Paused",
+      "recording": "Recording...",
+      "recordSaved": "Recording saved",
+      "screenshotExported": "Screenshot exported",
+      "playerError": "Player error",
+      "initializing": "Initializing player...",
+      "emptyTitle": "Waiting for a playable media URL"
+    },
+    "workspace": {
+      "webrtcPlaceholder": "webrtc:// / https:// / wss:// media URL",
+      "ffmpegPreparing": "Preparing to download FFmpeg...",
+      "ffmpegInstalled": "FFmpeg installed",
+      "webrtcAddressOnly": "Only a directly playable WebRTC media URL is supported here, e.g. a webrtc/http/ws gateway address; the panel's SDP/ICE debugging flow is not itself a player URL.",
+      "assistantNeedsAddress": "This assistant session needs an actual media URL first, then playback starts with the matching protocol. Enter an RTSP, HLS, HTTP-FLV, SRT or WebRTC address.",
+      "gb28181NeedsAddress": "GB28181 needs an actual media URL before playback. Enter an RTSP, HLS, HTTP-FLV or WebRTC gateway address in the panel's \"Media URL\" field or the top URL bar.",
+      "ffmpegMissing": "FFmpeg is not installed; the built-in player cannot start in this mode.",
+      "stateError": "Error",
+      "stateIdle": "Not playing",
+      "stateStarting": "Starting",
+      "statePlaying": "Playing",
+      "stateWaiting": "Waiting",
+      "playbackPanel": "Playback panel",
+      "ffmpegBanner": "The built-in player depends on FFmpeg. No available installation was detected",
+      "ffmpegBannerPeriod": ".",
+      "downloading": "Downloading...",
+      "downloadFfmpeg": "Download FFmpeg",
+      "startingGateway": "Starting local media gateway...",
+      "waitingPlayer": "Waiting for player to initialize...",
+      "waitingStreamTitle": "Waiting for a video stream",
+      "assistantPlayHint": "Enter a media URL, then play via {{mode}}",
+      "playHint": "Enter a {{mode}} address and click Play",
+      "messageLimit": "For performance, only the latest {{count}} protocol messages are shown"
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",
     "save": "Save",
     "delete": "Delete",
     "close": "Close",
+    "copy": "Copy",
+    "copied": "Copied",
     "refresh": "Refresh",
     "loading": "Loading...",
     "noData": "No data",
     "search": "Search ",
     "ms": "ms",
-    "seconds": "sec"
+    "seconds": "sec",
+    "saving": "Saving...",
+    "hide": "Hide",
+    "show": "Show",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "description": "Description",
+    "more": "More"
   },
   "import": {
     "title": "Import Collection",
@@ -1341,7 +1684,9 @@
     "detectingDocDesc": "Identifying available API documentation groups",
     "fetchingGroupsDesc": "Fetching endpoint details for selected groups, please wait",
     "waitPreview": "Waiting for Endpoint Preview",
-    "waitPreviewDesc": "After document detection, grouped endpoint preview and import selection will appear here"
+    "waitPreviewDesc": "After document detection, grouped endpoint preview and import selection will appear here",
+    "collectionNamePlaceholder": "e.g. Payment Center API",
+    "searchEndpointsPlaceholder": "Search path, summary or method..."
   },
   "collectionSettings": {
     "title": "Collection Settings",
@@ -1375,28 +1720,70 @@
     "postScript": "Post-response Script",
     "postScriptHint": "Executes after response is received",
     "saveScripts": "Save Scripts",
-    "varsDesc": "Collection-level variables can be referenced in all requests using {{key}}"
+    "varsDesc": "Collection-level variables can be referenced in all requests using {{key}}",
+    "actions": "Actions"
   },
   "env": {
-    "title": "Environment Management",
-    "envVars": "Environment Variables",
+    "export": "Export Environments",
+    "import": "Import Environments",
+    "modal": {
+      "title": "Environment Variables",
+      "subtitle": "Manage global variables and environment-specific variables"
+    },
+    "tab": {
+      "global": "Global Variables"
+    },
+    "section": {
+      "environments": "Environments"
+    },
+    "action": {
+      "newEnvironment": "New Environment",
+      "activate": "Activate",
+      "deleteEnvironment": "Delete Environment",
+      "add": "Add",
+      "showValue": "Show value",
+      "hideValue": "Hide value"
+    },
+    "status": {
+      "activated": "Activated",
+      "currentActive": "Currently active"
+    },
+    "search": {
+      "placeholder": "Search variables..."
+    },
+    "hint": {
+      "envOverride": "Environment variables override global variables with the same name (higher priority)",
+      "globalScope": "Global variables apply across all environments; environment variables can override global ones with the same name"
+    },
+    "empty": {
+      "noMatch": "No matching variables found",
+      "noVars": "No variables yet",
+      "hint": "Click the \"Add\" button above to create a new variable"
+    },
+    "footer": {
+      "stats": "{{total}} variables · {{enabled}} enabled"
+    },
+    "title": "Environment Variables",
+    "envVars": "Environments",
     "globalVars": "Global Variables",
-    "newEnvPlaceholder": "New environment...",
+    "newEnvPlaceholder": "New environment name",
     "noEnvs": "No environments",
-    "selectEnv": "Select an environment",
-    "selectEnvHint": "Or create a new one from the left panel",
-    "unsaved": "● Unsaved",
+    "active": "Active",
+    "varsOf": "Variables of {{name}}",
+    "unsaved": "Unsaved",
     "save": "Save",
-    "varName": "Variable Name",
+    "varName": "Name",
     "varValue": "Value",
     "secret": "Secret",
     "unmarkSecret": "Unmark as secret",
     "markSecret": "Mark as secret",
-    "addVar": "Add Variable",
-    "globalVarsDesc": "Global variables are available in all environments with lower priority than environment variables",
-    "addGlobalVar": "Add Global Variable",
-    "active": "Active",
-    "varsOf": "Variables of {{name}}"
+    "addVar": "Add variable",
+    "selectEnv": "Select an environment",
+    "selectEnvHint": "Select an environment from the left to edit its variables",
+    "globalVarsDesc": "Global variables apply across all environments",
+    "addGlobalVar": "Add global variable",
+    "variableSaved": "Variable saved",
+    "saveVariableFailed": "Failed to save variable"
   },
   "runner": {
     "run": "Run",
@@ -1425,7 +1812,8 @@
     "closeOthers": "Close Others",
     "closeRight": "Close Right",
     "closeLeft": "Close Left",
-    "new": "New"
+    "new": "New",
+    "closeTab": "Close tab"
   },
   "toolWindow": {
     "mergeBack": "Merge Back to Main Window",
@@ -1461,7 +1849,20 @@
     "filterValuePlaceholder": "Filter by value…",
     "filterActiveWithValue": "Filtering {{keys}} = \"{{value}}\"",
     "noMatchingKeys": "No matching keys",
-    "moreKeys": "… and {{count}} more"
+    "moreKeys": "… and {{count}} more",
+    "fileInfo": "File Info",
+    "regexPlaceholder": "Regular expression...",
+    "regexMode": "Regex mode",
+    "filterByKey": "Filter by key",
+    "regexInvalid": "Invalid regex",
+    "filterActive": "{{count}} keys filtered",
+    "binaryFile": "Binary file",
+    "imageFile": "Image",
+    "audioFile": "Audio",
+    "videoFile": "Video",
+    "saveToFile": "Save as",
+    "saveToFileFull": "Save as file",
+    "binaryHint": "This response is a binary file and cannot be previewed as text. Switch to Hex to view byte data."
   },
   "history": {
     "lastWeek": "Last 7 Days",
@@ -1474,10 +1875,6 @@
     "loading": "Loading...",
     "entryCount": "{{count}} entries loaded",
     "writeFailed": "Save failed"
-  },
-  "env": {
-    "export": "Export Environments",
-    "import": "Import Environments"
   },
   "update": {
     "checking": "Checking for updates…",
@@ -1556,6 +1953,12 @@
       "andMask": "AND Mask",
       "orMask": "OR Mask",
       "result": "Result"
+    },
+    "errors": {
+      "hexFormatExample": "Invalid HEX format. Enter space-separated hex bytes, e.g. FF 01 02",
+      "hexFormat": "Invalid HEX format. Enter space-separated hex bytes",
+      "emptyInput": "Input is empty",
+      "maskFormat": "Invalid mask format"
     }
   },
   "mockServer": {
@@ -1622,7 +2025,8 @@
     "scriptApiAccess": "Available API"
   },
   "rightSidebar": {
-    "toolbox": "Toolbox"
+    "toolbox": "Toolbox",
+    "logs": "Activity log"
   },
   "videostream": {
     "modes": {
@@ -1678,7 +2082,10 @@
       "handshake": "Handshake Analysis",
       "metadata": "Metadata (onMetaData)",
       "waitingMetadata": "Waiting for metadata...",
-      "connectFirst": "Connect to view"
+      "connectFirst": "Connect to view",
+      "handshaking": "Handshaking...",
+      "handshakeBtn": "Handshake",
+      "actions": "Protocol actions"
     },
     "flv": {
       "tagFilter": "Tag Filter",
@@ -1697,7 +2104,8 @@
       "role": "Role",
       "servers": "Servers",
       "gatheringIce": "Gathering ICE candidates...",
-      "connectFirst": "Connect to start ICE negotiation"
+      "connectFirst": "Connect to start ICE negotiation",
+      "generating": "Generating..."
     },
     "gb": {
       "serverConfig": "Server Config",
@@ -1712,7 +2120,13 @@
       "query": "Query",
       "noCatalog": "Click Query to get device catalog",
       "control": "Control",
-      "speed": "Speed"
+      "speed": "Speed",
+      "requestingLive": "Requesting stream...",
+      "requestLive": "Request Live",
+      "stopLive": "Stop Live",
+      "liveHint": "You can now send an `INVITE` directly to the GB28181 device. On success, a local `gb28181+udp://` media entry is generated, and the top Play button will route it into the built-in gateway.",
+      "tcpWarning": "GB28181 currently only supports UDP SIP registration and UDP live streaming; TCP transport is not yet wired up.",
+      "fetchStream": "Fetch Stream"
     },
     "srt": {
       "mode": "Connection Mode",
@@ -1723,7 +2137,14 @@
       "encryption": "Encryption",
       "passphrase": "Passphrase (optional)",
       "encryptionHint": "AES-128/192/256 encryption, passphrase 10-79 chars",
-      "stats": "Connection Stats"
+      "stats": "Connection Stats",
+      "probeNote": "The top Play button handles actual video playback; this section is for SRT handshake probing and session stats.",
+      "linkStarted": "The player link is now active.",
+      "lowLatency": "Low latency",
+      "probing": "SRT probing...",
+      "probe": "SRT Handshake Probe",
+      "clearProbe": "Clear Probe Session",
+      "target": "Target address"
     },
     "onvif": {
       "discover": "Device Discovery",
@@ -1736,8 +2157,21 @@
       "presets": "Presets",
       "presetName": "Preset Name",
       "save": "Save",
-      "goto": "Go To"
-    }
+      "goto": "Go To",
+      "switchTo": "Switch to {{mode}}",
+      "useProxy": "Use system proxy",
+      "querying": "Querying...",
+      "disconnect": "Disconnect",
+      "streamUri": "Stream URI",
+      "noUri": "No stream URI obtained",
+      "streamHint": "The stream URI has been filled into the current session's playback address; switch to the matching playback protocol to continue debugging"
+    },
+    "mediaAddress": "Media address",
+    "playbackModes": "Playback protocols",
+    "assistantAddressPlaceholder": "Waiting for the assistant to auto-fill, or enter a playable media address manually",
+    "play": "Play",
+    "assistantChip": "Assisted control",
+    "assistantHint": "The current assistant session handles discovery/control; playback still runs via {{mode}}"
   },
   "overview": {
     "title": "API Workspace",
@@ -1759,7 +2193,10 @@
     "requestsSingular": "request",
     "folders": "folders",
     "foldersSingular": "folder",
-    "more": "more"
+    "more": "more",
+    "authConfigured": "Auth configured",
+    "varsConfigured": "Variables defined",
+    "scriptsConfigured": "Scripts configured"
   },
   "dbClient": {
     "connections": "Connections",
@@ -1878,7 +2315,29 @@
     "copy": "Copy",
     "rowsSelected": "rows selected",
     "page": "page",
-    "exportFormat": "Export Format"
+    "exportFormat": "Export Format",
+    "exportComplete": "Export complete: {{size}}, took {{ms}}ms",
+    "exportDialogTitle": "Export",
+    "selectAllNone": "Select all / none",
+    "autoDetect": "Auto-detect",
+    "importComplete": "Import complete, took {{ms}}ms",
+    "importWarnings": " ({{count}} warnings)",
+    "importDialogTitle": "Import",
+    "cannotLoadStructure": "Unable to load table structure",
+    "addColumn": "Add column",
+    "sqlPreview": "SQL preview",
+    "discardChanges": "Discard",
+    "applyChanges": "Apply changes",
+    "colName": "Name",
+    "colType": "Type",
+    "colNullable": "Nullable",
+    "colDefault": "Default",
+    "colComment": "Comment",
+    "colActions": "Actions",
+    "deleteColumn": "Delete column",
+    "saveSuccess": "Connection saved",
+    "saveFailed": "Save failed",
+    "connectFailed": "Connection failed"
   },
   "assertion": {
     "title": "Assertions",
@@ -1992,10 +2451,10 @@
     "cancelled": "Cancelled",
     "pending": "Pending",
     "noWorkflows": "No workflows yet",
-      "noWorkflowsHint": "Create your first workflow to orchestrate API requests and script nodes",
-      "addNode": "Add Node",
-      "addNodeHint": "Drag onto the canvas, or click to add at the default position",
-      "nodeConfig": "Node Config",
+    "noWorkflowsHint": "Create your first workflow to orchestrate API requests and script nodes",
+    "addNode": "Add Node",
+    "addNodeHint": "Drag onto the canvas, or click to add at the default position",
+    "nodeConfig": "Node Config",
     "variables": "Variables",
     "addVariable": "Add Variable",
     "variableKey": "Key",
@@ -2014,74 +2473,74 @@
     "searchNodes": "Search nodes...",
     "edgeLabel": "Edge Label",
     "edgeCondition": "Condition Expression",
-      "categories": {
-        "trigger": "Trigger",
-        "network": "Network",
-        "integration": "Integration",
-        "flow": "Flow Control",
-        "data": "Data",
-        "codec": "Codec",
-        "utility": "Utility",
-        "test": "Verify"
-      },
-      "nodeTypes": {
-        "httpRequest": "HTTP Request",
-        "wsSend": "WebSocket Send",
-        "tcpSend": "TCP Send",
-        "udpSend": "UDP Send",
-        "mqttPublish": "MQTT Publish",
-        "dbQuery": "Database Query",
-        "delay": "Delay",
-        "script": "Script",
-        "extractData": "Extract Data",
-        "jsonParse": "JSON Parse",
-        "jsonStringify": "JSON Stringify",
-        "textTransform": "Text Transform",
-        "base64Encode": "Base64 Encode",
-        "base64Decode": "Base64 Decode",
-        "urlEncode": "URL Encode",
-        "urlDecode": "URL Decode",
-        "hash": "Hash",
-        "condition": "Condition",
-        "loop": "Loop",
-        "parallel": "Parallel",
-        "setVariable": "Set Variable",
-        "timestamp": "Timestamp",
-        "uuid": "UUID",
-        "log": "Log",
-        "assertion": "Assertion",
-        "start": "Start",
-        "end": "End"
-      },
+    "categories": {
+      "trigger": "Trigger",
+      "network": "Network",
+      "integration": "Integration",
+      "flow": "Flow Control",
+      "data": "Data",
+      "codec": "Codec",
+      "utility": "Utility",
+      "test": "Verify"
+    },
+    "nodeTypes": {
+      "httpRequest": "HTTP Request",
+      "wsSend": "WebSocket Send",
+      "tcpSend": "TCP Send",
+      "udpSend": "UDP Send",
+      "mqttPublish": "MQTT Publish",
+      "dbQuery": "Database Query",
+      "delay": "Delay",
+      "script": "Script",
+      "extractData": "Extract Data",
+      "jsonParse": "JSON Parse",
+      "jsonStringify": "JSON Stringify",
+      "textTransform": "Text Transform",
+      "base64Encode": "Base64 Encode",
+      "base64Decode": "Base64 Decode",
+      "urlEncode": "URL Encode",
+      "urlDecode": "URL Decode",
+      "hash": "Hash",
+      "condition": "Condition",
+      "loop": "Loop",
+      "parallel": "Parallel",
+      "setVariable": "Set Variable",
+      "timestamp": "Timestamp",
+      "uuid": "UUID",
+      "log": "Log",
+      "assertion": "Assertion",
+      "start": "Start",
+      "end": "End"
+    },
     "nodeDescs": {
       "httpRequest": "Send HTTP/HTTPS request and get response",
       "wsSend": "Establish a WebSocket connection and send a message",
       "tcpSend": "Establish TCP connection and send data",
       "udpSend": "Send UDP datagram",
-        "mqttPublish": "Connect to an MQTT broker and publish a message",
-        "dbQuery": "Connect to a database and execute a query or statement",
-        "delay": "Pause for specified milliseconds",
-        "script": "Execute custom JavaScript code",
-        "extractData": "Extract data from previous node output",
-        "jsonParse": "Parse a string into a JSON value",
-        "jsonStringify": "Serialize an object or text into a JSON string",
-        "textTransform": "Trim, change case, or replace text",
-        "base64Encode": "Encode input to Base64",
-        "base64Decode": "Decode Base64 to plaintext",
-        "urlEncode": "Percent-encode text for URLs",
-        "urlDecode": "Decode percent-encoded URL text",
-        "hash": "Calculate a text digest",
-        "condition": "Branch based on condition",
-        "loop": "Repeat execution N times",
-        "parallel": "Execute sub-flows in parallel",
-        "setVariable": "Set or update a variable",
-        "timestamp": "Generate the current timestamp or ISO time",
-        "uuid": "Generate a new UUID",
-        "log": "Output log message to console",
-        "assertion": "Assert data matches expectation",
-        "start": "Flow start node",
-        "end": "Flow end node"
-      },
+      "mqttPublish": "Connect to an MQTT broker and publish a message",
+      "dbQuery": "Connect to a database and execute a query or statement",
+      "delay": "Pause for specified milliseconds",
+      "script": "Execute custom JavaScript code",
+      "extractData": "Extract data from previous node output",
+      "jsonParse": "Parse a string into a JSON value",
+      "jsonStringify": "Serialize an object or text into a JSON string",
+      "textTransform": "Trim, change case, or replace text",
+      "base64Encode": "Encode input to Base64",
+      "base64Decode": "Decode Base64 to plaintext",
+      "urlEncode": "Percent-encode text for URLs",
+      "urlDecode": "Decode percent-encoded URL text",
+      "hash": "Calculate a text digest",
+      "condition": "Branch based on condition",
+      "loop": "Repeat execution N times",
+      "parallel": "Execute sub-flows in parallel",
+      "setVariable": "Set or update a variable",
+      "timestamp": "Generate the current timestamp or ISO time",
+      "uuid": "Generate a new UUID",
+      "log": "Output log message to console",
+      "assertion": "Assert data matches expectation",
+      "start": "Flow start node",
+      "end": "Flow end node"
+    },
     "nodeFields": {
       "method": "Method",
       "url": "URL",
@@ -2116,57 +2575,59 @@
       "encoding": "Encoding",
       "timeout": "Timeout (ms)",
       "delayMs": "Delay (ms)",
-        "script": "Script Code",
-        "source": "Source",
-        "mode": "Mode",
-        "expression": "Expression",
-        "input": "Input",
-        "pretty": "Pretty Output",
-        "transformOperation": "Transform Operation",
-        "search": "Search",
-        "replacement": "Replacement",
-        "hashAlgorithm": "Hash Algorithm",
-        "timeFormat": "Time Format",
-        "condExpression": "Condition Expression",
-        "iterations": "Iterations",
-        "maxConcurrency": "Max Concurrency",
-        "varKey": "Variable Name",
-        "varValue": "Variable Value",
+      "script": "Script Code",
+      "source": "Source",
+      "mode": "Mode",
+      "expression": "Expression",
+      "input": "Input",
+      "pretty": "Pretty Output",
+      "transformOperation": "Transform Operation",
+      "search": "Search",
+      "replacement": "Replacement",
+      "hashAlgorithm": "Hash Algorithm",
+      "timeFormat": "Time Format",
+      "condExpression": "Condition Expression",
+      "iterations": "Iterations",
+      "maxConcurrency": "Max Concurrency",
+      "varKey": "Variable Name",
+      "varValue": "Variable Value",
       "logMessage": "Log Message",
       "logLevel": "Log Level",
       "assertTarget": "Assert Target",
-        "assertOperator": "Operator",
-        "assertExpected": "Expected Value",
-        "assertName": "Test Name"
-      },
-      "operations": {
-        "trim": "Trim Whitespace",
-        "uppercase": "Uppercase",
-        "lowercase": "Lowercase",
-        "replace": "Find & Replace"
-      },
-      "messageTypes": {
-        "text": "Text",
-        "hex": "Hex Binary"
-      },
-      "dbTypes": {
-        "postgresql": "PostgreSQL",
-        "mysql": "MySQL",
-        "sqlite": "SQLite",
-        "influxdb": "InfluxDB"
-      },
-      "dbModes": {
-        "query": "Query Result Set",
-        "statement": "Execute Statement"
-      },
-      "timeFormats": {
-        "iso8601": "ISO 8601",
-        "unix": "Unix Seconds",
-        "unixMs": "Unix Milliseconds"
-      },
-      "emptyCanvas": "Drag nodes from the left panel onto the canvas",
-      "selectNode": "Click a node to configure it",
-      "resultPanel": "Execution Results",
+      "assertOperator": "Operator",
+      "assertExpected": "Expected Value",
+      "assertName": "Test Name",
+      "condExpressionHint": "Supports template variable references; evaluates to true/false",
+      "maxConcurrencyHint": "0 = unlimited concurrency"
+    },
+    "operations": {
+      "trim": "Trim Whitespace",
+      "uppercase": "Uppercase",
+      "lowercase": "Lowercase",
+      "replace": "Find & Replace"
+    },
+    "messageTypes": {
+      "text": "Text",
+      "hex": "Hex Binary"
+    },
+    "dbTypes": {
+      "postgresql": "PostgreSQL",
+      "mysql": "MySQL",
+      "sqlite": "SQLite",
+      "influxdb": "InfluxDB"
+    },
+    "dbModes": {
+      "query": "Query Result Set",
+      "statement": "Execute Statement"
+    },
+    "timeFormats": {
+      "iso8601": "ISO 8601",
+      "unix": "Unix Seconds",
+      "unixMs": "Unix Milliseconds"
+    },
+    "emptyCanvas": "Drag nodes from the left panel onto the canvas",
+    "selectNode": "Click a node to configure it",
+    "resultPanel": "Execution Results",
     "noResults": "Run the workflow to see results",
     "menu": {
       "deleteNode": "Delete Node",
@@ -2235,6 +2696,83 @@
       "distributeH": "Distribute Horizontally",
       "distributeV": "Distribute Vertically",
       "tooltip": "Align and distribute (≥2 nodes)"
+    },
+    "exportSuccess": "Workflow exported",
+    "exportFailed": "Export failed: "
+  },
+  "activityLog": {
+    "dragToResize": "Drag to resize",
+    "title": "Activity Log",
+    "filterPlaceholder": "Filter /regex/",
+    "filterAll": "All",
+    "clear": "Clear",
+    "close": "Close",
+    "empty": "No entries",
+    "noMatches": "No matches",
+    "emptyHint": "Network and protocol activity appears here",
+    "noMatchesHint": "Adjust the filter or regex",
+    "sendToParser": "Send to protocol parser"
+  },
+  "modbus": {
+    "exception": {
+      "illegalFunction": "Illegal function code",
+      "illegalDataAddress": "Illegal data address",
+      "illegalDataValue": "Illegal data value",
+      "slaveDeviceFailure": "Slave device failure",
+      "acknowledge": "Acknowledge (ACK)",
+      "slaveDeviceBusy": "Slave device busy",
+      "memoryParityError": "Memory parity error",
+      "gatewayPathUnavailable": "Gateway path unavailable",
+      "gatewayTargetNoResponse": "Gateway target failed to respond"
     }
+  },
+  "mock": {
+    "importInvalidArray": "JSON does not match the MockRoute structure (expected an array)",
+    "importInvalidStructure": "JSON does not match the MockRoute structure",
+    "importFailed": "Import failed"
+  },
+  "crypto": {
+    "configEncryptParams": "Configure encryption parameters",
+    "configDecryptParams": "Configure decryption parameters",
+    "encrypt": "Encrypt",
+    "decrypt": "Decrypt",
+    "operationFailed": "Operation failed",
+    "decryptResult": "Decryption result"
+  },
+  "parser": {
+    "tabLabel": "Protocol Parser",
+    "parse": "Parse",
+    "parsing": "Parsing...",
+    "parseFailed": "Parse failed",
+    "parseMessage": "Parse message",
+    "inputPlaceholder": "Paste raw message data...",
+    "noParser": "No protocol parser installed",
+    "noParserHint": "Install a protocol-parser plugin from the marketplace to use this feature",
+    "readyTitle": "Paste a message and click Parse",
+    "readyDesc": "Parse and structure messages for industrial protocols like HJ212, Modbus, and more",
+    "allGroups": "All",
+    "field": "Field",
+    "value": "Value",
+    "selectPlugin": "Select parser",
+    "searchPlugin": "Search protocols...",
+    "noMatch": "No matches",
+    "parsersAvailable": "parsers",
+    "navigate": "Navigate",
+    "confirm": "Confirm",
+    "switchPlugin": "Switch protocol",
+    "switch": "Switch",
+    "searchFields": "Search fields..."
+  },
+  "shortcuts": {
+    "commandPalette": "Command palette",
+    "splitView": "Split view",
+    "toggleSidebar": "Toggle sidebar",
+    "openSettings": "Open settings",
+    "sendRequest": "Send request",
+    "newTab": "New tab",
+    "closeTab": "Close tab",
+    "switchTab": "Switch tab",
+    "dismiss": "Dismiss",
+    "hint": "Keyboard shortcuts"
   }
 }

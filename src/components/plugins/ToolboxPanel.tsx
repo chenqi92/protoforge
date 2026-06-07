@@ -121,11 +121,11 @@ function CrcCalculator() {
     let bytes: number[] | null = null;
     if (inputMode === 'hex') {
       bytes = parseHexBytes(input);
-      if (!bytes) { setError('HEX 格式错误，请输入空格分隔的十六进制字节，如: FF 01 02'); return; }
+      if (!bytes) { setError(t('toolbox.errors.hexFormatExample', 'HEX 格式错误，请输入空格分隔的十六进制字节，如: FF 01 02')); return; }
     } else {
       bytes = Array.from(new TextEncoder().encode(input));
     }
-    if (bytes.length === 0) { setError('输入为空'); return; }
+    if (bytes.length === 0) { setError(t('toolbox.errors.emptyInput', '输入为空')); return; }
     const value = runCrc(bytes, algorithm);
     setResult({ value, bits: parseBits(algorithm) });
   }, [input, inputMode, algorithm]);
@@ -200,7 +200,7 @@ function CrcCalculator() {
       </div>
 
       {error && (
-        <div className="pf-rounded-sm border border-red-500/30 bg-red-500/5 px-3 py-2 pf-text-xs text-red-400">
+        <div className="pf-rounded-sm border border-error/30 bg-error/5 px-3 py-2 pf-text-xs text-error">
           {error}
         </div>
       )}
@@ -362,7 +362,7 @@ function NumberConverter() {
       </div>
 
       {error && (
-        <div className="pf-text-xxs text-red-400">{error}</div>
+        <div className="pf-text-xxs text-error">{error}</div>
       )}
 
       {!error && hexVal && (
@@ -401,8 +401,8 @@ function ByteTools() {
     setResult('');
     setResultAscii('');
     const bytes = parseHexBytes(input);
-    if (!bytes) { setError('HEX 格式错误，请输入空格分隔的十六进制字节'); return; }
-    if (bytes.length === 0) { setError('输入为空'); return; }
+    if (!bytes) { setError(t('toolbox.errors.hexFormat', 'HEX 格式错误，请输入空格分隔的十六进制字节')); return; }
+    if (bytes.length === 0) { setError(t('toolbox.errors.emptyInput', '输入为空')); return; }
 
     let out: number[] = [];
     switch (operation) {
@@ -414,13 +414,13 @@ function ByteTools() {
         break;
       case 'and': {
         const maskBytes = parseHexBytes(mask);
-        if (!maskBytes || maskBytes.length === 0) { setError('掩码格式错误'); return; }
+        if (!maskBytes || maskBytes.length === 0) { setError(t('toolbox.errors.maskFormat', '掩码格式错误')); return; }
         out = bytes.map((b, i) => b & (maskBytes[i % maskBytes.length]));
         break;
       }
       case 'or': {
         const maskBytes = parseHexBytes(mask);
-        if (!maskBytes || maskBytes.length === 0) { setError('掩码格式错误'); return; }
+        if (!maskBytes || maskBytes.length === 0) { setError(t('toolbox.errors.maskFormat', '掩码格式错误')); return; }
         out = bytes.map((b, i) => b | (maskBytes[i % maskBytes.length]));
         break;
       }
@@ -492,7 +492,7 @@ function ByteTools() {
       </div>
 
       {error && (
-        <div className="pf-rounded-sm border border-red-500/30 bg-red-500/5 px-3 py-2 pf-text-xs text-red-400">
+        <div className="pf-rounded-sm border border-error/30 bg-error/5 px-3 py-2 pf-text-xs text-error">
           {error}
         </div>
       )}

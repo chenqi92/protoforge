@@ -3,9 +3,9 @@
 
 import { memo, useEffect, useCallback, useState, useRef } from "react";
 import {
-  Play, Square, Trash2, Plus, Copy, Search,
-  ChevronRight, ToggleLeft, ToggleRight,
-  Clock, ArrowUpDown, AlertCircle, Server, Zap,
+  Play, Square, Trash2, Plus, Copy,
+  ChevronRight,
+  Clock, AlertCircle, Server, Zap,
   Download, Upload, Globe, Code, ListOrdered, Layers,
   PanelLeftOpen,
 } from "lucide-react";
@@ -24,26 +24,24 @@ import {
   usePanelRef,
 } from "react-resizable-panels";
 
-// ── HTTP Method 颜色 ──
-const methodColors: Record<string, { text: string; bg: string }> = {
-  GET: { text: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/15" },
-  POST: { text: "text-amber-600 dark:text-amber-300", bg: "bg-amber-500/15" },
-  PUT: { text: "text-blue-600 dark:text-blue-300", bg: "bg-blue-500/15" },
-  DELETE: { text: "text-red-600 dark:text-red-300", bg: "bg-red-500/15" },
-  PATCH: { text: "text-violet-600 dark:text-violet-300", bg: "bg-violet-500/15" },
-  HEAD: { text: "text-cyan-600 dark:text-cyan-300", bg: "bg-cyan-500/15" },
-  OPTIONS: { text: "text-gray-600", bg: "bg-gray-500/15" },
-  ANY: { text: "text-pink-600", bg: "bg-pink-500/15" },
-};
-
-function getMethodColor(method?: string) {
-  return methodColors[method?.toUpperCase() ?? "ANY"] ?? methodColors.ANY;
+// ── HTTP Method → .pf-mtag 修饰类 ──
+function methodClass(method?: string): string {
+  if (!method) return "m-get";
+  return `m-${method.toLowerCase()}`;
 }
 
+// 状态码 → .pf-pill 色调
+function statusTone(status: number): string {
+  if (status < 300) return "ok";
+  if (status < 400) return "warn";
+  return "err";
+}
+
+// 状态码文本色（Forge token）
 function statusColor(status: number): string {
-  if (status < 300) return "text-emerald-600 dark:text-emerald-300";
-  if (status < 400) return "text-amber-600 dark:text-amber-300";
-  return "text-red-500 dark:text-red-300";
+  if (status < 300) return "text-success";
+  if (status < 400) return "text-warning";
+  return "text-error";
 }
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
@@ -224,7 +222,7 @@ function ControlBar({
       const text = await readTextFile(selected);
       const parsed = JSON.parse(text);
       if (!Array.isArray(parsed)) {
-        await message("JSON 格式不符合 MockRoute 结构（应为数组）", { title: "导入失败", kind: "error" });
+        await message(t("mock.importInvalidArray", "JSON 格式不符合 MockRoute 结构（应为数组）"), { title: t("mock.importFailed", "导入失败"), kind: "error" });
         return;
       }
       const valid = parsed.every(
@@ -233,7 +231,7 @@ function ControlBar({
           "pattern" in r && "statusCode" in r
       );
       if (!valid) {
-        await message("JSON 格式不符合 MockRoute 结构", { title: "导入失败", kind: "error" });
+        await message(t("mock.importInvalidStructure", "JSON 格式不符合 MockRoute 结构"), { title: t("mock.importFailed", "导入失败"), kind: "error" });
         return;
       }
       const routes = parsed.map((r: Record<string, unknown>) => ({
@@ -254,81 +252,88 @@ function ControlBar({
       }));
       store.getState().importRoutes(routes);
     } catch (e) {
-      await message(String(e), { title: "导入失败", kind: "error" });
+      await message(String(e), { title: t("mock.importFailed", "导入失败"), kind: "error" });
     }
   }, [store]);
 
   return (
     <div className="flex flex-col border-b border-border-default bg-bg-surface">
-      <div className="flex items-center gap-3 px-4 py-2">
-        {/* 启动/停止 */}
-        <button
-          onClick={handleToggle}
-          disabled={starting}
-          className={cn(
-            "flex items-center gap-1.5 rounded-md px-3 py-1.5 pf-text-sm font-medium transition-colors",
-            running
-              ? "bg-red-500/15 text-red-600 dark:text-red-300 hover:bg-red-500/25"
-              : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/25",
-            starting && "opacity-50 cursor-not-allowed",
-          )}
-        >
-          {running ? <><Square className="h-3.5 w-3.5" />{t("mockServer.stop")}</> : <><Play className="h-3.5 w-3.5" />{starting ? t("mockServer.starting") : t("mockServer.start")}</>}
-        </button>
+      <div className="flex items-center gap-2.5 px-3 py-2.5">
+        {/* 状态指示 — idle / connecting / live */}
+        <span className="pf-status-chip">
+          <span className={cn("pf-dot", starting ? "s-conn" : running ? "s-live" : "s-idle")} />
+          {starting ? t("mockServer.starting") : running ? t("mockServer.running") : t("mockServer.stopped")}
+        </span>
+
+        {/* 运行地址 */}
+        {running && (
+          <span className="pf-pill">
+            <Globe className="h-3 w-3" />
+            127.0.0.1:{port}
+          </span>
+        )}
 
         {/* 端口 */}
         <div className="flex items-center gap-1.5">
-          <span className="pf-text-xs text-text-secondary">{t("mockServer.port")}:</span>
+          <span className="pf-text-xs text-text-tertiary">{t("mockServer.port")}</span>
           <input
             type="number"
             value={portInput}
             onChange={(e) => setPortInput(e.target.value)}
             disabled={running}
-            className={cn("w-20 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none", running && "opacity-60 cursor-not-allowed")}
+            className={cn("w-16 h-6 rounded border border-border-default bg-bg-input px-2 pf-text-xs text-text-primary font-mono tnum focus:border-accent focus:outline-none", running && "opacity-60 cursor-not-allowed")}
             min={1} max={65535}
           />
         </div>
 
-        {/* 状态指示 */}
-        <div className="flex items-center gap-1.5">
-          <div className={cn("h-2 w-2 rounded-full", running ? "bg-emerald-500 animate-pulse" : "bg-gray-400")} />
-          <span className="pf-text-xs text-text-secondary">
-            {running ? `${t("mockServer.running")} · 127.0.0.1:${port}` : t("mockServer.stopped")}
-          </span>
-        </div>
-
         <div className="flex-1" />
 
-        {/* 导入/导出 */}
-        <button onClick={handleImport} className="p-1 rounded hover:bg-bg-hover text-text-tertiary hover:text-text-primary" title={t("mockServer.import")}>
-          <Upload className="h-3.5 w-3.5" />
-        </button>
-        <button onClick={handleExport} className="p-1 rounded hover:bg-bg-hover text-text-tertiary hover:text-text-primary" title={t("mockServer.export")}>
-          <Download className="h-3.5 w-3.5" />
-        </button>
-
-        {/* 代理开关 */}
-        <button
-          onClick={() => setShowProxy(!showProxy)}
-          className={cn("p-1 rounded hover:bg-bg-hover transition-colors", proxyTarget ? "text-emerald-500 dark:text-emerald-300" : "text-text-tertiary hover:text-text-primary")}
-          title={t("mockServer.proxyTarget")}
-        >
-          <Globe className="h-3.5 w-3.5" />
-        </button>
-
         {/* 统计 */}
-        <div className="flex items-center gap-3 pf-text-xs text-text-tertiary">
+        <div className="flex items-center gap-3 pf-text-xs text-text-tertiary tnum">
           <span><Zap className="inline h-3 w-3 mr-0.5" />{totalHits} {t("mockServer.hits")}</span>
           <span><Server className="inline h-3 w-3 mr-0.5" />{routeCount} {t("mockServer.routeCount")}</span>
         </div>
 
-        {error && (
-          <div className="flex items-center gap-1 pf-text-xs text-red-500 dark:text-red-300">
-            <AlertCircle className="h-3 w-3" />
-            <span className="max-w-48 truncate">{error}</span>
-          </div>
-        )}
+        {/* 导入/导出 / 代理 */}
+        <div className="flex items-center gap-0.5">
+          <button onClick={handleImport} className="grid place-items-center h-6 w-6 rounded hover:bg-bg-hover text-text-tertiary hover:text-text-primary transition-colors" title={t("mockServer.import")}>
+            <Upload className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={handleExport} className="grid place-items-center h-6 w-6 rounded hover:bg-bg-hover text-text-tertiary hover:text-text-primary transition-colors" title={t("mockServer.export")}>
+            <Download className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setShowProxy(!showProxy)}
+            className={cn("grid place-items-center h-6 w-6 rounded hover:bg-bg-hover transition-colors", proxyTarget ? "text-success" : "text-text-tertiary hover:text-text-primary")}
+            title={t("mockServer.proxyTarget")}
+          >
+            <Globe className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {/* 启动/停止 (.btn sm primary/danger) */}
+        <button
+          onClick={handleToggle}
+          disabled={starting}
+          className={cn(
+            "flex items-center gap-1.5 rounded-md h-6 px-2.5 pf-text-xs font-semibold transition-colors",
+            running
+              ? "bg-error/15 text-error hover:bg-error/25"
+              : "bg-success/15 text-success hover:bg-success/25",
+            starting && "opacity-50 cursor-not-allowed",
+          )}
+        >
+          {running ? <><Square className="h-3 w-3" />{t("mockServer.stop")}</> : <><Play className="h-3 w-3" />{starting ? t("mockServer.starting") : t("mockServer.start")}</>}
+        </button>
       </div>
+
+      {/* 错误横幅 (error 状态 §6.6) */}
+      {error && (
+        <div className="flex items-start gap-2 px-3 py-2 border-t border-error/30 bg-error/10">
+          <AlertCircle className="h-3.5 w-3.5 text-error shrink-0 mt-px" />
+          <span className="flex-1 min-w-0 pf-text-xs text-error break-all">{error}</span>
+        </div>
+      )}
 
       {/* 代理转发输入行 */}
       {showProxy && (
@@ -353,9 +358,9 @@ function ProxyTargetInput({ sessionId, proxyTarget }: { sessionId: string; proxy
   };
 
   return (
-    <div className="flex items-center gap-2 px-4 py-1.5 border-t border-border-subtle bg-bg-primary/50">
+    <div className="flex items-center gap-2 px-3 py-1.5 border-t border-border-subtle bg-bg-secondary">
       <Globe className="h-3 w-3 text-text-tertiary shrink-0" />
-      <span className="pf-text-xs text-text-secondary shrink-0">{t("mockServer.proxyTarget")}:</span>
+      <span className="pf-text-xs text-text-tertiary shrink-0">{t("mockServer.proxyTarget")}</span>
       <input
         type="text"
         value={localValue}
@@ -389,13 +394,13 @@ function RouteListPanel({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* 头部 */}
-      <div className="flex items-center justify-between border-b border-border-default px-3 py-2 shrink-0">
-        <span className="pf-text-xs font-medium text-text-secondary uppercase tracking-wider">
+      <div className="flex items-center justify-between border-b border-border-default px-3 py-2.5 shrink-0">
+        <span className="pf-text-xxs font-bold text-text-tertiary uppercase tracking-wider">
           {t("mockServer.routeList")}
         </span>
         <button
           onClick={() => store.getState().addRoute()}
-          className="flex items-center gap-1 rounded px-1.5 py-0.5 pf-text-xs text-accent hover:bg-bg-hover transition-colors"
+          className="grid place-items-center h-6 w-6 rounded text-accent hover:bg-bg-hover transition-colors"
           title={t("mockServer.addRoute")}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -405,14 +410,16 @@ function RouteListPanel({
       {/* 列表 */}
       <div className="flex-1 overflow-y-auto min-w-0">
         {routes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full px-4 text-center">
-            <Server className="h-8 w-8 text-text-disabled mb-2" />
-            <p className="pf-text-sm text-text-tertiary mb-2">
+          <div className="flex flex-col items-center justify-center h-full px-5 text-center gap-2">
+            <div className="grid place-items-center h-11 w-11 rounded-xl bg-bg-secondary border border-border-subtle mb-1">
+              <Server className="h-5 w-5 text-text-tertiary" />
+            </div>
+            <p className="pf-text-sm font-medium text-text-secondary">
               {t("mockServer.noRoutes")}
             </p>
             <button
               onClick={() => store.getState().addRoute()}
-              className="flex items-center gap-1 rounded-md bg-accent/10 px-3 py-1.5 pf-text-xs text-accent hover:bg-accent/20 transition-colors"
+              className="mt-1 flex items-center gap-1 rounded-md bg-accent/10 px-3 py-1.5 pf-text-xs text-accent hover:bg-accent/20 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               {t("mockServer.addFirstRoute")}
@@ -454,40 +461,35 @@ function RouteListItem({
   onDuplicate: () => void;
 }) {
   const { t } = useTranslation();
-  const mc = getMethodColor(route.method);
 
   return (
     <div
       onClick={onSelect}
       className={cn(
-        "group flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-border-subtle transition-colors min-w-0",
+        "group flex items-center gap-2 px-3 h-[38px] cursor-pointer border-b border-border-subtle transition-colors min-w-0",
         selected
-          ? "bg-accent/8 border-l-2 border-l-accent"
+          ? "bg-accent-soft border-l-2 border-l-accent"
           : "hover:bg-bg-hover border-l-2 border-l-transparent",
         !route.enabled && "opacity-50",
       )}
     >
+      <span className={cn("pf-mtag w-[40px] shrink-0", methodClass(route.method))}>
+        {route.method || "ANY"}
+      </span>
       <div className="flex-1 min-w-0 overflow-hidden">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span
-            className={cn(
-              "inline-flex items-center rounded px-1.5 py-0.5 pf-text-[10px] font-bold uppercase shrink-0",
-              mc.text,
-              mc.bg,
-            )}
-          >
-            {route.method || "ANY"}
-          </span>
-          <span className="pf-text-xs text-text-primary truncate font-mono min-w-0">
-            {route.pattern || "/"}
-          </span>
-        </div>
+        <span className="pf-text-xs text-text-primary truncate font-mono block min-w-0">
+          {route.pattern || "/"}
+        </span>
         {route.description && (
-          <p className="pf-text-[10px] text-text-tertiary mt-0.5 truncate">
+          <p className="pf-text-3xs text-text-tertiary truncate">
             {route.description}
           </p>
         )}
       </div>
+
+      <span className={cn("pf-pill shrink-0", statusTone(route.statusCode))}>
+        {route.statusCode}
+      </span>
 
       {/* 操作按钮（悬浮显示） */}
       <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
@@ -499,29 +501,22 @@ function RouteListItem({
           <Copy className="h-3 w-3" />
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className="p-0.5 rounded hover:bg-bg-hover text-text-tertiary hover:text-text-primary"
-          title={route.enabled ? t("mockServer.disable") : t("mockServer.enable")}
-        >
-          {route.enabled ? (
-            <ToggleRight className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" />
-          ) : (
-            <ToggleLeft className="h-3.5 w-3.5" />
-          )}
-        </button>
-        <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          className="p-0.5 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500 dark:text-red-300"
+          className="p-0.5 rounded hover:bg-error/10 text-text-tertiary hover:text-error"
           title={t("mockServer.deleteRoute")}
         >
           <Trash2 className="h-3 w-3" />
         </button>
       </div>
 
-      {/* 状态码标记 */}
-      <span className={cn("pf-text-[10px] font-mono shrink-0", statusColor(route.statusCode))}>
-        {route.statusCode}
-      </span>
+      {/* 启用/禁用 状态点 */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        className="shrink-0 grid place-items-center p-0 border-0 bg-transparent cursor-pointer group-hover:hidden"
+        title={route.enabled ? t("mockServer.disable") : t("mockServer.enable")}
+      >
+        <span className={cn("pf-dot", route.enabled ? "s-ok" : "s-idle")} />
+      </button>
     </div>
   );
 }
@@ -565,10 +560,12 @@ function RouteEditorPanel({
 
   if (!route) {
     return (
-      <div className="flex h-full items-center justify-center text-text-tertiary">
-        <div className="text-center">
-          <ArrowUpDown className="h-8 w-8 mx-auto mb-2 text-text-disabled" />
-          <p className="pf-text-sm">{t("mockServer.selectRoute")}</p>
+      <div className="flex h-full items-center justify-center">
+        <div className="flex flex-col items-center text-center gap-2 px-6">
+          <div className="grid place-items-center h-11 w-11 rounded-xl bg-bg-secondary border border-border-subtle mb-1">
+            <Layers className="h-5 w-5 text-text-tertiary" />
+          </div>
+          <p className="pf-text-sm font-medium text-text-secondary">{t("mockServer.selectRoute")}</p>
         </div>
       </div>
     );
@@ -584,7 +581,7 @@ function RouteEditorPanel({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* 方法 + 路径 (始终显示) */}
-      <div className="border-b border-border-default px-4 py-2 shrink-0 space-y-2">
+      <div className="border-b border-border-default px-3 py-2.5 shrink-0 space-y-2">
         <div className="flex gap-2">
           <select
             value={route.method ?? ""}
@@ -602,28 +599,28 @@ function RouteEditorPanel({
             className="flex-1 min-w-0 rounded border border-border-default bg-bg-input px-2 py-1.5 pf-text-xs text-text-primary font-mono focus:border-accent focus:outline-none"
           />
         </div>
-        {/* Tab 切换 */}
-        <div className="flex gap-0.5">
+        {/* Tab 切换（.utab 下划线 underline tabs） */}
+        <div className="flex gap-0.5 -mb-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            const on = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded pf-text-[11px] transition-colors",
-                  activeTab === tab.id
-                    ? "bg-accent/10 text-accent font-medium"
-                    : "text-text-tertiary hover:text-text-primary hover:bg-bg-hover",
+                  "relative flex items-center gap-1.5 h-[33px] px-2.5 pf-text-xs font-medium transition-colors",
+                  on ? "text-text-primary" : "text-text-secondary hover:text-text-primary",
                 )}
               >
                 <Icon className="h-3 w-3" />
                 {tab.label}
                 {(tab.badge ?? 0) > 0 && (
-                  <span className="ml-0.5 px-1 py-0 rounded-full bg-accent/20 text-accent pf-text-[9px] font-bold">
+                  <span className="rounded-lg bg-bg-tertiary px-1.5 pf-text-3xs font-mono text-text-tertiary">
                     {tab.badge}
                   </span>
                 )}
+                {on && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-sm bg-accent" />}
               </button>
             );
           })}
@@ -730,13 +727,13 @@ function ExamplesTabContent({ route, update }: { route: MockRoute; update: (p: P
         </button>
       </div>
       {route.examples.map((ex, i) => (
-        <div key={ex.id} className="border border-border-default rounded-md p-3 space-y-2 bg-bg-primary/50">
+        <div key={ex.id} className="border border-border-default rounded-md p-3 space-y-2 bg-bg-secondary">
           <div className="flex items-center gap-2">
             <input type="text" value={ex.name} onChange={(e) => updateExample(ex.id, { name: e.target.value })} placeholder={`Example ${i + 1}`}
               className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
             <input type="number" value={ex.statusCode} onChange={(e) => updateExample(ex.id, { statusCode: parseInt(e.target.value, 10) || 200 })} min={100} max={599}
               className="w-16 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
-            <button onClick={() => removeExample(ex.id)} className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500 dark:text-red-300">
+            <button onClick={() => removeExample(ex.id)} className="p-1 rounded hover:bg-error/10 text-text-tertiary hover:text-error">
               <Trash2 className="h-3 w-3" />
             </button>
           </div>
@@ -808,7 +805,7 @@ function SequenceTabContent({ route, update }: { route: MockRoute; update: (p: P
         </button>
       </div>
       {route.sequence.map((item, idx) => (
-        <div key={item.id} className="border border-border-default rounded-md p-3 space-y-2 bg-bg-primary/50">
+        <div key={item.id} className="border border-border-default rounded-md p-3 space-y-2 bg-bg-secondary">
           <div className="flex items-center gap-2">
             <span className="pf-text-[10px] text-text-tertiary font-mono w-6 text-center shrink-0">#{idx + 1}</span>
             <input type="number" value={item.statusCode} onChange={(e) => updateItem(idx, { statusCode: parseInt(e.target.value, 10) || 200 })} min={100} max={599}
@@ -816,7 +813,7 @@ function SequenceTabContent({ route, update }: { route: MockRoute; update: (p: P
             <input type="number" value={item.delayMs ?? ""} onChange={(e) => updateItem(idx, { delayMs: e.target.value ? parseInt(e.target.value, 10) : undefined })} placeholder="delay ms"
               className="w-20 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary focus:border-accent focus:outline-none" />
             <div className="flex-1" />
-            <button onClick={() => removeItem(idx)} className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500 dark:text-red-300">
+            <button onClick={() => removeItem(idx)} className="p-1 rounded hover:bg-error/10 text-text-tertiary hover:text-error">
               <Trash2 className="h-3 w-3" />
             </button>
           </div>
@@ -838,7 +835,7 @@ function ScriptTabContent({ route, update }: { route: MockRoute; update: (p: Par
     <div className="space-y-3">
       <div className="pf-text-[11px] text-text-tertiary space-y-1">
         <p>{t("mockServer.scriptHint")}</p>
-        <div className="bg-bg-primary/50 border border-border-subtle rounded p-2 font-mono pf-text-[10px] text-text-secondary space-y-0.5">
+        <div className="bg-bg-inset border border-border-subtle rounded p-2 font-mono pf-text-[10px] text-text-secondary space-y-0.5">
           <p>// {t("mockServer.scriptApiAccess")}:</p>
           <p>mock.request.method / .path / .query / .params / .headers / .body</p>
           <p>mock.response.status = 201;</p>
@@ -910,7 +907,7 @@ function ResponseHeadersEditor({
           />
           <button
             onClick={() => commit(rows.filter((r) => r._id !== row._id))}
-            className="p-1 rounded hover:bg-red-500/10 text-text-tertiary hover:text-red-500 dark:text-red-300"
+            className="p-1 rounded hover:bg-error/10 text-text-tertiary hover:text-error"
           >
             <Trash2 className="h-3 w-3" />
           </button>
@@ -999,6 +996,7 @@ function RequestLogPanel({
 }) {
   const { t } = useTranslation();
   const store = getMockServerStoreApi(sessionId);
+  const running = useMockServerStore(sessionId, (s) => s.running);
   const listRef = useRef<HTMLDivElement>(null);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
 
@@ -1010,71 +1008,70 @@ function RequestLogPanel({
   }, [logs.length]);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden bg-bg-secondary">
       {/* 头部 */}
-      <div className="flex items-center justify-between border-b border-border-default px-3 py-2 shrink-0">
-        <span className="pf-text-xs font-medium text-text-secondary uppercase tracking-wider">
+      <div className="flex items-center justify-between border-b border-border-default px-3 py-2.5 shrink-0">
+        <span className="flex items-center gap-1.5 pf-text-sm font-semibold text-text-primary">
+          <Zap className="h-3.5 w-3.5 text-accent" />
           {t("mockServer.requestLog")}
           {logs.length > 0 && (
-            <span className="ml-1.5 text-text-tertiary">({logs.length})</span>
+            <span className="pf-text-xs font-normal text-text-tertiary">({logs.length})</span>
           )}
         </span>
-        <button
-          onClick={() => store.getState().clearLogs()}
-          className="p-1 rounded hover:bg-bg-hover text-text-tertiary hover:text-text-primary transition-colors"
-          title={t("mockServer.clearLog")}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => store.getState().clearLogs()}
+            className="grid place-items-center h-6 w-6 rounded hover:bg-bg-hover text-text-tertiary hover:text-text-primary transition-colors"
+            title={t("mockServer.clearLog")}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+          <span className={cn("pf-dot", running ? "s-live" : "s-idle")} />
+        </div>
       </div>
 
       {/* 日志列表 */}
       <div ref={listRef} className="flex-1 overflow-y-auto min-w-0">
         {logs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-text-tertiary">
-            <Search className="h-6 w-6 text-text-disabled mb-1.5" />
-            <p className="pf-text-xs">{t("mockServer.noLogs")}</p>
-            <p className="pf-text-[10px] mt-0.5">{t("mockServer.noLogsHint")}</p>
+          <div className="flex flex-col items-center justify-center h-full px-5 text-center gap-1.5">
+            <div className="grid place-items-center h-10 w-10 rounded-xl bg-bg-tertiary border border-border-subtle mb-1">
+              <Zap className="h-4 w-4 text-text-tertiary" />
+            </div>
+            <p className="pf-text-xs font-medium text-text-secondary">{t("mockServer.noLogs")}</p>
+            <p className="pf-text-[10px] text-text-tertiary">{t("mockServer.noLogsHint")}</p>
           </div>
         ) : (
           logs.map((log) => {
-            const mc = getMethodColor(log.method);
             return (
               <div
                 key={log.id}
                 onClick={() => setSelectedLogId(log.id === selectedLogId ? null : log.id)}
                 className={cn(
-                  "px-3 py-1.5 border-b border-border-subtle cursor-pointer transition-colors",
-                  log.id === selectedLogId ? "bg-accent/8" : "hover:bg-bg-hover",
+                  "border-b border-border-subtle cursor-pointer transition-colors",
+                  log.id === selectedLogId ? "bg-accent-soft" : "hover:bg-bg-hover",
                 )}
               >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={cn(
-                      "inline-flex rounded px-1 py-0.5 pf-text-[9px] font-bold uppercase shrink-0",
-                      mc.text,
-                      mc.bg,
-                    )}
-                  >
+                <div className="grid items-center gap-2 px-3 py-1 font-mono" style={{ gridTemplateColumns: "46px 1fr auto auto" }}>
+                  <span className={cn("pf-mtag", methodClass(log.method))}>
                     {log.method}
                   </span>
-                  <span className="pf-text-[11px] text-text-primary font-mono truncate flex-1 min-w-0">
+                  <span className="pf-text-xs text-text-primary truncate min-w-0">
                     {log.path}
                     {log.query && <span className="text-text-tertiary">?{log.query}</span>}
                   </span>
-                  <span className={cn("pf-text-[10px] font-mono shrink-0", statusColor(log.responseStatus))}>
+                  <span className={cn("pf-text-3xs shrink-0 tnum", statusColor(log.responseStatus))}>
                     {log.responseStatus}
                   </span>
-                  <span className="pf-text-[10px] text-text-tertiary shrink-0">
+                  <span className="pf-text-3xs text-text-tertiary shrink-0 tnum w-12 text-right">
                     {log.durationMs}ms
                   </span>
                 </div>
                 {log.matchedPattern && (
-                  <div className="pf-text-[10px] text-text-tertiary mt-0.5">
+                  <div className="pf-text-3xs text-text-tertiary -mt-0.5 pb-1 pl-[58px] font-mono">
                     <ChevronRight className="inline h-2.5 w-2.5" />
                     {log.matchedPattern}
                     {log.delayMs > 0 && (
-                      <span className="ml-1 text-amber-500 dark:text-amber-300">
+                      <span className="ml-1 text-warning">
                         <Clock className="inline h-2.5 w-2.5" /> +{log.delayMs}ms
                       </span>
                     )}
@@ -1083,7 +1080,7 @@ function RequestLogPanel({
 
                 {/* 展开的详情 */}
                 {log.id === selectedLogId && (
-                  <div className="mt-2 p-2 rounded bg-bg-primary border border-border-subtle pf-text-[10px]">
+                  <div className="mt-2 p-2 rounded bg-bg-inset border border-border-subtle pf-text-[10px]">
                     <div className="mb-1 text-text-secondary font-medium">{t("mockServer.logResponseBody")}:</div>
                     <pre className="whitespace-pre-wrap break-all text-text-primary font-mono max-h-32 overflow-y-auto">
                       {formatJsonSafe(log.responseBody)}

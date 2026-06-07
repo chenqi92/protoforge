@@ -15,21 +15,21 @@ interface FeatureItem {
 }
 
 const requestFeatures: FeatureItem[] = [
-  { action: "http", icon: Send, labelKey: "welcome.httpRequest", descKey: "welcome.httpRequestDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-blue-500 dark:text-blue-300 bg-blue-500/10" },
-  { action: "graphql", icon: Braces, labelKey: "welcome.graphql", descKey: "welcome.graphqlDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-fuchsia-500 dark:text-fuchsia-300 bg-fuchsia-500/10" },
-  { action: "ws", icon: Zap, labelKey: "welcome.websocket", descKey: "welcome.websocketDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-amber-500 dark:text-amber-300 bg-amber-500/10" },
-  { action: "sse", icon: Waves, labelKey: "welcome.sse", descKey: "welcome.sseDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-orange-500 dark:text-orange-300 bg-orange-500/10" },
-  { action: "mqtt", icon: Radio, labelKey: "welcome.mqtt", descKey: "welcome.mqttDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-purple-500 dark:text-purple-300 bg-purple-500/10" },
+  { action: "http", icon: Send, labelKey: "welcome.httpRequest", descKey: "welcome.httpRequestDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-method-post bg-method-post/10" },
+  { action: "graphql", icon: Braces, labelKey: "welcome.graphql", descKey: "welcome.graphqlDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-method-patch bg-method-patch/10" },
+  { action: "ws", icon: Zap, labelKey: "welcome.websocket", descKey: "welcome.websocketDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-method-head bg-method-head/10" },
+  { action: "sse", icon: Waves, labelKey: "welcome.sse", descKey: "welcome.sseDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-accent bg-accent/10" },
+  { action: "mqtt", icon: Radio, labelKey: "welcome.mqtt", descKey: "welcome.mqttDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-info bg-info/10" },
 ];
 
 const toolFeatures: FeatureItem[] = [
-  { action: "tcpudp", icon: Network, labelKey: "welcome.tcpudp", descKey: "welcome.tcpudpDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-indigo-500 dark:text-indigo-300 bg-indigo-500/10" },
-  { action: "capture", icon: Eye, labelKey: "welcome.capture", descKey: "welcome.captureDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-cyan-500 dark:text-cyan-300 bg-cyan-500/10" },
-  { action: "loadtest", icon: Radio, labelKey: "welcome.loadtest", descKey: "welcome.loadtestDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-rose-500 dark:text-rose-300 bg-rose-500/10" },
-  { action: "mockserver", icon: Server, labelKey: "welcome.mockserver", descKey: "welcome.mockserverDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-green-500 dark:text-green-300 bg-green-500/10" },
-  { action: "dbclient", icon: Database, labelKey: "welcome.dbclient", descKey: "welcome.dbclientDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-amber-500 dark:text-amber-300 bg-amber-500/10" },
-  { action: "workflow", icon: Workflow, labelKey: "welcome.workflow", descKey: "welcome.workflowDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-indigo-500 dark:text-indigo-300 bg-indigo-500/10" },
-  { action: "plugins", icon: Puzzle, labelKey: "welcome.pluginSystem", descKey: "welcome.pluginSystemDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-violet-500 dark:text-violet-300 bg-violet-500/10" },
+  { action: "tcpudp", icon: Network, labelKey: "welcome.tcpudp", descKey: "welcome.tcpudpDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-info bg-info/10" },
+  { action: "capture", icon: Eye, labelKey: "welcome.capture", descKey: "welcome.captureDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-method-head bg-method-head/10" },
+  { action: "loadtest", icon: Radio, labelKey: "welcome.loadtest", descKey: "welcome.loadtestDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-error bg-error/10" },
+  { action: "mockserver", icon: Server, labelKey: "welcome.mockserver", descKey: "welcome.mockserverDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-success bg-success/10" },
+  { action: "dbclient", icon: Database, labelKey: "welcome.dbclient", descKey: "welcome.dbclientDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-warning bg-warning/10" },
+  { action: "workflow", icon: Workflow, labelKey: "welcome.workflow", descKey: "welcome.workflowDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-accent bg-accent/10" },
+  { action: "plugins", icon: Puzzle, labelKey: "welcome.pluginSystem", descKey: "welcome.pluginSystemDesc", color: "bg-accent-soft border-accent/20", iconColor: "text-method-patch bg-method-patch/10" },
 ];
 
 interface WelcomePageProps {

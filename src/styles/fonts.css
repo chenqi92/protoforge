@@ -1,10 +1,23 @@
 /**
  * fonts.css — 本地捆绑字体
- * 使用 @fontsource-variable 包，构建时打包进应用，无需联网
+ * 构建时打包进应用，无需联网。
+ *
+ * Forge 主字族为 IBM Plex Sans / IBM Plex Mono（在 src/index.css 的
+ * --font-sans / --font-mono 中排在首位），中文回退到 Noto Sans SC，
+ * 其余为 Inter 等兜底。只引入 Latin 子集的常用字重，保持包体精简。
  */
 
-/* ── 内置 UI 字体 ── */
-@import '@fontsource-variable/inter';
+/* ── Forge 主字族：IBM Plex（Latin 子集，常用字重） ── */
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-sans/latin-700.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+
+/* ── 中文与兜底字体 ── */
 @import '@fontsource-variable/noto-sans-sc';
+@import '@fontsource-variable/inter';
 @import '@fontsource-variable/roboto-flex';
 @import '@fontsource-variable/outfit';

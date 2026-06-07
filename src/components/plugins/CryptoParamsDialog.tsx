@@ -6,6 +6,7 @@
 import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Lock, Unlock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import type { CryptoAlgorithm, CryptoParam } from '@/types/plugin';
 
@@ -17,6 +18,7 @@ interface CryptoParamsDialogProps {
 }
 
 export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: CryptoParamsDialogProps) {
+  const { t } = useTranslation();
   const params = algorithm.params || [];
   const [values, setValues] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
@@ -42,14 +44,14 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
 
   const isEncrypt = mode === 'encrypt';
   const Icon = isEncrypt ? Lock : Unlock;
-  const iconColor = isEncrypt ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-500 dark:text-emerald-300';
+  const iconColor = isEncrypt ? 'text-warning' : 'text-success';
   const btnColor = isEncrypt
     ? 'bg-warning hover:bg-warning/90'
     : 'bg-success hover:bg-success/90';
 
   return createPortal(
     <div className="fixed inset-0 z-[var(--z-toast)] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-[420px] rounded-2xl border border-border-default bg-bg-surface shadow-2xl">
+      <div className="w-[420px] pf-rounded-xl border border-border-strong bg-bg-elevated shadow-2xl">
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border-default">
           <Icon className={cn('w-4.5 h-4.5', iconColor)} />
@@ -58,7 +60,7 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
               {algorithm.name}
             </div>
             <div className="text-text-tertiary" style={{ fontSize: 'var(--fs-xs)' }}>
-              {isEncrypt ? '配置加密参数' : '配置解密参数'}
+              {isEncrypt ? t('crypto.configEncryptParams', '配置加密参数') : t('crypto.configDecryptParams', '配置解密参数')}
             </div>
           </div>
           <button
@@ -88,14 +90,14 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
             className="px-4 py-2 rounded-lg text-text-secondary hover:bg-bg-hover transition-colors"
             style={{ fontSize: 'var(--fs-sm)' }}
           >
-            取消
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             className={cn('px-5 py-2 rounded-lg text-white font-medium transition-colors shadow-sm', btnColor)}
             style={{ fontSize: 'var(--fs-sm)' }}
           >
-            {isEncrypt ? '加密' : '解密'}
+            {isEncrypt ? t('crypto.encrypt', '加密') : t('crypto.decrypt', '解密')}
           </button>
         </div>
       </div>
@@ -118,7 +120,7 @@ function ParamField({
     <div className="space-y-1.5">
       <label className="flex items-center gap-1 text-text-secondary font-medium" style={{ fontSize: 'var(--fs-xs)' }}>
         {param.name}
-        {param.required && <span className="text-red-400">*</span>}
+        {param.required && <span className="text-error">*</span>}
       </label>
 
       {param.paramType === 'select' && param.options ? (

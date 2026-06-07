@@ -1,6 +1,50 @@
 {
   "app": {
-    "name": "ProtoForge"
+    "name": "ProtoForge",
+    "windowTitle": {
+      "tcpudp": "TCP / UDP 调试"
+    },
+    "titleBar": {
+      "searchPlaceholder": "搜索请求 / 命令 / 集合…",
+      "designRationale": "设计说明 / 站点图",
+      "switchToZh": "中文",
+      "langIndicatorZh": "中"
+    },
+    "loading": {
+      "collectionSettings": "加载集合设置...",
+      "designSystem": "加载设计系统..."
+    },
+    "dragToResizeWidth": "拖动调整宽度",
+    "presetGroup": {
+      "playback": "播放协议",
+      "assistant": "辅助协议"
+    },
+    "session": {
+      "activeConnectionsWarning": "此会话存在活跃连接：",
+      "confirmClose": "确定要关闭吗？"
+    },
+    "sessionLabel": {
+      "modbusMaster": "Modbus 主站",
+      "onvifAssistant": "ONVIF 助手",
+      "gb28181Assistant": "GB28181 助手"
+    },
+    "preset": {
+      "tcpClientDesc": "主动连接远端 Socket",
+      "tcpServerDesc": "本地监听并接收客户端",
+      "udpClientDesc": "向固定目标发送 Datagram",
+      "udpServerDesc": "本地绑定端口收发 Datagram",
+      "serialDesc": "串口调试与透传",
+      "modbusMasterDesc": "主站轮询与报文调试",
+      "modbusSlaveDesc": "从站寄存器模拟",
+      "rtspDesc": "摄像头与网关拉流",
+      "rtmpDesc": "推拉流与 CDN 接入",
+      "httpFlvDesc": "浏览器友好的低延迟 FLV",
+      "hlsDesc": "m3u8 播放与切片分析",
+      "webrtcDesc": "实时媒体与信令调试",
+      "srtDesc": "低时延可靠传输",
+      "onvifDesc": "发现设备、取 RTSP、做 PTZ",
+      "gb28181Desc": "SIP 注册、目录查询与实况"
+    }
   },
   "titleBar": {
     "home": "控制台",
@@ -36,7 +80,9 @@
     "mockserver": "模拟服务",
     "dbclient": "数据库客户端",
     "toolbox": "工具箱",
-    "workflow": "工作流编排"
+    "workflow": "工作流编排",
+    "connected": "已连接",
+    "disconnected": "未连接"
   },
   "sidebar": {
     "collections": "集合",
@@ -79,7 +125,29 @@
     "activate": "设为活跃",
     "active": "活跃",
     "envVariables": "环境变量",
-    "envVariablesHint": "点击「新增」创建第一个环境"
+    "envVariablesHint": "点击「新增」创建第一个环境",
+    "manageVariables": "管理变量",
+    "newConnection": "新建连接",
+    "noConnections": "暂无数据库连接",
+    "noConnectionsHint": "连接数据库后即可浏览表结构与执行查询",
+    "newSession": "新建",
+    "searchSessions": "搜索会话…",
+    "noSessionMatch": "无匹配会话",
+    "tryAnotherKeyword": "尝试其他关键词",
+    "noSessions": "暂无会话",
+    "noSessionsHint": "新建一个 {{name}} 会话开始使用",
+    "exportSuccess": "导出成功",
+    "exportFailed": "导出失败",
+    "importSuccess": "导入成功",
+    "importFailed": "导入失败",
+    "clearAll": "清空历史",
+    "deduplicate": "一键去重",
+    "deduplicateDone": "去重完成，移除 {{removed}} 条重复项",
+    "deduplicateNone": "未发现重复项",
+    "noEnv": "暂无环境",
+    "noEnvHint": "创建环境以管理变量与密钥",
+    "manageEnv": "管理环境…",
+    "switchEnv": "切换环境"
   },
   "contextMenu": {
     "newRequest": "新建请求",
@@ -130,7 +198,20 @@
     "hideValue": "隐藏值",
     "copyUrl": "复制 URL",
     "copyMethodUrl": "复制 Method + URL",
-    "openInNewTab": "在新标签页打开"
+    "openInNewTab": "在新标签页打开",
+    "categoryEncode": "编码",
+    "categoryHash": "哈希",
+    "categorySymmetric": "对称加密",
+    "categoryAsymmetric": "非对称加密",
+    "unknownError": "未知错误",
+    "exportArrayRoot": "根",
+    "exportTagKeys": "Tag Keys (逗号分隔)",
+    "exportTableName": "表名",
+    "exportFieldSelection": "字段选择",
+    "deselectAll": "取消全选",
+    "selectAllFields": "全选",
+    "exportCancel": "取消",
+    "exportConfirm": "导出"
   },
   "toolWorkbench": {
     "tcpudp": {
@@ -336,7 +417,8 @@
     "popoutWindow": "弹出为独立窗口",
     "focusWindow": "聚焦独立窗口",
     "dragToDetachSession": "拖拽此标签可弹出为独立窗口",
-    "allSessionsDetached": "所有实例已弹出到独立窗口"
+    "allSessionsDetached": "所有实例已弹出到独立窗口",
+    "newTypedInstance": "按类型新建实例"
   },
   "welcome": {
     "badge": "全协议 API 调试平台",
@@ -537,7 +619,33 @@
       "extractAndSave": "提取并保存变量",
       "assertResponseTime": "断言响应时间",
       "iterateAssert": "遍历数组断言",
-      "chainRequest": "链式请求设置"
+      "chainRequest": "链式请求设置",
+      "snippet": {
+        "setEnvVar": "设置环境变量",
+        "setFolderVar": "设置目录变量",
+        "setCollectionVar": "设置集合变量",
+        "genUuid": "生成 UUID",
+        "timestamp": "时间戳",
+        "random": "随机数",
+        "base64Encode": "Base64 编码",
+        "addHeader": "当前请求加 Header",
+        "bearerTokenSign": "Bearer Token 签名",
+        "assertStatus": "断言状态码",
+        "assertBodyContains": "断言响应体包含",
+        "extractSaveVar": "提取并保存变量",
+        "extractToCollection": "提取到集合变量",
+        "assertResponseTime": "断言响应时间",
+        "iterateAssert": "遍历数组断言",
+        "saveNextPage": "保存下一页地址",
+        "cryptoBase64Encode": "Base64 编码",
+        "cryptoBase64Decode": "Base64 解码",
+        "cryptoMd5": "MD5 哈希",
+        "cryptoSha256": "SHA-256 哈希",
+        "cryptoAesCbcEncrypt": "AES-CBC 加密",
+        "cryptoAesCbcDecrypt": "AES-CBC 解密",
+        "cryptoUrlEncode": "URL 编码",
+        "cryptoRequestSignMd5": "请求签名（MD5）"
+      }
     },
     "tests": "测试",
     "logs": "条日志",
@@ -545,7 +653,32 @@
     "fetchingToken": "获取中...",
     "getToken": "获取 Token",
     "tokenExpiry": "有效期 {{time}}s",
-    "binaryDesc": "文件将以 binary 形式发送"
+    "binaryDesc": "文件将以 binary 形式发送",
+    "autoHeaders": {
+      "hide": "点击隐藏",
+      "show": "点击展示默认请求头"
+    },
+    "formData": {
+      "addMoreFiles": "添加更多文件",
+      "removeFile": "移除 {{name}}"
+    },
+    "loadingPreScriptEditor": "加载前置脚本编辑器...",
+    "loadingPostScriptEditor": "加载后置脚本编辑器...",
+    "export": "导出",
+    "exportAs": "导出为",
+    "mockGenerator": "数据生成",
+    "hideDetails": "收起",
+    "cancel": "取消",
+    "statusCode": "状态码",
+    "responseSize": "响应大小",
+    "method": "方法",
+    "waterfall": "请求瀑布流",
+    "connectTimeDesc": "TCP 连接建立耗时，包括 DNS 解析和 TLS 握手。",
+    "ttfbDesc": "从请求发出到接收到第一个字节的等待时间，反映服务器处理速度。",
+    "downloadDesc": "响应体下载耗时，受带宽和响应体大小影响。",
+    "responseExample": "响应示例",
+    "fromSwagger": "来自 Swagger 文档",
+    "hideValue": "隐藏值"
   },
   "saveDialog": {
     "title": "保存请求",
@@ -558,7 +691,10 @@
     "noCollections": "暂无集合，请先创建",
     "cancel": "取消",
     "saving": "保存中...",
-    "save": "保存"
+    "save": "保存",
+    "createFailed": "创建集合失败",
+    "saveSuccess": "请求已保存",
+    "saveFailed": "保存失败"
   },
   "ws": {
     "placeholder": "输入 WebSocket 地址...",
@@ -603,7 +739,13 @@
     "preview": "预览",
     "textView": "文本",
     "detailEmptyTitle": "选择一条消息查看详情",
-    "detailEmptyDesc": "点击上方事件，可切换为 JSON、文本或十六进制查看。"
+    "detailEmptyDesc": "点击上方事件，可切换为 JSON、文本或十六进制查看。",
+    "loadingEditor": "加载编辑器...",
+    "connectedStreaming": "已连接 · 流式中",
+    "heartbeatLabel": "心跳",
+    "autoReconnectLabel": "自动重连",
+    "renderLimitNote": "仅渲染最近 {{visible}} 条消息，共 {{total}} 条",
+    "filterAll": "全部"
   },
   "sse": {
     "urlPlaceholder": "输入 SSE 端点 URL，如 https://api.example.com/events",
@@ -645,7 +787,8 @@
     "emptyTitle": "等待消息...",
     "emptyDesc": "连接 MQTT Broker 并订阅 Topic 后将显示消息",
     "sent": "发送",
-    "received": "接收"
+    "received": "接收",
+    "messagesTruncated": "仅渲染最近 {{visible}} 条消息，共 {{total}} 条"
   },
   "tcp": {
     "modes": {
@@ -726,7 +869,9 @@
       "udpServerClosed": "UDP 服务端已关闭",
       "waitingSource": "等待来源地址",
       "bindingUdpServer": "正在绑定 UDP 服务端...",
-      "waitingUdpServer": "等待启动 UDP 服务端"
+      "waitingUdpServer": "等待启动 UDP 服务端",
+      "reconnecting": "2s 后自动重连...",
+      "idle": "空闲"
     },
     "sendPanel": {
       "title": "发送面板",
@@ -778,7 +923,9 @@
       "broadcast": "广播",
       "reply": "回复",
       "rightClickEdit": "右键编辑",
-      "sendOptions": "发送选项"
+      "sendOptions": "发送选项",
+      "titleHint": "在左侧完成消息输入、格式配置和发送。",
+      "timerHint": "需要定时发送时再开启，避免误触循环发包。"
     },
     "messageLog": {
       "title": "消息日志",
@@ -820,7 +967,8 @@
       "received": "接收",
       "system": "系统",
       "bytes": "{{count}} 字节",
-      "client": "客户端"
+      "client": "客户端",
+      "limitNotice": "为保证性能，仅显示最近 {{count}} 条记录"
     },
     "messageDetail": {
       "title": "消息详情",
@@ -837,7 +985,11 @@
       "connections": "{{count}} 个连接",
       "broadcastAll": "全部广播",
       "broadcast": "广播模式",
-      "unicast": "单播模式"
+      "unicast": "单播模式",
+      "waiting": "等待接入",
+      "emptyTitle": "暂无客户端接入",
+      "emptyDesc": "客户端连接后将在此列出，可单独定向发送或广播。",
+      "clients": "客户端"
     },
     "statsBar": {
       "status": "连接状态",
@@ -851,7 +1003,15 @@
       "bytes": "{{bytes}}"
     },
     "autoReconnect": "自动重连",
-    "recentConnections": "最近"
+    "recentConnections": "最近",
+    "switchTypeConfirm": "当前会话存在活跃连接：\n{{labels}}\n\n切换类型会断开当前会话，是否继续？",
+    "switchTypeTitle": "切换连接类型",
+    "pairedLabel": "双端配对",
+    "disableAutoReconnect": "关闭自动重连",
+    "enableAutoReconnect": "开启自动重连",
+    "switchType": "切换类型",
+    "splitViewHint": "当前已开启双端联调视图",
+    "splitViewGuide": "需要模拟双端链路时可开启双端视图"
   },
   "serial": {
     "portLabel": "串口",
@@ -933,7 +1093,19 @@
       "found": "响应",
       "useThisUnit": "使用",
       "scanning": "扫描中...",
-      "scan": "扫描"
+      "scan": "扫描",
+      "pollingHint": "开启后会按固定间隔重复执行当前功能码，用于连续观测。",
+      "waitingResponse": "等待执行请求",
+      "noResponseYet": "还没有响应数据",
+      "noResponseHint": "先在左侧配置功能码并执行，请求结果会在这里展示寄存器、十六进制和解析值。",
+      "sidebarConnectionDesc": "先选择传输方式和目标设备，再建立连接；需要找设备时可打开单元地址扫描。",
+      "scanHint": "扫描常见 Unit ID，找到响应设备后可一键带回左侧表单。",
+      "requestConfig": "请求配置",
+      "requestConfigDesc": "选择功能码、目标地址和数量，写操作可直接填写写入值。",
+      "sessionStatus": "会话状态",
+      "sessionStatusDesc": "在左侧持续掌握当前连接、事务执行和最近一次请求结果。",
+      "successRate": "成功",
+      "lastTransaction": "最近请求"
     },
     "modbusslave": {
       "modbusSlaveMode": "从站 (Slave)",
@@ -959,10 +1131,28 @@
       "started": "从站已启动",
       "stopped": "从站已停止",
       "error": "错误",
-      "startFailed": "启动失败"
+      "startFailed": "启动失败",
+      "stopFailed": "Modbus Slave 停止失败",
+      "hex": "十六进制",
+      "binary": "二进制",
+      "clearLog": "清空日志",
+      "sidebarTitle": "从站配置",
+      "sidebarDesc": "先配置 TCP/RTU 与从站地址，再启动从站模拟设备。",
+      "browserTitle": "寄存器浏览",
+      "browserDesc": "切换寄存器区、翻页并批量写入当前页的数据。",
+      "sessionTitle": "会话状态",
+      "statusDesc": "随时查看当前从站状态、活跃寄存器区与请求数量。",
+      "statusLabel": "状态"
     }
   },
   "capture": {
+    "menu": {
+      "replay": "重放请求",
+      "editInHttp": "在 HTTP 中编辑重发",
+      "sendToParser": "发送到协议解析器",
+      "copyCurl": "复制为 cURL",
+      "breakpoint": "添加断点"
+    },
     "proxyRunning": "代理已在",
     "proxyStopped": "抓包未启动",
     "port": "端口",
@@ -1022,7 +1212,13 @@
     "caNotTrustedDesc": "检测到系统中未安装 ProtoForge CA 证书。如果不安装，HTTPS 网站将无法正常抓取（浏览器会拒绝代理证书）。点击一键安装即可自动完成配置。",
     "caTrustedTitle": "CA 证书已安装",
     "caTrustedDesc": "ProtoForge CA 证书已安装到系统信任库，HTTPS 流量可以正常抓取。",
-    "testingProxy": "正在测试代理连通性…"
+    "testingProxy": "正在测试代理连通性…",
+    "startProxyFailed": "启动代理失败: ",
+    "exportCertFailed": "导出证书失败: ",
+    "openBrowserFailed": "打开浏览器失败: ",
+    "truncatedHint": "仅渲染最近 {{max}} 条请求，共 {{total}} 条",
+    "filter": "过滤",
+    "browserProxyReady": "浏览器代理可用"
   },
   "loadtest": {
     "title": "HTTP 压测",
@@ -1084,7 +1280,18 @@
     "emptyResult": "结果分析",
     "emptyResultDesc": "运行后会展示 RPS、延迟分布、错误率和状态码统计",
     "bodyEmptyHint": "无需请求体时可保持为空；切换到 JSON 或 RAW 后可在这里填写压测负载",
-    "authEmptyHint": "当前请求不附带认证信息；如需压测鉴权接口，可切换到 Bearer 或 Basic"
+    "authEmptyHint": "当前请求不附带认证信息；如需压测鉴权接口，可切换到 Bearer 或 Basic",
+    "noErrors": "暂无错误样本",
+    "time": "时间",
+    "statusShort": "状态",
+    "latencyCol": "延迟",
+    "sizeCol": "大小",
+    "errorMsg": "错误信息",
+    "basicConfig": "基础配置",
+    "latencyThreshold": "延迟阈值",
+    "enableThreshold": "启用延迟阈值断言",
+    "noThresholdDesc": "未启用延迟阈值，仅状态码 ≥ 400 视为失败",
+    "errorSamples": "错误样本"
   },
   "settings": {
     "title": "偏好设置",
@@ -1103,7 +1310,10 @@
       "proxy": "代理",
       "proxyDesc": "代理连接和认证信息",
       "data": "数据",
-      "dataDesc": "历史、保存与本地数据策略"
+      "dataDesc": "历史、保存与本地数据策略",
+      "appearance": "外观",
+      "shortcuts": "快捷键",
+      "about": "关于"
     },
     "general": {
       "theme": "外观主题",
@@ -1166,6 +1376,15 @@
       "every30s": "每 30 秒",
       "every1m": "每 1 分钟",
       "every5m": "每 5 分钟"
+    },
+    "searchPlaceholder": "搜索设置…",
+    "noMatch": "无匹配项",
+    "appearance": {
+      "themeGroup": "主题",
+      "typographyGroup": "排版"
+    },
+    "about": {
+      "updateGroup": "更新"
     }
   },
   "plugin": {
@@ -1230,7 +1449,41 @@
     "cryptoTool": "加密工具",
     "cryptoToolDesc": "加密解密、编码哈希工具",
     "iconPack": "图标仓库",
-    "iconPackDesc": "自定义图标库，其他插件可引用"
+    "iconPackDesc": "自定义图标库，其他插件可引用",
+    "requestStats": {
+      "title": "请求统计",
+      "clear": "清空统计",
+      "empty": {
+        "title": "暂无请求数据",
+        "hint": "发送 HTTP 请求后，统计数据会自动展示在这里"
+      },
+      "card": {
+        "total": "总请求",
+        "successRate": "成功率",
+        "success": "成功",
+        "failed": "失败"
+      },
+      "latency": {
+        "title": "响应时间",
+        "avg": "平均",
+        "min": "最快",
+        "max": "最慢"
+      },
+      "statusDist": "状态码分布",
+      "methodDist": "方法分布"
+    },
+    "renderer": {
+      "processing": "插件处理中...",
+      "failed": "插件渲染失败",
+      "unknownError": "未知错误",
+      "unknownType": "插件返回了未知的渲染类型: ",
+      "emptySheet": "此 Sheet 为空",
+      "truncatedPrefix": "仅显示前 500 行，共 ",
+      "truncatedSuffix": " 行"
+    },
+    "uninstallFailed": "卸载失败",
+    "installFailed": "安装失败",
+    "updateFailed": "更新失败"
   },
   "parser": {
     "tabLabel": "协议解析",
@@ -1251,7 +1504,10 @@
     "noMatch": "无匹配结果",
     "parsersAvailable": "个解析器",
     "navigate": "导航",
-    "confirm": "确认"
+    "confirm": "确认",
+    "switchPlugin": "切换协议",
+    "switch": "切换",
+    "searchFields": "搜索字段..."
   },
   "commandPalette": {
     "placeholder": "搜索操作、请求、集合...",
@@ -1276,7 +1532,16 @@
     "typeRequest": "请求",
     "select": "选择",
     "confirm": "确认",
-    "closeLabel": "关闭"
+    "closeLabel": "关闭",
+    "sectionGo": "导航 Go to",
+    "sectionCmd": "命令 Commands",
+    "sectionReq": "请求 Requests"
+  },
+  "export": {
+    "tagKeys": "Tag Keys (逗号分隔)",
+    "columnSelection": "字段选择",
+    "deselectAll": "取消全选",
+    "selectAll": "全选"
   },
   "collection": {
     "settings": "集合设置",
@@ -1286,18 +1551,98 @@
     "scripts": "脚本",
     "runner": "运行器"
   },
+  "video": {
+    "status": {
+      "live": "直播",
+      "paused": "已暂停"
+    },
+    "onvif": {
+      "empty": "未发现设备",
+      "emptyHint": "扫描完成后未发现 ONVIF 设备，可在下方手动输入地址连接"
+    },
+    "surface": {
+      "loadingHls": "加载 HLS...",
+      "hlsNativeFailed": "HLS: 浏览器原生播放失败",
+      "hlsUnsupported": "HLS: 当前运行环境不支持 hls.js 或原生 HLS",
+      "waitingStream": "等待流数据...",
+      "mseAppendFailed": "MSE append 失败: {{error}}",
+      "codecUnsupported": "浏览器不支持编码: {{mime}}",
+      "buffering": "缓冲中...",
+      "mseError": "MSE 错误: {{error}}",
+      "bufferBusy": "前端缓冲繁忙，正在追赶实时流...",
+      "noFrameToCapture": "当前没有可截图的视频帧。",
+      "captureNoContext": "截图失败：无法创建画布上下文。",
+      "captureFailed": "截图失败: {{error}}",
+      "captureEmpty": "截图失败：生成图片数据为空。",
+      "captureSaveFailed": "保存截图失败: {{error}}",
+      "recordUnsupported": "当前运行环境不支持录制视频。",
+      "recorderUnsupported": "当前运行环境不支持 MediaRecorder。",
+      "recording": "录制中...",
+      "recordSaveFailed": "保存录制失败: {{error}}",
+      "recordStartFailed": "启动录制失败: {{error}}",
+      "emptyTitle": "获取流地址后播放",
+      "emptyHint": "等待信号 · no signal",
+      "screenshot": "截图",
+      "stopRecording": "停止录制",
+      "startRecording": "开始录制"
+    },
+    "easyplayer": {
+      "loadingCore": "加载 EasyPlayer 内核...",
+      "paused": "已暂停",
+      "recording": "录制中...",
+      "recordSaved": "录制已保存",
+      "screenshotExported": "截图已导出",
+      "playerError": "播放器异常",
+      "initializing": "播放器初始化中...",
+      "emptyTitle": "等待可播放的媒体地址"
+    },
+    "workspace": {
+      "webrtcPlaceholder": "webrtc:// / https:// / wss:// 媒体地址",
+      "ffmpegPreparing": "准备下载 FFmpeg...",
+      "ffmpegInstalled": "FFmpeg 安装完成",
+      "webrtcAddressOnly": "当前仅支持直接输入可播放的 WebRTC 媒体地址，例如 webrtc/http/ws 网关地址；面板里的 SDP/ICE 调试流程本身不是播放器地址。",
+      "assistantNeedsAddress": "当前助手会话需要先拿到实际媒体地址，再按对应播放协议启动播放。请填写 RTSP、HLS、HTTP-FLV、SRT 或 WebRTC 地址。",
+      "gb28181NeedsAddress": "GB28181 需要先拿到实际媒体地址，再启动播放。请在面板里的“媒体地址”或顶部 URL 栏填写 RTSP、HLS、HTTP-FLV 或 WebRTC 网关地址。",
+      "ffmpegMissing": "FFmpeg 未安装，当前模式无法启动内置播放器。",
+      "stateError": "错误",
+      "stateIdle": "未播放",
+      "stateStarting": "启动中",
+      "statePlaying": "播放中",
+      "stateWaiting": "等待中",
+      "playbackPanel": "播放面板",
+      "ffmpegBanner": "内置播放器依赖 FFmpeg。当前未检测到可用安装",
+      "ffmpegBannerPeriod": "。",
+      "downloading": "下载中...",
+      "downloadFfmpeg": "下载 FFmpeg",
+      "startingGateway": "启动本地媒体网关...",
+      "waitingPlayer": "等待播放器初始化...",
+      "waitingStreamTitle": "等待视频流接入",
+      "assistantPlayHint": "填入媒体地址后按 {{mode}} 播放",
+      "playHint": "填入 {{mode}} 地址并点击播放",
+      "messageLimit": "为保证性能，仅显示最近 {{count}} 条协议报文"
+    }
+  },
   "common": {
     "cancel": "取消",
     "confirm": "确认",
     "save": "保存",
     "delete": "删除",
     "close": "关闭",
+    "copy": "复制",
+    "copied": "已复制",
     "refresh": "刷新",
     "loading": "加载中...",
     "noData": "暂无数据",
     "search": "搜索",
     "ms": "ms",
-    "seconds": "秒"
+    "seconds": "秒",
+    "saving": "保存中...",
+    "hide": "收起",
+    "show": "展开",
+    "collapse": "收起",
+    "expand": "展开",
+    "description": "说明",
+    "more": "更多"
   },
   "import": {
     "title": "导入集合",
@@ -1363,7 +1708,9 @@
     "detectingDocDesc": "系统正在识别可用的 API 文档分组",
     "fetchingGroupsDesc": "正在拉取选中分组的接口详情，请稍候",
     "waitPreview": "等待接口预览",
-    "waitPreviewDesc": "完成文档探测后，这里会展示分组后的接口预览和导入选择"
+    "waitPreviewDesc": "完成文档探测后，这里会展示分组后的接口预览和导入选择",
+    "collectionNamePlaceholder": "例如: 支付中心 API",
+    "searchEndpointsPlaceholder": "搜索路径、摘要或方法..."
   },
   "collectionSettings": {
     "title": "集合设置",
@@ -1397,28 +1744,70 @@
     "postScript": "后置脚本",
     "postScriptHint": "收到响应后执行",
     "saveScripts": "保存脚本",
-    "varsDesc": "集合级别的变量可在该集合下所有请求中通过 {{key}} 引用"
+    "varsDesc": "集合级别的变量可在该集合下所有请求中通过 {{key}} 引用",
+    "actions": "Actions"
   },
   "env": {
-    "title": "环境管理",
+    "export": "导出环境变量",
+    "import": "导入环境变量",
+    "modal": {
+      "title": "环境变量管理",
+      "subtitle": "管理全局变量和环境专属变量"
+    },
+    "tab": {
+      "global": "全局变量"
+    },
+    "section": {
+      "environments": "环境"
+    },
+    "action": {
+      "newEnvironment": "新建环境",
+      "activate": "激活",
+      "deleteEnvironment": "删除环境",
+      "add": "添加",
+      "showValue": "显示值",
+      "hideValue": "隐藏值"
+    },
+    "status": {
+      "activated": "已激活",
+      "currentActive": "当前激活"
+    },
+    "search": {
+      "placeholder": "搜索变量..."
+    },
+    "hint": {
+      "envOverride": "环境变量会覆盖同名的全局变量（优先级更高）",
+      "globalScope": "全局变量在所有环境中生效，环境变量可覆盖同名全局变量"
+    },
+    "empty": {
+      "noMatch": "未找到匹配的变量",
+      "noVars": "暂无变量",
+      "hint": "点击上方\"添加\"按钮创建新变量"
+    },
+    "footer": {
+      "stats": "共 {{total}} 个变量 · {{enabled}} 个已启用"
+    },
+    "title": "环境变量",
     "envVars": "环境变量",
     "globalVars": "全局变量",
-    "newEnvPlaceholder": "新建环境...",
+    "newEnvPlaceholder": "新建环境名称",
     "noEnvs": "暂无环境",
-    "selectEnv": "选择一个环境",
-    "selectEnvHint": "或在左侧创建新环境",
-    "unsaved": "● 未保存",
+    "active": "已激活",
+    "varsOf": "{{name}} 的变量",
+    "unsaved": "未保存",
     "save": "保存",
     "varName": "变量名",
-    "varValue": "值",
-    "secret": "秘密",
-    "unmarkSecret": "取消加密",
-    "markSecret": "标记为秘密",
+    "varValue": "变量值",
+    "secret": "密钥",
+    "unmarkSecret": "取消标记为密钥",
+    "markSecret": "标记为密钥",
     "addVar": "添加变量",
-    "globalVarsDesc": "全局变量在所有环境中可用，优先级低于环境变量",
+    "selectEnv": "选择环境",
+    "selectEnvHint": "从左侧选择一个环境以编辑其变量",
+    "globalVarsDesc": "全局变量在所有环境中生效",
     "addGlobalVar": "添加全局变量",
-    "active": "激活",
-    "varsOf": "{{name}} 的变量"
+    "variableSaved": "变量已保存",
+    "saveVariableFailed": "保存变量失败"
   },
   "runner": {
     "run": "运行",
@@ -1447,7 +1836,8 @@
     "closeOthers": "关闭其他",
     "closeRight": "关闭右侧",
     "closeLeft": "关闭左侧",
-    "new": "新建"
+    "new": "新建",
+    "closeTab": "关闭标签"
   },
   "toolWindow": {
     "mergeBack": "合并回主窗口",
@@ -1483,7 +1873,20 @@
     "filterValuePlaceholder": "输入值筛选匹配项…",
     "filterActiveWithValue": "筛选 {{keys}} = \"{{value}}\"",
     "noMatchingKeys": "无匹配 Key",
-    "moreKeys": "… 还有 {{count}} 个"
+    "moreKeys": "… 还有 {{count}} 个",
+    "fileInfo": "文件信息",
+    "regexPlaceholder": "正则表达式...",
+    "regexMode": "正则模式",
+    "filterByKey": "Key 过滤",
+    "regexInvalid": "无效正则",
+    "filterActive": "已过滤 {{count}} 个 Key",
+    "binaryFile": "二进制文件",
+    "imageFile": "图片",
+    "audioFile": "音频",
+    "videoFile": "视频",
+    "saveToFile": "另存为",
+    "saveToFileFull": "另存为文件",
+    "binaryHint": "该响应为二进制文件，无法作为文本预览。可切换到 Hex 查看字节数据。"
   },
   "history": {
     "lastWeek": "7 天内",
@@ -1496,10 +1899,6 @@
     "loading": "加载中...",
     "entryCount": "已加载 {{count}} 条",
     "writeFailed": "保存失败"
-  },
-  "env": {
-    "export": "导出环境变量",
-    "import": "导入环境变量"
   },
   "update": {
     "checking": "检查更新中…",
@@ -1578,6 +1977,12 @@
       "andMask": "AND 掩码",
       "orMask": "OR 掩码",
       "result": "结果"
+    },
+    "errors": {
+      "hexFormatExample": "HEX 格式错误，请输入空格分隔的十六进制字节，如: FF 01 02",
+      "hexFormat": "HEX 格式错误，请输入空格分隔的十六进制字节",
+      "emptyInput": "输入为空",
+      "maskFormat": "掩码格式错误"
     }
   },
   "mockServer": {
@@ -1644,7 +2049,8 @@
     "scriptApiAccess": "可用 API"
   },
   "rightSidebar": {
-    "toolbox": "工具箱"
+    "toolbox": "工具箱",
+    "logs": "活动日志"
   },
   "videostream": {
     "modes": {
@@ -1700,7 +2106,10 @@
       "handshake": "握手分析",
       "metadata": "元数据 (onMetaData)",
       "waitingMetadata": "等待元数据...",
-      "connectFirst": "连接后显示"
+      "connectFirst": "连接后显示",
+      "handshaking": "握手中...",
+      "handshakeBtn": "握手",
+      "actions": "协议操作"
     },
     "flv": {
       "tagFilter": "Tag 过滤",
@@ -1719,7 +2128,8 @@
       "role": "角色",
       "servers": "服务器",
       "gatheringIce": "正在收集 ICE 候选...",
-      "connectFirst": "连接后开始 ICE 协商"
+      "connectFirst": "连接后开始 ICE 协商",
+      "generating": "生成中..."
     },
     "gb": {
       "serverConfig": "服务器配置",
@@ -1734,7 +2144,13 @@
       "query": "查询",
       "noCatalog": "点击\"查询\"获取设备目录",
       "control": "控制",
-      "speed": "速度"
+      "speed": "速度",
+      "requestingLive": "取流中...",
+      "requestLive": "请求实况",
+      "stopLive": "停止实况",
+      "liveHint": "现在可以直接向国标设备发起 `INVITE`，成功后会生成本地 `gb28181+udp://` 媒体入口，顶部播放按钮会把它接入内置网关。",
+      "tcpWarning": "当前 GB28181 只实现了 UDP SIP 注册和 UDP 实况取流，TCP 传输还没有真正接通。",
+      "fetchStream": "取流"
     },
     "srt": {
       "mode": "连接模式",
@@ -1745,7 +2161,14 @@
       "encryption": "加密设置",
       "passphrase": "加密口令 (可选)",
       "encryptionHint": "AES-128/192/256 加密，口令长度 10-79 字符",
-      "stats": "连接统计"
+      "stats": "连接统计",
+      "probeNote": "顶部播放按钮负责实际视频播放，这里用于 SRT 握手探测和会话统计。",
+      "linkStarted": "当前播放器链路已启动。",
+      "lowLatency": "低延迟",
+      "probing": "SRT 探测中...",
+      "probe": "SRT 握手探测",
+      "clearProbe": "清理探测会话",
+      "target": "目标地址"
     },
     "onvif": {
       "discover": "设备发现",
@@ -1758,8 +2181,21 @@
       "presets": "预置位",
       "presetName": "预置位名称",
       "save": "保存",
-      "goto": "转到"
-    }
+      "goto": "转到",
+      "switchTo": "切到 {{mode}}",
+      "useProxy": "通过系统代理",
+      "querying": "查询中...",
+      "disconnect": "断开",
+      "streamUri": "流地址",
+      "noUri": "未获取到流地址",
+      "streamHint": "流地址已填入当前会话的播放地址，建议切到对应播放协议继续调试"
+    },
+    "mediaAddress": "媒体地址",
+    "playbackModes": "播放协议",
+    "assistantAddressPlaceholder": "等待助手自动填充，或手动输入可播放媒体地址",
+    "play": "播放",
+    "assistantChip": "辅助控制",
+    "assistantHint": "当前助手会话负责发现/控制，播放仍按 {{mode}} 执行"
   },
   "overview": {
     "title": "API 工作台",
@@ -1781,7 +2217,10 @@
     "requestsSingular": "个请求",
     "folders": "个文件夹",
     "foldersSingular": "个文件夹",
-    "more": "更多"
+    "more": "更多",
+    "authConfigured": "已配置鉴权",
+    "varsConfigured": "已定义变量",
+    "scriptsConfigured": "已配置脚本"
   },
   "dbClient": {
     "connections": "连接",
@@ -1900,7 +2339,29 @@
     "copy": "复制",
     "rowsSelected": "行已选中",
     "page": "页",
-    "exportFormat": "导出格式"
+    "exportFormat": "导出格式",
+    "exportComplete": "导出完成：{{size}}，耗时 {{ms}}ms",
+    "exportDialogTitle": "导出",
+    "selectAllNone": "全选 / 全不选",
+    "autoDetect": "自动检测",
+    "importComplete": "导入完成，耗时 {{ms}}ms",
+    "importWarnings": " ({{count}} 个警告)",
+    "importDialogTitle": "导入",
+    "cannotLoadStructure": "无法加载表结构",
+    "addColumn": "添加列",
+    "sqlPreview": "SQL 预览",
+    "discardChanges": "放弃",
+    "applyChanges": "应用修改",
+    "colName": "列名",
+    "colType": "类型",
+    "colNullable": "可空",
+    "colDefault": "默认值",
+    "colComment": "注释",
+    "colActions": "操作",
+    "deleteColumn": "删除列",
+    "saveSuccess": "连接已保存",
+    "saveFailed": "保存失败",
+    "connectFailed": "连接失败"
   },
   "assertion": {
     "title": "断言",
@@ -2014,10 +2475,10 @@
     "cancelled": "已取消",
     "pending": "等待中",
     "noWorkflows": "暂无工作流",
-      "noWorkflowsHint": "创建第一个工作流，编排 API 请求和脚本节点",
-      "addNode": "添加节点",
-      "addNodeHint": "拖拽到画布，或单击快速添加到默认位置",
-      "nodeConfig": "节点配置",
+    "noWorkflowsHint": "创建第一个工作流，编排 API 请求和脚本节点",
+    "addNode": "添加节点",
+    "addNodeHint": "拖拽到画布，或单击快速添加到默认位置",
+    "nodeConfig": "节点配置",
     "variables": "变量",
     "addVariable": "添加变量",
     "variableKey": "变量名",
@@ -2036,74 +2497,74 @@
     "searchNodes": "搜索节点...",
     "edgeLabel": "边标签",
     "edgeCondition": "条件表达式",
-      "categories": {
-        "trigger": "触发",
-        "network": "网络请求",
-        "integration": "系统集成",
-        "flow": "流程控制",
-        "data": "数据处理",
-        "codec": "编解码",
-        "utility": "工具",
-        "test": "验证"
-      },
-      "nodeTypes": {
-        "httpRequest": "HTTP 请求",
-        "wsSend": "WebSocket 发送",
-        "tcpSend": "TCP 发送",
-        "udpSend": "UDP 发送",
-        "mqttPublish": "MQTT 发布",
-        "dbQuery": "数据库查询",
-        "delay": "延时等待",
-        "script": "脚本",
-        "extractData": "数据提取",
-        "jsonParse": "JSON 解析",
-        "jsonStringify": "JSON 序列化",
-        "textTransform": "文本转换",
-        "base64Encode": "Base64 编码",
-        "base64Decode": "Base64 解码",
-        "urlEncode": "URL 编码",
-        "urlDecode": "URL 解码",
-        "hash": "哈希计算",
-        "condition": "条件判断",
-        "loop": "循环",
-        "parallel": "并行执行",
-        "setVariable": "设置变量",
-        "timestamp": "时间戳",
-        "uuid": "UUID",
-        "log": "日志输出",
-        "assertion": "断言",
-        "start": "开始",
-        "end": "结束"
-      },
+    "categories": {
+      "trigger": "触发",
+      "network": "网络请求",
+      "integration": "系统集成",
+      "flow": "流程控制",
+      "data": "数据处理",
+      "codec": "编解码",
+      "utility": "工具",
+      "test": "验证"
+    },
+    "nodeTypes": {
+      "httpRequest": "HTTP 请求",
+      "wsSend": "WebSocket 发送",
+      "tcpSend": "TCP 发送",
+      "udpSend": "UDP 发送",
+      "mqttPublish": "MQTT 发布",
+      "dbQuery": "数据库查询",
+      "delay": "延时等待",
+      "script": "脚本",
+      "extractData": "数据提取",
+      "jsonParse": "JSON 解析",
+      "jsonStringify": "JSON 序列化",
+      "textTransform": "文本转换",
+      "base64Encode": "Base64 编码",
+      "base64Decode": "Base64 解码",
+      "urlEncode": "URL 编码",
+      "urlDecode": "URL 解码",
+      "hash": "哈希计算",
+      "condition": "条件判断",
+      "loop": "循环",
+      "parallel": "并行执行",
+      "setVariable": "设置变量",
+      "timestamp": "时间戳",
+      "uuid": "UUID",
+      "log": "日志输出",
+      "assertion": "断言",
+      "start": "开始",
+      "end": "结束"
+    },
     "nodeDescs": {
       "httpRequest": "发送 HTTP/HTTPS 请求并获取响应",
       "wsSend": "建立 WebSocket 连接并发送消息",
       "tcpSend": "建立 TCP 连接并发送数据",
       "udpSend": "发送 UDP 数据报",
-        "mqttPublish": "连接 MQTT Broker 并发布消息",
-        "dbQuery": "连接数据库并执行查询或语句",
-        "delay": "暂停指定毫秒后继续",
-        "script": "执行自定义 JavaScript 脚本",
-        "extractData": "从上一节点输出提取数据",
-        "jsonParse": "将字符串解析为 JSON 对象",
-        "jsonStringify": "将对象或文本序列化为 JSON 字符串",
-        "textTransform": "对文本执行裁剪、大小写或替换转换",
-        "base64Encode": "将输入编码为 Base64",
-        "base64Decode": "将 Base64 解码为原文",
-        "urlEncode": "对文本执行 URL 百分号编码",
-        "urlDecode": "对 URL 编码文本进行解码",
-        "hash": "计算文本摘要值",
-        "condition": "根据条件走不同分支",
-        "loop": "重复执行指定次数",
-        "parallel": "并行执行多个子流程",
-        "setVariable": "设置或更新变量值",
-        "timestamp": "生成当前时间戳或 ISO 时间",
-        "uuid": "生成一个新的 UUID",
-        "log": "输出日志信息到控制台",
-        "assertion": "断言验证数据是否符合预期",
-        "start": "流程起始节点",
-        "end": "流程终止节点"
-      },
+      "mqttPublish": "连接 MQTT Broker 并发布消息",
+      "dbQuery": "连接数据库并执行查询或语句",
+      "delay": "暂停指定毫秒后继续",
+      "script": "执行自定义 JavaScript 脚本",
+      "extractData": "从上一节点输出提取数据",
+      "jsonParse": "将字符串解析为 JSON 对象",
+      "jsonStringify": "将对象或文本序列化为 JSON 字符串",
+      "textTransform": "对文本执行裁剪、大小写或替换转换",
+      "base64Encode": "将输入编码为 Base64",
+      "base64Decode": "将 Base64 解码为原文",
+      "urlEncode": "对文本执行 URL 百分号编码",
+      "urlDecode": "对 URL 编码文本进行解码",
+      "hash": "计算文本摘要值",
+      "condition": "根据条件走不同分支",
+      "loop": "重复执行指定次数",
+      "parallel": "并行执行多个子流程",
+      "setVariable": "设置或更新变量值",
+      "timestamp": "生成当前时间戳或 ISO 时间",
+      "uuid": "生成一个新的 UUID",
+      "log": "输出日志信息到控制台",
+      "assertion": "断言验证数据是否符合预期",
+      "start": "流程起始节点",
+      "end": "流程终止节点"
+    },
     "nodeFields": {
       "method": "方法",
       "url": "URL",
@@ -2138,57 +2599,59 @@
       "encoding": "编码",
       "timeout": "超时 (ms)",
       "delayMs": "延时 (ms)",
-        "script": "脚本代码",
-        "source": "数据源",
-        "mode": "提取模式",
-        "expression": "表达式",
-        "input": "输入",
-        "pretty": "格式化输出",
-        "transformOperation": "转换方式",
-        "search": "查找内容",
-        "replacement": "替换为",
-        "hashAlgorithm": "哈希算法",
-        "timeFormat": "时间格式",
-        "condExpression": "条件表达式",
-        "iterations": "循环次数",
-        "maxConcurrency": "最大并行数",
-        "varKey": "变量名",
-        "varValue": "变量值",
+      "script": "脚本代码",
+      "source": "数据源",
+      "mode": "提取模式",
+      "expression": "表达式",
+      "input": "输入",
+      "pretty": "格式化输出",
+      "transformOperation": "转换方式",
+      "search": "查找内容",
+      "replacement": "替换为",
+      "hashAlgorithm": "哈希算法",
+      "timeFormat": "时间格式",
+      "condExpression": "条件表达式",
+      "iterations": "循环次数",
+      "maxConcurrency": "最大并行数",
+      "varKey": "变量名",
+      "varValue": "变量值",
       "logMessage": "日志内容",
       "logLevel": "日志级别",
       "assertTarget": "断言目标",
-        "assertOperator": "比较操作",
-        "assertExpected": "期望值",
-        "assertName": "测试名称"
-      },
-      "operations": {
-        "trim": "去除首尾空白",
-        "uppercase": "转大写",
-        "lowercase": "转小写",
-        "replace": "查找替换"
-      },
-      "messageTypes": {
-        "text": "文本",
-        "hex": "Hex 二进制"
-      },
-      "dbTypes": {
-        "postgresql": "PostgreSQL",
-        "mysql": "MySQL",
-        "sqlite": "SQLite",
-        "influxdb": "InfluxDB"
-      },
-      "dbModes": {
-        "query": "查询结果集",
-        "statement": "执行语句"
-      },
-      "timeFormats": {
-        "iso8601": "ISO 8601",
-        "unix": "Unix 秒",
-        "unixMs": "Unix 毫秒"
-      },
-      "emptyCanvas": "拖拽左侧节点到画布开始编排",
-      "selectNode": "点击节点查看配置",
-      "resultPanel": "执行结果",
+      "assertOperator": "比较操作",
+      "assertExpected": "期望值",
+      "assertName": "测试名称",
+      "condExpressionHint": "支持模板变量引用，求值结果为 true/false",
+      "maxConcurrencyHint": "0 = 不限制并行度"
+    },
+    "operations": {
+      "trim": "去除首尾空白",
+      "uppercase": "转大写",
+      "lowercase": "转小写",
+      "replace": "查找替换"
+    },
+    "messageTypes": {
+      "text": "文本",
+      "hex": "Hex 二进制"
+    },
+    "dbTypes": {
+      "postgresql": "PostgreSQL",
+      "mysql": "MySQL",
+      "sqlite": "SQLite",
+      "influxdb": "InfluxDB"
+    },
+    "dbModes": {
+      "query": "查询结果集",
+      "statement": "执行语句"
+    },
+    "timeFormats": {
+      "iso8601": "ISO 8601",
+      "unix": "Unix 秒",
+      "unixMs": "Unix 毫秒"
+    },
+    "emptyCanvas": "拖拽左侧节点到画布开始编排",
+    "selectNode": "点击节点查看配置",
+    "resultPanel": "执行结果",
     "noResults": "运行工作流以查看结果",
     "menu": {
       "deleteNode": "删除节点",
@@ -2257,6 +2720,59 @@
       "distributeH": "水平等距",
       "distributeV": "垂直等距",
       "tooltip": "对齐与分布（≥2 个节点）"
+    },
+    "exportSuccess": "工作流已导出",
+    "exportFailed": "导出失败: "
+  },
+  "activityLog": {
+    "dragToResize": "拖动调整高度",
+    "title": "活动日志",
+    "filterPlaceholder": "正则过滤 /regex/",
+    "filterAll": "全部",
+    "clear": "清空",
+    "close": "关闭",
+    "empty": "暂无记录",
+    "noMatches": "无匹配记录",
+    "emptyHint": "网络与协议活动会实时记录在这里",
+    "noMatchesHint": "调整过滤条件或正则表达式",
+    "sendToParser": "发送到协议解析器"
+  },
+  "modbus": {
+    "exception": {
+      "illegalFunction": "非法功能码",
+      "illegalDataAddress": "非法数据地址",
+      "illegalDataValue": "非法数据值",
+      "slaveDeviceFailure": "从站设备故障",
+      "acknowledge": "确认(ACK)",
+      "slaveDeviceBusy": "从站设备忙",
+      "memoryParityError": "存储奇偶错误",
+      "gatewayPathUnavailable": "网关路径不可用",
+      "gatewayTargetNoResponse": "网关目标无响应"
     }
+  },
+  "mock": {
+    "importInvalidArray": "JSON 格式不符合 MockRoute 结构（应为数组）",
+    "importInvalidStructure": "JSON 格式不符合 MockRoute 结构",
+    "importFailed": "导入失败"
+  },
+  "crypto": {
+    "configEncryptParams": "配置加密参数",
+    "configDecryptParams": "配置解密参数",
+    "encrypt": "加密",
+    "decrypt": "解密",
+    "operationFailed": "操作失败",
+    "decryptResult": "解密结果"
+  },
+  "shortcuts": {
+    "commandPalette": "命令面板",
+    "splitView": "分屏",
+    "toggleSidebar": "切换侧栏",
+    "openSettings": "打开设置",
+    "sendRequest": "发送请求",
+    "newTab": "新建标签",
+    "closeTab": "关闭标签",
+    "switchTab": "切换标签",
+    "dismiss": "关闭弹层",
+    "hint": "键盘快捷键"
   }
 }

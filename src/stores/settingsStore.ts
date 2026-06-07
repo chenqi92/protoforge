@@ -75,12 +75,13 @@ interface SettingsStore {
 }
 
 const defaultSettings: AppSettings = {
-  // Default to system — respect OS preference on first launch (Linear default).
-  // Existing users retain their persisted choice via the store's migration logic.
-  theme: 'system',
+  // Forge ships dark-first: dark is the default theme on a fresh install.
+  // Existing users retain their persisted choice via the store's migration logic;
+  // upgraded users who never had a `theme` value get backfilled to 'dark' in migrate().
+  theme: 'dark',
   language: 'zh-CN',
   fontSize: 13,
-  fontFamily: 'inter',
+  fontFamily: 'ibm-plex',
   accentColor: 'indigo',
 
   defaultTimeoutMs: 30000,
@@ -121,7 +122,7 @@ export const useSettingsStore = create<SettingsStore>()(
     {
       name: 'protoforge-settings',
       storage: createJSONStorage(() => safeStorage),
-      version: 1,
+      version: 3,
       // Custom merge: deep-merge persisted `settings` onto current state's defaults so any
       // field added to `defaultSettings` after a user's last save still gets its default value
       // (instead of being `undefined` after rehydration). Without this, zustand persist does a
@@ -145,10 +146,18 @@ export const useSettingsStore = create<SettingsStore>()(
       migrate: (persistedState: unknown) => {
         const state = persistedState as { settings?: Record<string, unknown> };
         if (state?.settings) {
-          // 迁移旧的 fontFamily: 'mono' 等无效值回退到 inter
+          // Forge 默认字体改为 IBM Plex Sans：迁移旧无效值与旧默认 'inter' → 'ibm-plex'
           const ff = state.settings.fontFamily;
-          if (ff === 'mono' || typeof ff !== 'string' || ff === '') {
-            state.settings.fontFamily = 'inter';
+          if (ff === 'mono' || ff === 'inter' || typeof ff !== 'string' || ff === '') {
+            state.settings.fontFamily = 'ibm-plex';
+          }
+          // v1→v2: Forge dark-first. Backfill a `theme` only when it's entirely absent
+          // (never set). Users who explicitly chose 'light' / 'dark' / 'system' keep it —
+          // the deep merge in `merge()` preserves any present value. This just guarantees
+          // upgraded users without the key resolve to a concrete theme instead of undefined.
+          const t = state.settings.theme;
+          if (t !== 'light' && t !== 'dark' && t !== 'system') {
+            state.settings.theme = 'dark';
           }
         }
         return state as unknown as SettingsStore;

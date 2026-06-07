@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight, FileSpreadsheet, Rows3, Columns3 } from 'lucide-react';
 
@@ -45,6 +46,7 @@ function textToBase64(text: string): string {
 }
 
 export function PluginRendererView({ pluginId, body, isBinary, className }: PluginRendererViewProps) {
+  const { t } = useTranslation();
   const [result, setResult] = useState<RenderResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +86,7 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
     return (
       <div className={cn('flex flex-col items-center justify-center gap-3 p-8 text-text-disabled', className)}>
         <Loader2 className="h-6 w-6 animate-spin opacity-40" />
-        <p style={{ fontSize: 'var(--fs-sm)' }}>插件处理中...</p>
+        <p style={{ fontSize: 'var(--fs-sm)' }}>{t('plugin.renderer.processing', '插件处理中...')}</p>
       </div>
     );
   }
@@ -92,9 +94,9 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
   if (error || !result) {
     return (
       <div className={cn('flex flex-col items-center justify-center gap-3 p-8 text-text-disabled', className)}>
-        <AlertCircle className="h-8 w-8 opacity-30 text-red-400" />
-        <p style={{ fontSize: 'var(--fs-sm)' }}>插件渲染失败</p>
-        <p className="text-text-tertiary max-w-[400px] text-center" style={{ fontSize: 'var(--fs-xs)' }}>{error || '未知错误'}</p>
+        <AlertCircle className="h-8 w-8 opacity-30 text-error" />
+        <p style={{ fontSize: 'var(--fs-sm)' }}>{t('plugin.renderer.failed', '插件渲染失败')}</p>
+        <p className="text-text-tertiary max-w-[400px] text-center" style={{ fontSize: 'var(--fs-xs)' }}>{error || t('plugin.renderer.unknownError', '未知错误')}</p>
       </div>
     );
   }
@@ -121,13 +123,14 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
 
   return (
     <div className={cn('flex items-center justify-center h-full text-text-disabled', className)} style={{ fontSize: 'var(--fs-sm)' }}>
-      插件返回了未知的渲染类型: {result.type}
+      {t('plugin.renderer.unknownType', '插件返回了未知的渲染类型: ')}{result.type}
     </div>
   );
 }
 
 /* ── 表格渲染子组件（多 Sheet + 分页 + 精致样式） ── */
 function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className?: string }) {
+  const { t } = useTranslation();
   const [activeSheet, setActiveSheet] = useState(0);
 
   const sheet = sheets[activeSheet];
@@ -150,7 +153,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
               className={cn(
                 'relative flex items-center gap-1.5 border-r border-border-default/40 px-3 py-1.5 transition-all whitespace-nowrap',
                 activeSheet === idx
-                  ? 'bg-bg-primary text-emerald-600 dark:text-emerald-400 font-semibold'
+                  ? 'bg-bg-primary text-accent font-semibold'
                   : 'text-text-tertiary hover:bg-bg-hover/60 hover:text-text-secondary'
               )}
               style={{ fontSize: 'var(--fs-xs)' }}
@@ -158,7 +161,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
               <FileSpreadsheet className="h-3 w-3 shrink-0 opacity-70" />
               {s.name}
               {activeSheet === idx && (
-                <span className="absolute bottom-0 left-1 right-1 h-[2px] rounded-full bg-emerald-500" />
+                <span className="absolute bottom-0 left-1 right-1 h-[2px] rounded-full bg-accent" />
               )}
             </button>
           ))}
@@ -200,7 +203,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
       <div className="flex-1 overflow-auto">
         {columns.length === 0 ? (
           <div className="flex items-center justify-center h-full text-text-disabled" style={{ fontSize: 'var(--fs-sm)' }}>
-            此 Sheet 为空
+            {t('plugin.renderer.emptySheet', '此 Sheet 为空')}
           </div>
         ) : (
           <table className="plugin-table w-full border-collapse" style={{ fontSize: 'var(--fs-sm)' }}>
@@ -235,7 +238,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
         )}
         {rows.length > 500 && (
           <div className="py-3 text-center text-text-disabled italic" style={{ fontSize: 'var(--fs-xs)' }}>
-            仅显示前 500 行，共 {rows.length.toLocaleString()} 行
+            {t('plugin.renderer.truncatedPrefix', '仅显示前 500 行，共 ')}{rows.length.toLocaleString()}{t('plugin.renderer.truncatedSuffix', ' 行')}
           </div>
         )}
       </div>

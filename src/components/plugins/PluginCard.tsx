@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Trash2, Check, Loader2, Tag } from "lucide-react";
+import { Download, Trash2, Check, Loader2, Tag, ArrowUpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
@@ -13,9 +13,17 @@ interface PluginCardProps {
   onUninstall?: (id: string) => Promise<void>;
 }
 
-const typeLabels: Record<string, { label: string; color: string }> = {
-  "protocol-parser": { label: "Protocol Parser", color: "text-blue-700 dark:text-blue-300 bg-blue-500/10" },
-  "ui-panel": { label: "UI Extension", color: "text-violet-700 dark:text-violet-300 bg-violet-500/10" },
+// 类型 -> .pf-pill 色调（对齐 Forge 原型 PluginMarket typeColor 映射）
+const typeLabels: Record<string, { label: string; tone: string }> = {
+  "protocol-parser": { label: "Protocol Parser", tone: "info" },
+  "request-hook": { label: "Request Hook", tone: "acc" },
+  "response-renderer": { label: "Response Renderer", tone: "acc" },
+  "data-generator": { label: "Data Generator", tone: "warn" },
+  "export-format": { label: "Export Format", tone: "ok" },
+  "sidebar-panel": { label: "UI Extension", tone: "info" },
+  "ui-panel": { label: "UI Extension", tone: "acc" },
+  "crypto-tool": { label: "Crypto Tool", tone: "warn" },
+  "icon-pack": { label: "Icon Pack", tone: "info" },
 };
 
 export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) {
@@ -37,45 +45,50 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
     }
   };
 
-  const typeInfo = typeLabels[plugin.pluginType] || { label: plugin.pluginType, color: "text-text-tertiary bg-bg-secondary" };
+  const typeInfo = typeLabels[plugin.pluginType] || { label: plugin.pluginType, tone: "" };
 
   return (
     <div
-      className="group relative rounded-xl border border-border-default bg-bg-primary hover:border-border-strong transition-colors overflow-hidden dark:bg-white/[0.02] dark:hover:bg-white/[0.035] dark:border-white/[0.06] dark:hover:border-white/[0.09]"
+      className="group relative pf-rounded-lg border border-border-default bg-bg-primary hover:border-border-strong transition-colors overflow-hidden dark:bg-white/[0.02] dark:hover:bg-white/[0.035] dark:border-white/[0.06] dark:hover:border-white/[0.09]"
     >
-      <div className="p-4">
+      <div className="p-3">
         {/* Header */}
-        <div className="flex items-start gap-3 mb-3">
+        <div className="flex items-start gap-2.5 mb-2.5">
           <PluginIcon pluginId={plugin.id} fallbackEmoji={plugin.icon} size="sm" />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <h3 className="pf-text-base font-semibold text-text-primary truncate">
                 {pluginT(plugin, 'name')}
               </h3>
-              <span className={cn("pf-text-xxs font-medium px-1.5 py-0.5 rounded-full shrink-0", typeInfo.color)}>
-                {typeInfo.label}
-              </span>
+              <span className="pf-text-3xs font-mono text-text-disabled shrink-0">v{plugin.version}</span>
+              {plugin.hasUpdate && (
+                <span className="pf-pill acc shrink-0">
+                  <ArrowUpCircle className="w-3 h-3" />
+                  {plugin.latestVersion ? `v${plugin.latestVersion}` : t('plugin.updateAvailable')}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="pf-text-xs text-text-tertiary">{plugin.author}</span>
-              <span className="pf-text-xxs text-text-disabled">v{plugin.version}</span>
+            {/* type pill + author */}
+            <div className="flex items-center gap-2 mt-1">
+              <span className={cn("pf-pill shrink-0", typeInfo.tone)}>{typeInfo.label}</span>
+              <span className="pf-text-3xs text-text-tertiary truncate">{plugin.author}</span>
             </div>
           </div>
         </div>
 
         {/* Description */}
-        <p className="pf-text-sm text-text-secondary leading-relaxed line-clamp-2 mb-3">
+        <p className="pf-text-sm text-text-secondary leading-snug line-clamp-2 mb-2.5">
           {pluginT(plugin, 'description')}
         </p>
 
         {/* Tags */}
         {plugin.tags.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap mb-3">
+          <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
             <Tag className="w-3 h-3 text-text-disabled shrink-0" />
             {plugin.tags.map((tag) => (
               <span
                 key={tag}
-                className="pf-text-xxs font-medium text-text-tertiary bg-bg-secondary px-1.5 py-0.5 rounded-md border border-border-subtle"
+                className="pf-text-3xs font-medium text-text-tertiary bg-bg-tertiary px-1.5 py-0.5 pf-rounded-xs border border-border-subtle"
               >
               {tag}
               </span>
@@ -88,9 +101,9 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
           onClick={handleAction}
           disabled={loading}
           className={cn(
-            "w-full h-8 rounded-lg flex items-center justify-center gap-1.5 pf-text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-wait",
+            "w-full h-7 pf-rounded-md flex items-center justify-center gap-1.5 pf-text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-wait",
             plugin.installed
-              ? "text-red-600 dark:text-red-300 border border-red-200 dark:border-red-500/20 hover:bg-red-50 dark:hover:bg-red-500/10"
+              ? "text-error border border-error/20 hover:bg-error/10"
               : "text-white bg-accent hover:bg-accent-hover"
           )}
         >
@@ -111,9 +124,9 @@ export function PluginCard({ plugin, onInstall, onUninstall }: PluginCardProps) 
       </div>
 
       {/* Installed badge */}
-      {plugin.installed && (
+      {plugin.installed && !plugin.hasUpdate && (
         <div className="absolute top-2.5 right-2.5">
-          <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
+          <div className="w-5 h-5 rounded-full bg-success flex items-center justify-center shadow-sm">
             <Check className="w-3 h-3 text-white" strokeWidth={3} />
           </div>
         </div>

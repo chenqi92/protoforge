@@ -185,19 +185,22 @@ export function RequestDiffModal({ open, onClose, sourceTabId }: RequestDiffModa
   const tabs = useAppStore((s) => s.tabs);
   const getEntryDetail = useHistoryStore((s) => s.getEntryDetail);
 
-  // Define themes
+  // Define themes — pull surface colors from Forge CSS vars so the editor
+  // tracks the active theme/accent instead of hardcoded hex.
   useEffect(() => {
     if (monaco) {
+      const cssVar = (name: string, fallback: string) =>
+        getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
       monaco.editor.defineTheme("protoforge-dark", {
         base: "vs-dark", inherit: true, rules: [],
-        colors: { "editor.background": "#0f1011", "editor.lineHighlightBackground": "#191a1b" },
+        colors: { "editor.background": cssVar("--color-bg-inset", "#0c0e12"), "editor.lineHighlightBackground": cssVar("--color-bg-secondary", "#191a1b") },
       });
       monaco.editor.defineTheme("protoforge-light", {
         base: "vs", inherit: true, rules: [],
-        colors: { "editor.background": "#ffffff", "editor.lineHighlightBackground": "#f5f6f7" },
+        colors: { "editor.background": cssVar("--color-bg-primary", "#ffffff"), "editor.lineHighlightBackground": cssVar("--color-bg-secondary", "#f5f6f7") },
       });
     }
-  }, [monaco]);
+  }, [monaco, theme]);
 
   const editorTheme = theme === "dark" ? "protoforge-dark" : "protoforge-light";
 

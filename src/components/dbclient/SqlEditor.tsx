@@ -289,7 +289,7 @@ export const SqlEditor = memo(function SqlEditor({
   return (
     <div className={cn("flex flex-col", isQueryTab && "h-full")}>
       {/* 统一 Tab 栏 */}
-      <div className="flex items-center border-b border-border-default/50 bg-bg-base shrink-0">
+      <div className="flex items-center border-b border-border-default bg-bg-app shrink-0">
         <div className="flex flex-1 items-center overflow-x-auto min-w-0 scrollbar-hide">
           {tabs.map((tab) => (
             <button
@@ -298,18 +298,18 @@ export const SqlEditor = memo(function SqlEditor({
               onContextMenu={(e) => handleTabContextMenu(e, tab.id)}
               onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); getDbClientStoreApi(sessionId).getState().closeTab(tab.id); } }}
               className={cn(
-                "group flex items-center gap-1.5 px-3 py-1.5 pf-text-xs font-medium border-b-2 transition-colors shrink-0 max-w-[180px]",
+                "group flex h-[33px] items-center gap-1.5 px-2.5 pf-text-sm font-medium border-b-2 transition-colors shrink-0 max-w-[180px]",
                 tab.id === activeTabId
                   ? "border-accent text-accent bg-bg-surface"
-                  : "border-transparent text-text-tertiary hover:text-text-primary hover:bg-bg-hover/50",
+                  : "border-transparent text-text-secondary hover:text-text-primary hover:bg-bg-hover/50",
               )}
             >
               {tab.kind === "structure" ? (
-                <Pencil size={11} className="shrink-0 text-amber-500 dark:text-amber-300" />
+                <Pencil size={11} className="shrink-0 text-warning" />
               ) : tab.kind === "query" ? (
                 <FileText size={11} className="shrink-0 opacity-60" />
               ) : (
-                <Table2 size={11} className="shrink-0 text-blue-500 dark:text-blue-300" />
+                <Table2 size={11} className="shrink-0 text-info" />
               )}
               <span className="truncate">{tab.label}</span>
               {tab.kind === "query" && tab.queryRunning && (
@@ -347,15 +347,15 @@ export const SqlEditor = memo(function SqlEditor({
       {isQueryTab && (
         <>
           {/* 工具栏 */}
-          <div className="flex items-center gap-2 border-b border-border-default/50 px-3 py-1.5 shrink-0">
+          <div className="flex items-center gap-2 border-b border-border-default px-3 py-1.5 shrink-0">
             <button
               onClick={queryRunning ? handleCancel : handleExecute}
               disabled={!connected}
               className={cn(
                 "flex items-center gap-1.5 pf-rounded-sm px-3 py-1 pf-text-xs font-medium transition-colors",
                 queryRunning
-                  ? "bg-red-500/15 text-red-600 dark:text-red-300 hover:bg-red-500/25"
-                  : "bg-accent/15 text-accent hover:bg-accent/25",
+                  ? "bg-error/15 text-error hover:bg-error/25"
+                  : "bg-accent-soft text-accent hover:bg-accent/25",
                 !connected && "opacity-40 cursor-not-allowed",
               )}
             >
@@ -365,6 +365,18 @@ export const SqlEditor = memo(function SqlEditor({
                 <><Play size={12} />{t("dbClient.execute")}</>
               )}
             </button>
+
+            {/* 连接状态 pill */}
+            {connected && connectionConfig && (
+              <span className="pf-pill acc shrink-0 max-w-[220px]">
+                <span className={cn("pf-dot shrink-0", queryRunning ? "s-run" : "s-ok")} />
+                <span className="truncate font-mono">
+                  {connectionConfig.dbType === "sqlite"
+                    ? (connectionConfig.filePath?.split("/").pop() ?? connectionConfig.filePath ?? "sqlite")
+                    : `${connectionConfig.host}:${connectionConfig.port}`}
+                </span>
+              </span>
+            )}
 
             {/* 数据库选择器 */}
             {databases.length > 0 && (
@@ -384,17 +396,17 @@ export const SqlEditor = memo(function SqlEditor({
 
             {/* 结果状态 */}
             {queryResult && !queryRunning && (
-              <div className="flex items-center gap-1.5 pf-text-xs text-text-tertiary">
-                <CheckCircle2 size={12} className="text-emerald-500 dark:text-emerald-300" />
+              <div className="flex items-center gap-1.5 pf-text-xs text-text-tertiary tabular-nums">
+                <CheckCircle2 size={12} className="text-success" />
                 {queryResult.rows.length} {t("dbClient.rows")}
-                <span className="text-text-quaternary">·</span>
+                <span className="text-text-disabled">·</span>
                 <Clock size={11} />
                 {queryResult.executionTimeMs}ms
               </div>
             )}
 
             {queryError && !queryRunning && (
-              <div className="flex items-center gap-1.5 pf-text-xs text-red-500 dark:text-red-300 truncate min-w-0">
+              <div className="flex items-center gap-1.5 pf-text-xs text-error truncate min-w-0">
                 <AlertCircle size={12} className="shrink-0" />
                 <span className="truncate">{queryError}</span>
               </div>

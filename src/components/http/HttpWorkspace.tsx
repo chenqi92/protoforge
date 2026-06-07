@@ -1,6 +1,6 @@
 import { lazy, memo, Suspense, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Square, Braces } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Square, Braces, MoreHorizontal, Server, Terminal as TerminalIcon } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,11 @@ import { ResponseViewer } from "@/components/ui/ResponseViewer";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
 import { buildCollectionItemFromHttpConfig, getCollectionRequestSignatureFromConfig, getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
+import { generateCurlFromItem } from "@/lib/curlGenerator";
+import { copyTextToClipboard } from "@/lib/clipboard";
+import { generateMockFromRequest } from "@/lib/crossTool";
+import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
+import { toast } from "sonner";
 import { persistScriptVariableUpdates } from "@/lib/requestVariables";
 import { recordRequestStat } from "@/components/plugins/RequestStatsPanel";
 import { buildRequestPayload, resolveHttpConfig, sendHttpRequest, sendRequestWithScripts } from "@/services/httpService";
@@ -28,7 +33,7 @@ import { VariableInlineInput } from "./VariableInlineInput";
 import { AuthPanel } from "./AuthPanel";
 import { HttpSseResponsePanel, type SseEvent } from "./HttpSsePanel";
 import { GraphQLBodyEditor, MonacoEditorSurface, EditorSurfaceFallback } from "./GraphQLBodyEditor";
-import { ResponseMetaPill, HttpRequestErrorPanel, HttpRequestErrorBanner, ResponseHeaderMetric } from "./HttpResponseParts";
+import { HttpRequestErrorPanel, HttpRequestErrorBanner, ResponseHeaderMetric } from "./HttpResponseParts";
 import { ExportPluginDropdown } from "./ExportPluginDropdown";
 import { BinaryPicker } from "./BinaryPicker";
 import { AssertionBuilder, TestResultsPanel, generateAssertionCode, type Assertion } from "./AssertionBuilder";
@@ -36,14 +41,9 @@ import { AssertionBuilder, TestResultsPanel, generateAssertionCode, type Asserti
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 const LazyScriptEditor = lazy(() => import("./ScriptEditor").then((module) => ({ default: module.ScriptEditor })));
 
-const methodTextColor: Record<string, string> = {
-  GET: "text-emerald-600 dark:text-emerald-300", POST: "text-amber-600 dark:text-amber-300", PUT: "text-blue-600 dark:text-blue-300",
-  DELETE: "text-red-500 dark:text-red-300", PATCH: "text-violet-600 dark:text-violet-300", HEAD: "text-cyan-600 dark:text-cyan-300", OPTIONS: "text-gray-500",
-};
-
-const methodDotColor: Record<string, string> = {
-  GET: "bg-emerald-500", POST: "bg-amber-500", PUT: "bg-blue-500",
-  DELETE: "bg-red-500", PATCH: "bg-violet-500", HEAD: "bg-cyan-500", OPTIONS: "bg-gray-400",
+const methodMtagClass: Record<string, string> = {
+  GET: "m-get", POST: "m-post", PUT: "m-put",
+  DELETE: "m-delete", PATCH: "m-patch", HEAD: "m-head", OPTIONS: "m-options",
 };
 
 function mergeScriptScopeUpdates(
@@ -55,20 +55,11 @@ function mergeScriptScopeUpdates(
   }, {});
 }
 
-function getHttpStatusTone(status: number) {
-  if (status < 200) return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/10 dark:text-sky-300";
-  if (status < 300) return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:text-emerald-200 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300";
-  if (status < 400) return "border-amber-200 bg-amber-50 text-amber-700 dark:text-amber-200 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300";
-  if (status < 500) return "border-orange-200 bg-orange-50 text-orange-700 dark:text-orange-200 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-300";
-  return "border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300";
-}
-
-function getHttpStatusDotTone(status: number) {
-  if (status < 200) return "bg-sky-500";
-  if (status < 300) return "bg-emerald-500";
-  if (status < 400) return "bg-amber-500";
-  if (status < 500) return "bg-orange-500";
-  return "bg-red-500";
+function getHttpStatusDotState(status: number) {
+  if (status < 200) return "s-run";
+  if (status < 300) return "s-ok";
+  if (status < 400) return "s-conn";
+  return "s-err";
 }
 
 export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: string }) {
@@ -81,6 +72,9 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
   const setError = useAppStore((s) => s.setError);
   const setTabProtocol = useAppStore((s) => s.setTabProtocol);
   const saveRequestToCollection = useCollectionStore((s) => s.saveRequest);
+
+  const { showMenu, MenuComponent } = useContextMenu();
+  const moreBtnRef = useRef<HTMLButtonElement>(null);
 
   const [reqTab, setReqTab] = useState<"params" | "headers" | "body" | "auth" | "pre-script" | "post-script" | "tests">("params");
   const [resTab, setResTab] = useState<"body" | "headers" | "cookies" | "timing" | "tests">("body");
@@ -194,10 +188,10 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
   const timingCards = useMemo(() => {
     if (!response) return [];
     return [
-      { label: t('http.connectTime'), value: response.timing.connectMs, color: "bg-sky-500" },
-      { label: t('http.ttfb'), value: response.timing.ttfbMs, color: "bg-emerald-500" },
-      { label: t('http.download'), value: response.timing.downloadMs, color: "bg-amber-500" },
-      { label: t('http.totalTime'), value: response.timing.totalMs, color: "bg-violet-500" },
+      { label: t('http.connectTime'), value: response.timing.connectMs, color: "bg-info" },
+      { label: t('http.ttfb'), value: response.timing.ttfbMs, color: "bg-success" },
+      { label: t('http.download'), value: response.timing.downloadMs, color: "bg-warning" },
+      { label: t('http.totalTime'), value: response.timing.totalMs, color: "bg-accent" },
     ];
   }, [response, t]);
 
@@ -458,6 +452,39 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
     }
   }, [response]);
 
+  const handleGenerateMock = useCallback(() => {
+    generateMockFromRequest({
+      method: config.method,
+      url: config.url,
+      responseExample: activeTab.httpResponse?.body || "",
+      name: config.name,
+    });
+  }, [config.method, config.url, config.name, activeTab.httpResponse]);
+
+  const handleCopyAsCurl = useCallback(async () => {
+    const now = new Date().toISOString();
+    const item = buildCollectionItemFromHttpConfig({
+      config,
+      itemId: tabId,
+      collectionId: activeTab.linkedCollectionId ?? "",
+      parentId: null,
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const curl = generateCurlFromItem(item, activeTab.linkedCollectionId ?? null);
+    await copyTextToClipboard(curl);
+    toast.success(t('common.copied', '已复制'));
+  }, [config, tabId, activeTab.linkedCollectionId, t]);
+
+  const handleMoreMenu = useCallback((e: React.MouseEvent) => {
+    const menuItems: ContextMenuEntry[] = [
+      { id: "generate-mock", label: t('sidebar.generateMock'), icon: <Server className="w-3.5 h-3.5" />, onClick: handleGenerateMock },
+      { id: "copy-curl", label: t('capture.menu.copyCurl', '复制为 cURL'), icon: <TerminalIcon className="w-3.5 h-3.5" />, onClick: () => void handleCopyAsCurl() },
+    ];
+    showMenu(e, menuItems);
+  }, [t, handleGenerateMock, handleCopyAsCurl, showMenu]);
+
   const handleRequestKindChange = useCallback((kind: RequestKind) => {
     const activeKind: RequestKind = activeTab.protocol === "http" && config.requestMode === "graphql"
       ? "graphql"
@@ -577,13 +604,15 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
     try { return JSON.parse(config.assertions || '[]'); } catch { return []; }
   }, [config.assertions]);
 
+  const paramsCount = params.filter(p => p.key).length;
+  const headersCount = headers.filter(h => h.key).length;
   const reqTabs = [
-    { key: "params" as const, label: `${t('http.params')}${params.filter(p => p.key).length ? ` (${params.filter(p => p.key).length})` : ""}` },
-    { key: "headers" as const, label: `${t('http.headers')}${headers.filter(h => h.key).length ? ` (${headers.filter(h => h.key).length})` : ""}` },
+    { key: "params" as const, label: t('http.params'), count: paramsCount || undefined },
+    { key: "headers" as const, label: t('http.headers'), count: headersCount || undefined },
     ...(!isSseMode ? [{ key: "body" as const, label: isGraphqlMode ? t('http.graphql.modeLabel') : t('http.body'), hasContent: hasBodyContent }] : []),
     { key: "auth" as const, label: t('http.auth'), hasContent: hasAuthContent },
     ...(!isSseMode ? [
-      { key: "tests" as const, label: `${t('assertion.testResults')}${parsedAssertions.length ? ` (${parsedAssertions.length})` : ''}`, hasContent: parsedAssertions.length > 0 },
+      { key: "tests" as const, label: t('assertion.testResults'), count: parsedAssertions.length || undefined, hasContent: parsedAssertions.length > 0 },
       { key: "pre-script" as const, label: t('http.preScript'), hasContent: !!config.preScript?.trim() },
       { key: "post-script" as const, label: t('http.postScript'), hasContent: !!config.postScript?.trim() },
     ] : []),
@@ -616,20 +645,10 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
             <div className="relative shrink-0">
               <button
                 onClick={() => setShowMethods(!showMethods)}
-                className={cn(
-                  "wb-request-method border-0 shadow-sm",
-                  config.method === "GET" && "bg-emerald-500",
-                  config.method === "POST" && "bg-amber-500",
-                  config.method === "PUT" && "bg-blue-500",
-                  config.method === "DELETE" && "bg-red-500",
-                  config.method === "PATCH" && "bg-violet-500",
-                  config.method === "HEAD" && "bg-cyan-500",
-                  config.method === "OPTIONS" && "bg-slate-500"
-                )}
+                className="flex h-[26px] min-w-[88px] items-center justify-between gap-1.5 pf-rounded-sm border border-border-default bg-bg-secondary px-2.5 transition-colors hover:border-border-strong hover:bg-bg-tertiary"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
-                {config.method}
-                <ChevronDown className="w-3 h-3 opacity-70" />
+                <span className={cn("pf-mtag", methodMtagClass[config.method] || "m-options")}>{config.method}</span>
+                <ChevronDown className="w-3 h-3 text-text-tertiary" />
               </button>
               {showMethods && (
                 <>
@@ -640,12 +659,11 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                         key={m}
                         onClick={() => { updateHttpConfig(tabId, { method: m }); setShowMethods(false); }}
                         className={cn(
-                          "flex w-full items-center gap-2.5 pf-rounded-md px-3 py-2 pf-text-sm font-semibold transition-colors hover:bg-bg-hover",
+                          "flex w-full items-center gap-2.5 pf-rounded-md px-3 py-1.5 transition-colors hover:bg-bg-hover",
                           config.method === m && "bg-bg-hover"
                         )}
                       >
-                        <span className={cn("h-[6px] w-[6px] shrink-0 rounded-full", methodDotColor[m])} />
-                        <span className={methodTextColor[m] || "text-text-primary"}>{m}</span>
+                        <span className={cn("pf-mtag", methodMtagClass[m] || "m-options")}>{m}</span>
                       </button>
                     ))}
                   </div>
@@ -728,12 +746,21 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                   pushLoadTestConfig(config);
                 }}
                 disabled={!config.url.trim() || isSseMode}
-                className="wb-icon-btn hover:text-rose-600 dark:text-rose-300"
+                className="wb-icon-btn hover:text-error"
                 title={t('http.sendToLoadtest')}
               >
                 <Flame className="w-3.5 h-3.5" />
               </button>
               <ExportPluginDropdown config={config} />
+              <button
+                ref={moreBtnRef}
+                onClick={handleMoreMenu}
+                className="wb-icon-btn hover:text-accent"
+                title={t('common.more', '更多')}
+                disabled={!config.url.trim()}
+              >
+                <MoreHorizontal className="w-3.5 h-3.5" />
+              </button>
 
             </div>
             {!isSseMode && loading ? (
@@ -756,7 +783,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                     ? sseStatus === "connected"
                       ? "bg-error hover:bg-error/90"
                       : sseStatus === "connecting"
-                        ? "animate-pulse opacity-90 shadow-[0_0_12px_rgba(59,130,246,0.45)] cursor-wait"
+                        ? "animate-pulse opacity-90 shadow-[0_0_12px_var(--color-accent-muted)] cursor-wait"
                         : "hover:bg-accent-hover"
                     : "hover:bg-accent-hover"
                 )}
@@ -780,18 +807,28 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
 
           {/* Request Panel */}
           <Panel minSize="12" defaultSize={requestDefaultSize} className="http-workbench-section">
-            <div className="wb-tabs shrink-0 scrollbar-hide">
-              {reqTabs.map((t) => (
+            <div className="flex shrink-0 items-stretch gap-0.5 overflow-x-auto border-b border-border-default px-2.5 scrollbar-hide">
+              {reqTabs.map((tab) => (
                 <button
-                  key={t.key}
-                  onClick={() => setReqTab(t.key)}
+                  key={tab.key}
+                  onClick={() => setReqTab(tab.key)}
                   className={cn(
-                    "wb-tab flex items-center gap-1.5",
-                    reqTab === t.key && "wb-tab-active text-text-primary"
+                    "relative flex h-[33px] flex-none items-center gap-1.5 px-2.5 pf-text-sm font-medium whitespace-nowrap transition-colors",
+                    "after:absolute after:bottom-[-1px] after:left-2 after:right-2 after:h-0.5 after:rounded-sm after:bg-accent after:opacity-0 after:transition-opacity",
+                    reqTab === tab.key
+                      ? "text-text-primary after:opacity-100"
+                      : "text-text-secondary hover:text-text-primary"
                   )}
                 >
-                  {t.label}
-                  {(t as any).hasContent && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/90 shadow-[0_0_6px_rgba(16,185,129,0.4)] shrink-0" />}
+                  {tab.label}
+                  {(tab as any).count != null && (
+                    <span className="pf-rounded-lg bg-bg-tertiary px-[5px] font-mono text-[10px] leading-[18px] text-text-tertiary">
+                      {(tab as any).count}
+                    </span>
+                  )}
+                  {(tab as any).hasContent && (tab as any).count == null && (
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent shadow-[0_0_6px_var(--color-accent-muted)]" />
+                  )}
                 </button>
               ))}
             </div>
@@ -907,7 +944,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
               )}
 
             {reqTab === "pre-script" && (
-                <Suspense fallback={<EditorSurfaceFallback label="加载前置脚本编辑器..." />}>
+                <Suspense fallback={<EditorSurfaceFallback label={t('http.loadingPreScriptEditor', { defaultValue: '加载前置脚本编辑器...' })} />}>
                   <LazyScriptEditor
                     type="pre"
                     value={config.preScript}
@@ -919,7 +956,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
               {reqTab === "post-script" && (
                 <div className="flex h-full min-h-0">
                   <div className="flex-1 min-w-0">
-                    <Suspense fallback={<EditorSurfaceFallback label="加载后置脚本编辑器..." />}>
+                    <Suspense fallback={<EditorSurfaceFallback label={t('http.loadingPostScriptEditor', { defaultValue: '加载后置脚本编辑器...' })} />}>
                       <LazyScriptEditor
                         type="post"
                         value={config.postScript}
@@ -972,13 +1009,13 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 {(scriptResults.pre || scriptResults.post) && (
                   <div className="px-3 py-1.5 bg-bg-secondary/60 border-b border-border-default flex items-center gap-3 pf-text-xs flex-wrap shrink-0">
                     {scriptResults.pre && (
-                      <span className={cn("flex items-center gap-1 font-medium", scriptResults.pre.success ? "text-emerald-600 dark:text-emerald-300" : "text-red-500 dark:text-red-300")}>
+                      <span className={cn("flex items-center gap-1 font-medium", scriptResults.pre.success ? "text-success" : "text-error")}>
                         {scriptResults.pre.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                         {t('http.preScript')}{scriptResults.pre.success ? t('http.preScriptPass') : t('http.preScriptFail')}
                       </span>
                     )}
                     {scriptResults.post && (
-                      <span className={cn("flex items-center gap-1 font-medium", scriptResults.post.success ? "text-emerald-600 dark:text-emerald-300" : "text-red-500 dark:text-red-300")}>
+                      <span className={cn("flex items-center gap-1 font-medium", scriptResults.post.success ? "text-success" : "text-error")}>
                         {scriptResults.post.success ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                         {t('http.postScript')}{scriptResults.post.success ? t('http.preScriptPass') : t('http.preScriptFail')}
                       </span>
@@ -994,40 +1031,60 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                   </div>
                 )}
                 <div className="http-response-head shrink-0">
-                  <div className="http-response-tabs scrollbar-hide">
-                    {(["body", "headers", "cookies", "timing", ...(scriptResults.post?.testResults?.length ? ["tests" as const] : [])] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setResTab(tab)}
-                        className={cn(
-                          "http-response-tab",
-                          resTab === tab && "is-active"
-                        )}
-                      >
-                        {tab === "body" ? t('http.responseBody')
-                          : tab === "headers" ? t('http.responseHeaders')
-                          : tab === "cookies" ? `Cookies${response.cookies?.length ? ` (${response.cookies.length})` : ""}`
-                          : tab === "tests" ? `${t('assertion.testResults')} (${scriptResults.post?.testResults?.filter(tr => tr.passed).length}/${scriptResults.post?.testResults?.length})`
-                          : t('http.timing')}
-                      </button>
-                    ))}
+                  <div className="flex min-w-0 flex-1 items-stretch gap-0.5 overflow-x-auto scrollbar-hide">
+                    {(["body", "headers", "cookies", "timing", ...(scriptResults.post?.testResults?.length ? ["tests" as const] : [])] as const).map((tab) => {
+                      const cookieCount = response.cookies?.length || 0;
+                      const testPassed = scriptResults.post?.testResults?.filter(tr => tr.passed).length || 0;
+                      const testTotal = scriptResults.post?.testResults?.length || 0;
+                      const tabLabel = tab === "body" ? t('http.responseBody')
+                        : tab === "headers" ? t('http.responseHeaders')
+                        : tab === "cookies" ? "Cookies"
+                        : tab === "tests" ? t('assertion.testResults')
+                        : t('http.timing');
+                      const tabBadge = tab === "cookies" && cookieCount ? String(cookieCount)
+                        : tab === "tests" ? `${testPassed}/${testTotal}`
+                        : null;
+                      return (
+                        <button
+                          key={tab}
+                          onClick={() => setResTab(tab)}
+                          className={cn(
+                            "relative flex h-[33px] flex-none items-center gap-1.5 px-2.5 pf-text-sm font-medium whitespace-nowrap transition-colors",
+                            "after:absolute after:bottom-[-1px] after:left-2 after:right-2 after:h-0.5 after:rounded-sm after:bg-accent after:opacity-0 after:transition-opacity",
+                            resTab === tab
+                              ? "text-text-primary after:opacity-100"
+                              : "text-text-secondary hover:text-text-primary"
+                          )}
+                        >
+                          {tabLabel}
+                          {tabBadge != null && (
+                            <span className="pf-rounded-lg bg-bg-tertiary px-[5px] font-mono text-[10px] leading-[18px] text-text-tertiary">
+                              {tabBadge}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <div className="http-response-meta">
-                    <span className={cn("http-response-status", getHttpStatusTone(response.status))}>
-                      <span className={cn("http-response-status-dot", getHttpStatusDotTone(response.status))} />
+                    <span className={cn(
+                      "pf-pill h-[22px]",
+                      response.status < 300 ? "ok" : response.status < 400 ? "warn" : response.status >= 400 ? "err" : "info"
+                    )}>
+                      <span className={cn("pf-dot", getHttpStatusDotState(response.status))} />
                       {response.status} {response.statusText}
                     </span>
 
-                    <ResponseMetaPill label="Time" value={`${response.durationMs} ms`} />
-                    <ResponseMetaPill label="Size" value={responseSizeLabel} />
+                    <span className="pf-status-chip"><span className="font-mono tabular-nums">{response.durationMs} ms</span></span>
+                    <span className="pf-status-chip"><span className="font-mono tabular-nums">{responseSizeLabel}</span></span>
 
                     <button
                       onClick={handleCopy}
                       className="wb-icon-btn"
                       title={t('http.copyResponse')}
                     >
-                      {copied ? <Check className="w-4 h-4 text-emerald-500 dark:text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                      {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
@@ -1196,7 +1253,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="h-6 rounded-lg bg-bg-secondary/60 relative overflow-hidden">
-                                    <div className="h-full rounded-lg bg-violet-500 w-full flex items-center justify-end px-2">
+                                    <div className="h-full rounded-lg bg-accent w-full flex items-center justify-end px-2">
                                       <span className="text-[10px] font-mono text-white font-semibold whitespace-nowrap">
                                         {Number(response.durationMs).toFixed(2)} ms
                                       </span>
@@ -1217,7 +1274,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                         <div className="grid gap-3 md:grid-cols-3">
                           <div className="pf-rounded-lg border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
-                              <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
+                              <span className="h-2.5 w-2.5 rounded-full bg-info" />
                               <span className="pf-text-sm font-semibold text-text-primary">{t('http.connectTime')}</span>
                             </div>
                             <p className="pf-text-xs text-text-tertiary leading-relaxed">
@@ -1226,7 +1283,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                           </div>
                           <div className="pf-rounded-lg border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
-                              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                              <span className="h-2.5 w-2.5 rounded-full bg-success" />
                               <span className="pf-text-sm font-semibold text-text-primary">{t('http.ttfb')}</span>
                             </div>
                             <p className="pf-text-xs text-text-tertiary leading-relaxed">
@@ -1235,7 +1292,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                           </div>
                           <div className="pf-rounded-lg border border-border-default/80 bg-bg-secondary/20 px-4 py-3">
                             <div className="flex items-center gap-2 mb-1.5">
-                              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                              <span className="h-2.5 w-2.5 rounded-full bg-warning" />
                               <span className="pf-text-sm font-semibold text-text-primary">{t('http.download')}</span>
                             </div>
                             <p className="pf-text-xs text-text-tertiary leading-relaxed">
@@ -1293,6 +1350,8 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
         config={config}
         onSaved={syncSavedCollectionBinding}
       />
+
+      {MenuComponent}
     </div>
   );
 });

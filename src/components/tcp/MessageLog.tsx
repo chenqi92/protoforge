@@ -119,10 +119,7 @@ export function MessageLog({
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
             {typeof connected === "boolean" ? (
-              <span className={cn(
-                "h-2.5 w-2.5 shrink-0 rounded-full transition-colors",
-                connected ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.45)]" : "bg-text-disabled"
-              )} />
+              <span className={cn("pf-dot shrink-0", connected ? "s-live" : "s-idle")} />
             ) : null}
             <span className="truncate pf-text-sm font-semibold text-text-primary">
               {statusText || t('tcp.messageLog.title')}
@@ -135,11 +132,11 @@ export function MessageLog({
           {stats && hasTraffic ? (
             <div className="mt-1 flex flex-wrap items-center gap-3 pf-text-xs text-text-tertiary">
               <span className="inline-flex items-center gap-1">
-                <ArrowUpRight className="h-3 w-3 text-blue-500 dark:text-blue-300" />
+                <ArrowUpRight className="h-3 w-3 text-method-post" />
                 {formatSize(stats.sentBytes)} ({stats.sentCount})
               </span>
               <span className="inline-flex items-center gap-1">
-                <ArrowDownLeft className="h-3 w-3 text-emerald-500 dark:text-emerald-300" />
+                <ArrowDownLeft className="h-3 w-3 text-method-get" />
                 {formatSize(stats.receivedBytes)} ({stats.receivedCount})
               </span>
             </div>
@@ -176,7 +173,7 @@ export function MessageLog({
           {messages.length > 0 ? (
             <button
               onClick={onClear}
-              className="wb-icon-btn hover:bg-red-50 hover:text-red-500 dark:text-red-300 dark:hover:bg-red-500/10"
+              className="wb-icon-btn hover:bg-error/10 hover:text-error"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -188,7 +185,7 @@ export function MessageLog({
         {filteredMessages.length === 0 ? (
           isFiltering ? (
             <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default/60 bg-bg-secondary">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default bg-bg-secondary shadow-sm">
                 <Search className="h-6 w-6 opacity-35" />
               </div>
               <p className="pf-text-md font-semibold text-text-secondary">{t('tcp.messageLog.noMatch')}</p>
@@ -197,8 +194,11 @@ export function MessageLog({
           ) : (
             <div className="flex h-full items-center justify-center px-6 py-8">
               <div className="max-w-xl text-center">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-border-default/60 bg-bg-primary/82">
-                  <PlugZap className="h-5 w-5 text-text-disabled" />
+                <div className={cn(
+                  "mx-auto mb-4 flex h-12 w-12 items-center justify-center pf-rounded-lg border bg-bg-secondary shadow-sm",
+                  connected ? "border-accent/30 text-accent" : "border-border-default text-text-disabled"
+                )}>
+                  <PlugZap className={cn("h-5 w-5", connected ? "opacity-70" : "opacity-100")} />
                 </div>
                 <p className="pf-text-lg font-semibold text-text-secondary">{emptyTitle}</p>
                 <p className="mt-2 pf-text-sm leading-6 text-text-tertiary">{emptyDesc}</p>
@@ -207,14 +207,8 @@ export function MessageLog({
                     {displayFormat === "auto" ? t("tcp.messageLog.auto", "AUTO") : displayFormat.toUpperCase()}
                   </span>
                   {typeof connected === "boolean" ? (
-                    <span
-                      className={cn(
-                        "pf-rounded-sm border px-2.5 py-1 pf-text-xxs font-semibold",
-                        connected
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
-                          : "border-border-default/60 bg-bg-secondary/78 text-text-tertiary"
-                      )}
-                    >
+                    <span className={cn("pf-pill", connected ? "ok" : "")}>
+                      <span className={cn("pf-dot", connected ? "s-live" : "s-idle")} />
                       {connected ? t('tcp.system.connected') : t('tcp.system.waitingConnection')}
                     </span>
                   ) : null}
@@ -246,31 +240,34 @@ export function MessageLog({
                   key={m.id}
                   onClick={() => onSelectMessage?.(m)}
                   className={cn(
-                    "group flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-bg-hover/42",
-                    m.direction === "system" && "bg-amber-500/[0.04]",
+                    "group flex cursor-pointer items-center gap-3 px-3 py-1 transition-colors hover:bg-bg-hover/42",
+                    m.direction === "system" && "bg-warning/[0.05]",
                     selectedMessageId === m.id && "bg-accent/8 ring-1 ring-inset ring-accent/20"
                   )}
                   title={displayData}
                 >
-                  <div className="shrink-0">
-                    {m.direction === "sent" ? (
-                      <span className="pf-rounded-sm bg-blue-500/10 px-2 py-0.5 pf-text-3xs font-bold text-blue-600 dark:text-blue-300">TX</span>
-                    ) : m.direction === "received" ? (
-                      <span className="pf-rounded-sm bg-emerald-500/10 px-2 py-0.5 pf-text-3xs font-bold text-emerald-600 dark:text-emerald-300">RX</span>
-                    ) : (
-                      <span className="pf-rounded-sm bg-amber-500/10 px-2 py-0.5 pf-text-3xs font-bold text-amber-600 dark:text-amber-300">SYS</span>
-                    )}
-                  </div>
-
                   <span className="w-[84px] shrink-0 select-none font-mono pf-text-xxs text-text-disabled">
                     {formatTime(m.timestamp)}
                   </span>
 
+                  <span
+                    className={cn(
+                      "w-9 shrink-0 select-none font-mono pf-text-3xs font-bold tracking-wide",
+                      m.direction === "sent"
+                        ? "text-method-post"
+                        : m.direction === "received"
+                          ? "text-method-get"
+                          : "text-warning"
+                    )}
+                  >
+                    {m.direction === "sent" ? "TX" : m.direction === "received" ? "RX" : "SYS"}
+                  </span>
+
                   <div className="min-w-0 flex-1">
                     <div className={cn(
-                      "truncate font-mono pf-text-sm leading-5 select-text",
-                      m.direction === "sent" ? "text-blue-700 dark:text-blue-300" :
-                      m.direction === "system" ? "text-amber-700 dark:text-amber-300" :
+                      "truncate font-mono pf-text-xs leading-5 select-text",
+                      m.direction === "sent" ? "text-method-post" :
+                      m.direction === "system" ? "text-warning" :
                       "text-text-primary"
                     )}>
                       {preview}
@@ -297,12 +294,12 @@ export function MessageLog({
                       onClick={() => handleCopy(displayData, m.id)}
                       className="pf-rounded-md p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-accent group-hover:opacity-100"
                     >
-                      {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                     {hasParserPlugin && m.direction === 'received' && (
                       <button
                         onClick={() => handleParseMessage(m.data)}
-                        className="pf-rounded-md p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-blue-500 dark:text-blue-300 group-hover:opacity-100"
+                        className="pf-rounded-md p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-method-post group-hover:opacity-100"
                         title={t('parser.parse', '\u89e3\u6790')}
                       >
                         <FileCode2 className="h-3.5 w-3.5" />
@@ -317,7 +314,7 @@ export function MessageLog({
       </div>
       {reversedMessages.length > MAX_VISIBLE_TCP_MESSAGES ? (
         <div className="shrink-0 border-t border-border-default/60 bg-bg-secondary/25 px-3 py-1.5 pf-text-xxs text-text-disabled">
-          {`为保证性能，仅显示最近 ${MAX_VISIBLE_TCP_MESSAGES} 条记录`}
+          {t('tcp.messageLog.limitNotice', { count: MAX_VISIBLE_TCP_MESSAGES, defaultValue: '为保证性能，仅显示最近 {{count}} 条记录' })}
         </div>
       ) : null}
     </div>

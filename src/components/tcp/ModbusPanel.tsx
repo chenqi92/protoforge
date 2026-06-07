@@ -93,7 +93,7 @@ function ModbusConnectionBar({
                 className={cn(
                   "h-7 flex-1 pf-rounded-sm pf-text-xxs font-semibold uppercase tracking-wide transition-all",
                   transport === tp
-                    ? "bg-violet-500/12 text-violet-600 shadow-xs dark:text-violet-300"
+                    ? "bg-accent-soft text-accent shadow-xs"
                     : "text-text-tertiary hover:text-text-secondary disabled:opacity-50"
                 )}
               >
@@ -363,7 +363,7 @@ function ModbusFunctionPanel({
           className={cn(
             "flex h-8 w-full items-center justify-center gap-1.5 pf-rounded-sm border pf-text-xs font-semibold transition-colors",
             pollingEnabled && connected
-              ? "border-amber-500/40 bg-amber-500/12 text-amber-500 dark:text-amber-300"
+              ? "border-warning/40 bg-warning/12 text-warning"
               : "border-border-default/60 text-text-disabled hover:text-text-secondary disabled:opacity-50"
           )}
           title={t('serial.modbus.pollingToggle', '轮询')}
@@ -422,30 +422,33 @@ function ModbusFunctionPanel({
 //  Modbus 异常码解码
 // ═══════════════════════════════════════════
 
-const MODBUS_EXCEPTION_CODES: Record<number, string> = {
-  1: '非法功能码',
-  2: '非法数据地址',
-  3: '非法数据值',
-  4: '从站设备故障',
-  5: '确认(ACK)',
-  6: '从站设备忙',
-  8: '存储奇偶错误',
-  10: '网关路径不可用',
-  11: '网关目标无响应',
+const MODBUS_EXCEPTION_CODES: Record<number, { key: string; zh: string }> = {
+  1: { key: 'modbus.exception.illegalFunction', zh: '非法功能码' },
+  2: { key: 'modbus.exception.illegalDataAddress', zh: '非法数据地址' },
+  3: { key: 'modbus.exception.illegalDataValue', zh: '非法数据值' },
+  4: { key: 'modbus.exception.slaveDeviceFailure', zh: '从站设备故障' },
+  5: { key: 'modbus.exception.acknowledge', zh: '确认(ACK)' },
+  6: { key: 'modbus.exception.slaveDeviceBusy', zh: '从站设备忙' },
+  8: { key: 'modbus.exception.memoryParityError', zh: '存储奇偶错误' },
+  10: { key: 'modbus.exception.gatewayPathUnavailable', zh: '网关路径不可用' },
+  11: { key: 'modbus.exception.gatewayTargetNoResponse', zh: '网关目标无响应' },
 };
 
-function parseModbusException(errMsg: string): string | null {
+type TFunc = (key: string, defaultValue: string) => string;
+
+function parseModbusException(errMsg: string, t: TFunc): string | null {
   const match = errMsg.match(/exception\s+(?:code\s+)?(?:0x)?([0-9a-fA-F]+)/i)
     || errMsg.match(/error\s+(?:code\s+)?(?:0x)?([0-9a-fA-F]+)/i)
     || errMsg.match(/(?:code|exception)[:\s]+(?:0x)?([0-9a-fA-F]+)/i);
   if (match) {
     const code = parseInt(match[1], 16) || parseInt(match[1], 10);
-    return MODBUS_EXCEPTION_CODES[code] ?? null;
+    const desc = MODBUS_EXCEPTION_CODES[code];
+    return desc ? t(desc.key, desc.zh) : null;
   }
   // Try scanning for bare numbers 1-11
   for (const [code, desc] of Object.entries(MODBUS_EXCEPTION_CODES)) {
     if (errMsg.includes(`(${code})`) || errMsg.includes(` ${code} `) || errMsg.endsWith(` ${code}`)) {
-      return desc;
+      return t(desc.key, desc.zh);
     }
   }
   return null;
@@ -543,11 +546,14 @@ function ModbusResponseTable({
           </span>
         </div>
         <div className="flex flex-1 items-center justify-center px-6 text-center">
-          <div className="space-y-2">
+          <div className="max-w-sm">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border-default/60 bg-bg-secondary/60">
+              <Cpu className="h-5 w-5 text-text-disabled" />
+            </div>
             <div className="pf-text-sm font-semibold text-text-secondary">
               {t('serial.modbus.noResponseYet', '还没有响应数据')}
             </div>
-            <div className="pf-text-xs text-text-disabled">
+            <div className="mt-1.5 pf-text-xs leading-5 text-text-tertiary">
               {t('serial.modbus.noResponseHint', '先在左侧配置功能码并执行，请求结果会在这里展示寄存器、十六进制和解析值。')}
             </div>
           </div>
@@ -570,7 +576,7 @@ function ModbusResponseTable({
     : [];
 
   const exceptionHint = !transaction.success && transaction.error
-    ? parseModbusException(transaction.error)
+    ? parseModbusException(transaction.error, t)
     : null;
 
   const DATA_TYPE_OPTIONS: { value: ModbusDataType; label: string }[] = [
@@ -609,12 +615,12 @@ function ModbusResponseTable({
             </div>
           )}
           {transaction.success ? (
-            <span className="flex items-center gap-1 pf-text-xxs text-emerald-500 dark:text-emerald-300">
+            <span className="flex items-center gap-1 pf-text-xxs text-success">
               <CheckCircle2 className="w-3 h-3" />
               {formatDuration(transaction.durationMs)}
             </span>
           ) : (
-            <span className="flex items-center gap-1 pf-text-xxs text-red-500 dark:text-red-300">
+            <span className="flex items-center gap-1 pf-text-xxs text-error">
               <AlertCircle className="w-3 h-3" />
               {transaction.error}
             </span>
@@ -623,9 +629,9 @@ function ModbusResponseTable({
       </div>
 
       {exceptionHint && (
-        <div className="px-3 py-1.5 border-b border-red-500/20 bg-red-500/5 flex items-center gap-2 pf-text-xxs">
-          <AlertCircle className="w-3 h-3 text-red-400 shrink-0" />
-          <span className="text-red-400 font-medium">{t('serial.modbus.exceptionDesc', 'Modbus 异常')}: {exceptionHint}</span>
+        <div className="px-3 py-1.5 border-b border-error/20 bg-error/5 flex items-center gap-2 pf-text-xxs">
+          <AlertCircle className="w-3 h-3 text-error shrink-0" />
+          <span className="text-error font-medium">{t('serial.modbus.exceptionDesc', 'Modbus 异常')}: {exceptionHint}</span>
         </div>
       )}
 
@@ -667,7 +673,7 @@ function ModbusResponseTable({
                   <td className="px-3 py-1.5 text-text-secondary">
                     {row.address} (0x{row.address.toString(16).toUpperCase().padStart(4, "0")})
                   </td>
-                  <td className={cn("px-3 py-1.5 font-medium", isCoil && (row.value ? "text-emerald-500 dark:text-emerald-300" : "text-text-tertiary"))}>
+                  <td className={cn("px-3 py-1.5 font-medium", isCoil && (row.value ? "text-success" : "text-text-tertiary"))}>
                     {isCoil ? (row.value ? "ON" : "OFF") : row.value}
                   </td>
                   {!isCoil && (
@@ -681,7 +687,7 @@ function ModbusResponseTable({
                     </td>
                   )}
                   {!isCoil && decodedValues.length > 0 && (
-                    <td className={cn("px-3 py-1.5 tabular-nums", decodedValues[i] === '↑' ? "text-border-default/60" : "text-accent font-medium")}>
+                    <td className={cn("px-3 py-1.5 tabular-nums", decodedValues[i] === '↑' ? "text-text-disabled" : "text-accent font-medium")}>
                       {decodedValues[i]}
                     </td>
                   )}
@@ -691,9 +697,9 @@ function ModbusResponseTable({
           </table>
         </div>
       ) : transaction.error ? (
-        <div className="px-3 py-4 pf-text-sm text-red-400 text-center">{transaction.error}</div>
+        <div className="px-3 py-4 pf-text-sm text-error text-center">{transaction.error}</div>
       ) : resp?.writeCount !== undefined ? (
-        <div className="px-3 py-3 pf-text-sm text-emerald-500 dark:text-emerald-300 text-center">
+        <div className="px-3 py-3 pf-text-sm text-success text-center">
           ✓ {t('serial.modbus.wrote', '已写入')} {resp.writeCount} {t('serial.modbus.registers', '个寄存器')}
         </div>
       ) : null}
@@ -722,8 +728,16 @@ function ModbusTransactionLog({
 
   if (transactions.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center pf-text-sm text-text-disabled">
-        {t('serial.modbus.noTransactions', '暂无事务记录')}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
+        <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-border-default/60 bg-bg-secondary/60">
+          <Cpu className="h-5 w-5 text-text-disabled" />
+        </div>
+        <p className="pf-text-sm font-semibold text-text-secondary">
+          {t('serial.modbus.noTransactions', '暂无事务记录')}
+        </p>
+        <p className="mt-1 pf-text-xxs text-text-tertiary">
+          {t('serial.modbus.noResponseHint', '先在左侧配置功能码并执行，请求结果会在这里展示寄存器、十六进制和解析值。')}
+        </p>
       </div>
     );
   }
@@ -736,15 +750,15 @@ function ModbusTransactionLog({
           className={cn(
             "mx-1 pf-rounded-sm border px-3 py-2 pf-text-xs font-mono",
             tx.success
-              ? "border-emerald-500/20 bg-emerald-500/5"
-              : "border-red-500/20 bg-red-500/5"
+              ? "border-success/20 bg-success/5"
+              : "border-error/20 bg-error/5"
           )}
         >
           <div className="flex items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-2">
               {tx.success
-                ? <CheckCircle2 className="w-3 h-3 text-emerald-500 dark:text-emerald-300 shrink-0" />
-                : <AlertCircle className="w-3 h-3 text-red-500 dark:text-red-300 shrink-0" />}
+                ? <CheckCircle2 className="w-3 h-3 text-success shrink-0" />
+                : <AlertCircle className="w-3 h-3 text-error shrink-0" />}
               <span className="font-semibold text-text-primary">
                 {t(FC_I18N_KEY[tx.functionCode], `FC${String(tx.functionCode).padStart(2, "0")}`)}
               </span>
@@ -772,7 +786,7 @@ function ModbusTransactionLog({
             </div>
           )}
           {tx.error && (
-            <div className="mt-0.5 text-red-400">{tx.error}</div>
+            <div className="mt-0.5 text-error">{tx.error}</div>
           )}
         </div>
       ))}
@@ -1161,11 +1175,11 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                             key={r.unitId}
                             className={cn(
                               "flex items-center gap-2 pf-rounded-sm px-2.5 py-2 pf-text-xxs font-mono",
-                              r.ok ? "bg-emerald-500/5 text-emerald-600 dark:text-emerald-300" : "bg-bg-secondary/20 text-text-disabled"
+                              r.ok ? "bg-success/5 text-success" : "bg-bg-secondary/20 text-text-disabled"
                             )}
                           >
                             {r.ok
-                              ? <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-500 dark:text-emerald-300" />
+                              ? <CheckCircle2 className="h-3 w-3 shrink-0 text-success" />
                               : <span className="h-3 w-3 shrink-0" />}
                             <span className="font-semibold">UID {r.unitId}</span>
                             <span className="text-text-disabled">{r.ms}ms</span>
@@ -1233,8 +1247,9 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                     <div className="pf-text-3xs uppercase tracking-[0.08em] text-text-disabled">
                       {t('tcp.sidebar.connection', '连接设置')}
                     </div>
-                    <div className={cn("mt-1 pf-text-xs font-semibold", connected ? "text-emerald-600 dark:text-emerald-400" : "text-text-secondary")}>
-                      {statusText}
+                    <div className={cn("mt-1 flex items-center gap-1.5 pf-text-xs font-semibold", connected ? "text-success" : connecting ? "text-warning" : "text-text-secondary")}>
+                      <span className={cn("pf-dot", connected ? (pollingEnabled ? "s-run" : "s-live") : connecting ? "s-conn" : "s-idle")} />
+                      <span className="truncate">{statusText}</span>
                     </div>
                   </div>
                   <div className="pf-rounded-md border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
@@ -1257,7 +1272,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                     <div className="pf-text-3xs uppercase tracking-[0.08em] text-text-disabled">
                       {t('serial.modbus.successRate', '成功')}
                     </div>
-                    <div className={cn("mt-1 pf-text-xs font-semibold", successCount === transactions.length && transactions.length > 0 ? "text-emerald-500 dark:text-emerald-300" : "text-text-secondary")}>
+                    <div className={cn("mt-1 pf-text-xs font-semibold", successCount === transactions.length && transactions.length > 0 ? "text-success" : "text-text-secondary")}>
                       {successCount} / {transactions.length}
                     </div>
                   </div>
@@ -1265,19 +1280,31 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
 
                 {lastTransaction ? (
                   <div className="pf-rounded-md border border-border-default/60 bg-bg-secondary/20 px-3 py-2.5">
-                    <div className="pf-text-3xs uppercase tracking-[0.08em] text-text-disabled">
-                      {t('serial.modbus.lastTransaction', '最近请求')}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="pf-text-3xs uppercase tracking-[0.08em] text-text-disabled">
+                        {t('serial.modbus.lastTransaction', '最近请求')}
+                      </div>
+                      <span className={cn("pf-pill", lastTransaction.success ? "ok" : "err")}>
+                        {lastTransaction.success
+                          ? <CheckCircle2 className="h-3 w-3" />
+                          : <AlertCircle className="h-3 w-3" />}
+                        {lastTransaction.success ? formatDuration(lastTransaction.durationMs) : t('serial.modbus.exceptionDesc', 'Modbus 异常')}
+                      </span>
                     </div>
-                    <div className="mt-1 pf-text-xs font-semibold text-text-primary">
-                      {t(FC_I18N_KEY[lastTransaction.functionCode], `FC${String(lastTransaction.functionCode).padStart(2, "0")}`)}
+                    <div className="mt-1.5">
+                      <span className="pf-pill acc">
+                        {t(FC_I18N_KEY[lastTransaction.functionCode], `FC${String(lastTransaction.functionCode).padStart(2, "0")}`)}
+                      </span>
                     </div>
-                    <div className="mt-1 pf-text-xxs text-text-tertiary">
+                    <div className="mt-1.5 pf-text-xxs text-text-tertiary">
                       UID {lastTransaction.unitId} · Addr {lastTransaction.startAddress}
                       {lastTransaction.quantity > 1 ? ` × ${lastTransaction.quantity}` : ""}
                     </div>
-                    <div className={cn("mt-1 pf-text-xxs", lastTransaction.success ? "text-emerald-500 dark:text-emerald-300" : "text-red-500 dark:text-red-300")}>
-                      {lastTransaction.success ? t('serial.modbus.execute', '执行') : lastTransaction.error}
-                    </div>
+                    {!lastTransaction.success && lastTransaction.error ? (
+                      <div className="mt-1 pf-text-xxs text-error break-words">
+                        {lastTransaction.error}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -1327,14 +1354,20 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
       {!compact ? (
         <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/50 border-t border-border-default/50 pf-text-xs font-medium shrink-0 select-none">
         <div className="flex items-center gap-1.5">
-          <div className={cn(
-            "w-1.5 h-1.5 rounded-full transition-colors",
-            connected ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : "bg-text-disabled"
-          )} />
-          <span className={cn("transition-colors", connected ? "text-emerald-600 dark:text-emerald-400" : "text-text-tertiary")}>
+          <span className={cn("pf-dot", connected ? (pollingEnabled ? "s-run" : "s-live") : connecting ? "s-conn" : "s-idle")} />
+          <span className={cn("transition-colors", connected ? "text-success" : connecting ? "text-warning" : "text-text-tertiary")}>
             {statusText}
           </span>
         </div>
+        {connected && pollingEnabled ? (
+          <>
+            <div className="w-[1px] h-3 bg-border-default" />
+            <span className="pf-pill warn">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {t('serial.modbus.polling', '轮询')} · {pollingInterval}ms
+            </span>
+          </>
+        ) : null}
         <div className="w-[1px] h-3 bg-border-default" />
         <span className="text-text-tertiary">
           {t('serial.modbus.transport', '传输方式')}: {transport.toUpperCase()}
@@ -1346,7 +1379,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
         {transactions.length > 0 && (
           <>
             <div className="w-[1px] h-3 bg-border-default" />
-            <span className={cn("font-medium", successCount === transactions.length ? "text-emerald-500 dark:text-emerald-300" : "text-amber-500 dark:text-amber-300")}>
+            <span className={cn("font-medium", successCount === transactions.length ? "text-success" : "text-warning")}>
               ✓ {successCount} / {transactions.length}
             </span>
           </>

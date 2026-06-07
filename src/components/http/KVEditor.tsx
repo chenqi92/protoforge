@@ -290,7 +290,7 @@ export function KVEditor({ items, onChange, kp, vp, showPresets, showAutoToggle,
             <button type="button" className="editor-table-banner-toggle" onClick={() => setShowAuto(!showAuto)}>
               {showAuto ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               <span className="font-medium">{autoCount} auto headers</span>
-              <span className="text-text-disabled">{showAuto ? '点击隐藏' : '点击展示默认请求头'}</span>
+              <span className="text-text-disabled">{showAuto ? t('http.autoHeaders.hide', '点击隐藏') : t('http.autoHeaders.show', '点击展示默认请求头')}</span>
             </button>
           </div>
         )}
@@ -516,7 +516,7 @@ export function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; 
                   <div className={cn("flex items-start w-full min-h-[34px]", !field.enabled && "editor-table-muted")}>
                     <button onClick={() => handleFilePick(i)}
                       className="shrink-0 h-[34px] px-2 flex items-center gap-1 bg-transparent pf-text-xs cursor-pointer hover:bg-bg-hover transition-colors rounded"
-                      title={getFilePaths(field).length > 0 ? "添加更多文件" : t('http.selectFile')}>
+                      title={getFilePaths(field).length > 0 ? t('http.formData.addMoreFiles', '添加更多文件') : t('http.selectFile')}>
                       <Upload className="w-3 h-3 text-text-disabled shrink-0" />
                       <span className="text-text-tertiary whitespace-nowrap">{getFilePaths(field).length > 0 ? "+" : t('http.selectFile')}</span>
                     </button>
@@ -532,8 +532,8 @@ export function FormDataEditor({ fields, onChange }: { fields: FormDataField[]; 
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); handleRemoveFile(i, fi); }}
-                              className="shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-red-500/15 hover:text-red-500 dark:text-red-300 text-text-disabled transition-colors"
-                              title={`移除 ${name}`}
+                              className="shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-error/15 hover:text-error text-text-disabled transition-colors"
+                              title={t('http.formData.removeFile', { name, defaultValue: '移除 {{name}}' })}
                             >
                               <X className="w-2.5 h-2.5" />
                             </button>

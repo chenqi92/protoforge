@@ -146,17 +146,17 @@ function formatTimeRemaining(ms: number): string {
 }
 
 const statusStyles: Record<TokenStatus, string> = {
-  valid: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20",
-  expiring: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/20",
-  expired: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20",
+  valid: "bg-success/10 text-success border-success/20",
+  expiring: "bg-warning/10 text-warning border-warning/20",
+  expired: "bg-error/10 text-error border-error/20",
   none: "bg-bg-tertiary text-text-disabled border-border-default",
 };
 
 const statusDotColor: Record<TokenStatus, string> = {
-  valid: "bg-emerald-500",
-  expiring: "bg-amber-500 animate-pulse",
-  expired: "bg-red-500",
-  none: "bg-gray-400",
+  valid: "bg-success",
+  expiring: "bg-warning animate-pulse",
+  expired: "bg-error",
+  none: "bg-text-disabled",
 };
 
 /* ── OAuth 2.0 Panel ── */
@@ -470,7 +470,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
             </span>
           )}
           {tokenMeta?.tokenType && (
-            <span className="px-1.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded pf-text-xxs font-medium">
+            <span className="px-1.5 py-0.5 bg-info/10 text-info rounded pf-text-xxs font-medium">
               {tokenMeta.tokenType}
             </span>
           )}
@@ -510,7 +510,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
               className={cn(
                 "px-3 py-1.5 pf-text-xs font-medium rounded-lg border transition-all flex items-center gap-1.5",
                 refreshing
-                  ? "border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300 cursor-wait"
+                  ? "border-warning/30 bg-warning/10 text-warning cursor-wait"
                   : "border-border-default bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary"
               )}
             >
@@ -523,7 +523,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
           {config.accessToken && (
             <button
               onClick={handleClearToken}
-              className="px-3 py-1.5 pf-text-xs font-medium rounded-lg border border-border-default bg-bg-secondary hover:bg-red-50 dark:hover:bg-red-500/10 text-text-secondary hover:text-red-600 dark:text-red-300 transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 pf-text-xs font-medium rounded-lg border border-border-default bg-bg-secondary hover:bg-error/10 text-text-secondary hover:text-error transition-all flex items-center gap-1.5"
             >
               <Trash2 className="w-3 h-3" />
               {t('http.oauth2.clearToken')}
@@ -533,7 +533,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
 
         {/* Authorizing hint */}
         {authorizing && (
-          <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 pf-text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
+          <div className="p-2.5 rounded-lg bg-info/10 border border-info/20 pf-text-xs text-info flex items-center gap-2">
             <svg className="w-4 h-4 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3" strokeLinecap="round" strokeLinejoin="round"/></svg>
             {t('http.oauth2.authorizingHint')}
           </div>
@@ -541,7 +541,7 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
 
         {/* Error */}
         {error && (
-          <div className="p-2.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 pf-text-xs text-red-600 dark:text-red-400 break-all">
+          <div className="p-2.5 rounded-lg bg-error/10 border border-error/20 pf-text-xs text-error break-all">
             {error}
           </div>
         )}

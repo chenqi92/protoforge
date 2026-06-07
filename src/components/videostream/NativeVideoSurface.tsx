@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import {
   Camera,
@@ -18,6 +19,7 @@ interface NativeVideoSurfaceProps {
   onError?: (msg: string) => void;
   onReady?: () => void;
   onStop?: () => void;
+  onPlayingChange?: (playing: boolean) => void;
   liveMode?: boolean;
 }
 
@@ -88,12 +90,19 @@ function preferredRecorderMimeType(): string | undefined {
   return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
 }
 
-export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, liveMode = true }: NativeVideoSurfaceProps) {
+export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, onPlayingChange, liveMode = true }: NativeVideoSurfaceProps) {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordChunksRef = useRef<Blob[]>([]);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlayingState] = useState(false);
+  const onPlayingChangeRef = useRef(onPlayingChange);
+  onPlayingChangeRef.current = onPlayingChange;
+  const setPlaying = useCallback((next: boolean) => {
+    setPlayingState(next);
+    onPlayingChangeRef.current?.(next);
+  }, []);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(80);
   const [loading, setLoading] = useState(false);
@@ -136,7 +145,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
 
     const setupNativePlayback = () => {
       setLoading(true);
-      setStatus("加载 HLS...");
+      setStatus(t('video.surface.loadingHls', '加载 HLS...'));
       video.src = hlsUrl;
       const onLoaded = () => {
         setLoading(false);
@@ -148,7 +157,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
       };
       const onNativeError = () => {
         setLoading(false);
-        onErrorRef.current?.("HLS: 浏览器原生播放失败");
+        onErrorRef.current?.(t('video.surface.hlsNativeFailed', 'HLS: 浏览器原生播放失败'));
       };
       video.addEventListener("loadedmetadata", onLoaded);
       video.addEventListener("error", onNativeError);
@@ -172,7 +181,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
           });
           hlsRef.current = hls;
           setLoading(true);
-          setStatus("加载 HLS...");
+          setStatus(t('video.surface.loadingHls', '加载 HLS...'));
           hls.loadSource(hlsUrl);
           hls.attachMedia(video);
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -206,7 +215,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
       }
 
       setLoading(false);
-      onErrorRef.current?.("HLS: 当前运行环境不支持 hls.js 或原生 HLS");
+      onErrorRef.current?.(t('video.surface.hlsUnsupported', 'HLS: 当前运行环境不支持 hls.js 或原生 HLS'));
     };
 
     void setupHlsPlayback();
@@ -215,7 +224,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
       disposed = true;
       cleanup?.();
     };
-  }, [isHls, notifyReady, url]);
+  }, [isHls, notifyReady, t, url]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -233,7 +242,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
     let playAttempted = false;
 
     setLoading(true);
-    setStatus("等待流数据...");
+    setStatus(t('video.surface.waitingStream', '等待流数据...'));
 
     function trimBufferedRanges() {
       if (!sourceBuffer || sourceBuffer.updating || !video || video.buffered.length === 0) return;
@@ -292,10 +301,10 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
               pendingBuffers.unshift(chunk);
             }
           } catch {
-            onErrorRef.current?.(`MSE append 失败: ${String(error)}`);
+            onErrorRef.current?.(t('video.surface.mseAppendFailed', 'MSE append 失败: {{error}}', { error: String(error) }));
           }
         } else {
-          onErrorRef.current?.(`MSE append 失败: ${String(error)}`);
+          onErrorRef.current?.(t('video.surface.mseAppendFailed', 'MSE append 失败: {{error}}', { error: String(error) }));
         }
       }
     }
@@ -329,7 +338,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
         setStatus(`${codec.toUpperCase()} ${width > 0 ? `${width}x${height}` : ""}${hasAudio ? " 🔊" : ""}`);
 
         if (!MediaSource.isTypeSupported(mime)) {
-          onErrorRef.current?.(`浏览器不支持编码: ${mime}`);
+          onErrorRef.current?.(t('video.surface.codecUnsupported', '浏览器不支持编码: {{mime}}', { mime }));
           setLoading(false);
           return;
         }
@@ -353,10 +362,10 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
             });
             sourceBufferReady = true;
             setLoading(false);
-            setStatus("缓冲中...");
+            setStatus(t('video.surface.buffering', '缓冲中...'));
             flushPending();
           } catch (error) {
-            onErrorRef.current?.(`MSE 错误: ${String(error)}`);
+            onErrorRef.current?.(t('video.surface.mseError', 'MSE 错误: {{error}}', { error: String(error) }));
             setLoading(false);
           }
         });
@@ -388,7 +397,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
         }
 
         if (pendingBuffers.length > 120) {
-          setStatus("前端缓冲繁忙，正在追赶实时流...");
+          setStatus(t('video.surface.bufferBusy', '前端缓冲繁忙，正在追赶实时流...'));
         }
       });
 
@@ -413,7 +422,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
       video.load();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [isTauri, liveMode, notifyReady, playbackRate, sessionId, url, volume]);
+  }, [isTauri, liveMode, notifyReady, playbackRate, sessionId, t, url, volume]);
 
   const handlePlayPause = useCallback(() => {
     const video = videoRef.current;
@@ -448,7 +457,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
   const handleScreenshot = useCallback(() => {
     const video = videoRef.current;
     if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-      onErrorRef.current?.("当前没有可截图的视频帧。");
+      onErrorRef.current?.(t('video.surface.noFrameToCapture', '当前没有可截图的视频帧。'));
       return;
     }
 
@@ -457,24 +466,24 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
     canvas.height = video.videoHeight || video.clientHeight;
     const context = canvas.getContext("2d");
     if (!context) {
-      onErrorRef.current?.("截图失败：无法创建画布上下文。");
+      onErrorRef.current?.(t('video.surface.captureNoContext', '截图失败：无法创建画布上下文。'));
       return;
     }
 
     try {
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
     } catch (error) {
-      onErrorRef.current?.(`截图失败: ${String(error)}`);
+      onErrorRef.current?.(t('video.surface.captureFailed', '截图失败: {{error}}', { error: String(error) }));
       return;
     }
     canvas.toBlob((blob) => {
       if (!blob) {
-        onErrorRef.current?.("截图失败：生成图片数据为空。");
+        onErrorRef.current?.(t('video.surface.captureEmpty', '截图失败：生成图片数据为空。'));
         return;
       }
-      triggerDownload(blob, screenshotFileName()).catch((e) => onErrorRef.current?.(`保存截图失败: ${String(e)}`));
+      triggerDownload(blob, screenshotFileName()).catch((e) => onErrorRef.current?.(t('video.surface.captureSaveFailed', '保存截图失败: {{error}}', { error: String(e) })));
     }, "image/png");
-  }, []);
+  }, [t]);
 
   const handleToggleRecording = useCallback(() => {
     const video = videoRef.current;
@@ -488,14 +497,14 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
     const capturableVideo = video as CapturableVideoElement;
     const createCaptureStream = capturableVideo.captureStream ?? capturableVideo.mozCaptureStream;
     if (typeof createCaptureStream !== "function") {
-      onErrorRef.current?.("当前运行环境不支持录制视频。");
+      onErrorRef.current?.(t('video.surface.recordUnsupported', '当前运行环境不支持录制视频。'));
       return;
     }
 
     const mediaStream = createCaptureStream.call(capturableVideo);
     const mimeType = preferredRecorderMimeType();
     if (!mimeType) {
-      onErrorRef.current?.("当前运行环境不支持 MediaRecorder。");
+      onErrorRef.current?.(t('video.surface.recorderUnsupported', '当前运行环境不支持 MediaRecorder。'));
       return;
     }
 
@@ -510,20 +519,20 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
       };
       recorder.onstart = () => {
         setRecording(true);
-        setStatus("录制中...");
+        setStatus(t('video.surface.recording', '录制中...'));
       };
       recorder.onstop = () => {
         setRecording(false);
         setStatus("");
         const blob = new Blob(recordChunksRef.current, { type: mimeType });
-        triggerDownload(blob, recordingFileName()).catch((e) => onErrorRef.current?.(`保存录制失败: ${String(e)}`));
+        triggerDownload(blob, recordingFileName()).catch((e) => onErrorRef.current?.(t('video.surface.recordSaveFailed', '保存录制失败: {{error}}', { error: String(e) })));
         recordChunksRef.current = [];
       };
       recorder.start(1000);
     } catch (error) {
-      onErrorRef.current?.(`启动录制失败: ${String(error)}`);
+      onErrorRef.current?.(t('video.surface.recordStartFailed', '启动录制失败: {{error}}', { error: String(error) }));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => () => {
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -534,9 +543,12 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
   if (!url) {
     return (
       <div className="h-full w-full bg-black pf-rounded-md overflow-hidden flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2 text-white/30">
-          <Play className="w-6 h-6" />
-          <span className="pf-text-xxs">获取流地址后播放</span>
+        <div className="flex flex-col items-center gap-2 px-6 text-center text-white/40">
+          <div className="mb-1 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-white/10 bg-white/5">
+            <Play className="h-6 w-6 text-white/40" />
+          </div>
+          <span className="pf-text-sm font-medium text-white/70">{t('video.surface.emptyTitle', '获取流地址后播放')}</span>
+          <span className="pf-text-xxs text-white/35">{t('video.surface.emptyHint', '等待信号 · no signal')}</span>
         </div>
       </div>
     );
@@ -612,16 +624,16 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
         <button
           onClick={handleScreenshot}
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors"
-          title="截图"
+          title={t('video.surface.screenshot', '截图')}
         >
           <Camera className="w-3 h-3" />
         </button>
         <button
           onClick={handleToggleRecording}
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors"
-          title={recording ? "停止录制" : "开始录制"}
+          title={recording ? t('video.surface.stopRecording', '停止录制') : t('video.surface.startRecording', '开始录制')}
         >
-          <Circle className={`w-3 h-3 ${recording ? "fill-red-500 text-red-500 dark:text-red-300" : ""}`} />
+          <Circle className={`w-3 h-3 ${recording ? "fill-error text-error" : ""}`} />
         </button>
         <div className="flex-1" />
         {status && !loading && <span className="pf-text-3xs text-white/40 font-mono">{status}</span>}

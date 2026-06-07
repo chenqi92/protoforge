@@ -70,17 +70,17 @@ export function CellDetailDialog({ value, column, rowIndex, onClose }: CellDetai
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[var(--z-modal,50)] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[var(--z-modal,200)] flex items-center justify-center bg-[rgba(20,28,40,0.34)] dark:bg-[rgba(5,6,8,0.62)] backdrop-blur-[2px]" onClick={onClose}>
       <div
-        className="flex flex-col w-[680px] max-w-[90vw] h-[520px] max-h-[80vh] bg-bg-surface border border-border-default rounded-xl shadow-2xl overflow-hidden"
+        className="flex flex-col w-[680px] max-w-[90vw] h-[520px] max-h-[80vh] bg-bg-elevated border border-border-strong pf-rounded-lg shadow-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 头部 */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default/50 shrink-0">
+        {/* 头部 — .modal-head 14px 18px */}
+        <div className="flex items-center justify-between px-[18px] py-3.5 border-b border-border-default shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="pf-text-sm font-medium text-text-primary truncate">{column.name}</span>
-            <span className="pf-text-xs text-text-quaternary font-mono">{column.dataType}</span>
-            <span className="pf-text-xs text-text-quaternary">#{rowIndex + 1}</span>
+            <span className="pf-text-md font-semibold text-text-primary truncate">{column.name}</span>
+            <span className="pf-text-xs text-text-disabled font-mono">{column.dataType}</span>
+            <span className="pf-text-xs text-text-disabled tabular-nums">#{rowIndex + 1}</span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {canFormatJson && (
@@ -89,7 +89,7 @@ export function CellDetailDialog({ value, column, rowIndex, onClose }: CellDetai
                 className={cn(
                   "flex items-center gap-1 px-2 py-1 pf-rounded-sm pf-text-xs transition-colors",
                   formatted
-                    ? "bg-accent/15 text-accent"
+                    ? "bg-accent-soft text-accent"
                     : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",
                 )}
                 title={t("dbClient.formatJson")}
@@ -103,7 +103,7 @@ export function CellDetailDialog({ value, column, rowIndex, onClose }: CellDetai
               className="flex items-center gap-1 px-2 py-1 pf-rounded-sm pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors"
               title={t("dbClient.copyCell")}
             >
-              {copied ? <Check size={12} className="text-emerald-500 dark:text-emerald-300" /> : <Copy size={12} />}
+              {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
               <span>{copied ? t("dbClient.copied") : t("dbClient.copyCell")}</span>
             </button>
             <button
@@ -119,7 +119,7 @@ export function CellDetailDialog({ value, column, rowIndex, onClose }: CellDetai
         <div className="flex-1 min-h-0">
           {isNull ? (
             <div className="flex items-center justify-center h-full">
-              <span className="italic text-text-quaternary pf-text-base">NULL</span>
+              <span className="italic text-text-disabled pf-text-base font-mono">NULL</span>
             </div>
           ) : (
             <CodeEditor
@@ -131,11 +131,11 @@ export function CellDetailDialog({ value, column, rowIndex, onClose }: CellDetai
         </div>
 
         {/* 底部状态 */}
-        <div className="flex items-center justify-between px-4 py-1.5 border-t border-border-default/50 shrink-0">
-          <span className="pf-text-xs text-text-quaternary">
+        <div className="flex items-center justify-between px-4 py-1.5 border-t border-border-default shrink-0">
+          <span className="pf-text-xs text-text-disabled tabular-nums">
             {isNull ? "NULL" : `${rawText.length} ${t("dbClient.characters")}`}
           </span>
-          <span className="pf-text-xs text-text-quaternary">{value.type}</span>
+          <span className="pf-text-xs text-text-disabled font-mono">{value.type}</span>
         </div>
       </div>
     </div>

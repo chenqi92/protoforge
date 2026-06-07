@@ -2,19 +2,23 @@ import { useMemo, useState } from "react";
 import {
   type LucideIcon,
   Settings,
+  Sliders,
   Globe,
   Send,
   Shield,
+  Command,
   Database,
+  Info,
   RotateCcw,
   Sun,
   Moon,
   Monitor,
   X,
-  ChevronRight,
+  Search,
   RefreshCw,
   Download,
   CheckCircle,
+  Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -38,45 +42,24 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SectionId = "general" | "request" | "proxy" | "data";
+type SectionId = "appearance" | "general" | "request" | "proxy" | "shortcuts" | "data" | "about";
 
 type SectionMeta = {
   id: SectionId;
-  labelKey: string;
-  descKey: string;
+  label: string; // zh / en inline fallback when no i18n key
+  labelKey?: string;
   icon: LucideIcon;
-  accentClassName: string;
 };
 
+// Forge accent classes for the active section icon (replaces hardcoded palette)
 const sections: SectionMeta[] = [
-  {
-    id: "general",
-    labelKey: "settings.sections.general",
-    descKey: "settings.sections.generalDesc",
-    icon: Globe,
-    accentClassName: "bg-blue-500/10 text-blue-600 dark:text-blue-300 ring-1 ring-inset ring-blue-500/15",
-  },
-  {
-    id: "request",
-    labelKey: "settings.sections.request",
-    descKey: "settings.sections.requestDesc",
-    icon: Send,
-    accentClassName: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/15",
-  },
-  {
-    id: "proxy",
-    labelKey: "settings.sections.proxy",
-    descKey: "settings.sections.proxyDesc",
-    icon: Shield,
-    accentClassName: "bg-amber-500/10 text-amber-600 dark:text-amber-300 ring-1 ring-inset ring-amber-500/15",
-  },
-  {
-    id: "data",
-    labelKey: "settings.sections.data",
-    descKey: "settings.sections.dataDesc",
-    icon: Database,
-    accentClassName: "bg-violet-500/10 text-violet-600 dark:text-violet-300 ring-1 ring-inset ring-violet-500/15",
-  },
+  { id: "appearance", label: "外观", labelKey: "settings.sections.appearance", icon: Sliders },
+  { id: "general", label: "通用", labelKey: "settings.sections.general", icon: Globe },
+  { id: "request", label: "请求", labelKey: "settings.sections.request", icon: Send },
+  { id: "proxy", label: "代理", labelKey: "settings.sections.proxy", icon: Shield },
+  { id: "shortcuts", label: "快捷键", labelKey: "settings.sections.shortcuts", icon: Command },
+  { id: "data", label: "数据与存储", labelKey: "settings.sections.data", icon: Database },
+  { id: "about", label: "关于", labelKey: "settings.sections.about", icon: Info },
 ];
 
 const inputClassName =
@@ -87,10 +70,21 @@ const selectContentClassName =
   "p-1";
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const [section, setSection] = useState<SectionId>("general");
+  const [section, setSection] = useState<SectionId>("appearance");
+  const [query, setQuery] = useState("");
   const { settings, update, reset } = useSettingsStore();
   const { setMode } = useThemeStore();
   const { t } = useTranslation();
+
+  // section label resolver: prefer i18n key, fall back to the inline zh label
+  const sectionLabel = (item: SectionMeta) => (item.labelKey ? t(item.labelKey) : item.label);
+
+  const visibleSections = useMemo(() => {
+    if (!query.trim()) return sections;
+    const q = query.toLowerCase();
+    return sections.filter((item) => sectionLabel(item).toLowerCase().includes(q));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, t]);
 
   const currentSection = useMemo(
     () => sections.find((item) => item.id === section) ?? sections[0],
@@ -121,30 +115,34 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       }}
     >
       <DialogContent
-        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden pf-rounded-xl border border-border-default bg-bg-primary p-0 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)] sm:max-w-[920px]"
+        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden pf-rounded-xl border border-border-strong bg-bg-elevated p-0 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)] sm:max-w-[920px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
 
         <div className="flex h-full min-h-0 flex-1 flex-col">
-          <div className="flex shrink-0 items-center justify-between border-b border-border-default/80 px-6 py-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center pf-rounded-xl bg-accent">
-                <Settings className="h-5 w-5 text-white" />
+          {/* Header — title + settings search box */}
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-default px-5 py-3.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-8 w-8 items-center justify-center pf-rounded-md bg-accent shrink-0">
+                <Settings className="h-4 w-4 text-white" />
               </div>
-
-              <div className="min-w-0">
-                <p className="pf-text-xl font-semibold tracking-tight text-text-primary">{t('settings.title')}</p>
-                <p className="mt-1 pf-text-sm leading-5 text-text-secondary">
-                  {t('settings.subtitle')}
-                </p>
-              </div>
+              <p className="pf-text-md font-semibold tracking-tight text-text-primary truncate">{t('settings.title')}</p>
             </div>
 
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 h-8 px-2.5 pf-rounded-md bg-bg-secondary border border-border-default text-text-tertiary focus-within:border-accent/50 transition-colors">
+                <Search className="h-3.5 w-3.5 shrink-0" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t('settings.searchPlaceholder', { defaultValue: '搜索设置…' })}
+                  className="w-32 bg-transparent pf-text-xs text-text-primary placeholder:text-text-disabled outline-none"
+                />
+              </div>
               <button
                 onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center pf-rounded-lg text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                className="flex h-8 w-8 items-center justify-center pf-rounded-md text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="h-4 w-4" />
                 <span className="sr-only">{t('settings.close')}</span>
@@ -152,108 +150,83 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </div>
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)]">
-            <aside className="flex min-h-0 flex-col border-r border-border-default/80 bg-bg-secondary/60 dark:bg-white/[0.02]">
-              <div className="shrink-0 px-4 pb-3 pt-4">
-                <p className="pf-text-xxs font-semibold uppercase tracking-[0.18em] text-text-disabled">
-                  {t('settings.categoryNav')}
-                </p>
-                <p className="mt-2 pf-text-xs leading-5 text-text-tertiary">
-                  {t('settings.categoryNavDesc')}
-                </p>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-                <div className="space-y-1.5">
-                {sections.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = item.id === section;
-
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => setSection(item.id)}
-                      className={cn(
-                        "group flex w-full items-center gap-3 pf-rounded-xl px-3.5 py-3 text-left transition-all",
-                        isActive
-                          ? "bg-bg-primary/86 shadow-xs ring-1 ring-border-default"
-                          : "text-text-tertiary hover:bg-bg-primary/68 hover:text-text-primary"
-                      )}
-                    >
-                      <div
+          <div className="grid min-h-0 flex-1 grid-cols-[188px_minmax(0,1fr)]">
+            {/* Nav — dense tree-row list */}
+            <aside className="flex min-h-0 flex-col border-r border-border-default bg-bg-secondary/40">
+              <div className="min-h-0 flex-1 overflow-y-auto p-2">
+                <div className="space-y-0.5">
+                  {visibleSections.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = item.id === section;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setSection(item.id)}
                         className={cn(
-                          "flex h-9 w-9 shrink-0 items-center justify-center pf-rounded-lg transition-colors",
-                          isActive ? item.accentClassName : "bg-bg-secondary/80 text-text-disabled"
+                          "relative flex w-full items-center gap-2.5 h-8 pf-rounded-md px-2.5 text-left transition-colors",
+                          isActive
+                            ? "bg-accent-soft text-text-primary before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-accent"
+                            : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
                         )}
                       >
-                        <Icon className="h-4 w-4" />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="pf-text-base font-semibold text-text-primary">{t(item.labelKey)}</div>
-                        <div className="mt-1 pf-text-xs leading-5 text-text-tertiary">{t(item.descKey)}</div>
-                      </div>
-
-                      <ChevronRight
-                        className={cn(
-                          "h-4 w-4 shrink-0 transition-all",
-                          isActive ? "translate-x-0 text-text-disabled opacity-100" : "-translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
-                        )}
-                      />
-                    </button>
-                  );
-                })}
+                        <Icon className={cn("h-3.5 w-3.5 shrink-0", isActive ? "text-accent" : "text-text-tertiary")} />
+                        <span className="pf-text-sm font-medium truncate">{sectionLabel(item)}</span>
+                      </button>
+                    );
+                  })}
+                  {visibleSections.length === 0 && (
+                    <div className="px-2.5 py-6 text-center pf-text-xs text-text-disabled">
+                      {t('settings.noMatch', { defaultValue: '无匹配项' })}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="shrink-0 border-t border-border-default/60 px-3 py-3">
+              <div className="shrink-0 border-t border-border-default/60 p-2">
                 <button
                   onClick={handleReset}
-                  className="flex w-full items-center gap-2 pf-rounded-xl border border-border-default/80 bg-bg-primary/72 px-3.5 py-3 pf-text-sm font-medium text-text-secondary transition-colors hover:bg-red-500/8 hover:text-red-500 dark:text-red-300"
+                  className="flex w-full items-center justify-center gap-2 h-8 pf-rounded-md border border-border-default bg-bg-primary/60 pf-text-xs font-medium text-text-secondary transition-colors hover:bg-error/10 hover:text-error hover:border-error/30"
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <RotateCcw className="h-3.5 w-3.5" />
                   {t('settings.resetDefaults')}
                 </button>
               </div>
             </aside>
 
-            <section className="flex min-w-0 min-h-0 flex-col bg-bg-primary/36">
-              <div className="flex-1 overflow-y-auto p-5">
-                <div className="overflow-hidden pf-rounded-xl border border-border-default/80 bg-bg-primary/88 shadow-panel">
-                  <div className="flex items-center gap-3 border-b border-border-default/60 px-6 py-4">
-                    <div
-                      className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center pf-rounded-md",
-                        currentSection.accentClassName
-                      )}
-                    >
-                      <CurrentSectionIcon className="h-4 w-4" />
-                    </div>
-                  <div className="min-w-0">
-                      <p className="pf-text-md font-semibold tracking-tight text-text-primary">
-                        {t(currentSection.labelKey)}
-                      </p>
-                    </div>
-                  </div>
+            {/* Section content */}
+            <section className="flex min-w-0 min-h-0 flex-col bg-bg-primary/40">
+              <div className="flex shrink-0 items-center gap-2.5 border-b border-border-default/60 px-5 py-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center pf-rounded-md bg-accent-soft text-accent">
+                  <CurrentSectionIcon className="h-3.5 w-3.5" />
+                </div>
+                <p className="pf-text-sm font-semibold tracking-tight text-text-primary">
+                  {sectionLabel(currentSection)}
+                </p>
+              </div>
 
-                  <div className="divide-y divide-border-default/60">
-                    {section === "general" && (
-                      <GeneralSection
-                        settings={settings}
-                        update={update}
-                        onThemeChange={handleThemeChange}
-                      />
-                    )}
-                    {section === "request" && (
-                      <RequestSection settings={settings} update={update} />
-                    )}
-                    {section === "proxy" && (
-                      <ProxySection settings={settings} update={update} />
-                    )}
-                    {section === "data" && (
-                      <DataSection settings={settings} update={update} />
-                    )}
-                  </div>
+              <div className="flex-1 overflow-y-auto">
+                <div className="divide-y divide-border-subtle">
+                  {section === "appearance" && (
+                    <AppearanceSection
+                      settings={settings}
+                      update={update}
+                      onThemeChange={handleThemeChange}
+                    />
+                  )}
+                  {section === "general" && (
+                    <GeneralSection settings={settings} update={update} />
+                  )}
+                  {section === "request" && (
+                    <RequestSection settings={settings} update={update} />
+                  )}
+                  {section === "proxy" && (
+                    <ProxySection settings={settings} update={update} />
+                  )}
+                  {section === "shortcuts" && <ShortcutsSection />}
+                  {section === "data" && (
+                    <DataSection settings={settings} update={update} />
+                  )}
+                  {section === "about" && <AboutSection />}
                 </div>
               </div>
             </section>
@@ -274,17 +247,26 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+    <div className="grid gap-4 px-5 py-2.5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
       <div className="min-w-0">
-        <div className="pf-text-base font-semibold text-text-primary">{label}</div>
+        <div className="pf-text-sm text-text-primary">{label}</div>
         {desc ? (
-          <p className="mt-1.5 max-w-[520px] pf-text-xs leading-5 text-text-tertiary">
+          <p className="mt-0.5 max-w-[520px] pf-text-xs leading-[1.4] text-text-tertiary">
             {desc}
           </p>
         ) : null}
       </div>
 
       <div className="flex items-center justify-start lg:justify-end">{children}</div>
+    </div>
+  );
+}
+
+// Section group header (.sechead) — 11px uppercase tracked label dividing a section
+function SettingGroup({ title }: { title: string }) {
+  return (
+    <div className="px-5 pt-4 pb-1">
+      <div className="pf-text-xxs font-bold uppercase tracking-[0.06em] text-text-tertiary">{title}</div>
     </div>
   );
 }
@@ -299,7 +281,7 @@ function SegmentedControl<T extends string>({
   options: Array<{ value: T; label: string; icon?: LucideIcon }>;
 }) {
   return (
-    <div className="flex items-center gap-1 pf-rounded-lg border border-border-default/80 bg-bg-secondary/60 p-1">
+    <div className="flex items-center gap-0.5 pf-rounded-md border border-border-default bg-bg-secondary/60 p-0.5">
       {options.map((option) => {
         const Icon = option.icon;
         const isActive = option.value === value;
@@ -310,10 +292,10 @@ function SegmentedControl<T extends string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex h-8 items-center gap-1.5 pf-rounded-md px-3 pf-text-sm font-medium transition-all",
+              "flex h-7 items-center gap-1.5 pf-rounded-sm px-2.5 pf-text-xs font-medium transition-colors",
               isActive
                 ? "bg-bg-primary text-text-primary shadow-xs"
-                : "text-text-tertiary hover:bg-bg-hover/80 hover:text-text-primary"
+                : "text-text-tertiary hover:text-text-primary"
             )}
           >
             {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
@@ -325,40 +307,59 @@ function SegmentedControl<T extends string>({
   );
 }
 
-const ACCENT_COLORS: { value: AccentColor; color: string; label: string }[] = [
-  { value: 'indigo', color: '#5b6af0', label: 'Indigo' },
-  { value: 'cyan', color: '#06b6d4', label: 'Cyan' },
-  { value: 'emerald', color: '#10b981', label: 'Emerald' },
-  { value: 'violet', color: '#7c3aed', label: 'Violet' },
+// Accent swatches preview the four accent palettes. The per-swatch color is
+// driven by a scoped --accent-swatch var (see AccentSwatchStyle) that mirrors
+// the same per-accent tokens index.css defines on :root[data-accent="…"], so
+// the component itself carries no literal palette colors.
+const ACCENT_COLORS: { value: AccentColor; label: string }[] = [
+  { value: 'indigo', label: 'Orange' },
+  { value: 'cyan', label: 'Cyan' },
+  { value: 'emerald', label: 'Emerald' },
+  { value: 'violet', label: 'Violet' },
 ];
+
+// FOUNDATION GAP: index.css exposes accent palettes only under
+// :root[data-accent="…"], so the swatch previews cannot read each accent from a
+// token directly. This scoped block bridges that until index.css adds
+// --color-accent-{indigo|cyan|emerald|violet} (or a non-root [data-accent]
+// selector), at which point this can be deleted.
+const AccentSwatchStyle = () => (
+  <style>{`
+    [data-accent-swatch="indigo"]{--accent-swatch:#ff6b35}
+    [data-accent-swatch="cyan"]{--accent-swatch:#56d4dd}
+    [data-accent-swatch="emerald"]{--accent-swatch:#3fb950}
+    [data-accent-swatch="violet"]{--accent-swatch:#a371f7}
+  `}</style>
+);
 
 function AccentColorPicker({ value, onChange }: { value: AccentColor; onChange: (v: AccentColor) => void }) {
   return (
     <div className="flex items-center gap-2">
-      {ACCENT_COLORS.map((item) => (
-        <button
-          key={item.value}
-          type="button"
-          title={item.label}
-          onClick={() => onChange(item.value)}
-          className={cn(
-            "relative h-7 w-7 rounded-full transition-all",
-            value === item.value
-              ? "ring-2 ring-offset-2 ring-offset-bg-primary"
-              : "hover:scale-110"
-          )}
-          style={{
-            backgroundColor: item.color,
-            '--tw-ring-color': value === item.value ? item.color : undefined,
-          } as React.CSSProperties}
-        >
-          {value === item.value && (
-            <svg className="absolute inset-0 m-auto h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </button>
-      ))}
+      <AccentSwatchStyle />
+      {ACCENT_COLORS.map((item) => {
+        const isActive = value === item.value;
+        return (
+          <button
+            key={item.value}
+            type="button"
+            title={item.label}
+            data-accent-swatch={item.value}
+            onClick={() => onChange(item.value)}
+            className={cn(
+              "relative h-6 w-6 pf-rounded-md bg-[var(--accent-swatch)] transition-transform",
+              isActive
+                ? "ring-2 ring-[color:var(--accent-swatch)] ring-offset-2 ring-offset-bg-primary"
+                : "hover:scale-110"
+            )}
+          >
+            {isActive && (
+              <svg className="absolute inset-0 m-auto h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -368,7 +369,7 @@ type SectionProps = {
   update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 };
 
-function GeneralSection({
+function AppearanceSection({
   settings,
   update,
   onThemeChange,
@@ -395,13 +396,9 @@ function GeneralSection({
   const currentFontLabel = allFonts.find((f) => f.id === settings.fontFamily)?.name
     ?? (settings.fontFamily === 'system' ? t('settings.general.fontSystem') : settings.fontFamily);
 
-  const languageLabelMap: Record<AppSettings["language"], string> = {
-    "zh-CN": t('settings.general.langZh'),
-    en: t('settings.general.langEn'),
-  };
-
   return (
     <>
+      <SettingGroup title={t('settings.appearance.themeGroup', { defaultValue: '主题' })} />
       <SettingRow label={t('settings.general.theme')} desc={t('settings.general.themeDesc')}>
         <SegmentedControl
           value={settings.theme}
@@ -416,6 +413,32 @@ function GeneralSection({
 
       <SettingRow label={t('settings.general.accentColor')} desc={t('settings.general.accentColorDesc')}>
         <AccentColorPicker value={settings.accentColor} onChange={(v) => update("accentColor", v)} />
+      </SettingRow>
+
+      <SettingGroup title={t('settings.appearance.typographyGroup', { defaultValue: '排版' })} />
+      <SettingRow label={t('settings.general.fontFamily')} desc={t('settings.general.fontFamilyDesc')}>
+        <Select
+          value={settings.fontFamily || ""}
+          onValueChange={(value) => update("fontFamily", value || "")}
+        >
+          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-48")}>
+            <SelectValue>{currentFontLabel}</SelectValue>
+          </SelectTrigger>
+          <SelectContent className={selectContentClassName}>
+            {allFonts.map((font) => (
+              <SelectItem key={font.id} value={font.id}>
+                <span className="flex items-center gap-2">
+                  <span>{font.name}</span>
+                  {font.source === 'plugin' && (
+                    <span className="pf-pill acc h-[15px] px-1.5 text-[9px]">
+                      {t('settings.general.fontPlugin')}
+                    </span>
+                  )}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </SettingRow>
 
       <SettingRow label={t('settings.general.fontSize')} desc={t('settings.general.fontSizeDesc')}>
@@ -435,32 +458,19 @@ function GeneralSection({
           </SelectContent>
         </Select>
       </SettingRow>
+    </>
+  );
+}
 
-      <SettingRow label={t('settings.general.fontFamily')} desc={t('settings.general.fontFamilyDesc')}>
-        <Select
-          value={settings.fontFamily || ""}
-          onValueChange={(value) => update("fontFamily", value || "")}
-        >
-          <SelectTrigger size="default" className={cn(selectTriggerClassName, "w-48")}>
-            <SelectValue>{currentFontLabel}</SelectValue>
-          </SelectTrigger>
-          <SelectContent className={selectContentClassName}>
-            {allFonts.map((font) => (
-              <SelectItem key={font.id} value={font.id}>
-                <span className="flex items-center gap-2">
-                  <span>{font.name}</span>
-                  {font.source === 'plugin' && (
-                    <span className="rounded-full bg-accent/10 px-1.5 py-0 text-[10px] font-medium text-accent">
-                      {t('settings.general.fontPlugin')}
-                    </span>
-                  )}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </SettingRow>
+function GeneralSection({ settings, update }: SectionProps) {
+  const { t } = useTranslation();
+  const languageLabelMap: Record<AppSettings["language"], string> = {
+    "zh-CN": t('settings.general.langZh'),
+    en: t('settings.general.langEn'),
+  };
 
+  return (
+    <>
       <SettingRow label={t('settings.general.language')} desc={t('settings.general.languageDesc')}>
         <Select
           value={settings.language}
@@ -475,8 +485,6 @@ function GeneralSection({
           </SelectContent>
         </Select>
       </SettingRow>
-
-      <UpdateSettingRow />
     </>
   );
 }
@@ -503,13 +511,13 @@ function UpdateSettingRow() {
     >
       <div className="flex items-center gap-2">
         {hasUpdate && (
-          <span className="pf-text-xs font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded">
+          <span className="pf-pill acc">
             v{latestVersion}
           </span>
         )}
         {isUpToDate && (
-          <span className="flex items-center gap-1 pf-text-xs text-emerald-600 dark:text-emerald-300">
-            <CheckCircle className="h-3.5 w-3.5" />
+          <span className="pf-pill ok">
+            <CheckCircle className="h-3 w-3" />
             {t('update.upToDate')}
           </span>
         )}
@@ -517,7 +525,7 @@ function UpdateSettingRow() {
         {isReady ? (
           <button
             onClick={restartApp}
-            className="h-8 px-4 pf-text-sm font-semibold text-white bg-success hover:bg-success/90 rounded-lg transition-colors"
+            className="h-8 px-4 pf-text-sm font-semibold text-white bg-success hover:bg-success/90 pf-rounded-md transition-colors"
           >
             {t('update.restart')}
           </button>
@@ -525,7 +533,7 @@ function UpdateSettingRow() {
           <button
             onClick={installUpdate}
             disabled={isDownloading}
-            className="flex items-center gap-1.5 h-8 px-4 pf-text-sm font-semibold text-white bg-accent hover:bg-accent/90 rounded-lg transition-colors disabled:opacity-60"
+            className="flex items-center gap-1.5 h-8 px-4 pf-text-sm font-semibold text-white bg-accent hover:bg-accent-hover pf-rounded-md transition-colors disabled:opacity-60"
           >
             <Download className={cn("h-3.5 w-3.5", isDownloading && "animate-bounce")} />
             {isDownloading ? t('update.downloading') : t('update.install')}
@@ -534,7 +542,7 @@ function UpdateSettingRow() {
           <button
             onClick={checkForUpdate}
             disabled={isChecking}
-            className="flex items-center gap-1.5 h-8 px-4 pf-text-sm font-medium text-text-secondary border border-border-default/80 bg-bg-primary/72 hover:bg-bg-hover rounded-lg transition-colors disabled:opacity-60"
+            className="flex items-center gap-1.5 h-8 px-4 pf-text-sm font-medium text-text-secondary border border-border-default bg-bg-primary/60 hover:bg-bg-hover pf-rounded-md transition-colors disabled:opacity-60"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", isChecking && "animate-spin")} />
             {isChecking ? t('update.checking') : t('settings.general.checkUpdateBtn')}
@@ -738,5 +746,64 @@ function DataSection({ settings, update }: SectionProps) {
         </Select>
       </SettingRow>
     </>
+  );
+}
+
+function ShortcutsSection() {
+  const { t } = useTranslation();
+  const shortcuts: [string, string][] = [
+    ['⌘ K', t('shortcuts.commandPalette', { defaultValue: '命令面板' })],
+    ['⌘ \\', t('shortcuts.splitView', { defaultValue: '分屏' })],
+    ['⌘ B', t('shortcuts.toggleSidebar', { defaultValue: '切换侧栏' })],
+    ['⌘ ,', t('shortcuts.openSettings', { defaultValue: '打开设置' })],
+    ['⌘ ↵', t('shortcuts.sendRequest', { defaultValue: '发送请求' })],
+    ['⌘ N', t('shortcuts.newTab', { defaultValue: '新建标签' })],
+    ['⌘ W', t('shortcuts.closeTab', { defaultValue: '关闭标签' })],
+    ['⌘ 1–9', t('shortcuts.switchTab', { defaultValue: '切换标签' })],
+    ['Esc', t('shortcuts.dismiss', { defaultValue: '关闭弹层' })],
+  ];
+
+  return (
+    <div className="px-5 py-4">
+      <p className="pf-text-xs text-text-tertiary mb-3">
+        {t('shortcuts.hint', { defaultValue: '键盘快捷键' })}
+      </p>
+      <div className="divide-y divide-border-default/50">
+        {shortcuts.map(([keys, label]) => (
+          <div key={label} className="flex items-center justify-between py-2">
+            <span className="pf-text-sm text-text-secondary">{label}</span>
+            <span className="kbd">{keys}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AboutSection() {
+  const { t } = useTranslation();
+  const currentVersion = useUpdateStore((s) => s.currentVersion);
+
+  return (
+    <div className="flex flex-col items-center gap-4 px-5 py-8">
+      <div className="flex h-16 w-16 items-center justify-center pf-rounded-xl bg-gradient-to-br from-accent to-accent-hover shadow-[0_6px_20px_var(--color-accent-muted)]">
+        <Zap className="h-8 w-8 text-white" />
+      </div>
+      <div className="flex flex-col items-center gap-1">
+        <span className="pf-text-lg font-bold text-text-primary">ProtoForge</span>
+        <span className="pf-text-xs font-mono text-text-tertiary">v{currentVersion || '—'}</span>
+      </div>
+
+      <div className="w-full max-w-[360px] overflow-hidden pf-rounded-lg border border-border-default bg-bg-secondary/40">
+        <div className="px-4 py-2.5 border-b border-border-default/60">
+          <div className="pf-text-3xs font-bold uppercase tracking-[0.06em] text-text-disabled">
+            {t('settings.about.updateGroup', { defaultValue: '更新' })}
+          </div>
+        </div>
+        <UpdateSettingRow />
+      </div>
+
+      <span className="pf-text-3xs text-text-disabled">© 2026 ProtoForge · MIT License</span>
+    </div>
   );
 }

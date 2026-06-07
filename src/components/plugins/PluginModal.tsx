@@ -36,63 +36,63 @@ const categories: CategoryMeta[] = [
     label: "plugin.allPlugins",
     desc: "plugin.allPluginsDesc",
     icon: Puzzle,
-    accentClassName: "bg-blue-500/10 text-blue-600 dark:text-blue-300 ring-1 ring-inset ring-blue-500/15",
+    accentClassName: "bg-info/10 text-info ring-1 ring-inset ring-info/15",
   },
   {
     id: "protocol-parser",
     label: "plugin.protocolParser",
     desc: "plugin.protocolParserDesc",
     icon: Code2,
-    accentClassName: "bg-blue-500/10 text-blue-600 dark:text-blue-300 ring-1 ring-inset ring-blue-500/15",
+    accentClassName: "bg-info/10 text-info ring-1 ring-inset ring-info/15",
   },
   {
     id: "request-hook",
     label: "plugin.requestHook",
     desc: "plugin.requestHookDesc",
     icon: Terminal,
-    accentClassName: "bg-amber-500/10 text-amber-600 dark:text-amber-300 ring-1 ring-inset ring-amber-500/15",
+    accentClassName: "bg-warning/10 text-warning ring-1 ring-inset ring-warning/15",
   },
   {
     id: "response-renderer",
     label: "plugin.responseRenderer",
     desc: "plugin.responseRendererDesc",
     icon: Sparkles,
-    accentClassName: "bg-violet-500/10 text-violet-600 dark:text-violet-300 ring-1 ring-inset ring-violet-500/15",
+    accentClassName: "bg-method-patch/10 text-method-patch ring-1 ring-inset ring-method-patch/15",
   },
   {
     id: "data-generator",
     label: "plugin.dataGenerator",
     desc: "plugin.dataGeneratorDesc",
     icon: Wand2,
-    accentClassName: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/15",
+    accentClassName: "bg-success/10 text-success ring-1 ring-inset ring-success/15",
   },
   {
     id: "export-format",
     label: "plugin.exportFormat",
     desc: "plugin.exportFormatDesc",
     icon: FileOutput,
-    accentClassName: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 ring-1 ring-inset ring-cyan-500/15",
+    accentClassName: "bg-method-head/10 text-method-head ring-1 ring-inset ring-method-head/15",
   },
   {
     id: "sidebar-panel",
     label: "plugin.sidebarPanel",
     desc: "plugin.sidebarPanelDesc",
     icon: LayoutDashboard,
-    accentClassName: "bg-rose-500/10 text-rose-600 dark:text-rose-300 ring-1 ring-inset ring-rose-500/15",
+    accentClassName: "bg-error/10 text-error ring-1 ring-inset ring-error/15",
   },
   {
     id: "crypto-tool",
     label: "plugin.cryptoTool",
     desc: "plugin.cryptoToolDesc",
     icon: Lock,
-    accentClassName: "bg-orange-500/10 text-orange-600 dark:text-orange-300 ring-1 ring-inset ring-orange-500/15",
+    accentClassName: "bg-accent-soft text-accent ring-1 ring-inset ring-accent/15",
   },
   {
     id: "icon-pack",
     label: "plugin.iconPack",
     desc: "plugin.iconPackDesc",
     icon: Palette,
-    accentClassName: "bg-teal-500/10 text-teal-600 ring-1 ring-inset ring-teal-500/15",
+    accentClassName: "bg-method-head/10 text-method-head ring-1 ring-inset ring-method-head/15",
   },
 ];
 
@@ -198,7 +198,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                 >
                   {t('plugin.store')}
                   {availablePlugins.filter((p) => !p.installed).length > 0 && (
-                    <span className="min-w-[16px] rounded-full bg-violet-500 px-1.5 py-[1px] text-center pf-text-3xs font-bold leading-tight text-white">
+                    <span className="min-w-[16px] rounded-full bg-accent px-1.5 py-[1px] text-center pf-text-3xs font-bold leading-tight text-white">
                       {availablePlugins.filter((p) => !p.installed).length}
                     </span>
                   )}
@@ -253,7 +253,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       className={cn(
                         "group flex w-full items-center gap-2.5 pf-rounded-lg px-3 py-2.5 text-left transition-all",
                         isActive
-                          ? "bg-bg-primary/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-border-default"
+                          ? "bg-bg-primary/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-border-default dark:bg-bg-tertiary/60 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:ring-border-strong"
                           : "text-text-tertiary hover:bg-bg-primary/68 hover:text-text-primary"
                       )}
                     >
@@ -271,8 +271,8 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                       <div className="flex items-center gap-1.5">
                         {count > 0 && (
                           <span className={cn(
-                            "min-w-[18px] rounded-full px-1.5 py-[1px] text-center pf-text-3xs font-medium leading-tight",
-                            isActive ? "bg-violet-500/15 text-violet-600 dark:text-violet-300" : "bg-bg-secondary/90 text-text-disabled"
+                            "min-w-[18px] rounded-full px-1.5 py-[1px] text-center pf-text-3xs font-medium leading-tight font-mono",
+                            isActive ? "bg-accent-soft text-accent" : "bg-bg-secondary/90 text-text-disabled"
                           )}>
                             {count}
                           </span>
@@ -318,7 +318,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
                   <div className="flex items-center gap-2">
                     {/* Search */}
                     <div className="relative group">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled group-focus-within:text-violet-500 dark:text-violet-300 transition-colors" />
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled group-focus-within:text-accent transition-colors" />
                       <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -453,7 +453,7 @@ function PluginCard({
       className={cn(
         "group cursor-pointer pf-rounded-xl border p-3.5 transition-all hover:-translate-y-[1px]",
         selected
-          ? "border-violet-300 dark:border-violet-500/30 bg-bg-primary/92 shadow-[0_4px_16px_rgba(124,58,237,0.08)]"
+          ? "border-accent/40 bg-bg-primary/92 shadow-[0_4px_16px_var(--color-accent-soft)]"
           : "border-border-default/60 bg-bg-primary/78 hover:border-border-default hover:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.06)] dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] dark:hover:shadow-none",
       )}
     >
@@ -466,18 +466,18 @@ function PluginCard({
           <div className="flex items-center gap-1.5">
             <span className="pf-text-base font-semibold text-text-primary truncate">{pluginT(plugin, 'name')}</span>
             {plugin.installed && !plugin.hasUpdate && (
-              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 shadow-sm">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-success shadow-sm">
                 <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
               </span>
             )}
             {plugin.hasUpdate && (
-              <span className="flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 pf-text-3xs font-semibold text-amber-600 dark:text-amber-300">
+              <span className="flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-warning/15 px-1.5 pf-text-3xs font-semibold text-warning">
                 <ArrowUpCircle className="w-3 h-3" />
                 {t('plugin.updateAvailable')}
               </span>
             )}
             {plugin.removedFromRegistry && (
-              <span className="flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-red-500/15 px-1.5 pf-text-3xs font-semibold text-red-600 dark:text-red-300">
+              <span className="flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-error/15 px-1.5 pf-text-3xs font-semibold text-error">
                 {t('plugin.removedFromRegistry', '已从仓库移除')}
               </span>
             )}
@@ -491,10 +491,10 @@ function PluginCard({
                 {t(cat.label)}
               </span>
               {plugin.source === "remote" && !plugin.removedFromRegistry && (
-                <span className="pf-text-3xs font-medium px-1.5 py-[2px] rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 border border-cyan-500/20 shrink-0">{t('plugin.remote')}</span>
+                <span className="pf-text-3xs font-medium px-1.5 py-[2px] rounded-full bg-method-head/10 text-method-head border border-method-head/20 shrink-0">{t('plugin.remote')}</span>
               )}
               {plugin.removedFromRegistry && (
-                <span className="pf-text-3xs font-medium px-1.5 py-[2px] rounded-full bg-red-500/10 text-red-600 dark:text-red-300 border border-red-500/20 shrink-0">{t('plugin.deprecated', '已废弃')}</span>
+                <span className="pf-text-3xs font-medium px-1.5 py-[2px] rounded-full bg-error/10 text-error border border-error/20 shrink-0">{t('plugin.deprecated', '已废弃')}</span>
               )}
               <span className="pf-text-3xs text-text-disabled">
                 v{plugin.version}
@@ -515,7 +515,7 @@ function PluginCard({
             plugin.hasUpdate
               ? "bg-warning hover:bg-warning/90 text-white shadow-sm"
               : plugin.installed
-                ? "text-text-tertiary border border-border-default hover:text-red-500 dark:text-red-300 hover:border-red-200 dark:hover:border-red-500/30"
+                ? "text-text-tertiary border border-border-default hover:text-error hover:border-error/30"
                 : "bg-accent hover:bg-accent-hover text-white shadow-sm"
           )}
         >
@@ -580,7 +580,7 @@ function PluginDetail({
                 <span className="pf-text-xs text-text-disabled">
                   v{plugin.version}
                   {plugin.hasUpdate && plugin.latestVersion && (
-                    <span className="text-amber-600 dark:text-amber-300 font-semibold"> → v{plugin.latestVersion}</span>
+                    <span className="text-warning font-semibold"> → v{plugin.latestVersion}</span>
                   )}
                 </span>
                 <span className={cn("pf-text-xxs font-medium px-2 py-[2px] rounded-full border flex items-center gap-1", cat.accentClassName)}>
@@ -588,13 +588,13 @@ function PluginDetail({
                   {t(cat.label)}
                 </span>
                 {plugin.hasUpdate && (
-                  <span className="pf-text-xxs font-semibold px-2 py-[2px] rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/20 flex items-center gap-1">
+                  <span className="pf-text-xxs font-semibold px-2 py-[2px] rounded-full bg-warning/15 text-warning border border-warning/20 flex items-center gap-1">
                     <ArrowUpCircle className="w-3 h-3" />
                     {t('plugin.updateAvailable')}
                   </span>
                 )}
                 {plugin.removedFromRegistry && (
-                  <span className="pf-text-xxs font-semibold px-2 py-[2px] rounded-full bg-red-500/15 text-red-600 dark:text-red-300 border border-red-500/20">
+                  <span className="pf-text-xxs font-semibold px-2 py-[2px] rounded-full bg-error/15 text-error border border-error/20">
                     {t('plugin.removedFromRegistry', '已从仓库移除')}
                   </span>
                 )}
@@ -616,7 +616,7 @@ function PluginDetail({
             plugin.hasUpdate
               ? "bg-warning hover:bg-warning/90 text-white shadow-sm"
               : plugin.installed
-                ? "text-red-500 dark:text-red-300 border-2 border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10"
+                ? "text-error border-2 border-error/30 hover:bg-error/10"
                 : "bg-accent hover:bg-accent-hover text-white shadow-sm"
           )}
         >
@@ -645,7 +645,7 @@ function PluginDetail({
             <h4 className="pf-text-sm font-bold text-text-secondary uppercase tracking-wider mb-2">{t('plugin.protocols')}</h4>
             <div className="flex items-center gap-2 flex-wrap">
               {plugin.protocolIds.map((pid) => (
-                <span key={pid} className="inline-flex items-center gap-1 px-2.5 py-1 pf-text-sm font-mono font-medium bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-200 dark:border-blue-500/20">
+                <span key={pid} className="inline-flex items-center gap-1 px-2.5 py-1 pf-text-sm font-mono font-medium bg-info/10 text-info rounded-lg border border-info/20">
                   <Shield className="w-3 h-3" />
                   {pid.toUpperCase()}
                 </span>

@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ToolWindowShell } from "@/components/layout/ToolWindowShell";
 import { TcpWorkspace } from "@/components/tcp/TcpWorkspace";
 import { DEFAULT_TCP_TOOL_MODE } from "@/types/toolSession";
 import type { SocketMode } from "@/types/tcp";
 
 export function TcpUdpWindow() {
+  const { t } = useTranslation();
   const [params] = useState(() => new URLSearchParams(window.location.search));
   const [sessionId] = useState(() => params.get("session") ?? crypto.randomUUID());
   const [initialMode] = useState<SocketMode>(() => {
@@ -14,7 +16,7 @@ export function TcpUdpWindow() {
   });
 
   return (
-    <ToolWindowShell tool="tcpudp" sessionId={sessionId} title="TCP / UDP 调试" module="tcpudp" accentClassName="bg-blue-500">
+    <ToolWindowShell tool="tcpudp" sessionId={sessionId} title={t('app.windowTitle.tcpudp', 'TCP / UDP 调试')} module="tcpudp" accentClassName="bg-accent">
       <div className="h-full overflow-hidden bg-transparent">
         <TcpWorkspace sessionId={sessionId} initialMode={initialMode} />
       </div>

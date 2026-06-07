@@ -6,11 +6,18 @@ import {
   ChevronRight, Download, Upload, Settings, Globe,
   MoreHorizontal, Folder, Zap, Edit3, Trash2, ExternalLink, Copy, FolderPlus,
   ChevronsUpDown, BarChart3, Server, CopyPlus, FolderInput,
+  Radio, Database, Video, Gauge, Waves, Wrench, Network, Wifi,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
-import { useAppStore } from "@/stores/appStore";
+import {
+  useAppStore,
+  FORGE_DOMAINS,
+  type ForgeDomainId,
+  type UnifiedTab,
+} from "@/stores/appStore";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import { getMockServerStoreApi } from "@/stores/mockServerStore";
@@ -23,6 +30,7 @@ import { generateCurlFromItem } from "@/lib/curlGenerator";
 import { resolveVariableTemplate } from "@/lib/requestVariables";
 import { usePluginStore } from "@/stores/pluginStore";
 import { RequestStatsPanel } from "@/components/plugins/RequestStatsPanel";
+import { ConnectionSidebar } from "@/components/dbclient/ConnectionSidebar";
 import { toast } from "sonner";
 
 type SidebarView = "collections" | "history" | "environments" | "stats";
@@ -42,9 +50,294 @@ const navItems: { id: SidebarView; icon: typeof FolderOpen; labelKey: string }[]
 // Dynamic nav item for installed sidebar-panel plugins
 const statsNavItem = { id: "stats" as SidebarView, icon: BarChart3, labelKey: 'plugin.statsPanel' };
 
+// Forge domain icon → lucide component (mirrors ActivityRail's mapping).
+const DOMAIN_ICONS: Record<string, LucideIcon> = {
+  globe: Globe,
+  radio: Radio,
+  server: Server,
+  zap: Zap,
+  database: Database,
+  video: Video,
+  gauge: Gauge,
+  waves: Waves,
+  wrench: Wrench,
+  network: Network,
+  wifi: Wifi,
+};
 
+/**
+ * Contextual sidebar — switches its body on the active tab's Forge domain.
+ * The rich HTTP sidebar (collections / history / env / stats) is the 'api'
+ * variant; other domains get a session list, a DB schema tree, etc.
+ */
 export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: SidebarProps) {
+  const { i18n } = useTranslation();
+  const zh = i18n.language?.startsWith("zh") ?? true;
+  const tl = (zhText: string, enText: string) => (zh ? zhText : enText);
+
+  // getActiveDomain() returns a primitive — safe to subscribe directly.
+  const activeDomain = useAppStore((s) => s.getActiveDomain());
+  const domain: ForgeDomainId = activeDomain ?? "api";
+
+  if (panelCollapsed) return null;
+
+  if (domain === "api") {
+    return <ApiSidebar onOpenEnvModal={onOpenEnvModal} onTogglePanel={onTogglePanel} />;
+  }
+  if (domain === "db") {
+    return <DbSidebar tl={tl} />;
+  }
+  return <DomainListSidebar domain={domain} tl={tl} />;
+}
+
+/* ── DB domain — host the existing ConnectionSidebar in the contextual frame ── */
+function DbSidebar({ tl }: { tl: (zh: string, en: string) => string }) {
   const { t } = useTranslation();
+  const def = FORGE_DOMAINS.find((d) => d.id === "db")!;
+  const Icon = DOMAIN_ICONS[def.icon] ?? Database;
+  const toolSessions = useAppStore((s) => s.toolSessions);
+  const activeSessionId = useAppStore((s) => s.activeToolSessionIds.dbclient);
+  const addToolSession = useAppStore((s) => s.addToolSession);
+
+  // Ensure a dbclient session exists so the connection sidebar has a store.
+  const sessionId = activeSessionId ?? toolSessions.dbclient[0]?.id ?? null;
+
+  return (
+    <div className="flex h-full min-w-0 flex-col bg-bg-sidebar overflow-hidden">
+      <ContextualHead
+        Icon={Icon}
+        title={tl(def.zh, def.en)}
+        onNew={() => addToolSession("dbclient")}
+        newTitle={t('sidebar.newConnection', '新建连接')}
+      />
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {sessionId ? (
+          <ConnectionSidebar sessionId={sessionId} />
+        ) : (
+          <EmptyHint
+            Icon={Icon}
+            label={t('sidebar.noConnections', '暂无数据库连接')}
+            sub={t('sidebar.noConnectionsHint', '连接数据库后即可浏览表结构与执行查询')}
+            actionLabel={t('sidebar.newConnection', '新建连接')}
+            onAction={() => addToolSession("dbclient")}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Generic session-list sidebar for realtime / mock / workflow / load / media / capture / toolbox ── */
+function DomainListSidebar({
+  domain,
+  tl,
+}: {
+  domain: ForgeDomainId;
+  tl: (zh: string, en: string) => string;
+}) {
+  const { t } = useTranslation();
+  const def = FORGE_DOMAINS.find((d) => d.id === domain)!;
+  const Icon = DOMAIN_ICONS[def.icon] ?? Globe;
+  const [search, setSearch] = useState("");
+
+  const tabs = useAppStore((s) => s.tabs);
+  const toolSessions = useAppStore((s) => s.toolSessions);
+  const activeToolSessionIds = useAppStore((s) => s.activeToolSessionIds);
+  const contextStates = useAppStore((s) => s.contextStates);
+  const activeUnifiedId = useAppStore((s) => s.getActiveUnifiedTabId());
+
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const setActiveToolSession = useAppStore((s) => s.setActiveToolSession);
+  const addTab = useAppStore((s) => s.addTab);
+  const addToolSession = useAppStore((s) => s.addToolSession);
+
+  // Sessions belonging to this domain, derived from the unified list.
+  const items = useMemo<UnifiedTab[]>(() => {
+    return useAppStore.getState().getUnifiedTabs().filter((t) => t.domain === domain);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [domain, tabs, toolSessions, activeToolSessionIds, contextStates]);
+
+  const filtered = items.filter(
+    (it) => !search || it.title.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  // Aggregate connection/activity summary for the contextual head.
+  const liveCount = items.filter((it) => it.state === "live" || it.state === "run").length;
+  const errCount = items.filter((it) => it.state === "err").length;
+  const summaryPill =
+    errCount > 0 ? (
+      <span className="pf-pill err shrink-0">
+        <span className="pf-dot s-err" />
+        {errCount}
+      </span>
+    ) : liveCount > 0 ? (
+      <span className="pf-pill acc shrink-0">
+        <span className="pf-dot s-live" />
+        {liveCount}
+      </span>
+    ) : null;
+
+  const handleNew = useCallback(() => {
+    // Realtime spans request protocols + the tcp/udp tool; default to a WS request.
+    if (domain === "realtime") {
+      addTab("ws");
+      return;
+    }
+    const wb = def.workbench;
+    if (wb && wb !== "home" && wb !== "requests") {
+      addToolSession(wb);
+    }
+  }, [domain, def.workbench, addTab, addToolSession]);
+
+  const handleSelect = useCallback((it: UnifiedTab) => {
+    if (it.kind === "request" && it.tabId) setActiveTab(it.tabId);
+    else if (it.kind === "tool" && it.tool && it.sessionId) setActiveToolSession(it.tool, it.sessionId);
+  }, [setActiveTab, setActiveToolSession]);
+
+  return (
+    <div className="flex h-full min-w-0 flex-col bg-bg-sidebar overflow-hidden">
+      <ContextualHead
+        Icon={Icon}
+        title={tl(def.zh, def.en)}
+        onNew={handleNew}
+        newTitle={t('sidebar.newSession', '新建')}
+        summary={summaryPill}
+      />
+
+      {/* Search */}
+      <div className="shrink-0 px-3 pb-2">
+        <div className="relative group">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled group-focus-within:text-accent transition-colors" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('sidebar.searchSessions', '搜索会话…')}
+            className="h-[28px] w-full pf-rounded-sm border border-border-default bg-bg-app pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
+          />
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-auto px-2 py-1.5">
+        {filtered.length === 0 ? (
+          search ? (
+            <EmptyHint
+              Icon={Icon}
+              label={t('sidebar.noSessionMatch', '无匹配会话')}
+              sub={t('sidebar.tryAnotherKeyword', '尝试其他关键词')}
+            />
+          ) : (
+            <EmptyHint
+              Icon={Icon}
+              label={t('sidebar.noSessions', '暂无会话')}
+              sub={t('sidebar.noSessionsHint', { defaultValue: `新建一个 ${def.zh} 会话开始使用`, name: tl(def.zh, def.en) })}
+              actionLabel={t('sidebar.newSession', '新建')}
+              onAction={handleNew}
+            />
+          )
+        ) : (
+          filtered.map((it) => {
+            const RowIcon = DOMAIN_ICONS[it.icon] ?? Icon;
+            const isActive = it.id === activeUnifiedId;
+            return (
+              <button
+                key={it.id}
+                onClick={() => handleSelect(it)}
+                className={cn(
+                  "group/item relative flex w-full items-center gap-2.5 px-2 py-[7px] pf-rounded-sm text-left transition-colors",
+                  isActive
+                    ? "bg-accent-soft text-text-primary"
+                    : "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
+                )}
+              >
+                {isActive && (
+                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-accent" />
+                )}
+                <RowIcon className={cn("h-[15px] w-[15px] shrink-0", isActive ? "text-accent" : "text-text-tertiary")} />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[length:var(--fs-sidebar)] font-medium">{it.title}</span>
+                  <span className="truncate pf-text-3xs text-text-disabled">{tl(def.zh, def.en)}</span>
+                </div>
+                <span className={cn("pf-dot shrink-0", `s-${it.state}`)} />
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Shared contextual head: domain icon + title + new '+' ── */
+function ContextualHead({
+  Icon,
+  title,
+  onNew,
+  newTitle,
+  summary,
+}: {
+  Icon: LucideIcon;
+  title: string;
+  onNew: () => void;
+  newTitle: string;
+  summary?: React.ReactNode;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-2 border-b border-border-sidebar px-3 pt-3 pb-2.5">
+      <Icon className="h-[15px] w-[15px] shrink-0 text-accent" />
+      <span className="min-w-0 flex-1 truncate pf-text-xxs font-bold uppercase tracking-[0.07em] text-text-tertiary">
+        {title}
+      </span>
+      {summary}
+      <button
+        onClick={onNew}
+        className="flex h-[26px] w-[26px] items-center justify-center pf-rounded-sm text-accent transition-all hover:bg-accent-soft/80 active:scale-[0.97]"
+        title={newTitle}
+      >
+        <Plus className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function EmptyHint({
+  Icon,
+  label,
+  sub,
+  actionLabel,
+  onAction,
+}: {
+  Icon: LucideIcon;
+  label: string;
+  sub?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+      <div className="mb-3 flex h-11 w-11 items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-hover shadow-sm">
+        <Icon className="w-6 h-6 text-text-tertiary" />
+      </div>
+      <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">{label}</p>
+      {sub && (
+        <p className="mt-1 text-[length:var(--fs-sidebar-sm)] leading-relaxed text-text-disabled">{sub}</p>
+      )}
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="mt-3 flex items-center gap-1.5 pf-rounded-sm border border-border-default bg-bg-elevated px-2.5 py-1.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent active:scale-[0.97]"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ── API domain — the original rich HTTP sidebar (collections / history / env / stats) ── */
+function ApiSidebar({ onOpenEnvModal, onTogglePanel }: { onOpenEnvModal: () => void; onTogglePanel: () => void }) {
+  void onTogglePanel;
+  const { t, i18n } = useTranslation();
   const [activeView, setActiveView] = useState<SidebarView>("collections");
   const [search, setSearch] = useState("");
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -78,17 +371,6 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
     if (hasSidebarPanelPlugin) items.push(statsNavItem);
     return items;
   }, [hasSidebarPanelPlugin]);
-
-  const handleNavClick = (view: SidebarView) => {
-    if (panelCollapsed) {
-      setActiveView(view);
-      onTogglePanel();
-    } else if (activeView === view) {
-      onTogglePanel();
-    } else {
-      setActiveView(view);
-    }
-  };
 
   const handleNewCollection = async () => {
     await createCollection(t('sidebar.newCollection'));
@@ -201,152 +483,134 @@ export function Sidebar({ panelCollapsed, onTogglePanel, onOpenEnvModal }: Sideb
     await createEnvironment(t('sidebar.environments'));
   };
 
-  return (
-    <div className="h-full flex">
-      {/* ── Icon Rail ── */}
-      <div className="w-[52px] h-full flex flex-col items-center py-3 gap-1 bg-bg-sidebar border-r border-border-sidebar shrink-0">
-        {allNavItems.map(({ id, icon: Icon, labelKey }) => {
-          const label = t(labelKey);
-          const isActive = activeView === id && !panelCollapsed;
-          return (
-            <button
-              key={id}
-              onClick={() => handleNavClick(id)}
-              className={cn(
-                "relative flex h-[34px] w-[34px] items-center justify-center pf-rounded-sm transition-all duration-150",
-                isActive
-                  ? "text-accent bg-accent-soft"
-                  : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
-              )}
-              title={label}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="sidebar-active-indicator"
-                  className="absolute inset-0 pf-rounded-sm bg-accent-soft"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <Icon className={cn("relative w-[18px] h-[18px]", isActive && "drop-shadow-sm")} strokeWidth={isActive ? 2.2 : 1.8} />
-            </button>
-          );
-        })}
+  const apiDef = FORGE_DOMAINS.find((d) => d.id === "api")!;
+  const ApiIcon = DOMAIN_ICONS[apiDef.icon] ?? Globe;
+  const zh = i18n.language?.startsWith("zh") ?? true;
 
-        <div className="flex-1" />
+  return (
+    <div className="h-full flex flex-col bg-bg-sidebar overflow-hidden min-w-0">
+      {/* Contextual head: domain icon + title + per-view action */}
+      <div className="flex shrink-0 items-center gap-2 border-b border-border-sidebar px-3 pt-3 pb-2.5">
+        <ApiIcon className="h-[15px] w-[15px] shrink-0 text-accent" />
+        <span className="flex-1 truncate pf-text-xxs font-bold uppercase tracking-[0.07em] text-text-tertiary">
+          {zh ? apiDef.zh : apiDef.en}
+        </span>
+        <div className="flex items-center gap-0.5 shrink-0">
+          {activeView === "collections" && (
+            <>
+              <button
+                onClick={handleNewCollection}
+                className="flex h-[26px] items-center gap-1 pf-rounded-sm px-2 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft/80 active:scale-[0.97]"
+                title={t('sidebar.new')}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t('sidebar.new')}
+              </button>
+              <button
+                onClick={handleImport}
+                className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
+                title={t('sidebar.import')}
+              >
+                <Download className="w-3 h-3" />
+                {t('sidebar.import')}
+              </button>
+            </>
+          )}
+          {activeView === "environments" && (
+            <>
+              <button
+                onClick={handleNewEnvironment}
+                className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
+                title={t('sidebar.addEnv')}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t('sidebar.add')}
+              </button>
+              <button
+                onClick={handleExportEnvs}
+                className="flex h-7 items-center gap-1 pf-rounded-sm px-1.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover"
+                title={t('env.export')}
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={handleImportEnvs}
+                className="flex h-7 items-center gap-1 pf-rounded-sm px-1.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover"
+                title={t('env.import')}
+              >
+                <Upload className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+          {activeView === "history" && hasHistoryItems && (
+            <>
+              <button
+                onClick={() => exportHistory('json')}
+                className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover"
+                title={t('history.exportJson')}
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => useHistoryStore.getState().clearAll()}
+                className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-error"
+                title={t('sidebar.clearAll', '清空历史')}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* ── Detail Panel ── */}
-      {!panelCollapsed && (
-        <div className="flex-1 h-full flex flex-col bg-bg-sidebar overflow-hidden min-w-0">
-          {/* Panel Header */}
-          <div className="shrink-0 border-b border-border-sidebar px-3 pt-3 pb-2.5">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-tertiary">
-                  {t(allNavItems.find(n => n.id === activeView)?.labelKey || '')}
-                </span>
-              </div>
-              <div className="flex items-center gap-0.5 shrink-0">
-                {activeView === "collections" && (
-                  <>
-                    <button
-                      onClick={handleNewCollection}
-                      className="flex h-[26px] items-center gap-1 pf-rounded-sm px-2 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft/80 active:scale-[0.97]"
-                      title={t('sidebar.new')}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      {t('sidebar.new')}
-                    </button>
-                    <button
-                      onClick={handleImport}
-                      className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-secondary"
-                      title={t('sidebar.import')}
-                    >
-                      <Download className="w-3 h-3" />
-                      {t('sidebar.import')}
-                    </button>
-                  </>
-                )}
-                {activeView === "environments" && (
-                  <button
-                    onClick={handleNewEnvironment}
-                    className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-accent transition-all hover:bg-accent-soft active:scale-[0.97]"
-                    title={t('sidebar.addEnv')}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    {t('sidebar.add')}
-                  </button>
-                )}
-                {activeView === "history" && hasHistoryItems && (
-                  <>
-                    <button
-                      onClick={() => exportHistory('json')}
-                      className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover"
-                      title={t('history.exportJson')}
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => useHistoryStore.getState().clearAll()}
-                      className="flex h-7 items-center gap-1 pf-rounded-sm px-2.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover hover:text-red-500 dark:text-red-300"
-                      title={t('sidebar.clearAll', '清空历史')}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                )}
-                {activeView === "environments" && (
-                  <>
-                    <button
-                      onClick={handleExportEnvs}
-                      className="flex h-7 items-center gap-1 pf-rounded-sm px-1.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover"
-                      title={t('env.export')}
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={handleImportEnvs}
-                      className="flex h-7 items-center gap-1 pf-rounded-sm px-1.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-tertiary transition-colors hover:bg-bg-hover"
-                      title={t('env.import')}
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
+      {/* View tabs (Collections / History / Env / Stats) */}
+      <div className="flex shrink-0 gap-0.5 border-b border-border-sidebar px-2.5 py-1.5">
+        {allNavItems.map(({ id, labelKey }) => (
+          <button
+            key={id}
+            onClick={() => setActiveView(id)}
+            className={cn(
+              "h-[24px] flex-1 rounded-[5px] pf-text-sidebar-sm font-medium transition-colors",
+              activeView === id
+                ? "bg-bg-active text-text-primary"
+                : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",
+            )}
+          >
+            {t(labelKey)}
+          </button>
+        ))}
+      </div>
 
-            {/* Search */}
-            <div className="relative group">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled group-focus-within:text-accent transition-colors" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={`${t('common.search')}${t(navItems.find(n => n.id === activeView)?.labelKey || '')}...`}
-                className="h-[30px] w-full pf-rounded-sm border border-border-sidebar bg-bg-inset pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all shadow-inset placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
-              />
-            </div>
-          </div>
-
-          {/* Content Area */}
-          <div className="flex-1 overflow-auto px-2 py-1.5" data-contextmenu-zone="sidebar" onContextMenu={(e) => e.preventDefault()}>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeView}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 8 }}
-                transition={{ duration: 0.15 }}
-              >
-                {activeView === "collections" && <CollectionsView search={search} expanded={collectionExpanded} setExpanded={setCollectionExpanded} />}
-                {activeView === "history" && <HistoryView search={search} />}
-                {activeView === "environments" && <EnvironmentsView onOpenEnvModal={onOpenEnvModal} />}
-                {activeView === "stats" && <RequestStatsPanel />}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+      {/* Search */}
+      <div className="shrink-0 px-3 pt-2 pb-1.5">
+        <div className="relative group">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-disabled group-focus-within:text-accent transition-colors" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`${t('common.search')}${t(navItems.find(n => n.id === activeView)?.labelKey || '')}...`}
+            className="h-[28px] w-full pf-rounded-sm border border-border-default bg-bg-app pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
+          />
         </div>
-      )}
+      </div>
+
+      {/* Content Area */}
+      <div className="flex-1 overflow-auto px-2 py-1.5" data-contextmenu-zone="sidebar" onContextMenu={(e) => e.preventDefault()}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeView}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 8 }}
+            transition={{ duration: 0.15 }}
+          >
+            {activeView === "collections" && <CollectionsView search={search} expanded={collectionExpanded} setExpanded={setCollectionExpanded} />}
+            {activeView === "history" && <HistoryView search={search} />}
+            {activeView === "environments" && <EnvironmentsView onOpenEnvModal={onOpenEnvModal} />}
+            {activeView === "stats" && <RequestStatsPanel />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       {/* Import Modal */}
       <ImportModal open={importModalOpen} onClose={() => setImportModalOpen(false)} />
@@ -587,11 +851,11 @@ function CollectionsView({ search, expanded, setExpanded }: {
   };
 
   const methodColors: Record<string, { text: string; bg: string }> = {
-    GET: { text: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/8" },
-    POST: { text: "text-amber-600 dark:text-amber-300", bg: "bg-amber-500/8" },
-    PUT: { text: "text-blue-600 dark:text-blue-300", bg: "bg-blue-500/8" },
-    DELETE: { text: "text-red-600 dark:text-red-300", bg: "bg-red-500/8" },
-    PATCH: { text: "text-violet-600 dark:text-violet-300", bg: "bg-violet-500/8" },
+    GET: { text: "text-method-get", bg: "" },
+    POST: { text: "text-method-post", bg: "" },
+    PUT: { text: "text-method-put", bg: "" },
+    DELETE: { text: "text-method-delete", bg: "" },
+    PATCH: { text: "text-method-patch", bg: "" },
   };
 
   const exportPostman = useCollectionStore((s) => s.exportPostman);
@@ -852,7 +1116,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
               >
                 <ChevronRight className="w-3 h-3 shrink-0 text-text-disabled" />
               </motion.div>
-              <Folder className="w-3 h-3 shrink-0 text-amber-500 dark:text-amber-300/50" fill="currentColor" />
+              <Folder className="w-3 h-3 shrink-0 text-text-tertiary" />
               {isRenamingItem ? (
                 <input
                   value={renameValue}
@@ -998,7 +1262,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
               >
                 <ChevronRight className="w-3 h-3 shrink-0 text-text-disabled" />
               </motion.div>
-              <Folder className="w-3.5 h-3.5 shrink-0 text-amber-500 dark:text-amber-300/70" fill="currentColor" strokeWidth={1.5} />
+              <Folder className="w-3.5 h-3.5 shrink-0 text-accent" strokeWidth={1.75} />
               {renamingId === col.id ? (
                 <input
                   value={renameValue}
@@ -1108,7 +1372,7 @@ function RequestItemWithTooltip({
     const headers = (() => { try { const h = JSON.parse(item.headers || "[]"); return Array.isArray(h) ? h.filter((h: any) => h.key && h.enabled !== false && !h.isAuto) : []; } catch { return []; } })();
     if (headers.length > 0) summary.push({ label: t('http.headers'), value: headers.map((h: any) => h.key).join(', ') });
     // Auth
-    if (item.authType && item.authType !== "none") summary.push({ label: t('http.auth'), value: item.authType === "bearer" ? "Bearer Token" : item.authType === "basic" ? "Basic Auth" : item.authType === "apiKey" ? "API Key" : item.authType === "oauth2" ? "OAuth 2.0" : item.authType, accent: "text-amber-500 dark:text-amber-300" });
+    if (item.authType && item.authType !== "none") summary.push({ label: t('http.auth'), value: item.authType === "bearer" ? "Bearer Token" : item.authType === "basic" ? "Basic Auth" : item.authType === "apiKey" ? "API Key" : item.authType === "oauth2" ? "OAuth 2.0" : item.authType, accent: "text-warning" });
     // Body
     if (item.bodyType && item.bodyType !== "none") summary.push({ label: t('http.body'), value: item.bodyType === "json" ? "JSON" : item.bodyType === "formUrlencoded" ? "URL-Encoded" : item.bodyType === "formData" ? "Form-Data" : item.bodyType === "binary" ? "Binary" : item.bodyType === "graphql" ? "GraphQL" : item.bodyType.toUpperCase() });
     return summary;
@@ -1167,8 +1431,8 @@ function RequestItemWithTooltip({
         style={{ paddingLeft: `${12 + depth * 14}px` }}
       >
         <span className={cn(
-          "pf-text-xxs font-bold px-[4px] py-[1px] pf-rounded-xs shrink-0 min-w-[28px] text-center leading-tight tracking-wide",
-          color.text, color.bg
+          "shrink-0 w-[30px] text-left font-mono text-[9.5px] font-bold uppercase leading-tight tracking-[0.02em]",
+          color.text
         )}>
           {method}
         </span>
@@ -1200,8 +1464,8 @@ function RequestItemWithTooltip({
           {/* 顶部: Method + Name */}
           <div className="flex items-center gap-2 mb-2">
             <span className={cn(
-              "pf-text-xxs font-bold px-1.5 py-[2px] rounded shrink-0",
-              color.text, color.bg
+              "shrink-0 font-mono pf-text-xxs font-bold uppercase tracking-wide",
+              color.text
             )}>
               {method}
             </span>
@@ -1237,7 +1501,7 @@ function RequestItemWithTooltip({
                 onClick={handleCopy}
                 className={cn(
                   "flex items-center gap-1 px-1.5 py-[2px] rounded pf-text-xxs font-medium transition-colors",
-                  copied ? "text-emerald-500 dark:text-emerald-300" : "hover:opacity-80"
+                  copied ? "text-success" : "hover:opacity-80"
                 )}
                 style={{ color: copied ? undefined : 'var(--shell-copy)' }}
               >
@@ -1281,11 +1545,11 @@ function HistoryView({ search }: { search: string }) {
   };
 
   const methodColors: Record<string, { text: string; bg: string }> = {
-    GET: { text: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/8" },
-    POST: { text: "text-amber-600 dark:text-amber-300", bg: "bg-amber-500/8" },
-    PUT: { text: "text-blue-600 dark:text-blue-300", bg: "bg-blue-500/8" },
-    DELETE: { text: "text-red-600 dark:text-red-300", bg: "bg-red-500/8" },
-    PATCH: { text: "text-violet-600 dark:text-violet-300", bg: "bg-violet-500/8" },
+    GET: { text: "text-method-get", bg: "" },
+    POST: { text: "text-method-post", bg: "" },
+    PUT: { text: "text-method-put", bg: "" },
+    DELETE: { text: "text-method-delete", bg: "" },
+    PATCH: { text: "text-method-patch", bg: "" },
   };
 
   // 按日期分组
@@ -1379,8 +1643,8 @@ function HistoryView({ search }: { search: string }) {
               >
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <span className={cn(
-                    "pf-text-3xs font-bold px-1 py-[1px] rounded shrink-0 min-w-[28px] text-center",
-                    color.text, color.bg
+                    "shrink-0 w-[30px] text-left font-mono text-[9.5px] font-bold uppercase tracking-[0.02em]",
+                    color.text
                   )}>
                     {h.method}
                   </span>
@@ -1406,7 +1670,7 @@ function HistoryView({ search }: { search: string }) {
                     {h.status ? (
                       <span className={cn(
                         "pf-text-3xs tabular-nums font-bold",
-                        h.status < 400 ? "text-emerald-500 dark:text-emerald-300" : "text-red-500 dark:text-red-300"
+                        h.status < 400 ? "text-success" : "text-error"
                       )}>
                         {h.status}
                       </span>
@@ -1423,7 +1687,7 @@ function HistoryView({ search }: { search: string }) {
       ))}
       {/* Write error banner */}
       {writeError && (
-        <div className="mx-2 my-1 px-2 py-1 pf-rounded-sm bg-red-500/10 text-red-500 dark:text-red-300 pf-text-xxs truncate" title={writeError}>
+        <div className="mx-2 my-1 truncate px-2 py-1 pf-rounded-sm bg-error/10 pf-text-xxs text-error" title={writeError}>
           {t('history.writeFailed')}: {writeError}
         </div>
       )}
@@ -1469,12 +1733,25 @@ function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
     const isActive = env.id === activeEnvId;
     showMenu(e, [
       { id: "activate", label: isActive ? t('sidebar.deactivate') : t('sidebar.activate'), icon: <Zap className="w-3.5 h-3.5" />, onClick: () => setActive(isActive ? null : env.id) },
-      { id: "edit-vars", label: "管理变量", icon: <Edit3 className="w-3.5 h-3.5" />, onClick: onOpenEnvModal },
+      { id: "edit-vars", label: t('sidebar.manageVariables', '管理变量'), icon: <Edit3 className="w-3.5 h-3.5" />, onClick: onOpenEnvModal },
     ]);
   };
 
   return (
     <div className="py-0.5">
+      {environments.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-hover shadow-sm">
+            <Globe className="w-6 h-6 text-text-tertiary" />
+          </div>
+          <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">
+            {t('sidebar.noEnv', { defaultValue: '暂无环境' })}
+          </p>
+          <p className="text-[length:var(--fs-sidebar-sm)] mt-1 leading-relaxed text-text-disabled">
+            {t('sidebar.noEnvHint', { defaultValue: '创建环境以管理变量与密钥' })}
+          </p>
+        </div>
+      )}
       {environments.map((env) => {
         const isActive = env.id === activeEnvId;
         return (
@@ -1483,20 +1760,23 @@ function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
               onClick={() => setActive(isActive ? null : env.id)}
               onContextMenu={(e) => handleEnvContextMenu(e, env)}
               className={cn(
-                "w-full flex items-center gap-2 px-2 py-[6px] rounded-md text-[length:var(--fs-sidebar)] cursor-pointer transition-colors",
+                "relative w-full flex items-center gap-2 px-2 py-[6px] rounded-md text-[length:var(--fs-sidebar)] cursor-pointer transition-colors",
                 isActive
-                  ? "text-text-secondary bg-emerald-500/5 hover:bg-emerald-500/8"
+                  ? "text-text-primary bg-accent-soft"
                   : "text-text-tertiary hover:bg-bg-hover"
               )}
             >
+              {isActive && (
+                <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-accent" />
+              )}
               <div className={cn(
-                "w-[6px] h-[6px] pf-rounded-xs shrink-0",
-                isActive ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" : "bg-border-strong"
+                "w-[6px] h-[6px] rounded-full shrink-0",
+                isActive ? "bg-accent shadow-[0_0_6px_var(--color-accent-muted)]" : "bg-border-strong"
               )} />
-              <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-emerald-600 dark:text-emerald-300" : "text-text-disabled")} />
+              <Globe className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-accent" : "text-text-disabled")} />
               <span className={cn("truncate flex-1 text-left", isActive && "font-medium")}>{env.name}</span>
               {isActive && (
-                <span className="pf-rounded-sm bg-emerald-500/10 px-1.5 py-0.5 pf-text-3xs font-semibold text-emerald-600 dark:text-emerald-300 shrink-0">{t('sidebar.active')}</span>
+                <span className="shrink-0 pf-rounded-sm bg-accent-soft px-1.5 py-0.5 pf-text-3xs font-semibold text-accent">{t('sidebar.active')}</span>
               )}
             </button>
           </div>
@@ -1510,7 +1790,7 @@ function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
           className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-dashed border-border-default text-[length:var(--fs-sidebar)] text-text-tertiary hover:border-accent hover:text-accent transition-colors"
         >
           <Zap className="w-3.5 h-3.5" />
-          <span>管理变量</span>
+          <span>{t('sidebar.manageVariables', '管理变量')}</span>
         </button>
       </div>
 

@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { ImagePlus, FolderOutput, Sparkles, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { ImagePlus, FolderOutput, Sparkles, CheckCircle2, AlertCircle, Loader2, Check, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateIcons, type BatchResult, type IconPlatforms } from "@/services/toolboxService";
 import { ToolboxToolPane } from "./ToolboxToolPane";
@@ -89,58 +89,62 @@ export function IconGeneratorTool() {
 
   return (
     <ToolboxToolPane>
-      {/* 选择源图片 */}
+      {/* 选择源图片 — 原型 dropzone 风格 */}
       <section>
-        <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.selectSource`)}</h3>
-        <div className="flex items-start gap-4">
-          <button onClick={handleSelectSource} className="wb-ghost-btn gap-2 px-3 py-2">
-            <ImagePlus className="h-4 w-4" />
-            {t(`${k}.selectSource`)}
-          </button>
-
-          {sourceImage && (
-            <div className="flex items-center gap-3">
-              <div className="h-16 w-16 overflow-hidden rounded-lg border border-border-default/60 bg-bg-secondary">
-                <img
-                  src={convertFileSrc(sourceImage)}
-                  alt="source"
-                  className="h-full w-full object-contain"
-                />
-              </div>
-              <span className="pf-text-sm text-text-secondary">
-                {t(`${k}.sourceSelected`, { name: sourceName })}
-              </span>
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.selectSource`)}</h3>
+        {sourceImage ? (
+          <button
+            type="button"
+            onClick={handleSelectSource}
+            className="flex w-full items-center gap-3 rounded-[10px] border border-border-default bg-bg-secondary/40 px-3 py-3 text-left transition-colors hover:border-accent/50 hover:bg-accent-soft"
+          >
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border-default bg-bg-secondary">
+              <img
+                src={convertFileSrc(sourceImage)}
+                alt="source"
+                className="h-full w-full object-contain"
+              />
             </div>
-          )}
-        </div>
+            <span className="min-w-0 truncate pf-text-sm text-text-secondary">
+              {t(`${k}.sourceSelected`, { name: sourceName })}
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSelectSource}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-border-strong bg-bg-secondary/40 px-6 py-7 text-center transition-colors hover:border-accent/60 hover:bg-accent-soft"
+          >
+            <ImagePlus className="h-6 w-6 text-text-tertiary" />
+            <span className="pf-text-sm text-text-tertiary">{t(`${k}.selectSource`)}</span>
+          </button>
+        )}
       </section>
 
-      {/* 目标平台 */}
+      {/* 目标平台 — accent-soft 选择块 + check（对齐原型 size-chip 风格） */}
       <section>
-        <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.platforms`)}</h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.platforms`)}</h3>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {PLATFORMS.map((platform) => {
             const checked = platforms[platform.key];
             return (
               <label
                 key={platform.key}
+                onClick={() => togglePlatform(platform.key)}
                 className={cn(
-                  "flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors",
+                  "flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5 transition-colors",
                   checked
-                    ? "border-orange-500/50 bg-orange-500/10"
-                    : "border-border-default/60 bg-bg-secondary hover:border-border-strong"
+                    ? "border-accent/50 bg-accent-soft"
+                    : "border-border-default bg-bg-secondary hover:border-border-strong"
                 )}
               >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => togglePlatform(platform.key)}
-                  className="mt-0.5 accent-orange-500"
-                />
+                {checked
+                  ? <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
+                  : <Circle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-tertiary" />}
                 <div className="min-w-0 flex-1">
                   <div className="pf-text-sm font-medium text-text-primary">{t(platform.labelKey)}</div>
                   <div className="pf-text-xs text-text-tertiary">{t(platform.descKey)}</div>
-                  <div className="mt-1 pf-text-xs text-text-disabled">{platform.sizes}</div>
+                  <div className="mt-0.5 pf-text-xxs font-mono text-text-disabled">{platform.sizes}</div>
                 </div>
               </label>
             );
@@ -150,7 +154,7 @@ export function IconGeneratorTool() {
 
       {/* 输出目录 */}
       <section>
-        <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.outputDir`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputDir`)}</h3>
         <div className="flex items-center gap-3">
           <button onClick={handleSelectOutput} className="wb-ghost-btn gap-2 px-3 py-2">
             <FolderOutput className="h-4 w-4" />
@@ -167,12 +171,7 @@ export function IconGeneratorTool() {
         <button
           onClick={handleGenerate}
           disabled={!canGenerate}
-          className={cn(
-            "flex items-center gap-2 rounded-lg px-5 py-2.5 pf-text-sm font-medium transition-colors",
-            canGenerate
-              ? "bg-orange-500 text-white hover:bg-orange-600"
-              : "cursor-not-allowed bg-bg-secondary text-text-disabled"
-          )}
+          className="wb-primary-btn bg-accent hover:bg-accent-hover px-5"
         >
           {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {processing ? t(`${k}.generating`) : t(`${k}.generate`)}
@@ -181,13 +180,13 @@ export function IconGeneratorTool() {
         {result && (
           <div className="flex items-center gap-3">
             {result.success_count > 0 && (
-              <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600 dark:text-emerald-300">
+              <span className="pf-status-chip text-success">
                 <CheckCircle2 className="h-4 w-4" />
                 {t("toolWorkbench.toolbox.screenshotResizer.successCount", { count: result.success_count })}
               </span>
             )}
             {result.errors.length > 0 && (
-              <span className="flex items-center gap-1.5 pf-text-sm text-rose-600 dark:text-rose-300">
+              <span className="pf-status-chip text-error">
                 <AlertCircle className="h-4 w-4" />
                 {t("toolWorkbench.toolbox.screenshotResizer.errorCount", { count: result.errors.length })}
               </span>
@@ -198,23 +197,23 @@ export function IconGeneratorTool() {
 
       {/* 进度条 */}
       {processing && (
-        <section className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
+        <section className="rounded-lg border border-accent/30 bg-accent-soft p-4">
           <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
-            <Loader2 className="h-4 w-4 animate-spin text-orange-500 dark:text-orange-300" />
+            <Loader2 className="h-4 w-4 animate-spin text-accent" />
             <span>{t(`${k}.generating`)} {selectedPlatformNames.join(", ")}</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-orange-500/20">
-            <div className="h-full animate-[progress-indeterminate_1.5s_ease-in-out_infinite] rounded-full bg-orange-500" style={{ width: "40%" }} />
+          <div className="h-1.5 overflow-hidden rounded-full bg-accent/20">
+            <div className="h-full animate-[progress-indeterminate_1.5s_ease-in-out_infinite] rounded-full bg-accent" style={{ width: "40%" }} />
           </div>
         </section>
       )}
 
       {/* 错误详情 */}
       {result && result.errors.length > 0 && (
-        <section className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
+        <section className="rounded-lg border border-error/30 bg-error/5 p-3">
           <div className="space-y-1">
             {result.errors.map((err, i) => (
-              <div key={i} className="pf-text-xs text-rose-600 dark:text-rose-300">{err}</div>
+              <div key={i} className="pf-text-xs font-mono text-error">{err}</div>
             ))}
           </div>
         </section>

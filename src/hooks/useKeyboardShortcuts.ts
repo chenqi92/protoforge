@@ -3,6 +3,31 @@ import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "@/stores/appStore";
 
 /**
+ * Cycles the universal tab strip (request tabs + tool sessions) by `delta`.
+ * Reuses the existing nav actions so the dual model stays intact.
+ */
+function cycleUnifiedTab(delta: 1 | -1): void {
+  const store = useAppStore.getState();
+  const tabs = store.getUnifiedTabs();
+  if (tabs.length <= 1) {
+    // Single context — fall back to request-only cycling (no-op if 0/1 tabs).
+    if (delta === 1) store.nextTab();
+    else store.prevTab();
+    return;
+  }
+  const activeId = store.getActiveUnifiedTabId();
+  const currentIndex = tabs.findIndex((t) => t.id === activeId);
+  const baseIndex = currentIndex === -1 ? 0 : currentIndex;
+  const nextIndex = (baseIndex + delta + tabs.length) % tabs.length;
+  const next = tabs[nextIndex];
+  if (next.kind === "request" && next.tabId) {
+    store.setActiveTab(next.tabId);
+  } else if (next.kind === "tool" && next.tool && next.sessionId) {
+    store.setActiveToolSession(next.tool, next.sessionId);
+  }
+}
+
+/**
  * Global keyboard shortcuts for ProtoForge desktop app.
  * Must be mounted once at the App level.
  */
@@ -10,9 +35,6 @@ export function useKeyboardShortcuts() {
   const addTab = useAppStore((s) => s.addTab);
   const closeTab = useAppStore((s) => s.closeTab);
   const closeCollectionPanel = useAppStore((s) => s.closeCollectionPanel);
-  const nextTab = useAppStore((s) => s.nextTab);
-  const prevTab = useAppStore((s) => s.prevTab);
-  const getActiveTab = useAppStore((s) => s.getActiveTab);
   const activeCollectionId = useAppStore((s) => s.activeCollectionId);
 
   useEffect(() => {
@@ -29,29 +51,50 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Ctrl+W — Close current tab
+      // Ctrl+W — Close current context (request tab OR tool session)
       if (ctrl && !shift && e.key === "w") {
         e.preventDefault();
-        const active = getActiveTab();
-        if (active) {
-          closeTab(active.id);
-        } else if (activeCollectionId) {
-          closeCollectionPanel();
+        const store = useAppStore.getState();
+        const workbench = store.activeWorkbench;
+        if (workbench === "requests") {
+          const active = store.getActiveTab();
+          if (active) {
+            closeTab(active.id);
+          } else if (activeCollectionId) {
+            closeCollectionPanel();
+          }
+        } else if (workbench !== "home") {
+          const sessionId = store.activeToolSessionIds[workbench];
+          if (sessionId) store.closeToolSession(workbench, sessionId);
         }
         return;
       }
 
-      // Ctrl+Tab — Next tab
+      // Ctrl+Tab — Next tab (unified strip)
       if (ctrl && !shift && e.key === "Tab") {
         e.preventDefault();
-        nextTab();
+        cycleUnifiedTab(1);
         return;
       }
 
-      // Ctrl+Shift+Tab — Previous tab
+      // Ctrl+Shift+Tab — Previous tab (unified strip)
       if (ctrl && shift && e.key === "Tab") {
         e.preventDefault();
-        prevTab();
+        cycleUnifiedTab(-1);
+        return;
+      }
+
+      // Ctrl+\ — Toggle split view
+      if (ctrl && !shift && e.key === "\\") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("toggle-split-view"));
+        return;
+      }
+
+      // Ctrl+B — Toggle sidebar
+      if (ctrl && !shift && e.key === "b") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("toggle-sidebar"));
         return;
       }
 
@@ -103,5 +146,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [activeCollectionId, addTab, closeCollectionPanel, closeTab, nextTab, prevTab, getActiveTab]);
+  }, [activeCollectionId, addTab, closeCollectionPanel, closeTab]);
 }

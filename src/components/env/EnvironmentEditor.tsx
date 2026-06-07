@@ -162,12 +162,14 @@ export function EnvironmentEditor() {
           <Globe className="w-5 h-5 text-accent" />
           <h2 className="pf-text-lg font-semibold text-text-primary">{t('env.title')}</h2>
         </div>
-        <div className="flex items-center gap-1 bg-bg-secondary p-1 rounded-lg w-fit">
+        <div className="flex items-end gap-1 border-b border-border-default -mx-5 px-5">
           <button
             onClick={() => setTab('environments')}
             className={cn(
-              "px-4 py-1.5 pf-text-sm font-medium rounded-md transition-all",
-              tab === 'environments' ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary"
+              "relative h-8 px-3 pf-text-sm font-medium transition-colors",
+              tab === 'environments'
+                ? "text-text-primary after:content-[''] after:absolute after:left-2 after:right-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent"
+                : "text-text-tertiary hover:text-text-primary"
             )}
           >
             {t('env.envVars')}
@@ -175,8 +177,10 @@ export function EnvironmentEditor() {
           <button
             onClick={() => setTab('global')}
             className={cn(
-              "px-4 py-1.5 pf-text-sm font-medium rounded-md transition-all",
-              tab === 'global' ? "bg-bg-primary text-text-primary shadow-sm" : "text-text-tertiary hover:text-text-secondary"
+              "relative h-8 px-3 pf-text-sm font-medium transition-colors",
+              tab === 'global'
+                ? "text-text-primary after:content-[''] after:absolute after:left-2 after:right-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent"
+                : "text-text-tertiary hover:text-text-primary"
             )}
           >
             {t('env.globalVars')}
@@ -197,7 +201,7 @@ export function EnvironmentEditor() {
                   placeholder={t('env.newEnvPlaceholder')}
                   className="input-field flex-1 pf-text-sm py-1.5"
                 />
-                <button onClick={handleCreateEnv} className="h-7 px-2 bg-accent text-white rounded-md pf-text-xs font-medium hover:bg-accent-hover shrink-0">
+                <button onClick={handleCreateEnv} className="h-7 px-2 bg-accent text-white pf-rounded-md pf-text-xs font-medium hover:bg-accent-hover shrink-0">
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -211,28 +215,30 @@ export function EnvironmentEditor() {
                     key={env.id}
                     onClick={() => setSelectedEnvId(env.id)}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group mx-1 rounded-md",
-                      selectedEnvId === env.id ? "bg-accent/10" : "hover:bg-bg-hover"
+                      "relative flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group mx-1 pf-rounded-md",
+                      selectedEnvId === env.id
+                        ? "bg-accent-soft before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-accent"
+                        : "hover:bg-bg-hover"
                     )}
                   >
                     <button
                       onClick={(e) => { e.stopPropagation(); setActive(env.isActive === 1 ? null : env.id); }}
                       className={cn(
                         "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                        env.isActive === 1 ? "border-emerald-500 bg-emerald-500" : "border-border-strong hover:border-accent"
+                        env.isActive === 1 ? "border-success bg-success" : "border-border-strong hover:border-accent"
                       )}
                     >
                       {env.isActive === 1 && <Check className="w-2.5 h-2.5 text-white" />}
                     </button>
                     <span className={cn(
                       "pf-text-base truncate flex-1",
-                      selectedEnvId === env.id ? "text-accent font-medium" : "text-text-primary"
+                      selectedEnvId === env.id ? "text-text-primary font-medium" : "text-text-primary"
                     )}>
                       {env.name}
                     </span>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteEnv(env.id); }}
-                      className="w-6 h-6 flex items-center justify-center rounded text-text-disabled hover:text-red-500 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                      className="w-6 h-6 flex items-center justify-center pf-rounded-sm text-text-disabled hover:text-error hover:bg-error/10 opacity-0 group-hover:opacity-100 transition-all"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -242,8 +248,8 @@ export function EnvironmentEditor() {
             </div>
             {/* Active env indicator */}
             {activeEnvId && (
-              <div className="shrink-0 px-3 py-2 border-t border-border-default pf-text-xs text-emerald-600 dark:text-emerald-300 font-medium flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="shrink-0 px-3 py-2 border-t border-border-default pf-text-xs text-success font-medium flex items-center gap-1.5">
+                <span className="pf-dot s-live" />
                 {t('env.active')}: {environments.find((e) => e.id === activeEnvId)?.name || ''}
               </div>
             )}
@@ -253,16 +259,21 @@ export function EnvironmentEditor() {
           <div className="flex-1 flex flex-col overflow-hidden">
             {selectedEnvId ? (
               <>
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default bg-bg-secondary/30 shrink-0">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default bg-bg-secondary/40 shrink-0">
                   <span className="pf-text-base font-medium text-text-secondary">
                     {t('env.varsOf', { name: environments.find((e) => e.id === selectedEnvId)?.name })}
                   </span>
                   <div className="flex items-center gap-2">
-                    {dirty && <span className="pf-text-xs text-amber-500 dark:text-amber-300 font-medium">{t('env.unsaved')}</span>}
+                    {dirty && (
+                      <span className="pf-status-chip pf-text-xs text-warning font-medium">
+                        <span className="pf-dot s-conn" />
+                        {t('env.unsaved')}
+                      </span>
+                    )}
                     <button
                       onClick={handleSaveVariables}
                       disabled={!dirty}
-                      className="h-7 px-3 bg-accent text-white rounded-md pf-text-xs font-medium hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="h-7 px-3 bg-accent text-white pf-rounded-md pf-text-xs font-medium hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {t('env.save')}
                     </button>
@@ -272,14 +283,14 @@ export function EnvironmentEditor() {
                   {EnvMenuComponent}
                   {/* Header */}
                   {editing.length > 0 && (
-                    <div className="flex items-center gap-2 mb-2 px-8 pf-text-xs font-semibold text-text-disabled uppercase tracking-wider">
+                    <div className="flex items-center gap-2 mb-2 px-8 pf-text-xxs font-bold text-text-tertiary uppercase tracking-[0.06em]">
                       <div className="flex-1">{t('env.varName')}</div>
                       <div className="flex-1">{t('env.varValue')}</div>
                       <div className="w-16 text-center">{t('env.secret')}</div>
                       <div className="w-8" />
                     </div>
                   )}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     {editing.map((v, i) => (
                       <div key={v.id} className="flex items-center gap-2 group" onContextMenu={(e) => handleEnvVarContextMenu(e, v, i)}>
                         <div className="w-6 flex justify-center">
@@ -294,24 +305,24 @@ export function EnvironmentEditor() {
                           value={v.key}
                           onChange={(e) => updateVar(i, { key: e.target.value })}
                           placeholder="VARIABLE_NAME"
-                          className={cn("input-field flex-1 font-mono pf-text-base py-1.5", v.enabled !== 1 && "opacity-40")}
+                          className={cn("input-field flex-1 font-mono pf-text-sm py-1.5 text-accent", v.enabled !== 1 && "opacity-40 line-through")}
                         />
                         <input
                           value={v.value}
                           onChange={(e) => updateVar(i, { value: e.target.value })}
                           placeholder="value"
                           type={v.isSecret === 1 ? 'password' : 'text'}
-                          className={cn("input-field flex-1 font-mono pf-text-base py-1.5", v.enabled !== 1 && "opacity-40")}
+                          className={cn("input-field flex-1 font-mono pf-text-sm py-1.5 text-text-secondary", v.enabled !== 1 && "opacity-40")}
                         />
                         <button
                           onClick={() => updateVar(i, { isSecret: v.isSecret === 1 ? 0 : 1 })}
-                          className={cn("w-16 h-[34px] flex items-center justify-center rounded-md pf-text-xs border transition-colors", v.isSecret === 1 ? "bg-amber-50 border-amber-200 text-amber-600 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30" : "border-border-default text-text-disabled hover:text-text-secondary")}
+                          className={cn("w-16 h-[34px] flex items-center justify-center pf-rounded-md pf-text-xs border transition-colors", v.isSecret === 1 ? "bg-warning/10 border-warning/30 text-warning" : "border-border-default text-text-disabled hover:text-text-secondary")}
                           title={v.isSecret === 1 ? t('env.unmarkSecret') : t('env.markSecret')}
                         >
                           {v.isSecret === 1 ? <Lock className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                         </button>
                         <div className="w-8 flex justify-center">
-                          <button onClick={() => removeVar(i)} className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:text-red-300 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
+                          <button onClick={() => removeVar(i)} className="w-7 h-7 pf-rounded-md flex items-center justify-center text-text-tertiary hover:bg-error/10 hover:text-error opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
                         </div>
                       </div>
                     ))}
@@ -325,11 +336,13 @@ export function EnvironmentEditor() {
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-text-disabled">
-                <div className="text-center">
-                  <Globe className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                  <p className="pf-text-base text-text-secondary">{t('env.selectEnv')}</p>
-                  <p className="pf-text-sm mt-1">{t('env.selectEnvHint')}</p>
+              <div className="flex-1 flex items-center justify-center px-8">
+                <div className="flex flex-col items-center text-center">
+                  <div className="flex h-14 w-14 items-center justify-center pf-rounded-xl border border-border-subtle bg-bg-secondary/75 text-text-disabled">
+                    <Globe className="h-6 w-6 opacity-70" />
+                  </div>
+                  <p className="mt-4 pf-text-base font-semibold text-text-secondary">{t('env.selectEnv')}</p>
+                  <p className="mt-2 max-w-xs pf-text-sm leading-5 text-text-tertiary">{t('env.selectEnvHint')}</p>
                 </div>
               </div>
             )}
@@ -338,11 +351,11 @@ export function EnvironmentEditor() {
       ) : (
         /* Global Variables Tab */
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default bg-bg-secondary/30 shrink-0">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default bg-bg-secondary/40 shrink-0">
             <span className="pf-text-base text-text-secondary">{t('env.globalVarsDesc')}</span>
             <button
               onClick={handleSaveGlobal}
-              className="h-7 px-3 bg-accent text-white rounded-md pf-text-xs font-medium hover:bg-accent-hover transition-colors"
+              className="h-7 px-3 bg-accent text-white pf-rounded-md pf-text-xs font-medium hover:bg-accent-hover transition-colors"
             >
               {t('env.save')}
             </button>
@@ -350,13 +363,13 @@ export function EnvironmentEditor() {
           <div className="flex-1 overflow-auto p-4">
             {GlobalMenuComponent}
             {globalEditing.length > 0 && (
-              <div className="flex items-center gap-2 mb-2 px-8 pf-text-xs font-semibold text-text-disabled uppercase tracking-wider">
+              <div className="flex items-center gap-2 mb-2 px-8 pf-text-xxs font-bold text-text-tertiary uppercase tracking-[0.06em]">
                 <div className="flex-1">{t('env.varName')}</div>
                 <div className="flex-1">{t('env.varValue')}</div>
                 <div className="w-8" />
               </div>
             )}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {globalEditing.map((v, i) => (
                 <div key={i} className="flex items-center gap-2 group" onContextMenu={(e) => handleGlobalVarContextMenu(e, v, i)}>
                   <div className="w-6 flex justify-center">
@@ -371,16 +384,16 @@ export function EnvironmentEditor() {
                     value={v.key}
                     onChange={(e) => setGlobalEditing((prev) => prev.map((g, j) => j === i ? { ...g, key: e.target.value } : g))}
                     placeholder="GLOBAL_VAR"
-                    className={cn("input-field flex-1 font-mono pf-text-base py-1.5", !v.enabled && "opacity-40")}
+                    className={cn("input-field flex-1 font-mono pf-text-sm py-1.5 text-accent", !v.enabled && "opacity-40 line-through")}
                   />
                   <input
                     value={v.value}
                     onChange={(e) => setGlobalEditing((prev) => prev.map((g, j) => j === i ? { ...g, value: e.target.value } : g))}
                     placeholder="value"
-                    className={cn("input-field flex-1 font-mono pf-text-base py-1.5", !v.enabled && "opacity-40")}
+                    className={cn("input-field flex-1 font-mono pf-text-sm py-1.5 text-text-secondary", !v.enabled && "opacity-40")}
                   />
                   <div className="w-8 flex justify-center">
-                    <button onClick={() => setGlobalEditing((prev) => prev.filter((_, j) => j !== i))} className="w-7 h-7 rounded-md flex items-center justify-center text-text-tertiary hover:bg-red-50 hover:text-red-500 dark:text-red-300 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
+                    <button onClick={() => setGlobalEditing((prev) => prev.filter((_, j) => j !== i))} className="w-7 h-7 pf-rounded-md flex items-center justify-center text-text-tertiary hover:bg-error/10 hover:text-error opacity-0 group-hover:opacity-100 transition-all pf-text-lg">×</button>
                   </div>
                 </div>
               ))}

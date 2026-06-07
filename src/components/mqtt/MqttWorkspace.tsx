@@ -3,7 +3,7 @@
 import { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Play, Square, Trash2, Send, Plus, X, Radio, ArrowDown } from 'lucide-react';
+import { Play, Square, Trash2, Send, Plus, X, Radio, ArrowDown, ArrowUp, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
@@ -183,8 +183,9 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
         )}
         actions={
           isConnected || status === 'connecting' ? (
-            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[88px] bg-error hover:bg-error/90">
-              <Square className="w-3 h-3 fill-white" /> {t('mqtt.disconnect')}
+            <button onClick={handleDisconnect} className={cn("wb-primary-btn min-w-[88px]", status === 'connecting' ? "bg-warning hover:bg-warning/90" : "bg-error hover:bg-error/90")}>
+              {status === 'connecting' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Square className="w-3 h-3 fill-white" />}
+              {status === 'connecting' ? t('mqtt.connecting') : t('mqtt.disconnect')}
             </button>
           ) : (
             <button onClick={handleConnect} className="wb-primary-btn min-w-[88px] bg-accent hover:bg-accent-hover">
@@ -206,17 +207,17 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
               <span>{t('mqtt.password')}</span>
               <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('mqtt.optional')} type="password" disabled={isConnected} />
             </div>
-            <span className={cn("wb-request-meta ml-auto",
-              status === 'connected' ? "text-emerald-600 dark:text-emerald-300" :
-              status === 'connecting' ? "text-amber-600 dark:text-amber-300" :
-              status === 'error' ? "text-red-500 dark:text-red-300" : "text-text-tertiary"
+            <span className={cn("pf-status-chip ml-auto",
+              status === 'connected' ? "text-accent" :
+              status === 'connecting' ? "text-warning" :
+              status === 'error' ? "text-error" : "text-text-tertiary"
             )}>
-              <span className={cn("wb-request-meta-dot",
-                status === 'connected' ? "bg-emerald-500" : status === 'connecting' ? "bg-amber-500 animate-pulse" : status === 'error' ? "bg-red-500" : "bg-gray-400"
+              <span className={cn("pf-dot",
+                status === 'connected' ? "s-live" : status === 'connecting' ? "s-conn" : status === 'error' ? "s-err" : "s-idle"
               )} />
               {status === 'idle' ? t('mqtt.idle') : status === 'connecting' ? t('mqtt.connecting') : status === 'connected' ? t('mqtt.connected') : status === 'disconnected' ? t('mqtt.disconnected') : t('mqtt.error')}
             </span>
-            {errorMsg ? <span className="pf-text-xs text-red-500 dark:text-red-300">{errorMsg}</span> : null}
+            {errorMsg ? <span className="pf-text-xs text-error">{errorMsg}</span> : null}
           </>
         )}
       />
@@ -250,10 +251,13 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
                 ) : (
                   subscriptions.map((sub, i) => (
                     <div key={i} className="flex items-center justify-between border-t border-border-default/60 py-2 pf-text-xs">
-                      <span className="truncate font-mono text-text-secondary">{sub.topic}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="pf-dot s-ok" />
+                        <span className="truncate font-mono text-text-secondary">{sub.topic}</span>
+                      </span>
                       <div className="flex shrink-0 items-center gap-1.5">
-                        <span className="pf-rounded-sm bg-bg-primary px-1.5 py-0.5 pf-text-xxs text-text-tertiary">Q{sub.qos}</span>
-                        <button onClick={() => handleUnsubscribe(sub.topic)} className="flex h-6 w-6 items-center justify-center pf-rounded-sm text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500 dark:text-red-300"><X className="w-3 h-3" /></button>
+                        <span className="pf-pill">Q{sub.qos}</span>
+                        <button onClick={() => handleUnsubscribe(sub.topic)} className="flex h-6 w-6 items-center justify-center pf-rounded-sm text-text-disabled transition-colors hover:bg-error/10 hover:text-error"><X className="w-3 h-3" /></button>
                       </div>
                     </div>
                   ))
@@ -292,44 +296,59 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
           <div className="wb-workbench-main">
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-bg-primary">
               <div className="wb-pane-header shrink-0 pf-text-xs">
-                <div className="min-w-0 flex flex-1 items-center">
-                  <span className="text-text-disabled">{t('mqtt.messageCount', { count: messages.length })}</span>
+                <div className="min-w-0 flex flex-1 items-center gap-2.5">
+                  <span className={cn("pf-status-chip",
+                    status === 'connected' ? "text-accent" :
+                    status === 'connecting' ? "text-warning" :
+                    status === 'error' ? "text-error" : "text-text-tertiary"
+                  )}>
+                    <span className={cn("pf-dot",
+                      status === 'connected' ? "s-live" : status === 'connecting' ? "s-conn" : status === 'error' ? "s-err" : "s-idle"
+                    )} />
+                    {status === 'idle' ? t('mqtt.idle') : status === 'connecting' ? t('mqtt.connecting') : status === 'connected' ? t('mqtt.connected') : status === 'disconnected' ? t('mqtt.disconnected') : t('mqtt.error')}
+                  </span>
+                  <span className="pf-pill"><span className="pf-text-3xs uppercase tracking-wide opacity-70">msg</span><span className="tabular-nums">{messages.length}</span></span>
                 </div>
                 <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
                   <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn px-2.5 pf-text-xs", autoScroll && "text-accent")}>
                     <ArrowDown className="w-3 h-3" /> {t('mqtt.autoScroll')}
                   </button>
-                  <button onClick={() => setMessages([])} className="wb-icon-btn hover:text-red-500 dark:text-red-300"><Trash2 className="w-3 h-3" /></button>
+                  <button onClick={() => setMessages([])} className="wb-icon-btn hover:bg-error/10 hover:text-error"><Trash2 className="w-3 h-3" /></button>
                 </div>
               </div>
               <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/10">
                 {messages.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
                     <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
-                      <Radio className="w-8 h-8 opacity-20 text-violet-500 dark:text-violet-300" />
+                      <Radio className="w-8 h-8 opacity-20 text-accent" />
                     </div>
                     <p className="pf-text-base font-medium">{t('mqtt.emptyTitle')}</p>
                     <p className="mt-1 pf-text-xs">{t('mqtt.emptyDesc')}</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-border-default/55">
+                  <div className="divide-y divide-border-default/40">
                     {visibleMessages.map((msg, i) => (
-                      <div key={i} className={cn("px-4 py-3 transition-colors hover:bg-bg-hover/35", msg.direction === 'out' && "bg-violet-500/[0.035]")}>
-                        <div className="mb-1 flex items-center gap-2">
-                          <span className={cn("pf-rounded-sm px-1.5 py-0.5 pf-text-xxs font-bold", msg.direction === 'out' ? "bg-violet-500/20 text-violet-600 dark:text-violet-300" : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300")}>
+                      <div key={i} className={cn("px-4 py-1.5 transition-colors hover:bg-bg-hover/40", msg.direction === 'out' && "bg-accent-soft/30")}>
+                        <div className="mb-0.5 flex items-center gap-2">
+                          {msg.direction === 'out' ? (
+                            <ArrowUp className="h-3.5 w-3.5 shrink-0 text-method-post" />
+                          ) : (
+                            <ArrowDown className="h-3.5 w-3.5 shrink-0 text-method-get" />
+                          )}
+                          <span className="shrink-0 font-mono tabular-nums pf-text-xxs text-text-tertiary">{new Date(msg.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}</span>
+                          <span className={cn("shrink-0 font-mono pf-text-3xs font-bold uppercase tracking-wide", msg.direction === 'out' ? "text-method-post" : "text-method-get")}>
                             {msg.direction === 'out' ? t('mqtt.sent') : t('mqtt.received')}
                           </span>
-                          <span className="min-w-0 truncate pf-text-xxs font-mono text-accent">{msg.topic}</span>
-                          <span className="ml-auto pf-text-xxs text-text-disabled">Q{msg.qos}</span>
-                          {msg.retain && <span className="pf-rounded-sm bg-amber-500/10 px-1.5 py-0.5 pf-text-3xs text-amber-600 dark:text-amber-300">R</span>}
-                          <span className="pf-text-xxs font-mono text-text-disabled">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                          <span className="min-w-0 truncate pf-text-xs font-mono text-accent">{msg.topic}</span>
+                          <span className="ml-auto shrink-0 pf-text-3xs tabular-nums text-text-disabled">Q{msg.qos}</span>
+                          {msg.retain && <span className="pf-pill warn pf-text-3xs">R</span>}
                         </div>
-                        <pre className="whitespace-pre-wrap break-all pf-text-sm font-mono text-text-secondary">{msg.payload}</pre>
+                        <pre className="whitespace-pre-wrap break-all pl-6 pf-text-xs font-mono leading-[1.6] text-text-secondary">{msg.payload}</pre>
                       </div>
                     ))}
                     {messages.length > MAX_VISIBLE_MQTT_MESSAGES && (
                       <div className="px-4 py-2 text-center pf-text-xxs text-text-disabled">
-                        仅渲染最近 {MAX_VISIBLE_MQTT_MESSAGES} 条消息，共 {messages.length} 条
+                        {t('mqtt.messagesTruncated', { visible: MAX_VISIBLE_MQTT_MESSAGES, total: messages.length, defaultValue: '仅渲染最近 {{visible}} 条消息，共 {{total}} 条' })}
                       </div>
                     )}
                   </div>

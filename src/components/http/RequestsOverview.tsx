@@ -16,13 +16,15 @@ import { useHistoryStore } from '@/stores/historyStore';
 import type { RequestProtocol } from '@/stores/appStore';
 import type { Collection } from '@/types/collections';
 
-// HTTP method color mapping
-const methodDot: Record<string, string> = {
-  GET: 'bg-emerald-500',
-  POST: 'bg-amber-500',
-  PUT: 'bg-blue-500',
-  DELETE: 'bg-red-500',
-  PATCH: 'bg-violet-500',
+// HTTP method → .pf-mtag tone class (matches Forge .mtag m-*)
+const methodMtag: Record<string, string> = {
+  GET: 'm-get',
+  POST: 'm-post',
+  PUT: 'm-put',
+  DELETE: 'm-delete',
+  PATCH: 'm-patch',
+  HEAD: 'm-head',
+  OPTIONS: 'm-options',
 };
 
 interface RequestsOverviewProps {
@@ -100,15 +102,15 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
             {t('overview.newRequest', 'New Request')}
           </button>
           <button onClick={() => onNewTab('ws')} className="wb-ghost-btn h-8 gap-1.5 px-3">
-            <Plus className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-300" />
+            <Plus className="h-3.5 w-3.5 text-method-head" />
             WebSocket
           </button>
           <button onClick={() => onNewTab('mqtt')} className="wb-ghost-btn h-8 gap-1.5 px-3">
-            <Plus className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-300" />
+            <Plus className="h-3.5 w-3.5 text-success" />
             MQTT
           </button>
           <button onClick={onOpenEnvModal} className="wb-ghost-btn h-8 gap-1.5 px-3">
-            <Variable className="h-3.5 w-3.5 text-amber-500 dark:text-amber-300" />
+            <Variable className="h-3.5 w-3.5 text-warning" />
             {t('overview.manageEnv', 'Environments')}
           </button>
         </div>
@@ -170,8 +172,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                         i > 0 && 'border-t border-border-subtle/50'
                       )}
                     >
-                      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', methodDot[entry.method] || 'bg-text-disabled')} />
-                      <span className="w-[52px] shrink-0 font-mono pf-text-xxs font-bold text-text-secondary">
+                      <span className={cn('pf-mtag w-[52px] shrink-0', methodMtag[entry.method] || 'm-options')}>
                         {entry.method}
                       </span>
                       <span className="min-w-0 flex-1 truncate font-mono pf-text-xxs text-text-tertiary">
@@ -180,7 +181,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                       {entry.status && (
                         <span className={cn(
                           'shrink-0 font-mono pf-text-xxs font-medium',
-                          entry.status < 300 ? 'text-emerald-600 dark:text-emerald-300' : entry.status < 400 ? 'text-amber-600 dark:text-amber-300' : 'text-red-500 dark:text-red-300'
+                          entry.status < 300 ? 'text-success' : entry.status < 400 ? 'text-warning' : 'text-error'
                         )}>
                           {entry.status}
                         </span>
@@ -202,7 +203,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
             {/* Active Environment */}
             <section>
               <h2 className="mb-3 flex items-center gap-2 pf-text-sm font-semibold text-text-primary">
-                <Globe2 className="h-4 w-4 text-emerald-500 dark:text-emerald-300/70" />
+                <Globe2 className="h-4 w-4 text-success/80" />
                 {t('overview.environment', 'Environment')}
               </h2>
               <div className="pf-rounded-md border border-border-default/60 bg-bg-primary">
@@ -214,7 +215,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                   <div className="flex items-center gap-2">
                     <span className={cn(
                       'h-2 w-2 rounded-full',
-                      activeEnv ? 'bg-emerald-500' : 'bg-text-disabled'
+                      activeEnv ? 'bg-success' : 'bg-text-disabled'
                     )} />
                     <span className="pf-text-sm font-medium text-text-primary">
                       {activeEnv?.name || t('overview.noActiveEnv', 'No active environment')}
@@ -228,7 +229,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                   <div className="border-t border-border-subtle/50">
                     {enabledEnvVars.slice(0, 8).map((v) => (
                       <div key={v.id} className="flex items-center gap-2 px-3.5 py-1.5 pf-text-xxs">
-                        <Braces className="h-3 w-3 shrink-0 text-emerald-500 dark:text-emerald-300/50" />
+                        <Braces className="h-3 w-3 shrink-0 text-success/60" />
                         <span className="font-mono font-semibold text-text-secondary">{v.key}</span>
                         <span className="text-text-disabled">=</span>
                         <span className={cn(
@@ -259,7 +260,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
             {/* Global Variables */}
             <section>
               <h2 className="mb-3 flex items-center gap-2 pf-text-sm font-semibold text-text-primary">
-                <Variable className="h-4 w-4 text-amber-500 dark:text-amber-300/70" />
+                <Variable className="h-4 w-4 text-warning/80" />
                 {t('overview.globalVars', 'Global Variables')}
                 <span className="ml-1 rounded-full bg-bg-tertiary px-2 py-0.5 pf-text-xxs font-medium text-text-tertiary">
                   {enabledGlobalVars.length}
@@ -279,7 +280,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                         i > 0 && 'border-t border-border-subtle/40'
                       )}
                     >
-                      <KeyRound className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-300/50" />
+                      <KeyRound className="h-3 w-3 shrink-0 text-warning/60" />
                       <span className="font-mono font-semibold text-text-secondary">{v.key}</span>
                       <span className="text-text-disabled">=</span>
                       <span className="min-w-0 flex-1 truncate font-mono text-text-tertiary">{v.value}</span>
@@ -307,7 +308,7 @@ export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }:
                   label={t('overview.totalEnvs', 'Environments')}
                   value={environments.length}
                   icon={<Globe2 className="h-4 w-4" />}
-                  color="text-emerald-500 dark:text-emerald-300/60"
+                  color="text-success/60"
                 />
               </div>
             </section>
@@ -355,18 +356,18 @@ function CollectionCard({
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         {hasAuth && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-emerald-500/10" title={t('overview.authConfigured', 'Auth configured')}>
-            <Shield className="h-3 w-3 text-emerald-500 dark:text-emerald-300/70" />
+          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-success/10" title={t('overview.authConfigured', 'Auth configured')}>
+            <Shield className="h-3 w-3 text-success/80" />
           </span>
         )}
         {hasVars && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-amber-500/10" title={t('overview.varsConfigured', 'Variables defined')}>
-            <Braces className="h-3 w-3 text-amber-500 dark:text-amber-300/70" />
+          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-warning/10" title={t('overview.varsConfigured', 'Variables defined')}>
+            <Braces className="h-3 w-3 text-warning/80" />
           </span>
         )}
         {hasScripts && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-violet-500/10" title={t('overview.scriptsConfigured', 'Scripts configured')}>
-            <FileJson className="h-3 w-3 text-violet-500 dark:text-violet-300/70" />
+          <span className="flex h-5 w-5 items-center justify-center rounded-[5px] bg-method-patch/10" title={t('overview.scriptsConfigured', 'Scripts configured')}>
+            <FileJson className="h-3 w-3 text-method-patch/80" />
           </span>
         )}
         <ChevronRight className="h-3.5 w-3.5 text-text-disabled transition-transform group-hover:translate-x-0.5" />

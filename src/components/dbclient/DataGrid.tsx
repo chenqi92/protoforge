@@ -6,7 +6,7 @@ import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Loader2, Save, Undo2, Trash2, ArrowUp, ArrowDown,
-  Copy, ChevronDown, Maximize2,
+  Copy, ChevronDown, Maximize2, Table2, CheckCircle2,
 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
@@ -391,9 +391,30 @@ export const DataGrid = memo(function DataGrid({
   }, [t, cellRange, effectiveCopyFormat, doCopy, copyCellAt, showMenu]);
 
   // ── 空状态 ──
-  if (loading) return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin text-text-tertiary" /></div>;
-  if (!result) return <div className="flex h-full items-center justify-center pf-text-xs text-text-tertiary">{t("dbClient.noData")}</div>;
-  if (!result.columns.length) return <div className="flex h-full items-center justify-center pf-text-xs text-text-tertiary">{result.affectedRows != null ? `${result.affectedRows} ${t("dbClient.rowsAffected")}` : t("dbClient.queryComplete")}</div>;
+  if (loading) return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-text-disabled">
+      <Loader2 size={20} className="animate-spin text-text-tertiary" />
+      <span className="pf-text-xs text-text-tertiary">{t("dbClient.loading")}</span>
+    </div>
+  );
+  if (!result) return (
+    <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+        <Table2 className="h-8 w-8 opacity-20 text-accent" />
+      </div>
+      <p className="pf-text-base font-medium text-text-tertiary">{t("dbClient.noData")}</p>
+    </div>
+  );
+  if (!result.columns.length) return (
+    <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center pf-rounded-lg border border-success/20 bg-success/8">
+        <CheckCircle2 className="h-6 w-6 text-success opacity-80" />
+      </div>
+      <p className="pf-text-sm font-medium text-text-secondary tabular-nums">
+        {result.affectedRows != null ? `${result.affectedRows} ${t("dbClient.rowsAffected")}` : t("dbClient.queryComplete")}
+      </p>
+    </div>
+  );
 
   const totalRows = result.totalRows ?? result.rows.length;
   const sl = limit > 0 ? limit : 200;
@@ -406,16 +427,16 @@ export const DataGrid = memo(function DataGrid({
     <div className="flex h-full flex-col" tabIndex={-1} onMouseUp={endDrag}>
       {/* 编辑工具栏 */}
       {editable && (pendingEdits.length > 0 || selectedRows.size > 0) && (
-        <div className="flex items-center gap-2 border-b border-border-default/50 px-3 py-1.5 bg-amber-500/5 shrink-0">
+        <div className="flex items-center gap-2 border-b border-border-default px-3 py-1.5 bg-warning/8 shrink-0">
           {pendingEdits.length > 0 && (
             <>
-              <span className="pf-text-xs text-amber-600 dark:text-amber-300 font-medium">{pendingEdits.length} {t("dbClient.pendingChanges")}</span>
-              <button onClick={onApplyEdits} className="flex items-center gap-1 pf-rounded-sm bg-emerald-500/15 px-2 py-0.5 pf-text-xs font-medium text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/25"><Save size={11} />{t("dbClient.apply")}</button>
+              <span className="pf-text-xs text-warning font-medium tabular-nums">{pendingEdits.length} {t("dbClient.pendingChanges")}</span>
+              <button onClick={onApplyEdits} className="flex items-center gap-1 pf-rounded-sm bg-success/15 px-2 py-0.5 pf-text-xs font-medium text-success hover:bg-success/25"><Save size={11} />{t("dbClient.apply")}</button>
               <button onClick={onDiscardEdits} className="flex items-center gap-1 pf-rounded-sm bg-bg-secondary px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover"><Undo2 size={11} />{t("dbClient.discard")}</button>
             </>
           )}
           {selectedRows.size > 0 && editable && tableMeta && tableMeta.pkColumns.length > 0 && (
-            <button onClick={handleDeleteSel} className="flex items-center gap-1 pf-rounded-sm bg-red-500/15 px-2 py-0.5 pf-text-xs font-medium text-red-600 dark:text-red-300 hover:bg-red-500/25 ml-auto"><Trash2 size={11} />{t("dbClient.deleteSelected", { count: selectedRows.size })}</button>
+            <button onClick={handleDeleteSel} className="flex items-center gap-1 pf-rounded-sm bg-error/15 px-2 py-0.5 pf-text-xs font-medium text-error hover:bg-error/25 ml-auto"><Trash2 size={11} />{t("dbClient.deleteSelected", { count: selectedRows.size })}</button>
           )}
         </div>
       )}
@@ -423,9 +444,9 @@ export const DataGrid = memo(function DataGrid({
       {/* 表格 */}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto select-none">
         {/* 表头 — sticky + 不透明背景防止内容透出 */}
-        <div className="sticky top-0 z-20 flex border-b border-border-default/50 bg-bg-secondary" style={{ minWidth: "max-content", backdropFilter: "none" }}>
+        <div className="sticky top-0 z-20 flex border-b border-border-default bg-bg-tertiary" style={{ minWidth: "max-content", backdropFilter: "none" }}>
           {/* 序号列头 */}
-          <div className="w-12 shrink-0 border-r border-border-default/50 px-2 py-1.5 text-center pf-text-xs font-medium text-text-tertiary bg-bg-secondary">#</div>
+          <div className="w-12 shrink-0 border-r border-border-default px-2 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-text-tertiary bg-bg-tertiary">#</div>
           {result.columns.map((col, ci) => {
             const sorted = sortColumn === col.name;
             const w = colWidths[ci] ?? 120;
@@ -433,15 +454,15 @@ export const DataGrid = memo(function DataGrid({
             return (
               <div key={col.name} className="relative shrink-0 group/col" style={{ width: w }}>
                 <div
-                  className={cn("h-full border-r border-border-default/50 px-3 py-1.5 pf-text-xs font-medium text-text-secondary cursor-pointer hover:bg-bg-hover/50 select-none bg-bg-secondary", isColSel && "bg-accent/5")}
+                  className={cn("h-full border-r border-border-default px-3 py-1.5 pf-text-xs font-semibold text-text-secondary cursor-pointer hover:bg-bg-hover/50 select-none bg-bg-tertiary", isColSel && "bg-accent-soft")}
                   onClick={() => selectColumn(ci)}>
                   <div className="flex items-center gap-1 overflow-hidden">
                     <span className="shrink-0">{col.name}</span>
-                    <span className="text-text-quaternary font-normal truncate" title={col.dataType}>{simplifyType(col.dataType)}</span>
-                    {col.isPrimaryKey && <span className="text-amber-500 dark:text-amber-300 font-normal shrink-0" title={t("dbClient.primaryKey")}>PK</span>}
+                    <span className="text-text-disabled font-normal font-mono truncate" title={col.dataType}>{simplifyType(col.dataType)}</span>
+                    {col.isPrimaryKey && <span className="text-warning font-mono font-semibold shrink-0" title={t("dbClient.primaryKey")}>PK</span>}
                     {onSort && (
                       <button className="ml-auto shrink-0 p-0.5 pf-rounded-sm hover:bg-bg-hover" onClick={e => { e.stopPropagation(); onSort(col.name); }} title={t("dbClient.sortedBy")}>
-                        {sorted && sortDir === "ASC" ? <ArrowUp size={10} className="text-accent" /> : sorted && sortDir === "DESC" ? <ArrowDown size={10} className="text-accent" /> : <ArrowUp size={10} className="text-text-quaternary opacity-30" />}
+                        {sorted && sortDir === "ASC" ? <ArrowUp size={10} className="text-accent" /> : sorted && sortDir === "DESC" ? <ArrowDown size={10} className="text-accent" /> : <ArrowUp size={10} className="text-text-disabled opacity-40" />}
                       </button>
                     )}
                   </div>
@@ -466,14 +487,14 @@ export const DataGrid = memo(function DataGrid({
 
             return (
               <div key={vr.key} data-index={vr.index} ref={virtualizer.measureElement}
-                className={cn("absolute left-0 right-0 flex border-b border-border-default/30", isRowSel ? "bg-accent/5" : !inCellR ? "hover:bg-bg-hover/50" : "")}
+                className={cn("absolute left-0 right-0 flex border-b border-border-subtle", isRowSel ? "bg-accent-soft" : !inCellR ? "hover:bg-bg-hover/50" : "")}
                 style={{ top: vr.start, height: ROW_HEIGHT }}>
 
                 {/* 序号列（合并了行选择功能） */}
                 <div
                   className={cn(
-                    "w-12 shrink-0 border-r border-border-default/30 flex items-center justify-center pf-text-xs tabular-nums cursor-pointer select-none",
-                    isRowSel ? "text-accent bg-accent/10 font-medium" : inCellR ? "text-accent bg-accent/5" : "text-text-quaternary hover:bg-bg-hover/50 hover:text-text-secondary",
+                    "w-12 shrink-0 border-r border-border-subtle flex items-center justify-center pf-text-xs tabular-nums cursor-pointer select-none",
+                    isRowSel ? "text-accent bg-accent-soft font-medium" : inCellR ? "text-accent bg-accent-soft" : "text-text-disabled hover:bg-bg-hover/50 hover:text-text-secondary",
                   )}
                   onMouseDown={(e) => {
                     e.preventDefault();
@@ -502,9 +523,9 @@ export const DataGrid = memo(function DataGrid({
                     <div key={ci}
                       className={cn(
                         "shrink-0 flex items-center overflow-hidden cursor-default",
-                        edited && "bg-amber-500/10",
-                        inR && !edited && "bg-accent/8",
-                        !inR && "border-r border-border-default/30",
+                        edited && "bg-warning/12",
+                        inR && !edited && "bg-accent-soft",
+                        !inR && "border-r border-border-subtle",
                         !editing && "px-3",
                       )}
                       style={{
@@ -512,7 +533,7 @@ export const DataGrid = memo(function DataGrid({
                         borderTop: bT ? "1.5px solid var(--color-accent)" : undefined,
                         borderBottom: bB ? "1.5px solid var(--color-accent)" : undefined,
                         borderLeft: bL ? "1.5px solid var(--color-accent)" : undefined,
-                        borderRight: bR ? "1.5px solid var(--color-accent)" : "1px solid var(--color-border-default-30, rgba(128,128,128,0.12))",
+                        borderRight: bR ? "1.5px solid var(--color-accent)" : "1px solid var(--color-border-subtle)",
                       }}
                       onMouseDown={e => { if (e.button === 0) startDrag(ri, ci, e.shiftKey); }}
                       onMouseEnter={() => { if (isDragging) extendDrag(ri, ci); }}
@@ -533,9 +554,9 @@ export const DataGrid = memo(function DataGrid({
       </div>
 
       {/* 状态栏 */}
-      {!hideStatusBar && <div className="flex items-center justify-between border-t border-border-default/50 px-3 py-1 shrink-0">
+      {!hideStatusBar && <div className="flex items-center justify-between border-t border-border-default px-3 py-1 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="pf-text-xs text-text-tertiary">
+          <span className="pf-text-xs text-text-tertiary tabular-nums">
             {result.rows.length} {t("dbClient.rows")}
             {result.executionTimeMs != null && ` · ${result.executionTimeMs}ms`}
           </span>
@@ -561,22 +582,22 @@ export const DataGrid = memo(function DataGrid({
           {!hideCopyFormatDropdown && <div className="relative" ref={formatDropdownRef}>
             <button
               onClick={() => setShowFormatDropdown(!showFormatDropdown)}
-              className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary border border-border-default/50"
+              className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary border border-border-default"
             >
               <Copy size={10} />
               <span>{COPY_FORMAT_LABELS[copyFormat]}</span>
               <ChevronDown size={10} />
             </button>
             {showFormatDropdown && (
-              <div className="absolute bottom-full right-0 mb-1 w-[130px] py-1 bg-bg-elevated border border-border-default rounded-lg shadow-lg z-50">
+              <div className="absolute bottom-full right-0 mb-1 w-[130px] py-1 bg-bg-elevated border border-border-strong rounded-lg shadow-lg z-50">
                 {COPY_FORMAT_GROUPS.map((group, gi) => (
                   <div key={group.label}>
-                    {gi > 0 && <div className="h-px bg-border-default/50 my-1 mx-2" />}
-                    <div className="px-3 py-0.5 pf-text-xs text-text-quaternary font-medium">{group.label}</div>
+                    {gi > 0 && <div className="h-px bg-border-default my-1 mx-2" />}
+                    <div className="px-3 py-0.5 pf-text-xs text-text-disabled font-medium uppercase tracking-wider">{group.label}</div>
                     {group.formats.map(fmt => (
                       <button key={fmt}
                         onClick={() => setCopyFormat(fmt)}
-                        className={cn("w-full text-left px-3 py-1 pf-text-xs transition-colors", fmt === copyFormat ? "bg-accent/10 text-accent font-medium" : "text-text-secondary hover:bg-bg-hover")}>
+                        className={cn("w-full text-left px-3 py-1 pf-text-xs transition-colors", fmt === copyFormat ? "bg-accent-soft text-accent font-medium" : "text-text-secondary hover:bg-bg-hover")}>
                         {COPY_FORMAT_LABELS[fmt]}
                       </button>
                     ))}
@@ -613,12 +634,12 @@ export const DataGrid = memo(function DataGrid({
 
 // ── 单元格值 ──
 function CellValue({ value, t }: { value: SqlValue; t: (k: string) => string }) {
-  if (value.type === "Null") return <span className="italic text-text-quaternary truncate">{t("dbClient.null")}</span>;
-  if (value.type === "Bool") return <span className={cn("truncate", value.value ? "text-emerald-600 dark:text-emerald-300" : "text-text-tertiary")}>{value.value ? "true" : "false"}</span>;
-  if (value.type === "Int" || value.type === "Float") return <span className="tabular-nums text-blue-600 dark:text-blue-300 truncate">{String(value.value)}</span>;
-  if (value.type === "Bytes") return <span className="italic text-text-quaternary truncate">{t("dbClient.binaryValue")}</span>;
-  if (value.type === "Json") return <span className="text-amber-600 dark:text-amber-300 truncate">{JSON.stringify(value.value)}</span>;
-  if (value.type === "Timestamp") return <span className="text-purple-600 dark:text-purple-300 tabular-nums truncate">{value.value}</span>;
+  if (value.type === "Null") return <span className="italic text-text-disabled truncate">{t("dbClient.null")}</span>;
+  if (value.type === "Bool") return <span className={cn("truncate font-mono", value.value ? "text-success" : "text-text-tertiary")}>{value.value ? "true" : "false"}</span>;
+  if (value.type === "Int" || value.type === "Float") return <span className="tabular-nums font-mono text-info truncate">{String(value.value)}</span>;
+  if (value.type === "Bytes") return <span className="italic text-text-disabled truncate">{t("dbClient.binaryValue")}</span>;
+  if (value.type === "Json") return <span className="text-warning font-mono truncate">{JSON.stringify(value.value)}</span>;
+  if (value.type === "Timestamp") return <span className="text-method-patch tabular-nums font-mono truncate">{value.value}</span>;
   if (value.type === "Array") return <span className="text-text-secondary truncate">[{value.value.length} {t("dbClient.items")}]</span>;
   return <span className="text-text-primary truncate">{value.value}</span>;
 }
@@ -643,9 +664,9 @@ function InlineCellEditor({ value, column, onSave, onCancel, t }: { value: SqlVa
       <input ref={ref} value={isNull ? "" : text} onChange={e => { setText(e.target.value); setIsNull(false); }}
         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); save(); } if (e.key === "Escape") { e.preventDefault(); onCancel(); } }}
         onBlur={save} placeholder={isNull ? "NULL" : ""}
-        className={cn("flex-1 min-w-0 pf-rounded-sm border border-accent-primary bg-bg-primary px-1.5 py-0.5 pf-text-xs text-text-primary focus:outline-none", isNull && "italic text-text-quaternary")} />
+        className={cn("flex-1 min-w-0 pf-rounded-sm border border-accent bg-bg-primary px-1.5 py-0.5 pf-text-xs text-text-primary font-mono focus:outline-none", isNull && "italic text-text-disabled")} />
       <button onMouseDown={e => { e.preventDefault(); setIsNull(!isNull); }}
-        className={cn("shrink-0 pf-rounded-sm px-1 py-0.5 pf-text-xs", isNull ? "bg-amber-500/20 text-amber-600 dark:text-amber-300" : "text-text-quaternary hover:bg-bg-hover")}
+        className={cn("shrink-0 pf-rounded-sm px-1 py-0.5 pf-text-xs font-mono", isNull ? "bg-warning/20 text-warning" : "text-text-disabled hover:bg-bg-hover")}
         title={t("dbClient.toggleNull")}>N</button>
     </div>
   );
@@ -653,5 +674,5 @@ function InlineCellEditor({ value, column, onSave, onCancel, t }: { value: SqlVa
 
 function simplifyType(dt: string) { return dt.startsWith("MYSQL_TYPE_") ? dt.replace("MYSQL_TYPE_", "").toLowerCase() : dt; }
 function PagBtn({ onClick, disabled, children }: { onClick: () => void; disabled: boolean; children: React.ReactNode }) {
-  return <button onClick={onClick} disabled={disabled} className={cn("p-1 pf-rounded-sm transition-colors", disabled ? "text-text-quaternary cursor-not-allowed" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary")}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} className={cn("p-1 pf-rounded-sm transition-colors", disabled ? "text-text-disabled cursor-not-allowed" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary")}>{children}</button>;
 }

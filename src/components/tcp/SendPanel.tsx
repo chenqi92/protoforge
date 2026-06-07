@@ -49,7 +49,7 @@ const SEND_FORMAT_OPTIONS: { value: DataFormat; labelKey: string; fallback: stri
 ];
 
 const LINE_ENDING_OPTIONS: { value: LineEnding; label: string }[] = [
-  { value: "none", label: "无" },
+  { value: "none", label: "" },
   { value: "lf", label: "LF" },
   { value: "cr", label: "CR" },
   { value: "crlf", label: "CRLF" },
@@ -207,7 +207,7 @@ export function SendPanel({
                     </span>
                     <button
                       onClick={() => { onClearHistory(); setShowHistory(false); }}
-                      className="pf-rounded-sm p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500 dark:text-red-300"
+                      className="pf-rounded-sm p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-error"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -265,7 +265,7 @@ export function SendPanel({
               >
                 {LINE_ENDING_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {option.value === "none" ? t('tcp.sendPanel.lineEndingNone', '无') : option.label}
                   </option>
                 ))}
               </select>
@@ -477,7 +477,7 @@ export function SendPanel({
                       onDeleteQuickCommand(editingCommandId);
                       closeQuickCommandEditor();
                     }}
-                    className="wb-ghost-btn mr-auto px-3 text-red-500 dark:text-red-300 hover:bg-red-500/8"
+                    className="wb-ghost-btn mr-auto px-3 text-error hover:bg-error/8"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     {t("contextMenu.delete")}
@@ -619,7 +619,7 @@ export function SendPanel({
                     </span>
                     <button
                       onClick={() => { onClearHistory(); setShowHistory(false); }}
-                      className="pf-rounded-sm p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-red-500 dark:text-red-300"
+                      className="pf-rounded-sm p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-error"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -815,7 +815,7 @@ export function SendPanel({
                     onDeleteQuickCommand(editingCommandId);
                     closeQuickCommandEditor();
                   }}
-                  className="wb-ghost-btn px-3 text-red-500 dark:text-red-300 hover:bg-red-500/8 mr-auto"
+                  className="wb-ghost-btn px-3 text-error hover:bg-error/8 mr-auto"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   {t("contextMenu.delete")}

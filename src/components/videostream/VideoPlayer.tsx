@@ -9,10 +9,11 @@ interface VideoPlayerProps {
   onError?: (msg: string) => void;
   onReady?: () => void;
   onStop?: () => void;
+  onPlayingChange?: (playing: boolean) => void;
   liveMode?: boolean;
 }
 
-export function VideoPlayer({ url, sessionId, onError, onReady, onStop, liveMode = true }: VideoPlayerProps) {
+export function VideoPlayer({ url, sessionId, onError, onReady, onStop, onPlayingChange, liveMode = true }: VideoPlayerProps) {
   const [forceNativeFallback, setForceNativeFallback] = useState(false);
 
   const normalizedUrl = useMemo(() => {
@@ -31,7 +32,7 @@ export function VideoPlayer({ url, sessionId, onError, onReady, onStop, liveMode
   }, [normalizedUrl]);
 
   if (!normalizedUrl) {
-    return <NativeVideoSurface url={null} sessionId={sessionId} onError={onError} onReady={onReady} onStop={onStop} liveMode={liveMode} />;
+    return <NativeVideoSurface url={null} sessionId={sessionId} onError={onError} onReady={onReady} onStop={onStop} onPlayingChange={onPlayingChange} liveMode={liveMode} />;
   }
 
   if (prefersEasyPlayer && !forceNativeFallback) {
@@ -40,6 +41,7 @@ export function VideoPlayer({ url, sessionId, onError, onReady, onStop, liveMode
         url={normalizedUrl}
         liveMode={liveMode}
         onReady={onReady}
+        onPlayingChange={onPlayingChange}
         onError={(message) => {
           const canFallbackToNativeHls = normalizedUrl.includes(".m3u8");
           if (canFallbackToNativeHls && (message.includes("脚本加载失败") || message.includes("构造函数"))) {
@@ -58,5 +60,5 @@ export function VideoPlayer({ url, sessionId, onError, onReady, onStop, liveMode
       ? `hls:${normalizedUrl}`
       : normalizedUrl;
 
-  return <NativeVideoSurface url={nativeUrl} sessionId={sessionId} onError={onError} onReady={onReady} onStop={onStop} liveMode={liveMode} />;
+  return <NativeVideoSurface url={nativeUrl} sessionId={sessionId} onError={onError} onReady={onReady} onStop={onStop} onPlayingChange={onPlayingChange} liveMode={liveMode} />;
 }
