@@ -80,7 +80,9 @@
     "mockserver": "Mock Server",
     "dbclient": "Database Client",
     "toolbox": "Toolbox",
-    "workflow": "Workflow"
+    "workflow": "Workflow",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
   },
   "sidebar": {
     "collections": "Collections",
@@ -133,7 +135,19 @@
     "noSessionMatch": "No matches",
     "tryAnotherKeyword": "Try another keyword",
     "noSessions": "No sessions",
-    "noSessionsHint": "Create a new {{name}} session to get started"
+    "noSessionsHint": "Create a new {{name}} session to get started",
+    "exportSuccess": "Export succeeded",
+    "exportFailed": "Export failed",
+    "importSuccess": "Import succeeded",
+    "importFailed": "Import failed",
+    "clearAll": "Clear history",
+    "deduplicate": "Deduplicate",
+    "deduplicateDone": "Deduplicated, removed {{removed}} duplicate(s)",
+    "deduplicateNone": "No duplicates found",
+    "noEnv": "No environments",
+    "noEnvHint": "Create an environment to manage variables and secrets",
+    "manageEnv": "Manage environments…",
+    "switchEnv": "Switch environment"
   },
   "contextMenu": {
     "newRequest": "New Request",
@@ -403,7 +417,8 @@
     "popoutWindow": "Detach as Separate Window",
     "focusWindow": "Focus Detached Window",
     "dragToDetachSession": "Drag this tab to detach as a separate window",
-    "allSessionsDetached": "All instances are detached into separate windows"
+    "allSessionsDetached": "All instances are detached into separate windows",
+    "newTypedInstance": "New instance by type"
   },
   "welcome": {
     "badge": "Full-Protocol API Debugging Platform",
@@ -648,7 +663,22 @@
     },
     "loadingPreScriptEditor": "Loading pre-request script editor...",
     "loadingPostScriptEditor": "Loading post-response script editor...",
-    "variableResolvedValue": "Resolved value"
+    "variableResolvedValue": "Resolved value",
+    "export": "Export",
+    "exportAs": "Export as",
+    "mockGenerator": "Mock data",
+    "hideDetails": "Hide details",
+    "cancel": "Cancel",
+    "statusCode": "Status code",
+    "responseSize": "Response size",
+    "method": "Method",
+    "waterfall": "Waterfall",
+    "connectTimeDesc": "Time to establish the TCP connection, including DNS resolution and TLS handshake.",
+    "ttfbDesc": "Time waited from sending the request to receiving the first byte, reflecting server processing speed.",
+    "downloadDesc": "Time to download the response body, affected by bandwidth and response size.",
+    "responseExample": "Response example",
+    "fromSwagger": "From Swagger docs",
+    "hideValue": "Hide value"
   },
   "saveDialog": {
     "title": "Save Request",
@@ -661,7 +691,10 @@
     "noCollections": "No collections yet, create one first",
     "cancel": "Cancel",
     "saving": "Saving...",
-    "save": "Save"
+    "save": "Save",
+    "createFailed": "Failed to create collection",
+    "saveSuccess": "Request saved",
+    "saveFailed": "Save failed"
   },
   "ws": {
     "placeholder": "Enter WebSocket URL...",
@@ -837,7 +870,8 @@
       "waitingSource": "Waiting for source address",
       "bindingUdpServer": "Binding UDP server...",
       "waitingUdpServer": "Waiting to start UDP server",
-      "reconnecting": "Auto-reconnecting in 2s..."
+      "reconnecting": "Auto-reconnecting in 2s...",
+      "idle": "Idle"
     },
     "sendPanel": {
       "title": "Send Panel",
@@ -889,7 +923,9 @@
       "broadcast": "Broadcast",
       "reply": "Reply",
       "rightClickEdit": "Right-click to edit",
-      "sendOptions": "Send Options"
+      "sendOptions": "Send Options",
+      "titleHint": "Enter the message, configure the format, and send it on the left.",
+      "timerHint": "Enable only when you need timed sending, to avoid accidentally triggering a send loop."
     },
     "messageLog": {
       "title": "Message Log",
@@ -949,7 +985,11 @@
       "connections": "{{count}} connection(s)",
       "broadcastAll": "Broadcast All",
       "broadcast": "Broadcast Mode",
-      "unicast": "Unicast Mode"
+      "unicast": "Unicast Mode",
+      "waiting": "Waiting for connections",
+      "emptyTitle": "No clients connected",
+      "emptyDesc": "Connected clients will be listed here; you can send to one directly or broadcast to all.",
+      "clients": "Clients"
     },
     "statsBar": {
       "status": "Connection Status",
@@ -968,7 +1008,10 @@
     "switchTypeTitle": "Switch connection type",
     "pairedLabel": "Paired",
     "disableAutoReconnect": "Disable auto-reconnect",
-    "enableAutoReconnect": "Enable auto-reconnect"
+    "enableAutoReconnect": "Enable auto-reconnect",
+    "switchType": "Switch type",
+    "splitViewHint": "Dual-endpoint debugging view is currently on",
+    "splitViewGuide": "Enable the dual-endpoint view when you need to simulate both ends of a link"
   },
   "serial": {
     "portLabel": "Port",
@@ -1050,7 +1093,19 @@
       "found": "found",
       "useThisUnit": "Use",
       "scanning": "Scanning...",
-      "scan": "Scan"
+      "scan": "Scan",
+      "pollingHint": "When enabled, the current function code repeats at a fixed interval for continuous monitoring.",
+      "waitingResponse": "Waiting for a request",
+      "noResponseYet": "No response yet",
+      "noResponseHint": "Configure a function code on the left and run it; the results will show registers, hex, and parsed values here.",
+      "sidebarConnectionDesc": "Pick a transport and target device, then connect; open the unit address scan when you need to find a device.",
+      "scanHint": "Scan common Unit IDs; once a responding device is found, bring it back to the form on the left in one click.",
+      "requestConfig": "Request config",
+      "requestConfigDesc": "Choose the function code, target address, and quantity; for write operations, enter the values to write directly.",
+      "sessionStatus": "Session status",
+      "sessionStatusDesc": "Keep track of the current connection, transactions, and the latest request result on the left.",
+      "successRate": "Success",
+      "lastTransaction": "Last request"
     },
     "modbusslave": {
       "modbusSlaveMode": "Slave Mode",
@@ -1080,7 +1135,14 @@
       "stopFailed": "Failed to stop Modbus Slave",
       "hex": "Hex",
       "binary": "Binary",
-      "clearLog": "Clear log"
+      "clearLog": "Clear log",
+      "sidebarTitle": "Slave config",
+      "sidebarDesc": "Configure TCP/RTU and the slave address, then start the simulated slave device.",
+      "browserTitle": "Register browser",
+      "browserDesc": "Switch register areas, page through, and batch-write the data on the current page.",
+      "sessionTitle": "Session status",
+      "statusDesc": "Check the current slave status, active register area, and request count at any time.",
+      "statusLabel": "Status"
     }
   },
   "capture": {
@@ -1154,7 +1216,9 @@
     "startProxyFailed": "Failed to start proxy: ",
     "exportCertFailed": "Failed to export certificate: ",
     "openBrowserFailed": "Failed to open browser: ",
-    "truncatedHint": "Only rendering the latest {{max}} requests, {{total}} total"
+    "truncatedHint": "Only rendering the latest {{max}} requests, {{total}} total",
+    "filter": "Filter",
+    "browserProxyReady": "Browser proxy ready"
   },
   "loadtest": {
     "title": "HTTP Load Test",
@@ -1216,7 +1280,18 @@
     "emptyResult": "Result Analysis",
     "emptyResultDesc": "Shows RPS, latency distribution, error rate and status codes",
     "bodyEmptyHint": "Leave empty when no body is needed; switch to JSON or RAW to add request payload",
-    "authEmptyHint": "No authentication for this request; switch to Bearer or Basic for authenticated endpoints"
+    "authEmptyHint": "No authentication for this request; switch to Bearer or Basic for authenticated endpoints",
+    "noErrors": "No error samples",
+    "time": "Time",
+    "statusShort": "Status",
+    "latencyCol": "Latency",
+    "sizeCol": "Size",
+    "errorMsg": "Error",
+    "basicConfig": "Basic config",
+    "latencyThreshold": "Latency threshold",
+    "enableThreshold": "Enable latency threshold assertion",
+    "noThresholdDesc": "No latency threshold enabled; only status codes ≥ 400 count as failures",
+    "errorSamples": "Error samples"
   },
   "settings": {
     "title": "Preferences",
@@ -1301,6 +1376,15 @@
       "every30s": "Every 30 seconds",
       "every1m": "Every 1 minute",
       "every5m": "Every 5 minutes"
+    },
+    "searchPlaceholder": "Search settings…",
+    "noMatch": "No matches",
+    "appearance": {
+      "themeGroup": "Theme",
+      "typographyGroup": "Typography"
+    },
+    "about": {
+      "updateGroup": "Updates"
     }
   },
   "plugin": {
@@ -1396,7 +1480,10 @@
       "emptySheet": "This sheet is empty",
       "truncatedPrefix": "Showing first 500 rows of ",
       "truncatedSuffix": " rows"
-    }
+    },
+    "uninstallFailed": "Uninstall failed",
+    "installFailed": "Install failed",
+    "updateFailed": "Update failed"
   },
   "commandPalette": {
     "placeholder": "Search actions, requests, collections...",
@@ -1524,7 +1611,13 @@
     "noData": "No data",
     "search": "Search ",
     "ms": "ms",
-    "seconds": "sec"
+    "seconds": "sec",
+    "saving": "Saving...",
+    "hide": "Hide",
+    "show": "Show",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "description": "Description"
   },
   "import": {
     "title": "Import Collection",
@@ -1626,7 +1719,8 @@
     "postScript": "Post-response Script",
     "postScriptHint": "Executes after response is received",
     "saveScripts": "Save Scripts",
-    "varsDesc": "Collection-level variables can be referenced in all requests using {{key}}"
+    "varsDesc": "Collection-level variables can be referenced in all requests using {{key}}",
+    "actions": "Actions"
   },
   "env": {
     "export": "Export Environments",
@@ -1667,7 +1761,28 @@
     },
     "footer": {
       "stats": "{{total}} variables · {{enabled}} enabled"
-    }
+    },
+    "title": "Environment Variables",
+    "envVars": "Environments",
+    "globalVars": "Global Variables",
+    "newEnvPlaceholder": "New environment name",
+    "noEnvs": "No environments",
+    "active": "Active",
+    "varsOf": "Variables of {{name}}",
+    "unsaved": "Unsaved",
+    "save": "Save",
+    "varName": "Name",
+    "varValue": "Value",
+    "secret": "Secret",
+    "unmarkSecret": "Unmark as secret",
+    "markSecret": "Mark as secret",
+    "addVar": "Add variable",
+    "selectEnv": "Select an environment",
+    "selectEnvHint": "Select an environment from the left to edit its variables",
+    "globalVarsDesc": "Global variables apply across all environments",
+    "addGlobalVar": "Add global variable",
+    "variableSaved": "Variable saved",
+    "saveVariableFailed": "Failed to save variable"
   },
   "runner": {
     "run": "Run",
@@ -1696,7 +1811,8 @@
     "closeOthers": "Close Others",
     "closeRight": "Close Right",
     "closeLeft": "Close Left",
-    "new": "New"
+    "new": "New",
+    "closeTab": "Close tab"
   },
   "toolWindow": {
     "mergeBack": "Merge Back to Main Window",
@@ -1908,7 +2024,8 @@
     "scriptApiAccess": "Available API"
   },
   "rightSidebar": {
-    "toolbox": "Toolbox"
+    "toolbox": "Toolbox",
+    "logs": "Activity log"
   },
   "videostream": {
     "modes": {
@@ -1966,7 +2083,8 @@
       "waitingMetadata": "Waiting for metadata...",
       "connectFirst": "Connect to view",
       "handshaking": "Handshaking...",
-      "handshakeBtn": "Handshake"
+      "handshakeBtn": "Handshake",
+      "actions": "Protocol actions"
     },
     "flv": {
       "tagFilter": "Tag Filter",
@@ -2024,7 +2142,8 @@
       "lowLatency": "Low latency",
       "probing": "SRT probing...",
       "probe": "SRT Handshake Probe",
-      "clearProbe": "Clear Probe Session"
+      "clearProbe": "Clear Probe Session",
+      "target": "Target address"
     },
     "onvif": {
       "discover": "Device Discovery",
@@ -2038,8 +2157,20 @@
       "presetName": "Preset Name",
       "save": "Save",
       "goto": "Go To",
-      "switchTo": "Switch to {{mode}}"
-    }
+      "switchTo": "Switch to {{mode}}",
+      "useProxy": "Use system proxy",
+      "querying": "Querying...",
+      "disconnect": "Disconnect",
+      "streamUri": "Stream URI",
+      "noUri": "No stream URI obtained",
+      "streamHint": "The stream URI has been filled into the current session's playback address; switch to the matching playback protocol to continue debugging"
+    },
+    "mediaAddress": "Media address",
+    "playbackModes": "Playback protocols",
+    "assistantAddressPlaceholder": "Waiting for the assistant to auto-fill, or enter a playable media address manually",
+    "play": "Play",
+    "assistantChip": "Assisted control",
+    "assistantHint": "The current assistant session handles discovery/control; playback still runs via {{mode}}"
   },
   "overview": {
     "title": "API Workspace",
@@ -2061,7 +2192,10 @@
     "requestsSingular": "request",
     "folders": "folders",
     "foldersSingular": "folder",
-    "more": "more"
+    "more": "more",
+    "authConfigured": "Auth configured",
+    "varsConfigured": "Variables defined",
+    "scriptsConfigured": "Scripts configured"
   },
   "dbClient": {
     "connections": "Connections",
@@ -2199,7 +2333,10 @@
     "colDefault": "Default",
     "colComment": "Comment",
     "colActions": "Actions",
-    "deleteColumn": "Delete column"
+    "deleteColumn": "Delete column",
+    "saveSuccess": "Connection saved",
+    "saveFailed": "Save failed",
+    "connectFailed": "Connection failed"
   },
   "assertion": {
     "title": "Assertions",
@@ -2558,7 +2695,9 @@
       "distributeH": "Distribute Horizontally",
       "distributeV": "Distribute Vertically",
       "tooltip": "Align and distribute (≥2 nodes)"
-    }
+    },
+    "exportSuccess": "Workflow exported",
+    "exportFailed": "Export failed: "
   },
   "activityLog": {
     "dragToResize": "Drag to resize",
@@ -2618,6 +2757,21 @@
     "noMatch": "No matches",
     "parsersAvailable": "parsers",
     "navigate": "Navigate",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "switchPlugin": "Switch protocol",
+    "switch": "Switch",
+    "searchFields": "Search fields..."
+  },
+  "shortcuts": {
+    "commandPalette": "Command palette",
+    "splitView": "Split view",
+    "toggleSidebar": "Toggle sidebar",
+    "openSettings": "Open settings",
+    "sendRequest": "Send request",
+    "newTab": "New tab",
+    "closeTab": "Close tab",
+    "switchTab": "Switch tab",
+    "dismiss": "Dismiss",
+    "hint": "Keyboard shortcuts"
   }
 }
