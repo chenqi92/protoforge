@@ -147,7 +147,8 @@
     "noEnv": "No environments",
     "noEnvHint": "Create an environment to manage variables and secrets",
     "manageEnv": "Manage environments…",
-    "switchEnv": "Switch environment"
+    "switchEnv": "Switch environment",
+    "sendToWorkflow": "Send to Workflow"
   },
   "contextMenu": {
     "newRequest": "New Request",

@@ -1,6 +1,6 @@
 import { lazy, memo, Suspense, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Play, Loader2, Copy, Check, ChevronDown, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Square, Braces, MoreHorizontal, Server, Terminal as TerminalIcon } from "lucide-react";
+import { Play, Loader2, Copy, Check, ChevronDown, X, Save, Flame, Cookie, CheckCircle2, XCircle, Terminal, Square, Braces, MoreHorizontal, Server, Terminal as TerminalIcon, Workflow } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,7 @@ import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/
 import { buildCollectionItemFromHttpConfig, getCollectionRequestSignatureFromConfig, getCollectionRequestSignatureFromItem } from "@/lib/collectionRequest";
 import { generateCurlFromItem } from "@/lib/curlGenerator";
 import { copyTextToClipboard } from "@/lib/clipboard";
-import { generateMockFromRequest } from "@/lib/crossTool";
+import { generateMockFromRequest, sendRequestToWorkflow } from "@/lib/crossTool";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
 import { toast } from "sonner";
 import { persistScriptVariableUpdates } from "@/lib/requestVariables";
@@ -461,6 +461,28 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
     });
   }, [config.method, config.url, config.name, activeTab.httpResponse]);
 
+  const handleSendToWorkflow = useCallback(() => {
+    const toRecord = (pairs: import('@/types/http').KeyValue[] | undefined): Record<string, string> => {
+      const out: Record<string, string> = {};
+      for (const p of pairs || []) {
+        if (p.enabled && p.key.trim()) out[p.key] = p.value;
+      }
+      return out;
+    };
+    const body =
+      config.bodyType === 'json' ? config.jsonBody
+      : config.bodyType === 'raw' ? config.rawBody
+      : '';
+    void sendRequestToWorkflow({
+      name: config.name,
+      method: config.method,
+      url: config.url,
+      headers: toRecord(config.headers),
+      queryParams: toRecord(config.queryParams),
+      body,
+    });
+  }, [config.name, config.method, config.url, config.headers, config.queryParams, config.bodyType, config.jsonBody, config.rawBody]);
+
   const handleCopyAsCurl = useCallback(async () => {
     const now = new Date().toISOString();
     const item = buildCollectionItemFromHttpConfig({
@@ -480,10 +502,11 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
   const handleMoreMenu = useCallback((e: React.MouseEvent) => {
     const menuItems: ContextMenuEntry[] = [
       { id: "generate-mock", label: t('sidebar.generateMock'), icon: <Server className="w-3.5 h-3.5" />, onClick: handleGenerateMock },
+      { id: "send-to-workflow", label: t('sidebar.sendToWorkflow', '转为 Workflow'), icon: <Workflow className="w-3.5 h-3.5" />, onClick: handleSendToWorkflow },
       { id: "copy-curl", label: t('capture.menu.copyCurl', '复制为 cURL'), icon: <TerminalIcon className="w-3.5 h-3.5" />, onClick: () => void handleCopyAsCurl() },
     ];
     showMenu(e, menuItems);
-  }, [t, handleGenerateMock, handleCopyAsCurl, showMenu]);
+  }, [t, handleGenerateMock, handleSendToWorkflow, handleCopyAsCurl, showMenu]);
 
   const handleRequestKindChange = useCallback((kind: RequestKind) => {
     const activeKind: RequestKind = activeTab.protocol === "http" && config.requestMode === "graphql"

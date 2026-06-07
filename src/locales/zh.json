@@ -147,7 +147,8 @@
     "noEnv": "暂无环境",
     "noEnvHint": "创建环境以管理变量与密钥",
     "manageEnv": "管理环境…",
-    "switchEnv": "切换环境"
+    "switchEnv": "切换环境",
+    "sendToWorkflow": "转为 Workflow"
   },
   "contextMenu": {
     "newRequest": "新建请求",
