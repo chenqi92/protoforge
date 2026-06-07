@@ -422,30 +422,33 @@ function ModbusFunctionPanel({
 //  Modbus 异常码解码
 // ═══════════════════════════════════════════
 
-const MODBUS_EXCEPTION_CODES: Record<number, string> = {
-  1: '非法功能码',
-  2: '非法数据地址',
-  3: '非法数据值',
-  4: '从站设备故障',
-  5: '确认(ACK)',
-  6: '从站设备忙',
-  8: '存储奇偶错误',
-  10: '网关路径不可用',
-  11: '网关目标无响应',
+const MODBUS_EXCEPTION_CODES: Record<number, { key: string; zh: string }> = {
+  1: { key: 'modbus.exception.illegalFunction', zh: '非法功能码' },
+  2: { key: 'modbus.exception.illegalDataAddress', zh: '非法数据地址' },
+  3: { key: 'modbus.exception.illegalDataValue', zh: '非法数据值' },
+  4: { key: 'modbus.exception.slaveDeviceFailure', zh: '从站设备故障' },
+  5: { key: 'modbus.exception.acknowledge', zh: '确认(ACK)' },
+  6: { key: 'modbus.exception.slaveDeviceBusy', zh: '从站设备忙' },
+  8: { key: 'modbus.exception.memoryParityError', zh: '存储奇偶错误' },
+  10: { key: 'modbus.exception.gatewayPathUnavailable', zh: '网关路径不可用' },
+  11: { key: 'modbus.exception.gatewayTargetNoResponse', zh: '网关目标无响应' },
 };
 
-function parseModbusException(errMsg: string): string | null {
+type TFunc = (key: string, defaultValue: string) => string;
+
+function parseModbusException(errMsg: string, t: TFunc): string | null {
   const match = errMsg.match(/exception\s+(?:code\s+)?(?:0x)?([0-9a-fA-F]+)/i)
     || errMsg.match(/error\s+(?:code\s+)?(?:0x)?([0-9a-fA-F]+)/i)
     || errMsg.match(/(?:code|exception)[:\s]+(?:0x)?([0-9a-fA-F]+)/i);
   if (match) {
     const code = parseInt(match[1], 16) || parseInt(match[1], 10);
-    return MODBUS_EXCEPTION_CODES[code] ?? null;
+    const desc = MODBUS_EXCEPTION_CODES[code];
+    return desc ? t(desc.key, desc.zh) : null;
   }
   // Try scanning for bare numbers 1-11
   for (const [code, desc] of Object.entries(MODBUS_EXCEPTION_CODES)) {
     if (errMsg.includes(`(${code})`) || errMsg.includes(` ${code} `) || errMsg.endsWith(` ${code}`)) {
-      return desc;
+      return t(desc.key, desc.zh);
     }
   }
   return null;
@@ -573,7 +576,7 @@ function ModbusResponseTable({
     : [];
 
   const exceptionHint = !transaction.success && transaction.error
-    ? parseModbusException(transaction.error)
+    ? parseModbusException(transaction.error, t)
     : null;
 
   const DATA_TYPE_OPTIONS: { value: ModbusDataType; label: string }[] = [

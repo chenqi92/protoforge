@@ -17,11 +17,12 @@ const MAX_VISIBLE_WS_MESSAGES = 400;
 const LazyMonacoCodeEditor = lazy(() => import("@/components/common/CodeEditor").then((module) => ({ default: module.CodeEditor })));
 
 function EditorSurfaceFallback() {
+  const { t } = useTranslation();
   return (
     <div className="flex h-full min-h-0 items-center justify-center bg-bg-input/88 px-4">
       <div className="flex items-center gap-2 pf-text-sm text-text-tertiary">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span>加载编辑器...</span>
+        <span>{t('ws.loadingEditor', '加载编辑器...')}</span>
       </div>
     </div>
   );
@@ -548,13 +549,13 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
                 <span className={cn("pf-dot",
                   connected ? "s-live" : connecting ? "s-conn" : "s-idle"
                 )} />
-                {connected ? '已连接 · 流式中' : connecting ? t('ws.connecting') : t('ws.disconnected')}
+                {connected ? t('ws.connectedStreaming', '已连接 · 流式中') : connecting ? t('ws.connecting') : t('ws.disconnected')}
               </span>
               <span className="shrink-0 whitespace-nowrap text-text-tertiary">
-                心跳 <b className={cn("font-mono tabular-nums", heartbeatEnabled ? "text-text-secondary" : "text-text-disabled")}>{heartbeatEnabled ? `${heartbeatInterval}s` : 'off'}</b>
+                {t('ws.heartbeatLabel', '心跳')} <b className={cn("font-mono tabular-nums", heartbeatEnabled ? "text-text-secondary" : "text-text-disabled")}>{heartbeatEnabled ? `${heartbeatInterval}s` : 'off'}</b>
               </span>
               <span className="shrink-0 whitespace-nowrap text-text-tertiary">
-                自动重连 <b className={autoReconnect ? "text-success" : "text-text-disabled"}>{autoReconnect ? 'on' : 'off'}</b>
+                {t('ws.autoReconnectLabel', '自动重连')} <b className={autoReconnect ? "text-success" : "text-text-disabled"}>{autoReconnect ? 'on' : 'off'}</b>
               </span>
               <span className="ml-auto shrink-0 whitespace-nowrap text-text-tertiary">
                 ↑ <b className="font-mono tabular-nums text-method-post">{sentCount}</b>
@@ -613,7 +614,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
                   ))}
                   {displayMessages.length > MAX_VISIBLE_WS_MESSAGES && (
                     <div className="px-4 py-2 text-center pf-text-xxs text-text-disabled">
-                      仅渲染最近 {MAX_VISIBLE_WS_MESSAGES} 条消息，共 {displayMessages.length} 条
+                      {t('ws.renderLimitNote', '仅渲染最近 {{visible}} 条消息，共 {{total}} 条', { visible: MAX_VISIBLE_WS_MESSAGES, total: displayMessages.length })}
                     </div>
                   )}
                 </div>

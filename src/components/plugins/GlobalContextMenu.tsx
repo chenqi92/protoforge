@@ -28,11 +28,11 @@ import { useTranslation } from 'react-i18next';
 
 /* ── 常量 ──────────────────────────────────────────── */
 
-const CATEGORY_LABELS: Record<string, string> = {
-  encode: '编码',
-  hash: '哈希',
-  symmetric: '对称加密',
-  asymmetric: '非对称加密',
+const CATEGORY_LABEL_KEYS: Record<string, { key: string; zh: string }> = {
+  encode: { key: 'contextMenu.categoryEncode', zh: '编码' },
+  hash: { key: 'contextMenu.categoryHash', zh: '哈希' },
+  symmetric: { key: 'contextMenu.categorySymmetric', zh: '对称加密' },
+  asymmetric: { key: 'contextMenu.categoryAsymmetric', zh: '非对称加密' },
 };
 const CATEGORY_ORDER = ['encode', 'hash', 'symmetric', 'asymmetric'];
 
@@ -532,7 +532,7 @@ export function GlobalContextMenu() {
     try {
       const result = await runCrypto(pluginId, algorithm.algorithmId, mode, input, paramsJson);
       if (!result.success) {
-        setResultDialog({ output: `[Error] ${result.error || '未知错误'}`, algorithmName: algorithm.name });
+        setResultDialog({ output: `[Error] ${result.error || t('contextMenu.unknownError', '未知错误')}`, algorithmName: algorithm.name });
         return;
       }
       if (mode === 'encrypt') {
@@ -566,7 +566,7 @@ export function GlobalContextMenu() {
         paramsJson,
       );
       if (!result.success) {
-        setResultDialog({ output: `[Error] ${result.error || '未知错误'}`, algorithmName: pendingAction.algorithm.name });
+        setResultDialog({ output: `[Error] ${result.error || t('contextMenu.unknownError', '未知错误')}`, algorithmName: pendingAction.algorithm.name });
       } else if (pendingAction.mode === 'encrypt') {
         const ed = pendingAction.monacoEditor;
         const sel = pendingAction.monacoSelection;
@@ -678,7 +678,7 @@ export function GlobalContextMenu() {
           {/* 导出数组 — 直接列所有格式 */}
           {contextTarget === 'monaco' && hasResponseArrays && (
             <HoverSubmenu
-              label={`${t('contextMenu.exportArray', '导出数组')} (${bestArrayPathRef.current === '(root)' ? '根' : bestArrayPathRef.current})`}
+              label={`${t('contextMenu.exportArray', '导出数组')} (${bestArrayPathRef.current === '(root)' ? t('contextMenu.exportArrayRoot', '根') : bestArrayPathRef.current})`}
               hoverKey="export-array"
               hoveredSub={hoveredSub}
               onHover={setHoveredSub}
@@ -938,6 +938,7 @@ function CryptoSubItems({
   loading: boolean;
   onClick: (pluginId: string, algo: CryptoAlgorithm, mode: 'encrypt' | 'decrypt') => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       {CATEGORY_ORDER.map((cat) => {
@@ -950,7 +951,7 @@ function CryptoSubItems({
         return (
           <div key={cat}>
             <div className="px-[9px] pt-[6px] pb-[3px] text-text-tertiary font-bold uppercase tracking-[0.06em]" style={{ fontSize: 'var(--fs-3xs)' }}>
-              {CATEGORY_LABELS[cat] || cat}
+              {CATEGORY_LABEL_KEYS[cat] ? t(CATEGORY_LABEL_KEYS[cat].key, CATEGORY_LABEL_KEYS[cat].zh) : cat}
             </div>
             {filtered.map((item) => (
               <button
@@ -1018,6 +1019,7 @@ function ExportOptionsDialog({
   onExport: (opts: Record<string, string>) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const isInflux = fmt.id === 'influxdb';
   const [tableName, setTableName] = useState('table_name');
   const [measurement, setMeasurement] = useState('data');
@@ -1074,7 +1076,7 @@ function ExportOptionsDialog({
                   className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" />
               </div>
               <div>
-                <label className="block pf-text-xs font-medium text-text-secondary mb-1">Tag Keys (逗号分隔)</label>
+                <label className="block pf-text-xs font-medium text-text-secondary mb-1">{t('contextMenu.exportTagKeys', 'Tag Keys (逗号分隔)')}</label>
                 <input value={tagKeys} onChange={(e) => setTagKeys(e.target.value)}
                   className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" placeholder="device_id,city" />
               </div>
@@ -1082,17 +1084,17 @@ function ExportOptionsDialog({
           ) : (
             <>
               <div>
-                <label className="block pf-text-xs font-medium text-text-secondary mb-1">表名</label>
+                <label className="block pf-text-xs font-medium text-text-secondary mb-1">{t('contextMenu.exportTableName', '表名')}</label>
                 <input value={tableName} onChange={(e) => setTableName(e.target.value)}
                   className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" />
               </div>
               {columns.length > 0 && (
                 <div>
                   <label className="block pf-text-xs font-medium text-text-secondary mb-1">
-                    字段选择 ({selectedCols.size}/{columns.length})
+                    {t('contextMenu.exportFieldSelection', '字段选择')} ({selectedCols.size}/{columns.length})
                     <button className="ml-2 text-accent pf-text-xxs hover:underline"
                       onClick={() => setSelectedCols(selectedCols.size === columns.length ? new Set() : new Set(columns))}>
-                      {selectedCols.size === columns.length ? '取消全选' : '全选'}
+                      {selectedCols.size === columns.length ? t('contextMenu.deselectAll', '取消全选') : t('contextMenu.selectAllFields', '全选')}
                     </button>
                   </label>
                   <div className="max-h-[200px] overflow-auto border border-border-default/60 pf-rounded-sm">
@@ -1119,10 +1121,10 @@ function ExportOptionsDialog({
         </div>
 
         <div className="flex justify-end gap-2 px-4 py-3 border-t border-border-default/60">
-          <button onClick={onClose} className="px-3 py-1.5 pf-rounded-sm pf-text-xs text-text-secondary hover:bg-bg-hover">取消</button>
+          <button onClick={onClose} className="px-3 py-1.5 pf-rounded-sm pf-text-xs text-text-secondary hover:bg-bg-hover">{t('contextMenu.exportCancel', '取消')}</button>
           <button onClick={handleExport} disabled={!isInflux && selectedCols.size === 0}
             className="px-3 py-1.5 pf-rounded-sm pf-text-xs font-medium bg-accent text-white hover:bg-accent-hover disabled:opacity-50">
-            导出
+            {t('contextMenu.exportConfirm', '导出')}
           </button>
         </div>
       </div>

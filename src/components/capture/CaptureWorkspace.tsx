@@ -233,19 +233,19 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       try {
         await startCapture(p);
       } catch (e) {
-        toast.error("启动代理失败: " + String(e));
+        toast.error(t('capture.startProxyFailed', '启动代理失败: ') + String(e));
       }
     }
-  }, [running, portInput, startCapture, stopCapture]);
+  }, [running, portInput, startCapture, stopCapture, t]);
 
   const handleExportCA = useCallback(async () => {
     try {
       const path = await exportCaCert();
       setCaPath(path);
     } catch (e) {
-      toast.error("导出证书失败: " + String(e));
+      toast.error(t('capture.exportCertFailed', '导出证书失败: ') + String(e));
     }
-  }, [exportCaCert]);
+  }, [exportCaCert, t]);
 
   const proxyServiceRef = useRef<string | null>(null);
   const [browserUrl, setBrowserUrl] = useState("");
@@ -264,9 +264,9 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       setShowBrowserInput(false);
       setBrowserUrl("");
     } catch (e) {
-      toast.error("打开浏览器失败: " + String(e));
+      toast.error(t('capture.openBrowserFailed', '打开浏览器失败: ') + String(e));
     }
-  }, [running, browserUrl, portInput]);
+  }, [running, browserUrl, portInput, t]);
 
   // 请求行右键菜单 — 对齐原型 RequestRow context menu
   const handleRowContextMenu = useCallback((e: React.MouseEvent, entry: CapturedEntry) => {
@@ -622,7 +622,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                 ))}
                 {filteredEntries.length > MAX_VISIBLE_CAPTURE_ENTRIES && (
                   <div className="px-3 py-2 text-center pf-text-xxs text-text-disabled">
-                    仅渲染最近 {MAX_VISIBLE_CAPTURE_ENTRIES} 条请求，共 {filteredEntries.length} 条
+                    {t('capture.truncatedHint', '仅渲染最近 {{max}} 条请求，共 {{total}} 条', { max: MAX_VISIBLE_CAPTURE_ENTRIES, total: filteredEntries.length })}
                   </div>
                 )}
                 <div ref={listEndRef} />

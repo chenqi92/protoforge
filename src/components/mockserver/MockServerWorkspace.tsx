@@ -222,7 +222,7 @@ function ControlBar({
       const text = await readTextFile(selected);
       const parsed = JSON.parse(text);
       if (!Array.isArray(parsed)) {
-        await message("JSON 格式不符合 MockRoute 结构（应为数组）", { title: "导入失败", kind: "error" });
+        await message(t("mock.importInvalidArray", "JSON 格式不符合 MockRoute 结构（应为数组）"), { title: t("mock.importFailed", "导入失败"), kind: "error" });
         return;
       }
       const valid = parsed.every(
@@ -231,7 +231,7 @@ function ControlBar({
           "pattern" in r && "statusCode" in r
       );
       if (!valid) {
-        await message("JSON 格式不符合 MockRoute 结构", { title: "导入失败", kind: "error" });
+        await message(t("mock.importInvalidStructure", "JSON 格式不符合 MockRoute 结构"), { title: t("mock.importFailed", "导入失败"), kind: "error" });
         return;
       }
       const routes = parsed.map((r: Record<string, unknown>) => ({
@@ -252,7 +252,7 @@ function ControlBar({
       }));
       store.getState().importRoutes(routes);
     } catch (e) {
-      await message(String(e), { title: "导入失败", kind: "error" });
+      await message(String(e), { title: t("mock.importFailed", "导入失败"), kind: "error" });
     }
   }, [store]);
 

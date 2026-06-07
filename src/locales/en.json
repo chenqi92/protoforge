@@ -140,7 +140,20 @@
     "hideValue": "Hide Value",
     "copyUrl": "Copy URL",
     "copyMethodUrl": "Copy Method + URL",
-    "openInNewTab": "Open in New Tab"
+    "openInNewTab": "Open in New Tab",
+    "categoryEncode": "Encode",
+    "categoryHash": "Hash",
+    "categorySymmetric": "Symmetric Encryption",
+    "categoryAsymmetric": "Asymmetric Encryption",
+    "unknownError": "Unknown error",
+    "exportArrayRoot": "root",
+    "exportTagKeys": "Tag Keys (comma-separated)",
+    "exportTableName": "Table Name",
+    "exportFieldSelection": "Field Selection",
+    "deselectAll": "Deselect All",
+    "selectAllFields": "Select All",
+    "exportCancel": "Cancel",
+    "exportConfirm": "Export"
   },
   "toolWorkbench": {
     "tcpudp": {
@@ -638,7 +651,13 @@
     "preview": "Preview",
     "textView": "Text",
     "detailEmptyTitle": "Select a message to view details",
-    "detailEmptyDesc": "Click an event above to inspect it as JSON, text, or hex."
+    "detailEmptyDesc": "Click an event above to inspect it as JSON, text, or hex.",
+    "loadingEditor": "Loading editor...",
+    "connectedStreaming": "Connected · Streaming",
+    "heartbeatLabel": "Heartbeat",
+    "autoReconnectLabel": "Auto-reconnect",
+    "renderLimitNote": "Showing latest {{visible}} of {{total}} messages",
+    "filterAll": "All"
   },
   "sse": {
     "urlPlaceholder": "Enter SSE endpoint URL, e.g. https://api.example.com/events",
@@ -1064,7 +1083,11 @@
     "caNotTrustedDesc": "ProtoForge CA certificate is not installed in your system. HTTPS sites cannot be captured without it (browsers will reject the proxy certificate). Click to install automatically.",
     "caTrustedTitle": "CA Certificate Installed",
     "caTrustedDesc": "ProtoForge CA certificate is installed and trusted. HTTPS traffic can be captured normally.",
-    "testingProxy": "Testing proxy connectivity…"
+    "testingProxy": "Testing proxy connectivity…",
+    "startProxyFailed": "Failed to start proxy: ",
+    "exportCertFailed": "Failed to export certificate: ",
+    "openBrowserFailed": "Failed to open browser: ",
+    "truncatedHint": "Only rendering the latest {{max}} requests, {{total}} total"
   },
   "loadtest": {
     "title": "HTTP Load Test",
@@ -2422,5 +2445,23 @@
     "emptyHint": "Network and protocol activity appears here",
     "noMatchesHint": "Adjust the filter or regex",
     "sendToParser": "Send to protocol parser"
+  },
+  "modbus": {
+    "exception": {
+      "illegalFunction": "Illegal function code",
+      "illegalDataAddress": "Illegal data address",
+      "illegalDataValue": "Illegal data value",
+      "slaveDeviceFailure": "Slave device failure",
+      "acknowledge": "Acknowledge (ACK)",
+      "slaveDeviceBusy": "Slave device busy",
+      "memoryParityError": "Memory parity error",
+      "gatewayPathUnavailable": "Gateway path unavailable",
+      "gatewayTargetNoResponse": "Gateway target failed to respond"
+    }
+  },
+  "mock": {
+    "importInvalidArray": "JSON does not match the MockRoute structure (expected an array)",
+    "importInvalidStructure": "JSON does not match the MockRoute structure",
+    "importFailed": "Import failed"
   }
 }

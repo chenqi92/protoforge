@@ -140,7 +140,20 @@
     "hideValue": "隐藏值",
     "copyUrl": "复制 URL",
     "copyMethodUrl": "复制 Method + URL",
-    "openInNewTab": "在新标签页打开"
+    "openInNewTab": "在新标签页打开",
+    "categoryEncode": "编码",
+    "categoryHash": "哈希",
+    "categorySymmetric": "对称加密",
+    "categoryAsymmetric": "非对称加密",
+    "unknownError": "未知错误",
+    "exportArrayRoot": "根",
+    "exportTagKeys": "Tag Keys (逗号分隔)",
+    "exportTableName": "表名",
+    "exportFieldSelection": "字段选择",
+    "deselectAll": "取消全选",
+    "selectAllFields": "全选",
+    "exportCancel": "取消",
+    "exportConfirm": "导出"
   },
   "toolWorkbench": {
     "tcpudp": {
@@ -639,7 +652,13 @@
     "preview": "预览",
     "textView": "文本",
     "detailEmptyTitle": "选择一条消息查看详情",
-    "detailEmptyDesc": "点击上方事件，可切换为 JSON、文本或十六进制查看。"
+    "detailEmptyDesc": "点击上方事件，可切换为 JSON、文本或十六进制查看。",
+    "loadingEditor": "加载编辑器...",
+    "connectedStreaming": "已连接 · 流式中",
+    "heartbeatLabel": "心跳",
+    "autoReconnectLabel": "自动重连",
+    "renderLimitNote": "仅渲染最近 {{visible}} 条消息，共 {{total}} 条",
+    "filterAll": "全部"
   },
   "sse": {
     "urlPlaceholder": "输入 SSE 端点 URL，如 https://api.example.com/events",
@@ -1065,7 +1084,11 @@
     "caNotTrustedDesc": "检测到系统中未安装 ProtoForge CA 证书。如果不安装，HTTPS 网站将无法正常抓取（浏览器会拒绝代理证书）。点击一键安装即可自动完成配置。",
     "caTrustedTitle": "CA 证书已安装",
     "caTrustedDesc": "ProtoForge CA 证书已安装到系统信任库，HTTPS 流量可以正常抓取。",
-    "testingProxy": "正在测试代理连通性…"
+    "testingProxy": "正在测试代理连通性…",
+    "startProxyFailed": "启动代理失败: ",
+    "exportCertFailed": "导出证书失败: ",
+    "openBrowserFailed": "打开浏览器失败: ",
+    "truncatedHint": "仅渲染最近 {{max}} 条请求，共 {{total}} 条"
   },
   "loadtest": {
     "title": "HTTP 压测",
@@ -2444,5 +2467,23 @@
     "emptyHint": "网络与协议活动会实时记录在这里",
     "noMatchesHint": "调整过滤条件或正则表达式",
     "sendToParser": "发送到协议解析器"
+  },
+  "modbus": {
+    "exception": {
+      "illegalFunction": "非法功能码",
+      "illegalDataAddress": "非法数据地址",
+      "illegalDataValue": "非法数据值",
+      "slaveDeviceFailure": "从站设备故障",
+      "acknowledge": "确认(ACK)",
+      "slaveDeviceBusy": "从站设备忙",
+      "memoryParityError": "存储奇偶错误",
+      "gatewayPathUnavailable": "网关路径不可用",
+      "gatewayTargetNoResponse": "网关目标无响应"
+    }
+  },
+  "mock": {
+    "importInvalidArray": "JSON 格式不符合 MockRoute 结构（应为数组）",
+    "importInvalidStructure": "JSON 格式不符合 MockRoute 结构",
+    "importFailed": "导入失败"
   }
 }
