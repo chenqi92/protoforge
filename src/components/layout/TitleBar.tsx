@@ -57,27 +57,28 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
         >
           <Zap className="h-[13px] w-[13px] text-white" />
         </div>
-        <span className="pf-text-sm font-medium tracking-[-0.01em] text-text-primary">
+        <span className="text-[12.5px] font-semibold tracking-[-0.01em] text-text-primary">
           Proto<b className="font-bold text-accent">Forge</b>
         </span>
       </div>
 
-      {/* Centered ⌘K command pill */}
-      <div className="flex min-w-0 flex-1 justify-center px-2">
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent("toggle-command-palette"))}
-          className="no-drag flex h-6 w-full min-w-0 max-w-[460px] items-center gap-2 rounded-[7px] border border-border-default bg-bg-app pl-[9px] pr-2 pf-text-xs text-text-tertiary transition-colors hover:border-border-strong hover:text-text-secondary"
-        >
-          <Search className="h-[13px] w-[13px] shrink-0" />
-          <span className="min-w-0 flex-1 truncate text-left">
-            {t('app.titleBar.searchPlaceholder', '搜索请求 / 命令 / 集合…')}
-          </span>
-          <span className="shrink-0 rounded-[4px] border border-border-default border-b-2 bg-bg-secondary px-[5px] py-px font-mono text-[10.5px] leading-[1.3] text-text-secondary">
-            ⌘K
-          </span>
-        </button>
-      </div>
+      {/* ⌘K command pill — left-aligned right after the brand (Forge .tb-cmd) */}
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new CustomEvent("toggle-command-palette"))}
+        className="no-drag flex h-6 min-w-[320px] max-w-[460px] items-center gap-2 rounded-[7px] border border-border-default bg-bg-app pl-[9px] pr-2 pf-text-xs text-text-tertiary transition-colors hover:border-border-strong hover:text-text-secondary"
+      >
+        <Search className="h-[13px] w-[13px] shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left">
+          {t('app.titleBar.searchPlaceholder', '搜索请求 / 命令 / 集合…')}
+        </span>
+        <span className="shrink-0 rounded-[4px] border border-border-default border-b-2 bg-bg-secondary px-[5px] py-px font-mono text-[10.5px] leading-[1.3] text-text-secondary">
+          ⌘K
+        </span>
+      </button>
+
+      {/* spacer pushes actions to the right */}
+      <div className="min-w-0 flex-1" />
 
       {/* Right actions — flat icon row (Forge .tb-actions) */}
       <div className="flex shrink-0 items-center gap-0.5 no-drag">

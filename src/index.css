@@ -283,13 +283,23 @@
     --fs-sidebar-sm: calc(var(--fs-base) - 2px);/* 11px — sidebar small text */
   }
 
+  /* Root font-size is pinned to 16px so rem-based utilities (Tailwind spacing,
+     sizing, icon h-4/w-4, text-sm/text-xs) compute at their nominal px values —
+     which is exactly what the Forge prototype's px spec assumes. Body text size
+     is driven separately by --fs-base (13px default, user-scalable) so the
+     font-size setting scales TEXT without shrinking the whole layout. Previously
+     `html` itself was set to 13px, which silently rendered the entire app at
+     13/16 = 81.25% scale, throwing off every spacing/sizing value vs the design. */
+  html {
+    font-size: 16px;
+  }
+
   html, body, #root {
     height: 100%;
     overflow: hidden;
     background: var(--color-bg-app);
     color: var(--color-text-primary);
     font-family: var(--font-sans);
-    font-size: var(--fs-base);
     line-height: 1.45;
     letter-spacing: -0.005em;
     /* IBM Plex doesn't use Inter's cv01/ss03 alternates — keep features neutral. */
@@ -299,6 +309,12 @@
     text-rendering: optimizeLegibility;
     user-select: none;
     -webkit-user-select: none;
+  }
+
+  /* Body text size — 13px default, scaled by the font-size setting via --fs-base.
+     Kept off `html` so it never affects rem-based layout. #root inherits this. */
+  body {
+    font-size: var(--fs-base);
   }
 
   /* 可选中的内容区域：输入框、代码块、响应内容等 */
