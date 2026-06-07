@@ -463,7 +463,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
                     <button
                       onClick={handleSend}
                       disabled={!connected || !message.trim()}
-                      className="pointer-events-auto inline-flex h-7 items-center justify-center gap-1.5 px-3.5 pf-rounded-sm bg-accent pf-text-xs font-semibold tracking-wide text-white shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+                      className="pointer-events-auto inline-flex h-7 items-center justify-center gap-1.5 px-3.5 pf-rounded-md bg-accent pf-text-xs font-semibold tracking-wide text-white shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" /> {t('ws.send')}
                     </button>
@@ -569,7 +569,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
               <div className="wb-search min-w-0 flex-1">
                 <Search className="w-3.5 h-3.5 text-text-disabled" />
                 <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('ws.searchMessages')} className="min-w-0 flex-1" />
-                {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>}
+                {searchQuery && <button onClick={() => setSearchQuery("")} aria-label={t('ws.clearSearch', '清空搜索')} className="text-text-disabled hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>}
               </div>
               <SegmentedControl
                 size="sm"
@@ -713,7 +713,7 @@ function WsMessageRow({
   if (message.kind === "status" || message.kind === "error") {
     return (
       <div className={cn(
-        "flex items-center gap-2.5 px-4 py-1.5 pf-text-xs",
+        "flex items-center gap-2.5 px-3 py-1.5 pf-text-xs",
         message.kind === "error" ? "text-error" : "text-text-tertiary"
       )}>
         {message.kind === "status" && message.status === "connected" ? (
@@ -739,7 +739,7 @@ function WsMessageRow({
         type="button"
         onClick={() => setExpanded(!expanded)}
         className={cn(
-          "flex w-full items-start gap-2.5 px-4 py-1.5 text-left transition-colors hover:bg-bg-hover/50",
+          "flex w-full items-start gap-2.5 px-3 py-1.5 text-left transition-colors hover:bg-bg-hover/50",
           expanded && "bg-bg-hover/30"
         )}
       >

@@ -460,7 +460,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                         </>
                       )}
                       {streaming && <span className="text-accent inline-flex items-center gap-1.5"><span className="pf-dot s-live" /> Streaming ({streamMessages.length})</span>}
-                      <button onClick={handleCopy} className="ml-auto p-0.5 text-text-tertiary hover:text-text-secondary">
+                      <button onClick={handleCopy} aria-label={t('common.copy')} className="ml-auto p-0.5 text-text-tertiary hover:text-text-secondary">
                         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       </button>
                     </div>
@@ -484,7 +484,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                           {streamMessages.map((msg, i) => {
                             const isSent = msg.connectionId === tabId && msg.eventType === "data" && !msg.statusCode;
                             return (
-                              <div key={i} className={cn("px-4 py-1.5 transition-colors hover:bg-bg-hover/40", isSent && "bg-accent-soft/30")}>
+                              <div key={i} className={cn("px-3 py-1.5 transition-colors hover:bg-bg-hover/40", isSent && "bg-accent-soft/30")}>
                                 <div className="mb-0.5 flex items-center gap-2 pf-text-3xs text-text-disabled">
                                   {isSent ? (
                                     <ArrowUp className="h-3 w-3 shrink-0 text-method-post" />

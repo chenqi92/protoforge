@@ -65,7 +65,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
       {/* Menu */}
       <div
         ref={menuRef}
-        className="fixed z-[501] min-w-[180px] bg-bg-elevated border border-border-strong rounded-lg shadow-lg py-1 select-none animate-in fade-in zoom-in-95 duration-150"
+        className="fixed z-[501] min-w-[210px] bg-bg-elevated border border-border-strong rounded-lg shadow-lg p-[5px] select-none animate-in fade-in zoom-in-95 duration-150"
         style={{ left: pos.x, top: pos.y }}
       >
         {items.map((entry, i) => {
@@ -78,7 +78,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
               disabled={entry.disabled}
               onClick={() => { entry.onClick(); onClose(); }}
               className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-[6px] pf-text-sm transition-colors",
+                "w-full flex items-center gap-[9px] px-[9px] py-[6px] pf-text-sm transition-colors",
                 entry.disabled
                   ? "text-text-disabled cursor-not-allowed"
                   : entry.danger

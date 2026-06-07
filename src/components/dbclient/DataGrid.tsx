@@ -454,7 +454,7 @@ export const DataGrid = memo(function DataGrid({
             return (
               <div key={col.name} className="relative shrink-0 group/col" style={{ width: w }}>
                 <div
-                  className={cn("h-full border-r border-border-default px-3 py-1.5 pf-text-xs font-semibold text-text-secondary cursor-pointer hover:bg-bg-hover/50 select-none bg-bg-tertiary", isColSel && "bg-accent-soft")}
+                  className={cn("h-full border-r border-border-default px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-tertiary cursor-pointer hover:bg-bg-hover/50 select-none bg-bg-tertiary", isColSel && "bg-accent-soft")}
                   onClick={() => selectColumn(ci)}>
                   <div className="flex items-center gap-1 overflow-hidden">
                     <span className="shrink-0">{col.name}</span>

@@ -668,7 +668,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
             <div className="relative shrink-0">
               <button
                 onClick={() => setShowMethods(!showMethods)}
-                className="flex h-[26px] min-w-[88px] items-center justify-between gap-1.5 pf-rounded-sm border border-border-default bg-bg-secondary px-2.5 transition-colors hover:border-border-strong hover:bg-bg-tertiary"
+                className="flex h-7 w-24 items-center justify-between gap-1.5 pf-rounded-md border border-border-default bg-bg-secondary px-2.5 transition-colors hover:border-border-strong hover:bg-bg-tertiary"
               >
                 <span className={cn("pf-mtag", methodMtagClass[config.method] || "m-options")}>{config.method}</span>
                 <ChevronDown className="w-3 h-3 text-text-tertiary" />

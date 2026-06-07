@@ -458,7 +458,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                     <div key={i} className="mb-2 flex items-center gap-2">
                       <input value={h.key} onChange={(e) => { const n = [...headers]; n[i].key = e.target.value; setHeaders(n); }} disabled={running} placeholder="Header Key" className="cfg-input flex-1 text-left" />
                       <input value={h.value} onChange={(e) => { const n = [...headers]; n[i].value = e.target.value; setHeaders(n); }} disabled={running} placeholder="Header Value" className="cfg-input flex-1 text-left" />
-                      <button onClick={() => setHeaders(headers.filter((_, j) => j !== i))} disabled={running || headers.length <= 1} className="wb-icon-btn shrink-0 hover:text-error disabled:opacity-50"><Trash2 className="w-3 h-3" /></button>
+                      <button onClick={() => setHeaders(headers.filter((_, j) => j !== i))} disabled={running || headers.length <= 1} aria-label={t('common.delete')} className="wb-icon-btn shrink-0 hover:text-error disabled:opacity-50"><Trash2 className="w-3 h-3" /></button>
                     </div>
                   ))}
                   <button onClick={() => setHeaders([...headers, { key: "", value: "" }])} disabled={running} className="wb-ghost-btn"><Plus className="w-3 h-3" />{t('loadtest.addHeader')}</button>
@@ -686,7 +686,7 @@ function MetricCard({ label, value, icon, color, sub }: { label: string; value: 
   const tone = valueTone[color] ?? "text-text-primary";
   return (
     <div className="pf-rounded-md border border-border-default bg-bg-secondary px-3 py-2.5">
-      <div className="flex items-center gap-1.5 pf-text-xs font-semibold uppercase tracking-[0.05em] text-text-tertiary">
+      <div className="flex items-center gap-1.5 pf-text-xxs font-semibold uppercase tracking-[0.05em] text-text-tertiary">
         <span className="text-text-disabled [&>svg]:h-3 [&>svg]:w-3">{icon}</span>
         <span className="truncate">{label}</span>
       </div>
