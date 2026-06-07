@@ -570,6 +570,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   reorderTabs: (fromIndex, toIndex) => {
     set((state) => {
+      // Guard against out-of-range indices (e.g. unified-strip indices that don't
+      // map onto the request-tabs-only array) so we never splice in `undefined`.
+      if (
+        fromIndex < 0 ||
+        fromIndex >= state.tabs.length ||
+        toIndex < 0 ||
+        toIndex > state.tabs.length
+      ) {
+        return {};
+      }
       const nextTabs = [...state.tabs];
       const [moved] = nextTabs.splice(fromIndex, 1);
       nextTabs.splice(toIndex, 0, moved);

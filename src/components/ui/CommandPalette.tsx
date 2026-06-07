@@ -195,7 +195,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
             placeholder={t('commandPalette.placeholder')}
             className="h-10 flex-1 bg-transparent pf-text-md text-text-primary outline-none placeholder:text-text-disabled"
           />
-          <button onClick={onClose} className="pf-rounded-md p-1.5 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
+          <button onClick={onClose} aria-label={t('commandPalette.closeLabel')} className="pf-rounded-md p-1.5 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
             <X className="w-4 h-4" />
           </button>
         </div>

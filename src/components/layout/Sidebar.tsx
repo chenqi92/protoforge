@@ -943,16 +943,13 @@ function CollectionsView({ search, expanded, setExpanded }: {
     }
 
     const sessionId = openToolTab("mockserver");
-    // 延迟一帧等 store 创建完成
-    setTimeout(() => {
-      const mockStore = getMockServerStoreApi(sessionId);
-      mockStore.getState().addRouteFromTemplate({
-        method: item.method || "GET",
-        pattern: path,
-        bodyTemplate: item.responseExample || '{\n  "message": "mock response"\n}',
-        description: item.name || "",
-      });
-    }, 100);
+    // mock server store 由 getMockServerStoreApi 同步创建，直接写入路由即可
+    getMockServerStoreApi(sessionId).getState().addRouteFromTemplate({
+      method: item.method || "GET",
+      pattern: path,
+      bodyTemplate: item.responseExample || '{\n  "message": "mock response"\n}',
+      description: item.name || "",
+    });
   }, [openToolTab]);
 
   const handleSendToWorkflow = useCallback((item: CollectionItem) => {

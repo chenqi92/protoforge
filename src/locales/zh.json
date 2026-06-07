@@ -577,7 +577,8 @@
         "interfaceTypes": "接口类型",
         "unionTypes": "联合类型",
         "scalarTypes": "自定义标量"
-      }
+      },
+      "loadingEditor": "加载编辑器..."
     },
     "oauth2": {
       "fetchingToken": "获取中...",
@@ -761,7 +762,8 @@
     "eventCount": "{{count}} 条事件",
     "autoScroll": "自动滚动",
     "emptyTitle": "等待事件...",
-    "emptyDesc": "连接 SSE 端点后将实时显示事件流"
+    "emptyDesc": "连接 SSE 端点后将实时显示事件流",
+    "truncatedHint": "仅渲染最近 {{max}} 条事件，共 {{total}} 条"
   },
   "mqtt": {
     "disconnect": "断开",
@@ -1219,7 +1221,30 @@
     "openBrowserFailed": "打开浏览器失败: ",
     "truncatedHint": "仅渲染最近 {{max}} 条请求，共 {{total}} 条",
     "filter": "过滤",
-    "browserProxyReady": "浏览器代理可用"
+    "browserProxyReady": "浏览器代理可用",
+    "replaying": "正在重放请求…",
+    "replaySuccess": "重放完成 · HTTP {{status}}",
+    "replayFailed": "重放失败: ",
+    "breakpointAdded": "已添加断点：{{method}} {{host}}{{path}}",
+    "breakpoints": "断点",
+    "breakpointRules": "断点规则",
+    "breakpointRulesHint": "命中的请求将被挂起等待放行",
+    "noBreakpoints": "暂无断点规则",
+    "anyMethod": "ANY",
+    "addRule": "新增规则",
+    "removeBreakpoint": "删除规则",
+    "bpEnabled": "已启用",
+    "bpDisabled": "已停用",
+    "bpHostPlaceholder": "Host（含匹配）",
+    "bpPathPlaceholder": "Path（含匹配）",
+    "pausedTitle": "断点命中 · 等待放行",
+    "resume": "放行",
+    "resumeAll": "全部放行",
+    "pausedEdit": "查看 / 编辑",
+    "pausedEditorTitle": "编辑并放行请求",
+    "resumeOriginal": "原样放行",
+    "resumeOriginalHint": "按原样转发，忽略本次编辑",
+    "resumeModified": "修改并放行"
   },
   "loadtest": {
     "title": "HTTP 压测",
@@ -1621,6 +1646,11 @@
       "assistantPlayHint": "填入媒体地址后按 {{mode}} 播放",
       "playHint": "填入 {{mode}} 地址并点击播放",
       "messageLimit": "为保证性能，仅显示最近 {{count}} 条协议报文"
+    },
+    "engine": {
+      "easyplayer": "EasyPlayer 直连",
+      "gatewayHls": "本地 HLS 网关",
+      "nativeMse": "原生 MSE"
     }
   },
   "common": {
@@ -1838,7 +1868,8 @@
     "closeRight": "关闭右侧",
     "closeLeft": "关闭左侧",
     "new": "新建",
-    "closeTab": "关闭标签"
+    "closeTab": "关闭标签",
+    "selectTabForSplit": "打开另一个标签页以使用分屏"
   },
   "toolWindow": {
     "mergeBack": "合并回主窗口",
@@ -2196,7 +2227,16 @@
     "assistantAddressPlaceholder": "等待助手自动填充，或手动输入可播放媒体地址",
     "play": "播放",
     "assistantChip": "辅助控制",
-    "assistantHint": "当前助手会话负责发现/控制，播放仍按 {{mode}} 执行"
+    "assistantHint": "当前助手会话负责发现/控制，播放仍按 {{mode}} 执行",
+    "ptz": {
+      "up": "上",
+      "down": "下",
+      "left": "左",
+      "right": "右",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "stop": "停止"
+    }
   },
   "overview": {
     "title": "API 工作台",
@@ -2775,5 +2815,8 @@
     "switchTab": "切换标签",
     "dismiss": "关闭弹层",
     "hint": "键盘快捷键"
+  },
+  "auth": {
+    "toggleSecretVisibility": "切换密文可见"
   }
 }

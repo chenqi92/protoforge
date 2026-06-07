@@ -223,6 +223,7 @@ export function PluginModal({ open, onClose }: PluginModalProps) {
 
               <button
                 onClick={onClose}
+                aria-label={t('common.close')}
                 className="flex h-9 w-9 items-center justify-center pf-rounded-lg text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="h-4 w-4" />
@@ -602,7 +603,7 @@ function PluginDetail({
             </div>
           </div>
 
-          <button onClick={onClose} className="flex h-7 w-7 shrink-0 items-center justify-center pf-rounded-md text-text-tertiary transition-colors hover:bg-bg-hover">
+          <button onClick={onClose} aria-label={t('common.close')} className="flex h-7 w-7 shrink-0 items-center justify-center pf-rounded-md text-text-tertiary transition-colors hover:bg-bg-hover">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>

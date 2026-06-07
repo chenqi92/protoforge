@@ -30,16 +30,14 @@ export function generateMockFromRequest(req: {
   }
 
   const sessionId = useAppStore.getState().openToolTab("mockserver");
-  // Defer a tick so the mock server store/session is created before we add the route.
-  setTimeout(() => {
-    const mockStore = getMockServerStoreApi(sessionId);
-    mockStore.getState().addRouteFromTemplate({
-      method: req.method || "GET",
-      pattern: path,
-      bodyTemplate: req.responseExample || '{\n  "message": "mock response"\n}',
-      description: req.name || "",
-    });
-  }, 100);
+  // The mock server store is created synchronously by getMockServerStoreApi, so
+  // seed the route immediately — no deferral needed.
+  getMockServerStoreApi(sessionId).getState().addRouteFromTemplate({
+    method: req.method || "GET",
+    pattern: path,
+    bodyTemplate: req.responseExample || '{\n  "message": "mock response"\n}',
+    description: req.name || "",
+  });
 }
 
 /**
