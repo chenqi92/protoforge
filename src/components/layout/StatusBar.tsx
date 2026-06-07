@@ -9,10 +9,17 @@ import {
   ExternalLink,
   ArrowRight,
   Cookie,
+  Box,
+  Sliders,
+  Puzzle,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUpdateStore } from "@/stores/updateStore";
 import { useCookieJarStore } from "@/stores/cookieJarStore";
+import { useEnvStore } from "@/stores/envStore";
+import { usePluginStore } from "@/stores/pluginStore";
+import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface StatusBarProps {
@@ -20,12 +27,21 @@ interface StatusBarProps {
   responseTime?: number;
   responseSize?: number;
   activeModule: string;
+  /** Whether the activity-log dock is open (drives the toggle highlight). */
+  activityLogOpen?: boolean;
+  /** Toggles the activity-log dock (also wired to the rail's activity button). */
+  onToggleActivityLog?: () => void;
+  /** Opens the plugin market modal. */
+  onOpenPlugins?: () => void;
 }
 
 export function StatusBar({
   responseTime,
   responseSize,
   activeModule,
+  activityLogOpen,
+  onToggleActivityLog,
+  onOpenPlugins,
 }: StatusBarProps) {
   const { t } = useTranslation();
 
@@ -41,6 +57,20 @@ export function StatusBar({
 
   const error = useUpdateStore((s) => s.error);
 
+  // Environment switcher
+  const environments = useEnvStore((s) => s.environments);
+  const activeEnvId = useEnvStore((s) => s.activeEnvId);
+  const setActiveEnv = useEnvStore((s) => s.setActive);
+  const fetchEnvironments = useEnvStore((s) => s.fetchEnvironments);
+  const activeEnv = environments.find((e) => e.id === activeEnvId);
+
+  // Plugin counts
+  const installedPlugins = usePluginStore((s) => s.installedPlugins);
+  const installedCount = installedPlugins.length;
+  const updatableCount = installedPlugins.filter((p) => p.hasUpdate).length;
+
+  const { showMenu, MenuComponent } = useContextMenu();
+
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +80,36 @@ export function StatusBar({
     const timer = setTimeout(() => checkForUpdate(), 3000);
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 拉取环境列表（用于底栏环境切换器）
+  useEffect(() => {
+    fetchEnvironments();
+  }, [fetchEnvironments]);
+
+  const handleEnvMenu = (e: React.MouseEvent) => {
+    const entries: ContextMenuEntry[] = [];
+    if (environments.length === 0) {
+      entries.push({ id: "no-env", label: t("sidebar.noEnv", { defaultValue: "暂无环境" }), disabled: true, onClick: () => {} });
+    } else {
+      for (const env of environments) {
+        const isActive = env.id === activeEnvId;
+        entries.push({
+          id: env.id,
+          label: env.name,
+          icon: isActive ? <Check className="w-3.5 h-3.5" /> : <Box className="w-3.5 h-3.5" />,
+          onClick: () => void setActiveEnv(isActive ? null : env.id),
+        });
+      }
+    }
+    entries.push({ type: "divider" });
+    entries.push({
+      id: "manage",
+      label: t("sidebar.manageEnv", { defaultValue: "管理环境…" }),
+      icon: <Sliders className="w-3.5 h-3.5" />,
+      onClick: () => window.dispatchEvent(new CustomEvent("open-env-modal")),
+    });
+    showMenu(e, entries);
+  };
 
   // 点击对话框外部关闭
   useEffect(() => {
@@ -124,8 +184,8 @@ export function StatusBar({
     if (isReady) {
       return (
         <>
-          <CheckCircle className="h-3 w-3 text-emerald-500 dark:text-emerald-300" />
-          <span className="text-emerald-500 dark:text-emerald-300 font-medium">{t('update.readyToRestart')}</span>
+          <CheckCircle className="h-3 w-3 text-success" />
+          <span className="font-medium text-success">{t('update.readyToRestart')}</span>
         </>
       );
     }
@@ -134,8 +194,8 @@ export function StatusBar({
     if (isError) {
       return (
         <>
-          <AlertTriangle className="h-3 w-3 text-red-400" />
-          <span className="text-red-400">{t('update.failed')}</span>
+          <AlertTriangle className="h-3 w-3 text-error" />
+          <span className="text-error">{t('update.failed')}</span>
         </>
       );
     }
@@ -144,11 +204,11 @@ export function StatusBar({
     if (hasUpdate) {
       return (
         <>
-          <ArrowDownCircle className="h-3 w-3 text-violet-500 dark:text-violet-300 animate-bounce" />
-          <span className="text-text-disabled">v{currentVersion}</span>
-          <ArrowRight className="h-2.5 w-2.5 text-text-disabled" />
-          <span className="text-violet-500 dark:text-violet-300 font-semibold">v{latestVersion}</span>
-          <span className="text-[10px] text-violet-500 dark:text-violet-300/80">{t('update.newAvailable')}</span>
+          <ArrowDownCircle className="h-3 w-3 animate-bounce text-accent" />
+          <span className="text-text-tertiary">v{currentVersion}</span>
+          <ArrowRight className="h-2.5 w-2.5 text-text-tertiary" />
+          <span className="font-semibold text-accent">v{latestVersion}</span>
+          <span className="text-[10px] font-semibold text-accent">{t('update.newAvailable')}</span>
         </>
       );
     }
@@ -163,43 +223,87 @@ export function StatusBar({
 
   return (
     <>
-      <div data-statusbar className="flex h-[var(--statusbar-height)] shrink-0 items-center justify-between border-t border-border-subtle bg-bg-secondary px-4 pf-text-xs text-text-tertiary select-none dark:bg-[#0f1011] dark:border-white/[0.06]">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 font-[510] text-text-secondary">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span className="text-text-secondary tracking-[-0.005em]">{moduleLabel}</span>
+      <div data-statusbar className="flex h-[var(--statusbar-height)] shrink-0 items-stretch border-t border-border-default bg-bg-primary px-1 text-[11.5px] text-text-secondary select-none">
+        <div className="flex items-stretch">
+          {/* Active-domain module label (accented cell) */}
+          <div className="flex items-center gap-1.5 border-r border-border-subtle bg-accent-soft px-[9px] font-semibold text-accent">
+            <Box className="h-3 w-3" />
+            <span className="tracking-[-0.005em]">{moduleLabel}</span>
           </div>
+
+          {/* Environment switcher */}
+          <button
+            onClick={handleEnvMenu}
+            onContextMenu={handleEnvMenu}
+            className="flex items-center gap-1.5 border-r border-border-subtle px-[9px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+            title={t("sidebar.switchEnv", { defaultValue: "切换环境" })}
+          >
+            <Box className="h-3 w-3" />
+            <span className={cn(activeEnv && "text-text-secondary font-medium")}>
+              {activeEnv ? activeEnv.name : t("sidebar.noEnv", { defaultValue: "无环境" })}
+            </span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-4 font-mono">
+        <div className="flex-1" />
+
+        <div className="flex items-stretch">
           {responseTime !== undefined && (
-            <span className="flex items-center gap-1 group">
-              <span className="text-text-disabled">Time</span>
-              <span className="text-text-secondary group-hover:text-accent transition-colors">{responseTime} ms</span>
+            <span className="group flex items-center gap-1.5 border-l border-border-subtle px-[9px]">
+              <span className="text-text-tertiary">Time</span>
+              <span className="font-mono tabular-nums text-text-secondary transition-colors group-hover:text-accent">{responseTime} ms</span>
             </span>
           )}
           {responseSize !== undefined && (
-            <span className="flex items-center gap-1 group">
-              <span className="text-text-disabled">Size</span>
-              <span className="text-text-secondary group-hover:text-accent transition-colors">{formatSize(responseSize)}</span>
+            <span className="group flex items-center gap-1.5 border-l border-border-subtle px-[9px]">
+              <span className="text-text-tertiary">Size</span>
+              <span className="font-mono tabular-nums text-text-secondary transition-colors group-hover:text-accent">{formatSize(responseSize)}</span>
             </span>
           )}
 
           {/* Cookie Jar */}
           <CookieJarButton />
 
+          {/* Activity-log toggle */}
+          {onToggleActivityLog && (
+            <button
+              onClick={onToggleActivityLog}
+              className={cn(
+                "flex items-center gap-1.5 border-l border-border-subtle px-[9px] transition-colors",
+                activityLogOpen ? "bg-accent-soft font-semibold text-accent" : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",
+              )}
+              title={t("rightSidebar.logs", { defaultValue: "活动日志" })}
+            >
+              <span className="pf-dot s-live" />
+              <span>{t("rightSidebar.logs", { defaultValue: "活动日志" })}</span>
+            </button>
+          )}
+
+          {/* Plugin count */}
+          <button
+            onClick={() => onOpenPlugins?.()}
+            className="flex items-center gap-1.5 border-l border-border-subtle px-[9px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
+            title={t("titleBar.plugins", { defaultValue: "插件" })}
+          >
+            <Puzzle className="h-3 w-3" />
+            <span>{installedCount}</span>
+            {updatableCount > 0 && (
+              <span className="font-bold text-accent">· {updatableCount}↑</span>
+            )}
+          </button>
+
           {/* 版本 & 更新区域 */}
           <button
             onClick={handleVersionClick}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 transition-all",
+              "flex cursor-pointer items-center gap-1.5 border-l border-border-subtle px-[9px] transition-colors",
               hasUpdate
-                ? "border border-accent/30 bg-accent-soft text-accent hover:bg-accent-muted cursor-pointer"
+                ? "bg-accent-soft font-semibold text-accent hover:bg-accent-muted"
                 : isReady
-                  ? "border border-success/30 bg-success/8 text-success hover:bg-success/14 cursor-pointer"
+                  ? "bg-success/[0.12] font-semibold text-success hover:bg-success/20"
                   : isError
-                    ? "border border-error/30 bg-error/8 text-error hover:bg-error/14 cursor-pointer"
-                    : "text-text-disabled hover:text-text-secondary cursor-pointer",
+                    ? "bg-error/[0.12] font-semibold text-error hover:bg-error/20"
+                    : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",
             )}
             title={hasUpdate
               ? t('update.clickToUpdate', { version: latestVersion })
@@ -214,6 +318,8 @@ export function StatusBar({
           </button>
         </div>
       </div>
+
+      {MenuComponent}
 
       {/* 更新对话框 — 支持确认 / 下载进度 / 就绪 / 错误 等多状态 */}
       <AnimatePresence>
@@ -234,10 +340,10 @@ export function StatusBar({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: 'spring', damping: 28, stiffness: 340 }}
-              className="fixed left-1/2 top-1/2 z-[201] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border-default/80 bg-bg-elevated shadow-[0_24px_64px_rgba(0,0,0,0.2)] backdrop-blur-xl overflow-hidden"
+              className="fixed left-1/2 top-1/2 z-[201] w-[420px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated shadow-2xl"
             >
               {/* 顶部状态条 */}
-              <div className={cn("h-1", isReady ? "bg-emerald-500" : isError ? "bg-red-500" : "bg-accent")} />
+              <div className={cn("h-1", isReady ? "bg-success" : isError ? "bg-error" : "bg-accent")} />
 
               <div className="p-6 space-y-5">
 
@@ -284,8 +390,8 @@ export function StatusBar({
                 {isReady && (
                   <>
                     <div className="flex flex-col items-center text-center gap-3 py-2">
-                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/10">
-                        <CheckCircle className="h-6 w-6 text-emerald-500 dark:text-emerald-300" />
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
+                        <CheckCircle className="h-6 w-6 text-success" />
                       </div>
                       <div className="space-y-1">
                         <h3 className="pf-text-lg font-bold text-text-primary">
@@ -306,7 +412,7 @@ export function StatusBar({
                       </button>
                       <button
                         onClick={restartApp}
-                        className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-xl pf-text-sm font-semibold bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition-all active:scale-[0.97]"
+                        className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-success pf-text-sm font-semibold text-white shadow-sm transition-all hover:bg-success/85 active:scale-[0.97]"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
                         {t('update.restart')}
@@ -319,8 +425,8 @@ export function StatusBar({
                 {isError && (
                   <>
                     <div className="flex flex-col items-center text-center gap-3 py-2">
-                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10">
-                        <AlertTriangle className="h-6 w-6 text-red-400" />
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-error/10">
+                        <AlertTriangle className="h-6 w-6 text-error" />
                       </div>
                       <div className="space-y-1">
                         <h3 className="pf-text-lg font-bold text-text-primary">
@@ -372,12 +478,12 @@ export function StatusBar({
                           v{currentVersion}
                         </div>
                       </div>
-                      <ArrowRight className="h-4 w-4 text-text-disabled shrink-0" />
+                      <ArrowRight className="h-4 w-4 shrink-0 text-text-disabled" />
                       <div className="flex-1 text-center">
-                        <div className="pf-text-xxs text-violet-500 dark:text-violet-300/80 uppercase tracking-wider mb-1">
+                        <div className="mb-1 pf-text-xxs uppercase tracking-wider text-accent/80">
                           {t('update.latestVersion')}
                         </div>
-                        <div className="pf-text-base font-mono font-bold text-violet-500 dark:text-violet-300">
+                        <div className="pf-text-base font-mono font-bold text-accent">
                           v{updateInfo.version}
                         </div>
                       </div>
@@ -430,12 +536,13 @@ function CookieJarButton() {
   return (
     <button
       onClick={() => window.dispatchEvent(new CustomEvent("open-cookie-manager"))}
-      className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-text-disabled transition-all hover:text-text-secondary"
+      className="flex items-center gap-1.5 border-l border-border-subtle px-[9px] text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
       title={t("cookieManager.title")}
     >
       <Cookie className="h-3 w-3" />
+      <span>cookies</span>
       {cookieCount > 0 && (
-        <span className="font-semibold text-amber-500 dark:text-amber-300">{cookieCount}</span>
+        <span className="font-semibold text-warning">{cookieCount}</span>
       )}
     </button>
   );

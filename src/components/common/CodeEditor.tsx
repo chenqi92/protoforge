@@ -30,76 +30,77 @@ export function CodeEditor({
   
   useEffect(() => {
     if (monaco) {
-      // Linear dark: #0f1011 panel bg + #191a1b line highlight — matches --color-bg-primary / --color-bg-tertiary.
-      // Syntax palette: cool/restrained — indigo for keywords, lavender for strings, muted slate for numbers.
+      // Forge dark: #0c0e12 panel bg (inset) + #14171d surface line highlight.
+      // Syntax palette: GitHub-dark flavor — accent orange for keywords, green strings, orange numbers.
       monaco.editor.defineTheme('protoforge-dark', {
         base: 'vs-dark',
         inherit: true,
         rules: [
-          { token: '', foreground: 'd0d6e0' },
-          { token: 'keyword', foreground: '7170ff' },           // Linear accent violet — keywords stand out
-          { token: 'keyword.json', foreground: 'f7f8f8' },
-          { token: 'string', foreground: 'a5b4fc' },            // indigo-300 — cool pastel strings
-          { token: 'string.key.json', foreground: 'd0d6e0' },   // JSON keys as primary body text
-          { token: 'string.value.json', foreground: 'a5b4fc' },
-          { token: 'number', foreground: 'fbbf24' },            // amber-400 — warm numeric accent
-          { token: 'boolean', foreground: '7170ff' },
-          { token: 'comment', foreground: '62666d', fontStyle: 'italic' },
-          { token: 'type', foreground: '67e8f9' },              // cyan-300 — type annotations
-          { token: 'function', foreground: '7170ff' },
-          { token: 'variable', foreground: 'f7f8f8' },
-          { token: 'constant', foreground: 'fbbf24' },
-          { token: 'delimiter', foreground: '8a8f98' },
-          { token: 'operator', foreground: '8a8f98' },
-          { token: 'tag', foreground: '7170ff' },
-          { token: 'attribute.name', foreground: 'a5b4fc' },
+          { token: '', foreground: 'e7eaf0' },
+          { token: 'keyword', foreground: 'ff6b35' },           // Forge accent orange — keywords stand out
+          { token: 'keyword.json', foreground: 'e7eaf0' },
+          { token: 'string', foreground: 'a5d6a3' },            // green strings
+          { token: 'string.key.json', foreground: '79c0ff' },   // JSON keys as blue
+          { token: 'string.value.json', foreground: 'a5d6a3' },
+          { token: 'number', foreground: 'f0883e' },            // orange numeric accent
+          { token: 'boolean', foreground: 'ff7b72' },
+          { token: 'comment', foreground: '646d7c', fontStyle: 'italic' },
+          { token: 'type', foreground: '56d4dd' },              // cyan — type annotations
+          { token: 'function', foreground: '79c0ff' },
+          { token: 'variable', foreground: 'e7eaf0' },
+          { token: 'constant', foreground: 'f0883e' },
+          { token: 'delimiter', foreground: '9aa3b2' },
+          { token: 'operator', foreground: '9aa3b2' },
+          { token: 'tag', foreground: 'ff7b72' },
+          { token: 'attribute.name', foreground: '79c0ff' },
         ],
         colors: {
-          'editor.background': '#0f1011',
-          'editor.foreground': '#d0d6e0',
-          'editor.lineHighlightBackground': '#191a1b',
+          'editor.background': '#0c0e12',
+          'editor.foreground': '#e7eaf0',
+          'editor.lineHighlightBackground': '#14171d',
           'editor.lineHighlightBorder': '#00000000',
-          'editorLineNumber.foreground': '#62666d',
-          'editorLineNumber.activeForeground': '#d0d6e0',
-          'editorCursor.foreground': '#f7f8f8',
-          'editorIndentGuide.background1': '#191a1b',
-          'editorIndentGuide.activeBackground1': '#28282c',
-          'editor.selectionBackground': '#5e6ad245',              // Linear indigo at ~27% opacity
-          'editor.selectionHighlightBackground': '#5e6ad222',
-          'editor.wordHighlightBackground': '#5e6ad220',
-          'editor.findMatchBackground': '#fbbf2440',
-          'editor.findMatchHighlightBackground': '#fbbf2420',
-          'editorBracketMatch.background': '#7170ff22',
-          'editorBracketMatch.border': '#7170ff60',
-          'editorWhitespace.foreground': '#28282c',
+          'editorLineNumber.foreground': '#646d7c',
+          'editorLineNumber.activeForeground': '#e7eaf0',
+          'editorCursor.foreground': '#e7eaf0',
+          'editorIndentGuide.background1': '#1e232b',
+          'editorIndentGuide.activeBackground1': '#353c47',
+          'editor.selectionBackground': '#ff6b3540',              // Forge accent at ~25% opacity
+          'editor.selectionHighlightBackground': '#ff6b3522',
+          'editor.wordHighlightBackground': '#ff6b3520',
+          'editor.findMatchBackground': '#d2992240',
+          'editor.findMatchHighlightBackground': '#d2992220',
+          'editorBracketMatch.background': '#ff6b3522',
+          'editorBracketMatch.border': '#ff6b3560',
+          'editorWhitespace.foreground': '#353c47',
         }
       });
       monaco.editor.defineTheme('protoforge-light', {
         base: 'vs',
         inherit: true,
         rules: [
-          { token: '', foreground: '0f1011' },
-          { token: 'keyword', foreground: '5e6ad2' },
-          { token: 'string', foreground: '4f46e5' },
-          { token: 'string.value.json', foreground: '4f46e5' },
-          { token: 'number', foreground: 'b45309' },
-          { token: 'boolean', foreground: '5e6ad2' },
-          { token: 'comment', foreground: '8a8f98', fontStyle: 'italic' },
+          { token: '', foreground: '1a1d23' },
+          { token: 'keyword', foreground: 'ff6b35' },
+          { token: 'string', foreground: '0a7d33' },
+          { token: 'string.key.json', foreground: '0550ae' },
+          { token: 'string.value.json', foreground: '0a7d33' },
+          { token: 'number', foreground: 'bc4c00' },
+          { token: 'boolean', foreground: 'cf222e' },
+          { token: 'comment', foreground: '939aa6', fontStyle: 'italic' },
           { token: 'type', foreground: '0891b2' },
-          { token: 'function', foreground: '5e6ad2' },
-          { token: 'delimiter', foreground: '62666d' },
-          { token: 'operator', foreground: '62666d' },
+          { token: 'function', foreground: '0550ae' },
+          { token: 'delimiter', foreground: '5a626e' },
+          { token: 'operator', foreground: '5a626e' },
         ],
         colors: {
           'editor.background': '#ffffff',
-          'editor.foreground': '#0f1011',
-          'editor.lineHighlightBackground': '#f5f6f7',
+          'editor.foreground': '#1a1d23',
+          'editor.lineHighlightBackground': '#f5f6f8',
           'editor.lineHighlightBorder': '#00000000',
-          'editorLineNumber.foreground': '#8a8f98',
-          'editorLineNumber.activeForeground': '#0f1011',
-          'editor.selectionBackground': '#5e6ad228',
-          'editorBracketMatch.background': '#5e6ad218',
-          'editorBracketMatch.border': '#5e6ad260',
+          'editorLineNumber.foreground': '#939aa6',
+          'editorLineNumber.activeForeground': '#1a1d23',
+          'editor.selectionBackground': '#ff6b3528',
+          'editorBracketMatch.background': '#ff6b3518',
+          'editorBracketMatch.border': '#ff6b3560',
         }
       });
     }

@@ -27,10 +27,10 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
 
   return createPortal(
     <div className="fixed inset-0 z-[var(--z-toast)] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-[480px] max-h-[80vh] rounded-2xl border border-border-default bg-bg-surface shadow-2xl flex flex-col">
+      <div className="w-[480px] max-h-[80vh] pf-rounded-xl border border-border-strong bg-bg-elevated shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border-default shrink-0">
-          <Unlock className={cn('w-4.5 h-4.5', isError ? 'text-red-400' : 'text-emerald-500 dark:text-emerald-300')} />
+          <Unlock className={cn('w-4.5 h-4.5', isError ? 'text-error' : 'text-success')} />
           <div className="flex-1">
             <div className="font-semibold text-text-primary" style={{ fontSize: 'var(--fs-base)' }}>
               {isError ? '操作失败' : '解密结果'}
@@ -53,7 +53,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
             className={cn(
               'whitespace-pre-wrap break-all font-mono leading-relaxed rounded-xl border p-4',
               isError
-                ? 'border-red-500/30 bg-red-500/5 text-red-400'
+                ? 'border-error/30 bg-error/5 text-error'
                 : 'border-border-default bg-bg-primary text-text-primary',
             )}
             style={{ fontSize: 'var(--fs-sm)' }}

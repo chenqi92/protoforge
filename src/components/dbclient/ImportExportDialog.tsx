@@ -107,10 +107,10 @@ function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
         <DialogTitle className="sr-only">导出</DialogTitle>
         <div className="flex rounded-xl overflow-hidden max-h-[70vh]">
           {/* 左：表列表 */}
-          <div className="w-[220px] shrink-0 border-r border-border-default bg-bg-secondary/30 flex flex-col min-h-0">
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-default/50 shrink-0">
-              <span className="text-xs font-semibold text-text-primary">导出表</span>
-              <span className="text-[10px] text-text-quaternary">{sel.size}/{allTables.length}</span>
+          <div className="w-[220px] shrink-0 border-r border-border-default bg-bg-secondary flex flex-col min-h-0">
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-default shrink-0">
+              <span className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">导出表</span>
+              <span className="text-[10px] font-mono text-text-disabled tabular-nums">{sel.size}/{allTables.length}</span>
             </div>
             <div className="px-3 py-1 border-b border-border-default/30 shrink-0">
               <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none">
@@ -124,12 +124,12 @@ function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
               {allTables.map(tbl => (
                 <label key={tbl.name} className={cn(
                   "flex items-center gap-2 px-3 py-0.5 text-xs cursor-pointer select-none",
-                  sel.has(tbl.name) ? "bg-accent/8 text-text-primary" : "text-text-secondary hover:bg-bg-hover",
+                  sel.has(tbl.name) ? "bg-accent-soft text-text-primary" : "text-text-secondary hover:bg-bg-hover",
                 )}>
                   <input type="checkbox" checked={sel.has(tbl.name)} onChange={() => toggle(tbl.name)} className="h-3.5 w-3.5 rounded shrink-0" />
                   <span className="truncate flex-1">{tbl.name}</span>
                   {tbl.rowCountEstimate != null && tbl.rowCountEstimate > 0 && (
-                    <span className="text-[10px] text-text-quaternary tabular-nums shrink-0">
+                    <span className="text-[10px] font-mono text-text-disabled tabular-nums shrink-0">
                       {tbl.rowCountEstimate > 999 ? `${(tbl.rowCountEstimate / 1000).toFixed(1)}K` : tbl.rowCountEstimate}
                     </span>
                   )}
@@ -189,7 +189,7 @@ function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
 
               {result && (
                 <div className={cn("flex items-start gap-2 rounded-md px-3 py-2 text-xs",
-                  result.ok ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-red-500/10 text-red-500 dark:text-red-300")}>
+                  result.ok ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
                   {result.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
                   <span className="break-all">{result.msg}</span>
                 </div>
@@ -245,7 +245,7 @@ function ImportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
         <DialogTitle className="sr-only">导入</DialogTitle>
         <div className="p-4 space-y-3">
           {!ok ? (
-            <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-300">当前数据库类型不支持导入</div>
+            <div className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">当前数据库类型不支持导入</div>
           ) : (
             <>
               <Fld label="导入文件">
@@ -271,7 +271,7 @@ function ImportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
 
               {result && (
                 <div className={cn("flex items-start gap-2 rounded-md px-3 py-2 text-xs",
-                  result.ok ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" : "bg-red-500/10 text-red-500 dark:text-red-300")}>
+                  result.ok ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
                   {result.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
                   <span className="break-all">{result.msg}</span>
                 </div>

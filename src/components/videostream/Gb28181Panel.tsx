@@ -204,7 +204,7 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
             </button>
           </div>
           {expandedCatalog && (
-            <div className="max-h-[120px] overflow-y-auto pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-1">
+            <div className="max-h-[120px] overflow-y-auto pf-rounded-sm border border-border-default bg-bg-secondary p-1">
               {catalogItems.length === 0 ? (
                 <div className="pf-text-xs text-text-disabled text-center py-4">
                   {t('videostream.gb.noCatalog', '点击"查询"获取设备目录')}
@@ -223,7 +223,7 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
                       {item.id}
                     </button>
                     <span className="text-text-tertiary truncate">{item.name}</span>
-                    <span className={cn("pf-text-3xs px-1 rounded", item.status === 'ON' ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-300' : 'bg-red-500/10 text-red-400')}>
+                    <span className={cn("pf-text-3xs px-1 rounded font-mono font-semibold", item.status === 'ON' ? 'bg-success/10 text-success' : 'bg-error/10 text-error')}>
                       {item.status}
                     </span>
                     <button
@@ -250,30 +250,30 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
           {/* Direction pad */}
           <div className="flex flex-col items-center gap-1">
             <button onMouseDown={() => handlePtz('up')} onMouseUp={() => handlePtz('stop')}
-              className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ArrowUp className="w-4 h-4" /></button>
             <div className="flex gap-1">
               <button onMouseDown={() => handlePtz('left')} onMouseUp={() => handlePtz('stop')}
-                className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+                className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowLeft className="w-4 h-4" /></button>
               <button onClick={() => handlePtz('stop')}
-                className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-300 hover:bg-red-500/20 transition-colors"
+                className="h-8 w-8 flex items-center justify-center rounded-full bg-error/10 border border-error/20 text-error hover:bg-error/20 transition-colors"
               ><RotateCcw className="w-3.5 h-3.5" /></button>
               <button onMouseDown={() => handlePtz('right')} onMouseUp={() => handlePtz('stop')}
-                className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+                className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowRight className="w-4 h-4" /></button>
             </div>
             <button onMouseDown={() => handlePtz('down')} onMouseUp={() => handlePtz('stop')}
-              className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ArrowDown className="w-4 h-4" /></button>
           </div>
           {/* Zoom */}
           <div className="flex items-center justify-center gap-2">
             <button onMouseDown={() => handlePtz('zoom_in')} onMouseUp={() => handlePtz('stop')}
-              className="h-7 w-7 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-7 w-7 flex items-center justify-center pf-rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ZoomIn className="w-3.5 h-3.5" /></button>
             <button onMouseDown={() => handlePtz('zoom_out')} onMouseUp={() => handlePtz('stop')}
-              className="h-7 w-7 flex items-center justify-center pf-rounded-sm bg-bg-secondary/60 border border-border-default/40 text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-7 w-7 flex items-center justify-center pf-rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ZoomOut className="w-3.5 h-3.5" /></button>
             <div className="flex items-center gap-1.5 ml-2">
               <span className="pf-text-3xs text-text-disabled">{t('videostream.gb.speed', '速度')}</span>

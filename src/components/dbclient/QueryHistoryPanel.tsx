@@ -1,7 +1,7 @@
 // 查询历史面板 — 显示最近执行的 SQL 查询
 
 import { memo, useEffect, useState, useCallback } from "react";
-import { History, CheckCircle2, XCircle, Clock, Play, Copy } from "lucide-react";
+import { History, CheckCircle2, XCircle, Clock, Play, Copy, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as dbService from "@/services/dbClientService";
 import { getDbClientStoreApi } from "@/stores/dbClientStore";
@@ -55,16 +55,16 @@ export const QueryHistoryPanel = memo(function QueryHistoryPanel({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border-default/50 px-3 py-1.5">
-        <span className="pf-text-xs font-medium uppercase tracking-wider text-text-tertiary">
+      <div className="flex items-center justify-between border-b border-border-default px-3 py-1.5">
+        <span className="pf-text-xs font-semibold uppercase tracking-wider text-text-tertiary">
           {t("dbClient.queryHistory")}
         </span>
         <button
           onClick={load}
-          className="pf-text-xs text-text-tertiary hover:text-text-primary"
+          className="flex items-center justify-center p-1 pf-rounded-sm text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors"
           title={t("dbClient.refresh")}
         >
-          ↻
+          <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
 
@@ -76,21 +76,21 @@ export const QueryHistoryPanel = memo(function QueryHistoryPanel({
           >
             <div className="flex items-center gap-1.5 mb-1">
               {entry.status === "success" ? (
-                <CheckCircle2 size={11} className="text-emerald-500 dark:text-emerald-300 shrink-0" />
+                <CheckCircle2 size={11} className="text-success shrink-0" />
               ) : (
-                <XCircle size={11} className="text-red-500 dark:text-red-300 shrink-0" />
+                <XCircle size={11} className="text-error shrink-0" />
               )}
               <span className="pf-text-xs text-text-tertiary truncate">
                 {entry.databaseName}
               </span>
               {entry.executionMs != null && (
-                <span className="ml-auto flex items-center gap-0.5 pf-text-xs text-text-quaternary tabular-nums shrink-0">
+                <span className="ml-auto flex items-center gap-0.5 pf-text-xs text-text-disabled tabular-nums shrink-0">
                   <Clock size={9} />
                   {entry.executionMs}ms
                 </span>
               )}
               {entry.rowCount != null && (
-                <span className="pf-text-xs text-text-quaternary tabular-nums shrink-0">
+                <span className="pf-text-xs text-text-disabled tabular-nums shrink-0">
                   {entry.rowCount}r
                 </span>
               )}
@@ -101,7 +101,7 @@ export const QueryHistoryPanel = memo(function QueryHistoryPanel({
             </div>
 
             {entry.errorMessage && (
-              <div className="mt-1 pf-text-xs text-red-500 dark:text-red-300 line-clamp-2">
+              <div className="mt-1 pf-text-xs text-error line-clamp-2">
                 {entry.errorMessage}
               </div>
             )}
@@ -116,12 +116,12 @@ export const QueryHistoryPanel = memo(function QueryHistoryPanel({
               </button>
               <button
                 onClick={() => handleReplay(entry.sqlText)}
-                className="pf-rounded-sm px-1.5 py-0.5 pf-text-xs text-accent hover:bg-accent/10"
+                className="pf-rounded-sm px-1.5 py-0.5 pf-text-xs text-accent hover:bg-accent-soft"
                 title={t("dbClient.rerun")}
               >
                 <Play size={11} />
               </button>
-              <span className="ml-auto pf-text-xs text-text-quaternary">
+              <span className="ml-auto pf-text-xs text-text-disabled tabular-nums">
                 {formatRelativeTime(entry.createdAt, t)}
               </span>
             </div>

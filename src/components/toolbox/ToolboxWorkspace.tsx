@@ -1,4 +1,4 @@
-// 工具箱工作区 — 左侧卡片式工具列表 + 右侧工具内容
+// 工具箱工作区 — 左侧分组工具列表 + 右侧工具内容
 // 支持内置工具和通过插件扩展的自定义工具
 
 import { memo, useState, useMemo } from "react";
@@ -29,13 +29,6 @@ import { ImageMergerTool } from "./ImageMergerTool";
 import { ImageUrlToBase64Tool } from "./ImageUrlToBase64Tool";
 
 export type ToolboxToolId = string;
-export type ToolboxAccent =
-  | "sky"
-  | "violet"
-  | "emerald"
-  | "amber"
-  | "rose"
-  | "slate";
 
 export interface ToolboxToolDef {
   id: ToolboxToolId;
@@ -43,66 +36,11 @@ export interface ToolboxToolDef {
   descKey: string;
   icon: typeof Smartphone;
   group: string;
-  /** 视觉色调 */
-  accent: ToolboxAccent;
   /** 由插件提供时为 true */
   fromPlugin?: boolean;
   /** 插件 ID */
   pluginId?: string;
 }
-
-// 每个色调对应的静态 class（Tailwind 需可静态扫描，不能动态拼接）
-interface AccentStyle {
-  /** 激活态：卡片渐变 + 边框 + 阴影 */
-  cardActive: string;
-  /** 闲置态：图标背景 + 颜色 */
-  iconIdle: string;
-  /** 激活态：图标背景 + 颜色 */
-  iconActive: string;
-  /** 顶部点缀条 */
-  topBar: string;
-}
-
-// Linear aesthetic: keep colored icons as functional identifiers, drop card gradients + tinted shadows + topBar decoration.
-// Active card uses neutral surface + subtle accent border tint; idle uses whisper-thin border only.
-const ACCENT_STYLES: Record<ToolboxAccent, AccentStyle> = {
-  sky: {
-    cardActive: "border-sky-500/40 bg-sky-500/[0.04]",
-    iconIdle: "bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:bg-sky-500/15",
-    iconActive: "bg-sky-500/20 text-sky-600 dark:text-sky-400",
-    topBar: "bg-sky-500/70",
-  },
-  violet: {
-    cardActive: "border-violet-500/40 bg-violet-500/[0.04]",
-    iconIdle: "bg-violet-500/10 text-violet-600 dark:text-violet-400 group-hover:bg-violet-500/15",
-    iconActive: "bg-violet-500/20 text-violet-600 dark:text-violet-400",
-    topBar: "bg-violet-500/70",
-  },
-  emerald: {
-    cardActive: "border-emerald-500/40 bg-emerald-500/[0.04]",
-    iconIdle: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500/15",
-    iconActive: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
-    topBar: "bg-emerald-500/70",
-  },
-  amber: {
-    cardActive: "border-amber-500/40 bg-amber-500/[0.04]",
-    iconIdle: "bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:bg-amber-500/15",
-    iconActive: "bg-amber-500/20 text-amber-600 dark:text-amber-400",
-    topBar: "bg-amber-500/70",
-  },
-  rose: {
-    cardActive: "border-rose-500/40 bg-rose-500/[0.04]",
-    iconIdle: "bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:bg-rose-500/15",
-    iconActive: "bg-rose-500/20 text-rose-600 dark:text-rose-400",
-    topBar: "bg-rose-500/70",
-  },
-  slate: {
-    cardActive: "border-slate-500/40 bg-slate-500/[0.04]",
-    iconIdle: "bg-slate-500/10 text-slate-600 dark:text-slate-400 group-hover:bg-slate-500/15",
-    iconActive: "bg-slate-500/20 text-slate-600 dark:text-slate-400",
-    topBar: "bg-slate-500/70",
-  },
-};
 
 // 内置工具定义
 const BUILTIN_TOOLS: ToolboxToolDef[] = [
@@ -112,7 +50,6 @@ const BUILTIN_TOOLS: ToolboxToolDef[] = [
     descKey: "toolWorkbench.toolbox.screenshotResizer.desc",
     icon: Smartphone,
     group: "image",
-    accent: "sky",
   },
   {
     id: "icon-generator",
@@ -120,7 +57,6 @@ const BUILTIN_TOOLS: ToolboxToolDef[] = [
     descKey: "toolWorkbench.toolbox.iconGenerator.desc",
     icon: AppWindow,
     group: "image",
-    accent: "violet",
   },
   {
     id: "image-compressor",
@@ -128,7 +64,6 @@ const BUILTIN_TOOLS: ToolboxToolDef[] = [
     descKey: "toolWorkbench.toolbox.imageCompressor.desc",
     icon: FileArchive,
     group: "image",
-    accent: "emerald",
   },
   {
     id: "image-merger",
@@ -136,7 +71,6 @@ const BUILTIN_TOOLS: ToolboxToolDef[] = [
     descKey: "toolWorkbench.toolbox.imageMerger.desc",
     icon: Layers,
     group: "image",
-    accent: "amber",
   },
   {
     id: "image-url-to-base64",
@@ -144,7 +78,6 @@ const BUILTIN_TOOLS: ToolboxToolDef[] = [
     descKey: "toolWorkbench.toolbox.imageUrlToBase64.desc",
     icon: LinkIcon,
     group: "image",
-    accent: "slate",
   },
   {
     id: "batch-renamer",
@@ -152,7 +85,6 @@ const BUILTIN_TOOLS: ToolboxToolDef[] = [
     descKey: "toolWorkbench.toolbox.batchRenamer.desc",
     icon: FolderEdit,
     group: "file",
-    accent: "rose",
   },
 ];
 
@@ -193,7 +125,6 @@ export const ToolboxWorkspace = memo(function ToolboxWorkspace() {
           descKey: plugin.description,
           icon: Puzzle,
           group: "plugin",
-          accent: "slate",
           fromPlugin: true,
           pluginId: plugin.id,
         });
@@ -211,13 +142,14 @@ export const ToolboxWorkspace = memo(function ToolboxWorkspace() {
   }, [allTools]);
 
   const activeToolDef = allTools.find((t) => t.id === activeTool);
+  const HeaderIcon = activeToolDef?.icon ?? Puzzle;
 
   return (
     <PanelGroup orientation="horizontal" className="h-full">
-      {/* 左侧卡片网格 */}
+      {/* 左侧分组工具列表 */}
       <Panel defaultSize={22} minSize="240px">
-        <div className="flex h-full flex-col overflow-hidden">
-          <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border-default/50 px-3">
+        <div className="flex h-full flex-col overflow-hidden border-r border-border-default bg-bg-sidebar">
+          <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border-default px-3">
             <span className="pf-text-xs font-semibold uppercase tracking-wider text-text-tertiary">
               {t("toolWorkbench.toolbox.sidebarTitle")}
             </span>
@@ -228,55 +160,55 @@ export const ToolboxWorkspace = memo(function ToolboxWorkspace() {
               const meta = GROUP_META[groupId] ?? GROUP_META.plugin;
               const GroupIcon = meta.icon;
               return (
-                <div key={groupId} className="mb-4">
-                  <div className="mb-2 flex items-center gap-1.5 px-1">
-                    <GroupIcon className="h-3 w-3 text-text-disabled" />
-                    <span className="pf-text-xs font-medium uppercase tracking-wider text-text-disabled">
+                <div key={groupId} className="mb-3.5">
+                  {/* 分组标题 .sechead */}
+                  <div className="mb-1 flex items-center gap-1.5 px-1.5 py-1">
+                    <GroupIcon className="h-3 w-3 text-text-tertiary" />
+                    <span className="pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">
                       {t(meta.labelKey)}
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col gap-0.5">
                     {tools.map((tool) => {
                       const Icon = tool.icon;
                       const isActive = activeTool === tool.id;
-                      const style = ACCENT_STYLES[tool.accent] ?? ACCENT_STYLES.slate;
                       return (
                         <button
                           key={tool.id}
                           onClick={() => setActiveTool(tool.id)}
                           title={tool.fromPlugin ? tool.labelKey : t(tool.labelKey)}
                           className={cn(
-                            "group relative flex h-[82px] w-[104px] shrink-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border px-2 py-2 text-center transition-colors",
+                            // .tree-row 风格：紧凑行 + 26px accent 图标方块（间距 6px / gap-1.5 对齐原型）
+                            "group relative flex h-10 w-full items-center gap-1.5 rounded-[5px] px-1.5 text-left transition-colors",
                             isActive
-                              ? cn(style.cardActive, "text-text-primary -translate-y-px")
-                              : "border-border-subtle bg-bg-secondary/40 hover:-translate-y-0.5 hover:border-border-default hover:bg-bg-hover/70 hover:shadow-sm"
+                              ? "bg-accent-soft"
+                              : "hover:bg-bg-hover"
                           )}
                         >
-                          {/* 顶部点缀渐变条 */}
-                          <span
-                            className={cn(
-                              "pointer-events-none absolute inset-x-0 top-0 h-[2px] transition-opacity",
-                              style.topBar,
-                              isActive ? "opacity-100" : "opacity-0 group-hover:opacity-60"
-                            )}
-                          />
-                          <div
-                            className={cn(
-                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
-                              isActive ? style.iconActive : style.iconIdle
-                            )}
-                          >
-                            <Icon className="h-[16px] w-[16px]" />
+                          {/* sel 左侧 accent 竖条 */}
+                          {isActive && (
+                            <span className="absolute inset-y-[5px] left-0 w-0.5 rounded-sm bg-accent" />
+                          )}
+                          <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md border border-border-default bg-bg-secondary text-accent">
+                            <Icon className="h-[14px] w-[14px]" />
                           </div>
-                          <span
-                            className={cn(
-                              "line-clamp-2 pf-text-xs font-medium leading-tight transition-colors",
-                              isActive ? "text-text-primary" : "text-text-secondary group-hover:text-text-primary"
-                            )}
-                          >
-                            {tool.fromPlugin ? tool.labelKey : t(tool.labelKey)}
-                          </span>
+                          <div className="flex min-w-0 flex-col">
+                            <span
+                              className={cn(
+                                "truncate pf-text-xs font-medium leading-tight",
+                                isActive ? "text-text-primary" : "text-text-secondary group-hover:text-text-primary"
+                              )}
+                            >
+                              {tool.fromPlugin ? tool.labelKey : t(tool.labelKey)}
+                            </span>
+                            <span className="truncate pf-text-xxs leading-tight text-text-tertiary">
+                              {tool.fromPlugin ? tool.descKey : t(tool.descKey)}
+                            </span>
+                          </div>
+                          {tool.fromPlugin && (
+                            <Puzzle className="ml-auto h-3 w-3 shrink-0 text-text-tertiary" />
+                          )}
                         </button>
                       );
                     })}
@@ -289,26 +221,51 @@ export const ToolboxWorkspace = memo(function ToolboxWorkspace() {
       </Panel>
 
       <PanelResizeHandle className="relative w-[7px] shrink-0 cursor-col-resize group flex items-center justify-center">
-        <div className="absolute inset-y-0 left-[3px] w-px bg-border-default/40 group-hover:bg-accent/40 transition-colors" />
+        <div className="absolute inset-y-0 left-[3px] w-px bg-border-default group-hover:bg-accent/40 transition-colors" />
       </PanelResizeHandle>
 
       {/* 主内容区：双向 overflow-auto — 当面板比工具内容窄时出现横向滚动条，
           内容固定宽度避免被挤压变形 */}
       <Panel defaultSize={78} minSize={40}>
-        <div className="h-full overflow-auto">
-          {activeToolDef && !activeToolDef.fromPlugin && (
-            <BuiltinToolContent toolId={activeToolDef.id} />
-          )}
-          {activeToolDef?.fromPlugin && (
-            <div className="flex h-full items-center justify-center p-8">
-              <div className="text-center">
-                <Puzzle className="mx-auto mb-3 h-10 w-10 text-text-disabled" />
-                <p className="pf-text-sm text-text-tertiary">
-                  {activeToolDef.labelKey}
-                </p>
+        <div className="flex h-full flex-col overflow-hidden bg-bg-app">
+          {/* 工具头部：accent-soft 图标方块 + 名称/副标题 */}
+          {activeToolDef && (
+            <div className="flex h-12 shrink-0 items-center gap-2.5 border-b border-border-default px-4">
+              <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                <HeaderIcon className="h-4 w-4" />
               </div>
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate pf-text-sm font-semibold text-text-primary">
+                  {activeToolDef.fromPlugin ? activeToolDef.labelKey : t(activeToolDef.labelKey)}
+                </span>
+                <span className="truncate pf-text-xs text-text-tertiary">
+                  {activeToolDef.fromPlugin ? activeToolDef.descKey : t(activeToolDef.descKey)}
+                </span>
+              </div>
+              {activeToolDef.fromPlugin && (
+                <span className="pf-pill acc ml-auto">
+                  <Puzzle className="h-2.5 w-2.5" />
+                  {t("toolWorkbench.toolbox.pluginTools")}
+                </span>
+              )}
             </div>
           )}
+
+          <div className="flex-1 overflow-auto">
+            {activeToolDef && !activeToolDef.fromPlugin && (
+              <BuiltinToolContent toolId={activeToolDef.id} />
+            )}
+            {activeToolDef?.fromPlugin && (
+              <div className="flex h-full items-center justify-center p-8">
+                <div className="text-center">
+                  <Puzzle className="mx-auto mb-3 h-10 w-10 text-text-disabled" />
+                  <p className="pf-text-sm text-text-tertiary">
+                    {activeToolDef.labelKey}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </Panel>
     </PanelGroup>

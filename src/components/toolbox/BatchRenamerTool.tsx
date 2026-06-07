@@ -255,19 +255,19 @@ export function BatchRenamerTool() {
       {/* 过滤 + 操作类型 — 始终显示 */}
       <section className="flex items-center gap-4">
         <label className="flex items-center gap-2 pf-text-sm text-text-secondary">
-          <input type="checkbox" checked={includeFiles} onChange={() => setIncludeFiles(!includeFiles)} className="accent-orange-500" />
+          <input type="checkbox" checked={includeFiles} onChange={() => setIncludeFiles(!includeFiles)} className="accent-accent" />
           <File className="h-3.5 w-3.5" />
           {t(`${k}.includeFiles`)}
         </label>
         <label className="flex items-center gap-2 pf-text-sm text-text-secondary">
-          <input type="checkbox" checked={includeDirs} onChange={() => setIncludeDirs(!includeDirs)} className="accent-orange-500" />
+          <input type="checkbox" checked={includeDirs} onChange={() => setIncludeDirs(!includeDirs)} className="accent-accent" />
           <Folder className="h-3.5 w-3.5" />
           {t(`${k}.includeDirs`)}
         </label>
       </section>
 
       <section>
-        <h3 className="mb-2 pf-text-sm font-semibold text-text-primary">{t(`${k}.operation`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.operation`)}</h3>
         <SegmentedControl options={opOptions} value={operation} onChange={setOperation} size="sm" />
       </section>
 
@@ -313,7 +313,7 @@ export function BatchRenamerTool() {
               />
             </div>
             <label className="flex items-center gap-2 pf-text-sm text-text-secondary">
-              <input type="checkbox" checked={useRegex} onChange={() => setUseRegex(!useRegex)} className="accent-orange-500" />
+              <input type="checkbox" checked={useRegex} onChange={() => setUseRegex(!useRegex)} className="accent-accent" />
               <span>{t(`${k}.useRegex`)}</span>
               <span className="pf-text-xs text-text-disabled">— {t(`${k}.regexHint`)}</span>
             </label>
@@ -363,7 +363,7 @@ export function BatchRenamerTool() {
                 </label>
               )}
               <label className="flex items-center gap-2 pf-text-sm text-text-secondary">
-                <input type="checkbox" checked={seqKeepExt} onChange={() => setSeqKeepExt(!seqKeepExt)} className="accent-orange-500" />
+                <input type="checkbox" checked={seqKeepExt} onChange={() => setSeqKeepExt(!seqKeepExt)} className="accent-accent" />
                 {t(`${k}.seqExtension`)}
               </label>
             </div>
@@ -373,7 +373,7 @@ export function BatchRenamerTool() {
 
       {/* 无目录提示 */}
       {!hasDir && (
-        <section className="rounded-lg border border-dashed border-border-default/60 bg-bg-secondary/50 px-6 py-10 text-center">
+        <section className="rounded-lg border border-dashed border-border-strong bg-bg-secondary/50 px-6 py-10 text-center">
           <FolderOpen className="mx-auto mb-2 h-8 w-8 text-text-disabled" />
           <p className="pf-text-sm text-text-tertiary">{t(`${k}.selectDirHint`)}</p>
         </section>
@@ -383,10 +383,10 @@ export function BatchRenamerTool() {
       {hasDir && (
         <section>
           <div className="mb-2 flex items-center gap-3">
-            <h3 className="pf-text-sm font-semibold text-text-primary">
+            <h3 className="pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">
               {t(`${k}.preview`)}
               {changedCount > 0 && (
-                <span className="ml-2 font-normal text-orange-500 dark:text-orange-300">({changedCount})</span>
+                <span className="ml-2 font-mono font-normal text-accent">({changedCount})</span>
               )}
             </h3>
             {changedCount === 0 && preview.length > 0 && (
@@ -395,9 +395,9 @@ export function BatchRenamerTool() {
           </div>
 
           {changedCount > 0 ? (
-            <div className="max-h-[420px] overflow-auto rounded-lg border border-border-default/60">
+            <div className="max-h-[420px] overflow-auto rounded-lg border border-border-default">
               <table className="w-full border-collapse">
-                <thead className="sticky top-0 z-10 bg-bg-secondary">
+                <thead className="sticky top-0 z-10 bg-bg-tertiary">
                   <tr>
                     <th className="w-10 px-3 py-2 text-center pf-text-xs font-medium text-text-tertiary">#</th>
                     <th className="px-3 py-2 text-left pf-text-xs font-medium text-text-tertiary">{t(`${k}.original`)}</th>
@@ -407,12 +407,12 @@ export function BatchRenamerTool() {
                 </thead>
                 <tbody>
                   {changedItems.map((row, i) => (
-                    <tr key={i} className="border-t border-border-default/20 transition-colors hover:bg-bg-hover/50">
+                    <tr key={i} className="border-t border-border-subtle transition-colors hover:bg-bg-hover/50">
                       <td className="px-3 py-1.5 text-center pf-text-xs text-text-disabled">{i + 1}</td>
-                      <td className="px-3 py-1.5 pf-text-sm text-text-secondary">
+                      <td className="px-3 py-1.5 pf-text-sm font-mono text-text-secondary">
                         <span className="inline-flex items-center gap-1.5">
                           {row.isDir
-                            ? <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500 dark:text-amber-300" />
+                            ? <Folder className="h-3.5 w-3.5 shrink-0 text-warning" />
                             : <File className="h-3.5 w-3.5 shrink-0 text-text-disabled" />}
                           <span className="truncate">{row.original}</span>
                         </span>
@@ -420,14 +420,14 @@ export function BatchRenamerTool() {
                       <td className="px-1 py-1.5 text-center">
                         <ArrowRight className="mx-auto h-3 w-3 text-text-disabled" />
                       </td>
-                      <td className="px-3 py-1.5 pf-text-sm font-medium text-orange-600 dark:text-orange-300 truncate">{row.renamed}</td>
+                      <td className="px-3 py-1.5 pf-text-sm font-mono font-medium text-accent truncate">{row.renamed}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : preview.length > 0 ? (
-            <div className="rounded-lg border border-border-default/40 bg-bg-secondary/40 px-6 py-6 text-center pf-text-sm text-text-disabled">
+            <div className="rounded-lg border border-border-subtle bg-bg-secondary/40 px-6 py-6 text-center pf-text-sm text-text-disabled">
               {t(`${k}.noChanges`)}
             </div>
           ) : null}
@@ -440,12 +440,7 @@ export function BatchRenamerTool() {
           <button
             onClick={handleRequestApply}
             disabled={changedCount === 0 || processing}
-            className={cn(
-              "flex items-center gap-2 rounded-lg px-5 py-2.5 pf-text-sm font-medium transition-colors",
-              changedCount > 0 && !processing
-                ? "bg-orange-500 text-white hover:bg-orange-600"
-                : "cursor-not-allowed bg-bg-secondary text-text-disabled"
-            )}
+            className="wb-primary-btn bg-accent hover:bg-accent-hover px-5"
           >
             {processing && <Loader2 className="h-4 w-4 animate-spin" />}
             {t(`${k}.apply`)}
@@ -455,13 +450,13 @@ export function BatchRenamerTool() {
           {result && (
             <div className="flex items-center gap-3">
               {result.success_count > 0 && (
-                <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600 dark:text-emerald-300">
+                <span className="pf-status-chip text-success">
                   <CheckCircle2 className="h-4 w-4" />
                   {t("toolWorkbench.toolbox.screenshotResizer.successCount", { count: result.success_count })}
                 </span>
               )}
               {result.errors.length > 0 && (
-                <span className="flex items-center gap-1.5 pf-text-sm text-rose-600 dark:text-rose-300">
+                <span className="pf-status-chip text-error">
                   <AlertCircle className="h-4 w-4" />
                   {t("toolWorkbench.toolbox.screenshotResizer.errorCount", { count: result.errors.length })}
                 </span>
@@ -473,23 +468,23 @@ export function BatchRenamerTool() {
 
       {/* 进度条 */}
       {processing && (
-        <section className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
+        <section className="rounded-lg border border-accent/30 bg-accent-soft p-4">
           <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
-            <Loader2 className="h-4 w-4 animate-spin text-orange-500 dark:text-orange-300" />
+            <Loader2 className="h-4 w-4 animate-spin text-accent" />
             <span>{t(`${k}.apply`)}... {changedCount} {t(`${k}.includeFiles`).toLowerCase()}</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-orange-500/20">
-            <div className="h-full animate-[progress-indeterminate_1.5s_ease-in-out_infinite] rounded-full bg-orange-500" style={{ width: "40%" }} />
+          <div className="h-1.5 overflow-hidden rounded-full bg-accent/20">
+            <div className="h-full animate-[progress-indeterminate_1.5s_ease-in-out_infinite] rounded-full bg-accent" style={{ width: "40%" }} />
           </div>
         </section>
       )}
 
       {/* 错误详情 */}
       {result && result.errors.length > 0 && (
-        <section className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
+        <section className="rounded-lg border border-error/30 bg-error/5 p-3">
           <div className="space-y-1">
             {result.errors.map((err, i) => (
-              <div key={i} className="pf-text-xs text-rose-600 dark:text-rose-300">{err}</div>
+              <div key={i} className="pf-text-xs font-mono text-error">{err}</div>
             ))}
           </div>
         </section>
@@ -497,19 +492,19 @@ export function BatchRenamerTool() {
 
       {/* 确认弹窗 */}
       {confirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setConfirmOpen(false)}>
-          <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-primary p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setConfirmOpen(false)}>
+          <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-elevated p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-2 pf-text-base font-semibold text-text-primary">{t(`${k}.apply`)}</h3>
             <p className="mb-1 pf-text-sm text-text-secondary">{t(`${k}.applyConfirm`)}</p>
-            <p className="mb-5 pf-text-sm text-orange-600 dark:text-orange-300">{changedCount} {t(`${k}.includeFiles`).toLowerCase()}</p>
+            <p className="mb-5 pf-text-sm font-medium text-accent">{changedCount} {t(`${k}.includeFiles`).toLowerCase()}</p>
 
             {changedItems.length > 0 && (
-              <div className="mb-5 max-h-40 overflow-auto rounded-lg border border-border-default/40 bg-bg-secondary">
+              <div className="mb-5 max-h-40 overflow-auto rounded-lg border border-border-default bg-bg-inset">
                 {changedItems.slice(0, 5).map((row, i) => (
-                  <div key={i} className="flex items-center gap-2 border-b border-border-default/20 px-3 py-1.5 last:border-b-0">
-                    <span className="min-w-0 flex-1 truncate pf-text-xs text-text-secondary">{row.original}</span>
+                  <div key={i} className="flex items-center gap-2 border-b border-border-subtle px-3 py-1.5 last:border-b-0">
+                    <span className="min-w-0 flex-1 truncate pf-text-xs font-mono text-text-secondary">{row.original}</span>
                     <ArrowRight className="h-3 w-3 shrink-0 text-text-disabled" />
-                    <span className="min-w-0 flex-1 truncate pf-text-xs font-medium text-orange-600 dark:text-orange-300">{row.renamed}</span>
+                    <span className="min-w-0 flex-1 truncate pf-text-xs font-mono font-medium text-accent">{row.renamed}</span>
                   </div>
                 ))}
                 {changedItems.length > 5 && (
@@ -519,10 +514,10 @@ export function BatchRenamerTool() {
             )}
 
             <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirmOpen(false)} className="rounded-lg border border-border-default px-4 py-2 pf-text-sm text-text-secondary transition-colors hover:bg-bg-hover">
-                Cancel
+              <button onClick={() => setConfirmOpen(false)} className="wb-ghost-btn px-4">
+                {t("common.cancel")}
               </button>
-              <button onClick={handleConfirmApply} className="rounded-lg bg-orange-500 px-4 py-2 pf-text-sm font-medium text-white transition-colors hover:bg-orange-600">
+              <button onClick={handleConfirmApply} className="wb-primary-btn bg-accent hover:bg-accent-hover px-4">
                 {t(`${k}.apply`)}
               </button>
             </div>

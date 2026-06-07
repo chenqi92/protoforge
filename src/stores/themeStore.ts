@@ -30,9 +30,14 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     });
   } catch { /* SSR safe */ }
 
+  // Forge is dark-first: apply the dark class immediately so first paint is dark,
+  // before useSettingsEffect runs setMode(settings.theme) on mount. This avoids a
+  // light→dark flash. The persisted user choice (light/system) is honored right after.
+  try { applyThemeClass('dark'); } catch { /* SSR safe */ }
+
   return {
-    mode: 'light',
-    resolved: 'light',
+    mode: 'dark',
+    resolved: 'dark',
     toggle: () => set((s) => {
       const modes: ThemeMode[] = ['light', 'dark', 'system'];
       const nextIdx = (modes.indexOf(s.mode) + 1) % modes.length;

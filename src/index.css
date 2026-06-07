@@ -6,65 +6,66 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ===== ProtoForge Design System v6 — Linear-inspired (Light default + Dark) ===== */
+/* ===== ProtoForge Design System v7 — "Forge" (Dark default + Light) ===== */
 @theme {
-  /* ---- Light theme — 10 distinct surface levels.
+  /* ---- Light theme — mapped onto Forge LIGHT palette.
      Convention: chrome 略灰深 / content 主区最亮（白）/ input 略凹陷 / popover 用 shadow 区分。 */
-  --color-bg-inset: #e4e7ed;         /* L-2 deepest (code) */
-  --color-bg-app: #eef0f4;           /* L-1 window frame */
-  --color-bg-sidebar: #f1f3f6;       /* L0 chrome */
-  --color-bg-input: #f3f5f8;         /* L0' input — 比 primary 略凹 */
-  --color-bg-primary: #ffffff;       /* L1 main panel — 最亮 */
-  --color-bg-surface: #ffffff;       /* alias L1 */
-  --color-bg-secondary: #f7f8fb;     /* L2 cards */
-  --color-bg-hover: #f1f3f6;         /* L2' row hover */
-  --color-bg-tertiary: #ebeef2;      /* L3 table headers */
-  --color-bg-elevated: #ffffff;      /* L4 popover — 用 shadow 浮起，因为白上加白没法 */
-  --color-bg-active: #e2e6ec;        /* L5 selected / pressed */
+  --color-bg-inset: #e4e7ed;         /* L-2 deepest (code) <- Forge inset */
+  --color-bg-app: #eef0f3;           /* L-1 window frame <- Forge bg */
+  --color-bg-sidebar: #ffffff;       /* L0 chrome <- Forge surface */
+  --color-bg-input: #e4e7ed;         /* L0' input <- Forge inset (凹陷) */
+  --color-bg-primary: #ffffff;       /* L1 main panel <- Forge surface */
+  --color-bg-surface: #ffffff;       /* alias L1 <- Forge surface */
+  --color-bg-secondary: #f5f6f8;     /* L2 cards <- Forge surface-2 */
+  --color-bg-hover: #f5f6f8;         /* L2' row hover <- Forge surface-2 (solid) */
+  --color-bg-tertiary: #eceef1;      /* L3 table headers <- Forge surface-3 */
+  --color-bg-elevated: #ffffff;      /* L4 popover <- Forge elevated (用 shadow 浮起) */
+  --color-bg-active: #eceef1;        /* L5 selected / pressed <- Forge surface-3 */
 
-  --color-border-default: #e6e6e6;   /* Linear light border alt */
-  --color-border-subtle: #eef0f2;
-  --color-border-strong: #d0d6e0;    /* Linear light border */
+  --color-border-default: #e0e3e8;   /* <- Forge border */
+  --color-border-subtle: #ebedf0;    /* <- Forge border-soft */
+  --color-border-strong: #cbd0d8;    /* <- Forge border-strong */
   --color-border-focus: var(--color-accent);
-  --color-border-sidebar: #e6e6e6;
+  --color-border-sidebar: #e0e3e8;   /* <- Forge border */
 
-  --color-text-primary: #0f1011;     /* Linear panel-dark as high-contrast text */
-  --color-text-secondary: #3e4249;
-  --color-text-tertiary: #62666d;    /* Linear quaternary text as light-mode tertiary */
-  --color-text-disabled: #8a8f98;    /* Linear tertiary text as light-mode disabled */
+  --color-text-primary: #1a1d23;     /* <- Forge text */
+  --color-text-secondary: #5a626e;   /* <- Forge text-2 */
+  --color-text-tertiary: #939aa6;    /* <- Forge text-3 */
+  --color-text-disabled: #939aa6;    /* <- Forge text-3 */
 
-  /* Accent colors — Linear signature indigo-violet. Overridden by data-accent attribute */
-  --color-accent: #5e6ad2;           /* Linear brand indigo */
-  --color-accent-hover: #7170ff;     /* Linear accent violet */
-  --color-accent-soft: rgba(94, 106, 210, 0.08);
-  --color-accent-muted: rgba(94, 106, 210, 0.15);
+  /* Accent colors — Forge orange. Overridden by data-accent attribute */
+  --color-accent: #ff6b35;           /* Forge orange */
+  --color-accent-hover: #ff8a5c;     /* Forge accent-2 */
+  --color-accent-soft: rgba(255, 107, 53, 0.14);   /* Forge accent-soft */
+  --color-accent-muted: rgba(255, 107, 53, 0.35);  /* Forge accent-ring */
 
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-info: #5b6af0;
+  --color-success: #3fb950;
+  --color-warning: #d29922;
+  --color-error: #f85149;
+  --color-info: #4493f8;
 
-  --color-method-get: #10b981;
-  --color-method-post: #f59e0b;
-  --color-method-put: #3b82f6;
-  --color-method-delete: #ef4444;
-  --color-method-patch: #8b5cf6;
-  --color-method-head: #06b6d4;
-  --color-method-options: #64748b;
+  --color-method-get: #3fb950;
+  --color-method-post: #4493f8;
+  --color-method-put: #d29922;
+  --color-method-delete: #f85149;
+  --color-method-patch: #a371f7;
+  --color-method-head: #56d4dd;
+  --color-method-options: #6b7280;   /* Forge options (light) */
 
-  --sidebar-width: 250px;
-  --titlebar-height: 48px;
-  --tabbar-height: 38px;
-  --statusbar-height: 28px;
+  --sidebar-width: 256px;
+  --rail-w: 52px;
+  --titlebar-height: 38px;
+  --tabbar-height: 36px;
+  --statusbar-height: 26px;
 
-  /* Radius — collapsed to 3-tier sharper scale (was 5/7/10/14/18 → too round + 5 levels noisy).
-     Now: 3 levels. Anything that referenced larger radii (lg/xl) bottoms out at 8px (md).
-     Naming kept (xs/sm/md/lg/xl) to avoid breaking ~600 existing call-sites. */
+  /* Radius — Forge 3-tier scale: sm 4px / md(base) 6px / lg 10px.
+     Naming kept (xs/sm/md/lg/xl) to avoid breaking ~600 existing call-sites.
+     xl collapses onto lg (10px); larger Tailwind radii capped at 10px below. */
   --radius-xs: 3px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;   /* was 14px */
-  --radius-xl: 8px;   /* was 18px — collapsed onto lg */
+  --radius-sm: 4px;   /* Forge sm */
+  --radius-md: 6px;   /* Forge md/base */
+  --radius-lg: 10px;  /* Forge lg */
+  --radius-xl: 10px;  /* collapsed onto lg */
 
   /* Semantic radius aliases */
   --radius-btn: var(--radius-md);    /* 6px */
@@ -73,11 +74,11 @@
   --radius-card: var(--radius-md);   /* 6px — cards */
   --radius-chip: var(--radius-xs);   /* 3px — badge/method chip */
 
-  /* Cap Tailwind's larger radii at 8px so leftover `rounded-2xl` / `rounded-3xl` calls
-     don't break the new sharper scale. Components using these classes auto-shrink. */
-  --radius-2xl: 8px;   /* was 16px */
+  /* Cap Tailwind's larger radii at Forge lg (10px) so leftover `rounded-2xl` / `rounded-3xl`
+     calls don't break the scale. Components using these classes auto-shrink. */
+  --radius-2xl: 10px;  /* was 16px */
   --radius-3xl: 10px;  /* was 24px */
-  --radius-4xl: 12px;  /* was 32px */
+  --radius-4xl: 10px;  /* was 32px */
 
   /* Button height tiers */
   --btn-height-xs: 24px;
@@ -85,15 +86,15 @@
   --btn-height-md: 32px;
   --btn-height-lg: 36px;
 
-  /* Shadow — layered depth system */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
-  --shadow-soft: 0 8px 30px rgba(0,0,0,0.04);
-  --shadow-glow: 0 0 15px rgba(91, 106, 240, 0.3);
-  --shadow-panel: 0 0 0 1px rgba(0,0,0,0.03), 0 2px 8px -2px rgba(0,0,0,0.06);
-  --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  /* Shadow — Forge LIGHT depth system (overridden for dark in :root.dark) */
+  --shadow-xs: 0 1px 2px rgba(30, 40, 60, 0.06);
+  --shadow-sm: 0 2px 8px rgba(30, 40, 60, 0.08);                              /* Forge shadow-sm */
+  --shadow-md: 0 4px 14px rgba(30, 40, 60, 0.10), 0 2px 6px rgba(30, 40, 60, 0.06);
+  --shadow-lg: 0 10px 30px rgba(30, 40, 60, 0.14), 0 2px 8px rgba(30, 40, 60, 0.08); /* Forge shadow */
+  --shadow-soft: 0 8px 30px rgba(30, 40, 60, 0.08);
+  --shadow-glow: 0 0 15px rgba(255, 107, 53, 0.3);
+  --shadow-panel: 0 0 0 1px rgba(30, 40, 60, 0.04), 0 2px 8px rgba(30, 40, 60, 0.08);
+  --shadow-inset: inset 0 1px 2px rgba(30, 40, 60, 0.06);
 
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -108,139 +109,149 @@
   --z-tooltip: 1000;
   --z-toast: 9999;
 
-  --font-sans: 'Inter Variable', 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Menlo', 'Fira Code', monospace;
+  /* Forge target faces: IBM Plex Sans / IBM Plex Mono listed FIRST so the system
+     auto-upgrades once the @fontsource IBM Plex package lands. Current bundled
+     Inter Variable / JetBrains Mono stay as fallbacks until then. */
+  --font-sans: 'IBM Plex Sans', 'Inter Variable', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, 'SF Mono', 'Menlo', 'Fira Code', monospace;
 
-  /* Linear signature weights: 400 reads, 510 emphasises, 590 announces */
+  /* Forge weights: 400 reads, 500 emphasises, 600 announces (Plex weight scale) */
   --fw-regular: 400;
-  --fw-emphasis: 510;
-  --fw-semibold: 590;
+  --fw-emphasis: 500;
+  --fw-semibold: 600;
 
-  /* Retarget Tailwind's font-weight utilities to Linear's triad.
-     Tailwind's `font-medium`/`font-semibold`/`font-bold` now map to Linear weights —
+  /* Retarget Tailwind's font-weight utilities to the Forge triad.
+     Tailwind's `font-medium`/`font-semibold`/`font-bold` now map to Forge weights —
      any class already in the codebase automatically picks up the signature feel. */
   --font-weight-normal: 400;
-  --font-weight-medium: 510;
-  --font-weight-semibold: 590;
-  --font-weight-bold: 590;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 600;
+}
+
+/* Chrome-size tokens mirrored into a plain :root so they're always emitted.
+   Tailwind v4 tree-shakes unreferenced custom @theme vars that aren't in a known
+   namespace (--rail-w / --sidebar-width have no matching utility), so declaring
+   them here guarantees other layers can read them via var(). Values must stay in
+   sync with the @theme block above. */
+:root {
+  --rail-w: 52px;
+  --sidebar-width: 256px;
+  --titlebar-height: 38px;
+  --tabbar-height: 36px;
+  --statusbar-height: 26px;
 }
 
 /* ===== Accent Color Schemes ===== */
+/* Default (and the "indigo" slot) is now Forge orange — the brand accent. */
 :root[data-accent="indigo"], :root:not([data-accent]) {
-  /* Linear brand indigo (#5e6ad2) → accent violet (#7170ff) → light violet (#828fff) */
-  --color-accent: #5e6ad2;
-  --color-accent-hover: #7170ff;
-  --color-accent-soft: rgba(94, 106, 210, 0.08);
-  --color-accent-muted: rgba(94, 106, 210, 0.18);
+  --color-accent: #ff6b35;           /* Forge orange */
+  --color-accent-hover: #ff8a5c;     /* Forge accent-2 */
+  --color-accent-soft: rgba(255, 107, 53, 0.14);
+  --color-accent-muted: rgba(255, 107, 53, 0.35);
 }
 :root[data-accent="cyan"] {
-  --color-accent: #06b6d4;
-  --color-accent-hover: #0891b2;
-  --color-accent-soft: rgba(6, 182, 212, 0.08);
-  --color-accent-muted: rgba(6, 182, 212, 0.15);
+  --color-accent: #56d4dd;
+  --color-accent-hover: #7be2e9;
+  --color-accent-soft: rgba(86, 212, 221, 0.14);
+  --color-accent-muted: rgba(86, 212, 221, 0.35);
 }
 :root[data-accent="emerald"] {
-  --color-accent: #10b981;
-  --color-accent-hover: #059669;
-  --color-accent-soft: rgba(16, 185, 129, 0.08);
-  --color-accent-muted: rgba(16, 185, 129, 0.15);
-  /* Adjust GET method color to teal to avoid conflict */
-  --color-method-get: #0d9488;
+  --color-accent: #3fb950;
+  --color-accent-hover: #56c968;
+  --color-accent-soft: rgba(63, 185, 80, 0.14);
+  --color-accent-muted: rgba(63, 185, 80, 0.35);
 }
 :root[data-accent="violet"] {
-  --color-accent: #7c3aed;
-  --color-accent-hover: #6d28d9;
-  --color-accent-soft: rgba(124, 58, 237, 0.08);
-  --color-accent-muted: rgba(124, 58, 237, 0.15);
+  --color-accent: #a371f7;
+  --color-accent-hover: #b88bff;
+  --color-accent-soft: rgba(163, 113, 247, 0.14);
+  --color-accent-muted: rgba(163, 113, 247, 0.35);
 }
 
-/* ===== Dark Theme — Linear's luminance-stacking model =====
-   Elevation communicated through background opacity steps + semi-transparent white borders,
-   NOT through drop shadows (which are nearly invisible on dark).
-   NOTE: `:root.dark` (not `.dark`) — same specificity as the shadcn `:root` light block
-   further down, but declared later would still lose to it. Adding `:root` to the selector
-   bumps specificity so dark overrides win regardless of source order.
+/* ===== Dark Theme — Forge palette (DEFAULT theme) =====
+   Forge dark: deep blue-charcoal surfaces stacked by lightness, solid hairline borders,
+   real drop shadows. NOTE: `:root.dark` (not `.dark`) — adding `:root` bumps specificity
+   so dark overrides win over the shadcn `:root` light block regardless of source order.
 */
 :root.dark {
-  /* Surface layering — 10 distinct levels (was 5 collapsed onto 10 token names).
-     Convention: chrome 深陷 / content 主区最亮 / popover 真悬浮 / input 凹陷.
-       L-2 inset    最深（代码 / 凹陷区域）
-       L-1 app      窗口边
-       L0  sidebar  chrome（侧栏 / 标题栏 / 状态栏）
-       L0' input    输入控件（比 primary 深一档，凹陷感）
-       L1  primary  主面板（焦点）
-       L2  secondary 卡片
-       L2' hover    row hover（明显可见）
-       L3  tertiary 表头 / 强 hover
-       L4  elevated popover / dropdown / modal（最浮）
-       L5  active   选中 / 按下
+  /* Surface layering mapped onto Forge tokens.
+       L-2 inset    最深（代码 / 输入凹陷）  <- Forge inset (#0c0e12)
+       L-1 app      窗口边                   <- Forge bg (#0c0e12)
+       L0  sidebar  chrome（侧栏 / 标题栏 / 状态栏） <- Forge surface (#14171d)
+       L0' input    输入控件（凹陷感）         <- Forge inset (#0c0e12)
+       L1  primary  主面板                   <- Forge surface (#14171d)
+       L2  secondary 卡片                    <- Forge surface-2 (#1a1e25)
+       L2' hover    row hover               <- Forge surface-2 (solid)
+       L3  tertiary 表头 / 强 hover           <- Forge surface-3 (#21262f)
+       L4  elevated popover / dropdown / modal <- Forge elevated (#1c2129)
+       L5  active   选中 / 按下                <- Forge surface-3 (#21262f)
   */
-  --color-bg-inset: #050608;         /* L-2 deepest (code) */
-  --color-bg-app: #08090b;           /* L-1 window frame */
-  --color-bg-sidebar: #0b0d11;       /* L0 chrome */
-  --color-bg-input: #0c0f14;         /* L0' input — 比 primary 深一档（凹）*/
-  --color-bg-primary: #11141a;       /* L1 main panel */
-  --color-bg-surface: #11141a;       /* alias L1 */
-  --color-bg-secondary: #161b22;     /* L2 cards */
-  --color-bg-hover: #1a1f27;         /* L2' row hover */
-  --color-bg-tertiary: #1f242d;      /* L3 table headers / strong hover */
-  --color-bg-elevated: #252a34;      /* L4 popover / dropdown / modal — clearly floating */
-  --color-bg-active: #2d333d;        /* L5 selected / pressed */
+  --color-bg-inset: #0c0e12;         /* L-2 deepest (code) <- Forge inset */
+  --color-bg-app: #0c0e12;           /* L-1 window frame <- Forge bg */
+  --color-bg-sidebar: #14171d;       /* L0 chrome <- Forge surface */
+  --color-bg-input: #0c0e12;         /* L0' input <- Forge inset (凹) */
+  --color-bg-primary: #14171d;       /* L1 main panel <- Forge surface */
+  --color-bg-surface: #14171d;       /* alias L1 <- Forge surface */
+  --color-bg-secondary: #1a1e25;     /* L2 cards <- Forge surface-2 */
+  --color-bg-hover: #1a1e25;         /* L2' row hover <- Forge surface-2 */
+  --color-bg-tertiary: #21262f;      /* L3 table headers / strong hover <- Forge surface-3 */
+  --color-bg-elevated: #1c2129;      /* L4 popover / dropdown / modal <- Forge elevated */
+  --color-bg-active: #21262f;        /* L5 selected / pressed <- Forge surface-3 */
 
-  /* Borders: Linear uses semi-transparent white almost exclusively on dark.
-     Solid dark borders (#23252a etc.) kept only where high contrast demanded. */
-  --color-border-default: rgba(255, 255, 255, 0.08);
-  --color-border-subtle: rgba(255, 255, 255, 0.05);
-  --color-border-strong: #3e3e44;
+  /* Forge dark borders: solid hairlines. */
+  --color-border-default: #262b34;   /* <- Forge border */
+  --color-border-subtle: #1e232b;    /* <- Forge border-soft */
+  --color-border-strong: #353c47;    /* <- Forge border-strong */
   --color-border-focus: var(--color-accent);
-  --color-border-sidebar: rgba(255, 255, 255, 0.06);
+  --color-border-sidebar: #262b34;   /* <- Forge border */
 
-  --color-text-primary: #f7f8f8;     /* Linear primary — near-white, not pure #fff */
-  --color-text-secondary: #d0d6e0;   /* Linear silver-gray body text */
-  --color-text-tertiary: #8a8f98;    /* Linear tertiary — muted metadata */
-  --color-text-disabled: #62666d;    /* Linear quaternary — disabled, timestamps */
+  --color-text-primary: #e7eaf0;     /* <- Forge text */
+  --color-text-secondary: #9aa3b2;   /* <- Forge text-2 */
+  --color-text-tertiary: #646d7c;    /* <- Forge text-3 */
+  --color-text-disabled: #646d7c;    /* <- Forge text-3 */
 
-  /* Linear shadow philosophy: ring-shadow + inset for dark surfaces */
-  --shadow-xs: 0 1.2px 0 0 rgba(0, 0, 0, 0.03);
-  --shadow-sm: 0 0 0 1px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.2);
-  --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.4);
-  --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.06);
-  --shadow-inset: inset 0 0 12px 0 rgba(0, 0, 0, 0.2);
+  /* Forge dark shadows: real drop shadows on near-black surfaces */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);                          /* Forge shadow-sm */
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4); /* Forge shadow */
+  --shadow-soft: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-inset: inset 0 0 12px 0 rgba(0, 0, 0, 0.3);
 }
 
-/* ── shadcn dark theme variables mapped to ProtoForge + Linear tokens ── */
+/* ── shadcn dark theme variables mapped to Forge tokens ── */
 :root.dark {
-  --background: #08090a;
-  --foreground: #f7f8f8;
-  --card: #0f1011;
-  --card-foreground: #f7f8f8;
-  --popover: #191a1b;
-  --popover-foreground: #f7f8f8;
+  --background: #0c0e12;             /* Forge bg */
+  --foreground: #e7eaf0;             /* Forge text */
+  --card: #14171d;                   /* Forge surface */
+  --card-foreground: #e7eaf0;
+  --popover: #1c2129;                /* Forge elevated */
+  --popover-foreground: #e7eaf0;
   --primary: var(--color-accent);
   --primary-foreground: #ffffff;
-  --secondary: #191a1b;
-  --secondary-foreground: #d0d6e0;
-  --muted: #191a1b;
-  --muted-foreground: #8a8f98;
-  --accent-foreground: #f7f8f8;
-  --destructive: #ef4444;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.08);
+  --secondary: #1a1e25;             /* Forge surface-2 */
+  --secondary-foreground: #9aa3b2;   /* Forge text-2 */
+  --muted: #1a1e25;                  /* Forge surface-2 */
+  --muted-foreground: #646d7c;       /* Forge text-3 */
+  --accent-foreground: #e7eaf0;
+  --destructive: #f85149;            /* Forge error */
+  --border: #262b34;                 /* Forge border */
+  --input: #262b34;                  /* Forge border */
   --ring: var(--color-accent);
   --chart-1: var(--color-accent);
-  --chart-2: #10b981;
-  --chart-3: #f59e0b;
-  --chart-4: #7170ff;
-  --chart-5: #ef4444;
-  --sidebar: #0f1011;
-  --sidebar-foreground: #d0d6e0;
+  --chart-2: #3fb950;
+  --chart-3: #d29922;
+  --chart-4: #4493f8;
+  --chart-5: #f85149;
+  --sidebar: #14171d;               /* Forge surface */
+  --sidebar-foreground: #9aa3b2;
   --sidebar-primary: var(--color-accent);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #191a1b;
-  --sidebar-accent-foreground: #f7f8f8;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-accent: #1a1e25;
+  --sidebar-accent-foreground: #e7eaf0;
+  --sidebar-border: #262b34;
   --sidebar-ring: var(--color-accent);
 }
 
@@ -279,10 +290,10 @@
     color: var(--color-text-primary);
     font-family: var(--font-sans);
     font-size: var(--fs-base);
-    line-height: 1.5;
-    /* Linear's signature OpenType features — single-story 'a' (cv01) + geometric alternates (ss03).
-       Fundamental to Linear's typeface identity. */
-    font-feature-settings: "cv01", "ss03";
+    line-height: 1.45;
+    letter-spacing: -0.005em;
+    /* IBM Plex doesn't use Inter's cv01/ss03 alternates — keep features neutral. */
+    font-feature-settings: normal;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -405,12 +416,12 @@
     border-bottom: 1px solid var(--color-border-subtle);
   }
   .dark .glass {
-    background: rgba(18, 18, 20, 0.75);
+    background: rgba(20, 23, 29, 0.75);
     border-bottom: 1px solid var(--color-border-default);
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, var(--color-accent), #8b5cf6);
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -445,13 +456,13 @@
 
   /* dark input-field — no special shadow needed */
 
-  /* Linear-style primary: solid brand indigo → accent violet on hover. No gradient, no glow. */
+  /* Primary: solid Forge orange → accent-2 on hover. No gradient, no glow. */
   .btn-primary {
     background: var(--color-accent);
     color: #ffffff;
     font-weight: var(--fw-emphasis);
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     padding: 8px 18px;
     cursor: pointer;
     box-shadow: none;
@@ -524,7 +535,7 @@
     min-height: 40px;
     padding: 4px;
     border: 1px solid var(--color-border-default);
-    border-radius: 15px;
+    border-radius: var(--radius-lg);
     background: var(--color-bg-primary);
     box-shadow: none;
     overflow: hidden;
@@ -551,7 +562,7 @@
     height: 28px;
     padding: 0 10px;
     border: 1px solid var(--color-border-default);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--color-bg-secondary);
     color: var(--color-text-secondary);
     font-size: var(--fs-xs);
@@ -566,7 +577,7 @@
     gap: 2px;
     padding: 3px;
     border: 1px solid var(--color-border-default);
-    border-radius: 13px;
+    border-radius: var(--radius-lg);
     background: var(--color-bg-secondary);
     box-shadow: none;
   }
@@ -578,7 +589,7 @@
     gap: 6px;
     height: 28px;
     padding: 0 10px;
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     color: var(--color-text-tertiary);
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
@@ -619,7 +630,7 @@
     height: 30px;
     padding: 0 10px;
     border: 1px solid var(--color-border-default);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--color-bg-input);
     box-shadow: none;
   }
@@ -658,7 +669,7 @@
   .wb-workbench-stack {
     overflow: hidden;
     border: 1px solid var(--color-border-default);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     background: var(--color-bg-primary);
     box-shadow: none;
   }
@@ -787,7 +798,7 @@
     height: 32px;
     min-width: 108px;
     padding: 0 12px 0 6px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     color: #ffffff;
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
@@ -803,7 +814,7 @@
     justify-content: center;
     width: 20px;
     height: 20px;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
     background: rgba(255, 255, 255, 0.18);
     flex-shrink: 0;
   }
@@ -817,7 +828,7 @@
     height: 32px;
     padding: 0 12px;
     border: 1px solid var(--color-border-default);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--color-bg-input);
     box-shadow: none;
   }
@@ -853,7 +864,7 @@
     min-height: 42px;
     padding: 4px 4px 4px 8px;
     border: 1px solid var(--color-border-default);
-    border-radius: 14px;
+    border-radius: var(--radius-lg);
     background: var(--color-bg-primary);
     box-shadow: none;
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
@@ -876,7 +887,7 @@
     min-width: auto;
     padding: 0 4px 0 2px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: transparent;
     box-shadow: none;
     flex-shrink: 0;
@@ -893,7 +904,7 @@
     justify-content: center;
     width: 20px;
     height: 20px;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
     flex-shrink: 0;
   }
 
@@ -910,9 +921,9 @@
   .wb-protocol-menu {
     overflow: hidden;
     border: 1px solid var(--color-border-default);
-    border-radius: 10px;
-    background: var(--color-bg-primary);
-    box-shadow: 0 12px 36px rgba(15, 23, 42, 0.14);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+    box-shadow: var(--shadow-lg);
     backdrop-filter: blur(18px);
     padding: 3px;
   }
@@ -923,7 +934,7 @@
     align-items: center;
     gap: 7px;
     padding: 5px 8px;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
     text-align: left;
     transition: background-color var(--transition-fast);
   }
@@ -938,7 +949,7 @@
     height: 22px;
     align-items: center;
     justify-content: center;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     flex-shrink: 0;
   }
 
@@ -950,7 +961,7 @@
     height: 32px;
     min-width: 78px;
     padding: 0 12px;
-    border-radius: 11px;
+    border-radius: var(--radius-md);
     color: #ffffff;
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
@@ -1023,7 +1034,7 @@
     height: 26px;
     min-width: 64px;
     padding: 0 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     color: #ffffff;
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
@@ -1036,14 +1047,14 @@
   .wb-request-shell .wb-icon-btn {
     width: 28px;
     height: 28px;
-    border-radius: 9px;
+    border-radius: var(--radius-md);
   }
 
   .wb-request-shell .wb-primary-btn {
     height: 28px;
     min-width: 70px;
     padding: 0 10px;
-    border-radius: 9px;
+    border-radius: var(--radius-md);
     font-size: var(--fs-xs);
   }
 
@@ -1063,7 +1074,7 @@
     height: 28px;
     padding: 0 9px;
     border: 1px solid var(--color-border-default);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--color-bg-primary);
     box-shadow: none;
   }
@@ -1097,7 +1108,7 @@
     gap: 6px;
     height: 26px;
     padding: 0 8px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     border: 1px solid var(--color-border-default);
     background: var(--color-bg-primary);
     color: var(--color-text-secondary);
@@ -1122,7 +1133,7 @@
     border: 1px solid var(--color-border-default);
     border-radius: var(--radius-lg);
     background: var(--color-bg-primary);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    box-shadow: none;
   }
 
   .dark .wb-bar,
@@ -1142,7 +1153,7 @@
     height: 32px;
     min-width: 84px;
     padding: 0 14px;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     color: #ffffff;
     font-size: var(--fs-sm);
     font-weight: var(--fw-semibold);
@@ -1184,21 +1195,21 @@
   .wb-field {
     height: 32px;
     padding: 0 11px;
-    border-radius: 11px;
+    border-radius: var(--radius-md);
     font-size: var(--fs-sm);
   }
 
   .wb-field-sm {
     height: 28px;
     padding: 0 9px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     font-size: var(--fs-sm);
   }
 
   .wb-field-xs {
     height: 26px;
     padding: 0 8px;
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     font-size: var(--fs-xs);
   }
 
@@ -1226,7 +1237,7 @@
     width: 32px;
     height: 32px;
     border: 1px solid var(--color-border-default);
-    border-radius: 11px;
+    border-radius: var(--radius-md);
     background: var(--color-bg-secondary);
     color: var(--color-text-tertiary);
     transition: all var(--transition-fast);
@@ -1246,7 +1257,7 @@
     height: 32px;
     padding: 0 10px;
     border: 1px solid var(--color-border-default);
-    border-radius: 11px;
+    border-radius: var(--radius-md);
     background: var(--color-bg-secondary);
     color: var(--color-text-secondary);
     font-size: var(--fs-sm);
@@ -1344,7 +1355,7 @@
     background: var(--color-error);
   }
   .btn-danger:hover {
-    background: #dc2626;
+    background: color-mix(in srgb, var(--color-error) 88%, #000);
     box-shadow: var(--shadow-md);
   }
 
@@ -1352,7 +1363,7 @@
     background: var(--color-warning);
   }
   .btn-warning:hover {
-    background: #d97706;
+    background: color-mix(in srgb, var(--color-warning) 88%, #000);
     box-shadow: var(--shadow-md);
   }
 
@@ -1360,7 +1371,7 @@
     background: var(--color-success);
   }
   .btn-success:hover {
-    background: #059669;
+    background: color-mix(in srgb, var(--color-success) 88%, #000);
     box-shadow: var(--shadow-md);
   }
 
@@ -1400,7 +1411,7 @@
 
   .wb-panel {
     border-radius: var(--radius-lg);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    box-shadow: none;
   }
 
   .wb-subpanel {
@@ -1427,7 +1438,7 @@
     height: 28px;
     padding: 0 9px;
     border: 1px solid var(--color-border-default);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--color-bg-input);
     color: var(--color-text-tertiary);
   }
@@ -1463,7 +1474,7 @@
     gap: 6px;
     min-height: 28px;
     padding: 0 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     color: var(--color-text-tertiary);
     font-size: var(--fs-sm);
     font-weight: var(--fw-emphasis);
@@ -1596,7 +1607,7 @@
     justify-content: center;
     min-height: 28px;
     padding: 0 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     color: var(--color-text-tertiary);
     font-size: var(--fs-sm);
     font-weight: var(--fw-emphasis);
@@ -1631,7 +1642,7 @@
     justify-content: center;
     min-height: 28px;
     padding: 0 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     color: var(--color-text-tertiary);
     font-size: var(--fs-sm);
     font-weight: var(--fw-emphasis);
@@ -1665,7 +1676,7 @@
     overflow-x: auto;
     overflow-y: auto;
     border: 1px solid var(--color-border-default);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: transparent;
   }
 
@@ -1843,7 +1854,7 @@
   }
 
   .editor-table-delete:hover {
-    color: #ef4444;
+    color: var(--color-error);
   }
 
   .http-response-meta {
@@ -2180,25 +2191,25 @@
   }
 
   .variable-inline-token[data-source="collection"] {
-    color: #8b5cf6;
-    background: rgba(139, 92, 246, 0.10);
+    color: #a371f7;
+    background: rgba(163, 113, 247, 0.14);
   }
 
   .variable-inline-token[data-source="global"] {
-    color: #d97706;
-    background: rgba(217, 119, 6, 0.10);
+    color: #d29922;
+    background: rgba(210, 153, 34, 0.14);
   }
 
   .variable-inline-token[data-source="dynamic"] {
-    color: #0891b2;
-    background: rgba(8, 145, 178, 0.10);
+    color: #56d4dd;
+    background: rgba(86, 212, 221, 0.14);
   }
 
   .variable-inline-token[data-source="missing"] {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.08);
+    color: #f85149;
+    background: rgba(248, 81, 73, 0.12);
     text-decoration: wavy underline;
-    text-decoration-color: rgba(239, 68, 68, 0.5);
+    text-decoration-color: rgba(248, 81, 73, 0.5);
     text-underline-offset: 2px;
   }
 
@@ -2307,7 +2318,7 @@
 
   .var-popover-copy-float-ok {
     opacity: 1 !important;
-    color: #10b981 !important;
+    color: var(--color-success) !important;
   }
 
 
@@ -2354,12 +2365,12 @@
   }
 
   .var-popover-save-btn-ok {
-    background: #10b981;
+    background: var(--color-success);
   }
 
   .var-popover-save-btn-ok:hover {
-    background: #059669;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    background: color-mix(in srgb, var(--color-success) 88%, #000);
+    box-shadow: 0 2px 8px rgba(63, 185, 80, 0.3);
   }
 
   .var-popover-resize-handle {
@@ -2472,12 +2483,99 @@
   .plugin-table-row:hover .plugin-table-row-num {
     color: var(--color-accent);
   }
+
+  /* ════════════════════════════════════════════════════════════════
+     Forge prototype primitives — pill / dot / mtag / status-chip / tok
+     Ported from the Forge reference (app/styles.css .pill/.dot/.mtag/.status-chip).
+     Namespaced .pf-* so other layers can adopt them without collisions.
+     ════════════════════════════════════════════════════════════════ */
+
+  /* Rounded mono chip with tone variants */
+  .pf-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 20px;
+    font-size: var(--fs-xxs);
+    font-weight: var(--fw-semibold);
+    font-family: var(--font-mono);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+  }
+  .pf-pill.ok   { background: color-mix(in srgb, var(--color-success) 14%, transparent); color: var(--color-success); }
+  .pf-pill.warn { background: color-mix(in srgb, var(--color-warning) 14%, transparent); color: var(--color-warning); }
+  .pf-pill.err  { background: color-mix(in srgb, var(--color-error) 14%, transparent);   color: var(--color-error); }
+  .pf-pill.info { background: color-mix(in srgb, var(--color-info) 14%, transparent);     color: var(--color-info); }
+  .pf-pill.acc  { background: var(--color-accent-soft); color: var(--color-accent); }
+
+  /* 7px state dot with animated variants */
+  .pf-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--color-text-tertiary);
+  }
+  .pf-dot.s-idle { background: var(--color-text-tertiary); }
+  .pf-dot.s-conn { background: var(--color-warning); animation: pf-pulse 1.1s infinite; }
+  .pf-dot.s-live { background: var(--color-accent); box-shadow: 0 0 0 0 var(--color-accent-muted); animation: pf-ring 1.4s infinite; }
+  .pf-dot.s-ok   { background: var(--color-success); }
+  .pf-dot.s-err  { background: var(--color-error); }
+  .pf-dot.s-run  { background: var(--color-info); animation: pf-pulse 1.1s infinite; }
+
+  /* Mono method tag colored via method tokens */
+  .pf-mtag {
+    font-family: var(--font-mono);
+    font-weight: var(--fw-semibold);
+    font-size: var(--fs-3xs);
+    letter-spacing: 0.02em;
+    text-align: left;
+    flex: none;
+  }
+  .pf-mtag.m-get    { color: var(--color-method-get); }
+  .pf-mtag.m-post   { color: var(--color-method-post); }
+  .pf-mtag.m-put    { color: var(--color-method-put); }
+  .pf-mtag.m-del,
+  .pf-mtag.m-delete { color: var(--color-method-delete); }
+  .pf-mtag.m-patch  { color: var(--color-method-patch); }
+  .pf-mtag.m-head   { color: var(--color-method-head); }
+  .pf-mtag.m-opt,
+  .pf-mtag.m-options{ color: var(--color-method-options); }
+
+  /* Inline status chip */
+  .pf-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    color: var(--color-text-secondary);
+  }
+
+  /* JSON / code syntax tokens (GitHub-dark flavor; light overrides below).
+     Mirrors the inline .json-token-* palette used by the JSON viewers. */
+  .tok-key  { color: #79c0ff; }
+  .tok-str  { color: #a5d6a3; }
+  .tok-num  { color: #f0883e; }
+  .tok-bool { color: #ff7b72; }
+  .tok-null { color: #ff7b72; }
+  .tok-punc { color: var(--color-text-secondary); }
 }
+
+/* Light-mode syntax overrides (Forge light syntax palette) */
+:root:not(.dark) .tok-key  { color: #0550ae; }
+:root:not(.dark) .tok-str  { color: #0a7d33; }
+:root:not(.dark) .tok-num  { color: #bc4c00; }
+:root:not(.dark) .tok-bool { color: #cf222e; }
+:root:not(.dark) .tok-null { color: #cf222e; }
 
 /* ── shadcn/ui @theme inline: map shadcn tokens to ProtoForge design system ── */
 @theme inline {
-  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-heading: 'IBM Plex Sans', 'Inter Variable', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'IBM Plex Sans', 'Inter Variable', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -2496,7 +2594,7 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
-  /* NOTE: --color-accent is defined in ProtoForge @theme above (default: indigo #5b6af0) */
+  /* NOTE: --color-accent is defined in ProtoForge @theme above (Forge orange #ff6b35) */
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -2512,38 +2610,38 @@
   /* Radius: use ProtoForge's radius values, not shadcn's calc-based ones */
 }
 
-/* ── shadcn light theme variables mapped to ProtoForge + Linear tokens ── */
+/* ── shadcn light theme variables mapped to Forge LIGHT tokens ── */
 :root {
-  --background: #f7f8f8;             /* Linear light bg */
-  --foreground: #0f1011;
-  --card: #ffffff;
-  --card-foreground: #0f1011;
-  --popover: #ffffff;
-  --popover-foreground: #0f1011;
+  --background: #eef0f3;             /* Forge light bg */
+  --foreground: #1a1d23;             /* Forge light text */
+  --card: #ffffff;                   /* Forge surface */
+  --card-foreground: #1a1d23;
+  --popover: #ffffff;                /* Forge elevated */
+  --popover-foreground: #1a1d23;
   --primary: var(--color-accent);
   --primary-foreground: #ffffff;
-  --secondary: #f0f1f3;
-  --secondary-foreground: #3e4249;
-  --muted: #f3f4f5;                  /* Linear light subtle surface */
-  --muted-foreground: #8a8f98;       /* Linear tertiary gray */
-  --accent-foreground: #0f1011;
-  --destructive: #ef4444;
-  --border: #e6e6e6;                 /* Linear light border alt */
-  --input: #e6e6e6;
+  --secondary: #f5f6f8;             /* Forge surface-2 */
+  --secondary-foreground: #5a626e;   /* Forge text-2 */
+  --muted: #f5f6f8;                  /* Forge surface-2 */
+  --muted-foreground: #939aa6;       /* Forge text-3 */
+  --accent-foreground: #1a1d23;
+  --destructive: #f85149;            /* Forge error */
+  --border: #e0e3e8;                 /* Forge border */
+  --input: #e0e3e8;
   --ring: var(--color-accent);
-  --radius: 0.5rem;
+  --radius: 0.375rem;               /* Forge md 6px */
   --chart-1: var(--color-accent);
-  --chart-2: #10b981;
-  --chart-3: #f59e0b;
-  --chart-4: #7170ff;
-  --chart-5: #ef4444;
-  --sidebar: #f3f4f5;
-  --sidebar-foreground: #0f1011;
+  --chart-2: #3fb950;
+  --chart-3: #d29922;
+  --chart-4: #4493f8;
+  --chart-5: #f85149;
+  --sidebar: #ffffff;               /* Forge surface */
+  --sidebar-foreground: #1a1d23;
   --sidebar-primary: var(--color-accent);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f0f1f3;
-  --sidebar-accent-foreground: #0f1011;
-  --sidebar-border: #e6e6e6;
+  --sidebar-accent: #f5f6f8;
+  --sidebar-accent-foreground: #1a1d23;
+  --sidebar-border: #e0e3e8;
   --sidebar-ring: var(--color-accent);
 }
 
@@ -2552,10 +2650,10 @@
   max-width: 420px;
   min-width: 300px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-default);
   background: var(--color-bg-elevated);
-  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-lg);
   backdrop-filter: blur(16px);
   animation: request-tooltip-in 0.15s ease-out;
   pointer-events: auto;
@@ -2569,27 +2667,27 @@
 .request-preview-shell {
   margin-top: 4px;
   padding: 8px 10px;
-  border-radius: 10px;
-  background: #f6f8fa;
+  border-radius: var(--radius-lg);
+  background: #f5f6f8;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  --shell-text: #24292f;
-  --shell-label: #57606a;
-  --shell-accent: #1a7f37;
+  --shell-text: #1a1d23;
+  --shell-label: #5a626e;
+  --shell-accent: #0a7d33;
   --shell-dot-close: #ff5f57;
   --shell-dot-min: #febc2e;
   --shell-dot-max: #28c840;
-  --shell-copy: #57606a;
-  --shell-copy-hover: #24292f;
+  --shell-copy: #5a626e;
+  --shell-copy-hover: #1a1d23;
 }
 
 .dark .request-preview-shell {
-  background: #0d1117;
+  background: #0c0e12;
   border-color: rgba(255, 255, 255, 0.08);
-  --shell-text: #e6edf3;
-  --shell-label: #7ee787;
-  --shell-accent: #7ee787;
-  --shell-copy: #8b949e;
-  --shell-copy-hover: #e6edf3;
+  --shell-text: #e7eaf0;
+  --shell-label: #a5d6a3;
+  --shell-accent: #a5d6a3;
+  --shell-copy: #9aa3b2;
+  --shell-copy-hover: #e7eaf0;
 }
 
 @keyframes request-tooltip-in {
@@ -2606,6 +2704,16 @@
   0%   { transform: translateX(-120%); }
   50%  { transform: translateX(180%); }
   100% { transform: translateX(350%); }
+}
+
+/* Forge state-dot keyframes (pulse + accent ring), from the prototype */
+@keyframes pf-pulse {
+  50% { opacity: 0.35; }
+}
+@keyframes pf-ring {
+  0%   { box-shadow: 0 0 0 0 var(--color-accent-muted); }
+  70%  { box-shadow: 0 0 0 5px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 
 /* Linear-style skeleton shimmer: subtle diagonal gradient sweep across the surface.

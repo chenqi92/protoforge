@@ -20,6 +20,13 @@ export interface BuiltinFont {
 
 export const BUILTIN_FONTS: BuiltinFont[] = [
   {
+    id: 'ibm-plex',
+    name: 'IBM Plex Sans',
+    family: "'IBM Plex Sans', 'Noto Sans SC Variable', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+    category: 'sans-serif',
+    builtin: true,
+  },
+  {
     id: 'inter',
     name: 'Inter',
     family: "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
@@ -164,9 +171,9 @@ export function useSettingsEffect() {
       return;
     }
 
-    // 回退到 Inter
-    const inter = BUILTIN_FONTS[0];
-    document.documentElement.style.setProperty('--font-sans', inter.family);
+    // 回退到默认字体（IBM Plex Sans）
+    const fallbackFont = BUILTIN_FONTS[0];
+    document.documentElement.style.setProperty('--font-sans', fallbackFont.family);
   }, [settings.fontFamily, pluginFonts]);
 
   // ── 主题色 ──

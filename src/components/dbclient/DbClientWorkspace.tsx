@@ -141,7 +141,7 @@ export const DbClientWorkspace = memo(function DbClientWorkspace({
             ) : (
               <div className="flex h-full items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
-                  <Database size={36} className="text-text-quaternary opacity-30" />
+                  <Database size={36} className="text-text-disabled opacity-40" />
                   <p className="pf-text-sm text-text-tertiary">
                     {t("dbClient.getStarted")}
                   </p>
@@ -192,16 +192,20 @@ function ResultTabs({
   }, [isDdl, queryResult]);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center border-b border-border-default/50 px-2">
+    <div className="flex h-full flex-col bg-bg-surface">
+      {/* 结果标签页 — .utabs: 33px 高 + ::after 强调下划线 + .num 计数 */}
+      <div className="flex items-center gap-0.5 border-b border-border-default px-2.5">
         <button onClick={() => setActiveTab("data")}
-          className={cn("flex items-center gap-1.5 px-3 py-1.5 pf-text-xs font-medium transition-colors border-b-2",
-            activeTab === "data" ? "border-accent-primary text-accent" : "border-transparent text-text-tertiary hover:text-text-primary")}>
+          className={cn("relative flex h-[33px] items-center gap-1.5 px-2.5 pf-text-sm font-medium transition-colors after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-sm",
+            activeTab === "data" ? "text-text-primary after:bg-accent" : "text-text-secondary hover:text-text-primary after:bg-transparent")}>
           <Table2 size={12} />{t("dbClient.results")}
+          {queryResult && !isDdl && (
+            <span className="font-mono pf-text-3xs text-text-tertiary bg-bg-tertiary pf-rounded-lg px-1.5 tabular-nums leading-[14px]">{queryResult.rows.length}</span>
+          )}
         </button>
         <button onClick={() => setActiveTab("history")}
-          className={cn("flex items-center gap-1.5 px-3 py-1.5 pf-text-xs font-medium transition-colors border-b-2",
-            activeTab === "history" ? "border-accent-primary text-accent" : "border-transparent text-text-tertiary hover:text-text-primary")}>
+          className={cn("relative flex h-[33px] items-center gap-1.5 px-2.5 pf-text-sm font-medium transition-colors after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-sm",
+            activeTab === "history" ? "text-text-primary after:bg-accent" : "text-text-secondary hover:text-text-primary after:bg-transparent")}>
           <History size={12} />{t("dbClient.queryHistory")}
         </button>
       </div>

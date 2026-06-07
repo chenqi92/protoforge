@@ -1,70 +1,92 @@
 import { useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, ChevronLeft, ChevronRight, X, Copy, Trash2, Edit3, ArrowRightFromLine, List, GitCompareArrows } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  Columns2,
+  Copy,
+  Database,
+  Edit3,
+  Gauge,
+  GitCompareArrows,
+  Globe,
+  List,
+  type LucideIcon,
+  Network,
+  PanelLeft,
+  Plus,
+  Radio,
+  Server,
+  Trash2,
+  Video,
+  Waves,
+  Wifi,
+  Wrench,
+  X,
+  Zap,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
-import type { RequestProtocol } from "@/stores/appStore";
+import type { RequestProtocol, UnifiedTab } from "@/stores/appStore";
 import { useAppStore } from "@/stores/appStore";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
-import type { HttpRequestMode } from "@/types/http";
 // Lazy — keeps Monaco editor (4MB+) out of the initial bundle; loads only when user opens diff modal
 const RequestDiffModal = lazy(() => import("@/components/request/RequestDiffModal").then((m) => ({ default: m.RequestDiffModal })));
 
-export interface Tab {
-  id: string;
-  label: string;
-  protocol: RequestProtocol;
-  method?: string;
-  requestMode?: HttpRequestMode;
-  modified?: boolean;
+const KIND_ICONS: Record<string, LucideIcon> = {
+  globe: Globe,
+  wifi: Wifi,
+  radio: Radio,
+  network: Network,
+  server: Server,
+  database: Database,
+  video: Video,
+  gauge: Gauge,
+  waves: Waves,
+  wrench: Wrench,
+  zap: Zap,
+};
+
+/** Maps an http method to the .pf-mtag modifier class. */
+function methodClass(method?: string): string {
+  if (!method) return "m-get";
+  return `m-${method.toLowerCase()}`;
 }
 
 interface TabBarProps {
-  tabs: Tab[];
+  tabs: UnifiedTab[];
   activeTabId: string | null;
-  onTabChange: (id: string) => void;
-  onTabClose: (id: string) => void;
+  /** Select any unified context (request or tool session). */
+  onSelect: (tab: UnifiedTab) => void;
+  /** Close any unified context. */
+  onClose: (tab: UnifiedTab) => void;
+  /** Pop a context out to a real OS window (tool contexts only). */
+  onPopout: (tab: UnifiedTab) => void;
   onNewTab: (protocol?: RequestProtocol) => void;
+  /** Reorder the underlying request tabs (tool sessions are not reorderable). */
   onReorder?: (fromIndex: number, toIndex: number) => void;
+  /** Sidebar toggle (⌘B). */
+  onToggleSidebar: () => void;
+  sidebarCollapsed: boolean;
+  /** Split-view toggle (⌘\). */
+  onToggleSplit: () => void;
+  splitActive: boolean;
 }
 
-const protocolLabels: Record<RequestProtocol, string> = {
-  http: "HTTP",
-  ws: "WebSocket",
-  mqtt: "MQTT",
-  grpc: "gRPC",
-};
-
-const protocolColors: Record<RequestProtocol, string> = {
-  http: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  ws: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  mqtt: "bg-purple-500/15 text-purple-700 dark:text-purple-300",
-  grpc: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
-};
-
-const modeBadgeColors: Record<HttpRequestMode, string> = {
-  rest: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  graphql: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300",
-  sse: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
-};
-
-const modeLabels: Record<HttpRequestMode, string> = {
-  rest: "HTTP",
-  graphql: "GraphQL",
-  sse: "SSE",
-};
-
-const methodBadgeColors: Record<string, string> = {
-  GET: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  POST: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  PUT: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-  DELETE: "bg-red-500/15 text-red-700 dark:text-red-300",
-  PATCH: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-  HEAD: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
-  OPTIONS: "bg-gray-500/15 text-gray-700 dark:text-gray-300",
-};
-
-export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, onReorder }: TabBarProps) {
+export function TabBar({
+  tabs,
+  activeTabId,
+  onSelect,
+  onClose,
+  onPopout,
+  onNewTab,
+  onReorder,
+  onToggleSidebar,
+  sidebarCollapsed,
+  onToggleSplit,
+  splitActive,
+}: TabBarProps) {
   const { t } = useTranslation();
   const tabBarRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -77,7 +99,6 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   const [tabMenuPos, setTabMenuPos] = useState({ top: 0, left: 0 });
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  const createProtocol: RequestProtocol = "http";
   const [diffTabId, setDiffTabId] = useState<string | null>(null);
 
   const registerTabRef = useCallback((tabId: string, node: HTMLDivElement | null) => {
@@ -85,29 +106,20 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
       tabRefs.current.set(tabId, node);
       return;
     }
-
     tabRefs.current.delete(tabId);
   }, []);
 
   const ensureTabVisible = useCallback((tabId: string, behavior: ScrollBehavior = "smooth") => {
     const tabElement = tabRefs.current.get(tabId);
     if (!tabElement) return;
-
-    tabElement.scrollIntoView({
-      behavior,
-      block: "nearest",
-      inline: "nearest",
-    });
+    tabElement.scrollIntoView({ behavior, block: "nearest", inline: "nearest" });
   }, []);
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-
-    const nextCanScrollLeft = el.scrollLeft > 4;
-    const nextCanScrollRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
-    setCanScrollLeft(nextCanScrollLeft);
-    setCanScrollRight(nextCanScrollRight);
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
   }, []);
 
   useEffect(() => {
@@ -122,20 +134,15 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
 
   useEffect(() => {
     if (!activeTabId) return;
-
     requestAnimationFrame(() => {
       ensureTabVisible(activeTabId);
       updateScrollState();
     });
-
     const timer = window.setTimeout(() => {
       ensureTabVisible(activeTabId, "auto");
       updateScrollState();
     }, 80);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
+    return () => window.clearTimeout(timer);
   }, [activeTabId, ensureTabVisible, updateScrollState]);
 
   useEffect(() => {
@@ -144,13 +151,8 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
 
     const handleScroll = () => updateScrollState();
     const handleWheel = (event: WheelEvent) => {
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
-        return;
-      }
-      if (el.scrollWidth <= el.clientWidth) {
-        return;
-      }
-
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      if (el.scrollWidth <= el.clientWidth) return;
       event.preventDefault();
       el.scrollBy({ left: event.deltaY, behavior: "auto" });
     };
@@ -158,7 +160,6 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
     updateScrollState();
     el.addEventListener("scroll", handleScroll, { passive: true });
     el.addEventListener("wheel", handleWheel, { passive: false });
-
     const observer = new ResizeObserver(() => updateScrollState());
     observer.observe(el);
 
@@ -172,17 +173,15 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
   const handleDragStart = (index: number) => {
     dragIndexRef.current = index;
   };
-
   const handleDragOver = (event: React.DragEvent, index: number) => {
     event.preventDefault();
     setDragOverIndex(index);
   };
-
   const handleDrop = (index: number) => {
-    if (dragIndexRef.current !== null && dragIndexRef.current !== index) {
-      onReorder?.(dragIndexRef.current, index);
+    const from = dragIndexRef.current;
+    if (from !== null && from !== index && onReorder) {
+      onReorder(from, index);
     }
-
     dragIndexRef.current = null;
     setDragOverIndex(null);
   };
@@ -207,9 +206,24 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
     <div
       ref={tabBarRef}
       data-contextmenu-zone="tabbar"
-      className="no-drag flex h-[var(--tabbar-height)] shrink-0 items-center border-b border-border-default/50 bg-bg-secondary/30 px-2"
+      className="no-drag flex h-[var(--tabbar-height)] shrink-0 items-stretch border-b border-border-default bg-bg-primary pl-1"
     >
-      <div ref={scrollRef} className="flex flex-1 items-center gap-1 overflow-x-auto py-0.5 scrollbar-hide">
+      {/* Sidebar toggle (⌘B) */}
+      <button
+        onClick={onToggleSidebar}
+        className={cn(
+          "flex w-7 shrink-0 items-center justify-center self-center pf-rounded-sm transition-colors",
+          sidebarCollapsed
+            ? "bg-accent-soft text-accent"
+            : "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
+        )}
+        title={`${t('sidebar.collections')} (⌘B)`}
+        aria-pressed={!sidebarCollapsed}
+      >
+        <PanelLeft className="h-3.5 w-3.5" />
+      </button>
+
+      <div ref={scrollRef} className="flex flex-1 items-stretch overflow-x-auto scrollbar-hide">
         <AnimatePresence mode="sync">
           {tabs.map((tab, index) => (
             <TabItem
@@ -217,9 +231,10 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
               tab={tab}
               isActive={tab.id === activeTabId}
               isDragOver={dragOverIndex === index}
-              onClick={() => onTabChange(tab.id)}
-              onClose={() => onTabClose(tab.id)}
               totalTabs={tabs.length}
+              onClick={() => onSelect(tab)}
+              onClose={() => onClose(tab)}
+              onPopout={() => onPopout(tab)}
               onDragStart={() => handleDragStart(index)}
               onDragOver={(event) => handleDragOver(event, index)}
               onDrop={() => handleDrop(index)}
@@ -228,34 +243,27 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
                 setDragOverIndex(null);
               }}
               registerRef={registerTabRef}
-              onCompare={tab.protocol === "http" ? () => setDiffTabId(tab.id) : undefined}
+              onCompare={tab.kind === "request" && tab.protocol === "http" && tab.tabId ? () => setDiffTabId(tab.tabId!) : undefined}
             />
           ))}
         </AnimatePresence>
       </div>
 
       {hasOverflow ? (
-        <div className="mr-1 flex shrink-0 items-center gap-1 no-drag">
-          <button
-            onClick={() => scrollTabsBy("left")}
-            disabled={!canScrollLeft}
-            className="wb-icon-btn"
-            title={t('tabBar.scrollLeft')}
-          >
+        <div className="flex shrink-0 items-center gap-0.5 self-center px-1 no-drag">
+          <button onClick={() => scrollTabsBy("left")} disabled={!canScrollLeft} className="flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-40" title={t('tabBar.scrollLeft')}>
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
-          <button
-            onClick={() => scrollTabsBy("right")}
-            disabled={!canScrollRight}
-            className="wb-icon-btn"
-            title={t('tabBar.scrollRight')}
-          >
+          <button onClick={() => scrollTabsBy("right")} disabled={!canScrollRight} className="flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-40" title={t('tabBar.scrollRight')}>
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
           <div ref={tabMenuAnchorRef}>
             <button
               onClick={toggleTabMenu}
-              className={cn("wb-icon-btn", showTabMenu && "bg-bg-hover text-text-primary")}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center pf-rounded-sm transition-colors",
+                showTabMenu ? "bg-bg-hover text-text-primary" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
+              )}
               title={t('tabBar.allTabs')}
             >
               <List className="h-3.5 w-3.5" />
@@ -264,62 +272,61 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
         </div>
       ) : null}
 
-      <div className="mx-1.5 h-4 w-px bg-border-strong/70" />
-      <button
-        onClick={() => onNewTab(createProtocol)}
-        className="wb-ghost-btn shrink-0 px-3 no-drag"
-        title={`${t('tabBar.new')} ${protocolLabels[createProtocol]} (Ctrl+N)`}
-      >
-        <Plus className="h-3.5 w-3.5" />
-        {t('tabBar.new')}
-      </button>
+      {/* Trailing actions — left-bordered group (Forge .tabbar-actions) */}
+      <div className="ml-auto flex shrink-0 items-center gap-px self-stretch border-l border-border-default px-1.5 no-drag">
+        <button
+          onClick={() => onNewTab("http")}
+          className="flex h-7 w-7 items-center justify-center self-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          title={`${t('tabBar.new')} (⌘N)`}
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={onToggleSplit}
+          className={cn(
+            "flex h-7 w-7 items-center justify-center self-center pf-rounded-sm transition-colors",
+            splitActive ? "bg-accent-soft text-accent" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
+          )}
+          title={`${splitActive ? t('tabBar.closeRight') : t('tabBar.new')} (⌘\\)`}
+          aria-pressed={splitActive}
+        >
+          <Columns2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
       {showTabMenu ? (
         <>
           <div className="fixed inset-0 z-[220]" onClick={() => setShowTabMenu(false)} />
           <div
-            className="fixed z-[221] w-[240px] overflow-hidden pf-rounded-md border border-border-default/80 bg-bg-primary/96 p-1 shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_2px_4px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl"
+            className="fixed z-[221] w-[240px] overflow-hidden rounded-[9px] border border-border-strong bg-bg-elevated p-1 shadow-lg"
             style={{ top: tabMenuPos.top, left: tabMenuPos.left }}
           >
-            <div className="px-2.5 pb-0.5 pt-1.5 pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-disabled">
+            <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-text-tertiary">
               {t('tabBar.allTabs')}
             </div>
             <div className="max-h-[320px] overflow-y-auto">
               {tabs.map((tab) => {
-                const badgeLabel = tab.protocol === "http"
-                  ? tab.requestMode && tab.requestMode !== "rest"
-                    ? modeLabels[tab.requestMode]
-                    : tab.method || protocolLabels[tab.protocol]
-                  : protocolLabels[tab.protocol];
                 const isActive = tab.id === activeTabId;
-
+                const Icon = KIND_ICONS[tab.icon] ?? Globe;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => {
-                      onTabChange(tab.id);
+                      onSelect(tab);
                       setShowTabMenu(false);
                     }}
                     className={cn(
-                      "flex w-full items-center gap-2 pf-rounded-md px-2.5 py-[7px] text-left transition-colors hover:bg-bg-hover/70",
-                      isActive && "bg-bg-hover/45"
+                      "flex w-full items-center gap-2 rounded-[5px] px-2.5 py-[6px] text-left transition-colors",
+                      isActive ? "bg-accent-soft text-text-primary" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                     )}
                   >
-                    <span
-                      className={cn(
-                        "pf-rounded-xs px-1.5 py-[1px] pf-text-xxs font-bold leading-none",
-                        tab.protocol === "http"
-                          ? tab.requestMode && tab.requestMode !== "rest"
-                            ? modeBadgeColors[tab.requestMode]
-                            : tab.method
-                              ? methodBadgeColors[tab.method] || protocolColors[tab.protocol]
-                              : protocolColors[tab.protocol]
-                          : protocolColors[tab.protocol]
-                      )}
-                    >
-                      {badgeLabel}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate pf-text-sm font-medium text-text-primary">{tab.label}</span>
+                    <span className={cn("pf-dot", `s-${tab.state}`)} />
+                    {tab.kind === "request" && tab.protocol === "http" ? (
+                      <span className={cn("pf-mtag", methodClass(tab.method))}>{tab.method ?? "GET"}</span>
+                    ) : (
+                      <Icon className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
+                    )}
+                    <span className="min-w-0 flex-1 truncate pf-text-xs font-medium">{tab.title}</span>
                   </button>
                 );
               })}
@@ -330,11 +337,7 @@ export function TabBar({ tabs, activeTabId, onTabChange, onTabClose, onNewTab, o
 
       {diffTabId && (
         <Suspense fallback={null}>
-          <RequestDiffModal
-            open
-            onClose={() => setDiffTabId(null)}
-            sourceTabId={diffTabId}
-          />
+          <RequestDiffModal open onClose={() => setDiffTabId(null)} sourceTabId={diffTabId} />
         </Suspense>
       )}
     </div>
@@ -345,9 +348,10 @@ function TabItem({
   tab,
   isActive,
   isDragOver,
+  totalTabs,
   onClick,
   onClose,
-  totalTabs,
+  onPopout,
   onDragStart,
   onDragOver,
   onDrop,
@@ -355,12 +359,13 @@ function TabItem({
   registerRef,
   onCompare,
 }: {
-  tab: Tab;
+  tab: UnifiedTab;
   isActive: boolean;
   isDragOver: boolean;
+  totalTabs: number;
   onClick: () => void;
   onClose: () => void;
-  totalTabs: number;
+  onPopout: () => void;
   onDragStart: () => void;
   onDragOver: (event: React.DragEvent) => void;
   onDrop: () => void;
@@ -370,7 +375,7 @@ function TabItem({
 }) {
   const { t } = useTranslation();
   const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(tab.label);
+  const [renameValue, setRenameValue] = useState(tab.title);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   const renameTab = useAppStore((s) => s.renameTab);
@@ -379,18 +384,23 @@ function TabItem({
   const duplicateTab = useAppStore((s) => s.duplicateTab);
   const { showMenu, MenuComponent } = useContextMenu();
 
+  const isRequest = tab.kind === "request";
+  const canRename = isRequest && !!tab.tabId;
+  const Icon = KIND_ICONS[tab.icon] ?? Globe;
+
   const handleDoubleClick = (event: React.MouseEvent) => {
+    if (!canRename) return;
     event.preventDefault();
     event.stopPropagation();
-    setRenameValue(tab.label);
+    setRenameValue(tab.title);
     setIsRenaming(true);
     setTimeout(() => renameInputRef.current?.select(), 0);
   };
 
   const commitRename = () => {
     const trimmed = renameValue.trim();
-    if (trimmed && trimmed !== tab.label) {
-      renameTab(tab.id, trimmed);
+    if (trimmed && trimmed !== tab.title && tab.tabId) {
+      renameTab(tab.tabId, trimmed);
     }
     setIsRenaming(false);
   };
@@ -403,57 +413,61 @@ function TabItem({
   };
 
   const handleContextMenu = (event: React.MouseEvent) => {
-    const items: ContextMenuEntry[] = [
-      {
-        id: "rename",
-        label: t('contextMenu.rename'),
-        icon: <Edit3 className="h-3.5 w-3.5" />,
-        onClick: () => {
-          setRenameValue(tab.label);
-          setIsRenaming(true);
-          setTimeout(() => renameInputRef.current?.select(), 0);
+    const items: ContextMenuEntry[] = [];
+
+    if (canRename) {
+      items.push(
+        {
+          id: "rename",
+          label: t('contextMenu.rename'),
+          icon: <Edit3 className="h-3.5 w-3.5" />,
+          onClick: () => {
+            setRenameValue(tab.title);
+            setIsRenaming(true);
+            setTimeout(() => renameInputRef.current?.select(), 0);
+          },
         },
-      },
-      {
-        id: "duplicate",
-        label: t('tabBar.duplicate'),
-        icon: <Copy className="h-3.5 w-3.5" />,
-        onClick: () => duplicateTab(tab.id),
-      },
-      ...(tab.protocol === "http" && onCompare ? [{
-        id: "compare",
-        label: t('diff.compareWith'),
-        icon: <GitCompareArrows className="h-3.5 w-3.5" />,
-        onClick: onCompare,
-      } as ContextMenuEntry] : []),
-      { type: "divider" as const },
-      { id: "close", label: t('tabBar.close'), shortcut: "Ctrl+W", onClick: onClose },
-      { id: "close-others", label: t('tabBar.closeOthers'), onClick: () => closeOtherTabs(tab.id), disabled: totalTabs <= 1 },
-      {
-        id: "close-right",
-        label: t('tabBar.closeRight'),
-        icon: <ArrowRightFromLine className="h-3.5 w-3.5" />,
-        onClick: () => closeTabsToRight(tab.id),
-      },
-      { type: "divider" },
-      {
-        id: "delete",
-        label: t('contextMenu.delete'),
-        icon: <Trash2 className="h-3.5 w-3.5" />,
-        danger: true,
-        onClick: onClose,
-      },
-    ];
+        {
+          id: "duplicate",
+          label: t('tabBar.duplicate'),
+          icon: <Copy className="h-3.5 w-3.5" />,
+          onClick: () => tab.tabId && duplicateTab(tab.tabId),
+        },
+      );
+      if (tab.protocol === "http" && onCompare) {
+        items.push({
+          id: "compare",
+          label: t('diff.compareWith'),
+          icon: <GitCompareArrows className="h-3.5 w-3.5" />,
+          onClick: onCompare,
+        });
+      }
+    }
+
+    if (tab.kind === "tool") {
+      items.push({
+        id: "popout",
+        label: t('toolWorkbench.popoutWindow'),
+        icon: <ArrowUpRight className="h-3.5 w-3.5" />,
+        onClick: onPopout,
+      });
+    }
+
+    if (items.length > 0) items.push({ type: "divider" });
+
+    items.push({ id: "close", label: t('tabBar.close'), shortcut: "Ctrl+W", onClick: onClose });
+
+    if (canRename && tab.tabId) {
+      items.push(
+        { id: "close-others", label: t('tabBar.closeOthers'), onClick: () => closeOtherTabs(tab.tabId!), disabled: totalTabs <= 1 },
+        { id: "close-right", label: t('tabBar.closeRight'), onClick: () => closeTabsToRight(tab.tabId!) },
+        { type: "divider" },
+        { id: "delete", label: t('contextMenu.delete'), icon: <Trash2 className="h-3.5 w-3.5" />, danger: true, onClick: onClose },
+      );
+    }
+
     showMenu(event, items);
   };
-
-  const badgeColor = tab.protocol === "http"
-    ? tab.requestMode && tab.requestMode !== "rest"
-      ? modeBadgeColors[tab.requestMode]
-      : tab.method
-        ? methodBadgeColors[tab.method] || protocolColors[tab.protocol]
-        : protocolColors[tab.protocol]
-    : protocolColors[tab.protocol];
 
   return (
     <>
@@ -474,25 +488,28 @@ function TabItem({
         onDrop={onDrop}
         onDragEnd={onDragEnd}
         className={cn(
-          "group relative flex h-8 min-w-[112px] max-w-[228px] shrink-0 items-center gap-1.5 pf-rounded-sm px-2 no-drag",
-          "cursor-pointer transition-all duration-[var(--transition-fast)]",
+          "group relative flex h-full min-w-[130px] max-w-[210px] shrink-0 items-center gap-[7px] border-r border-border-default pl-[11px] pr-[9px] no-drag",
+          "cursor-pointer transition-colors duration-[var(--transition-fast)]",
           isActive
-            ? "z-10 bg-bg-primary font-medium text-text-primary shadow-xs border border-border-default/50"
-            : "bg-transparent text-text-tertiary hover:bg-bg-hover/60 hover:text-text-secondary",
-          isDragOver && "ring-2 ring-accent"
+            ? "z-10 bg-bg-app font-medium text-text-primary"
+            : "bg-transparent text-text-secondary hover:bg-bg-hover",
+          isDragOver && "shadow-[inset_2px_0_0_var(--color-accent)]"
         )}
       >
-        <span className={cn(
-          "shrink-0 pf-rounded-xs px-1.5 py-[3px] pf-text-xxs font-bold leading-none",
-          badgeColor,
-          !isActive && "opacity-60"
-        )}>
-          {tab.protocol === "http"
-            ? tab.requestMode && tab.requestMode !== "rest"
-              ? modeLabels[tab.requestMode]
-              : tab.method || protocolLabels[tab.protocol]
-            : protocolLabels[tab.protocol]}
-        </span>
+        {/* active top accent line (Forge .tab.on::after) */}
+        {isActive ? (
+          <span className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-accent" />
+        ) : null}
+
+        <span className={cn("pf-dot shrink-0", `s-${tab.state}`)} />
+
+        {isRequest && tab.protocol === "http" ? (
+          <span className={cn("pf-mtag shrink-0", methodClass(tab.method), !isActive && "opacity-70")}>
+            {tab.method ?? "GET"}
+          </span>
+        ) : (
+          <Icon className={cn("h-3.5 w-3.5 shrink-0 text-text-tertiary", !isActive && "opacity-70")} />
+        )}
 
         {isRenaming ? (
           <input
@@ -509,18 +526,31 @@ function TabItem({
               if (event.key === "Escape") {
                 event.preventDefault();
                 event.stopPropagation();
-                setRenameValue(tab.label);
+                setRenameValue(tab.title);
                 setIsRenaming(false);
               }
             }}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
-            className="min-w-0 flex-1 border-b border-accent bg-transparent px-0.5 py-0 pf-text-sm text-text-primary outline-none"
+            className="min-w-0 flex-1 border-b border-accent bg-transparent px-0.5 py-0 pf-text-xs text-text-primary outline-none"
             autoFocus
           />
         ) : (
-          <span className="min-w-0 flex-1 truncate pf-text-sm leading-none">{tab.label}</span>
+          <span className="min-w-0 flex-1 truncate pf-text-xs leading-none">{tab.title}</span>
         )}
+
+        {tab.kind === "tool" ? (
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              onPopout();
+            }}
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] text-text-tertiary opacity-0 transition-colors hover:bg-bg-active hover:text-text-primary group-hover:opacity-100"
+            title={t('toolWorkbench.popoutWindow')}
+          >
+            <ArrowUpRight className="h-[11px] w-[11px]" />
+          </button>
+        ) : null}
 
         <button
           onClick={(event) => {
@@ -528,10 +558,8 @@ function TabItem({
             onClose();
           }}
           className={cn(
-            "flex h-[18px] w-[18px] shrink-0 items-center justify-center pf-rounded-xs transition-colors",
-            isActive
-              ? "text-text-tertiary hover:bg-bg-hover hover:text-text-primary"
-              : "text-text-disabled/40 hover:text-text-primary hover:bg-bg-hover group-hover:text-text-disabled"
+            "flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] transition-colors hover:bg-bg-active hover:text-text-primary",
+            isActive ? "text-text-tertiary" : "text-text-tertiary/50 group-hover:text-text-tertiary"
           )}
         >
           <X className="h-3 w-3" />

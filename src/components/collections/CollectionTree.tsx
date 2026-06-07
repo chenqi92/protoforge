@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderOpen, FolderPlus, ChevronRight, ChevronDown,
-  MoreHorizontal, Upload, Play, GripVertical, Folder,
+  MoreHorizontal, Upload, Play, GripVertical, Folder, Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -72,20 +72,20 @@ function TreeItem({
           onDrop={(e) => { e.preventDefault(); onDrop(e, item.id); }}
           onClick={() => setExpanded(!expanded)}
           className={cn(
-            'flex items-center gap-1.5 px-2 py-1.5 cursor-pointer pf-rounded-sm',
-            'hover:bg-bg-hover transition-colors group',
+            'flex h-[27px] items-center gap-1.5 px-1.5 cursor-pointer pf-rounded-sm',
+            'text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group',
             isDragging && 'opacity-40',
             isDropTarget && dropPosition === 'before' && 'border-t-2 border-t-accent',
             isDropTarget && dropPosition === 'after' && 'border-b-2 border-b-accent',
-            isDropTarget && dropPosition === 'inside' && 'ring-1 ring-accent bg-accent/5',
+            isDropTarget && dropPosition === 'inside' && 'ring-1 ring-accent bg-accent-soft',
           )}
-          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+          style={{ paddingLeft: `${depth * 14 + 6}px` }}
         >
           <GripVertical className="w-3 h-3 text-text-disabled opacity-0 group-hover:opacity-50 cursor-grab shrink-0" />
-          {expanded ? <ChevronDown className="w-3 h-3 text-text-disabled" /> : <ChevronRight className="w-3 h-3 text-text-disabled" />}
-          <Folder className="w-3.5 h-3.5 text-amber-500 dark:text-amber-300/50 shrink-0" fill="currentColor" />
-          <span className="pf-text-xs text-text-primary truncate flex-1">{item.name}</span>
-          <span className="pf-text-xxs text-text-disabled">{folderChildren.length}</span>
+          {expanded ? <ChevronDown className="w-3 h-3 text-text-tertiary shrink-0" /> : <ChevronRight className="w-3 h-3 text-text-tertiary shrink-0" />}
+          <Folder className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+          <span className="pf-text-sm truncate flex-1">{item.name}</span>
+          <span className="pf-text-3xs text-text-tertiary font-mono shrink-0">{folderChildren.length}</span>
         </div>
         <AnimatePresence>
           {expanded && (
@@ -134,19 +134,19 @@ function TreeItem({
       onDrop={(e) => { e.preventDefault(); onDrop(e, item.id); }}
       onClick={() => onSelect?.(item)}
       className={cn(
-        'flex items-center gap-1.5 px-2 py-1.5 cursor-pointer pf-rounded-sm',
-        'hover:bg-bg-hover transition-colors group',
+        'flex h-[27px] items-center gap-1.5 px-1.5 cursor-pointer pf-rounded-sm',
+        'text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group',
         isDragging && 'opacity-40',
         isDropTarget && dropPosition === 'before' && 'border-t-2 border-t-accent',
         isDropTarget && dropPosition === 'after' && 'border-b-2 border-b-accent',
       )}
-      style={{ paddingLeft: `${depth * 16 + 8}px` }}
+      style={{ paddingLeft: `${depth * 14 + 6}px` }}
     >
       <GripVertical className="w-3 h-3 text-text-disabled opacity-0 group-hover:opacity-50 cursor-grab shrink-0" />
-      <span className={cn('pf-text-xxs font-bold w-8 shrink-0', getMethodColor((item.method || 'GET') as any))}>
+      <span className={cn('pf-mtag w-[30px] shrink-0', getMethodColor((item.method || 'GET') as any))}>
         {(item.method || 'GET').slice(0, 3)}
       </span>
-      <span className="pf-text-xs text-text-secondary truncate flex-1">{item.name}</span>
+      <span className="pf-text-sm truncate flex-1">{item.name}</span>
     </div>
   );
 }
@@ -295,12 +295,12 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle">
-        <span className="pf-text-xs font-medium text-text-secondary">{t('sidebar.collections')}</span>
+        <span className="pf-text-xxs font-semibold uppercase tracking-[0.07em] text-text-tertiary">{t('sidebar.collections')}</span>
         <div className="flex items-center gap-1">
-          <button className="p-1 text-text-tertiary hover:text-text-secondary transition-colors" title={t('contextMenu.newFolder')}>
+          <button className="grid place-items-center w-6 h-6 pf-rounded-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors" title={t('contextMenu.newFolder')}>
             <FolderPlus className="w-3.5 h-3.5" />
           </button>
-          <button className="p-1 text-text-tertiary hover:text-text-secondary transition-colors" title={t('sidebar.import')}>
+          <button className="grid place-items-center w-6 h-6 pf-rounded-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors" title={t('sidebar.import')}>
             <Upload className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -335,25 +335,25 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
                   handleDragEnd();
                 }}
                 className={cn(
-                  'flex items-center gap-1.5 px-2 py-1.5 cursor-pointer hover:bg-bg-hover transition-colors group',
-                  dropTargetId === `col:${col.id}` && 'ring-1 ring-accent bg-accent/5',
+                  'flex h-[27px] items-center gap-1.5 px-1.5 cursor-pointer text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group',
+                  dropTargetId === `col:${col.id}` && 'ring-1 ring-accent bg-accent-soft',
                 )}
               >
                 {expandedCols.has(col.id)
-                  ? <ChevronDown className="w-3 h-3 text-text-disabled" />
-                  : <ChevronRight className="w-3 h-3 text-text-disabled" />
+                  ? <ChevronDown className="w-3 h-3 text-text-tertiary shrink-0" />
+                  : <ChevronRight className="w-3 h-3 text-text-tertiary shrink-0" />
                 }
-                <FolderOpen className="w-3.5 h-3.5 text-accent shrink-0" />
-                <span className="pf-text-xs font-medium text-text-primary truncate flex-1">{col.name}</span>
+                <Layers className="w-3.5 h-3.5 text-accent shrink-0" />
+                <span className="pf-text-sm font-medium truncate flex-1">{col.name}</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); onRunCollection?.(col.id, col.name); }}
-                  className="p-0.5 opacity-0 group-hover:opacity-100 text-emerald-500 hover:text-emerald-600 dark:text-emerald-300 transition-all"
+                  className="grid place-items-center w-5 h-5 pf-rounded-xs opacity-0 group-hover:opacity-100 text-success hover:bg-bg-active transition-all shrink-0"
                   title={t('runner.run')}
                 >
                   <Play className="w-3 h-3" />
                 </button>
-                <button className="p-0.5 opacity-0 group-hover:opacity-100 text-text-disabled hover:text-text-secondary transition-all">
-                  <MoreHorizontal className="w-3 h-3" />
+                <button className="grid place-items-center w-5 h-5 pf-rounded-xs opacity-0 group-hover:opacity-100 text-text-tertiary hover:bg-bg-active hover:text-text-primary transition-all shrink-0">
+                  <MoreHorizontal className="w-3.5 h-3.5" />
                 </button>
               </div>
               <AnimatePresence>

@@ -5,7 +5,7 @@
 import { memo, useEffect, useState, useCallback } from "react";
 import {
   Plus, Trash2, Unplug, Database, Server,
-  Pencil, Circle, Loader2, ChevronRight, ChevronDown,
+  Pencil, Loader2, ChevronRight, ChevronDown,
   Table2, Eye, FunctionSquare, RefreshCw, PlugZap,
   Download, Upload, Copy, Code2, FileText,
 } from "lucide-react";
@@ -242,8 +242,8 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
   return (
     <div className="flex h-full flex-col">
       {/* 头部 */}
-      <div className="flex items-center justify-between border-b border-border-default/50 px-3 py-2">
-        <span className="pf-text-xs font-medium uppercase tracking-wider text-text-tertiary">
+      <div className="flex items-center justify-between border-b border-border-default px-3 py-2">
+        <span className="pf-text-xs font-semibold uppercase tracking-wider text-text-tertiary">
           {t("dbClient.connections")}
         </span>
         <button
@@ -257,7 +257,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
 
       {/* 连接错误 */}
       {connectionError && !connecting && (
-        <div className="border-b border-border-default/50 px-3 py-2 pf-text-xs text-red-500 dark:text-red-300 bg-red-500/5 break-words">
+        <div className="border-b border-border-default px-3 py-2 pf-text-xs text-error bg-error/8 break-words">
           {connectionError}
         </div>
       )}
@@ -275,9 +275,9 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                 {/* 连接节点 */}
                 <div
                   className={cn(
-                    "group flex items-center gap-1.5 pf-rounded-sm px-1.5 py-1.5 transition-colors cursor-pointer select-none",
+                    "group relative flex items-center gap-1.5 pf-rounded-sm px-1.5 py-1.5 transition-colors cursor-pointer select-none",
                     isActive
-                      ? "bg-accent/8"
+                      ? "bg-accent-soft before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-sm before:bg-accent"
                       : "hover:bg-bg-hover",
                   )}
                   onClick={() => {
@@ -297,7 +297,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                   {connecting && !isActive ? (
                     <Loader2 size={13} className="shrink-0 animate-spin text-accent" />
                   ) : (
-                    <Server size={13} className={cn("shrink-0", isActive ? "text-emerald-500 dark:text-emerald-300" : "text-text-tertiary")} />
+                    <Server size={13} className={cn("shrink-0", isActive ? "text-success" : "text-text-tertiary")} />
                   )}
 
                   <div className="flex min-w-0 flex-1 flex-col">
@@ -315,7 +315,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                   </div>
 
                   {isActive && (
-                    <Circle size={6} className="fill-emerald-500 text-emerald-500 dark:text-emerald-300 shrink-0" />
+                    <span className="pf-dot s-ok shrink-0" />
                   )}
                 </div>
 
@@ -346,10 +346,10 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                             {isDbExpanded
                               ? <ChevronDown size={11} className="shrink-0 text-text-tertiary" />
                               : <ChevronRight size={11} className="shrink-0 text-text-tertiary" />}
-                            <Database size={12} className={cn("shrink-0", isDbSelected ? "text-accent" : "text-blue-400")} />
+                            <Database size={12} className={cn("shrink-0", isDbSelected ? "text-accent" : "text-info")} />
                             <span className={cn("truncate pf-text-xs", isDbSelected && "text-accent font-medium")}>{db.name}</span>
                             {db.sizeBytes != null && (
-                              <span className="ml-auto shrink-0 text-[10px] text-text-tertiary">{formatBytes(db.sizeBytes)}</span>
+                              <span className="ml-auto shrink-0 text-[10px] font-mono text-text-tertiary tabular-nums">{formatBytes(db.sizeBytes)}</span>
                             )}
                           </div>
 
@@ -369,7 +369,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                                   {/* Tables */}
                                   {dbSchema.tables.length > 0 && (
                                     <SchemaGroup
-                                      icon={<Table2 size={11} className="text-blue-500 dark:text-blue-300" />}
+                                      icon={<Table2 size={11} className="text-info" />}
                                       label={t("dbClient.tables")}
                                       count={dbSchema.tables.length}
                                       expanded={expandedNodes.has(`tables:${conn.id}:${db.name}`)}
@@ -390,7 +390,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                                   {/* Views */}
                                   {dbSchema.views.length > 0 && (
                                     <SchemaGroup
-                                      icon={<Eye size={11} className="text-purple-500 dark:text-purple-300" />}
+                                      icon={<Eye size={11} className="text-method-patch" />}
                                       label={t("dbClient.views")}
                                       count={dbSchema.views.length}
                                       expanded={expandedNodes.has(`views:${conn.id}:${db.name}`)}
@@ -411,7 +411,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                                   {/* Functions */}
                                   {dbSchema.functions.length > 0 && (
                                     <SchemaGroup
-                                      icon={<FunctionSquare size={11} className="text-amber-500 dark:text-amber-300" />}
+                                      icon={<FunctionSquare size={11} className="text-warning" />}
                                       label={t("dbClient.functions")}
                                       count={dbSchema.functions.length}
                                       expanded={expandedNodes.has(`functions:${conn.id}:${db.name}`)}
@@ -423,10 +423,10 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                                           className="flex items-center gap-1.5 px-5 py-0.5 pf-text-xs text-text-secondary hover:bg-bg-hover pf-rounded-sm cursor-default"
                                           onContextMenu={(e) => onFunctionContext(e, fn.schema, fn.name, db.name)}
                                         >
-                                          <FunctionSquare size={10} className="shrink-0 opacity-40" />
+                                          <FunctionSquare size={10} className="shrink-0 text-warning opacity-50" />
                                           <span className="truncate">{fn.name}</span>
                                           {fn.returnType && (
-                                            <span className="ml-auto shrink-0 text-[10px] text-text-tertiary">{fn.returnType}</span>
+                                            <span className="ml-auto shrink-0 text-[10px] font-mono text-text-tertiary">{fn.returnType}</span>
                                           )}
                                         </div>
                                       ))}
@@ -518,7 +518,7 @@ function SchemaGroup({
         {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
         {icon}
         <span>{label}</span>
-        <span className="ml-auto text-[10px] text-text-tertiary">{count}</span>
+        <span className="ml-auto text-[10px] font-mono text-text-tertiary tabular-nums">{count}</span>
       </button>
       {expanded && children}
     </div>
@@ -545,14 +545,14 @@ function TableLeaf({
       className={cn(
         "flex w-full items-center gap-1.5 px-5 py-0.5 pf-text-xs transition-colors pf-rounded-sm",
         isSelected
-          ? "bg-accent/10 text-accent font-medium"
+          ? "bg-accent-soft text-accent font-medium"
           : "text-text-secondary hover:bg-bg-hover",
       )}
     >
-      <Table2 size={10} className="shrink-0 opacity-50" />
+      <Table2 size={10} className={cn("shrink-0", isSelected ? "text-accent" : "text-info opacity-70")} />
       <span className="truncate">{table.name}</span>
       {table.rowCountEstimate != null && table.rowCountEstimate > 0 && (
-        <span className="ml-auto shrink-0 text-[10px] text-text-tertiary">
+        <span className="ml-auto shrink-0 text-[10px] font-mono text-text-tertiary tabular-nums">
           ~{formatNumber(table.rowCountEstimate)}
         </span>
       )}

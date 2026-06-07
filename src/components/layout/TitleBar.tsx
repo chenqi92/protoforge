@@ -1,140 +1,136 @@
 import {
-  Sun,
-  Moon,
+  Map,
   Monitor,
-  Gauge,
-  Radio,
+  Moon,
   Puzzle,
+  Search,
   Settings,
-  Network,
-  FileText,
-  Home,
-  MonitorPlay,
-  Server,
-  Database,
-  Wrench,
-  Workflow,
+  Sun,
+  Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useThemeStore } from "@/stores/themeStore";
 import { useSettingsStore } from "@/stores/settingsStore";
-import type { WorkbenchView } from "@/stores/appStore";
 import { Tooltip } from "@/components/common/Tooltip";
 import { useWindowFrameGestures } from "@/hooks/useWindowFrameGestures";
-import { cn } from "@/lib/utils";
 
 interface TitleBarProps {
-  activeWorkbench: WorkbenchView;
-  onSelectWorkbench: (workbench: WorkbenchView) => void;
   onOpenPlugins: () => void;
   onOpenSettings: () => void;
 }
 
-const workbenches: Array<{
-  id: WorkbenchView;
-  labelKey: string;
-  icon: typeof FileText;
-  accentClassName: string;
-}> = [
-  { id: "home", labelKey: "titleBar.home", icon: Home, accentClassName: "text-slate-600" },
-  { id: "requests", labelKey: "titleBar.requests", icon: FileText, accentClassName: "text-emerald-600" },
-  { id: "tcpudp", labelKey: "titleBar.tcpudp", icon: Network, accentClassName: "text-blue-600" },
-  { id: "capture", labelKey: "titleBar.capture", icon: Radio, accentClassName: "text-cyan-600" },
-  { id: "loadtest", labelKey: "titleBar.loadtest", icon: Gauge, accentClassName: "text-rose-600" },
-  { id: "videostream", labelKey: "titleBar.videostream", icon: MonitorPlay, accentClassName: "text-purple-600" },
-  { id: "mockserver", labelKey: "titleBar.mockserver", icon: Server, accentClassName: "text-green-600" },
-  { id: "dbclient", labelKey: "titleBar.dbclient", icon: Database, accentClassName: "text-amber-600" },
-  { id: "toolbox", labelKey: "titleBar.toolbox", icon: Wrench, accentClassName: "text-orange-600" },
-  { id: "workflow", labelKey: "titleBar.workflow", icon: Workflow, accentClassName: "text-indigo-600" },
-];
-
-export function TitleBar({
-  activeWorkbench,
-  onSelectWorkbench,
-  onOpenPlugins,
-  onOpenSettings,
-}: TitleBarProps) {
-  const { t } = useTranslation();
+export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
+  const { t, i18n } = useTranslation();
   const { mode, resolved, toggle } = useThemeStore();
   const frameGestures = useWindowFrameGestures();
+  const zh = i18n.language?.startsWith("zh") ?? true;
+
+  const toggleLanguage = () => {
+    // settingsStore is the source of truth; useLanguageSync drives i18n from it.
+    useSettingsStore.getState().update("language", zh ? "en" : "zh-CN");
+  };
+
+  const cycleTheme = () => {
+    toggle();
+    const nextModes = ["light", "dark", "system"] as const;
+    const nextIndex = (nextModes.indexOf(mode) + 1) % nextModes.length;
+    useSettingsStore.getState().update("theme", nextModes[nextIndex]);
+  };
 
   return (
     <div
       {...frameGestures}
       data-titlebar
-      className="relative flex h-[var(--titlebar-height)] shrink-0 items-center gap-3 border-b border-border-subtle bg-bg-primary/80 px-3 backdrop-blur-xl select-none dark:bg-[#0f1011]/80 dark:border-white/[0.06]"
+      className="relative flex h-[var(--titlebar-height)] shrink-0 items-center gap-2.5 border-b border-border-default bg-bg-primary pl-3 pr-2.5 select-none"
     >
+      {/* macOS traffic-light spacer */}
       <div className="w-[70px] shrink-0" />
 
-      <div className="flex min-w-0 flex-1 justify-center px-2">
+      {/* Brand */}
+      <div className="flex shrink-0 items-center gap-2 no-drag">
         <div
-          className="flex items-center gap-0.5 pf-rounded-md border border-border-default/60 bg-bg-secondary/80 p-[3px] no-drag"
+          className="flex h-[22px] w-[22px] items-center justify-center rounded-md shadow-[0_2px_8px_var(--color-accent-muted)]"
+          style={{
+            backgroundImage:
+              "linear-gradient(150deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 55%, #000))",
+          }}
         >
-          {workbenches.map((workbench) => {
-            const Icon = workbench.icon;
-            const isActive = activeWorkbench === workbench.id;
-            const label = t(workbench.labelKey);
-
-            return (
-              <button
-                key={workbench.id}
-                onClick={() => onSelectWorkbench(workbench.id)}
-                className={cn(
-                  "flex h-8 items-center gap-2 pf-rounded-sm px-3 pf-text-sm font-[510] tracking-[-0.005em] transition-colors",
-                  isActive
-                    ? "bg-bg-primary text-text-primary shadow-sm ring-1 ring-border-default/50 dark:bg-white/[0.06] dark:ring-white/[0.06] dark:shadow-none"
-                    : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary dark:hover:bg-white/[0.04]",
-                )}
-                title={label}
-              >
-                <Icon className={cn("h-3.5 w-3.5", isActive ? workbench.accentClassName : "text-current")} />
-                <span>{label}</span>
-              </button>
-            );
-          })}
+          <Zap className="h-[13px] w-[13px] text-white" />
         </div>
+        <span className="pf-text-sm font-medium tracking-[-0.01em] text-text-primary">
+          Proto<b className="font-bold text-accent">Forge</b>
+        </span>
       </div>
 
-      <div className="flex items-center gap-2 no-drag">
-        <div className="flex items-center gap-1 pf-rounded-md border border-border-default/60 bg-bg-secondary/80 p-[3px]">
-          <Tooltip content={t('titleBar.plugins')}>
-            <button
-              onClick={onOpenPlugins}
-              className="flex h-8 w-8 items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-violet-500"
-            >
-              <Puzzle className="h-[15px] w-[15px]" />
-            </button>
-          </Tooltip>
-          <Tooltip content={t('titleBar.settings')}>
-            <button
-              onClick={onOpenSettings}
-              className="flex h-8 w-8 items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
-            >
-              <Settings className="h-[15px] w-[15px]" />
-            </button>
-          </Tooltip>
-        </div>
+      {/* Centered ⌘K command pill */}
+      <div className="flex min-w-0 flex-1 justify-center px-2">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("toggle-command-palette"))}
+          className="no-drag flex h-6 w-full min-w-0 max-w-[460px] items-center gap-2 rounded-[7px] border border-border-default bg-bg-app pl-[9px] pr-2 pf-text-xs text-text-tertiary transition-colors hover:border-border-strong hover:text-text-secondary"
+        >
+          <Search className="h-[13px] w-[13px] shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-left">
+            {zh ? "搜索请求 / 命令 / 集合…" : "Search requests, commands, collections…"}
+          </span>
+          <span className="shrink-0 rounded-[4px] border border-border-default border-b-2 bg-bg-secondary px-[5px] py-px font-mono text-[10.5px] leading-[1.3] text-text-secondary">
+            ⌘K
+          </span>
+        </button>
+      </div>
 
-        <div className="flex items-center gap-1 pf-rounded-md border border-border-default/60 bg-bg-secondary/80 p-[3px]">
+      {/* Right actions — flat icon row (Forge .tb-actions) */}
+      <div className="flex shrink-0 items-center gap-0.5 no-drag">
+        <Tooltip content={zh ? "设计说明 / 站点图" : "Design rationale / sitemap"}>
           <button
-            onClick={() => {
-              toggle();
-              const nextModes = ["light", "dark", "system"] as const;
-              const nextIndex = (nextModes.indexOf(mode) + 1) % nextModes.length;
-              useSettingsStore.getState().update("theme", nextModes[nextIndex]);
-            }}
-            className="flex h-8 w-8 items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
-            title={mode === "system" ? t('titleBar.themeSystem') : mode === "dark" ? t('titleBar.themeDark') : t('titleBar.themeLight')}
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("open-design-system"))}
+            className="flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
           >
-            {mode === "system" ? (
-              <Monitor className="h-4 w-4" />
-            ) : resolved === "dark" ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
+            <Map className="h-4 w-4" />
           </button>
-        </div>
+        </Tooltip>
+        <Tooltip content={t('titleBar.plugins')}>
+          <button
+            type="button"
+            onClick={onOpenPlugins}
+            className="flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          >
+            <Puzzle className="h-4 w-4" />
+          </button>
+        </Tooltip>
+        <Tooltip content={zh ? "English" : "中文"}>
+          <button
+            type="button"
+            onClick={toggleLanguage}
+            className="flex h-7 w-7 items-center justify-center pf-rounded-sm pf-text-xs font-semibold text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          >
+            {zh ? "EN" : "中"}
+          </button>
+        </Tooltip>
+        <button
+          type="button"
+          onClick={cycleTheme}
+          className="flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          title={mode === "system" ? t('titleBar.themeSystem') : mode === "dark" ? t('titleBar.themeDark') : t('titleBar.themeLight')}
+        >
+          {mode === "system" ? (
+            <Monitor className="h-4 w-4" />
+          ) : resolved === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </button>
+        <Tooltip content={t('titleBar.settings')}>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

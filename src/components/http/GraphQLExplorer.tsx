@@ -24,15 +24,15 @@ function TypeKindIcon({ kind, className }: { kind: string; className?: string })
   const cls = cn('h-3.5 w-3.5 shrink-0', className);
   switch (kind) {
     case 'OBJECT':
-      return <Box className={cn(cls, 'text-blue-400')} />;
+      return <Box className={cn(cls, 'text-method-post')} />;
     case 'INPUT_OBJECT':
-      return <Box className={cn(cls, 'text-amber-400')} />;
+      return <Box className={cn(cls, 'text-method-put')} />;
     case 'INTERFACE':
-      return <Shield className={cn(cls, 'text-purple-400')} />;
+      return <Shield className={cn(cls, 'text-method-patch')} />;
     case 'UNION':
-      return <Zap className={cn(cls, 'text-teal-400')} />;
+      return <Zap className={cn(cls, 'text-method-head')} />;
     case 'ENUM':
-      return <List className={cn(cls, 'text-green-400')} />;
+      return <List className={cn(cls, 'text-method-get')} />;
     case 'SCALAR':
       return <Hash className={cn(cls, 'text-text-tertiary')} />;
     default:
@@ -108,7 +108,7 @@ function FieldRow({
             <p className="pf-text-xs text-text-secondary italic">{field.description}</p>
           )}
           {field.isDeprecated && (
-            <p className="pf-text-xs text-amber-500 dark:text-amber-300 flex items-center gap-1">
+            <p className="pf-text-xs text-warning flex items-center gap-1">
               <AlertTriangle className="h-3 w-3" />
               {field.deprecationReason || 'Deprecated'}
             </p>
@@ -158,7 +158,7 @@ function InputValueRow({
 function EnumValueRow({ value }: { value: GqlEnumValue }) {
   return (
     <div className="flex items-center gap-2 px-3 py-1 pl-8">
-      <span className={cn('pf-text-xs font-mono font-semibold text-green-400', value.isDeprecated && 'line-through text-text-disabled')}>
+      <span className={cn('pf-text-xs font-mono font-semibold text-method-get', value.isDeprecated && 'line-through text-text-disabled')}>
         {value.name}
       </span>
       {value.description && (

@@ -1,7 +1,7 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import {
   Play, Loader2, FolderOpen, RefreshCw, ChevronRight, ChevronDown,
-  Copy, Check, Square, Search, Lock, Send,
+  Copy, Check, Square, Search, Lock, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
@@ -15,9 +15,20 @@ import * as grpcService from "@/services/grpcService";
 import type {
   GrpcServiceInfo, GrpcMethodInfo, GrpcCallResult, GrpcStreamEvent, ProtoLoadResult,
 } from "@/types/grpc";
-import { buildRequestTemplate, getMethodKindLabel, getMethodKindColor } from "@/types/grpc";
+import { buildRequestTemplate, getMethodKindLabel } from "@/types/grpc";
+import type { GrpcMethodKind } from "@/types/grpc";
 
 const MAX_STREAM_MESSAGES = 500;
+
+// Map gRPC method kind to Forge method-* tokens (avoids hardcoded palette colors).
+function methodKindToneClass(kind: GrpcMethodKind): string {
+  switch (kind) {
+    case "unary": return "text-method-get";
+    case "serverStreaming": return "text-method-post";
+    case "clientStreaming": return "text-method-put";
+    case "bidiStreaming": return "text-method-patch";
+  }
+}
 
 // ── Service tree sidebar ──
 
@@ -84,7 +95,7 @@ function ServiceTree({
                   )}
                   onClick={() => onSelectMethod(method, svc)}
                 >
-                  <span className={cn("pf-text-xxs font-bold shrink-0 w-[52px]", getMethodKindColor(method.kind))}>
+                  <span className={cn("pf-mtag pf-text-xxs font-bold shrink-0 w-[64px]", methodKindToneClass(method.kind))}>
                     {getMethodKindLabel(method.kind)}
                   </span>
                   <span className="truncate text-text-secondary">{method.name}</span>
@@ -316,7 +327,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setTlsEnabled((v) => !v)}
-              className={cn("wb-ghost-btn pf-text-xs inline-flex items-center gap-1", tlsEnabled && "text-emerald-500 dark:text-emerald-300")}
+              className={cn("wb-ghost-btn pf-text-xs inline-flex items-center gap-1", tlsEnabled && "text-success")}
               title={t('grpc.tlsEnabled')}
             >
               <Lock className="h-3.5 w-3.5" /> {t('grpc.tls')}
@@ -333,7 +344,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
 
       {/* Error bar */}
       {protoError && (
-        <div className="px-4 py-1.5 bg-red-500/10 text-red-500 dark:text-red-300 pf-text-xs border-b border-red-500/20 truncate">
+        <div className="px-4 py-1.5 bg-error/10 text-error pf-text-xs border-b border-error/20 truncate">
           {protoError}
         </div>
       )}
@@ -363,7 +374,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
               <>
                 {/* Method header */}
                 <div className="flex items-center gap-2 px-4 py-2 border-b border-border-default/60">
-                  <span className={cn("pf-text-xs font-bold", getMethodKindColor(selectedMethod.kind))}>
+                  <span className={cn("pf-mtag pf-text-xs font-bold", methodKindToneClass(selectedMethod.kind))}>
                     {getMethodKindLabel(selectedMethod.kind)}
                   </span>
                   <span className="pf-text-sm font-mono text-text-primary truncate">
@@ -374,17 +385,17 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                       <>
                         <button
                           onClick={handleStreamSend}
-                          className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-emerald-500 dark:text-emerald-300"
+                          className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-success"
                         >
                           <Play className="h-3 w-3" /> {t('grpc.streamSend')}
                         </button>
-                        <button onClick={handleCloseSend} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-amber-500 dark:text-amber-300">
+                        <button onClick={handleCloseSend} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-warning">
                           {t('grpc.closeSend')}
                         </button>
                       </>
                     )}
                     {streaming && (
-                      <button onClick={handleCancel} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-red-500 dark:text-red-300">
+                      <button onClick={handleCancel} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1 text-error">
                         <Square className="h-3.5 w-3.5" /> {t('grpc.cancel')}
                       </button>
                     )}
@@ -424,18 +435,21 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                       <span>Response</span>
                       {response && (
                         <>
-                          <span className="text-emerald-500 dark:text-emerald-300">{response.statusCode === 0 ? "OK" : `Code ${response.statusCode}`}</span>
-                          <span className="text-text-tertiary">{response.durationMs}ms</span>
+                          <span className={cn("inline-flex items-center gap-1.5", response.statusCode === 0 ? "text-success" : "text-error")}>
+                            <span className={cn("pf-dot", response.statusCode === 0 ? "s-ok" : "s-err")} />
+                            {response.statusCode === 0 ? "OK" : `Code ${response.statusCode}`}
+                          </span>
+                          <span className="text-text-tertiary tabular-nums">{response.durationMs}ms</span>
                         </>
                       )}
-                      {streaming && <span className="text-blue-500 dark:text-blue-300 inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Streaming ({streamMessages.length})</span>}
+                      {streaming && <span className="text-accent inline-flex items-center gap-1.5"><span className="pf-dot s-live" /> Streaming ({streamMessages.length})</span>}
                       <button onClick={handleCopy} className="ml-auto p-0.5 text-text-tertiary hover:text-text-secondary">
                         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       </button>
                     </div>
                     <div className="flex-1 min-h-0 overflow-auto">
                       {error && (
-                        <div className="px-4 py-3 text-red-500 dark:text-red-300 pf-text-xs whitespace-pre-wrap">{error}</div>
+                        <div className="px-4 py-3 text-error pf-text-xs whitespace-pre-wrap">{error}</div>
                       )}
                       {response && (
                         <ResponseViewer
@@ -448,16 +462,20 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                           {streamMessages.map((msg, i) => {
                             const isSent = msg.connectionId === tabId && msg.eventType === "data" && !msg.statusCode;
                             return (
-                              <div key={i} className="px-4 py-2">
-                                <div className="pf-text-xxs text-text-disabled mb-1 flex items-center gap-1.5">
+                              <div key={i} className={cn("px-4 py-1.5 transition-colors hover:bg-bg-hover/40", isSent && "bg-accent-soft/30")}>
+                                <div className="mb-0.5 flex items-center gap-2 pf-text-3xs text-text-disabled">
                                   {isSent ? (
-                                    <Send className="h-2.5 w-2.5 text-amber-500 dark:text-amber-300" />
+                                    <ArrowUp className="h-3 w-3 shrink-0 text-method-post" />
                                   ) : (
-                                    <ChevronDown className="h-2.5 w-2.5 text-emerald-500 dark:text-emerald-300" />
+                                    <ArrowDown className="h-3 w-3 shrink-0 text-method-get" />
                                   )}
-                                  <span>#{i + 1} — {new Date(msg.timestamp).toLocaleTimeString()}</span>
+                                  <span className="shrink-0 font-mono tabular-nums text-text-tertiary">{new Date(msg.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}</span>
+                                  <span className={cn("shrink-0 font-mono pf-text-3xs font-bold uppercase tracking-wide", isSent ? "text-method-post" : "text-method-get")}>
+                                    {isSent ? '↑ SEND' : '↓ RECV'}
+                                  </span>
+                                  <span className="ml-auto shrink-0 tabular-nums">#{i + 1}</span>
                                 </div>
-                                <pre className="pf-text-xs text-text-primary font-mono whitespace-pre-wrap">{msg.data}</pre>
+                                <pre className="whitespace-pre-wrap break-all pl-5 pf-text-xs font-mono leading-[1.6] text-text-primary">{msg.data}</pre>
                               </div>
                             );
                           })}

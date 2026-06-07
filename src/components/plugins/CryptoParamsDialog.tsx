@@ -42,14 +42,14 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
 
   const isEncrypt = mode === 'encrypt';
   const Icon = isEncrypt ? Lock : Unlock;
-  const iconColor = isEncrypt ? 'text-amber-500 dark:text-amber-300' : 'text-emerald-500 dark:text-emerald-300';
+  const iconColor = isEncrypt ? 'text-warning' : 'text-success';
   const btnColor = isEncrypt
     ? 'bg-warning hover:bg-warning/90'
     : 'bg-success hover:bg-success/90';
 
   return createPortal(
     <div className="fixed inset-0 z-[var(--z-toast)] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-[420px] rounded-2xl border border-border-default bg-bg-surface shadow-2xl">
+      <div className="w-[420px] pf-rounded-xl border border-border-strong bg-bg-elevated shadow-2xl">
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border-default">
           <Icon className={cn('w-4.5 h-4.5', iconColor)} />
@@ -118,7 +118,7 @@ function ParamField({
     <div className="space-y-1.5">
       <label className="flex items-center gap-1 text-text-secondary font-medium" style={{ fontSize: 'var(--fs-xs)' }}>
         {param.name}
-        {param.required && <span className="text-red-400">*</span>}
+        {param.required && <span className="text-error">*</span>}
       </label>
 
       {param.paramType === 'select' && param.options ? (

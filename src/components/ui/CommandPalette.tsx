@@ -1,17 +1,46 @@
 // ProtoForge Command Palette (Ctrl+K)
-// 全局搜索：集合/请求/环境/历史
+// Forge grouped sections: 导航 Go to (rail domains) / 命令 Commands / 请求 Requests
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, FileText, Globe, X, Network, Gauge, Radio, Puzzle, Settings, Braces, Waves, Palette, Server, Cookie, Workflow } from 'lucide-react';
+import {
+  Search, FileText, Globe, X, Network, Gauge, Radio, Puzzle, Settings, Braces, Waves, Palette, Server, Cookie, Workflow,
+  Database, Video, Wrench, Zap, type LucideIcon,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import { useAppStore } from '@/stores/appStore';
+import {
+  useAppStore,
+  openForgeDomain,
+  FORGE_DOMAINS,
+  FORGE_GROUPS,
+  type ForgeDomain,
+} from '@/stores/appStore';
+import { useCollectionStore } from '@/stores/collectionStore';
+import type { CollectionItem } from '@/types/collections';
 
-interface SearchItem {
-  type: 'collection' | 'request' | 'environment' | 'history' | 'action';
+const DOMAIN_ICONS: Record<string, LucideIcon> = {
+  globe: Globe,
+  radio: Radio,
+  server: Server,
+  zap: Zap,
+  database: Database,
+  video: Video,
+  gauge: Gauge,
+  waves: Waves,
+  wrench: Wrench,
+  puzzle: Puzzle,
+};
+
+interface PaletteItem {
+  id: string;
+  /** Forge section label, e.g. "导航 Go to". */
+  section: string;
   label: string;
-  description?: string;
-  icon: typeof Search;
+  hint?: string;
+  /** lucide icon, when not a request method tag. */
+  icon?: LucideIcon;
+  /** http method → renders a .pf-mtag badge instead of an icon. */
+  method?: string;
   action: () => void;
 }
 
@@ -21,75 +50,123 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
   const inputRef = useRef<HTMLInputElement>(null);
   const addTab = useAppStore((s) => s.addTab);
   const updateHttpConfig = useAppStore((s) => s.updateHttpConfig);
-  const openToolTab = useAppStore((s) => s.openToolTab);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const zh = i18n.language?.startsWith('zh') ?? true;
+  const dl = (d: ForgeDomain) => (zh ? d.zh : d.en);
 
-  // 重置状态
+  const collections = useCollectionStore((s) => s.collections);
+  const collectionItems = useCollectionStore((s) => s.items);
+  const fetchItems = useCollectionStore((s) => s.fetchItems);
+
+  // 打开时重置状态并确保集合项已加载（用于「请求」分组）
   useEffect(() => {
     if (isOpen) {
       setQuery('');
       setSelectedIdx(0);
       setTimeout(() => inputRef.current?.focus(), 50);
+      collections.forEach((c) => {
+        if (!collectionItems[c.id]) void fetchItems(c.id);
+      });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // 构建搜索项
-  const items = useMemo<SearchItem[]>(() => {
-    const results: SearchItem[] = [];
+  const sectionGo = zh ? '导航 Go to' : 'Go to';
+  const sectionCmd = zh ? '命令 Commands' : 'Commands';
+  const sectionReq = zh ? '请求 Requests' : 'Requests';
 
-    // Quick actions
+  // Open a saved collection request into a new HTTP tab.
+  const openRequestItem = useCallback((item: CollectionItem) => {
+    const tabId = addTab('http');
+    let headers: { key: string; value: string; enabled: boolean }[] = [];
+    try { if (item.headers) { const p = JSON.parse(item.headers); if (Array.isArray(p)) headers = p; } } catch { /* ignore */ }
+    updateHttpConfig(tabId, {
+      method: (item.method || 'GET') as never,
+      url: item.url || '',
+      name: item.name,
+      ...(headers.length ? { headers } : {}),
+    });
+    useAppStore.getState().renameTab(tabId, item.name || `${item.method} ${item.url}`);
+    onClose();
+  }, [addTab, updateHttpConfig, onClose]);
+
+  // 构建分组命令项
+  const items = useMemo<PaletteItem[]>(() => {
+    const results: PaletteItem[] = [];
+
+    // ── 导航 Go to — rail domains, ordered by group ──
+    for (const group of FORGE_GROUPS) {
+      for (const d of FORGE_DOMAINS.filter((x) => x.group === group.id)) {
+        results.push({
+          id: `go-${d.id}`,
+          section: sectionGo,
+          label: dl(d),
+          icon: DOMAIN_ICONS[d.icon] ?? Globe,
+          action: () => { openForgeDomain(d.id, { onOpenPluginModal: () => window.dispatchEvent(new CustomEvent('open-plugin-modal')) }); onClose(); },
+        });
+      }
+    }
+
+    // ── 命令 Commands — quick actions ──
     results.push(
-      { type: 'action', label: t('commandPalette.newHttpRequest'), description: 'Ctrl+N', icon: FileText, action: () => { addTab('http'); onClose(); } },
-      {
-        type: 'action',
-        label: t('commandPalette.newGraphqlRequest'),
-        icon: Braces,
-        action: () => {
-          const tabId = addTab('http');
-          updateHttpConfig(tabId, { requestMode: 'graphql', name: 'GraphQL Request', method: 'POST' });
-          onClose();
-        }
-      },
-      { type: 'action', label: t('commandPalette.newWsConnection'), icon: Globe, action: () => { addTab('ws'); onClose(); } },
-      {
-        type: 'action',
-        label: t('commandPalette.newSseConnection'),
-        icon: Waves,
-        action: () => {
-          const tabId = addTab('http');
-          updateHttpConfig(tabId, { requestMode: 'sse', name: 'SSE Stream', method: 'GET' });
-          onClose();
-        }
-      },
-      { type: 'action', label: t('commandPalette.newMqttConnection'), icon: Globe, action: () => { addTab('mqtt'); onClose(); } },
-      { type: 'action', label: t('commandPalette.openTcpUdp'), icon: Network, action: () => { openToolTab('tcpudp'); onClose(); } },
-      { type: 'action', label: t('commandPalette.openCapture'), icon: Radio, action: () => { openToolTab('capture'); onClose(); } },
-      { type: 'action', label: t('commandPalette.openLoadtest'), icon: Gauge, action: () => { openToolTab('loadtest'); onClose(); } },
-      { type: 'action', label: t('commandPalette.openMockServer'), icon: Server, action: () => { openToolTab('mockserver'); onClose(); } },
-      { type: 'action', label: t('commandPalette.openWorkflow'), icon: Workflow, action: () => { openToolTab('workflow'); onClose(); } },
-      { type: 'action', label: t('commandPalette.openPlugins'), icon: Puzzle, action: () => { window.dispatchEvent(new CustomEvent('open-plugin-modal')); onClose(); } },
-      { type: 'action', label: t('commandPalette.openSettings'), icon: Settings, action: () => { window.dispatchEvent(new CustomEvent('open-settings-modal')); onClose(); } },
-      { type: 'action', label: t('commandPalette.openCookieManager'), icon: Cookie, action: () => { window.dispatchEvent(new CustomEvent('open-cookie-manager')); onClose(); } },
-      { type: 'action', label: 'Design System', description: 'Dev', icon: Palette, action: () => { window.dispatchEvent(new CustomEvent('open-design-system')); onClose(); } },
+      { id: 'cmd-http', section: sectionCmd, label: t('commandPalette.newHttpRequest'), hint: 'Ctrl+N', icon: FileText, action: () => { addTab('http'); onClose(); } },
+      { id: 'cmd-gql', section: sectionCmd, label: t('commandPalette.newGraphqlRequest'), icon: Braces, action: () => { const id = addTab('http'); updateHttpConfig(id, { requestMode: 'graphql', name: 'GraphQL Request', method: 'POST' }); onClose(); } },
+      { id: 'cmd-ws', section: sectionCmd, label: t('commandPalette.newWsConnection'), icon: Globe, action: () => { addTab('ws'); onClose(); } },
+      { id: 'cmd-sse', section: sectionCmd, label: t('commandPalette.newSseConnection'), icon: Waves, action: () => { const id = addTab('http'); updateHttpConfig(id, { requestMode: 'sse', name: 'SSE Stream', method: 'GET' }); onClose(); } },
+      { id: 'cmd-mqtt', section: sectionCmd, label: t('commandPalette.newMqttConnection'), icon: Globe, action: () => { addTab('mqtt'); onClose(); } },
+      { id: 'cmd-tcp', section: sectionCmd, label: t('commandPalette.openTcpUdp'), icon: Network, action: () => { useAppStore.getState().openToolTab('tcpudp'); onClose(); } },
+      { id: 'cmd-cap', section: sectionCmd, label: t('commandPalette.openCapture'), icon: Radio, action: () => { useAppStore.getState().openToolTab('capture'); onClose(); } },
+      { id: 'cmd-load', section: sectionCmd, label: t('commandPalette.openLoadtest'), icon: Gauge, action: () => { useAppStore.getState().openToolTab('loadtest'); onClose(); } },
+      { id: 'cmd-mock', section: sectionCmd, label: t('commandPalette.openMockServer'), icon: Server, action: () => { useAppStore.getState().openToolTab('mockserver'); onClose(); } },
+      { id: 'cmd-flow', section: sectionCmd, label: t('commandPalette.openWorkflow'), icon: Workflow, action: () => { useAppStore.getState().openToolTab('workflow'); onClose(); } },
+      { id: 'cmd-plugins', section: sectionCmd, label: t('commandPalette.openPlugins'), icon: Puzzle, action: () => { window.dispatchEvent(new CustomEvent('open-plugin-modal')); onClose(); } },
+      { id: 'cmd-settings', section: sectionCmd, label: t('commandPalette.openSettings'), hint: '⌘,', icon: Settings, action: () => { window.dispatchEvent(new CustomEvent('open-settings-modal')); onClose(); } },
+      { id: 'cmd-cookie', section: sectionCmd, label: t('commandPalette.openCookieManager'), icon: Cookie, action: () => { window.dispatchEvent(new CustomEvent('open-cookie-manager')); onClose(); } },
+      { id: 'cmd-design', section: sectionCmd, label: 'Design System', hint: 'Dev', icon: Palette, action: () => { window.dispatchEvent(new CustomEvent('open-design-system')); onClose(); } },
     );
 
-    // Filter by query
+    // ── 请求 Requests — saved collection requests (already-loaded items) ──
+    for (const col of collections) {
+      const list = collectionItems[col.id] || [];
+      for (const item of list) {
+        if (item.itemType !== 'request') continue;
+        results.push({
+          id: `req-${item.id}`,
+          section: sectionReq,
+          label: item.name,
+          hint: item.url || col.name,
+          method: item.method || 'GET',
+          action: () => openRequestItem(item),
+        });
+      }
+    }
+
     if (!query.trim()) return results;
     const q = query.toLowerCase();
-    return results.filter(item =>
-      item.label.toLowerCase().includes(q) ||
-      (item.description?.toLowerCase().includes(q))
+    return results.filter(
+      (it) => it.label.toLowerCase().includes(q) || (it.hint?.toLowerCase().includes(q)) || (it.method?.toLowerCase().includes(q)),
     );
-  }, [query, addTab, onClose, openToolTab, t, updateHttpConfig]);
+  }, [query, addTab, onClose, t, updateHttpConfig, collections, collectionItems, openRequestItem, sectionGo, sectionCmd, sectionReq, dl]);
 
-  // 键盘导航
+  // 分组渲染顺序（保留 results 中的相对顺序）
+  const grouped = useMemo(() => {
+    const order: string[] = [sectionGo, sectionCmd, sectionReq];
+    const map = new Map<string, PaletteItem[]>();
+    for (const it of items) {
+      if (!map.has(it.section)) map.set(it.section, []);
+      map.get(it.section)!.push(it);
+    }
+    return order.filter((s) => map.has(s)).map((s) => ({ section: s, items: map.get(s)! }));
+  }, [items, sectionGo, sectionCmd, sectionReq]);
+
+  // 键盘导航（基于扁平 items 索引）
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIdx(i => (i + 1) % Math.max(1, items.length));
+      setSelectedIdx((i) => (i + 1) % Math.max(1, items.length));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIdx(i => (i <= 0 ? items.length - 1 : i - 1));
+      setSelectedIdx((i) => (i <= 0 ? items.length - 1 : i - 1));
     } else if (e.key === 'Enter' && items[selectedIdx]) {
       e.preventDefault();
       items[selectedIdx].action();
@@ -101,10 +178,12 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
   if (!isOpen) return null;
 
+  let flatIdx = -1;
+
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[var(--z-tooltip)] dark:bg-black/70" onClick={onClose} />
-      <div className="fixed left-1/2 top-[15%] z-[var(--z-tooltip)] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden pf-rounded-xl border border-border-default bg-popover text-popover-foreground shadow-[0_12px_32px_-4px_rgba(0,0,0,0.14),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)]">
+      <div className="fixed inset-0 bg-[rgba(20,28,40,0.34)] backdrop-blur-sm z-[var(--z-tooltip)] dark:bg-[rgba(5,6,8,0.62)]" onClick={onClose} />
+      <div className="fixed left-1/2 top-[15%] z-[var(--z-tooltip)] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden pf-rounded-xl border border-border-strong bg-bg-elevated text-popover-foreground shadow-lg">
         {/* Search Input */}
         <div className="flex items-center gap-3 border-b border-border-subtle px-5 py-3 dark:border-white/[0.05]">
           <Search className="w-4 h-4 text-text-disabled shrink-0" />
@@ -121,45 +200,47 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
           </button>
         </div>
 
-        {/* Results */}
-        <div className="flex-1 overflow-auto py-2.5">
+        {/* Grouped results */}
+        <div className="flex-1 overflow-auto py-2">
           {items.length === 0 ? (
             <div className="flex items-center justify-center h-20 text-text-disabled pf-text-base">
               {t('commandPalette.noResults')}
             </div>
           ) : (
-            items.map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={i}
-                  onClick={item.action}
-                  onMouseEnter={() => setSelectedIdx(i)}
-                  className={cn(
-                    "mx-2 flex w-[calc(100%-1rem)] items-center gap-3 pf-rounded-lg px-4 py-3 text-left transition-colors",
-                    i === selectedIdx
-                      ? "bg-muted dark:bg-white/[0.06]"
-                      : "hover:bg-muted/60 dark:hover:bg-white/[0.03]"
-                  )}
-                >
-                  <Icon className={cn("w-4 h-4 shrink-0", i === selectedIdx ? "text-accent" : "text-text-disabled")} />
-                  <div className="flex-1 min-w-0">
-                    <p className={cn("pf-text-base font-medium truncate", i === selectedIdx ? "text-accent" : "text-text-primary")}>
-                      {item.label}
-                    </p>
-                    {item.description && <p className="pf-text-xs text-text-disabled truncate">{item.description}</p>}
-                  </div>
-                  <span className={cn("pf-text-xxs uppercase tracking-wider shrink-0",
-                    item.type === 'action' ? "text-accent/60" :
-                    item.type === 'collection' ? "text-blue-500 dark:text-blue-300/60" :
-                    item.type === 'environment' ? "text-emerald-500 dark:text-emerald-300/60" :
-                    "text-text-disabled"
-                  )}>
-                    {item.type === 'action' ? t('commandPalette.typeAction') : item.type === 'collection' ? t('commandPalette.typeCollection') : item.type === 'environment' ? t('commandPalette.typeEnvironment') : item.type === 'history' ? t('commandPalette.typeHistory') : t('commandPalette.typeRequest')}
-                  </span>
-                </button>
-              );
-            })
+            grouped.map((group) => (
+              <div key={group.section} className="mb-1">
+                <div className="px-5 pb-1 pt-2 pf-text-xxs font-bold uppercase tracking-[0.06em] text-text-tertiary">
+                  {group.section}
+                </div>
+                {group.items.map((item) => {
+                  flatIdx += 1;
+                  const idx = flatIdx;
+                  const isSel = idx === selectedIdx;
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={item.action}
+                      onMouseEnter={() => setSelectedIdx(idx)}
+                      className={cn(
+                        'mx-2 flex w-[calc(100%-1rem)] items-center gap-3 pf-rounded-lg px-3 py-2 text-left transition-colors',
+                        isSel ? 'bg-muted dark:bg-white/[0.06]' : 'hover:bg-muted/60 dark:hover:bg-white/[0.03]',
+                      )}
+                    >
+                      {item.method ? (
+                        <span className={cn('pf-mtag shrink-0 w-[34px] text-center', `m-${item.method.toLowerCase()}`)}>{item.method}</span>
+                      ) : Icon ? (
+                        <Icon className={cn('w-4 h-4 shrink-0', isSel ? 'text-accent' : 'text-text-disabled')} />
+                      ) : null}
+                      <span className={cn('flex-1 min-w-0 truncate pf-text-base font-medium', isSel ? 'text-accent' : 'text-text-primary')}>
+                        {item.label}
+                      </span>
+                      {item.hint && <span className="shrink-0 truncate pf-text-xs text-text-disabled max-w-[180px]">{item.hint}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            ))
           )}
         </div>
 

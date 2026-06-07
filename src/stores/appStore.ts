@@ -14,6 +14,120 @@ export type ToolWorkbench = "tcpudp" | "loadtest" | "capture" | "videostream" | 
 export type WorkbenchView = "home" | "requests" | ToolWorkbench;
 export type WorkspaceProtocol = RequestProtocol | ToolWorkbench | "collection";
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * Forge IA — presentation-layer domain model (additive over the dual store)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Per-context lifecycle state, surfaced as the leading status dot (.pf-dot). */
+export type ContextState = "idle" | "ok" | "live" | "run" | "err";
+
+/** A Forge "domain" — the activity-rail entries, grouped by capability area. */
+export type ForgeDomainId =
+  | "api"
+  | "realtime"
+  | "mock"
+  | "workflow"
+  | "db"
+  | "media"
+  | "load"
+  | "capture"
+  | "toolbox"
+  | "plugins";
+
+export type ForgeGroupId = "work" | "data" | "diag" | "ext";
+
+/** lucide icon name (resolved in the rail) — kept as a plain string id. */
+export interface ForgeDomain {
+  id: ForgeDomainId;
+  group: ForgeGroupId;
+  icon: string;
+  zh: string;
+  en: string;
+  /** opens a modal instead of mounting a workspace (e.g. plugins market). */
+  modal?: boolean;
+  /** the WorkbenchView this domain maps onto when one exists. */
+  workbench?: WorkbenchView;
+}
+
+export const FORGE_GROUPS: Array<{ id: ForgeGroupId; zh: string; en: string }> = [
+  { id: "work", zh: "工作", en: "Work" },
+  { id: "data", zh: "数据", en: "Data" },
+  { id: "diag", zh: "诊断", en: "Diagnostics" },
+  { id: "ext", zh: "扩展", en: "Extend" },
+];
+
+export const FORGE_DOMAINS: ForgeDomain[] = [
+  { id: "api", group: "work", icon: "globe", zh: "API 接口", en: "API", workbench: "requests" },
+  { id: "realtime", group: "work", icon: "radio", zh: "实时连接", en: "Realtime", workbench: "requests" },
+  { id: "mock", group: "work", icon: "server", zh: "Mock 服务", en: "Mock", workbench: "mockserver" },
+  { id: "workflow", group: "work", icon: "zap", zh: "工作流", en: "Workflow", workbench: "workflow" },
+  { id: "db", group: "data", icon: "database", zh: "数据库", en: "Database", workbench: "dbclient" },
+  { id: "media", group: "data", icon: "video", zh: "视频流", en: "Media", workbench: "videostream" },
+  { id: "load", group: "diag", icon: "gauge", zh: "压测", en: "Load Test", workbench: "loadtest" },
+  { id: "capture", group: "diag", icon: "waves", zh: "抓包代理", en: "Capture", workbench: "capture" },
+  { id: "toolbox", group: "ext", icon: "wrench", zh: "工具箱", en: "Toolbox", workbench: "toolbox" },
+  { id: "plugins", group: "ext", icon: "puzzle", zh: "插件市场", en: "Plugins", modal: true },
+];
+
+/** Maps a tool workbench to a Forge domain id (for rail active-state + dot). */
+const TOOL_TO_DOMAIN: Record<ToolWorkbench, ForgeDomainId> = {
+  mockserver: "mock",
+  workflow: "workflow",
+  dbclient: "db",
+  videostream: "media",
+  loadtest: "load",
+  capture: "capture",
+  toolbox: "toolbox",
+  tcpudp: "realtime",
+};
+
+/** Maps a request protocol to a Forge domain id. */
+const PROTOCOL_TO_DOMAIN: Record<RequestProtocol, ForgeDomainId> = {
+  http: "api",
+  ws: "realtime",
+  mqtt: "realtime",
+  grpc: "realtime",
+};
+
+/** lucide icon name per request protocol (http uses the method tag instead). */
+const PROTOCOL_ICON: Record<RequestProtocol, string> = {
+  http: "globe",
+  ws: "wifi",
+  mqtt: "radio",
+  grpc: "network",
+};
+
+/** lucide icon name per tool workbench, for the unified strip. */
+const TOOL_ICON: Record<ToolWorkbench, string> = {
+  tcpudp: "network",
+  loadtest: "gauge",
+  capture: "waves",
+  videostream: "video",
+  mockserver: "server",
+  dbclient: "database",
+  toolbox: "wrench",
+  workflow: "zap",
+};
+
+/** A unified, presentation-layer view of any open context (AppTab or ToolSession). */
+export interface UnifiedTab {
+  /** stable id — the AppTab.id or `${tool}:${sessionId}` for tool sessions. */
+  id: string;
+  kind: "request" | "tool";
+  /** underlying source ids for action dispatch. */
+  tabId?: string;
+  tool?: ToolWorkbench;
+  sessionId?: string;
+  protocol?: RequestProtocol;
+  domain: ForgeDomainId;
+  title: string;
+  /** http method, when applicable, for the .pf-mtag badge. */
+  method?: string;
+  /** lucide icon name for non-http contexts. */
+  icon: string;
+  state: ContextState;
+}
+
 export interface ToolSession {
   id: string;
   tool: ToolWorkbench;
@@ -47,6 +161,8 @@ interface AppStore {
   activeCollectionId: string | null;
   toolSessions: Record<ToolWorkbench, ToolSession[]>;
   activeToolSessionIds: Record<ToolWorkbench, string | null>;
+  /** Per-context lifecycle state, keyed by UnifiedTab.id. Drives the status dot. */
+  contextStates: Record<string, ContextState>;
 
   addTab: (protocol?: RequestProtocol) => string;
   openToolTab: (tool: ToolWorkbench, sessionId?: string, options?: ToolSessionOptions) => string;
@@ -76,6 +192,21 @@ interface AppStore {
   setError: (id: string, error: string | null) => void;
 
   getActiveTab: () => AppTab | null;
+
+  /* ── Forge IA selectors / actions (additive) ──────────────────────────── */
+  /** Sets the lifecycle state for a unified-context id (drives the status dot). */
+  setContextState: (contextId: string, state: ContextState) => void;
+  /** The unified list of every open context (requests + tool sessions). */
+  getUnifiedTabs: () => UnifiedTab[];
+  /** The UnifiedTab.id that is currently active, given activeWorkbench. */
+  getActiveUnifiedTabId: () => string | null;
+  /** Resolves the Forge domain currently in focus (for rail highlight + status). */
+  getActiveDomain: () => ForgeDomainId | null;
+}
+
+/** Builds the stable unified id for a tool session. */
+export function toolContextId(tool: ToolWorkbench, sessionId: string): string {
+  return `${tool}:${sessionId}`;
 }
 
 const requestLabels: Record<RequestProtocol, string> = {
@@ -120,6 +251,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     toolbox: null,
     workflow: null,
   },
+  contextStates: {},
 
   addTab: (protocol: RequestProtocol = "http") => {
     const id = crypto.randomUUID();
@@ -501,4 +633,142 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const state = get();
     return state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
   },
+
+  setContextState: (contextId, contextState) => {
+    set((state) => ({
+      contextStates: { ...state.contextStates, [contextId]: contextState },
+    }));
+  },
+
+  getUnifiedTabs: () => {
+    const state = get();
+    const result: UnifiedTab[] = [];
+
+    for (const tab of state.tabs) {
+      const protocol = tab.protocol;
+      const title =
+        tab.customLabel?.trim() ||
+        (protocol === "http" && tab.httpConfig?.name?.trim() && tab.httpConfig.name !== "Untitled Request"
+          ? tab.httpConfig.name.trim()
+          : "") ||
+        (protocol === "http" ? tab.httpConfig?.url?.trim() : "") ||
+        tab.label;
+
+      // Default state: loading -> run, error -> err, otherwise explicit override or idle.
+      const fallback: ContextState = tab.loading ? "run" : tab.error ? "err" : "idle";
+
+      result.push({
+        id: tab.id,
+        kind: "request",
+        tabId: tab.id,
+        protocol,
+        domain: PROTOCOL_TO_DOMAIN[protocol],
+        title: title || tab.label,
+        method: protocol === "http" ? tab.httpConfig?.method : undefined,
+        icon: PROTOCOL_ICON[protocol],
+        state: state.contextStates[tab.id] ?? fallback,
+      });
+    }
+
+    (Object.keys(state.toolSessions) as ToolWorkbench[]).forEach((tool) => {
+      for (const session of state.toolSessions[tool]) {
+        const contextId = toolContextId(tool, session.id);
+        // Tools without an explicit override default to idle (live connections set 'live').
+        result.push({
+          id: contextId,
+          kind: "tool",
+          tool,
+          sessionId: session.id,
+          domain: TOOL_TO_DOMAIN[tool],
+          title: session.customLabel?.trim() || FORGE_DOMAINS.find((d) => d.id === TOOL_TO_DOMAIN[tool])?.en || tool,
+          icon: TOOL_ICON[tool],
+          state: state.contextStates[contextId] ?? "idle",
+        });
+      }
+    });
+
+    return result;
+  },
+
+  getActiveUnifiedTabId: () => {
+    const state = get();
+    const workbench = state.activeWorkbench;
+    if (workbench === "home") return null;
+    if (workbench === "requests") {
+      return state.activeTabId;
+    }
+    // tool workbench
+    const sessionId = state.activeToolSessionIds[workbench];
+    return sessionId ? toolContextId(workbench, sessionId) : null;
+  },
+
+  getActiveDomain: () => {
+    const state = get();
+    const workbench = state.activeWorkbench;
+    if (workbench === "home") return null;
+    if (workbench === "requests") {
+      const tab = state.tabs.find((t) => t.id === state.activeTabId);
+      return tab ? PROTOCOL_TO_DOMAIN[tab.protocol] : "api";
+    }
+    return TOOL_TO_DOMAIN[workbench];
+  },
 }));
+
+/**
+ * Dispatches a Forge rail domain to the existing nav actions.
+ * Reuses addTab / openToolTab / setActiveTab — never bypasses the dual model.
+ * `onOpenPluginModal` is supplied by App.tsx for the modal-only domain.
+ *
+ * Behavior mirrors the prototype: focus an existing context for that domain if
+ * one is open, otherwise create one (or switch to the tool workbench, which
+ * lazily creates a session via openToolTab when empty).
+ */
+export function openForgeDomain(
+  domainId: ForgeDomainId,
+  opts: { onOpenPluginModal?: () => void } = {},
+): void {
+  const store = useAppStore.getState();
+
+  if (domainId === "plugins") {
+    opts.onOpenPluginModal?.();
+    return;
+  }
+
+  if (domainId === "api") {
+    // Focus an existing http tab if present, else open a new one.
+    const existing = store.tabs.find((t) => t.protocol === "http");
+    if (existing) {
+      store.setActiveTab(existing.id);
+    } else {
+      store.addTab("http");
+    }
+    return;
+  }
+
+  if (domainId === "realtime") {
+    // Realtime spans ws/mqtt/grpc request tabs AND the tcp/udp tool.
+    // Prefer focusing an existing realtime request tab; else fall back to the
+    // tcp/udp tool workbench (which is the dedicated long-connection surface).
+    const existing = store.tabs.find(
+      (t) => t.protocol === "ws" || t.protocol === "mqtt" || t.protocol === "grpc",
+    );
+    if (existing) {
+      store.setActiveTab(existing.id);
+      return;
+    }
+    if (store.toolSessions.tcpudp.length > 0) {
+      store.openToolTab("tcpudp");
+      return;
+    }
+    // Nothing open yet — start a WebSocket request as the default realtime entry.
+    store.addTab("ws");
+    return;
+  }
+
+  // Remaining domains map 1:1 onto a tool workbench.
+  const domain = FORGE_DOMAINS.find((d) => d.id === domainId);
+  const workbench = domain?.workbench;
+  if (workbench && workbench !== "home" && workbench !== "requests") {
+    store.openToolTab(workbench);
+  }
+}

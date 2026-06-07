@@ -113,22 +113,27 @@ export function SetEnvVariableDialog() {
       />
       {/* Dialog */}
       <div
-        className="fixed z-[601] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[380px] bg-bg-surface border border-border-default rounded-xl shadow-2xl"
+        className="fixed z-[601] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[380px] bg-bg-elevated border border-border-strong pf-rounded-xl shadow-2xl"
         onKeyDown={handleKeyDown}
       >
-        <div className="px-5 pt-4 pb-3">
-          <h3 className="pf-text-sm font-semibold text-text-primary">
-            {t('contextMenu.setAsEnvVariable', '设为环境变量')}
-          </h3>
-          <p className="pf-text-xs text-text-secondary mt-1 truncate" title={pending.value}>
-            {t('contextMenu.envVarValue', '值')}: <code className="bg-bg-elevated px-1 rounded">{pending.value.length > 60 ? pending.value.slice(0, 60) + '...' : pending.value}</code>
-          </p>
+        <div className="flex items-center gap-2.5 px-5 pt-4 pb-3 border-b border-border-default">
+          <div className="w-7 h-7 pf-rounded-md bg-accent-soft flex items-center justify-center shrink-0">
+            <Layers className="w-3.5 h-3.5 text-accent" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="pf-text-sm font-semibold text-text-primary">
+              {t('contextMenu.setAsEnvVariable', '设为环境变量')}
+            </h3>
+            <p className="pf-text-xs text-text-secondary mt-0.5 truncate" title={pending.value}>
+              {t('contextMenu.envVarValue', '值')}: <code className="font-mono bg-bg-tertiary text-accent px-1 pf-rounded-xs">{pending.value.length > 60 ? pending.value.slice(0, 60) + '...' : pending.value}</code>
+            </p>
+          </div>
         </div>
 
-        <div className="px-5 space-y-3 pb-4">
+        <div className="px-5 space-y-3 pb-4 pt-3">
           {/* Variable name */}
           <div>
-            <label className="pf-text-xs text-text-secondary block mb-1">
+            <label className="pf-text-3xs font-semibold uppercase tracking-[0.05em] text-text-disabled block mb-1.5">
               {t('contextMenu.envVarName', '变量名')}
             </label>
             <input
@@ -136,23 +141,23 @@ export function SetEnvVariableDialog() {
               value={varName}
               onChange={(e) => setVarName(e.target.value)}
               placeholder="e.g. API_TOKEN"
-              className="w-full px-3 py-1.5 pf-text-sm bg-bg-elevated border border-border-subtle rounded-lg text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-border-focus"
+              className="w-full px-3 py-1.5 pf-text-sm font-mono bg-bg-secondary border border-border-default pf-rounded-md text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-border-focus transition-colors"
             />
           </div>
 
           {/* Scope selector */}
           <div>
-            <label className="pf-text-xs text-text-secondary block mb-1">
+            <label className="pf-text-3xs font-semibold uppercase tracking-[0.05em] text-text-disabled block mb-1.5">
               {t('contextMenu.envVarScope', '作用域')}
             </label>
             <div className="space-y-1">
               <button
                 onClick={() => setScope('global')}
                 className={cn(
-                  'w-full flex items-center gap-2 px-3 py-1.5 pf-text-sm rounded-lg transition-colors text-left',
+                  'w-full flex items-center gap-2 px-3 py-1.5 pf-text-sm pf-rounded-md transition-colors text-left',
                   scope === 'global'
-                    ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/30'
-                    : 'bg-bg-elevated text-text-secondary hover:bg-bg-hover border border-transparent',
+                    ? 'bg-accent-soft text-accent border border-accent/30'
+                    : 'bg-bg-secondary text-text-secondary hover:bg-bg-hover border border-transparent',
                 )}
               >
                 <Globe className="w-3.5 h-3.5 shrink-0" />
@@ -163,16 +168,16 @@ export function SetEnvVariableDialog() {
                   key={env.id}
                   onClick={() => setScope(env.id)}
                   className={cn(
-                    'w-full flex items-center gap-2 px-3 py-1.5 pf-text-sm rounded-lg transition-colors text-left',
+                    'w-full flex items-center gap-2 px-3 py-1.5 pf-text-sm pf-rounded-md transition-colors text-left',
                     scope === env.id
-                      ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/30'
-                      : 'bg-bg-elevated text-text-secondary hover:bg-bg-hover border border-transparent',
+                      ? 'bg-accent-soft text-accent border border-accent/30'
+                      : 'bg-bg-secondary text-text-secondary hover:bg-bg-hover border border-transparent',
                   )}
                 >
                   <Layers className="w-3.5 h-3.5 shrink-0" />
                   {env.name}
                   {env.id === activeEnvId && (
-                    <span className="pf-text-xxs text-accent-primary ml-auto">{t('contextMenu.envActive', '活跃')}</span>
+                    <span className="pf-pill ok h-[15px] px-1.5 text-[9px] ml-auto">{t('contextMenu.envActive', '活跃')}</span>
                   )}
                 </button>
               ))}
@@ -181,10 +186,10 @@ export function SetEnvVariableDialog() {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border-subtle">
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border-default">
           <button
             onClick={() => setPending(null)}
-            className="px-3 py-1.5 pf-text-sm text-text-secondary hover:bg-bg-hover rounded-lg transition-colors"
+            className="px-3 py-1.5 pf-text-sm text-text-secondary hover:bg-bg-hover pf-rounded-md transition-colors"
           >
             {t('common.cancel', '取消')}
           </button>
@@ -192,10 +197,10 @@ export function SetEnvVariableDialog() {
             onClick={handleSave}
             disabled={!varName.trim() || saving}
             className={cn(
-              'px-4 py-1.5 pf-text-sm rounded-lg font-medium transition-colors',
+              'px-4 py-1.5 pf-text-sm pf-rounded-md font-medium transition-colors',
               varName.trim() && !saving
-                ? 'bg-accent-primary text-white hover:bg-accent-primary/90'
-                : 'bg-bg-elevated text-text-disabled cursor-not-allowed',
+                ? 'bg-accent text-white hover:bg-accent-hover'
+                : 'bg-bg-tertiary text-text-disabled cursor-not-allowed',
             )}
           >
             {saving ? t('common.saving', '保存中...') : t('common.save', '保存')}

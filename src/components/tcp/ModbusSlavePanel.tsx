@@ -92,7 +92,7 @@ function SlaveConnectionBar({
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <div className="col-span-2 flex items-center gap-2 pf-rounded-md border border-border-default/60 bg-bg-secondary/35 p-1">
-          <div className="flex h-8 shrink-0 items-center justify-center gap-1.5 pf-rounded-sm bg-violet-600 px-2.5 pf-text-xs font-semibold text-white shadow-sm">
+          <div className="flex h-8 shrink-0 items-center justify-center gap-1.5 pf-rounded-sm bg-accent-soft text-accent px-2.5 pf-text-xs font-semibold">
             <Cpu className="h-3.5 w-3.5" />
             <span>Slave</span>
           </div>
@@ -604,7 +604,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
               className={cn(
                 "h-5 min-w-[44px] pf-rounded-xs border px-2 pf-text-3xs font-semibold transition-all",
                 val
-                  ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                  ? "border-success/40 bg-success/20 text-success"
                   : "border-border-default/60 bg-bg-secondary/60 text-text-tertiary"
               )}
             >
@@ -614,7 +614,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
             <span className={cn(
               "inline-flex h-5 items-center pf-rounded-xs px-2 pf-text-3xs font-semibold",
               val
-                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                ? "bg-success/10 text-success"
                 : "text-text-disabled"
             )}>
               {val ? 'ON' : 'OFF'}
@@ -672,7 +672,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                       className={cn(
                         "pf-rounded-md border px-3 py-2 text-left pf-text-xs font-semibold transition-all",
                         activeTab === key
-                          ? "border-violet-400/50 bg-violet-500/10 text-violet-600 dark:text-violet-300"
+                          ? "border-accent/50 bg-accent-soft text-accent"
                           : "border-border-default/60 bg-bg-secondary/20 text-text-secondary hover:bg-bg-hover"
                       )}
                     >
@@ -743,7 +743,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                   <div className="pf-text-3xs uppercase tracking-[0.08em] text-text-disabled">
                     {t('serial.modbusslave.statusLabel', '状态')}
                   </div>
-                  <div className={cn("mt-1 pf-text-xs font-semibold", running ? "text-emerald-600 dark:text-emerald-400" : "text-text-secondary")}>
+                  <div className={cn("mt-1 pf-text-xs font-semibold", running ? "text-success" : "text-text-secondary")}>
                     {running ? t('serial.modbusslave.started', '从站已启动') : t('serial.modbusslave.stopped', '从站已停止')}
                   </div>
                 </div>
@@ -879,17 +879,17 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                           key={i}
                           className={cn(
                             "flex items-center gap-3 px-3 py-0.5 transition-colors hover:bg-bg-hover/30",
-                            ev.eventType === 'error' && "bg-red-500/5 text-red-500 dark:text-red-300"
+                            ev.eventType === 'error' && "bg-error/5 text-error"
                           )}
                         >
                           <span className="w-[100px] shrink-0 text-text-disabled">
                             {new Date(ev.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                           </span>
                           {ev.eventType === 'error' ? (
-                            <span className="text-red-500 dark:text-red-300">{ev.rawHex}</span>
+                            <span className="text-error">{ev.rawHex}</span>
                           ) : (
                             <>
-                              <span className="w-[180px] shrink-0 font-semibold text-violet-500 dark:text-violet-300">
+                              <span className="w-[180px] shrink-0 font-semibold text-method-post">
                                 {fcLabel(ev.functionCode)}
                               </span>
                               {ev.clientAddr ? (
@@ -921,11 +921,8 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
       {!compact ? (
         <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/60 border-t border-border-default pf-text-xs font-medium shrink-0 select-none rounded-b-[var(--radius-md)]">
         <div className="flex items-center gap-1.5">
-          <div className={cn(
-            "w-1.5 h-1.5 rounded-full transition-colors",
-            running ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : "bg-text-disabled"
-          )} />
-          <span className={cn("transition-colors", running ? "text-emerald-600 dark:text-emerald-400" : "text-text-tertiary")}>
+          <span className={cn("pf-dot", running ? "s-live" : "s-idle")} />
+          <span className={cn("transition-colors", running ? "text-success" : "text-text-tertiary")}>
             {running
               ? t('serial.modbusslave.started', '从站已启动')
               : t('serial.modbusslave.stopped', '从站已停止')}

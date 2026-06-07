@@ -14,14 +14,14 @@ export interface SseEvent {
 
 // ── SSE 事件类型颜色映射 ─────────────────────────────────────
 const SSE_EVENT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  message: { bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", border: "border-blue-500/20" },
-  data:    { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", border: "border-emerald-500/20" },
-  status:  { bg: "bg-slate-500/10", text: "text-slate-600 dark:text-slate-400", border: "border-slate-500/20" },
-  heartbeat: { bg: "bg-purple-500/10", text: "text-purple-600 dark:text-purple-400", border: "border-purple-500/20" },
-  metric:  { bg: "bg-orange-500/10", text: "text-orange-600 dark:text-orange-400", border: "border-orange-500/20" },
-  error:   { bg: "bg-red-500/10", text: "text-red-600 dark:text-red-400", border: "border-red-500/20" },
+  message: { bg: "bg-info/10", text: "text-info", border: "border-info/20" },
+  data:    { bg: "bg-success/10", text: "text-success", border: "border-success/20" },
+  status:  { bg: "bg-bg-tertiary", text: "text-text-secondary", border: "border-border-default" },
+  heartbeat: { bg: "bg-method-patch/10", text: "text-method-patch", border: "border-method-patch/20" },
+  metric:  { bg: "bg-warning/10", text: "text-warning", border: "border-warning/20" },
+  error:   { bg: "bg-error/10", text: "text-error", border: "border-error/20" },
 };
-const SSE_DEFAULT_COLOR = { bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", border: "border-blue-500/20" };
+const SSE_DEFAULT_COLOR = { bg: "bg-info/10", text: "text-info", border: "border-info/20" };
 
 function getSseEventColor(eventType: string) {
   return SSE_EVENT_COLORS[eventType.toLowerCase()] || SSE_DEFAULT_COLOR;
@@ -143,8 +143,8 @@ export function HttpSseResponsePanel({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="http-response-head shrink-0">
-        <div className="http-response-tabs scrollbar-hide">
-          <span className="http-response-tab is-active">{t('sse.events')}</span>
+        <div className="flex min-w-0 flex-1 items-stretch gap-0.5">
+          <span className="relative flex h-[33px] flex-none items-center px-2.5 pf-text-sm font-medium text-text-primary after:absolute after:bottom-[-1px] after:left-2 after:right-2 after:h-0.5 after:rounded-sm after:bg-accent">{t('sse.events')}</span>
         </div>
 
         <div className="http-response-meta">
@@ -154,17 +154,17 @@ export function HttpSseResponsePanel({
             {searchQuery && <button type="button" onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>}
           </div>
 
-          <span className={cn("http-response-status",
+          <span className={cn("pf-pill h-[22px]",
             status === 'connected'
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:text-emerald-200 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300"
+              ? "ok"
               : status === 'connecting'
-                ? "border-amber-200 bg-amber-50 text-amber-700 dark:text-amber-200 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300"
+                ? "warn"
                 : status === 'error'
-                  ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300"
-                  : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-300"
+                  ? "err"
+                  : ""
           )}>
-            <span className={cn("http-response-status-dot",
-              status === 'connected' ? "bg-emerald-500" : status === 'connecting' ? "bg-amber-500" : status === 'error' ? "bg-red-500" : "bg-slate-400"
+            <span className={cn("pf-dot",
+              status === 'connected' ? "s-live" : status === 'connecting' ? "s-conn" : status === 'error' ? "s-err" : "s-idle"
             )} />
             {status === 'idle' ? t('sse.idle') : status === 'connecting' ? t('sse.connecting') : status === 'connected' ? t('sse.connected') : status === 'disconnected' ? t('sse.disconnected') : t('sse.error')}
           </span>
@@ -176,7 +176,7 @@ export function HttpSseResponsePanel({
       </div>
 
       {error ? (
-        <div className="border-b border-red-200 bg-red-50/80 px-4 py-2 pf-text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+        <div className="border-b border-error/20 bg-error/10 px-4 py-2 pf-text-sm text-error">
           {error}
         </div>
       ) : null}
@@ -185,7 +185,7 @@ export function HttpSseResponsePanel({
         {events.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default bg-bg-secondary/35">
-              <Waves className="h-7 w-7 text-orange-500 dark:text-orange-300/40" />
+              <Waves className="h-7 w-7 text-accent/50" />
             </div>
             <div className="pf-text-md font-semibold text-text-secondary">{t('sse.emptyTitle')}</div>
             <div className="mt-2 max-w-xl pf-text-sm leading-6 text-text-tertiary">{t('sse.emptyDesc')}</div>

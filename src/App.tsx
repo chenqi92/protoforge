@@ -1,16 +1,18 @@
-import { lazy, Suspense, useState, useCallback, useEffect, useRef } from "react";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Database, Gauge, List, MonitorPlay, Network, Plus, Radio, Server, Wrench, Workflow, X } from "lucide-react";
+import { lazy, Suspense, useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, Database, Gauge, List, MonitorPlay, Network, Plus, Radio, Server, Video, Waves, Wifi, Wrench, Workflow, X, Zap, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from "react-resizable-panels";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSettingsEffect } from "@/hooks/useSettingsEffect";
 import { useLanguageSync } from "@/hooks/useLanguageSync";
 import { TitleBar } from "@/components/layout/TitleBar";
+import { ActivityRail } from "@/components/layout/ActivityRail";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { TabBar, type Tab } from "@/components/layout/TabBar";
+import { TabBar } from "@/components/layout/TabBar";
 import { StatusBar } from "@/components/layout/StatusBar";
+import { ActivityLogDock } from "@/components/layout/ActivityLogDock";
 import { WelcomePage, type WelcomeAction } from "@/components/WelcomePage";
-import { useAppStore, type RequestProtocol, type ToolSession, type ToolWorkbench, type WorkbenchView } from "@/stores/appStore";
+import { useAppStore, type RequestProtocol, type ToolSession, type ToolWorkbench, type UnifiedTab, type WorkbenchView } from "@/stores/appStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { usePluginStore } from "@/stores/pluginStore";
 import { closeWindowByLabel, listOpenToolWindowSessions, openToolWindow } from "@/lib/windowManager";
@@ -638,12 +640,154 @@ function ToolWorkbenchPanel({
   );
 }
 
+const SPLIT_KIND_ICONS: Record<string, LucideIcon> = {
+  globe: Network,
+  wifi: Wifi,
+  radio: Radio,
+  network: Network,
+  server: Server,
+  database: Database,
+  video: Video,
+  gauge: Gauge,
+  waves: Waves,
+  wrench: Wrench,
+  zap: Zap,
+};
+
+/** In-DOM split view — two panes with a draggable gutter and per-pane pickers. */
+function SplitView({
+  unifiedTabs,
+  activeTabId,
+  splitRightId,
+  onPickLeft,
+  onPickRight,
+  onCloseSplit,
+  renderWorkspace,
+}: {
+  unifiedTabs: UnifiedTab[];
+  activeTabId: string | null;
+  splitRightId: string | null;
+  onPickLeft: (tab: UnifiedTab) => void;
+  onPickRight: (id: string) => void;
+  onCloseSplit: () => void;
+  renderWorkspace: (tab: UnifiedTab) => React.ReactNode;
+}) {
+  const leftTab = unifiedTabs.find((t) => t.id === activeTabId) ?? unifiedTabs[0] ?? null;
+  // Sensible default for the right pane: the next tab after the active one.
+  const activeIndex = unifiedTabs.findIndex((t) => t.id === leftTab?.id);
+  const autoRight = unifiedTabs.length > 1 ? unifiedTabs[(activeIndex + 1) % unifiedTabs.length] : leftTab;
+  const rightTab = unifiedTabs.find((t) => t.id === splitRightId) ?? autoRight ?? leftTab;
+
+  if (!leftTab) return null;
+
+  return (
+    <PanelGroup orientation="horizontal">
+      <Panel className="min-w-0 overflow-hidden">
+        <SplitPane
+          tab={leftTab}
+          unifiedTabs={unifiedTabs}
+          onPick={(t) => onPickLeft(t)}
+          renderWorkspace={renderWorkspace}
+        />
+      </Panel>
+      <PanelResizeHandle className="relative w-[3px] shrink-0 cursor-col-resize bg-bg-app transition-colors hover:bg-accent/30" />
+      <Panel className="min-w-0 overflow-hidden">
+        <SplitPane
+          tab={rightTab ?? leftTab}
+          unifiedTabs={unifiedTabs}
+          onPick={(t) => onPickRight(t.id)}
+          onClose={onCloseSplit}
+          renderWorkspace={renderWorkspace}
+        />
+      </Panel>
+    </PanelGroup>
+  );
+}
+
+function SplitPane({
+  tab,
+  unifiedTabs,
+  onPick,
+  onClose,
+  renderWorkspace,
+}: {
+  tab: UnifiedTab;
+  unifiedTabs: UnifiedTab[];
+  onPick: (tab: UnifiedTab) => void;
+  onClose?: () => void;
+  renderWorkspace: (tab: UnifiedTab) => React.ReactNode;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const Icon = SPLIT_KIND_ICONS[tab.icon] ?? Network;
+
+  return (
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <div className="relative flex h-7 shrink-0 items-center gap-1.5 border-b border-border-default/60 bg-bg-secondary/40 px-2">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-[5px] px-1.5 py-1 text-left text-text-primary transition-colors hover:bg-bg-hover"
+          title={t('tabBar.allTabs')}
+        >
+          <span className={cn("pf-dot shrink-0", `s-${tab.state}`)} />
+          {tab.kind === "request" && tab.protocol === "http" ? (
+            <span className={cn("pf-mtag shrink-0", `m-${(tab.method ?? "GET").toLowerCase()}`)}>{tab.method ?? "GET"}</span>
+          ) : (
+            <Icon className="h-3 w-3 shrink-0 text-text-tertiary" />
+          )}
+          <span className="min-w-0 flex-1 truncate pf-text-sm font-medium">{tab.title}</span>
+          <ChevronDown className="h-3 w-3 shrink-0 text-text-tertiary" />
+        </button>
+        {onClose && (
+          <button onClick={onClose} className="wb-icon-btn shrink-0" title={t('tabBar.closeRight')}>
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {open && (
+          <>
+            <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
+            <div className="absolute left-1.5 top-8 z-[61] w-[250px] overflow-hidden rounded-[9px] border border-border-default/80 bg-bg-primary/96 p-1 shadow-lg backdrop-blur-xl">
+              <div className="px-2.5 pb-0.5 pt-1.5 pf-text-xxs font-semibold uppercase tracking-[0.14em] text-text-disabled">
+                {t('tabBar.allTabs')}
+              </div>
+              <div className="max-h-[320px] overflow-y-auto">
+                {unifiedTabs.map((candidate) => {
+                  const CIcon = SPLIT_KIND_ICONS[candidate.icon] ?? Network;
+                  return (
+                    <button
+                      key={candidate.id}
+                      onClick={() => {
+                        onPick(candidate);
+                        setOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-[7px] px-2.5 py-[7px] text-left transition-colors hover:bg-bg-hover/70",
+                        candidate.id === tab.id && "bg-bg-hover/45",
+                      )}
+                    >
+                      <span className={cn("pf-dot shrink-0", `s-${candidate.state}`)} />
+                      {candidate.kind === "request" && candidate.protocol === "http" ? (
+                        <span className={cn("pf-mtag shrink-0", `m-${(candidate.method ?? "GET").toLowerCase()}`)}>{candidate.method ?? "GET"}</span>
+                      ) : (
+                        <CIcon className="h-3 w-3 shrink-0 text-text-tertiary" />
+                      )}
+                      <span className="min-w-0 flex-1 truncate pf-text-sm font-medium text-text-primary">{candidate.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden bg-bg-primary">{renderWorkspace(tab)}</div>
+    </div>
+  );
+}
+
 function App() {
-  const sidebarPanelRef = usePanelRef();
   const rightSidebarPanelRef = usePanelRef();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(true);
-  const sidebarDefaultSize = `${Math.max(useSettingsStore.getState().settings.sidebarWidth, 14)}%`;
   const rightSidebarDefaultSize = `${Math.max(useSettingsStore.getState().settings.rightSidebarWidth, 14)}%`;
   const [pluginModalOpen, setPluginModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -651,6 +795,15 @@ function App() {
   const [envModalOpen, setEnvModalOpen] = useState(false);
   const [cookieManagerOpen, setCookieManagerOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+
+  // ── Forge backbone presentation state ────────────────────────────────────
+  const [railSidebarCollapsed, setRailSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(256); // contextual sidebar (180–440)
+  const sidebarWidthStartRef = useRef(256);
+  const [activityLogOpen, setActivityLogOpen] = useState(false);
+  const [splitOpen, setSplitOpen] = useState(false);
+  // The unified-context id shown in the right split pane (null = auto-pick next).
+  const [splitRightId, setSplitRightId] = useState<string | null>(null);
   const [detachedToolSessions, setDetachedToolSessions] = useState<Record<ToolWorkbench, string[]>>({
     tcpudp: [],
     capture: [],
@@ -668,6 +821,10 @@ function App() {
 
   // 启动时自动加载已安装的插件（确保渲染器 tab 等扩展点立即可用）
   const fetchInstalledPlugins = usePluginStore((s) => s.fetchInstalledPlugins);
+  // 右侧栏仅作为「协议解析 / 工具箱」插件扩展点的落点；无插件时不占位（活动日志改由底部 dock 承载）
+  const hasRightSidebarPlugins = usePluginStore((s) =>
+    s.installedPlugins.some((p) => p.pluginType === 'protocol-parser' || p.id === 'devtools-toolbox')
+  );
   useEffect(() => {
     fetchInstalledPlugins();
   }, [fetchInstalledPlugins]);
@@ -678,22 +835,37 @@ function App() {
     return () => window.removeEventListener("toggle-command-palette", handler);
   }, []);
 
+  // Forge backbone toggles, dispatched by useKeyboardShortcuts (⌘\ / ⌘B).
+  useEffect(() => {
+    const toggleSplit = () => setSplitOpen((value) => !value);
+    const toggleSidebar = () => setRailSidebarCollapsed((value) => !value);
+    window.addEventListener("toggle-split-view", toggleSplit);
+    window.addEventListener("toggle-sidebar", toggleSidebar);
+    return () => {
+      window.removeEventListener("toggle-split-view", toggleSplit);
+      window.removeEventListener("toggle-sidebar", toggleSidebar);
+    };
+  }, []);
+
   useEffect(() => {
     const openPlugins = () => setPluginModalOpen(true);
     const openSettings = () => setSettingsOpen(true);
     const openDesignSystem = () => setDesignSystemOpen(true);
     const openCookieManager = () => setCookieManagerOpen(true);
+    const openEnvModal = () => setEnvModalOpen(true);
 
     window.addEventListener("open-plugin-modal", openPlugins);
     window.addEventListener("open-settings-modal", openSettings);
     window.addEventListener("open-design-system", openDesignSystem);
     window.addEventListener("open-cookie-manager", openCookieManager);
+    window.addEventListener("open-env-modal", openEnvModal);
 
     return () => {
       window.removeEventListener("open-plugin-modal", openPlugins);
       window.removeEventListener("open-settings-modal", openSettings);
       window.removeEventListener("open-design-system", openDesignSystem);
       window.removeEventListener("open-cookie-manager", openCookieManager);
+      window.removeEventListener("open-env-modal", openEnvModal);
     };
   }, []);
 
@@ -733,6 +905,22 @@ function App() {
   const setActiveWorkbench = useAppStore((s) => s.setActiveWorkbench);
   const reorderTabs = useAppStore((s) => s.reorderTabs);
   const closeCollectionPanel = useAppStore((s) => s.closeCollectionPanel);
+
+  const contextStates = useAppStore((s) => s.contextStates);
+
+  // Unified strip model (requests + tool sessions) — derived from raw slices.
+  // NOTE: do NOT subscribe via useAppStore((s) => s.getUnifiedTabs()); that getter
+  // returns a fresh array each call and trips useSyncExternalStore's loop guard.
+  const unifiedTabs = useMemo(
+    () => useAppStore.getState().getUnifiedTabs(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tabs, toolSessions, activeToolSessionIds, contextStates],
+  );
+  const activeUnifiedTabId = useMemo(
+    () => useAppStore.getState().getActiveUnifiedTabId(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeWorkbench, activeTabId, activeToolSessionIds],
+  );
 
   // 右侧面板默认折叠：首次切换到非 home 视图时折叠（此时 Panel 才真正挂载）
   const rightSidebarInitialized = useRef(false);
@@ -800,18 +988,6 @@ function App() {
 
   // 不再自动创建空 tab，当 tabs.length === 0 时展示概览页面
 
-  const displayTabs: Tab[] = tabs.map((tab) => ({
-    id: tab.id,
-    label: tab.customLabel?.trim()
-      || (tab.protocol === "http" && tab.httpConfig?.name?.trim() && tab.httpConfig.name !== "Untitled Request" ? tab.httpConfig.name.trim() : "")
-      || (tab.protocol === "http" ? tab.httpConfig?.url?.trim() : "")
-      || tab.label,
-    protocol: tab.protocol,
-    method: tab.protocol === "http" ? tab.httpConfig?.method : undefined,
-    requestMode: tab.protocol === "http" ? tab.httpConfig?.requestMode : undefined,
-    modified: false,
-  }));
-
   const createHttpModeTab = useCallback((mode: HttpRequestMode) => {
     const tabId = addTab("http");
     updateHttpConfig(tabId, {
@@ -876,24 +1052,47 @@ function App() {
     setSettingsOpen(true);
   }, []);
 
-  const handleSidebarResize = useCallback((size: { asPercentage: number; inPixels: number }) => {
-    setSidebarCollapsed(size.inPixels <= 52);
-    if (size.asPercentage > 5) {
-      useSettingsStore.getState().update("sidebarWidth", Math.round(size.asPercentage));
-    }
-  }, []);
+  // Contextual sidebar drag-resize (180–440px), clamped.
+  const handleSidebarResizeStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    sidebarWidthStartRef.current = sidebarWidth;
+    const startX = e.clientX;
+    const move = (ev: PointerEvent) => {
+      const next = Math.min(440, Math.max(180, sidebarWidthStartRef.current + (ev.clientX - startX)));
+      setSidebarWidth(next);
+    };
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  }, [sidebarWidth]);
 
-  const handleSidebarToggle = useCallback(() => {
-    const ref = sidebarPanelRef.current;
-    if (!ref) return;
-    if (sidebarCollapsed) {
-      ref.expand();
-      const width = useSettingsStore.getState().settings.sidebarWidth;
-      ref.resize(`${Math.max(width, 14)}%`);
-    } else {
-      ref.collapse();
+  // ── Unified strip handlers (requests + tool sessions) ─────────────────────
+  const handleSelectUnified = useCallback((tab: UnifiedTab) => {
+    if (tab.kind === "request" && tab.tabId) {
+      setActiveTab(tab.tabId);
+    } else if (tab.kind === "tool" && tab.tool && tab.sessionId) {
+      setActiveToolSession(tab.tool, tab.sessionId);
     }
-  }, [sidebarPanelRef, sidebarCollapsed]);
+  }, [setActiveTab, setActiveToolSession]);
+
+  const handleCloseUnified = useCallback((tab: UnifiedTab) => {
+    if (tab.kind === "request" && tab.tabId) {
+      closeTab(tab.tabId);
+    } else if (tab.kind === "tool" && tab.tool && tab.sessionId) {
+      closeToolSession(tab.tool, tab.sessionId);
+    }
+    setSplitRightId((prev) => (prev === tab.id ? null : prev));
+  }, [closeTab, closeToolSession]);
+
+  const handlePopoutUnified = useCallback((tab: UnifiedTab) => {
+    // Tool contexts pop out to a real OS window (existing windowManager path).
+    if (tab.kind === "tool" && tab.tool && tab.sessionId) {
+      void handlePopoutWorkbench(tab.tool, tab.sessionId);
+    }
+  }, [handlePopoutWorkbench]);
 
   const handleRightSidebarResize = useCallback((size: { asPercentage: number; inPixels: number }) => {
     setRightSidebarCollapsed(size.inPixels <= 52);
@@ -943,7 +1142,35 @@ function App() {
     }
   }, [addTab, createHttpModeTab, handleSelectWorkbench]);
 
-
+  // Renders the workspace for a single unified context — used by split panes.
+  // Single-pane mode keeps the persistent show/hide layer in renderContent()
+  // for full state preservation; split panes mount the chosen context directly.
+  const renderWorkspaceForContext = useCallback((tab: UnifiedTab) => {
+    if (tab.kind === "request" && tab.tabId) {
+      switch (tab.protocol) {
+        case "http": return <HttpWorkspace tabId={tab.tabId} />;
+        case "ws": return <WsWorkspace tabId={tab.tabId} />;
+        case "mqtt": return <MqttWorkspace tabId={tab.tabId} />;
+        case "grpc": return <GrpcWorkspace tabId={tab.tabId} />;
+        default: return null;
+      }
+    }
+    if (tab.kind === "tool" && tab.tool && tab.sessionId) {
+      const session = toolSessions[tab.tool].find((s) => s.id === tab.sessionId);
+      switch (tab.tool) {
+        case "tcpudp": return <TcpWorkspace sessionId={tab.sessionId} initialMode={session?.tcpMode ?? DEFAULT_TCP_TOOL_MODE} />;
+        case "capture": return <CaptureWorkspace sessionId={tab.sessionId} />;
+        case "loadtest": return <LoadTestWorkspace sessionId={tab.sessionId} />;
+        case "videostream": return <VideoStreamWorkspace sessionId={tab.sessionId} initialMode={session?.videoMode ?? DEFAULT_VIDEO_TOOL_MODE} />;
+        case "mockserver": return <MockServerWorkspace sessionId={tab.sessionId} />;
+        case "dbclient": return <DbClientWorkspace sessionId={tab.sessionId} />;
+        case "toolbox": return <ToolboxWorkspace />;
+        case "workflow": return <WorkflowWorkspace />;
+        default: return null;
+      }
+    }
+    return null;
+  }, [toolSessions]);
 
   const renderContent = () => {
     return (
@@ -954,70 +1181,38 @@ function App() {
         </div>
 
         <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "requests" ? "block" : "hidden")}>
-          <PanelGroup orientation="horizontal">
-            <Panel
-              id="sidebar"
-              defaultSize={sidebarDefaultSize}
-              minSize="14%"
-              maxSize="50%"
-              collapsible
-              collapsedSize="48px"
-              panelRef={sidebarPanelRef}
-              onResize={handleSidebarResize}
-              className="relative flex h-full shrink-0 flex-col"
-            >
-              <Sidebar
-                panelCollapsed={sidebarCollapsed}
-                onTogglePanel={handleSidebarToggle}
-                onOpenEnvModal={() => setEnvModalOpen(true)}
-              />
-            </Panel>
-            <PanelResizeHandle className="relative w-[3px] shrink-0 cursor-col-resize bg-bg-app transition-colors hover:bg-accent/30" />
+          <div className="min-h-0 h-full flex-1 overflow-hidden relative">
+            <div className={cn("absolute inset-0 z-10 bg-bg-primary", activeCollectionId ? "block" : "hidden")}>
+              {activeCollectionId && (
+                <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载集合设置..." />}>
+                  <CollectionSettingsPanel collectionId={activeCollectionId} />
+                </Suspense>
+              )}
+            </div>
 
-            <Panel className="flex flex-col overflow-hidden bg-transparent">
-              <TabBar
-                tabs={displayTabs}
-                activeTabId={activeTabId}
-                onTabChange={setActiveTab}
-                onTabClose={closeTab}
-                onNewTab={handleNewTab}
-                onReorder={reorderTabs}
-              />
-
-              <div className="min-h-0 flex-1 overflow-hidden relative">
-                <div className={cn("absolute inset-0 z-10 bg-bg-primary", activeCollectionId ? "block" : "hidden")}>
-                  {activeCollectionId && (
-                    <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载集合设置..." />}>
-                      <CollectionSettingsPanel collectionId={activeCollectionId} />
-                    </Suspense>
-                  )}
-                </div>
-
-                {/* No tabs: show overview */}
-                {tabs.length === 0 && !activeCollectionId && (
-                  <div className="absolute inset-0 bg-bg-primary">
-                    <RequestsOverview
-                      onNewTab={handleNewTab}
-                      onOpenCollection={(id) => useAppStore.getState().openCollectionPanel(id)}
-                      onOpenEnvModal={() => setEnvModalOpen(true)}
-                    />
-                  </div>
-                )}
-
-                {tabs.map((tab) => {
-                  const isActive = !activeCollectionId && activeTabId === tab.id;
-                  return (
-                    <div key={tab.id} className={cn("absolute inset-0 bg-bg-primary", isActive ? "block" : "hidden")}>
-                      {tab.protocol === "http" && <HttpWorkspace tabId={tab.id} />}
-                      {tab.protocol === "ws" && <WsWorkspace tabId={tab.id} />}
-                      {tab.protocol === "mqtt" && <MqttWorkspace tabId={tab.id} />}
-                      {tab.protocol === "grpc" && <GrpcWorkspace tabId={tab.id} />}
-                    </div>
-                  );
-                })}
+            {/* No tabs: show overview */}
+            {tabs.length === 0 && !activeCollectionId && (
+              <div className="absolute inset-0 bg-bg-primary">
+                <RequestsOverview
+                  onNewTab={handleNewTab}
+                  onOpenCollection={(id) => useAppStore.getState().openCollectionPanel(id)}
+                  onOpenEnvModal={() => setEnvModalOpen(true)}
+                />
               </div>
-            </Panel>
-          </PanelGroup>
+            )}
+
+            {tabs.map((tab) => {
+              const isActive = !activeCollectionId && activeTabId === tab.id;
+              return (
+                <div key={tab.id} className={cn("absolute inset-0 bg-bg-primary", isActive ? "block" : "hidden")}>
+                  {tab.protocol === "http" && <HttpWorkspace tabId={tab.id} />}
+                  {tab.protocol === "ws" && <WsWorkspace tabId={tab.id} />}
+                  {tab.protocol === "mqtt" && <MqttWorkspace tabId={tab.id} />}
+                  {tab.protocol === "grpc" && <GrpcWorkspace tabId={tab.id} />}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div className={cn("h-full min-w-0 overflow-hidden", activeWorkbench === "tcpudp" ? "block" : "hidden")}>
@@ -1191,15 +1386,14 @@ function App() {
           : activeTab?.protocol || "requests"
       : activeWorkbench;
 
+  const isHome = activeWorkbench === "home";
+  const sidebarVisible = !isHome && !railSidebarCollapsed;
+
   return (
     <>
       <WindowScaffold
         header={(
           <TitleBar
-            activeWorkbench={activeWorkbench}
-            onSelectWorkbench={(workbench) => {
-              void handleSelectWorkbench(workbench);
-            }}
             onOpenPlugins={handleOpenPlugins}
             onOpenSettings={handleOpenSettings}
           />
@@ -1209,37 +1403,112 @@ function App() {
             activeModule={activeModule}
             responseTime={activeWorkbench === "requests" ? activeTab?.httpResponse?.durationMs : undefined}
             responseSize={activeWorkbench === "requests" ? activeTab?.httpResponse?.bodySize : undefined}
+            activityLogOpen={activityLogOpen}
+            onToggleActivityLog={() => setActivityLogOpen((v) => !v)}
+            onOpenPlugins={handleOpenPlugins}
           />
         )}
         bodyClassName="p-0"
       >
-      <div className="h-full min-w-0 overflow-hidden">
-          {activeWorkbench === "home" ? (
-            renderContent()
-          ) : (
-            <PanelGroup orientation="horizontal">
-              <Panel className="min-w-0 overflow-hidden">
-                {renderContent()}
-              </Panel>
-              <PanelResizeHandle className="relative w-[3px] shrink-0 cursor-col-resize bg-bg-app transition-colors hover:bg-accent/30" />
-              <Panel
-                id="right-sidebar"
-                defaultSize={rightSidebarDefaultSize}
-                minSize="14%"
-                maxSize="40%"
-                collapsible
-                collapsedSize="48px"
-                panelRef={rightSidebarPanelRef}
-                onResize={handleRightSidebarResize}
-                className="relative flex h-full shrink-0 flex-col overflow-hidden"
-              >
-                <RightSidebar
-                  panelCollapsed={rightSidebarCollapsed}
-                  onTogglePanel={handleRightSidebarToggle}
-                />
-              </Panel>
-            </PanelGroup>
-          )}
+        {/* Forge body-row: [ rail | sidebar | workarea ] */}
+        <div
+          className="grid h-full min-h-0 min-w-0 overflow-hidden"
+          style={{ gridTemplateColumns: `var(--rail-w) ${sidebarVisible ? `${sidebarWidth}px` : "0px"} 1fr` }}
+        >
+          <ActivityRail
+            activityLogOpen={activityLogOpen}
+            onToggleActivityLog={() => setActivityLogOpen((v) => !v)}
+            onOpenPlugins={handleOpenPlugins}
+          />
+
+          {/* Domain-contextual sidebar — resizable (180–440) + collapsible (⌘B). */}
+          <div
+            className={cn(
+              "relative flex h-full min-h-0 flex-col overflow-hidden border-r border-border-default/60",
+              sidebarVisible ? "block" : "hidden",
+            )}
+          >
+            <Sidebar
+              panelCollapsed={false}
+              onTogglePanel={() => setRailSidebarCollapsed(true)}
+              onOpenEnvModal={() => setEnvModalOpen(true)}
+            />
+            {/* Drag handle (right edge) */}
+            <div
+              onPointerDown={handleSidebarResizeStart}
+              className="absolute right-0 top-0 bottom-0 z-20 w-[4px] cursor-col-resize hover:bg-accent/30"
+              title="拖动调整宽度 Drag to resize"
+            />
+          </div>
+
+          {/* Workarea: TabStrip + content + activity-log dock placeholder */}
+          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+            {!isHome && (
+              <TabBar
+                tabs={unifiedTabs}
+                activeTabId={activeUnifiedTabId}
+                onSelect={handleSelectUnified}
+                onClose={handleCloseUnified}
+                onPopout={handlePopoutUnified}
+                onNewTab={handleNewTab}
+                onReorder={reorderTabs}
+                onToggleSidebar={() => setRailSidebarCollapsed((v) => !v)}
+                sidebarCollapsed={railSidebarCollapsed}
+                onToggleSplit={() => setSplitOpen((v) => !v)}
+                splitActive={splitOpen}
+              />
+            )}
+
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+              {isHome ? (
+                renderContent()
+              ) : (
+                <PanelGroup orientation="horizontal">
+                  <Panel className="min-w-0 overflow-hidden">
+                    {splitOpen ? (
+                      <SplitView
+                        unifiedTabs={unifiedTabs}
+                        activeTabId={activeUnifiedTabId}
+                        splitRightId={splitRightId}
+                        onPickLeft={handleSelectUnified}
+                        onPickRight={setSplitRightId}
+                        onCloseSplit={() => setSplitOpen(false)}
+                        renderWorkspace={renderWorkspaceForContext}
+                      />
+                    ) : (
+                      renderContent()
+                    )}
+                  </Panel>
+                  {hasRightSidebarPlugins && (
+                    <>
+                      <PanelResizeHandle className="relative w-[3px] shrink-0 cursor-col-resize bg-bg-app transition-colors hover:bg-accent/30" />
+                      <Panel
+                        id="right-sidebar"
+                        defaultSize={rightSidebarDefaultSize}
+                        minSize="14%"
+                        maxSize="40%"
+                        collapsible
+                        collapsedSize="48px"
+                        panelRef={rightSidebarPanelRef}
+                        onResize={handleRightSidebarResize}
+                        className="relative flex h-full shrink-0 flex-col overflow-hidden"
+                      >
+                        <RightSidebar
+                          panelCollapsed={rightSidebarCollapsed}
+                          onTogglePanel={handleRightSidebarToggle}
+                        />
+                      </Panel>
+                    </>
+                  )}
+                </PanelGroup>
+              )}
+            </div>
+
+            {/* Activity-log dock — collapsible, resizable bottom dock. */}
+            {activityLogOpen && !isHome && (
+              <ActivityLogDock onClose={() => setActivityLogOpen(false)} />
+            )}
+          </div>
         </div>
       </WindowScaffold>
 

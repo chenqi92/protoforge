@@ -200,7 +200,7 @@ function CrcCalculator() {
       </div>
 
       {error && (
-        <div className="pf-rounded-sm border border-red-500/30 bg-red-500/5 px-3 py-2 pf-text-xs text-red-400">
+        <div className="pf-rounded-sm border border-error/30 bg-error/5 px-3 py-2 pf-text-xs text-error">
           {error}
         </div>
       )}
@@ -362,7 +362,7 @@ function NumberConverter() {
       </div>
 
       {error && (
-        <div className="pf-text-xxs text-red-400">{error}</div>
+        <div className="pf-text-xxs text-error">{error}</div>
       )}
 
       {!error && hexVal && (
@@ -492,7 +492,7 @@ function ByteTools() {
       </div>
 
       {error && (
-        <div className="pf-rounded-sm border border-red-500/30 bg-red-500/5 px-3 py-2 pf-text-xs text-red-400">
+        <div className="pf-rounded-sm border border-error/30 bg-error/5 px-3 py-2 pf-text-xs text-error">
           {error}
         </div>
       )}

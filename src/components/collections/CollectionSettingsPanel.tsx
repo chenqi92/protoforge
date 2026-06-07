@@ -49,8 +49,8 @@ export function CollectionSettingsPanel({ collectionId }: CollectionSettingsPane
       {/* Header */}
       <div className="shrink-0 px-6 pt-5 pb-0 border-b border-border-subtle">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 rounded-lg bg-sky-500/10 flex items-center justify-center">
-            <Variable className="w-4.5 h-4.5 text-sky-600" />
+          <div className="w-9 h-9 rounded-lg bg-accent-soft flex items-center justify-center">
+            <Variable className="w-4.5 h-4.5 text-accent" />
           </div>
           <div className="min-w-0">
             <h1 className="pf-text-lg font-semibold text-text-primary truncate">{collection.name}</h1>
@@ -242,7 +242,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
                       className="flex items-center justify-center"
                       title={v.enabled ? t('collectionSettings.disable') : t('collectionSettings.enable')}
                     >
-                      <div className={cn('w-3 h-3 rounded-full border-2 transition-colors', v.enabled ? 'border-emerald-500 bg-emerald-500' : 'border-text-disabled')} />
+                      <div className={cn('w-3 h-3 rounded-full border-2 transition-colors', v.enabled ? 'border-success bg-success' : 'border-text-disabled')} />
                     </button>
                   </td>
                   <td className="px-3 py-1.5">
@@ -273,7 +273,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
                       </button>
                       <button
                         onClick={() => removeVar(i)}
-                        className="w-6 h-6 flex items-center justify-center text-text-disabled hover:text-red-500 dark:text-red-300 transition-colors rounded hover:bg-red-500/8"
+                        className="w-6 h-6 flex items-center justify-center text-text-disabled hover:text-error transition-colors rounded hover:bg-error/10"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>

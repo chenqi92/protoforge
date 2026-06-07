@@ -48,8 +48,8 @@ const PLAYBACK_MODE_SET = new Set<VideoProtocol>(PLAYBACK_MODES.map((item) => it
 const ASSISTANT_MODE_SET = new Set<VideoProtocol>(ASSISTANT_MODES.map((item) => item.value));
 
 const MODE_COLORS: Record<VideoProtocol, string> = {
-  rtsp: 'bg-blue-500', rtmp: 'bg-rose-500', 'http-flv': 'bg-orange-500',
-  hls: 'bg-emerald-500', webrtc: 'bg-indigo-500', gb28181: 'bg-cyan-600', srt: 'bg-violet-500', onvif: 'bg-teal-500',
+  rtsp: 'bg-method-post', rtmp: 'bg-method-delete', 'http-flv': 'bg-accent',
+  hls: 'bg-method-get', webrtc: 'bg-method-patch', gb28181: 'bg-method-head', srt: 'bg-method-patch', onvif: 'bg-method-head',
 };
 
 const MAX_VISIBLE_VIDEO_MESSAGES = 400;
@@ -606,7 +606,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
             </button>
           ))}
           <span className="wb-request-meta">
-            <span className={cn("wb-request-meta-dot", showPlayer ? connecting ? "bg-warning" : playbackReady ? "bg-sky-400" : "bg-text-disabled/60" : "bg-text-disabled/40")} />
+            <span className={cn("pf-dot", showPlayer ? connecting ? "s-conn" : playbackReady ? "s-live" : "s-idle" : "s-idle")} />
             {playbackStateLabel}
           </span>
           <span className="wb-request-meta">{getPlaybackTransportLabel(effectivePlaybackMode)}</span>
@@ -676,7 +676,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
           </div>
           <div className="flex items-center gap-1 flex-wrap min-w-0">
             {recentStreams.slice(0, 8).map((r, i) => (
-              <div key={i} className="group flex items-center pf-rounded-sm border border-border-default/60 bg-bg-secondary/40 overflow-hidden transition-all hover:border-accent/40">
+              <div key={i} className="group flex items-center pf-rounded-sm border border-border-default bg-bg-secondary overflow-hidden transition-all hover:border-accent/40">
                 <button
                   onClick={() => {
                     setStreamUrl(r.url);
@@ -737,7 +737,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
         <PanelGroup orientation="horizontal">
           {/* ═══ Left Panel: Protocol Config ═══ */}
           <Panel id="vs-left" defaultSize={35} minSize={20}>
-            <div className="h-full pf-rounded-md border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
+            <div className="h-full pf-rounded-md border border-border-default bg-bg-primary overflow-hidden flex flex-col">
               <div className="wb-pane-header shrink-0">
                 <span className="pf-text-xs font-semibold text-text-secondary">
                   {t('videostream.protocolConfig', '协议配置')}
@@ -763,8 +763,8 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
             <PanelGroup orientation="vertical">
               {/* ═══ Top Right Panel: Video Player ═══ */}
               <Panel id="vs-player" defaultSize={55} minSize={20}>
-                <div className="h-full pf-rounded-md border border-border-default/80 bg-black overflow-hidden flex flex-col relative">
-                  <div className="flex-1 w-full bg-[#0a0a0a] flex flex-col items-center justify-center relative overflow-hidden">
+                <div className="h-full pf-rounded-md border border-border-default bg-black overflow-hidden flex flex-col relative">
+                  <div className="flex-1 w-full bg-black flex flex-col items-center justify-center relative overflow-hidden">
                     {showPlayer ? (
                       <div className="absolute inset-0 w-full h-full flex flex-col">
                         <VideoPlayer
@@ -796,6 +796,13 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                             </div>
                           </div>
                         )}
+                        <div className="pointer-events-none absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10">
+                          <span className={cn("pf-pill", playbackReady ? "err" : connecting ? "warn" : "")}>
+                            <span className={cn("pf-dot", playbackReady ? "s-live" : connecting ? "s-conn" : "s-idle")} />
+                            {playbackReady ? "LIVE" : connecting ? "启动中" : "等待中"}
+                          </span>
+                          <span className="pf-pill">{getPlaybackTransportLabel(effectivePlaybackMode)}</span>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-3 text-text-disabled/40">
@@ -815,7 +822,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
 
               {/* ═══ Bottom Right Panel: Protocol Message Log ═══ */}
               <Panel id="vs-log" defaultSize={45} minSize={10}>
-            <div className="h-full pf-rounded-md border border-border-default/80 bg-bg-primary overflow-hidden flex flex-col">
+            <div className="h-full pf-rounded-md border border-border-default bg-bg-primary overflow-hidden flex flex-col">
               {/* Log header with status */}
               <div className="wb-pane-header shrink-0">
                 <span className="pf-text-xs font-semibold text-text-secondary">
@@ -824,13 +831,13 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                 <span className="pf-text-xxs text-text-disabled">{filteredMessages.length} {t('videostream.messages', '条')}</span>
                 <div className="flex-1" />
                 <div className="flex items-center gap-1.5">
-                  <span className={cn("w-1.5 h-1.5 rounded-full", connected ? "bg-emerald-500" : "bg-text-disabled/40")} />
+                  <span className={cn("pf-dot", connected ? "s-ok" : "s-idle")} />
                   <span className="pf-text-3xs text-text-disabled">{connected ? t('videostream.connected', '已连接') : t('videostream.idle', '空闲')}</span>
                 </div>
                 <div className="flex items-center gap-1.5 ml-2">
                   <span className={cn(
-                    "w-1.5 h-1.5 rounded-full",
-                    !showPlayer ? "bg-text-disabled/40" : connecting ? "bg-warning animate-pulse" : playbackReady ? "bg-sky-400" : "bg-text-disabled/60",
+                    "pf-dot",
+                    !showPlayer ? "s-idle" : connecting ? "s-conn" : playbackReady ? "s-live" : "s-idle",
                   )} />
                   <span className="pf-text-3xs text-text-disabled">{playbackStateLabel}</span>
                 </div>
@@ -844,7 +851,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                 {stats && (
                   <div className="flex items-center gap-1.5 ml-2 pf-text-3xs font-mono">
                     <span className="text-text-disabled">{stats.packetsReceived} pkts</span>
-                    {stats.packetsLost > 0 && <span className="text-red-400">{stats.packetsLost} lost</span>}
+                    {stats.packetsLost > 0 && <span className="text-error">{stats.packetsLost} lost</span>}
                   </div>
                 )}
                 {filteredMessages.length > 0 && (
@@ -864,7 +871,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                 )}
                 {filteredMessages.length > 0 && (
                   <button onClick={() => { setMessageMap(prev => ({ ...prev, [mode]: [] })); setSelectedMsgId(null); }}
-                    className="pf-text-3xs text-text-disabled hover:text-red-500 dark:text-red-300 transition-colors ml-2"
+                    className="pf-text-3xs text-text-disabled hover:text-error transition-colors ml-2"
                   >{t('sidebar.clearAll', '清空')}</button>
                 )}
               </div>
@@ -872,10 +879,10 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
               {/* Log content with optional detail split */}
               <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
                 {/* Message List */}
-                <div className={cn("min-w-0 overflow-y-auto overflow-x-hidden", selectedMsg ? "w-1/2 border-r border-border-default/30" : "flex-1")}>
+                <div className={cn("min-w-0 overflow-y-auto overflow-x-hidden", selectedMsg ? "w-1/2 border-r border-border-subtle" : "flex-1")}>
                   {filteredMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-2 py-10 text-text-disabled">
-                      <div className="flex h-10 w-10 items-center justify-center pf-rounded-md bg-bg-secondary/60 border border-border-default/40">
+                      <div className="flex h-10 w-10 items-center justify-center pf-rounded-md bg-bg-secondary border border-border-subtle">
                         <MonitorPlay className="w-5 h-5 text-text-disabled/60" />
                       </div>
                       <span className="pf-text-xs font-medium">{t('videostream.noMessages', '暂无协议报文')}</span>
@@ -883,20 +890,20 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                     </div>
                   ) : (
                     <>
-                      <div className="divide-y divide-border-default/20">
+                      <div className="divide-y divide-border-subtle">
                         {visibleMessages.map((msg) => (
                           <button key={msg.id} onClick={() => setSelectedMsgId(selectedMsgId === msg.id ? null : msg.id)}
-                            className={cn("w-full text-left px-3 py-1.5 hover:bg-bg-hover/50 transition-colors",
+                            className={cn("w-full text-left px-3 py-1 font-mono hover:bg-bg-hover transition-colors",
                               selectedMsgId === msg.id && "bg-accent/5 border-l-2 border-l-accent"
                             )}
                           >
                             <div className="flex items-center gap-2">
                               <span className={cn("pf-text-3xs font-bold uppercase w-10 shrink-0",
-                                msg.direction === 'sent' ? 'text-amber-500 dark:text-amber-300' : msg.direction === 'received' ? 'text-emerald-500 dark:text-emerald-300' : 'text-blue-400'
+                                msg.direction === 'sent' ? 'text-warning' : msg.direction === 'received' ? 'text-success' : 'text-info'
                               )}>
                                 {msg.direction === 'sent' ? '→ SENT' : msg.direction === 'received' ? '← RECV' : 'ℹ INFO'}
                               </span>
-                              <span className="pf-text-3xs text-text-disabled font-mono shrink-0">
+                              <span className="pf-text-3xs text-text-tertiary shrink-0">
                                 {new Date(msg.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}.{String(new Date(msg.timestamp).getMilliseconds()).padStart(3, '0')}
                               </span>
                               {msg.size != null && msg.size > 0 && <span className="pf-text-3xs text-text-disabled shrink-0">{msg.size}B</span>}
@@ -907,7 +914,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                         <div ref={logEndRef} />
                       </div>
                       {filteredMessages.length > MAX_VISIBLE_VIDEO_MESSAGES ? (
-                        <div className="border-t border-border-default/30 px-3 py-1.5 pf-text-xxs text-text-disabled">
+                        <div className="border-t border-border-subtle px-3 py-1.5 pf-text-xxs text-text-disabled">
                           {`为保证性能，仅显示最近 ${MAX_VISIBLE_VIDEO_MESSAGES} 条协议报文`}
                         </div>
                       ) : null}
@@ -918,11 +925,11 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                 {/* Detail pane */}
                 {selectedMsg && (
                   <div className="flex w-1/2 min-w-0 flex-col overflow-hidden">
-                    <div className="shrink-0 px-3 py-1 border-b border-border-default/40 bg-bg-secondary/20 flex items-center justify-between">
+                    <div className="shrink-0 px-3 py-1 border-b border-border-subtle bg-bg-secondary flex items-center justify-between">
                       <span className="pf-text-xxs font-semibold text-text-secondary">{t('videostream.messageDetail', '报文详情')}</span>
                       <button onClick={() => setSelectedMsgId(null)} className="pf-text-xxs text-text-disabled hover:text-text-secondary p-1">✕</button>
                     </div>
-                    <pre className="flex-1 overflow-auto p-2.5 pf-text-xxs font-mono text-text-secondary whitespace-pre-wrap break-all leading-relaxed">
+                    <pre className="flex-1 overflow-auto bg-bg-inset p-2.5 pf-text-xxs font-mono text-text-secondary whitespace-pre-wrap break-all leading-relaxed">
                       {selectedMsg.detail}
                     </pre>
                   </div>

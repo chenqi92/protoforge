@@ -20,12 +20,12 @@ import type {
 } from "@/types/dbclient";
 import { DB_TYPE_LABELS, DB_TYPE_DEFAULTS } from "@/types/dbclient";
 
-// 每种数据库类型的图标和颜色
+// 每种数据库类型的图标和颜色（映射到 Forge 语义色）
 const DB_META: Record<DbType, { icon: typeof Database; color: string; bg: string }> = {
-  postgresql: { icon: Database, color: "text-blue-600 dark:text-blue-300", bg: "bg-blue-500/10 ring-blue-500/20" },
-  mysql:      { icon: Server,   color: "text-orange-600 dark:text-orange-300", bg: "bg-orange-500/10 ring-orange-500/20" },
-  sqlite:     { icon: FileBox,  color: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-500/10 ring-emerald-500/20" },
-  influxdb:   { icon: Activity, color: "text-purple-600 dark:text-purple-300", bg: "bg-purple-500/10 ring-purple-500/20" },
+  postgresql: { icon: Database, color: "text-info",         bg: "bg-info/10 ring-info/20" },
+  mysql:      { icon: Server,   color: "text-accent",       bg: "bg-accent-soft ring-accent/20" },
+  sqlite:     { icon: FileBox,  color: "text-success",      bg: "bg-success/10 ring-success/20" },
+  influxdb:   { icon: Activity, color: "text-method-patch", bg: "bg-method-patch/10 ring-method-patch/20" },
 };
 
 interface ConnectionFormDialogProps {
@@ -172,14 +172,14 @@ export function ConnectionFormDialog({
   const meta = DB_META[dbType];
   const Icon = meta.icon;
 
-  const inputCls = "w-full pf-rounded-md border border-border-default/80 bg-bg-secondary/60 px-3 py-2 pf-text-sm text-text-primary placeholder:text-text-quaternary focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none transition-colors";
+  const inputCls = "w-full pf-rounded-md border border-border-default bg-bg-input px-3 py-2 pf-text-sm text-text-primary placeholder:text-text-disabled focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none transition-colors";
   const selectCls = cn(inputCls, "appearance-none cursor-pointer");
   const labelCls = "mb-1 block pf-text-xs font-medium text-text-tertiary uppercase tracking-wider";
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent
-        className="w-[540px] max-w-[96vw] max-h-[88vh] gap-0 overflow-hidden pf-rounded-xl border border-border-default/40 bg-bg-primary p-0 shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_2px_4px_-2px_rgba(0,0,0,0.04)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.5)] sm:max-w-[540px]"
+        className="w-[540px] max-w-[96vw] max-h-[88vh] gap-0 overflow-hidden pf-rounded-xl border border-border-strong bg-bg-elevated p-0 shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_2px_4px_-2px_rgba(0,0,0,0.04)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.5)] sm:max-w-[540px]"
         showCloseButton
       >
         <DialogTitle className="sr-only">
@@ -256,7 +256,7 @@ export function ConnectionFormDialog({
                   <FolderOpen size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
                 </div>
               </div>
-              {filePath && <p className="mt-1.5 pf-text-xs text-text-quaternary truncate">{filePath}</p>}
+              {filePath && <p className="mt-1.5 pf-text-xs text-text-disabled font-mono truncate">{filePath}</p>}
             </div>
           )}
 
@@ -362,7 +362,7 @@ export function ConnectionFormDialog({
           {testResult && (
             <div className={cn(
               "flex items-center gap-2.5 pf-rounded-lg px-4 py-3",
-              testResult.ok ? "bg-emerald-500/8 text-emerald-600 dark:text-emerald-300 ring-1 ring-emerald-500/15" : "bg-red-500/8 text-red-500 dark:text-red-300 ring-1 ring-red-500/15",
+              testResult.ok ? "bg-success/8 text-success ring-1 ring-success/15" : "bg-error/8 text-error ring-1 ring-error/15",
             )}>
               {testResult.ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
               <span className="pf-text-sm truncate flex-1">{testResult.msg}</span>

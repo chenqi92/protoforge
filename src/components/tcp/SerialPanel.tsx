@@ -575,7 +575,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string; compact?: bool
                       className={cn(
                         "h-[22px] px-2 pf-rounded-xs pf-text-xxs font-semibold uppercase tracking-wide border transition-colors",
                         dtr
-                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 dark:text-emerald-300"
+                          ? "bg-success/15 border-success/40 text-success"
                           : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
                       )}
                       title="Data Terminal Ready"
@@ -587,7 +587,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string; compact?: bool
                       className={cn(
                         "h-[22px] px-2 pf-rounded-xs pf-text-xxs font-semibold uppercase tracking-wide border transition-colors",
                         rts
-                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500 dark:text-emerald-300"
+                          ? "bg-success/15 border-success/40 text-success"
                           : "border-border-default/60 text-text-disabled hover:text-text-secondary hover:border-border-default"
                       )}
                       title="Request To Send"
@@ -599,10 +599,7 @@ export function SerialPanel({ sessionKey }: { sessionKey: string; compact?: bool
                   <div className="grid grid-cols-2 gap-2">
                     {(['cts', 'dsr', 'ri', 'cd'] as const).map((sig) => (
                       <div key={sig} className="flex items-center gap-2 pf-rounded-sm border border-border-default/60 bg-bg-secondary/35 px-2.5 py-2">
-                        <div className={cn(
-                          "w-1.5 h-1.5 rounded-full transition-colors",
-                          signals[sig] ? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.6)]" : "bg-border-default/60"
-                        )} />
+                        <span className={cn("pf-dot", signals[sig] ? "s-ok" : "s-idle")} />
                         <span className="pf-text-xxs font-semibold uppercase tracking-wide text-text-secondary">
                           {sig.toUpperCase()}
                         </span>

@@ -47,15 +47,12 @@ export function StatsBar({ stats, connected, statusText, connectedSince, autoRec
     <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/50 border-t border-border-default/50 pf-text-xs font-medium shrink-0 select-none">
       {/* Connection Status */}
       <div className="flex items-center gap-1.5">
-        <div className={cn(
-          "w-1.5 h-1.5 rounded-full transition-colors",
-          connected ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : "bg-text-disabled"
-        )} />
-        <span className={cn("transition-colors", connected ? "text-emerald-600 dark:text-emerald-400" : "text-text-tertiary")}>
+        <span className={cn("pf-dot", connected ? "s-live" : "s-idle")} />
+        <span className={cn("transition-colors", connected ? "text-success" : "text-text-tertiary")}>
           {statusText}
         </span>
         {autoReconnect && !connected && (
-          <span className="flex items-center gap-0.5 text-amber-500 dark:text-amber-300">
+          <span className="flex items-center gap-0.5 text-warning">
             <RefreshCw className="w-2.5 h-2.5" />
             <span className="pf-text-xxs">自动重连</span>
           </span>
@@ -66,15 +63,15 @@ export function StatsBar({ stats, connected, statusText, connectedSince, autoRec
 
       {/* Sent */}
       <div className="flex items-center gap-1 text-text-tertiary">
-        <ArrowUp className="w-3 h-3 text-blue-500 dark:text-blue-300" />
-        <span>{formatBytes(stats.sentBytes)}</span>
+        <ArrowUp className="w-3 h-3 text-method-post" />
+        <span className="tabular-nums">{formatBytes(stats.sentBytes)}</span>
         <span className="opacity-50">({stats.sentCount})</span>
       </div>
 
       {/* Received */}
       <div className="flex items-center gap-1 text-text-tertiary">
-        <ArrowDown className="w-3 h-3 text-emerald-500 dark:text-emerald-300" />
-        <span>{formatBytes(stats.receivedBytes)}</span>
+        <ArrowDown className="w-3 h-3 text-method-get" />
+        <span className="tabular-nums">{formatBytes(stats.receivedBytes)}</span>
         <span className="opacity-50">({stats.receivedCount})</span>
       </div>
 

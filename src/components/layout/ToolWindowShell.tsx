@@ -38,7 +38,7 @@ export function ToolWindowShell({
       header={(
         <div
           {...frameGestures}
-          className="relative flex h-[var(--titlebar-height)] shrink-0 items-center justify-between gap-3 border-b border-border-default/60 bg-bg-primary/80 px-3 backdrop-blur-md select-none"
+          className="relative flex h-[var(--titlebar-height)] shrink-0 items-center justify-between gap-3 border-b border-border-default bg-bg-primary px-3 select-none"
         >
           {/* macOS 交通灯按钮占位区域 */}
           <div className="w-[70px] shrink-0" />
@@ -46,7 +46,7 @@ export function ToolWindowShell({
           <div className="flex min-w-0 items-center gap-2.5">
             <span
               className={cn(
-                "h-2.5 w-2.5 rounded-full shadow-[0_0_0_4px_rgba(255,255,255,0.8)] dark:shadow-[0_0_0_4px_rgba(18,18,20,0.9)]",
+                "h-2.5 w-2.5 rounded-full shadow-[0_0_0_4px_var(--color-bg-primary)]",
                 accentClassName
               )}
             />

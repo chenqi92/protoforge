@@ -76,7 +76,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
                 </>
               ) : (
                 <>
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                  <span className="pf-dot s-ok shrink-0" />
                   <span className={cn("truncate font-mono text-text-primary", compact ? "pf-text-xs" : "pf-text-sm")}>
                     {selectedClient?.remoteAddr ?? selectedClientId}
                   </span>
@@ -115,7 +115,7 @@ export function ClientList({ clients, selectedClientId, onSelectClient, embedded
                   selectedClientId === c.id && "bg-accent/8"
                 )}
               >
-                <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                <span className="pf-dot s-ok shrink-0" />
                 <span className={cn(
                   "flex-1 truncate font-mono pf-text-sm",
                   selectedClientId === c.id ? "text-accent font-medium" : "text-text-secondary"

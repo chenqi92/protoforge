@@ -32,12 +32,12 @@ export const DdlCodeView = memo(function DdlCodeView({ text, showToolbar = true 
   }, [text]);
 
   return (
-    <div className="flex h-full flex-col bg-bg-base">
+    <div className="flex h-full flex-col bg-bg-inset">
       {showToolbar && (
-        <div className="flex items-center justify-end px-3 py-1 border-b border-border-default/30 shrink-0">
+        <div className="flex items-center justify-end px-3 py-1 border-b border-border-default shrink-0">
           <button onClick={handleCopy}
             className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors">
-            {copied ? <Check size={12} className="text-emerald-500 dark:text-emerald-300" /> : <Copy size={12} />}
+            {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
             <span>{copied ? "已复制" : "复制"}</span>
           </button>
         </div>
@@ -47,7 +47,7 @@ export const DdlCodeView = memo(function DdlCodeView({ text, showToolbar = true 
           <tbody>
             {lines.map((line, i) => (
               <tr key={i} className="hover:bg-bg-hover/50">
-                <td className="select-none text-right pr-4 pl-3 text-text-quaternary/60 w-[1%] whitespace-nowrap align-top">
+                <td className="select-none text-right pr-4 pl-3 text-text-disabled w-[1%] whitespace-nowrap align-top">
                   {i + 1}
                 </td>
                 <td className="pr-4 text-text-primary whitespace-pre">
@@ -74,17 +74,17 @@ function DdlLine({ line }: { line: string }) {
   while ((m = regex.exec(line)) !== null) {
     const [full, str, backtick, dblQuote, word] = m;
     if (str) {
-      parts.push(<span key={key++} className="text-emerald-500 dark:text-emerald-300">{full}</span>);
+      parts.push(<span key={key++} className="text-success">{full}</span>);
     } else if (backtick || dblQuote) {
       parts.push(<span key={key++} className="text-text-primary">{full}</span>);
     } else if (word) {
       const lower = word.toLowerCase();
       if (SQL_KEYWORDS.has(lower)) {
-        parts.push(<span key={key++} className="text-blue-400 font-medium">{word}</span>);
+        parts.push(<span key={key++} className="text-info font-medium">{word}</span>);
       } else if (SQL_VALUES.has(lower)) {
-        parts.push(<span key={key++} className="text-amber-400">{word}</span>);
+        parts.push(<span key={key++} className="text-warning">{word}</span>);
       } else if (/^\d+$/.test(word)) {
-        parts.push(<span key={key++} className="text-purple-400">{word}</span>);
+        parts.push(<span key={key++} className="text-method-patch">{word}</span>);
       } else {
         parts.push(<span key={key++}>{word}</span>);
       }

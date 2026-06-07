@@ -171,20 +171,20 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ type: "spring", duration: 0.3, bounce: 0.1 }}
-            className="w-[860px] max-w-[94vw] min-h-[520px] max-h-[80vh] pf-rounded-xl border border-border-default bg-bg-primary shadow-2xl flex flex-col overflow-hidden"
+            className="w-[860px] max-w-[94vw] min-h-[520px] max-h-[80vh] pf-rounded-xl border border-border-strong bg-bg-elevated shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
-            <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-border-subtle">
+            <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-border-default">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                  <Zap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <div className="w-8 h-8 pf-rounded-lg bg-accent-soft flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-accent" />
                 </div>
                 <div>
                   <h2 className="pf-text-md font-semibold text-text-primary">环境变量管理</h2>
                   <p className="pf-text-3xs text-text-disabled">管理全局变量和环境专属变量</p>
                 </div>
               </div>
-              <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-bg-hover text-text-disabled hover:text-text-primary transition-colors">
+              <button onClick={onClose} className="w-7 h-7 flex items-center justify-center pf-rounded-md hover:bg-bg-hover text-text-disabled hover:text-text-primary transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -192,23 +192,25 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
             {/* Body */}
             <div className="flex flex-1 min-h-0">
               {/* Left: Env list */}
-              <div className="w-[200px] shrink-0 border-r border-border-subtle bg-bg-secondary/30 flex flex-col">
+              <div className="w-[200px] shrink-0 border-r border-border-default bg-bg-secondary/40 flex flex-col">
                 <div className="p-2">
                   <button
                     onClick={() => setSelectedTab("global")}
                     className={cn(
-                      "w-full flex items-center gap-2 px-2.5 py-2 rounded-lg pf-text-sm font-medium transition-colors",
-                      isGlobal ? "bg-accent-soft text-accent" : "text-text-secondary hover:bg-bg-hover"
+                      "relative w-full flex items-center gap-2 h-8 px-2.5 pf-rounded-md pf-text-sm font-medium transition-colors",
+                      isGlobal
+                        ? "bg-accent-soft text-text-primary before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-accent"
+                        : "text-text-secondary hover:bg-bg-hover"
                     )}
                   >
-                    <Globe className="w-3.5 h-3.5 shrink-0" />
+                    <Globe className={cn("w-3.5 h-3.5 shrink-0", isGlobal && "text-accent")} />
                     <span className="truncate">全局变量</span>
-                    <span className="pf-text-3xs text-text-disabled ml-auto tabular-nums">{globalVariables.length}</span>
+                    <span className="pf-text-3xs text-text-disabled ml-auto font-mono tabular-nums">{globalVariables.length}</span>
                   </button>
                 </div>
 
                 <div className="px-2 py-1">
-                  <div className="pf-text-3xs uppercase text-text-disabled font-semibold tracking-wider px-2.5">环境</div>
+                  <div className="pf-text-xxs uppercase text-text-tertiary font-bold tracking-[0.06em] px-2.5">环境</div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
@@ -220,20 +222,22 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                         key={env.id}
                         onClick={() => { setSelectedTab(env.id); if (!variables[env.id]) fetchVariables(env.id); }}
                         className={cn(
-                          "w-full flex items-center gap-2 px-2.5 py-2 rounded-lg pf-text-sm transition-colors text-left",
-                          isSelected ? "bg-accent-soft text-accent font-medium" : "text-text-tertiary hover:bg-bg-hover"
+                          "relative w-full flex items-center gap-2 h-8 px-2.5 pf-rounded-md pf-text-sm transition-colors text-left",
+                          isSelected
+                            ? "bg-accent-soft text-text-primary font-medium before:content-[''] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-accent"
+                            : "text-text-tertiary hover:bg-bg-hover"
                         )}
                       >
-                        <div className={cn("w-[5px] h-[5px] rounded-full shrink-0", isActiveEnv ? "bg-emerald-500" : "bg-border-strong")} />
+                        <span className={cn("pf-dot", isActiveEnv ? "s-ok" : "s-idle")} />
                         <span className="truncate flex-1">{env.name}</span>
-                        {isActiveEnv && <span className="pf-text-3xs text-emerald-600 dark:text-emerald-300 font-semibold">ON</span>}
+                        {isActiveEnv && <span className="pf-pill ok h-[15px] px-1.5 text-[9px]">ON</span>}
                       </button>
                     );
                   })}
                 </div>
 
-                <div className="p-2 border-t border-border-subtle/50">
-                  <button onClick={handleNewEnv} className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg pf-text-xs text-accent hover:bg-accent-soft transition-colors">
+                <div className="p-2 border-t border-border-default/60">
+                  <button onClick={handleNewEnv} className="w-full flex items-center justify-center gap-1.5 h-7 px-2 pf-rounded-md pf-text-xs font-medium text-accent hover:bg-accent-soft transition-colors">
                     <Plus className="w-3.5 h-3.5" />
                     <span>新建环境</span>
                   </button>
@@ -243,7 +247,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
               {/* Right: Variable editor */}
               <div className="flex-1 flex flex-col min-w-0">
                 {/* Toolbar */}
-                <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-border-subtle/70">
+                <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-border-default/70">
                   <div className="flex items-center gap-2 flex-1">
                     <h3 className="pf-text-sm font-semibold text-text-primary">
                       {isGlobal ? "全局变量" : selectedEnv?.name || ""}
@@ -252,19 +256,20 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                       <button
                         onClick={() => handleToggleActive(selectedTab)}
                         className={cn(
-                          "ml-1 px-2 py-0.5 rounded-md pf-text-3xs font-semibold transition-colors",
+                          "ml-1 pf-status-chip h-5 px-2 pf-rounded-md font-semibold transition-colors",
                           activeEnvId === selectedTab
-                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/20"
+                            ? "bg-success/12 text-success hover:bg-success/20"
                             : "bg-bg-hover text-text-disabled hover:text-text-secondary"
                         )}
                       >
+                        <span className={cn("pf-dot", activeEnvId === selectedTab ? "s-ok" : "s-idle")} />
                         {activeEnvId === selectedTab ? "已激活" : "激活"}
                       </button>
                     )}
                     {!isGlobal && (
                       <button
                         onClick={() => handleDeleteEnv(selectedTab)}
-                        className="ml-1 px-1.5 py-0.5 rounded-md pf-text-3xs text-red-500/60 hover:text-red-500 dark:text-red-300 hover:bg-red-500/10 transition-colors"
+                        className="ml-1 px-1.5 py-0.5 pf-rounded-md pf-text-3xs text-text-disabled hover:text-error hover:bg-error/10 transition-colors"
                       >
                         删除环境
                       </button>
@@ -276,12 +281,12 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="搜索变量..."
-                      className="pl-6 pr-2 py-1 w-[140px] rounded-md bg-bg-secondary border border-border-subtle pf-text-xs text-text-primary outline-none focus:border-accent/50 transition-colors"
+                      className="pl-6 pr-2 h-7 w-[140px] pf-rounded-md bg-bg-secondary border border-border-default pf-text-xs text-text-primary outline-none focus:border-accent/50 transition-colors"
                     />
                   </div>
                   <button
                     onClick={isGlobal ? addGlobalVar : addEnvVar}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent/10 text-accent pf-text-xs font-medium hover:bg-accent/20 transition-colors"
+                    className="flex items-center gap-1 h-7 px-2.5 pf-rounded-md bg-accent-soft text-accent pf-text-xs font-medium hover:bg-accent/20 transition-colors"
                   >
                     <Plus className="w-3 h-3" />
                     添加
@@ -290,12 +295,14 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
 
                 {/* Hint for env-level */}
                 {!isGlobal && (
-                  <div className="px-4 py-1.5 pf-text-3xs text-text-disabled bg-amber-500/3 border-b border-border-subtle/30">
+                  <div className="flex items-center gap-1.5 px-4 py-1.5 pf-text-3xs text-text-tertiary bg-warning/[0.04] border-b border-border-default/30">
+                    <span className="pf-dot s-conn" />
                     环境变量会覆盖同名的全局变量（优先级更高）
                   </div>
                 )}
                 {isGlobal && (
-                  <div className="px-4 py-1.5 pf-text-3xs text-text-disabled bg-blue-500/3 border-b border-border-subtle/30">
+                  <div className="flex items-center gap-1.5 px-4 py-1.5 pf-text-3xs text-text-tertiary bg-info/[0.04] border-b border-border-default/30">
+                    <span className="pf-dot s-run" />
                     全局变量在所有环境中生效，环境变量可覆盖同名全局变量
                   </div>
                 )}
@@ -309,40 +316,40 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                       <p className="pf-text-3xs mt-0.5">点击上方"添加"按钮创建新变量</p>
                     </div>
                   ) : (
-                    <table className="w-full">
+                    <table className="w-full border-collapse pf-text-xs">
                       <thead className="sticky top-0 bg-bg-primary z-10">
-                        <tr className="pf-text-3xs text-text-disabled border-b border-border-subtle/50 uppercase tracking-wider">
-                          <th className="text-left font-medium px-4 py-2 w-8" />
-                          <th className="text-left font-medium px-2 py-2 w-[38%]">Key</th>
-                          <th className="text-left font-medium px-2 py-2">Value</th>
-                          <th className="w-16" />
+                        <tr className="pf-text-xxs text-text-tertiary uppercase tracking-[0.05em]">
+                          <th className="text-center font-semibold px-2.5 py-[5px] w-[30px] border-b border-border-default" />
+                          <th className="text-left font-semibold px-[9px] py-[5px] w-[38%] border-b border-border-default">Key</th>
+                          <th className="text-left font-semibold px-[9px] py-[5px] border-b border-border-default">Value</th>
+                          <th className="w-12 border-b border-border-default" />
                         </tr>
                       </thead>
                       <tbody>
                         {currentVars.map((v) => (
-                          <tr key={v.id} className="group border-b border-border-subtle/30 hover:bg-bg-hover/40 transition-colors">
-                            <td className="px-4 py-1.5">
+                          <tr key={v.id} className="group border-b border-border-subtle hover:bg-bg-hover transition-colors">
+                            <td className="text-center align-middle w-[30px] border-b border-border-subtle">
                               <input
                                 type="checkbox"
                                 checked={v.enabled === 1}
                                 onChange={() => isGlobal ? toggleGlobalVar(v.id) : toggleEnvVar(v.id)}
-                                className="w-3.5 h-3.5 rounded accent-accent cursor-pointer"
+                                className="w-3.5 h-3.5 rounded accent-accent cursor-pointer align-middle"
                               />
                             </td>
-                            <td className="px-2 py-1.5">
+                            <td className="border-b border-border-subtle">
                               <input
                                 value={v.key}
                                 onChange={(e) => isGlobal ? updateGlobalVar(v.id, { key: e.target.value }) : updateEnvVar(v.id, { key: e.target.value })}
                                 onBlur={isGlobal ? flushGlobal : flushEnv}
                                 placeholder="VARIABLE_NAME"
                                 className={cn(
-                                  "w-full bg-transparent border-none outline-none text-text-primary pf-text-xs font-mono",
+                                  "w-full bg-transparent border-none outline-none text-accent pf-text-xs font-mono px-[9px] py-1.5 placeholder:text-text-disabled",
                                   v.enabled === 0 && "opacity-40 line-through"
                                 )}
                               />
                             </td>
-                            <td className="px-2 py-1.5">
-                              <div className="flex items-center gap-1">
+                            <td className="border-b border-border-subtle">
+                              <div className="flex items-center gap-1 pr-2">
                                 <input
                                   value={v.value}
                                   onChange={(e) => isGlobal ? updateGlobalVar(v.id, { value: e.target.value }) : updateEnvVar(v.id, { value: e.target.value })}
@@ -350,7 +357,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                                   placeholder="value"
                                   type={!isGlobal && 'isSecret' in v && (v as EnvVariable).isSecret === 1 ? "password" : "text"}
                                   className={cn(
-                                    "w-full bg-transparent border-none outline-none text-text-secondary pf-text-xs font-mono flex-1",
+                                    "w-full bg-transparent border-none outline-none text-text-secondary pf-text-xs font-mono flex-1 px-[9px] py-1.5 placeholder:text-text-disabled",
                                     v.enabled === 0 && "opacity-40"
                                   )}
                                 />
@@ -365,10 +372,10 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                                 )}
                               </div>
                             </td>
-                            <td className="px-2 py-1.5">
+                            <td className="px-2 py-1.5 border-b border-border-subtle">
                               <button
                                 onClick={() => isGlobal ? deleteGlobalVar(v.id) : deleteEnvVar(v.id)}
-                                className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-6 h-6 rounded-md hover:bg-red-500/10 hover:text-red-500 dark:text-red-300 text-text-disabled transition-all"
+                                className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-6 h-6 pf-rounded-md hover:bg-error/10 hover:text-error text-text-disabled transition-all"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -381,10 +388,13 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                 </div>
 
                 {/* Footer stats */}
-                <div className="shrink-0 flex items-center justify-between px-4 py-2 border-t border-border-subtle/50 pf-text-3xs text-text-disabled">
-                  <span>共 {currentVars.length} 个变量 · {currentVars.filter((v) => v.enabled).length} 个已启用</span>
+                <div className="shrink-0 flex items-center justify-between px-4 py-2 border-t border-border-default/60 pf-text-3xs text-text-disabled">
+                  <span className="font-mono tabular-nums">共 {currentVars.length} 个变量 · {currentVars.filter((v) => v.enabled).length} 个已启用</span>
                   {!isGlobal && activeEnvId === selectedTab && (
-                    <span className="text-emerald-600 dark:text-emerald-300 font-medium">● 当前激活</span>
+                    <span className="pf-status-chip text-success font-medium">
+                      <span className="pf-dot s-live" />
+                      当前激活
+                    </span>
                   )}
                 </div>
               </div>

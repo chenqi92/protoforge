@@ -16,12 +16,13 @@ type BodyMode = "none" | "json" | "raw";
 type AuthMode = "none" | "bearer" | "basic";
 
 const LOAD_TEST_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH"];
+// Forge method-token text colors for the .pf-mtag method tag (text-only, per prototype).
 const LOAD_TEST_METHOD_CLASSES: Record<HttpMethod, string> = {
-  GET: "bg-emerald-500",
-  POST: "bg-amber-500",
-  PUT: "bg-blue-500",
-  DELETE: "bg-red-500",
-  PATCH: "bg-violet-500",
+  GET: "text-method-get",
+  POST: "text-method-post",
+  PUT: "text-method-put",
+  DELETE: "text-method-delete",
+  PATCH: "text-method-patch",
 };
 
 export const LoadTestWorkspace = memo(function LoadTestWorkspace({ sessionId }: { sessionId?: string }) {
@@ -261,10 +262,10 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
             className="wb-protocol-dropdown"
             title={t('loadtest.method')}
           >
-            <span className={cn("wb-protocol-dropdown-icon text-white", LOAD_TEST_METHOD_CLASSES[method])}>
+            <span className="wb-protocol-dropdown-icon text-accent">
               <Flame className="h-3.5 w-3.5" />
             </span>
-            <span className="wb-protocol-dropdown-label">{method}</span>
+            <span className={cn("wb-protocol-dropdown-label pf-mtag pf-text-3xs", LOAD_TEST_METHOD_CLASSES[method])}>{method}</span>
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
           <div className="wb-request-main">
@@ -303,8 +304,8 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
         </div>
 
         <div className="wb-request-secondary">
-          <span className="wb-request-meta">
-            <span className={cn("wb-request-meta-dot", running ? "bg-warning" : "bg-text-disabled")} />
+          <span className={cn("pf-pill", running ? "info" : "")}>
+            <span className={cn("pf-dot", running ? "s-run" : "s-idle")} />
             {running ? t('loadtest.running') : t('loadtest.idle')}
           </span>
           <span className="wb-request-meta">
@@ -357,11 +358,11 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                     }}
                     className={cn("wb-protocol-menu-item", item === method && "bg-bg-hover")}
                   >
-                    <span className={cn("wb-protocol-menu-icon text-white", LOAD_TEST_METHOD_CLASSES[item])}>
+                    <span className="wb-protocol-menu-icon text-accent">
                       <Flame className="h-3.5 w-3.5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block pf-text-sm font-medium text-text-primary">{item}</span>
+                      <span className={cn("block pf-mtag pf-text-3xs", LOAD_TEST_METHOD_CLASSES[item])}>{item}</span>
                     </span>
                   </button>
                 ))}
@@ -435,7 +436,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
             <ControlBlock label={t('loadtest.latencyThreshold', '延迟阈值')} icon={<AlertTriangle className="h-3 w-3" />}>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 pf-text-xs text-text-secondary">
-                  <input type="checkbox" checked={thresholdEnabled} onChange={(e) => setThresholdEnabled(e.target.checked)} disabled={running} className="h-3.5 w-3.5 accent-amber-500" />
+                  <input type="checkbox" checked={thresholdEnabled} onChange={(e) => setThresholdEnabled(e.target.checked)} disabled={running} className="h-3.5 w-3.5 accent-[var(--color-warning)]" />
                   {t('loadtest.enableThreshold', '启用延迟阈值断言')}
                 </label>
                 {thresholdEnabled ? (
@@ -457,7 +458,7 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                     <div key={i} className="mb-2 flex items-center gap-2">
                       <input value={h.key} onChange={(e) => { const n = [...headers]; n[i].key = e.target.value; setHeaders(n); }} disabled={running} placeholder="Header Key" className="cfg-input flex-1 text-left" />
                       <input value={h.value} onChange={(e) => { const n = [...headers]; n[i].value = e.target.value; setHeaders(n); }} disabled={running} placeholder="Header Value" className="cfg-input flex-1 text-left" />
-                      <button onClick={() => setHeaders(headers.filter((_, j) => j !== i))} disabled={running || headers.length <= 1} className="wb-icon-btn shrink-0 hover:text-red-500 dark:text-red-300 disabled:opacity-50"><Trash2 className="w-3 h-3" /></button>
+                      <button onClick={() => setHeaders(headers.filter((_, j) => j !== i))} disabled={running || headers.length <= 1} className="wb-icon-btn shrink-0 hover:text-error disabled:opacity-50"><Trash2 className="w-3 h-3" /></button>
                     </div>
                   ))}
                   <button onClick={() => setHeaders([...headers, { key: "", value: "" }])} disabled={running} className="wb-ghost-btn"><Plus className="w-3 h-3" />{t('loadtest.addHeader')}</button>
@@ -534,14 +535,14 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
       {/* ── Main Content ── */}
       <div className="flex flex-col pt-3 pb-6 mt-3">
         {error && (
-          <div className="mb-3 flex items-center gap-2 pf-rounded-md border border-red-200 bg-red-50 px-4 py-2.5 pf-text-base text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+          <div className="mb-3 flex items-center gap-2 pf-rounded-md border border-error/25 bg-error/10 px-4 py-2.5 pf-text-base text-error">
             <AlertTriangle className="w-4 h-4 shrink-0" />{error}
           </div>
         )}
 
         {/* Metrics Cards */}
         {(latestMetrics || summary) && (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5 mb-3">
             <MetricCard label="RPS" value={summary ? summary.avgRps.toFixed(1) : latestMetrics ? latestMetrics.rps.toFixed(1) : "—"} icon={<Zap className="w-4 h-4" />} color="rose" sub={summary ? t('loadtest.average') : t('loadtest.current')} />
             <MetricCard label={t('loadtest.avgLatency')} value={`${(summary?.avgLatencyMs ?? latestMetrics?.avgLatencyMs ?? 0).toFixed(1)} ms`} icon={<Activity className="w-4 h-4" />} color="blue" sub={`P50: ${summary?.p50Ms ?? latestMetrics?.p50Ms ?? 0}ms · P95: ${summary?.p95Ms ?? latestMetrics?.p95Ms ?? 0}ms`} />
             <MetricCard label={t('loadtest.errorRate')} value={summary ? summary.totalRequests > 0 ? `${((summary.totalErrors / summary.totalRequests) * 100).toFixed(1)}%` : "0%" : `${errorRate}%`} icon={<AlertTriangle className="w-4 h-4" />} color={Number(errorRate) > 5 ? "red" : "emerald"} sub={t('loadtest.errors', { count: summary?.totalErrors ?? latestMetrics?.totalErrors ?? 0 })} />
@@ -554,16 +555,16 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
         {/* Charts */}
         {snapshots.length >= 2 && (
           <div className="wb-panel mb-3 overflow-hidden panel">
-            <div className="flex items-center gap-1 px-4 py-2.5 bg-bg-secondary/32 border-b border-border-default overflow-x-auto">
-              <BarChart3 className="w-4 h-4 text-text-tertiary mr-1 shrink-0" />
+            <div className="flex items-center gap-1 px-3 h-[33px] border-b border-border-default overflow-x-auto">
+              <BarChart3 className="w-3.5 h-3.5 text-text-tertiary mr-1 shrink-0" />
               {([
-                { key: "rps" as const, label: "RPS", activeColor: "text-rose-600 dark:text-rose-300", barColor: "bg-rose-500" },
-                { key: "latency" as const, label: t('loadtest.latency'), activeColor: "text-blue-600 dark:text-blue-300", barColor: "bg-blue-500" },
-                { key: "error" as const, label: t('loadtest.errorRate'), activeColor: "text-red-500 dark:text-red-300", barColor: "bg-red-500" },
-                { key: "throughput" as const, label: t('loadtest.throughput'), activeColor: "text-cyan-500 dark:text-cyan-300", barColor: "bg-cyan-500" },
-                { key: "concurrency" as const, label: t('loadtest.concurrency'), activeColor: "text-emerald-500 dark:text-emerald-300", barColor: "bg-emerald-500" },
-                { key: "scatter" as const, label: t('loadtest.scatterPlot'), activeColor: "text-rose-500 dark:text-rose-300", barColor: "bg-rose-500" },
-                ...(errorSamples.length > 0 ? [{ key: "errorSamples" as const, label: t('loadtest.errorSamples', '错误样本'), activeColor: "text-red-500 dark:text-red-300", barColor: "bg-red-500" }] : []),
+                { key: "rps" as const, label: "RPS", activeColor: "text-accent" },
+                { key: "latency" as const, label: t('loadtest.latency'), activeColor: "text-info" },
+                { key: "error" as const, label: t('loadtest.errorRate'), activeColor: "text-error" },
+                { key: "throughput" as const, label: t('loadtest.throughput'), activeColor: "text-method-head" },
+                { key: "concurrency" as const, label: t('loadtest.concurrency'), activeColor: "text-success" },
+                { key: "scatter" as const, label: t('loadtest.scatterPlot'), activeColor: "text-accent" },
+                ...(errorSamples.length > 0 ? [{ key: "errorSamples" as const, label: t('loadtest.errorSamples', '错误样本'), activeColor: "text-error" }] : []),
               ]).map((tab) => (
                 <button
                   key={tab.key}
@@ -574,12 +575,12 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
                   )}
                 >
                   {tab.label}
-                  {tab.key === "errorSamples" && <span className="ml-1 text-[10px] bg-red-500/15 text-red-600 dark:text-red-300 px-1.5 py-0.5 rounded-full tabular-nums">{errorSamples.length}</span>}
-                  {chartTab === tab.key ? <span className={cn("absolute inset-x-2 bottom-0 h-[2px] rounded-full", tab.barColor)} /> : null}
+                  {tab.key === "errorSamples" && <span className="ml-1 pf-text-3xs bg-error/15 text-error px-1.5 py-0.5 rounded-full tabular-nums">{errorSamples.length}</span>}
+                  {chartTab === tab.key ? <span className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-accent" /> : null}
                 </button>
               ))}
             </div>
-            <div className="p-4">
+            <div className="p-3">
               {chartTab === "errorSamples" ? (
                 <ErrorSamplesPanel samples={errorSamples} />
               ) : (
@@ -670,24 +671,27 @@ function formatBytes(bytes: number): string {
 }
 
 function MetricCard({ label, value, icon, color, sub }: { label: string; value: string; icon: React.ReactNode; color: string; sub: string }) {
-  const cm: Record<string, { bg: string; text: string; iconBg: string }> = {
-    rose:    { bg: "bg-rose-500/5",       text: "text-rose-600 dark:text-rose-300",    iconBg: "bg-rose-500/10" },
-    blue:    { bg: "bg-blue-500/5",      text: "text-blue-600 dark:text-blue-300",    iconBg: "bg-blue-500/10" },
-    emerald: { bg: "bg-emerald-500/5",   text: "text-emerald-600 dark:text-emerald-300", iconBg: "bg-emerald-500/10" },
-    red:     { bg: "bg-red-500/5",       text: "text-red-600 dark:text-red-300",     iconBg: "bg-red-500/10" },
-    violet:  { bg: "bg-violet-500/5",    text: "text-violet-600 dark:text-violet-300",  iconBg: "bg-violet-500/10" },
-    cyan:    { bg: "bg-cyan-500/5",      text: "text-cyan-600 dark:text-cyan-300",    iconBg: "bg-cyan-500/10" },
-    amber:   { bg: "bg-amber-500/5",     text: "text-amber-600 dark:text-amber-300",   iconBg: "bg-amber-500/10" },
+  // Forge .metric look: neutral surface, mlabel (11px uppercase) over a 22px mono
+  // mval. Per prototype only the semantically-loaded cards tint the value; the
+  // rest stay text-primary. `icon` kept as a faint glyph beside the label.
+  const valueTone: Record<string, string> = {
+    rose:    "text-accent",
+    blue:    "text-text-primary",
+    emerald: "text-success",
+    red:     "text-error",
+    violet:  "text-text-primary",
+    cyan:    "text-text-primary",
+    amber:   "text-text-primary",
   };
-  const c = cm[color] || cm.rose;
+  const tone = valueTone[color] ?? "text-text-primary";
   return (
-    <div className={cn("pf-rounded-md border border-border-default/60 p-4", c.bg)}>
-      <div className="mb-2 flex items-center justify-between border-b border-border-default/60 pb-2">
-        <span className="pf-text-xs font-medium text-text-tertiary uppercase tracking-wide">{label}</span>
-        <div className={cn("flex h-7 w-7 items-center justify-center pf-rounded-sm", c.iconBg, c.text)}>{icon}</div>
+    <div className="pf-rounded-md border border-border-default bg-bg-secondary px-3 py-2.5">
+      <div className="flex items-center gap-1.5 pf-text-xs font-semibold uppercase tracking-[0.05em] text-text-tertiary">
+        <span className="text-text-disabled [&>svg]:h-3 [&>svg]:w-3">{icon}</span>
+        <span className="truncate">{label}</span>
       </div>
-      <div className={cn("pf-text-5xl font-bold tabular-nums", c.text)}>{value}</div>
-      <div className="pf-text-xs text-text-disabled mt-1">{sub}</div>
+      <div className={cn("mt-0.5 pf-text-3xl font-bold tabular-nums font-mono tracking-tight leading-tight", tone)}>{value}</div>
+      <div className="pf-text-xxs text-text-disabled mt-0.5 truncate">{sub}</div>
     </div>
   );
 }
@@ -700,30 +704,30 @@ function StatusCodeBar({ codes }: { codes: Record<number, number> }) {
   const maxCount = entries[0].count;
 
   const getColor = (c: number) => {
-    if (c === 0) return "bg-gray-400";
-    if (c < 200) return "bg-cyan-400";
-    if (c < 300) return "bg-emerald-500";
-    if (c < 400) return "bg-amber-500";
-    if (c < 500) return "bg-orange-500";
-    return "bg-red-500";
+    if (c === 0) return "bg-method-options";
+    if (c < 200) return "bg-method-head";
+    if (c < 300) return "bg-success";
+    if (c < 400) return "bg-warning";
+    if (c < 500) return "bg-accent";
+    return "bg-error";
   };
 
   return (
     <div className="wb-panel overflow-hidden panel">
-      <div className="flex items-center gap-2 border-b border-border-default bg-bg-secondary/32 px-4 py-2.5">
-        <BarChart3 className="w-4 h-4 text-text-tertiary" />
-        <span className="pf-text-base font-medium text-text-secondary">{t('loadtest.statusCodeDist')}</span>
-        <span className="pf-text-xs text-text-disabled ml-auto">{t('loadtest.totalRequestsLabel', { count: total })}</span>
+      <div className="flex items-center gap-2 border-b border-border-default px-3 py-2.5">
+        <BarChart3 className="w-3.5 h-3.5 text-text-tertiary" />
+        <span className="pf-text-sm font-semibold text-text-primary">{t('loadtest.statusCodeDist')}</span>
+        <span className="pf-text-xs tabular-nums text-text-tertiary ml-auto">{t('loadtest.totalRequestsLabel', { count: total })}</span>
       </div>
-      <div className="p-4 space-y-2">
+      <div className="p-3 space-y-2">
         {entries.map((e) => (
           <div key={e.code} className="flex items-center gap-3">
-            <span className={cn("pf-text-xs font-bold px-2 py-0.5 rounded text-white min-w-[48px] text-center", getColor(e.code))}>{e.code === 0 ? "ERR" : e.code}</span>
-            <div className="flex-1 h-5 bg-bg-input rounded-full overflow-hidden">
-              <div className={cn("h-full rounded-full transition-[width] duration-300", getColor(e.code), "opacity-70")} style={{ width: `${(e.count / maxCount) * 100}%` }} />
+            <span className={cn("pf-text-3xs font-bold px-2 py-0.5 pf-rounded-xs text-white font-mono min-w-[48px] text-center", getColor(e.code))}>{e.code === 0 ? "ERR" : e.code}</span>
+            <div className="flex-1 h-4 bg-bg-inset rounded overflow-hidden">
+              <div className={cn("h-full rounded transition-[width] duration-300", getColor(e.code), "opacity-80")} style={{ width: `${(e.count / maxCount) * 100}%` }} />
             </div>
-            <span className="pf-text-sm font-mono text-text-secondary tabular-nums min-w-[60px] text-right">
-              {e.count} <span className="text-text-disabled pf-text-xxs">({((e.count / total) * 100).toFixed(1)}%)</span>
+            <span className="pf-text-xs font-mono text-text-secondary tabular-nums min-w-[60px] text-right">
+              {e.count} <span className="text-text-disabled pf-text-3xs">({((e.count / total) * 100).toFixed(1)}%)</span>
             </span>
           </div>
         ))}

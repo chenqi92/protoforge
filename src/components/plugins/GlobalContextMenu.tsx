@@ -635,7 +635,7 @@ export function GlobalContextMenu() {
         <div
           ref={menuRef}
           data-contextmenu-zone="global-context-menu"
-          className="fixed z-[var(--z-toast)] min-w-[200px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
+          className="fixed z-[var(--z-toast)] min-w-[210px] pf-rounded-lg border border-border-strong bg-bg-elevated shadow-xl p-[5px]"
           style={{ left: position.x, top: position.y, fontSize: 'var(--fs-sm)' }}
         >
           {/* 剪贴板操作 — Monaco 和 input/textarea */}
@@ -686,7 +686,7 @@ export function GlobalContextMenu() {
               {EXPORT_FORMATS.map((fmt) => (
                 <button
                   key={fmt.id}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-text-primary hover:bg-bg-hover transition-colors"
+                  className="flex w-full items-center gap-2 px-[9px] py-[6px] text-left text-text-secondary pf-rounded-sm hover:bg-bg-hover hover:text-text-primary transition-colors"
                   onClick={() => handleExportFormat(fmt)}
                 >
                   <span>{fmt.name}</span>
@@ -710,7 +710,7 @@ export function GlobalContextMenu() {
                 <button
                   key={`${g.pluginId}:${g.gen.generatorId}`}
                   onClick={() => handleGenerate(g.pluginId, g.gen.generatorId)}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-text-primary hover:bg-bg-hover transition-colors"
+                  className="flex w-full items-center gap-2 px-[9px] py-[6px] text-left text-text-secondary pf-rounded-sm hover:bg-bg-hover hover:text-text-primary transition-colors"
                 >
                   {g.gen.name}
                 </button>
@@ -846,18 +846,18 @@ function MenuItem({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        'flex w-full items-center justify-between px-3 py-1.5 text-left transition-colors',
-        disabled ? 'text-text-disabled cursor-default' : 'text-text-primary hover:bg-bg-hover',
+        'flex w-full items-center justify-between gap-9 px-[9px] py-[6px] text-left pf-rounded-sm transition-colors',
+        disabled ? 'text-text-disabled cursor-default' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
       )}
     >
       <span>{label}</span>
-      {shortcut && <span className="ml-4 text-text-disabled" style={{ fontSize: 'var(--fs-xxs)' }}>{shortcut}</span>}
+      {shortcut && <span className="ml-4 text-text-tertiary font-mono" style={{ fontSize: 'var(--fs-xxs)' }}>{shortcut}</span>}
     </button>
   );
 }
 
 function Divider() {
-  return <div className="mx-2 my-1 border-t border-border-default/50" />;
+  return <div className="mx-[6px] my-1 h-px bg-border-default" />;
 }
 
 /* ── Hover 子菜单容器 ────────────────────────────── */
@@ -908,14 +908,14 @@ function HoverSubmenu({
       onMouseEnter={() => onHover(hoverKey)}
       onMouseLeave={() => onHover(null)}
     >
-      <button className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-text-primary hover:bg-bg-hover transition-colors">
+      <button className="flex w-full items-center gap-2 px-[9px] py-[6px] text-left text-text-secondary pf-rounded-sm hover:bg-bg-hover hover:text-text-primary transition-colors">
         <span className="flex-1">{label}</span>
         <span className="text-text-tertiary pf-text-xs">▸</span>
       </button>
       {hoveredSub === hoverKey && (
         <div
           ref={subRef}
-          className="absolute z-[var(--z-toast)] min-w-[180px] rounded-xl border border-border-default bg-bg-surface/95 shadow-xl backdrop-blur-xl py-1"
+          className="absolute z-[var(--z-toast)] min-w-[190px] pf-rounded-lg border border-border-strong bg-bg-elevated shadow-xl p-[5px]"
           style={{ fontSize: 'var(--fs-sm)', ...subStyle }}
         >
           {children}
@@ -949,7 +949,7 @@ function CryptoSubItems({
         if (!filtered.length) return null;
         return (
           <div key={cat}>
-            <div className="px-3 py-1 text-text-disabled font-medium tracking-wide" style={{ fontSize: 'var(--fs-xxs)' }}>
+            <div className="px-[9px] pt-[6px] pb-[3px] text-text-tertiary font-bold uppercase tracking-[0.06em]" style={{ fontSize: 'var(--fs-3xs)' }}>
               {CATEGORY_LABELS[cat] || cat}
             </div>
             {filtered.map((item) => (
@@ -958,7 +958,7 @@ function CryptoSubItems({
                 disabled={loading}
                 onClick={() => onClick(item.pluginId, item.algorithm, mode)}
                 className={cn(
-                  'flex w-full items-center gap-2 px-3 py-1.5 text-left text-text-primary hover:bg-bg-hover transition-colors',
+                  'flex w-full items-center gap-2 px-[9px] py-[6px] text-left text-text-secondary pf-rounded-sm hover:bg-bg-hover hover:text-text-primary transition-colors',
                   loading && 'opacity-50 cursor-not-allowed',
                 )}
               >
@@ -1121,7 +1121,7 @@ function ExportOptionsDialog({
         <div className="flex justify-end gap-2 px-4 py-3 border-t border-border-default/60">
           <button onClick={onClose} className="px-3 py-1.5 pf-rounded-sm pf-text-xs text-text-secondary hover:bg-bg-hover">取消</button>
           <button onClick={handleExport} disabled={!isInflux && selectedCols.size === 0}
-            className="px-3 py-1.5 pf-rounded-sm pf-text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50">
+            className="px-3 py-1.5 pf-rounded-sm pf-text-xs font-medium bg-accent text-white hover:bg-accent-hover disabled:opacity-50">
             导出
           </button>
         </div>

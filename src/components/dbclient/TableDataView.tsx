@@ -118,7 +118,7 @@ export const TableDataView = memo(function TableDataView({
   return (
     <div className="flex h-full flex-col">
       {/* ═══ 第一行：分页(左) | 操作(右) ═══ */}
-      <div className="flex items-center gap-2 border-b border-border-default/50 px-3 py-1 shrink-0">
+      <div className="flex items-center gap-2 border-b border-border-default px-3 py-1 shrink-0">
         {/* 左：刷新 + 分页 */}
         <button onClick={handleRefresh} disabled={tab.tableDataLoading}
           className="p-1 text-text-tertiary hover:text-text-primary pf-rounded-sm hover:bg-bg-hover disabled:opacity-40" title={t("dbClient.refresh")}>
@@ -138,14 +138,14 @@ export const TableDataView = memo(function TableDataView({
         {/* 每页条数 */}
         <div className="relative" ref={pageSizeRef}>
           <button onClick={() => setShowPageSize(!showPageSize)}
-            className="flex items-center gap-1 pf-rounded-sm px-1.5 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover border border-border-default/40">
-            <span>{pl === 0 ? "All" : pl}</span><span className="text-text-quaternary">/{t("dbClient.page")}</span><ChevronDown size={9} />
+            className="flex items-center gap-1 pf-rounded-sm px-1.5 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover border border-border-default tabular-nums">
+            <span>{pl === 0 ? "All" : pl}</span><span className="text-text-disabled">/{t("dbClient.page")}</span><ChevronDown size={9} />
           </button>
           {showPageSize && (
             <div className="absolute top-full left-0 mt-1 w-[80px] py-1 bg-bg-elevated border border-border-default rounded-lg shadow-lg z-50">
               {PAGE_SIZES.map(s => (
                 <button key={s} onClick={() => handlePageSizeChange(s)}
-                  className={cn("w-full text-left px-3 py-1 pf-text-xs", s === pl ? "bg-accent/10 text-accent font-medium" : "text-text-secondary hover:bg-bg-hover")}>
+                  className={cn("w-full text-left px-3 py-1 pf-text-xs tabular-nums", s === pl ? "bg-accent-soft text-accent font-medium" : "text-text-secondary hover:bg-bg-hover")}>
                   {s === 0 ? "All" : s}
                 </button>
               ))}
@@ -153,7 +153,7 @@ export const TableDataView = memo(function TableDataView({
           )}
         </div>
 
-        <span className="pf-text-xs text-text-quaternary">{totalRows} {t("dbClient.rows")}</span>
+        <span className="pf-text-xs text-text-tertiary tabular-nums">{totalRows} {t("dbClient.rows")}</span>
 
         {/* 右：DDL + 复制格式 */}
         <div className="flex-1" />
@@ -179,18 +179,18 @@ export const TableDataView = memo(function TableDataView({
 
         <div className="relative" ref={fmtRef}>
           <button onClick={() => setShowFmtDrop(!showFmtDrop)}
-            className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary border border-border-default/40">
+            className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary border border-border-default">
             <Copy size={10} /><span>{COPY_FORMAT_LABELS[copyFormat]}</span><ChevronDown size={9} />
           </button>
           {showFmtDrop && (
-            <div className="absolute top-full right-0 mt-1 w-[130px] py-1 bg-bg-elevated border border-border-default rounded-lg shadow-lg z-50">
+            <div className="absolute top-full right-0 mt-1 w-[130px] py-1 bg-bg-elevated border border-border-strong rounded-lg shadow-lg z-50">
               {COPY_FORMAT_GROUPS.map((g, gi) => (
                 <div key={g.label}>
-                  {gi > 0 && <div className="h-px bg-border-default/50 my-1 mx-2" />}
-                  <div className="px-3 py-0.5 pf-text-xs text-text-quaternary font-medium">{g.label}</div>
+                  {gi > 0 && <div className="h-px bg-border-default my-1 mx-2" />}
+                  <div className="px-3 py-0.5 pf-text-xs text-text-disabled font-medium uppercase tracking-wider">{g.label}</div>
                   {g.formats.map(f => (
                     <button key={f} onClick={() => setCopyFmt(f)}
-                      className={cn("w-full text-left px-3 py-1 pf-text-xs", f === copyFormat ? "bg-accent/10 text-accent font-medium" : "text-text-secondary hover:bg-bg-hover")}>
+                      className={cn("w-full text-left px-3 py-1 pf-text-xs", f === copyFormat ? "bg-accent-soft text-accent font-medium" : "text-text-secondary hover:bg-bg-hover")}>
                       {COPY_FORMAT_LABELS[f]}
                     </button>
                   ))}
@@ -202,24 +202,24 @@ export const TableDataView = memo(function TableDataView({
       </div>
 
       {/* ═══ 第二行：WHERE + ORDER BY ═══ */}
-      <div className="flex items-center gap-1.5 border-b border-border-default/50 px-3 py-1 shrink-0">
+      <div className="flex items-center gap-1.5 border-b border-border-default px-3 py-1 shrink-0">
         <Filter size={11} className="text-text-tertiary shrink-0" />
-        <span className="pf-text-xs text-text-tertiary shrink-0 font-mono">WHERE</span>
+        <span className="pf-text-xs text-method-get shrink-0 font-mono font-semibold">WHERE</span>
         <input value={filterInput} onChange={e => setFilterInput(e.target.value)} onKeyDown={handleKeyDown}
           placeholder={t("dbClient.filterPlaceholder")}
-          className="min-w-[100px] flex-1 pf-rounded-sm border border-border-default bg-bg-secondary px-2 py-0.5 text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none" />
+          className="min-w-[100px] flex-1 pf-rounded-sm border border-border-default bg-bg-input px-2 py-0.5 text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none placeholder:text-text-disabled" />
         {filterInput && <button onClick={handleClearFilter} className="p-0.5 text-text-tertiary hover:text-text-primary"><X size={10} /></button>}
 
-        <span className="text-border-default/50 shrink-0">|</span>
+        <span className="text-border-strong shrink-0">|</span>
 
         <ArrowUpDown size={11} className="text-text-tertiary shrink-0" />
-        <span className="pf-text-xs text-text-tertiary shrink-0 font-mono">ORDER BY</span>
+        <span className="pf-text-xs text-method-get shrink-0 font-mono font-semibold">ORDER BY</span>
         <input value={orderByInput} onChange={e => setOrderByInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="col ASC"
-          className="w-[130px] pf-rounded-sm border border-border-default bg-bg-secondary px-2 py-0.5 text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none" />
+          className="w-[130px] pf-rounded-sm border border-border-default bg-bg-input px-2 py-0.5 text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none placeholder:text-text-disabled" />
         {orderByInput && <button onClick={handleClearOrder} className="p-0.5 text-text-tertiary hover:text-text-primary"><X size={10} /></button>}
 
         <button onClick={handleApplyAll} disabled={tab.tableDataLoading}
-          className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs bg-accent/15 text-accent hover:bg-accent/25 disabled:opacity-40 shrink-0">
+          className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs bg-accent-soft text-accent hover:bg-accent/25 disabled:opacity-40 shrink-0">
           {tab.tableDataLoading && <Loader2 size={10} className="animate-spin" />}
           {t("dbClient.apply")}
         </button>
@@ -252,5 +252,5 @@ export const TableDataView = memo(function TableDataView({
 });
 
 function PgBtn({ onClick, disabled, children }: { onClick: () => void; disabled: boolean; children: React.ReactNode }) {
-  return <button onClick={onClick} disabled={disabled} className={cn("p-0.5 pf-rounded-sm transition-colors", disabled ? "text-text-quaternary cursor-not-allowed" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary")}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} className={cn("p-0.5 pf-rounded-sm transition-colors", disabled ? "text-text-disabled cursor-not-allowed" : "text-text-secondary hover:bg-bg-hover hover:text-text-primary")}>{children}</button>;
 }

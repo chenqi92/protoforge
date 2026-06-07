@@ -29,7 +29,7 @@ class SectionErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="flex items-center gap-2 px-3 py-2 pf-text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 pf-rounded-sm">
+        <div className="flex items-center gap-2 px-3 py-2 pf-text-xs text-warning bg-warning/10 pf-rounded-sm">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span>Section render error: {this.state.error?.message}</span>
         </div>
@@ -44,20 +44,20 @@ class SectionErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 // ════════════════════════════════════════════════
 
 const BORDER_COLOR: Record<string, string> = {
-  blue: 'border-l-blue-500', indigo: 'border-l-indigo-500', sky: 'border-l-sky-500',
-  teal: 'border-l-teal-500', emerald: 'border-l-emerald-500', cyan: 'border-l-cyan-500',
-  amber: 'border-l-amber-500', red: 'border-l-red-500', purple: 'border-l-purple-500',
-  slate: 'border-l-slate-400',
+  blue: 'border-l-info', indigo: 'border-l-info', sky: 'border-l-info',
+  teal: 'border-l-method-head', emerald: 'border-l-success', cyan: 'border-l-method-head',
+  amber: 'border-l-warning', red: 'border-l-error', purple: 'border-l-method-patch',
+  slate: 'border-l-border-strong',
 };
 const BG_TINT: Record<string, string> = {
-  blue: 'bg-blue-500/5', indigo: 'bg-indigo-500/5', sky: 'bg-sky-500/5',
-  teal: 'bg-teal-500/5', emerald: 'bg-emerald-500/5', cyan: 'bg-cyan-500/5',
-  amber: 'bg-amber-500/5', red: 'bg-red-500/5', purple: 'bg-purple-500/5',
-  slate: 'bg-slate-500/5',
+  blue: 'bg-info/5', indigo: 'bg-info/5', sky: 'bg-info/5',
+  teal: 'bg-method-head/5', emerald: 'bg-success/5', cyan: 'bg-method-head/5',
+  amber: 'bg-warning/5', red: 'bg-error/5', purple: 'bg-method-patch/5',
+  slate: 'bg-bg-tertiary/40',
 };
 
-function getBorderColor(c?: string) { return (c && BORDER_COLOR[c]) || 'border-l-slate-300'; }
-function getBgTint(c?: string) { return (c && BG_TINT[c]) || 'bg-slate-500/5'; }
+function getBorderColor(c?: string) { return (c && BORDER_COLOR[c]) || 'border-l-border-strong'; }
+function getBgTint(c?: string) { return (c && BG_TINT[c]) || 'bg-bg-tertiary/40'; }
 
 // 默认分组色映射 (用于无 layout 的回退渲染)
 const DEFAULT_GROUP_COLORS: Record<string, string> = {
@@ -68,21 +68,21 @@ const DEFAULT_GROUP_COLORS: Record<string, string> = {
 
 // Field value color maps
 const DOT_COLOR: Record<string, string> = {
-  emerald: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500',
-  blue: 'bg-blue-500', purple: 'bg-purple-500', slate: 'bg-slate-500',
+  emerald: 'bg-success', amber: 'bg-warning', red: 'bg-error',
+  blue: 'bg-info', purple: 'bg-method-patch', slate: 'bg-text-tertiary',
 };
 const TEXT_COLOR: Record<string, string> = {
-  emerald: 'text-emerald-600 dark:text-emerald-400', amber: 'text-amber-600 dark:text-amber-400',
-  red: 'text-red-600 dark:text-red-400', blue: 'text-blue-600 dark:text-blue-400',
-  purple: 'text-purple-600 dark:text-purple-400', slate: 'text-slate-600 dark:text-slate-400',
+  emerald: 'text-success', amber: 'text-warning',
+  red: 'text-error', blue: 'text-info',
+  purple: 'text-method-patch', slate: 'text-text-secondary',
 };
 const BADGE_BG: Record<string, string> = {
-  emerald: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20',
-  amber: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border-amber-200 dark:border-amber-500/20',
-  red: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border-red-200 dark:border-red-500/20',
-  blue: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
-  purple: 'bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 border-purple-200 dark:border-purple-500/20',
-  slate: 'bg-slate-50 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400 border-slate-200 dark:border-slate-500/20',
+  emerald: 'bg-success/10 text-success border-success/20',
+  amber: 'bg-warning/10 text-warning border-warning/20',
+  red: 'bg-error/10 text-error border-error/20',
+  blue: 'bg-info/10 text-info border-info/20',
+  purple: 'bg-method-patch/10 text-method-patch border-method-patch/20',
+  slate: 'bg-bg-tertiary/60 text-text-secondary border-border-default',
 };
 
 // ════════════════════════════════════════════════
@@ -290,7 +290,7 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
 
         {!loading && result?.error && (
           <div className="flex flex-col items-center justify-center gap-3 p-8">
-            <AlertCircle className="h-8 w-8 opacity-30 text-red-400" />
+            <AlertCircle className="h-8 w-8 opacity-30 text-error" />
             <p className="text-text-secondary" style={{ fontSize: 'var(--fs-sm)' }}>{t('parser.parseFailed', '解析失败')}</p>
             <p className="text-text-tertiary max-w-[400px] text-center" style={{ fontSize: 'var(--fs-xs)' }}>{result.error}</p>
           </div>
@@ -309,7 +309,7 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
                 </div>
                 <button onClick={handleCopyResult}
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded-md pf-text-3xs text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors shrink-0">
-                  {copied ? <Check className="w-3 h-3 text-emerald-500 dark:text-emerald-300" /> : <Copy className="w-3 h-3" />}
+                  {copied ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
                   {copied ? '已复制' : '复制'}
                 </button>
               </div>
@@ -321,9 +321,9 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
                 {keyFields.map((field, i) => (
                   <div key={`ki-${i}`} className="relative pf-rounded-sm border border-border-default/50 bg-bg-primary overflow-hidden">
                     <div className={cn("h-[2px]",
-                      field.color === 'emerald' ? 'bg-emerald-500' : field.color === 'red' ? 'bg-red-500' :
-                      field.color === 'blue' ? 'bg-blue-500' : field.color === 'amber' ? 'bg-amber-500' :
-                      field.color === 'purple' ? 'bg-purple-500' : 'bg-accent/40'
+                      field.color === 'emerald' ? 'bg-success' : field.color === 'red' ? 'bg-error' :
+                      field.color === 'blue' ? 'bg-info' : field.color === 'amber' ? 'bg-warning' :
+                      field.color === 'purple' ? 'bg-method-patch' : 'bg-accent/40'
                     )} />
                     <div className="px-2 py-1.5">
                       <div className="pf-text-3xs text-text-tertiary truncate">{field.label || field.key}</div>
@@ -364,8 +364,8 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
 
             {/* Raw Hex */}
             {result.rawHex && (
-              <div className="pf-rounded-sm border border-border-default/50 border-l-[3px] border-l-slate-400 overflow-hidden">
-                <div className="px-3 py-1 bg-slate-500/5 pf-text-3xs font-semibold uppercase tracking-[0.08em] text-text-disabled">Raw Hex</div>
+              <div className="pf-rounded-sm border border-border-default/50 border-l-[3px] border-l-border-strong overflow-hidden">
+                <div className="px-3 py-1 bg-bg-tertiary/40 pf-text-3xs font-semibold uppercase tracking-[0.08em] text-text-disabled">Raw Hex</div>
                 <pre className="selectable p-2 font-mono pf-text-3xs text-text-tertiary leading-4 whitespace-pre-wrap break-all">{result.rawHex}</pre>
               </div>
             )}

@@ -9,6 +9,7 @@ import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/
 import { JsonEditorLite } from "@/components/common/JsonEditorLite";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { KVEditor } from "@/components/http/KVEditor";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 
 interface KVItem { key: string; value: string; enabled: boolean }
 
@@ -39,6 +40,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
   const [sendMode, setSendMode] = useState<"json" | "text" | "binary">("text");
   const [messages, setMessages] = useState<WsMessage[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dirFilter, setDirFilter] = useState<"all" | "received" | "sent">("all");
   const [headers, setHeaders] = useState<KVItem[]>([{ key: "", value: "", enabled: true }]);
   const [autoReconnect, setAutoReconnect] = useState(false);
   const [heartbeatEnabled, setHeartbeatEnabled] = useState(false);
@@ -334,13 +336,17 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
   const formatSize = (bytes: number) => bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 
   const filteredMessages = useMemo(() => {
-    if (!deferredSearchQuery) return messages;
     const normalized = deferredSearchQuery.toLowerCase();
     return messages.filter((messageItem) => {
+      if (dirFilter !== "all" && messageItem.kind === "message" && messageItem.direction !== dirFilter) return false;
+      if (!normalized) return true;
       const haystack = `${messageItem.title} ${messageItem.data}`.toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [messages, deferredSearchQuery]);
+  }, [messages, deferredSearchQuery, dirFilter]);
+
+  const sentCount = useMemo(() => messages.filter((m) => m.kind === "message" && m.direction === "sent").length, [messages]);
+  const recvCount = useMemo(() => messages.filter((m) => m.kind === "message" && m.direction === "received").length, [messages]);
 
   const displayMessages = useMemo(() => [...filteredMessages].reverse(), [filteredMessages]);
   const visibleMessages = useMemo(
@@ -439,20 +445,24 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
                       </Suspense>
                     )}
                   </div>
-                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
-                    <select
-                      value={sendMode}
-                      onChange={(e) => setSendMode(e.target.value as "json" | "text" | "binary")}
-                      className="pointer-events-auto wb-native-select pf-text-xs font-semibold text-text-secondary uppercase tracking-wider h-7 px-2 focus:ring-0 cursor-pointer bg-bg-primary/90 backdrop-blur-md border border-border-default/50 hover:bg-bg-hover transition-colors pf-rounded-sm"
-                    >
-                      <option value="text">TEXT</option>
-                      <option value="json">JSON</option>
-                      <option value="binary">BINARY</option>
-                    </select>
+                  <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2 pointer-events-none">
+                    <div className="pointer-events-auto">
+                      <SegmentedControl
+                        size="sm"
+                        value={sendMode}
+                        onChange={(v) => setSendMode(v)}
+                        options={[
+                          { value: "text", label: "Text" },
+                          { value: "json", label: "JSON" },
+                          { value: "binary", label: "Binary" },
+                        ]}
+                        className="bg-bg-primary/90 backdrop-blur-md"
+                      />
+                    </div>
                     <button
                       onClick={handleSend}
                       disabled={!connected || !message.trim()}
-                      className="pointer-events-auto inline-flex items-center justify-center gap-1.5 h-7 px-3.5 pf-rounded-sm bg-accent text-white pf-text-xs font-bold tracking-wide shadow-sm hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                      className="pointer-events-auto inline-flex h-7 items-center justify-center gap-1.5 px-3.5 pf-rounded-sm bg-accent pf-text-xs font-semibold tracking-wide text-white shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" /> {t('ws.send')}
                     </button>
@@ -484,26 +494,26 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
                 <div className="p-4 space-y-5 overflow-auto h-full">
                   <div className="space-y-3 max-w-xl">
                     <label className="flex items-center gap-3 p-3 pf-rounded-md border border-border-default/50 bg-bg-secondary/20 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-300">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-warning/10 text-warning">
                         <Loader2 className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="pf-text-sm font-medium text-text-primary">{t('ws.autoReconnect')}</div>
                         <div className="pf-text-xs text-text-tertiary">Automatically attempt to reconnect if the connection drops</div>
                       </div>
-                      <input type="checkbox" checked={autoReconnect} onChange={() => setAutoReconnect(!autoReconnect)} className="w-4 h-4 accent-amber-500 rounded border-border-default" />
+                      <input type="checkbox" checked={autoReconnect} onChange={() => setAutoReconnect(!autoReconnect)} className="w-4 h-4 accent-accent rounded border-border-default" />
                     </label>
 
                     <div className="pf-rounded-md border border-border-default/50 bg-bg-secondary/20 overflow-hidden">
                       <label className="flex items-center gap-3 p-3 hover:bg-bg-secondary/40 transition-colors cursor-pointer">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-300">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-info/10 text-info">
                           <Zap className="w-4 h-4" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="pf-text-sm font-medium text-text-primary">{t('ws.heartbeat')}</div>
                           <div className="pf-text-xs text-text-tertiary">Send periodic ping messages to keep connection alive</div>
                         </div>
-                        <input type="checkbox" checked={heartbeatEnabled} onChange={() => setHeartbeatEnabled(!heartbeatEnabled)} className="w-4 h-4 accent-amber-500 rounded border-border-default" />
+                        <input type="checkbox" checked={heartbeatEnabled} onChange={() => setHeartbeatEnabled(!heartbeatEnabled)} className="w-4 h-4 accent-accent rounded border-border-default" />
                       </label>
                       {heartbeatEnabled && (
                         <div className="p-3 bg-bg-secondary/10 border-t border-border-default/30 flex items-center gap-4">
@@ -530,40 +540,53 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
           <PanelResizeHandle className="http-workbench-divider relative z-20" />
 
           <Panel defaultSize={45} minSize={20} className="http-workbench-section flex flex-col relative z-0">
-            <div className="http-response-head shrink-0 z-10 relative">
-              <div className="http-response-tabs scrollbar-hide">
-                <span className="http-response-tab is-active">{t('ws.messages') || 'Messages'}</span>
+            {/* Status strip — live dot + streaming + heartbeat + auto-reconnect + counters */}
+            <div className="flex shrink-0 items-center gap-4 overflow-hidden border-b border-border-default px-3 py-1.5 pf-text-xxs">
+              <span className={cn("pf-status-chip shrink-0 whitespace-nowrap",
+                connected ? "text-accent" : connecting ? "text-warning" : "text-text-tertiary"
+              )}>
+                <span className={cn("pf-dot",
+                  connected ? "s-live" : connecting ? "s-conn" : "s-idle"
+                )} />
+                {connected ? '已连接 · 流式中' : connecting ? t('ws.connecting') : t('ws.disconnected')}
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-text-tertiary">
+                心跳 <b className={cn("font-mono tabular-nums", heartbeatEnabled ? "text-text-secondary" : "text-text-disabled")}>{heartbeatEnabled ? `${heartbeatInterval}s` : 'off'}</b>
+              </span>
+              <span className="shrink-0 whitespace-nowrap text-text-tertiary">
+                自动重连 <b className={autoReconnect ? "text-success" : "text-text-disabled"}>{autoReconnect ? 'on' : 'off'}</b>
+              </span>
+              <span className="ml-auto shrink-0 whitespace-nowrap text-text-tertiary">
+                ↑ <b className="font-mono tabular-nums text-method-post">{sentCount}</b>
+                {" · "}
+                ↓ <b className="font-mono tabular-nums text-method-get">{recvCount}</b>
+              </span>
+            </div>
+
+            {/* Filter row — search + all/in/out segmented + clear */}
+            <div className="flex shrink-0 items-center gap-2 border-b border-border-default px-3 py-1.5">
+              <div className="wb-search min-w-0 flex-1">
+                <Search className="w-3.5 h-3.5 text-text-disabled" />
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('ws.searchMessages')} className="min-w-0 flex-1" />
+                {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>}
               </div>
-
-              <div className="http-response-meta">
-                <div className="wb-search w-[200px] max-w-full">
-                  <Search className="w-3.5 h-3.5 text-text-disabled" />
-                  <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('ws.searchMessages')} className="min-w-0 flex-1" />
-                  {searchQuery && <button onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>}
-                </div>
-
-                <span className={cn("http-response-status",
-                  connected
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:text-emerald-200 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300"
-                    : connecting
-                      ? "border-amber-200 bg-amber-50 text-amber-700 dark:text-amber-200 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300"
-                      : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-300"
-                )}>
-                  <span className={cn("http-response-status-dot",
-                    connected ? "bg-emerald-500" : connecting ? "bg-amber-500" : "bg-slate-400"
-                  )} />
-                  {connected ? t('ws.connected') : connecting ? t('ws.connecting') : t('ws.disconnected')}
-                </span>
-
-                <span className="http-response-meta-pill">
-                  <span className="http-response-meta-label">Messages</span>
-                  <span className="http-response-meta-value font-mono">{messages.length}</span>
-                </span>
-
-                <button onClick={() => setMessages([])} className="wb-icon-btn hover:bg-red-500/10 hover:text-red-500 dark:text-red-300 transition-colors" title={t('ws.clearMessages')} disabled={messages.length === 0}>
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+              <SegmentedControl
+                size="sm"
+                value={dirFilter}
+                onChange={setDirFilter}
+                options={[
+                  { value: "all", label: t('ws.filterAll', '全部') },
+                  { value: "received", label: `↓ ${recvCount}` },
+                  { value: "sent", label: `↑ ${sentCount}` },
+                ]}
+              />
+              <span className="pf-pill shrink-0">
+                <span className="pf-text-3xs uppercase tracking-wide opacity-70">msg</span>
+                <span className="tabular-nums">{messages.length}</span>
+              </span>
+              <button onClick={() => setMessages([])} className="wb-icon-btn hover:bg-error/10 hover:text-error transition-colors" title={t('ws.clearMessages')} disabled={messages.length === 0}>
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
 
             <div
@@ -573,10 +596,10 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
               {filteredMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center px-6 text-text-disabled">
                   <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default bg-bg-secondary shadow-sm">
-                    <Zap className="w-8 h-8 opacity-20 text-amber-500 dark:text-amber-300" />
+                    <Zap className="w-8 h-8 opacity-20 text-accent" />
                   </div>
-                  <p className="pf-text-md font-medium text-text-secondary">{searchQuery ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
-                  <p className="mt-1 pf-text-sm">{searchQuery ? '' : t('ws.emptyDesc')}</p>
+                  <p className="pf-text-md font-medium text-text-secondary">{(searchQuery || dirFilter !== "all") && messages.length > 0 ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
+                  <p className="mt-1 pf-text-sm">{(searchQuery || dirFilter !== "all") && messages.length > 0 ? '' : t('ws.emptyDesc')}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border-default/30">
@@ -605,6 +628,30 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
 });
 
 WsWorkspace.displayName = "WsWorkspace";
+
+/** HTML-escape raw text before injecting via dangerouslySetInnerHTML */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Lightweight JSON syntax highlighter → .tok-* spans (mirrors the prototype hlJSON) */
+function highlightJsonInline(json: string): string {
+  const escaped = escapeHtml(json);
+  return escaped.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+    (match) => {
+      let cls = "tok-num";
+      if (/^"/.test(match)) {
+        cls = /:$/.test(match) ? "tok-key" : "tok-str";
+      } else if (/true|false/.test(match)) {
+        cls = "tok-bool";
+      } else if (/null/.test(match)) {
+        cls = "tok-null";
+      }
+      return `<span class="${cls}">${match}</span>`;
+    },
+  );
+}
 
 /** 尝试格式化 JSON */
 function tryFormatJson(data: string): { isJson: boolean; formatted: string } {
@@ -664,82 +711,96 @@ function WsMessageRow({
   // 状态消息行
   if (message.kind === "status" || message.kind === "error") {
     return (
-      <div className="flex items-center gap-2.5 px-4 py-2 pf-text-xs text-text-tertiary">
+      <div className={cn(
+        "flex items-center gap-2.5 px-4 py-1.5 pf-text-xs",
+        message.kind === "error" ? "text-error" : "text-text-tertiary"
+      )}>
         {message.kind === "status" && message.status === "connected" ? (
-          <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+          <span className="pf-dot s-ok" />
         ) : message.kind === "error" ? (
-          <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
+          <span className="pf-dot s-err" />
         ) : (
-          <span className="h-2 w-2 rounded-full bg-slate-400 shrink-0" />
+          <span className="pf-dot s-idle" />
         )}
         <span className="flex-1 truncate">{getWsMessageSummary(message, t)}</span>
-        <span className="shrink-0 font-mono pf-text-xxs text-text-disabled">
+        <span className="shrink-0 font-mono tabular-nums pf-text-xxs text-text-disabled">
           {formatTime(message.timestamp)}
         </span>
       </div>
     );
   }
 
-  // 数据消息行
+  // 数据消息行 — flat dense row: direction arrow (method color) + mono timestamp + body
+  const isSent = message.direction === "sent";
   return (
     <div className="group">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
         className={cn(
-          "flex w-full items-center gap-2.5 px-4 py-2 text-left transition-colors hover:bg-bg-hover/50",
+          "flex w-full items-start gap-2.5 px-4 py-1.5 text-left transition-colors hover:bg-bg-hover/50",
           expanded && "bg-bg-hover/30"
         )}
       >
         {/* 方向箭头 */}
-        {message.direction === "sent" ? (
-          <ArrowUp className="h-3.5 w-3.5 shrink-0 text-emerald-500 dark:text-emerald-300" />
+        {isSent ? (
+          <ArrowUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-method-post" />
         ) : (
-          <ArrowDown className="h-3.5 w-3.5 shrink-0 text-sky-500" />
+          <ArrowDown className="mt-0.5 h-3.5 w-3.5 shrink-0 text-method-get" />
         )}
 
-        {/* 格式标签 */}
+        {/* 时间戳 — mono tabular */}
+        <span className="mt-px shrink-0 font-mono tabular-nums pf-text-xxs text-text-tertiary">
+          {formatTime(message.timestamp)}
+        </span>
+
+        {/* 格式标签 — flat mono, method-toned */}
         {format && (
           <span className={cn(
-            "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 pf-text-xxs font-bold leading-none",
-            format === "JSON" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" :
-            format === "HEX" ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" :
-            "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+            "mt-px shrink-0 font-mono pf-text-3xs font-bold uppercase tracking-wide",
+            format === "JSON" ? "text-success" :
+            format === "HEX" ? "text-method-patch" :
+            "text-text-tertiary"
           )}>
             {format}
           </span>
         )}
 
-        {/* 内容摘要 */}
-        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text-secondary">
-          {preview}
-        </span>
+        {/* 内容摘要 — JSON-highlighted single line */}
+        <span
+          className="min-w-0 flex-1 truncate font-mono pf-text-xs text-text-primary"
+          dangerouslySetInnerHTML={{ __html: isJson ? highlightJsonInline(preview) : escapeHtml(preview) }}
+        />
 
-        {/* 大小 & 时间 */}
-        <div className="flex shrink-0 items-center gap-2 pf-text-xxs text-text-disabled">
-          {message.size > 0 && <span>{formatSize(message.size)}</span>}
-          <span className="font-mono">{formatTime(message.timestamp)}</span>
+        {/* 大小 & 展开/收起 */}
+        <div className="flex shrink-0 items-center gap-2 pf-text-3xs text-text-disabled">
+          {message.size > 0 && <span className="tabular-nums">{formatSize(message.size)}</span>}
+          {expanded
+            ? <ChevronUp className="h-3.5 w-3.5 text-text-disabled" />
+            : <ChevronDown className="h-3.5 w-3.5 text-text-disabled" />
+          }
         </div>
-
-        {/* 展开/收起 */}
-        {expanded
-          ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-text-disabled" />
-          : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-text-disabled" />
-        }
       </button>
 
       {/* 内联展开详情 */}
       {expanded && (
-        <div className="mx-4 mb-2 mt-0.5 rounded-lg border border-border-default/60 bg-bg-secondary/20 overflow-hidden">
+        <div className="mx-4 mb-2 mt-0.5 pf-rounded-lg border border-border-default/60 bg-bg-secondary/20 overflow-hidden">
           <div className="flex items-center gap-2 border-b border-border-default/40 px-3 py-1.5 pf-text-xxs text-text-tertiary">
-            <span className="font-semibold">{isJson ? 'JSON' : message.dataType === 'binary' ? 'HEX' : 'TEXT'}</span>
-            {message.size > 0 && <span className="ml-auto">{formatSize(message.size)}</span>}
+            <span className={cn("font-mono font-bold uppercase tracking-wide",
+              isJson ? "text-success" : message.dataType === 'binary' ? "text-method-patch" : "text-text-tertiary"
+            )}>{isJson ? 'JSON' : message.dataType === 'binary' ? 'HEX' : 'TEXT'}</span>
+            {message.size > 0 && <span className="ml-auto tabular-nums">{formatSize(message.size)}</span>}
           </div>
-          <pre className={cn(
-            "selectable overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11.5px] leading-[1.6] text-text-primary max-h-[320px]",
-          )}>
-            {formatted}
-          </pre>
+          {isJson ? (
+            <pre
+              className="selectable max-h-[320px] overflow-auto whitespace-pre-wrap break-words p-3 font-mono pf-text-xs leading-[1.65] text-text-primary"
+              dangerouslySetInnerHTML={{ __html: highlightJsonInline(formatted) }}
+            />
+          ) : (
+            <pre className="selectable max-h-[320px] overflow-auto whitespace-pre-wrap break-words p-3 font-mono pf-text-xs leading-[1.65] text-text-primary">
+              {formatted}
+            </pre>
+          )}
         </div>
       )}
     </div>

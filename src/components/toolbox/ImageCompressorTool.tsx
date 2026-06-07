@@ -122,7 +122,7 @@ export function ImageCompressorTool() {
     <ToolboxToolPane>
       {/* 选择图片 */}
       <section>
-        <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.selectImages`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.selectImages`)}</h3>
         <div className="flex items-center gap-3">
           <button onClick={handleSelectImages} className="wb-ghost-btn gap-2 px-3 py-2">
             <ImagePlus className="h-4 w-4" />
@@ -152,7 +152,7 @@ export function ImageCompressorTool() {
               return (
                 <span
                   key={path}
-                  className="inline-flex items-center gap-1 rounded-md bg-bg-secondary px-2 py-1 pf-text-xs text-text-secondary"
+                  className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-bg-secondary px-2 py-1 pf-text-xs font-mono text-text-secondary"
                 >
                   {name}
                   <button
@@ -170,7 +170,7 @@ export function ImageCompressorTool() {
 
       {/* 输出格式 */}
       <section>
-        <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.outputFormat`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputFormat`)}</h3>
         <div className="flex flex-wrap gap-2">
           {FORMAT_OPTIONS.map((opt) => {
             const checked = format === opt.id;
@@ -178,10 +178,10 @@ export function ImageCompressorTool() {
               <label
                 key={opt.id}
                 className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 pf-text-sm transition-colors",
+                  "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 pf-text-sm transition-colors",
                   checked
-                    ? "border-orange-500/50 bg-orange-500/10 text-text-primary"
-                    : "border-border-default/60 bg-bg-secondary text-text-secondary hover:border-border-strong"
+                    ? "border-accent/50 bg-accent-soft text-text-primary"
+                    : "border-border-default bg-bg-secondary text-text-secondary hover:border-border-strong"
                 )}
               >
                 <input
@@ -189,7 +189,7 @@ export function ImageCompressorTool() {
                   name="compress-format"
                   checked={checked}
                   onChange={() => setFormat(opt.id)}
-                  className="accent-orange-500"
+                  className="accent-accent"
                 />
                 <span>{t(opt.labelKey)}</span>
               </label>
@@ -201,7 +201,7 @@ export function ImageCompressorTool() {
       {/* JPEG 质量 */}
       {showJpegQuality && (
         <section>
-          <h3 className="mb-2 pf-text-sm font-semibold text-text-primary">{t(`${k}.jpegQuality`)}</h3>
+          <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.jpegQuality`)}</h3>
           <div className="flex max-w-md items-center gap-3">
             <input
               type="range"
@@ -209,10 +209,10 @@ export function ImageCompressorTool() {
               max={100}
               value={jpegQuality}
               onChange={(e) => setJpegQuality(Number(e.target.value))}
-              className="flex-1 accent-orange-500"
+              className="flex-1 accent-accent"
             />
-            <div className="flex min-w-[48px] items-baseline justify-center gap-0.5 rounded-md bg-orange-500/15 px-2 py-1 ring-1 ring-orange-500/30">
-              <span className="font-mono text-sm font-bold leading-none text-orange-700 dark:text-orange-300">
+            <div className="flex min-w-[48px] items-baseline justify-center gap-0.5 rounded-md bg-accent-soft px-2 py-1 ring-1 ring-accent/30">
+              <span className="font-mono text-sm font-bold leading-none text-accent">
                 {jpegQuality}
               </span>
             </div>
@@ -227,7 +227,7 @@ export function ImageCompressorTool() {
       {/* PNG 压缩级别 */}
       {showPngLevel && (
         <section>
-          <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.pngCompression`)}</h3>
+          <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.pngCompression`)}</h3>
           <div className="flex flex-wrap gap-2">
             {PNG_LEVELS.map((opt) => {
               const checked = pngCompression === opt.id;
@@ -235,10 +235,10 @@ export function ImageCompressorTool() {
                 <label
                   key={opt.id}
                   className={cn(
-                    "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 pf-text-sm transition-colors",
+                    "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 pf-text-sm transition-colors",
                     checked
-                      ? "border-orange-500/50 bg-orange-500/10 text-text-primary"
-                      : "border-border-default/60 bg-bg-secondary text-text-secondary hover:border-border-strong"
+                      ? "border-accent/50 bg-accent-soft text-text-primary"
+                      : "border-border-default bg-bg-secondary text-text-secondary hover:border-border-strong"
                   )}
                 >
                   <input
@@ -246,7 +246,7 @@ export function ImageCompressorTool() {
                     name="png-level"
                     checked={checked}
                     onChange={() => setPngCompression(opt.id)}
-                    className="accent-orange-500"
+                    className="accent-accent"
                   />
                   <span>{t(opt.labelKey)}</span>
                 </label>
@@ -258,7 +258,7 @@ export function ImageCompressorTool() {
 
       {/* 文件名后缀 + 覆盖 */}
       <section>
-        <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.outputName`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputName`)}</h3>
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2">
             <span className="pf-text-sm text-text-secondary">{t(`${k}.suffix`)}</span>
@@ -267,7 +267,7 @@ export function ImageCompressorTool() {
               value={suffix}
               onChange={(e) => setSuffix(e.target.value)}
               placeholder="_compressed"
-              className="w-40 rounded-md border border-border-default/60 bg-bg-secondary px-2 py-1 pf-text-sm text-text-primary outline-none focus:border-orange-500/60"
+              className="wb-field w-40"
             />
           </label>
           <label className="flex cursor-pointer items-center gap-2 pf-text-sm text-text-secondary">
@@ -275,7 +275,7 @@ export function ImageCompressorTool() {
               type="checkbox"
               checked={overwrite}
               onChange={(e) => setOverwrite(e.target.checked)}
-              className="accent-orange-500"
+              className="accent-accent"
             />
             {t(`${k}.overwrite`)}
           </label>
@@ -284,7 +284,7 @@ export function ImageCompressorTool() {
 
       {/* 输出目录 */}
       <section>
-        <h3 className="mb-3 pf-text-sm font-semibold text-text-primary">{t(`${k}.outputDir`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputDir`)}</h3>
         <div className="flex items-center gap-3">
           <button onClick={handleSelectOutput} className="wb-ghost-btn gap-2 px-3 py-2">
             <FolderOutput className="h-4 w-4" />
@@ -301,12 +301,7 @@ export function ImageCompressorTool() {
         <button
           onClick={handleProcess}
           disabled={!canProcess}
-          className={cn(
-            "flex items-center gap-2 rounded-lg px-5 py-2.5 pf-text-sm font-medium transition-colors",
-            canProcess
-              ? "bg-orange-500 text-white hover:bg-orange-600"
-              : "cursor-not-allowed bg-bg-secondary text-text-disabled"
-          )}
+          className="wb-primary-btn bg-accent hover:bg-accent-hover px-5"
         >
           {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
           {processing ? t(`${k}.processing`) : t(`${k}.process`)}
@@ -315,13 +310,13 @@ export function ImageCompressorTool() {
         {result && (
           <div className="flex items-center gap-3">
             {result.successCount > 0 && (
-              <span className="flex items-center gap-1.5 pf-text-sm text-emerald-600 dark:text-emerald-300">
+              <span className="pf-status-chip text-success">
                 <CheckCircle2 className="h-4 w-4" />
                 {t(`${k}.successCount`, { count: result.successCount })}
               </span>
             )}
             {result.errors.length > 0 && (
-              <span className="flex items-center gap-1.5 pf-text-sm text-rose-600 dark:text-rose-300">
+              <span className="pf-status-chip text-error">
                 <AlertCircle className="h-4 w-4" />
                 {t(`${k}.errorCount`, { count: result.errors.length })}
               </span>
@@ -332,17 +327,17 @@ export function ImageCompressorTool() {
 
       {/* 进度条 */}
       {processing && (
-        <section className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
+        <section className="rounded-lg border border-accent/30 bg-accent-soft p-4">
           <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
-            <Loader2 className="h-4 w-4 animate-spin text-orange-500 dark:text-orange-300" />
+            <Loader2 className="h-4 w-4 animate-spin text-accent" />
             <span>
               {t(`${k}.processing`)} {selectedImages.length}{" "}
               {t(`${k}.selectImages`).toLowerCase()}
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-orange-500/20">
+          <div className="h-1.5 overflow-hidden rounded-full bg-accent/20">
             <div
-              className="h-full animate-[progress-indeterminate_1.5s_ease-in-out_infinite] rounded-full bg-orange-500"
+              className="h-full animate-[progress-indeterminate_1.5s_ease-in-out_infinite] rounded-full bg-accent"
               style={{ width: "40%" }}
             />
           </div>
@@ -351,9 +346,9 @@ export function ImageCompressorTool() {
 
       {/* 总体节省 */}
       {result && savedRatio && result.successCount > 0 && (
-        <section className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+        <section className="rounded-lg border border-success/30 bg-success/5 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/15 text-success">
               <ArrowDownToLine className="h-4 w-4" />
             </div>
             <div className="flex-1">
@@ -374,10 +369,10 @@ export function ImageCompressorTool() {
       {/* 单文件结果 */}
       {result && result.items.length > 0 && (
         <section>
-          <h3 className="mb-2 pf-text-sm font-semibold text-text-primary">{t(`${k}.results`)}</h3>
-          <div className="overflow-hidden rounded-lg border border-border-default/60">
+          <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.results`)}</h3>
+          <div className="overflow-hidden rounded-lg border border-border-default">
             <table className="w-full pf-text-xs">
-              <thead className="bg-bg-secondary text-text-tertiary">
+              <thead className="bg-bg-tertiary text-text-tertiary">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">{t(`${k}.colFile`)}</th>
                   <th className="px-3 py-2 text-right font-medium">{t(`${k}.colOriginal`)}</th>
@@ -392,8 +387,8 @@ export function ImageCompressorTool() {
                   const ratio =
                     item.originalSize > 0 ? (saved / item.originalSize) * 100 : 0;
                   return (
-                    <tr key={i} className="border-t border-border-default/40">
-                      <td className="truncate px-3 py-1.5 text-text-secondary">{name}</td>
+                    <tr key={i} className="border-t border-border-subtle">
+                      <td className="truncate px-3 py-1.5 font-mono text-text-secondary">{name}</td>
                       <td className="px-3 py-1.5 text-right font-mono text-text-tertiary">
                         {formatBytes(item.originalSize)}
                       </td>
@@ -403,7 +398,7 @@ export function ImageCompressorTool() {
                       <td
                         className={cn(
                           "px-3 py-1.5 text-right font-mono",
-                          ratio > 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"
+                          ratio > 0 ? "text-success" : "text-error"
                         )}
                       >
                         {ratio > 0 ? "-" : "+"}
@@ -420,10 +415,10 @@ export function ImageCompressorTool() {
 
       {/* 错误详情 */}
       {result && result.errors.length > 0 && (
-        <section className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
+        <section className="rounded-lg border border-error/30 bg-error/5 p-3">
           <div className="space-y-1">
             {result.errors.map((err, i) => (
-              <div key={i} className="pf-text-xs text-rose-600 dark:text-rose-300">
+              <div key={i} className="pf-text-xs font-mono text-error">
                 {err}
               </div>
             ))}

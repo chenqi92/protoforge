@@ -90,7 +90,7 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden">
-      <div className="pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 px-3 py-2 pf-text-xxs text-text-secondary leading-relaxed">
+      <div className="pf-rounded-sm border border-border-default bg-bg-secondary px-3 py-2 pf-text-xxs text-text-secondary leading-relaxed">
         顶部播放按钮负责实际视频播放，这里用于 SRT 握手探测和会话统计。
         {connected && <span className="ml-1 text-accent">当前播放器链路已启动。</span>}
       </div>
@@ -167,7 +167,7 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
           value={config.latency}
           onChange={(e) => onConfigChange({ ...config, latency: Number(e.target.value) })}
           disabled={probeConnected}
-          className="w-full h-1.5 accent-accent rounded-full appearance-none bg-bg-secondary/60"
+          className="w-full h-1.5 accent-accent rounded-full appearance-none bg-bg-secondary"
         />
         <div className="flex justify-between pf-text-3xs text-text-disabled">
           <span>20ms</span><span>低延迟</span><span>8000ms</span>
@@ -218,11 +218,11 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
           <label className="pf-text-xxs font-semibold uppercase tracking-[0.06em] text-text-disabled">
             {t('videostream.srt.stats', '连接统计')}
           </label>
-          <div className="pf-rounded-sm border border-border-default/60 bg-bg-secondary/30 p-2 grid grid-cols-2 gap-y-1.5 gap-x-3 pf-text-xxs font-mono">
+          <div className="pf-rounded-sm border border-border-default bg-bg-inset p-2 grid grid-cols-2 gap-y-1.5 gap-x-3 pf-text-xxs font-mono">
             <div className="flex justify-between"><span className="text-text-disabled">RTT</span><span className="text-text-primary">{srtStats.rtt}ms</span></div>
             <div className="flex justify-between"><span className="text-text-disabled">Bandwidth</span><span className="text-text-primary">{srtStats.bandwidth}Mbps</span></div>
             <div className="flex justify-between"><span className="text-text-disabled">Retransmit</span><span className="text-text-primary">{srtStats.retransmitRate}%</span></div>
-            <div className="flex justify-between"><span className="text-text-disabled">Drop</span><span className={cn(srtStats.dropRate > 0 ? "text-red-400" : "text-text-primary")}>{srtStats.dropRate}%</span></div>
+            <div className="flex justify-between"><span className="text-text-disabled">Drop</span><span className={cn(srtStats.dropRate > 0 ? "text-error" : "text-text-primary")}>{srtStats.dropRate}%</span></div>
             <div className="flex justify-between"><span className="text-text-disabled">Send</span><span className="text-text-primary">{srtStats.sendRate}kbps</span></div>
             <div className="flex justify-between"><span className="text-text-disabled">Recv</span><span className="text-text-primary">{srtStats.recvRate}kbps</span></div>
           </div>
