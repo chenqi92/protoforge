@@ -312,7 +312,7 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
                 <button onClick={handleCopyResult}
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded-md pf-text-3xs text-text-tertiary hover:text-accent hover:bg-bg-hover transition-colors shrink-0">
                   {copied ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
-                  {copied ? '已复制' : '复制'}
+                  {copied ? t('common.copied') : t('common.copy')}
                 </button>
               </div>
             </div>

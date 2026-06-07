@@ -1,6 +1,50 @@
 {
   "app": {
-    "name": "ProtoForge"
+    "name": "ProtoForge",
+    "windowTitle": {
+      "tcpudp": "TCP / UDP Debug"
+    },
+    "titleBar": {
+      "searchPlaceholder": "Search requests, commands, collections…",
+      "designRationale": "Design rationale / sitemap",
+      "switchToZh": "中文",
+      "langIndicatorZh": "中"
+    },
+    "loading": {
+      "collectionSettings": "Loading collection settings...",
+      "designSystem": "Loading design system..."
+    },
+    "dragToResizeWidth": "Drag to resize width",
+    "presetGroup": {
+      "playback": "Playback protocols",
+      "assistant": "Assistant protocols"
+    },
+    "session": {
+      "activeConnectionsWarning": "This session has active connections:",
+      "confirmClose": "Are you sure you want to close it?"
+    },
+    "sessionLabel": {
+      "modbusMaster": "Modbus Master",
+      "onvifAssistant": "ONVIF Assistant",
+      "gb28181Assistant": "GB28181 Assistant"
+    },
+    "preset": {
+      "tcpClientDesc": "Actively connect to a remote socket",
+      "tcpServerDesc": "Listen locally and accept clients",
+      "udpClientDesc": "Send datagrams to a fixed target",
+      "udpServerDesc": "Bind a local port to send/receive datagrams",
+      "serialDesc": "Serial debugging and passthrough",
+      "modbusMasterDesc": "Master polling and frame debugging",
+      "modbusSlaveDesc": "Slave register simulation",
+      "rtspDesc": "Pull streams from cameras and gateways",
+      "rtmpDesc": "Push/pull streaming and CDN integration",
+      "httpFlvDesc": "Browser-friendly low-latency FLV",
+      "hlsDesc": "m3u8 playback and segment analysis",
+      "webrtcDesc": "Real-time media and signaling debugging",
+      "srtDesc": "Low-latency reliable transport",
+      "onvifDesc": "Discover devices, fetch RTSP, control PTZ",
+      "gb28181Desc": "SIP registration, catalog query, and live view"
+    }
   },
   "titleBar": {
     "home": "Home",
@@ -593,7 +637,17 @@
     "fetchingToken": "Fetching...",
     "getToken": "Get Token",
     "tokenExpiry": "Expires in {{time}}s",
-    "binaryDesc": "File will be sent as binary"
+    "binaryDesc": "File will be sent as binary",
+    "autoHeaders": {
+      "hide": "Click to hide",
+      "show": "Click to show default headers"
+    },
+    "formData": {
+      "addMoreFiles": "Add more files",
+      "removeFile": "Remove {{name}}"
+    },
+    "loadingPreScriptEditor": "Loading pre-request script editor...",
+    "loadingPostScriptEditor": "Loading post-response script editor..."
   },
   "saveDialog": {
     "title": "Save Request",
@@ -699,7 +753,8 @@
     "emptyTitle": "Waiting for messages...",
     "emptyDesc": "Messages will appear here after connecting to an MQTT broker and subscribing to topics",
     "sent": "Sent",
-    "received": "Received"
+    "received": "Received",
+    "messagesTruncated": "Showing only the latest {{visible}} of {{total}} messages"
   },
   "tcp": {
     "modes": {
@@ -780,7 +835,8 @@
       "udpServerClosed": "UDP server closed",
       "waitingSource": "Waiting for source address",
       "bindingUdpServer": "Binding UDP server...",
-      "waitingUdpServer": "Waiting to start UDP server"
+      "waitingUdpServer": "Waiting to start UDP server",
+      "reconnecting": "Auto-reconnecting in 2s..."
     },
     "sendPanel": {
       "title": "Send Panel",
@@ -874,7 +930,8 @@
       "received": "Received",
       "system": "System",
       "bytes": "{{count}} bytes",
-      "client": "Client"
+      "client": "Client",
+      "limitNotice": "For performance, only the latest {{count}} records are shown"
     },
     "messageDetail": {
       "title": "Message Detail",
@@ -905,7 +962,12 @@
       "bytes": "{{bytes}}"
     },
     "autoReconnect": "Auto Reconnect",
-    "recentConnections": "Recent"
+    "recentConnections": "Recent",
+    "switchTypeConfirm": "There are active connections in the current session:\n{{labels}}\n\nSwitching the type will disconnect the current session. Continue?",
+    "switchTypeTitle": "Switch connection type",
+    "pairedLabel": "Paired",
+    "disableAutoReconnect": "Disable auto-reconnect",
+    "enableAutoReconnect": "Enable auto-reconnect"
   },
   "serial": {
     "portLabel": "Port",
@@ -1013,7 +1075,11 @@
       "started": "Slave started",
       "stopped": "Slave stopped",
       "error": "Error",
-      "startFailed": "Start failed"
+      "startFailed": "Start failed",
+      "stopFailed": "Failed to stop Modbus Slave",
+      "hex": "Hex",
+      "binary": "Binary",
+      "clearLog": "Clear log"
     }
   },
   "capture": {
@@ -1168,7 +1234,10 @@
       "proxy": "Proxy",
       "proxyDesc": "Proxy connection and authentication",
       "data": "Data",
-      "dataDesc": "History, saving, and local data policies"
+      "dataDesc": "History, saving, and local data policies",
+      "appearance": "Appearance",
+      "shortcuts": "Shortcuts",
+      "about": "About"
     },
     "general": {
       "theme": "Appearance",
@@ -1520,7 +1589,9 @@
     "detectingDocDesc": "Identifying available API documentation groups",
     "fetchingGroupsDesc": "Fetching endpoint details for selected groups, please wait",
     "waitPreview": "Waiting for Endpoint Preview",
-    "waitPreviewDesc": "After document detection, grouped endpoint preview and import selection will appear here"
+    "waitPreviewDesc": "After document detection, grouped endpoint preview and import selection will appear here",
+    "collectionNamePlaceholder": "e.g. Payment Center API",
+    "searchEndpointsPlaceholder": "Search path, summary or method..."
   },
   "collectionSettings": {
     "title": "Collection Settings",
@@ -1764,6 +1835,12 @@
       "andMask": "AND Mask",
       "orMask": "OR Mask",
       "result": "Result"
+    },
+    "errors": {
+      "hexFormatExample": "Invalid HEX format. Enter space-separated hex bytes, e.g. FF 01 02",
+      "hexFormat": "Invalid HEX format. Enter space-separated hex bytes",
+      "emptyInput": "Input is empty",
+      "maskFormat": "Invalid mask format"
     }
   },
   "mockServer": {
@@ -1886,7 +1963,9 @@
       "handshake": "Handshake Analysis",
       "metadata": "Metadata (onMetaData)",
       "waitingMetadata": "Waiting for metadata...",
-      "connectFirst": "Connect to view"
+      "connectFirst": "Connect to view",
+      "handshaking": "Handshaking...",
+      "handshakeBtn": "Handshake"
     },
     "flv": {
       "tagFilter": "Tag Filter",
@@ -1905,7 +1984,8 @@
       "role": "Role",
       "servers": "Servers",
       "gatheringIce": "Gathering ICE candidates...",
-      "connectFirst": "Connect to start ICE negotiation"
+      "connectFirst": "Connect to start ICE negotiation",
+      "generating": "Generating..."
     },
     "gb": {
       "serverConfig": "Server Config",
@@ -1920,7 +2000,13 @@
       "query": "Query",
       "noCatalog": "Click Query to get device catalog",
       "control": "Control",
-      "speed": "Speed"
+      "speed": "Speed",
+      "requestingLive": "Requesting stream...",
+      "requestLive": "Request Live",
+      "stopLive": "Stop Live",
+      "liveHint": "You can now send an `INVITE` directly to the GB28181 device. On success, a local `gb28181+udp://` media entry is generated, and the top Play button will route it into the built-in gateway.",
+      "tcpWarning": "GB28181 currently only supports UDP SIP registration and UDP live streaming; TCP transport is not yet wired up.",
+      "fetchStream": "Fetch Stream"
     },
     "srt": {
       "mode": "Connection Mode",
@@ -1931,7 +2017,13 @@
       "encryption": "Encryption",
       "passphrase": "Passphrase (optional)",
       "encryptionHint": "AES-128/192/256 encryption, passphrase 10-79 chars",
-      "stats": "Connection Stats"
+      "stats": "Connection Stats",
+      "probeNote": "The top Play button handles actual video playback; this section is for SRT handshake probing and session stats.",
+      "linkStarted": "The player link is now active.",
+      "lowLatency": "Low latency",
+      "probing": "SRT probing...",
+      "probe": "SRT Handshake Probe",
+      "clearProbe": "Clear Probe Session"
     },
     "onvif": {
       "discover": "Device Discovery",
@@ -1944,7 +2036,8 @@
       "presets": "Presets",
       "presetName": "Preset Name",
       "save": "Save",
-      "goto": "Go To"
+      "goto": "Go To",
+      "switchTo": "Switch to {{mode}}"
     }
   },
   "overview": {
@@ -2364,7 +2457,9 @@
       "assertTarget": "Assert Target",
       "assertOperator": "Operator",
       "assertExpected": "Expected Value",
-      "assertName": "Test Name"
+      "assertName": "Test Name",
+      "condExpressionHint": "Supports template variable references; evaluates to true/false",
+      "maxConcurrencyHint": "0 = unlimited concurrency"
     },
     "operations": {
       "trim": "Trim Whitespace",
@@ -2494,5 +2589,13 @@
     "importInvalidArray": "JSON does not match the MockRoute structure (expected an array)",
     "importInvalidStructure": "JSON does not match the MockRoute structure",
     "importFailed": "Import failed"
+  },
+  "crypto": {
+    "configEncryptParams": "Configure encryption parameters",
+    "configDecryptParams": "Configure decryption parameters",
+    "encrypt": "Encrypt",
+    "decrypt": "Decrypt",
+    "operationFailed": "Operation failed",
+    "decryptResult": "Decryption result"
   }
 }

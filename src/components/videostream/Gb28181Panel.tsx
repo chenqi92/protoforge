@@ -123,7 +123,7 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
           />
         </div>
         <div className="space-y-0.5">
-          <span className="pf-text-3xs text-text-disabled">媒体地址</span>
+          <span className="pf-text-3xs text-text-disabled">{t('videostream.mediaAddress', { defaultValue: '媒体地址' })}</span>
           <div className="flex gap-1.5">
             <input
               value={streamUrl}
@@ -136,18 +136,18 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
               disabled={!registered || startingLive || sipTransport !== 'udp'}
               className="shrink-0 h-7 px-2.5 pf-rounded-sm bg-accent/10 text-accent pf-text-xxs font-semibold hover:bg-accent/20 disabled:opacity-50"
             >
-              {startingLive ? '取流中...' : '请求实况'}
+              {startingLive ? t('videostream.gb.requestingLive', '取流中...') : t('videostream.gb.requestLive', '请求实况')}
             </button>
             <button
               onClick={() => void handleStopLive()}
               disabled={!registered || !liveActive}
               className="shrink-0 h-7 px-2.5 pf-rounded-sm bg-error/10 text-error pf-text-xxs font-semibold hover:bg-error/20 disabled:opacity-50"
             >
-              停止实况
+              {t('videostream.gb.stopLive', '停止实况')}
             </button>
           </div>
           <p className="pf-text-3xs text-text-disabled leading-relaxed">
-            现在可以直接向国标设备发起 `INVITE`，成功后会生成本地 `gb28181+udp://` 媒体入口，顶部播放按钮会把它接入内置网关。
+            {t('videostream.gb.liveHint', '现在可以直接向国标设备发起 `INVITE`，成功后会生成本地 `gb28181+udp://` 媒体入口，顶部播放按钮会把它接入内置网关。')}
           </p>
         </div>
         <div className="flex items-end gap-2">
@@ -173,7 +173,7 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
         </div>
         {sipTransport === 'tcp' && !registered && (
           <p className="pf-text-3xs text-warning leading-relaxed">
-            当前 GB28181 只实现了 UDP SIP 注册和 UDP 实况取流，TCP 传输还没有真正接通。
+            {t('videostream.gb.tcpWarning', '当前 GB28181 只实现了 UDP SIP 注册和 UDP 实况取流，TCP 传输还没有真正接通。')}
           </p>
         )}
         <button
@@ -231,7 +231,7 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
                       disabled={startingLive || item.status !== 'ON'}
                       className="ml-auto shrink-0 pf-text-3xs text-accent hover:underline disabled:opacity-50"
                     >
-                      取流
+                      {t('videostream.gb.fetchStream', '取流')}
                     </button>
                   </div>
                 ))

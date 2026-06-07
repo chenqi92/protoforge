@@ -91,8 +91,8 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden">
       <div className="pf-rounded-sm border border-border-default bg-bg-secondary px-3 py-2 pf-text-xxs text-text-secondary leading-relaxed">
-        顶部播放按钮负责实际视频播放，这里用于 SRT 握手探测和会话统计。
-        {connected && <span className="ml-1 text-accent">当前播放器链路已启动。</span>}
+        {t('videostream.srt.probeNote', '顶部播放按钮负责实际视频播放，这里用于 SRT 握手探测和会话统计。')}
+        {connected && <span className="ml-1 text-accent">{t('videostream.srt.linkStarted', '当前播放器链路已启动。')}</span>}
       </div>
 
       <div className="space-y-1.5">
@@ -170,7 +170,7 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
           className="w-full h-1.5 accent-accent rounded-full appearance-none bg-bg-secondary"
         />
         <div className="flex justify-between pf-text-3xs text-text-disabled">
-          <span>20ms</span><span>低延迟</span><span>8000ms</span>
+          <span>20ms</span><span>{t('videostream.srt.lowLatency', '低延迟')}</span><span>8000ms</span>
         </div>
       </div>
 
@@ -204,11 +204,11 @@ export function SrtPanel({ sessionKey, connected, config, onConfigChange }: SrtP
       <div className="space-y-1.5">
         {!probeConnected ? (
           <button onClick={handleProbeStart} disabled={probeConnecting} className="btn-ghost-action w-full">
-            {probeConnecting ? 'SRT 探测中...' : 'SRT 握手探测'}
+            {probeConnecting ? t('videostream.srt.probing', 'SRT 探测中...') : t('videostream.srt.probe', 'SRT 握手探测')}
           </button>
         ) : (
           <button onClick={handleProbeStop} className="btn-action btn-danger btn-action-sm w-full">
-            清理探测会话
+            {t('videostream.srt.clearProbe', '清理探测会话')}
           </button>
         )}
       </div>

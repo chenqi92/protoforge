@@ -894,7 +894,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
               )}
 
             {reqTab === "pre-script" && (
-                <Suspense fallback={<EditorSurfaceFallback label="加载前置脚本编辑器..." />}>
+                <Suspense fallback={<EditorSurfaceFallback label={t('http.loadingPreScriptEditor', { defaultValue: '加载前置脚本编辑器...' })} />}>
                   <LazyScriptEditor
                     type="pre"
                     value={config.preScript}
@@ -906,7 +906,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
               {reqTab === "post-script" && (
                 <div className="flex h-full min-h-0">
                   <div className="flex-1 min-w-0">
-                    <Suspense fallback={<EditorSurfaceFallback label="加载后置脚本编辑器..." />}>
+                    <Suspense fallback={<EditorSurfaceFallback label={t('http.loadingPostScriptEditor', { defaultValue: '加载后置脚本编辑器...' })} />}>
                       <LazyScriptEditor
                         type="post"
                         value={config.postScript}

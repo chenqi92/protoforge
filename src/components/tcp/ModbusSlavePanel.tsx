@@ -397,7 +397,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
         setRunning(false);
         setStartedAt(null);
       } catch (err) {
-        toast.error('Modbus Slave 停止失败: ' + String(err));
+        toast.error(t('serial.modbusslave.stopFailed', 'Modbus Slave 停止失败') + ': ' + String(err));
       }
     } else {
       setStarting(true);
@@ -826,10 +826,10 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                                     {t('serial.modbusslave.value', '十进制值')}
                                   </th>
                                   <th className="w-[72px] px-2.5 py-1 text-left pf-text-3xs font-semibold uppercase tracking-[0.08em] text-text-tertiary">
-                                    十六进制
+                                    {t('serial.modbusslave.hex', '十六进制')}
                                   </th>
                                   <th className="w-[118px] px-2.5 py-1 text-left pf-text-3xs font-semibold uppercase tracking-[0.08em] text-text-tertiary">
-                                    二进制
+                                    {t('serial.modbusslave.binary', '二进制')}
                                   </th>
                                 </>
                               ) : (
@@ -865,7 +865,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                     <button
                       onClick={() => { setRequestLog([]); setRequestCount(0); }}
                       className="flex h-5 w-5 items-center justify-center pf-rounded-xs text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
-                      title="清空日志"
+                      title={t('serial.modbusslave.clearLog', '清空日志')}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>

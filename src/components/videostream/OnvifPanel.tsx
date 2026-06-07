@@ -289,7 +289,7 @@ export function OnvifPanel({
                   onClick={() => onActivatePlaybackMode(suggestedPlaybackMode)}
                   className="shrink-0 h-6 px-2.5 pf-rounded-sm bg-accent/10 text-accent pf-text-3xs font-semibold hover:bg-accent/20 transition-colors"
                 >
-                  切到 {playbackModeLabel}
+                  {t('videostream.onvif.switchTo', '切到 {{mode}}', { mode: playbackModeLabel })}
                 </button>
               ) : null}
             </div>

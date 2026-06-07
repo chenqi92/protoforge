@@ -133,7 +133,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
       <div className="flex gap-2">
           <button onClick={handleCreateOffer} disabled={creating}
             className="btn-ghost-action flex-1">
-            {creating ? '生成中...' : mode === 'offer' ? 'Create Offer' : 'Create Answer'}
+            {creating ? t('videostream.webrtc.generating', '生成中...') : mode === 'offer' ? 'Create Offer' : 'Create Answer'}
           </button>
           <button onClick={handleSetAnswer} disabled={!remoteSdp.trim()}
             className="btn-ghost-action flex-1">

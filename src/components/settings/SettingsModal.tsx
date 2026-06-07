@@ -53,13 +53,13 @@ type SectionMeta = {
 
 // Forge accent classes for the active section icon (replaces hardcoded palette)
 const sections: SectionMeta[] = [
-  { id: "appearance", label: "外观", labelKey: undefined, icon: Sliders },
+  { id: "appearance", label: "外观", labelKey: "settings.sections.appearance", icon: Sliders },
   { id: "general", label: "通用", labelKey: "settings.sections.general", icon: Globe },
   { id: "request", label: "请求", labelKey: "settings.sections.request", icon: Send },
   { id: "proxy", label: "代理", labelKey: "settings.sections.proxy", icon: Shield },
-  { id: "shortcuts", label: "快捷键", labelKey: undefined, icon: Command },
+  { id: "shortcuts", label: "快捷键", labelKey: "settings.sections.shortcuts", icon: Command },
   { id: "data", label: "数据与存储", labelKey: "settings.sections.data", icon: Database },
-  { id: "about", label: "关于", labelKey: undefined, icon: Info },
+  { id: "about", label: "关于", labelKey: "settings.sections.about", icon: Info },
 ];
 
 const inputClassName =

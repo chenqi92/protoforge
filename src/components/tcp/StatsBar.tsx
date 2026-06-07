@@ -1,5 +1,6 @@
 // 底部统计栏组件 — 含实时连接时长
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowUp, ArrowDown, Clock, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConnectionStats } from "@/types/tcp";
@@ -30,6 +31,7 @@ function formatDuration(ms: number): string {
 }
 
 export function StatsBar({ stats, connected, statusText, connectedSince, autoReconnect }: StatsBarProps) {
+  const { t } = useTranslation();
   const [duration, setDuration] = useState("");
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export function StatsBar({ stats, connected, statusText, connectedSince, autoRec
         {autoReconnect && !connected && (
           <span className="flex items-center gap-0.5 text-warning">
             <RefreshCw className="w-2.5 h-2.5" />
-            <span className="pf-text-xxs">自动重连</span>
+            <span className="pf-text-xxs">{t('tcp.autoReconnect', '自动重连')}</span>
           </span>
         )}
       </div>

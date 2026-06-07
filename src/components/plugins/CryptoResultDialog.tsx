@@ -6,6 +6,7 @@
 import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Copy, Check, Unlock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 interface CryptoResultDialogProps {
@@ -15,6 +16,7 @@ interface CryptoResultDialogProps {
 }
 
 export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoResultDialogProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -33,7 +35,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
           <Unlock className={cn('w-4.5 h-4.5', isError ? 'text-error' : 'text-success')} />
           <div className="flex-1">
             <div className="font-semibold text-text-primary" style={{ fontSize: 'var(--fs-base)' }}>
-              {isError ? '操作失败' : '解密结果'}
+              {isError ? t('crypto.operationFailed', '操作失败') : t('crypto.decryptResult', '解密结果')}
             </div>
             <div className="text-text-tertiary" style={{ fontSize: 'var(--fs-xs)' }}>
               {algorithmName}
@@ -71,7 +73,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
               style={{ fontSize: 'var(--fs-sm)' }}
             >
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? '已复制' : '复制'}
+              {copied ? t('common.copied') : t('common.copy')}
             </button>
           )}
           <button
@@ -79,7 +81,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
             className="px-4 py-2 rounded-lg text-text-secondary hover:bg-bg-hover transition-colors"
             style={{ fontSize: 'var(--fs-sm)' }}
           >
-            关闭
+            {t('common.close')}
           </button>
         </div>
       </div>

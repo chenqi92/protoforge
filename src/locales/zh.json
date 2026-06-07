@@ -1,6 +1,50 @@
 {
   "app": {
-    "name": "ProtoForge"
+    "name": "ProtoForge",
+    "windowTitle": {
+      "tcpudp": "TCP / UDP 调试"
+    },
+    "titleBar": {
+      "searchPlaceholder": "搜索请求 / 命令 / 集合…",
+      "designRationale": "设计说明 / 站点图",
+      "switchToZh": "中文",
+      "langIndicatorZh": "中"
+    },
+    "loading": {
+      "collectionSettings": "加载集合设置...",
+      "designSystem": "加载设计系统..."
+    },
+    "dragToResizeWidth": "拖动调整宽度",
+    "presetGroup": {
+      "playback": "播放协议",
+      "assistant": "辅助协议"
+    },
+    "session": {
+      "activeConnectionsWarning": "此会话存在活跃连接：",
+      "confirmClose": "确定要关闭吗？"
+    },
+    "sessionLabel": {
+      "modbusMaster": "Modbus 主站",
+      "onvifAssistant": "ONVIF 助手",
+      "gb28181Assistant": "GB28181 助手"
+    },
+    "preset": {
+      "tcpClientDesc": "主动连接远端 Socket",
+      "tcpServerDesc": "本地监听并接收客户端",
+      "udpClientDesc": "向固定目标发送 Datagram",
+      "udpServerDesc": "本地绑定端口收发 Datagram",
+      "serialDesc": "串口调试与透传",
+      "modbusMasterDesc": "主站轮询与报文调试",
+      "modbusSlaveDesc": "从站寄存器模拟",
+      "rtspDesc": "摄像头与网关拉流",
+      "rtmpDesc": "推拉流与 CDN 接入",
+      "httpFlvDesc": "浏览器友好的低延迟 FLV",
+      "hlsDesc": "m3u8 播放与切片分析",
+      "webrtcDesc": "实时媒体与信令调试",
+      "srtDesc": "低时延可靠传输",
+      "onvifDesc": "发现设备、取 RTSP、做 PTZ",
+      "gb28181Desc": "SIP 注册、目录查询与实况"
+    }
   },
   "titleBar": {
     "home": "控制台",
@@ -594,7 +638,17 @@
     "fetchingToken": "获取中...",
     "getToken": "获取 Token",
     "tokenExpiry": "有效期 {{time}}s",
-    "binaryDesc": "文件将以 binary 形式发送"
+    "binaryDesc": "文件将以 binary 形式发送",
+    "autoHeaders": {
+      "hide": "点击隐藏",
+      "show": "点击展示默认请求头"
+    },
+    "formData": {
+      "addMoreFiles": "添加更多文件",
+      "removeFile": "移除 {{name}}"
+    },
+    "loadingPreScriptEditor": "加载前置脚本编辑器...",
+    "loadingPostScriptEditor": "加载后置脚本编辑器..."
   },
   "saveDialog": {
     "title": "保存请求",
@@ -700,7 +754,8 @@
     "emptyTitle": "等待消息...",
     "emptyDesc": "连接 MQTT Broker 并订阅 Topic 后将显示消息",
     "sent": "发送",
-    "received": "接收"
+    "received": "接收",
+    "messagesTruncated": "仅渲染最近 {{visible}} 条消息，共 {{total}} 条"
   },
   "tcp": {
     "modes": {
@@ -781,7 +836,8 @@
       "udpServerClosed": "UDP 服务端已关闭",
       "waitingSource": "等待来源地址",
       "bindingUdpServer": "正在绑定 UDP 服务端...",
-      "waitingUdpServer": "等待启动 UDP 服务端"
+      "waitingUdpServer": "等待启动 UDP 服务端",
+      "reconnecting": "2s 后自动重连..."
     },
     "sendPanel": {
       "title": "发送面板",
@@ -875,7 +931,8 @@
       "received": "接收",
       "system": "系统",
       "bytes": "{{count}} 字节",
-      "client": "客户端"
+      "client": "客户端",
+      "limitNotice": "为保证性能，仅显示最近 {{count}} 条记录"
     },
     "messageDetail": {
       "title": "消息详情",
@@ -906,7 +963,12 @@
       "bytes": "{{bytes}}"
     },
     "autoReconnect": "自动重连",
-    "recentConnections": "最近"
+    "recentConnections": "最近",
+    "switchTypeConfirm": "当前会话存在活跃连接：\n{{labels}}\n\n切换类型会断开当前会话，是否继续？",
+    "switchTypeTitle": "切换连接类型",
+    "pairedLabel": "双端配对",
+    "disableAutoReconnect": "关闭自动重连",
+    "enableAutoReconnect": "开启自动重连"
   },
   "serial": {
     "portLabel": "串口",
@@ -1014,7 +1076,11 @@
       "started": "从站已启动",
       "stopped": "从站已停止",
       "error": "错误",
-      "startFailed": "启动失败"
+      "startFailed": "启动失败",
+      "stopFailed": "Modbus Slave 停止失败",
+      "hex": "十六进制",
+      "binary": "二进制",
+      "clearLog": "清空日志"
     }
   },
   "capture": {
@@ -1169,7 +1235,10 @@
       "proxy": "代理",
       "proxyDesc": "代理连接和认证信息",
       "data": "数据",
-      "dataDesc": "历史、保存与本地数据策略"
+      "dataDesc": "历史、保存与本地数据策略",
+      "appearance": "外观",
+      "shortcuts": "快捷键",
+      "about": "关于"
     },
     "general": {
       "theme": "外观主题",
@@ -1542,7 +1611,9 @@
     "detectingDocDesc": "系统正在识别可用的 API 文档分组",
     "fetchingGroupsDesc": "正在拉取选中分组的接口详情，请稍候",
     "waitPreview": "等待接口预览",
-    "waitPreviewDesc": "完成文档探测后，这里会展示分组后的接口预览和导入选择"
+    "waitPreviewDesc": "完成文档探测后，这里会展示分组后的接口预览和导入选择",
+    "collectionNamePlaceholder": "例如: 支付中心 API",
+    "searchEndpointsPlaceholder": "搜索路径、摘要或方法..."
   },
   "collectionSettings": {
     "title": "集合设置",
@@ -1786,6 +1857,12 @@
       "andMask": "AND 掩码",
       "orMask": "OR 掩码",
       "result": "结果"
+    },
+    "errors": {
+      "hexFormatExample": "HEX 格式错误，请输入空格分隔的十六进制字节，如: FF 01 02",
+      "hexFormat": "HEX 格式错误，请输入空格分隔的十六进制字节",
+      "emptyInput": "输入为空",
+      "maskFormat": "掩码格式错误"
     }
   },
   "mockServer": {
@@ -1908,7 +1985,9 @@
       "handshake": "握手分析",
       "metadata": "元数据 (onMetaData)",
       "waitingMetadata": "等待元数据...",
-      "connectFirst": "连接后显示"
+      "connectFirst": "连接后显示",
+      "handshaking": "握手中...",
+      "handshakeBtn": "握手"
     },
     "flv": {
       "tagFilter": "Tag 过滤",
@@ -1927,7 +2006,8 @@
       "role": "角色",
       "servers": "服务器",
       "gatheringIce": "正在收集 ICE 候选...",
-      "connectFirst": "连接后开始 ICE 协商"
+      "connectFirst": "连接后开始 ICE 协商",
+      "generating": "生成中..."
     },
     "gb": {
       "serverConfig": "服务器配置",
@@ -1942,7 +2022,13 @@
       "query": "查询",
       "noCatalog": "点击\"查询\"获取设备目录",
       "control": "控制",
-      "speed": "速度"
+      "speed": "速度",
+      "requestingLive": "取流中...",
+      "requestLive": "请求实况",
+      "stopLive": "停止实况",
+      "liveHint": "现在可以直接向国标设备发起 `INVITE`，成功后会生成本地 `gb28181+udp://` 媒体入口，顶部播放按钮会把它接入内置网关。",
+      "tcpWarning": "当前 GB28181 只实现了 UDP SIP 注册和 UDP 实况取流，TCP 传输还没有真正接通。",
+      "fetchStream": "取流"
     },
     "srt": {
       "mode": "连接模式",
@@ -1953,7 +2039,13 @@
       "encryption": "加密设置",
       "passphrase": "加密口令 (可选)",
       "encryptionHint": "AES-128/192/256 加密，口令长度 10-79 字符",
-      "stats": "连接统计"
+      "stats": "连接统计",
+      "probeNote": "顶部播放按钮负责实际视频播放，这里用于 SRT 握手探测和会话统计。",
+      "linkStarted": "当前播放器链路已启动。",
+      "lowLatency": "低延迟",
+      "probing": "SRT 探测中...",
+      "probe": "SRT 握手探测",
+      "clearProbe": "清理探测会话"
     },
     "onvif": {
       "discover": "设备发现",
@@ -1966,7 +2058,8 @@
       "presets": "预置位",
       "presetName": "预置位名称",
       "save": "保存",
-      "goto": "转到"
+      "goto": "转到",
+      "switchTo": "切到 {{mode}}"
     }
   },
   "overview": {
@@ -2386,7 +2479,9 @@
       "assertTarget": "断言目标",
       "assertOperator": "比较操作",
       "assertExpected": "期望值",
-      "assertName": "测试名称"
+      "assertName": "测试名称",
+      "condExpressionHint": "支持模板变量引用，求值结果为 true/false",
+      "maxConcurrencyHint": "0 = 不限制并行度"
     },
     "operations": {
       "trim": "去除首尾空白",
@@ -2516,5 +2611,13 @@
     "importInvalidArray": "JSON 格式不符合 MockRoute 结构（应为数组）",
     "importInvalidStructure": "JSON 格式不符合 MockRoute 结构",
     "importFailed": "导入失败"
+  },
+  "crypto": {
+    "configEncryptParams": "配置加密参数",
+    "configDecryptParams": "配置解密参数",
+    "encrypt": "加密",
+    "decrypt": "解密",
+    "operationFailed": "操作失败",
+    "decryptResult": "解密结果"
   }
 }

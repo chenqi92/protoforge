@@ -6,6 +6,7 @@
 import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Lock, Unlock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import type { CryptoAlgorithm, CryptoParam } from '@/types/plugin';
 
@@ -17,6 +18,7 @@ interface CryptoParamsDialogProps {
 }
 
 export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: CryptoParamsDialogProps) {
+  const { t } = useTranslation();
   const params = algorithm.params || [];
   const [values, setValues] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
@@ -58,7 +60,7 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
               {algorithm.name}
             </div>
             <div className="text-text-tertiary" style={{ fontSize: 'var(--fs-xs)' }}>
-              {isEncrypt ? '配置加密参数' : '配置解密参数'}
+              {isEncrypt ? t('crypto.configEncryptParams', '配置加密参数') : t('crypto.configDecryptParams', '配置解密参数')}
             </div>
           </div>
           <button
@@ -88,14 +90,14 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
             className="px-4 py-2 rounded-lg text-text-secondary hover:bg-bg-hover transition-colors"
             style={{ fontSize: 'var(--fs-sm)' }}
           >
-            取消
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             className={cn('px-5 py-2 rounded-lg text-white font-medium transition-colors shadow-sm', btnColor)}
             style={{ fontSize: 'var(--fs-sm)' }}
           >
-            {isEncrypt ? '加密' : '解密'}
+            {isEncrypt ? t('crypto.encrypt', '加密') : t('crypto.decrypt', '解密')}
           </button>
         </div>
       </div>

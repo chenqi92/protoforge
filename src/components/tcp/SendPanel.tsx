@@ -49,7 +49,7 @@ const SEND_FORMAT_OPTIONS: { value: DataFormat; labelKey: string; fallback: stri
 ];
 
 const LINE_ENDING_OPTIONS: { value: LineEnding; label: string }[] = [
-  { value: "none", label: "无" },
+  { value: "none", label: "" },
   { value: "lf", label: "LF" },
   { value: "cr", label: "CR" },
   { value: "crlf", label: "CRLF" },
@@ -265,7 +265,7 @@ export function SendPanel({
               >
                 {LINE_ENDING_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {option.value === "none" ? t('tcp.sendPanel.lineEndingNone', '无') : option.label}
                   </option>
                 ))}
               </select>

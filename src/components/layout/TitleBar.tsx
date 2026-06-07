@@ -71,7 +71,7 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
         >
           <Search className="h-[13px] w-[13px] shrink-0" />
           <span className="min-w-0 flex-1 truncate text-left">
-            {zh ? "搜索请求 / 命令 / 集合…" : "Search requests, commands, collections…"}
+            {t('app.titleBar.searchPlaceholder', '搜索请求 / 命令 / 集合…')}
           </span>
           <span className="shrink-0 rounded-[4px] border border-border-default border-b-2 bg-bg-secondary px-[5px] py-px font-mono text-[10.5px] leading-[1.3] text-text-secondary">
             ⌘K
@@ -81,7 +81,7 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
 
       {/* Right actions — flat icon row (Forge .tb-actions) */}
       <div className="flex shrink-0 items-center gap-0.5 no-drag">
-        <Tooltip content={zh ? "设计说明 / 站点图" : "Design rationale / sitemap"}>
+        <Tooltip content={t('app.titleBar.designRationale', '设计说明 / 站点图')}>
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("open-design-system"))}
@@ -99,13 +99,13 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
             <Puzzle className="h-4 w-4" />
           </button>
         </Tooltip>
-        <Tooltip content={zh ? "English" : "中文"}>
+        <Tooltip content={zh ? "English" : t('app.titleBar.switchToZh', '中文')}>
           <button
             type="button"
             onClick={toggleLanguage}
             className="flex h-7 w-7 items-center justify-center pf-rounded-sm pf-text-xs font-semibold text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
           >
-            {zh ? "EN" : "中"}
+            {zh ? "EN" : t('app.titleBar.langIndicatorZh', '中')}
           </button>
         </Tooltip>
         <button

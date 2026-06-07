@@ -314,7 +314,7 @@ export function MessageLog({
       </div>
       {reversedMessages.length > MAX_VISIBLE_TCP_MESSAGES ? (
         <div className="shrink-0 border-t border-border-default/60 bg-bg-secondary/25 px-3 py-1.5 pf-text-xxs text-text-disabled">
-          {`为保证性能，仅显示最近 ${MAX_VISIBLE_TCP_MESSAGES} 条记录`}
+          {t('tcp.messageLog.limitNotice', { count: MAX_VISIBLE_TCP_MESSAGES, defaultValue: '为保证性能，仅显示最近 {{count}} 条记录' })}
         </div>
       ) : null}
     </div>

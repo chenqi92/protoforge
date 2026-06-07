@@ -156,14 +156,15 @@ interface ToolSessionPreset {
   options?: ToolSessionOptions;
 }
 
+// Label/description values below are i18n keys (resolved via t() at render time).
 const TCP_SESSION_LABELS: Record<SocketMode, string> = {
-  "tcp-client": "TCP 客户端",
-  "tcp-server": "TCP 服务端",
-  "udp-client": "UDP 客户端",
-  "udp-server": "UDP 服务端",
-  serial: "串口",
-  modbus: "Modbus 主站",
-  "modbus-slave": "Modbus 从站",
+  "tcp-client": "tcp.modes.tcpClient",
+  "tcp-server": "tcp.modes.tcpServer",
+  "udp-client": "tcp.modes.udpClient",
+  "udp-server": "tcp.modes.udpServer",
+  serial: "tcp.modes.serial",
+  modbus: "app.sessionLabel.modbusMaster",
+  "modbus-slave": "tcp.modes.modbusSlave",
 };
 
 const VIDEO_SESSION_LABELS: Record<VideoProtocol, string> = {
@@ -173,29 +174,29 @@ const VIDEO_SESSION_LABELS: Record<VideoProtocol, string> = {
   hls: "HLS",
   webrtc: "WebRTC",
   srt: "SRT",
-  onvif: "ONVIF 助手",
-  gb28181: "GB28181 助手",
+  onvif: "app.sessionLabel.onvifAssistant",
+  gb28181: "app.sessionLabel.gb28181Assistant",
 };
 
 const TCP_SESSION_PRESETS: ToolSessionPreset[] = [
-  { id: "tcp-client", label: "TCP 客户端", description: "主动连接远端 Socket", options: { tcpMode: "tcp-client" } },
-  { id: "tcp-server", label: "TCP 服务端", description: "本地监听并接收客户端", options: { tcpMode: "tcp-server" } },
-  { id: "udp-client", label: "UDP 客户端", description: "向固定目标发送 Datagram", options: { tcpMode: "udp-client" } },
-  { id: "udp-server", label: "UDP 服务端", description: "本地绑定端口收发 Datagram", options: { tcpMode: "udp-server" } },
-  { id: "serial", label: "串口", description: "串口调试与透传", options: { tcpMode: "serial" } },
-  { id: "modbus", label: "Modbus 主站", description: "主站轮询与报文调试", options: { tcpMode: "modbus" } },
-  { id: "modbus-slave", label: "Modbus 从站", description: "从站寄存器模拟", options: { tcpMode: "modbus-slave" } },
+  { id: "tcp-client", label: "tcp.modes.tcpClient", description: "app.preset.tcpClientDesc", options: { tcpMode: "tcp-client" } },
+  { id: "tcp-server", label: "tcp.modes.tcpServer", description: "app.preset.tcpServerDesc", options: { tcpMode: "tcp-server" } },
+  { id: "udp-client", label: "tcp.modes.udpClient", description: "app.preset.udpClientDesc", options: { tcpMode: "udp-client" } },
+  { id: "udp-server", label: "tcp.modes.udpServer", description: "app.preset.udpServerDesc", options: { tcpMode: "udp-server" } },
+  { id: "serial", label: "tcp.modes.serial", description: "app.preset.serialDesc", options: { tcpMode: "serial" } },
+  { id: "modbus", label: "app.sessionLabel.modbusMaster", description: "app.preset.modbusMasterDesc", options: { tcpMode: "modbus" } },
+  { id: "modbus-slave", label: "tcp.modes.modbusSlave", description: "app.preset.modbusSlaveDesc", options: { tcpMode: "modbus-slave" } },
 ];
 
 const VIDEO_SESSION_PRESETS: ToolSessionPreset[] = [
-  { id: "rtsp", label: "RTSP", description: "摄像头与网关拉流", group: "playback", options: { videoMode: "rtsp" } },
-  { id: "rtmp", label: "RTMP", description: "推拉流与 CDN 接入", group: "playback", options: { videoMode: "rtmp" } },
-  { id: "http-flv", label: "HTTP-FLV", description: "浏览器友好的低延迟 FLV", group: "playback", options: { videoMode: "http-flv" } },
-  { id: "hls", label: "HLS", description: "m3u8 播放与切片分析", group: "playback", options: { videoMode: "hls" } },
-  { id: "webrtc", label: "WebRTC", description: "实时媒体与信令调试", group: "playback", options: { videoMode: "webrtc" } },
-  { id: "srt", label: "SRT", description: "低时延可靠传输", group: "playback", options: { videoMode: "srt" } },
-  { id: "onvif", label: "ONVIF 助手", description: "发现设备、取 RTSP、做 PTZ", group: "assistant", options: { videoMode: "onvif" } },
-  { id: "gb28181", label: "GB28181 助手", description: "SIP 注册、目录查询与实况", group: "assistant", options: { videoMode: "gb28181" } },
+  { id: "rtsp", label: "RTSP", description: "app.preset.rtspDesc", group: "playback", options: { videoMode: "rtsp" } },
+  { id: "rtmp", label: "RTMP", description: "app.preset.rtmpDesc", group: "playback", options: { videoMode: "rtmp" } },
+  { id: "http-flv", label: "HTTP-FLV", description: "app.preset.httpFlvDesc", group: "playback", options: { videoMode: "http-flv" } },
+  { id: "hls", label: "HLS", description: "app.preset.hlsDesc", group: "playback", options: { videoMode: "hls" } },
+  { id: "webrtc", label: "WebRTC", description: "app.preset.webrtcDesc", group: "playback", options: { videoMode: "webrtc" } },
+  { id: "srt", label: "SRT", description: "app.preset.srtDesc", group: "playback", options: { videoMode: "srt" } },
+  { id: "onvif", label: "app.sessionLabel.onvifAssistant", description: "app.preset.onvifDesc", group: "assistant", options: { videoMode: "onvif" } },
+  { id: "gb28181", label: "app.sessionLabel.gb28181Assistant", description: "app.preset.gb28181Desc", group: "assistant", options: { videoMode: "gb28181" } },
 ];
 
 function getToolSessionPresets(tool: ToolWorkbench): ToolSessionPreset[] {
@@ -204,12 +205,17 @@ function getToolSessionPresets(tool: ToolWorkbench): ToolSessionPreset[] {
   return [];
 }
 
-function getToolSessionBaseLabel(tool: ToolWorkbench, session: ToolSession, fallbackLabel: string): string {
+function getToolSessionBaseLabel(
+  tool: ToolWorkbench,
+  session: ToolSession,
+  fallbackLabel: string,
+  t: (key: string) => string,
+): string {
   if (tool === "tcpudp") {
-    return TCP_SESSION_LABELS[session.tcpMode ?? DEFAULT_TCP_TOOL_MODE];
+    return t(TCP_SESSION_LABELS[session.tcpMode ?? DEFAULT_TCP_TOOL_MODE]);
   }
   if (tool === "videostream") {
-    return VIDEO_SESSION_LABELS[session.videoMode ?? DEFAULT_VIDEO_TOOL_MODE];
+    return t(VIDEO_SESSION_LABELS[session.videoMode ?? DEFAULT_VIDEO_TOOL_MODE]);
   }
   return fallbackLabel;
 }
@@ -398,7 +404,7 @@ function ToolWorkbenchPanel({
       return;
     }
 
-    const baseLabel = getToolSessionBaseLabel(tool, session, fallbackLabel);
+    const baseLabel = getToolSessionBaseLabel(tool, session, fallbackLabel, t);
     const nextIndex = (labelCounts.get(baseLabel) ?? 0) + 1;
     labelCounts.set(baseLabel, nextIndex);
     sessionLabelMap.set(session.id, `${baseLabel} ${nextIndex}`);
@@ -454,7 +460,7 @@ function ToolWorkbenchPanel({
                       const sessionKeys = getToolSessionConnectionKeys(tool, session.id);
                       if (hasActiveConnectionsForKeys(sessionKeys)) {
                         const labels = getActiveConnectionLabelsForKeys(sessionKeys);
-                        const msg = `此会话存在活跃连接：\n${labels.join('\n')}\n\n确定要关闭吗？`;
+                        const msg = `${t('app.session.activeConnectionsWarning', '此会话存在活跃连接：')}\n${labels.join('\n')}\n\n${t('app.session.confirmClose', '确定要关闭吗？')}`;
                         const { confirm } = await import('@tauri-apps/plugin-dialog');
                         const ok = await confirm(msg, { title: t('tabBar.closeTab'), kind: 'warning' });
                         if (!ok) return;
@@ -583,7 +589,7 @@ function ToolWorkbenchPanel({
             </div>
             {sessionPresets.some((preset) => preset.group === "playback") && (
               <div className="px-2.5 pb-0.5 pt-1.5 pf-text-3xs font-semibold uppercase tracking-[0.14em] text-text-disabled">
-                播放协议
+                {t('app.presetGroup.playback', '播放协议')}
               </div>
             )}
             <div className="max-h-[360px] overflow-y-auto">
@@ -597,7 +603,7 @@ function ToolWorkbenchPanel({
                   <div key={preset.id}>
                     {showGroupDivider ? (
                       <div className="px-2.5 pb-0.5 pt-2 pf-text-3xs font-semibold uppercase tracking-[0.14em] text-text-disabled">
-                        辅助协议
+                        {t('app.presetGroup.assistant', '辅助协议')}
                       </div>
                     ) : null}
                     <button
@@ -609,8 +615,8 @@ function ToolWorkbenchPanel({
                     >
                       <span className={cn("mt-1 h-[6px] w-[6px] shrink-0 rounded-full", meta.accentDotClassName)} />
                       <span className="min-w-0 flex-1">
-                        <span className="block pf-text-sm font-medium text-text-primary">{preset.label}</span>
-                        <span className="block pf-text-xxs text-text-tertiary">{preset.description}</span>
+                        <span className="block pf-text-sm font-medium text-text-primary">{t(preset.label)}</span>
+                        <span className="block pf-text-xxs text-text-tertiary">{t(preset.description)}</span>
                       </span>
                     </button>
                   </div>
@@ -786,6 +792,7 @@ function SplitPane({
 }
 
 function App() {
+  const { t } = useTranslation();
   const rightSidebarPanelRef = usePanelRef();
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(true);
   const rightSidebarDefaultSize = `${Math.max(useSettingsStore.getState().settings.rightSidebarWidth, 14)}%`;
@@ -1184,7 +1191,7 @@ function App() {
           <div className="min-h-0 h-full flex-1 overflow-hidden relative">
             <div className={cn("absolute inset-0 z-10 bg-bg-primary", activeCollectionId ? "block" : "hidden")}>
               {activeCollectionId && (
-                <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label="加载集合设置..." />}>
+                <Suspense fallback={<LazyPaneFallback className="bg-bg-primary" label={t('app.loading.collectionSettings', '加载集合设置...')} />}>
                   <CollectionSettingsPanel collectionId={activeCollectionId} />
                 </Suspense>
               )}
@@ -1439,7 +1446,7 @@ function App() {
             <div
               onPointerDown={handleSidebarResizeStart}
               className="absolute right-0 top-0 bottom-0 z-20 w-[4px] cursor-col-resize hover:bg-accent/30"
-              title="拖动调整宽度 Drag to resize"
+              title={t('app.dragToResizeWidth', '拖动调整宽度')}
             />
           </div>
 
@@ -1532,7 +1539,7 @@ function App() {
             <span className="pf-text-sm font-semibold text-text-primary">Design System</span>
             <button onClick={() => setDesignSystemOpen(false)} className="wb-icon-btn"><X className="w-4 h-4" /></button>
           </div>
-          <Suspense fallback={<LazyPaneFallback className="flex-1 bg-bg-app" label="加载设计系统..." />}>
+          <Suspense fallback={<LazyPaneFallback className="flex-1 bg-bg-app" label={t('app.loading.designSystem', '加载设计系统...')} />}>
             <DesignSystemPage />
           </Suspense>
         </div>

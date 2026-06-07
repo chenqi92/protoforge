@@ -348,7 +348,7 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
                     ))}
                     {messages.length > MAX_VISIBLE_MQTT_MESSAGES && (
                       <div className="px-4 py-2 text-center pf-text-xxs text-text-disabled">
-                        仅渲染最近 {MAX_VISIBLE_MQTT_MESSAGES} 条消息，共 {messages.length} 条
+                        {t('mqtt.messagesTruncated', { visible: MAX_VISIBLE_MQTT_MESSAGES, total: messages.length, defaultValue: '仅渲染最近 {{visible}} 条消息，共 {{total}} 条' })}
                       </div>
                     )}
                   </div>

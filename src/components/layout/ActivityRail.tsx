@@ -48,7 +48,7 @@ interface ActivityRailProps {
 }
 
 export function ActivityRail({ activityLogOpen, onToggleActivityLog, onOpenPlugins }: ActivityRailProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const zh = i18n.language?.startsWith("zh") ?? true;
   const tt = (a: ForgeDomain) => (zh ? a.zh : a.en);
 
@@ -119,11 +119,11 @@ export function ActivityRail({ activityLogOpen, onToggleActivityLog, onOpenPlugi
 
       <div className="flex-1" />
 
-      <Tooltip content={zh ? "活动日志" : "Activity Log"} position="right">
+      <Tooltip content={t('activityLog.title')} position="right">
         <button
           type="button"
           onClick={onToggleActivityLog}
-          aria-label={zh ? "活动日志" : "Activity Log"}
+          aria-label={t('activityLog.title')}
           aria-pressed={activityLogOpen}
           className={cn(
             "relative flex h-9 w-[38px] items-center justify-center rounded-lg transition-colors duration-[var(--transition-fast)]",

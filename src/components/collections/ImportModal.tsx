@@ -982,7 +982,7 @@ function SwaggerImportView({
                   <input
                     value={collectionName}
                     onChange={(event) => setCollectionName(event.target.value)}
-                    placeholder="例如: 支付中心 API"
+                    placeholder={t('import.collectionNamePlaceholder', { defaultValue: '例如: 支付中心 API' })}
                     className={inputClassName}
                   />
                 </div>
@@ -1103,7 +1103,7 @@ function SwaggerImportView({
                     <input
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
-                      placeholder="搜索路径、摘要或方法..."
+                      placeholder={t('import.searchEndpointsPlaceholder', { defaultValue: '搜索路径、摘要或方法...' })}
                       className={cn(inputClassName, 'w-full pl-9')}
                     />
                   </div>

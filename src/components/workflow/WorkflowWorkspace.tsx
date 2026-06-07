@@ -832,7 +832,7 @@ function NodeConfigPanel({
           <div>
             <label className={labelCls}>{t('workflow.nodeFields.condExpression')}</label>
             <input value={(config.expression as string) || ''} onChange={(e) => updateConfig('expression', e.target.value)} placeholder="{{prev.status}} == 200" className={cn(fieldCls, 'font-mono')} />
-            <p className="pf-text-xxs text-text-disabled mt-1">支持模板变量引用，求值结果为 true/false</p>
+            <p className="pf-text-xxs text-text-disabled mt-1">{t('workflow.nodeFields.condExpressionHint', { defaultValue: '支持模板变量引用，求值结果为 true/false' })}</p>
           </div>
         )}
 
@@ -847,7 +847,7 @@ function NodeConfigPanel({
           <div>
             <label className={labelCls}>{t('workflow.nodeFields.maxConcurrency')}</label>
             <input type="number" min={0} value={(config.maxConcurrency as number) || 0} onChange={(e) => updateConfig('maxConcurrency', Number(e.target.value))} className={fieldCls} />
-            <p className="pf-text-xxs text-text-disabled mt-1">0 = 不限制并行度</p>
+            <p className="pf-text-xxs text-text-disabled mt-1">{t('workflow.nodeFields.maxConcurrencyHint', { defaultValue: '0 = 不限制并行度' })}</p>
           </div>
         )}
 

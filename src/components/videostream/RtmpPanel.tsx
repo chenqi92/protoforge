@@ -105,14 +105,14 @@ export function RtmpPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
               disabled={handshaking}
               className="btn-ghost-action flex-1"
             >
-              {handshaking ? '握手中...' : '握手'}
+              {handshaking ? t('videostream.rtmp.handshaking', '握手中...') : t('videostream.rtmp.handshakeBtn', '握手')}
             </button>
             <button
               onClick={handleConnect}
               disabled={!handshakePhases.some(p => p.status === 'done') || appConnected}
               className="btn-ghost-action flex-1"
             >
-              {appConnected ? '已连接' : 'Connect'}
+              {appConnected ? t('videostream.connected', '已连接') : 'Connect'}
             </button>
             <button
               onClick={handlePlay}
