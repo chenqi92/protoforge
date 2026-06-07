@@ -647,7 +647,8 @@
       "removeFile": "Remove {{name}}"
     },
     "loadingPreScriptEditor": "Loading pre-request script editor...",
-    "loadingPostScriptEditor": "Loading post-response script editor..."
+    "loadingPostScriptEditor": "Loading post-response script editor...",
+    "variableResolvedValue": "Resolved value"
   },
   "saveDialog": {
     "title": "Save Request",
@@ -2597,5 +2598,26 @@
     "decrypt": "Decrypt",
     "operationFailed": "Operation failed",
     "decryptResult": "Decryption result"
+  },
+  "parser": {
+    "tabLabel": "Protocol Parser",
+    "parse": "Parse",
+    "parsing": "Parsing...",
+    "parseFailed": "Parse failed",
+    "parseMessage": "Parse message",
+    "inputPlaceholder": "Paste raw message data...",
+    "noParser": "No protocol parser installed",
+    "noParserHint": "Install a protocol-parser plugin from the marketplace to use this feature",
+    "readyTitle": "Paste a message and click Parse",
+    "readyDesc": "Parse and structure messages for industrial protocols like HJ212, Modbus, and more",
+    "allGroups": "All",
+    "field": "Field",
+    "value": "Value",
+    "selectPlugin": "Select parser",
+    "searchPlugin": "Search protocols...",
+    "noMatch": "No matches",
+    "parsersAvailable": "parsers",
+    "navigate": "Navigate",
+    "confirm": "Confirm"
   }
 }
