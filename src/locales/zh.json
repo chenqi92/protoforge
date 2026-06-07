@@ -1318,6 +1318,15 @@
       },
       "statusDist": "状态码分布",
       "methodDist": "方法分布"
+    },
+    "renderer": {
+      "processing": "插件处理中...",
+      "failed": "插件渲染失败",
+      "unknownError": "未知错误",
+      "unknownType": "插件返回了未知的渲染类型: ",
+      "emptySheet": "此 Sheet 为空",
+      "truncatedPrefix": "仅显示前 500 行，共 ",
+      "truncatedSuffix": " 行"
     }
   },
   "parser": {
@@ -1364,7 +1373,16 @@
     "typeRequest": "请求",
     "select": "选择",
     "confirm": "确认",
-    "closeLabel": "关闭"
+    "closeLabel": "关闭",
+    "sectionGo": "导航 Go to",
+    "sectionCmd": "命令 Commands",
+    "sectionReq": "请求 Requests"
+  },
+  "export": {
+    "tagKeys": "Tag Keys (逗号分隔)",
+    "columnSelection": "字段选择",
+    "deselectAll": "取消全选",
+    "selectAll": "全选"
   },
   "collection": {
     "settings": "集合设置",
@@ -1664,7 +1682,20 @@
     "filterValuePlaceholder": "输入值筛选匹配项…",
     "filterActiveWithValue": "筛选 {{keys}} = \"{{value}}\"",
     "noMatchingKeys": "无匹配 Key",
-    "moreKeys": "… 还有 {{count}} 个"
+    "moreKeys": "… 还有 {{count}} 个",
+    "fileInfo": "文件信息",
+    "regexPlaceholder": "正则表达式...",
+    "regexMode": "正则模式",
+    "filterByKey": "Key 过滤",
+    "regexInvalid": "无效正则",
+    "filterActive": "已过滤 {{count}} 个 Key",
+    "binaryFile": "二进制文件",
+    "imageFile": "图片",
+    "audioFile": "音频",
+    "videoFile": "视频",
+    "saveToFile": "另存为",
+    "saveToFileFull": "另存为文件",
+    "binaryHint": "该响应为二进制文件，无法作为文本预览。可切换到 Hex 查看字节数据。"
   },
   "history": {
     "lastWeek": "7 天内",

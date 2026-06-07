@@ -71,9 +71,9 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const sectionGo = zh ? '导航 Go to' : 'Go to';
-  const sectionCmd = zh ? '命令 Commands' : 'Commands';
-  const sectionReq = zh ? '请求 Requests' : 'Requests';
+  const sectionGo = zh ? t('commandPalette.sectionGo', '导航 Go to') : 'Go to';
+  const sectionCmd = zh ? t('commandPalette.sectionCmd', '命令 Commands') : 'Commands';
+  const sectionReq = zh ? t('commandPalette.sectionReq', '请求 Requests') : 'Requests';
 
   // Open a saved collection request into a new HTTP tab.
   const openRequestItem = useCallback((item: CollectionItem) => {

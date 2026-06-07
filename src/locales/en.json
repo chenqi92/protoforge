@@ -1317,6 +1317,15 @@
       },
       "statusDist": "Status code distribution",
       "methodDist": "Method distribution"
+    },
+    "renderer": {
+      "processing": "Processing in plugin...",
+      "failed": "Plugin render failed",
+      "unknownError": "Unknown error",
+      "unknownType": "Plugin returned an unknown render type: ",
+      "emptySheet": "This sheet is empty",
+      "truncatedPrefix": "Showing first 500 rows of ",
+      "truncatedSuffix": " rows"
     }
   },
   "commandPalette": {
@@ -1342,7 +1351,16 @@
     "typeRequest": "Request",
     "select": "Select",
     "confirm": "Confirm",
-    "closeLabel": "Close"
+    "closeLabel": "Close",
+    "sectionGo": "Go to",
+    "sectionCmd": "Commands",
+    "sectionReq": "Requests"
+  },
+  "export": {
+    "tagKeys": "Tag Keys (comma-separated)",
+    "columnSelection": "Column selection",
+    "deselectAll": "Deselect all",
+    "selectAll": "Select all"
   },
   "collection": {
     "settings": "Collection Settings",
@@ -1642,7 +1660,20 @@
     "filterValuePlaceholder": "Filter by value…",
     "filterActiveWithValue": "Filtering {{keys}} = \"{{value}}\"",
     "noMatchingKeys": "No matching keys",
-    "moreKeys": "… and {{count}} more"
+    "moreKeys": "… and {{count}} more",
+    "fileInfo": "File Info",
+    "regexPlaceholder": "Regular expression...",
+    "regexMode": "Regex mode",
+    "filterByKey": "Filter by key",
+    "regexInvalid": "Invalid regex",
+    "filterActive": "{{count}} keys filtered",
+    "binaryFile": "Binary file",
+    "imageFile": "Image",
+    "audioFile": "Audio",
+    "videoFile": "Video",
+    "saveToFile": "Save as",
+    "saveToFileFull": "Save as file",
+    "binaryHint": "This response is a binary file and cannot be previewed as text. Switch to Hex to view byte data."
   },
   "history": {
     "lastWeek": "Last 7 Days",

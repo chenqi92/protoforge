@@ -305,7 +305,7 @@ export function ResponseExportDropdown({ body }: { body: string }) {
                     <label className="block pf-text-xs text-text-secondary">Measurement</label>
                     <input value={optionValues.measurement || ''} onChange={(e) => setOptionValues((p) => ({ ...p, measurement: e.target.value }))}
                       className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" placeholder="measurement" />
-                    <label className="block pf-text-xs text-text-secondary mt-2">Tag Keys (逗号分隔)</label>
+                    <label className="block pf-text-xs text-text-secondary mt-2">{t('export.tagKeys', 'Tag Keys (逗号分隔)')}</label>
                     <input value={optionValues.tagKeys || ''} onChange={(e) => setOptionValues((p) => ({ ...p, tagKeys: e.target.value }))}
                       className="w-full px-2 py-1.5 pf-rounded-sm border border-border-default bg-bg-secondary pf-text-xs" placeholder="device_id,city" />
                   </>
@@ -319,10 +319,10 @@ export function ResponseExportDropdown({ body }: { body: string }) {
                     {allColumns.length > 0 && (
                       <div>
                         <label className="block pf-text-xs text-text-secondary mb-1">
-                          字段选择 ({selectedCols.size}/{allColumns.length})
+                          {t('export.columnSelection', '字段选择')} ({selectedCols.size}/{allColumns.length})
                           <button className="ml-2 text-accent pf-text-xxs hover:underline"
                             onClick={() => setSelectedCols(selectedCols.size === allColumns.length ? new Set() : new Set(allColumns))}>
-                            {selectedCols.size === allColumns.length ? '取消全选' : '全选'}
+                            {selectedCols.size === allColumns.length ? t('export.deselectAll', '取消全选') : t('export.selectAll', '全选')}
                           </button>
                         </label>
                         <div className="max-h-[200px] overflow-auto border border-border-default/60 pf-rounded-sm">
