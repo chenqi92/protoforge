@@ -1095,10 +1095,14 @@ export function ImageMergerTool() {
           style={{ height: previewSize.h }}
         >
           {items.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 text-text-disabled">
+            <button
+              type="button"
+              onClick={handleSelectImages}
+              className="flex flex-col items-center gap-2 rounded-[10px] px-8 py-6 text-text-disabled transition-colors hover:text-text-tertiary"
+            >
               <Layers className="h-8 w-8" />
               <span className="pf-text-sm">{t(`${k}.canvasEmpty`)}</span>
-            </div>
+            </button>
           ) : (
             <div
               onPointerDown={handleCanvasPointerDown}

@@ -703,13 +703,16 @@ function StatusCodeBar({ codes }: { codes: Record<number, number> }) {
   const total = entries.reduce((a, e) => a + e.count, 0);
   const maxCount = entries[0].count;
 
-  const getColor = (c: number) => {
-    if (c === 0) return "bg-method-options";
-    if (c < 200) return "bg-method-head";
-    if (c < 300) return "bg-success";
-    if (c < 400) return "bg-warning";
-    if (c < 500) return "bg-accent";
-    return "bg-error";
+  // Forge status-token mapping. `bar` is the solid token used for the meter fill;
+  // `badge` keeps the code legible as token-text over a soft token surface (matches
+  // the capture status pill + prototype's semantic-text coding — no white-on-solid).
+  const codeTone = (c: number): { bar: string; badge: string } => {
+    if (c === 0) return { bar: "bg-method-options", badge: "text-text-tertiary bg-bg-tertiary" };
+    if (c < 200) return { bar: "bg-method-head", badge: "text-method-head bg-method-head/10" };
+    if (c < 300) return { bar: "bg-success", badge: "text-success bg-success/10" };
+    if (c < 400) return { bar: "bg-warning", badge: "text-warning bg-warning/10" };
+    if (c < 500) return { bar: "bg-accent", badge: "text-accent bg-accent-soft" };
+    return { bar: "bg-error", badge: "text-error bg-error/10" };
   };
 
   return (
@@ -720,17 +723,19 @@ function StatusCodeBar({ codes }: { codes: Record<number, number> }) {
         <span className="pf-text-xs tabular-nums text-text-tertiary ml-auto">{t('loadtest.totalRequestsLabel', { count: total })}</span>
       </div>
       <div className="p-3 space-y-2">
-        {entries.map((e) => (
+        {entries.map((e) => {
+          const tone = codeTone(e.code);
+          return (
           <div key={e.code} className="flex items-center gap-3">
-            <span className={cn("pf-text-3xs font-bold px-2 py-0.5 pf-rounded-xs text-white font-mono min-w-[48px] text-center", getColor(e.code))}>{e.code === 0 ? "ERR" : e.code}</span>
+            <span className={cn("pf-text-3xs font-bold px-2 py-0.5 pf-rounded-xs font-mono min-w-[48px] text-center tabular-nums", tone.badge)}>{e.code === 0 ? "ERR" : e.code}</span>
             <div className="flex-1 h-4 bg-bg-inset rounded overflow-hidden">
-              <div className={cn("h-full rounded transition-[width] duration-300", getColor(e.code), "opacity-80")} style={{ width: `${(e.count / maxCount) * 100}%` }} />
-            </div>
+              <div className={cn("h-full rounded transition-[width] duration-300", tone.bar, "opacity-80")} style={{ width: `${(e.count / maxCount) * 100}%` }} /></div>
             <span className="pf-text-xs font-mono text-text-secondary tabular-nums min-w-[60px] text-right">
               {e.count} <span className="text-text-disabled pf-text-3xs">({((e.count / total) * 100).toFixed(1)}%)</span>
             </span>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

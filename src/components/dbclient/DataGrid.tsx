@@ -6,7 +6,7 @@ import { memo, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Loader2, Save, Undo2, Trash2, ArrowUp, ArrowDown,
-  Copy, ChevronDown, Maximize2,
+  Copy, ChevronDown, Maximize2, Table2, CheckCircle2,
 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
@@ -391,9 +391,30 @@ export const DataGrid = memo(function DataGrid({
   }, [t, cellRange, effectiveCopyFormat, doCopy, copyCellAt, showMenu]);
 
   // ── 空状态 ──
-  if (loading) return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin text-text-tertiary" /></div>;
-  if (!result) return <div className="flex h-full items-center justify-center pf-text-xs text-text-tertiary">{t("dbClient.noData")}</div>;
-  if (!result.columns.length) return <div className="flex h-full items-center justify-center pf-text-xs text-text-tertiary">{result.affectedRows != null ? `${result.affectedRows} ${t("dbClient.rowsAffected")}` : t("dbClient.queryComplete")}</div>;
+  if (loading) return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-text-disabled">
+      <Loader2 size={20} className="animate-spin text-text-tertiary" />
+      <span className="pf-text-xs text-text-tertiary">{t("dbClient.loading")}</span>
+    </div>
+  );
+  if (!result) return (
+    <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+        <Table2 className="h-8 w-8 opacity-20 text-accent" />
+      </div>
+      <p className="pf-text-base font-medium text-text-tertiary">{t("dbClient.noData")}</p>
+    </div>
+  );
+  if (!result.columns.length) return (
+    <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center pf-rounded-lg border border-success/20 bg-success/8">
+        <CheckCircle2 className="h-6 w-6 text-success opacity-80" />
+      </div>
+      <p className="pf-text-sm font-medium text-text-secondary tabular-nums">
+        {result.affectedRows != null ? `${result.affectedRows} ${t("dbClient.rowsAffected")}` : t("dbClient.queryComplete")}
+      </p>
+    </div>
+  );
 
   const totalRows = result.totalRows ?? result.rows.length;
   const sl = limit > 0 ? limit : 200;

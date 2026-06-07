@@ -92,7 +92,7 @@ export function PluginRendererView({ pluginId, body, isBinary, className }: Plug
   if (error || !result) {
     return (
       <div className={cn('flex flex-col items-center justify-center gap-3 p-8 text-text-disabled', className)}>
-        <AlertCircle className="h-8 w-8 opacity-30 text-red-400" />
+        <AlertCircle className="h-8 w-8 opacity-30 text-error" />
         <p style={{ fontSize: 'var(--fs-sm)' }}>插件渲染失败</p>
         <p className="text-text-tertiary max-w-[400px] text-center" style={{ fontSize: 'var(--fs-xs)' }}>{error || '未知错误'}</p>
       </div>
@@ -150,7 +150,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
               className={cn(
                 'relative flex items-center gap-1.5 border-r border-border-default/40 px-3 py-1.5 transition-all whitespace-nowrap',
                 activeSheet === idx
-                  ? 'bg-bg-primary text-emerald-600 dark:text-emerald-400 font-semibold'
+                  ? 'bg-bg-primary text-accent font-semibold'
                   : 'text-text-tertiary hover:bg-bg-hover/60 hover:text-text-secondary'
               )}
               style={{ fontSize: 'var(--fs-xs)' }}
@@ -158,7 +158,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
               <FileSpreadsheet className="h-3 w-3 shrink-0 opacity-70" />
               {s.name}
               {activeSheet === idx && (
-                <span className="absolute bottom-0 left-1 right-1 h-[2px] rounded-full bg-emerald-500" />
+                <span className="absolute bottom-0 left-1 right-1 h-[2px] rounded-full bg-accent" />
               )}
             </button>
           ))}

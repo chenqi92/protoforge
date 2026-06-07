@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Package, Store, RefreshCw, Puzzle } from "lucide-react";
+import { Package, Store, RefreshCw, Puzzle, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { usePluginStore } from "@/stores/pluginStore";
@@ -110,7 +110,7 @@ export function PluginsView({ search }: { search: string }) {
                 </div>
               ) : filteredAvailable.length === 0 ? (
                 <EmptyState
-                  icon={<Store className="w-8 h-8 opacity-30" />}
+                  icon={Store}
                   title={search ? t('plugin.noMatch') : t('plugin.storeEmpty')}
                   desc={t('plugin.noPlugins')}
                 />
@@ -131,7 +131,7 @@ export function PluginsView({ search }: { search: string }) {
             <>
               {filteredInstalled.length === 0 ? (
                 <EmptyState
-                  icon={<Puzzle className="w-8 h-8 opacity-30" />}
+                  icon={Puzzle}
                   title={search ? t('plugin.noMatch') : t('plugin.noInstalled')}
                   desc={t('plugin.installFromStore')}
                 />
@@ -152,12 +152,14 @@ export function PluginsView({ search }: { search: string }) {
   );
 }
 
-function EmptyState({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+function EmptyState({ icon: Icon, title, desc }: { icon: LucideIcon; title: string; desc: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-text-disabled">
-      {icon}
-      <p className="pf-text-sm mt-2">{title}</p>
-      <p className="pf-text-xs mt-0.5 opacity-60">{desc}</p>
+    <div className="flex flex-col items-center justify-center py-12 px-8 text-center">
+      <div className="flex h-14 w-14 items-center justify-center pf-rounded-xl border border-border-subtle bg-bg-secondary/75 text-text-disabled">
+        <Icon className="h-6 w-6 opacity-70" />
+      </div>
+      <p className="mt-4 pf-text-base font-semibold text-text-secondary">{title}</p>
+      <p className="mt-2 max-w-xs pf-text-xs leading-5 text-text-tertiary">{desc}</p>
     </div>
   );
 }

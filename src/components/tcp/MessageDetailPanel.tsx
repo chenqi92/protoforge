@@ -86,15 +86,16 @@ export function MessageDetailPanel({ message, displayFormat, compact: _compact =
             {t("tcp.messageDetail.title", "消息详情")}
           </span>
         </div>
-        <div className="flex flex-1 items-center justify-center px-6 text-center text-text-disabled">
-          <div>
-            <div className="pf-text-md font-semibold text-text-secondary">
-              {t("tcp.messageDetail.emptyTitle", "选中一条消息查看详情")}
-            </div>
-            <p className="mt-2 pf-text-sm leading-6 text-text-tertiary">
-              {t("tcp.messageDetail.emptyDesc", "这里会展示完整载荷、原始十六进制、时间戳以及来源地址，便于逐帧分析协议数据。")}
-            </p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-text-disabled">
+          <div className="mb-2 flex h-12 w-12 items-center justify-center pf-rounded-lg border border-border-default bg-bg-secondary shadow-sm">
+            <FileText className="h-5 w-5 opacity-30" />
           </div>
+          <div className="pf-text-md font-semibold text-text-secondary">
+            {t("tcp.messageDetail.emptyTitle", "选中一条消息查看详情")}
+          </div>
+          <p className="max-w-sm pf-text-sm leading-6 text-text-tertiary">
+            {t("tcp.messageDetail.emptyDesc", "这里会展示完整载荷、原始十六进制、时间戳以及来源地址，便于逐帧分析协议数据。")}
+          </p>
         </div>
       </div>
     );
@@ -109,9 +110,9 @@ export function MessageDetailPanel({ message, displayFormat, compact: _compact =
             <span className={cn(
               "pf-rounded-sm px-2 py-0.5 pf-text-3xs font-bold uppercase",
               message.direction === "sent"
-                ? "bg-info/10 text-method-post"
+                ? "bg-method-post/10 text-method-post"
                 : message.direction === "received"
-                  ? "bg-success/10 text-method-get"
+                  ? "bg-method-get/10 text-method-get"
                   : "bg-warning/10 text-warning"
             )}>
               {messageDirectionLabel}

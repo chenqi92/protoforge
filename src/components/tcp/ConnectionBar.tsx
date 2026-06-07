@@ -76,12 +76,14 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
   const isServer = mode === "tcp-server" || mode === "udp-server";
   const activeLabel = isServer ? (connected ? t('tcp.stopListening') : t('tcp.listen')) : (connected ? t('tcp.disconnect') : t('tcp.connect'));
   const connectingLabel = isServer ? t('tcp.starting') : t('tcp.connecting');
+  const stateDot = connected ? "s-live" : connecting ? "s-conn" : "s-idle";
 
   if (compact) {
     return (
       <div className="space-y-2.5">
         <div className="flex items-center gap-2 pf-rounded-md border border-border-default/60 bg-bg-secondary/35 p-1">
           <div className={cn("flex h-8 shrink-0 items-center justify-center gap-1.5 pf-rounded-sm px-2.5 pf-text-xs font-semibold", cfg.badge)}>
+            <span className={cn("pf-dot shrink-0", stateDot)} />
             {cfg.icon}
             <span>{cfg.compactLabel}</span>
           </div>
@@ -126,6 +128,7 @@ export function ConnectionBar({ mode, host, port, connected, connecting, onHostC
   return (
     <div className="flex min-h-[38px] items-center gap-2 pf-rounded-md border border-border-default/80 bg-bg-primary p-1 transition-all focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-muted">
       <div className={cn("flex h-7 shrink-0 items-center justify-center gap-1.5 pf-rounded-sm px-3 pf-text-xs font-semibold", cfg.badge)}>
+        <span className={cn("pf-dot shrink-0", stateDot)} />
         {cfg.icon}
         {cfg.label}
       </div>

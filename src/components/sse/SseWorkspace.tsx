@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Play, Square, Trash2, Waves, ArrowDown } from 'lucide-react';
+import { Play, Square, Trash2, Waves, ArrowDown, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
@@ -115,8 +115,9 @@ export function SseWorkspace() {
         )}
         actions={
           isConnected ? (
-            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[88px] bg-error hover:bg-error/90">
-              <Square className="w-3 h-3 fill-white" /> {t('sse.disconnect')}
+            <button onClick={handleDisconnect} className={cn("wb-primary-btn min-w-[88px]", status === 'connecting' ? "bg-warning hover:bg-warning/90" : "bg-error hover:bg-error/90")}>
+              {status === 'connecting' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Square className="w-3 h-3 fill-white" />}
+              {status === 'connecting' ? t('sse.connecting') : t('sse.disconnect')}
             </button>
           ) : (
             <button onClick={handleConnect} disabled={!url.trim()} className="wb-primary-btn min-w-[88px] bg-accent hover:bg-accent-hover disabled:opacity-50">

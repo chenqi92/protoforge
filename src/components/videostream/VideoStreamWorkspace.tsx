@@ -526,13 +526,24 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
   const ffmpegRequired = activePlaybackUrl
     ? resolvePlaybackTarget(effectivePlaybackMode, activePlaybackUrl).requiresFfmpeg
     : modeLikelyNeedsFfmpeg(effectivePlaybackMode);
-  const playbackStateLabel = !showPlayer
-    ? "未播放"
-    : connecting
-      ? "启动中"
-      : playbackReady
-        ? "播放中"
-        : "等待中";
+  const playbackStateLabel = playerError && !showPlayer
+    ? "错误"
+    : !showPlayer
+      ? "未播放"
+      : connecting
+        ? "启动中"
+        : playbackReady
+          ? "播放中"
+          : "等待中";
+  const playbackDotClass = playerError && !showPlayer
+    ? "s-err"
+    : !showPlayer
+      ? "s-idle"
+      : connecting
+        ? "s-conn"
+        : playbackReady
+          ? "s-live"
+          : "s-idle";
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden bg-transparent p-3">
@@ -606,7 +617,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
             </button>
           ))}
           <span className="wb-request-meta">
-            <span className={cn("pf-dot", showPlayer ? connecting ? "s-conn" : playbackReady ? "s-live" : "s-idle" : "s-idle")} />
+            <span className={cn("pf-dot", playbackDotClass)} />
             {playbackStateLabel}
           </span>
           <span className="wb-request-meta">{getPlaybackTransportLabel(effectivePlaybackMode)}</span>
@@ -688,7 +699,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                   }}
                   className="h-[22px] px-2 pf-text-xxs font-mono text-text-secondary hover:text-text-primary hover:bg-accent-soft transition-colors flex items-center gap-1"
                 >
-                  <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", MODE_COLORS[r.protocol]?.replace('bg-', 'bg-') || 'bg-text-disabled')} />
+                  <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", MODE_COLORS[r.protocol] || 'bg-text-disabled')} />
                   <span className="truncate max-w-[180px]" title={r.label || r.url}>{r.label || r.url}</span>
                 </button>
                 <button
@@ -802,12 +813,22 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                             {playbackReady ? "LIVE" : connecting ? "启动中" : "等待中"}
                           </span>
                           <span className="pf-pill">{getPlaybackTransportLabel(effectivePlaybackMode)}</span>
+                          {playbackReady && streamInfo && streamInfo.width > 0 ? (
+                            <span className="pf-pill">{streamInfo.width}×{streamInfo.height}</span>
+                          ) : null}
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center gap-3 text-text-disabled/40">
-                        <MonitorPlay className="w-10 h-10 opacity-60" />
-                        <span className="pf-text-xs font-medium text-text-disabled/80">等待视频流接入...</span>
+                      <div className="flex flex-col items-center justify-center gap-2 px-6 text-center text-text-disabled">
+                        <div className="mb-1 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-white/10 bg-white/5">
+                          <MonitorPlay className="h-7 w-7 text-text-disabled/70" />
+                        </div>
+                        <span className="pf-text-base font-medium text-text-secondary">等待视频流接入</span>
+                        <span className="pf-text-xs text-text-disabled/80">
+                          {assistantActive
+                            ? `填入媒体地址后按 ${t(activePlaybackMode.labelKey)} 播放`
+                            : `填入 ${t(activePlaybackMode.labelKey)} 地址并点击播放`}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -835,10 +856,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                   <span className="pf-text-3xs text-text-disabled">{connected ? t('videostream.connected', '已连接') : t('videostream.idle', '空闲')}</span>
                 </div>
                 <div className="flex items-center gap-1.5 ml-2">
-                  <span className={cn(
-                    "pf-dot",
-                    !showPlayer ? "s-idle" : connecting ? "s-conn" : playbackReady ? "s-live" : "s-idle",
-                  )} />
+                  <span className={cn("pf-dot", playbackDotClass)} />
                   <span className="pf-text-3xs text-text-disabled">{playbackStateLabel}</span>
                 </div>
                 {streamInfo && (
@@ -881,12 +899,12 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                 {/* Message List */}
                 <div className={cn("min-w-0 overflow-y-auto overflow-x-hidden", selectedMsg ? "w-1/2 border-r border-border-subtle" : "flex-1")}>
                   {filteredMessages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-2 py-10 text-text-disabled">
-                      <div className="flex h-10 w-10 items-center justify-center pf-rounded-md bg-bg-secondary border border-border-subtle">
-                        <MonitorPlay className="w-5 h-5 text-text-disabled/60" />
+                    <div className="flex flex-col items-center justify-center gap-1.5 py-10 px-6 text-center text-text-disabled">
+                      <div className="mb-1 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+                        <MonitorPlay className="h-7 w-7 opacity-20 text-accent" />
                       </div>
-                      <span className="pf-text-xs font-medium">{t('videostream.noMessages', '暂无协议报文')}</span>
-                      <span className="pf-text-xxs text-text-disabled/60">{t('videostream.noMessagesHint', '连接流后将在此显示协议交互日志')}</span>
+                      <span className="pf-text-base font-medium text-text-secondary">{t('videostream.noMessages', '暂无协议报文')}</span>
+                      <span className="pf-text-xs text-text-disabled/80">{t('videostream.noMessagesHint', '连接流后将在此显示协议交互日志')}</span>
                     </div>
                   ) : (
                     <>

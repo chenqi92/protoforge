@@ -2191,25 +2191,25 @@
   }
 
   .variable-inline-token[data-source="collection"] {
-    color: #a371f7;
-    background: rgba(163, 113, 247, 0.14);
+    color: var(--color-method-patch);
+    background: color-mix(in srgb, var(--color-method-patch) 14%, transparent);
   }
 
   .variable-inline-token[data-source="global"] {
-    color: #d29922;
-    background: rgba(210, 153, 34, 0.14);
+    color: var(--color-warning);
+    background: color-mix(in srgb, var(--color-warning) 14%, transparent);
   }
 
   .variable-inline-token[data-source="dynamic"] {
-    color: #56d4dd;
-    background: rgba(86, 212, 221, 0.14);
+    color: var(--color-method-head);
+    background: color-mix(in srgb, var(--color-method-head) 14%, transparent);
   }
 
   .variable-inline-token[data-source="missing"] {
-    color: #f85149;
-    background: rgba(248, 81, 73, 0.12);
+    color: var(--color-error);
+    background: color-mix(in srgb, var(--color-error) 12%, transparent);
     text-decoration: wavy underline;
-    text-decoration-color: rgba(248, 81, 73, 0.5);
+    text-decoration-color: color-mix(in srgb, var(--color-error) 50%, transparent);
     text-underline-offset: 2px;
   }
 

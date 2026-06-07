@@ -195,7 +195,7 @@ export function OnvifPanel({
             </div>
             <label className="flex items-center gap-1.5 cursor-pointer select-none">
               <input type="checkbox" checked={useProxy} onChange={(e) => setUseProxy(e.target.checked)}
-                className="accent-accent w-3.5 h-3.5 rounded"
+                className="accent-accent w-3.5 h-3.5 pf-rounded-xs"
               />
               <span className="pf-text-xxs text-text-secondary">
                 {t('videostream.onvif.useProxy', '通过系统代理')}
@@ -333,7 +333,7 @@ export function OnvifPanel({
                 {t('videostream.gb.query', '加载')}
               </button>
               <button onClick={() => setShowPresetInput(v => !v)}
-                className="h-5 w-5 flex items-center justify-center rounded text-text-disabled hover:text-accent transition-colors"
+                className="h-5 w-5 flex items-center justify-center pf-rounded-xs text-text-disabled hover:text-accent transition-colors"
               ><Plus className="w-3 h-3" /></button>
             </div>
           </div>

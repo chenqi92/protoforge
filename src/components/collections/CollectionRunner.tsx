@@ -188,10 +188,12 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
         {/* Right: Results */}
         <div ref={listRef} className="flex-1 overflow-auto p-3 space-y-1">
           {results.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-text-disabled">
-              <BarChart3 className="w-10 h-10 mb-3 opacity-20" />
-              <p className="pf-text-base font-medium">{t('runner.emptyTitle')}</p>
-              <p className="pf-text-xs mt-1">{t('runner.emptyDesc')}</p>
+            <div className="h-full flex flex-col items-center justify-center px-8 text-center">
+              <div className="flex h-14 w-14 items-center justify-center pf-rounded-xl border border-border-subtle bg-bg-secondary/75 text-text-disabled">
+                <BarChart3 className="h-6 w-6 opacity-70" />
+              </div>
+              <p className="mt-4 pf-text-base font-semibold text-text-secondary">{t('runner.emptyTitle')}</p>
+              <p className="mt-2 max-w-xs pf-text-xs leading-5 text-text-tertiary">{t('runner.emptyDesc')}</p>
             </div>
           ) : (
             results.map((r, i) => (

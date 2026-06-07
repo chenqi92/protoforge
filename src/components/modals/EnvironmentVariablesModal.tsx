@@ -310,10 +310,12 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                 {/* Table */}
                 <div className="flex-1 overflow-y-auto">
                   {currentVars.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-text-disabled">
-                      <Zap className="w-8 h-8 mb-2 opacity-30" />
-                      <p className="pf-text-sm">{search ? "未找到匹配的变量" : "暂无变量"}</p>
-                      <p className="pf-text-3xs mt-0.5">点击上方"添加"按钮创建新变量</p>
+                    <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+                      <div className="flex h-14 w-14 items-center justify-center pf-rounded-xl border border-border-subtle bg-bg-secondary/75 text-text-disabled">
+                        <Zap className="h-6 w-6 opacity-70" />
+                      </div>
+                      <p className="mt-4 pf-text-base font-semibold text-text-secondary">{search ? "未找到匹配的变量" : "暂无变量"}</p>
+                      <p className="mt-2 max-w-xs pf-text-xs leading-5 text-text-tertiary">点击上方"添加"按钮创建新变量</p>
                     </div>
                   ) : (
                     <table className="w-full border-collapse pf-text-xs">

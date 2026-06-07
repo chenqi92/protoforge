@@ -279,11 +279,13 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
 
   if (collections.length === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-text-disabled px-4">
-        <FolderOpen className="w-10 h-10 mb-3 opacity-30" />
-        <p className="pf-text-sm">{t('sidebar.noCollections')}</p>
-        <p className="pf-text-xs mt-1 text-center">{t('sidebar.noCollectionsHint')}</p>
-        <button className="mt-4 flex items-center gap-1.5 px-3 py-1.5 pf-rounded-sm bg-accent hover:bg-accent-hover text-white pf-text-xs font-medium">
+      <div className="h-full flex flex-col items-center justify-center px-8 text-center">
+        <div className="flex h-14 w-14 items-center justify-center pf-rounded-xl border border-border-subtle bg-bg-secondary/75 text-text-disabled">
+          <FolderOpen className="h-6 w-6 opacity-70" />
+        </div>
+        <p className="mt-4 pf-text-base font-semibold text-text-secondary">{t('sidebar.noCollections')}</p>
+        <p className="mt-2 max-w-xs pf-text-xs leading-5 text-text-tertiary">{t('sidebar.noCollectionsHint')}</p>
+        <button className="mt-4 flex items-center gap-1.5 px-3 py-1.5 pf-rounded-md bg-accent hover:bg-accent-hover text-white pf-text-xs font-medium transition-colors">
           <FolderPlus className="w-3.5 h-3.5" />
           {t('contextMenu.newFolder')}
         </button>

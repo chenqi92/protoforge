@@ -885,7 +885,7 @@ function TcpServerPanel({ sessionKey, compact = false }: { sessionKey: string; c
                 ) : null}
               </div>
             </ProtocolSidebarSection>
-            {clients.length > 0 && (
+            {(running || clients.length > 0) && (
               <ClientList
                 clients={clients}
                 selectedClientId={selectedClientId}

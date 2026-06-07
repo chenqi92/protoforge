@@ -14,7 +14,7 @@ export function TcpUdpWindow() {
   });
 
   return (
-    <ToolWindowShell tool="tcpudp" sessionId={sessionId} title="TCP / UDP 调试" module="tcpudp" accentClassName="bg-blue-500">
+    <ToolWindowShell tool="tcpudp" sessionId={sessionId} title="TCP / UDP 调试" module="tcpudp" accentClassName="bg-accent">
       <div className="h-full overflow-hidden bg-transparent">
         <TcpWorkspace sessionId={sessionId} initialMode={initialMode} />
       </div>

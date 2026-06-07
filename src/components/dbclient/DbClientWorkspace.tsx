@@ -139,13 +139,13 @@ export const DbClientWorkspace = memo(function DbClientWorkspace({
                 </PanelGroup>
               )
             ) : (
-              <div className="flex h-full items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                  <Database size={36} className="text-text-disabled opacity-40" />
-                  <p className="pf-text-sm text-text-tertiary">
-                    {t("dbClient.getStarted")}
-                  </p>
+              <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+                  <Database className="h-8 w-8 opacity-20 text-accent" />
                 </div>
+                <p className="pf-text-base font-medium text-text-tertiary">
+                  {t("dbClient.getStarted")}
+                </p>
               </div>
             )}
           </Panel>

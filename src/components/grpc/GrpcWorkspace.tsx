@@ -1,7 +1,7 @@
 import { memo, useState, useCallback, useEffect } from "react";
 import {
   Play, Loader2, FolderOpen, RefreshCw, ChevronRight, ChevronDown,
-  Copy, Check, Square, Search, Lock, ArrowUp, ArrowDown,
+  Copy, Check, Square, Search, Lock, ArrowUp, ArrowDown, Boxes, MousePointerClick, Inbox,
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
@@ -350,11 +350,28 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
       )}
 
       {/* Main content */}
-      {!protoResult ? (
-        <div className="flex-1 flex items-center justify-center text-text-disabled">
-          <div className="text-center space-y-2">
-            <p className="pf-text-sm">{t('grpc.noProto')}</p>
-            <p className="pf-text-xs">{t('grpc.noProtoHint')}</p>
+      {protoLoading && !protoResult ? (
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-text-disabled">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+            <Loader2 className="h-7 w-7 animate-spin text-accent" />
+          </div>
+          <p className="pf-text-base font-medium text-text-secondary">{t('grpc.reflect')}…</p>
+          <p className="mt-1 pf-text-xs">{t('grpc.noProtoHint')}</p>
+        </div>
+      ) : !protoResult ? (
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-text-disabled">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+            <Boxes className="h-8 w-8 opacity-20 text-accent" />
+          </div>
+          <p className="pf-text-base font-medium text-text-secondary">{t('grpc.noProto')}</p>
+          <p className="mt-1 pf-text-xs">{t('grpc.noProtoHint')}</p>
+          <div className="mt-4 flex items-center gap-2">
+            <button onClick={handleLoadProto} disabled={protoLoading} className="wb-ghost-btn pf-text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
+              <FolderOpen className="h-3.5 w-3.5" /> {t('grpc.loadProto')}
+            </button>
+            <button onClick={handleReflect} disabled={protoLoading || !url.trim()} className="wb-primary-btn min-w-[88px] bg-accent hover:bg-accent-hover disabled:opacity-50">
+              <RefreshCw className={cn("h-3.5 w-3.5", protoLoading && "animate-spin")} /> {t('grpc.reflect')}
+            </button>
           </div>
         </div>
       ) : (
@@ -449,7 +466,12 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                     </div>
                     <div className="flex-1 min-h-0 overflow-auto">
                       {error && (
-                        <div className="px-4 py-3 text-error pf-text-xs whitespace-pre-wrap">{error}</div>
+                        <div className="m-3 pf-rounded-md border border-error/30 bg-error/10 px-3 py-2.5">
+                          <div className="mb-1 flex items-center gap-1.5 pf-text-xxs font-bold uppercase tracking-wide text-error">
+                            <span className="pf-dot s-err" /> Error
+                          </div>
+                          <pre className="selectable whitespace-pre-wrap break-words font-mono pf-text-xs leading-[1.6] text-error">{error}</pre>
+                        </div>
                       )}
                       {response && (
                         <ResponseViewer
@@ -481,9 +503,18 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                           })}
                         </div>
                       )}
-                      {!error && !response && !streaming && (
-                        <div className="flex items-center justify-center h-full text-text-disabled pf-text-sm">
-                          {t('grpc.noResponse')}
+                      {loading && !response && streamMessages.length === 0 && (
+                        <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+                          <Loader2 className="mb-3 h-6 w-6 animate-spin text-accent" />
+                          <p className="pf-text-xs">{t('grpc.send')}…</p>
+                        </div>
+                      )}
+                      {!loading && !error && !response && !streaming && streamMessages.length === 0 && (
+                        <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+                          <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+                            <Inbox className="h-8 w-8 opacity-20 text-accent" />
+                          </div>
+                          <p className="pf-text-base font-medium text-text-secondary">{t('grpc.noResponse')}</p>
                         </div>
                       )}
                     </div>
@@ -491,8 +522,11 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-text-disabled pf-text-sm">
-                {t('grpc.selectMethod')}
+              <div className="flex-1 flex flex-col items-center justify-center px-6 text-text-disabled">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+                  <MousePointerClick className="h-8 w-8 opacity-20 text-accent" />
+                </div>
+                <p className="pf-text-base font-medium text-text-secondary">{t('grpc.selectMethod')}</p>
               </div>
             )}
           </div>

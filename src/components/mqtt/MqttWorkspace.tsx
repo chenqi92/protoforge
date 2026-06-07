@@ -3,7 +3,7 @@
 import { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { Play, Square, Trash2, Send, Plus, X, Radio, ArrowDown, ArrowUp } from 'lucide-react';
+import { Play, Square, Trash2, Send, Plus, X, Radio, ArrowDown, ArrowUp, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/appStore';
@@ -183,8 +183,9 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
         )}
         actions={
           isConnected || status === 'connecting' ? (
-            <button onClick={handleDisconnect} className="wb-primary-btn min-w-[88px] bg-error hover:bg-error/90">
-              <Square className="w-3 h-3 fill-white" /> {t('mqtt.disconnect')}
+            <button onClick={handleDisconnect} className={cn("wb-primary-btn min-w-[88px]", status === 'connecting' ? "bg-warning hover:bg-warning/90" : "bg-error hover:bg-error/90")}>
+              {status === 'connecting' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Square className="w-3 h-3 fill-white" />}
+              {status === 'connecting' ? t('mqtt.connecting') : t('mqtt.disconnect')}
             </button>
           ) : (
             <button onClick={handleConnect} className="wb-primary-btn min-w-[88px] bg-accent hover:bg-accent-hover">
@@ -296,9 +297,15 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-bg-primary">
               <div className="wb-pane-header shrink-0 pf-text-xs">
                 <div className="min-w-0 flex flex-1 items-center gap-2.5">
-                  <span className={cn("pf-status-chip", isConnected ? "text-accent" : "text-text-tertiary")}>
-                    <span className={cn("pf-dot", isConnected ? "s-live" : "s-idle")} />
-                    {isConnected ? t('mqtt.connected') : t('mqtt.disconnected')}
+                  <span className={cn("pf-status-chip",
+                    status === 'connected' ? "text-accent" :
+                    status === 'connecting' ? "text-warning" :
+                    status === 'error' ? "text-error" : "text-text-tertiary"
+                  )}>
+                    <span className={cn("pf-dot",
+                      status === 'connected' ? "s-live" : status === 'connecting' ? "s-conn" : status === 'error' ? "s-err" : "s-idle"
+                    )} />
+                    {status === 'idle' ? t('mqtt.idle') : status === 'connecting' ? t('mqtt.connecting') : status === 'connected' ? t('mqtt.connected') : status === 'disconnected' ? t('mqtt.disconnected') : t('mqtt.error')}
                   </span>
                   <span className="pf-pill"><span className="pf-text-3xs uppercase tracking-wide opacity-70">msg</span><span className="tabular-nums">{messages.length}</span></span>
                 </div>

@@ -173,7 +173,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
           ) : (
             iceCandidates.map((c, i) => (
               <div key={i} className="flex min-w-0 items-center gap-2 px-2 py-1 pf-text-xxs font-mono hover:bg-bg-hover transition-colors">
-                <span className={cn("px-1 rounded pf-text-3xs font-bold uppercase",
+                <span className={cn("px-1 pf-rounded-xs pf-text-3xs font-bold uppercase",
                   c.type === 'host' ? 'bg-info/10 text-info' : c.type === 'srflx' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
                 )}>{c.type}</span>
                 <span className="min-w-0 flex-1 truncate text-text-primary">{c.address}:{c.port}</span>

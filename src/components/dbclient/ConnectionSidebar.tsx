@@ -269,6 +269,9 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
             const connNodeId = `conn:${conn.id}`;
             const isActive = connected && activeConnectionId === conn.id;
             const isExpanded = expandedNodes.has(connNodeId);
+            const isConnecting = connecting && activeConnectionId === conn.id;
+            const hasError = !!connectionError && !connecting && activeConnectionId === conn.id && !isActive;
+            const dotState = isActive ? "s-ok" : isConnecting ? "s-conn" : hasError ? "s-err" : "s-idle";
 
             return (
               <div key={conn.id}>
@@ -294,10 +297,10 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                     <div className="w-3 shrink-0" />
                   )}
 
-                  {connecting && !isActive ? (
+                  {isConnecting ? (
                     <Loader2 size={13} className="shrink-0 animate-spin text-accent" />
                   ) : (
-                    <Server size={13} className={cn("shrink-0", isActive ? "text-success" : "text-text-tertiary")} />
+                    <Server size={13} className={cn("shrink-0", isActive ? "text-success" : hasError ? "text-error" : "text-text-tertiary")} />
                   )}
 
                   <div className="flex min-w-0 flex-1 flex-col">
@@ -314,14 +317,18 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
                     </span>
                   </div>
 
-                  {isActive && (
-                    <span className="pf-dot s-ok shrink-0" />
-                  )}
+                  <span className={cn("pf-dot shrink-0", dotState)} />
                 </div>
 
                 {/* 数据库子树 */}
                 {isActive && isExpanded && (
                   <div className="ml-4 border-l border-border-default/20 pl-0">
+                    {databases.length === 0 && (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5">
+                        <Loader2 size={11} className="animate-spin text-text-tertiary" />
+                        <span className="pf-text-xs text-text-tertiary">{t("dbClient.loading")}</span>
+                      </div>
+                    )}
                     {databases.map((db) => {
                       const dbNodeId = `db:${conn.id}:${db.name}`;
                       const isDbExpanded = expandedNodes.has(dbNodeId);
@@ -447,13 +454,16 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
           })}
 
           {savedConnections.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 text-text-tertiary">
-              <Database size={28} className="mb-2 opacity-30" />
-              <span className="pf-text-xs">{t("dbClient.noConnections")}</span>
+            <div className="flex flex-col items-center justify-center px-6 py-10 text-center text-text-disabled">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+                <Database className="h-8 w-8 opacity-20 text-accent" />
+              </div>
+              <p className="pf-text-sm font-medium text-text-tertiary">{t("dbClient.noConnections")}</p>
               <button
                 onClick={handleNew}
-                className="mt-2 pf-text-xs text-accent hover:underline"
+                className="mt-3 flex items-center gap-1 pf-rounded-sm bg-accent-soft px-2.5 py-1 pf-text-xs font-medium text-accent transition-colors hover:bg-accent/25"
               >
+                <Plus size={12} />
                 {t("dbClient.createFirst")}
               </button>
             </div>

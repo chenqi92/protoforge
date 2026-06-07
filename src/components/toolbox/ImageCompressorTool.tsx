@@ -120,31 +120,34 @@ export function ImageCompressorTool() {
 
   return (
     <ToolboxToolPane>
-      {/* 选择图片 */}
+      {/* 选择图片 — 原型 dropzone 风格 */}
       <section>
-        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.selectImages`)}</h3>
-        <div className="flex items-center gap-3">
-          <button onClick={handleSelectImages} className="wb-ghost-btn gap-2 px-3 py-2">
-            <ImagePlus className="h-4 w-4" />
-            {t(`${k}.selectImages`)}
-          </button>
+        <div className="mb-2 flex items-center gap-3">
+          <h3 className="pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.selectImages`)}</h3>
           {selectedImages.length > 0 && (
-            <>
-              <span className="pf-text-sm text-text-secondary">
-                {t(`${k}.selectedCount`, { count: selectedImages.length })}
-              </span>
-              <button
-                onClick={() => {
-                  setSelectedImages([]);
-                  setResult(null);
-                }}
-                className="pf-text-xs text-text-tertiary hover:text-text-primary"
-              >
-                {t(`${k}.clearAll`)}
-              </button>
-            </>
+            <button
+              onClick={() => {
+                setSelectedImages([]);
+                setResult(null);
+              }}
+              className="pf-text-xs text-text-tertiary hover:text-text-primary"
+            >
+              {t(`${k}.clearAll`)}
+            </button>
           )}
         </div>
+        <button
+          type="button"
+          onClick={handleSelectImages}
+          className="flex w-full flex-col items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-border-strong bg-bg-secondary/40 px-6 py-7 text-center transition-colors hover:border-accent/60 hover:bg-accent-soft"
+        >
+          <ImagePlus className="h-6 w-6 text-text-tertiary" />
+          <span className="pf-text-sm text-text-tertiary">
+            {selectedImages.length > 0
+              ? t(`${k}.selectedCount`, { count: selectedImages.length })
+              : t(`${k}.selectImages`)}
+          </span>
+        </button>
         {selectedImages.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {selectedImages.map((path) => {

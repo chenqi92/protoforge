@@ -36,6 +36,7 @@ interface StatusBarProps {
 }
 
 export function StatusBar({
+  connectionStatus,
   responseTime,
   responseSize,
   activeModule,
@@ -243,6 +244,23 @@ export function StatusBar({
               {activeEnv ? activeEnv.name : t("sidebar.noEnv", { defaultValue: "无环境" })}
             </span>
           </button>
+
+          {/* Connection state — idle / connected via .pf-dot */}
+          {connectionStatus && (
+            <span
+              className={cn(
+                "flex items-center gap-1.5 border-r border-border-subtle px-[9px]",
+                connectionStatus === "connected" ? "text-success" : "text-text-tertiary",
+              )}
+            >
+              <span className={cn("pf-dot", connectionStatus === "connected" ? "s-live" : "s-idle")} />
+              <span className="font-medium">
+                {connectionStatus === "connected"
+                  ? t("statusBar.connected", { defaultValue: "已连接" })
+                  : t("statusBar.disconnected", { defaultValue: "未连接" })}
+              </span>
+            </span>
+          )}
         </div>
 
         <div className="flex-1" />

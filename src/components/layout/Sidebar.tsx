@@ -113,7 +113,13 @@ function DbSidebar({ tl }: { tl: (zh: string, en: string) => string }) {
         {sessionId ? (
           <ConnectionSidebar sessionId={sessionId} />
         ) : (
-          <EmptyHint Icon={Icon} label={tl("暂无数据库连接", "No connections")} />
+          <EmptyHint
+            Icon={Icon}
+            label={tl("暂无数据库连接", "No connections")}
+            sub={tl("连接数据库后即可浏览表结构与执行查询", "Connect a database to browse schemas and run queries")}
+            actionLabel={tl("新建连接", "New connection")}
+            onAction={() => addToolSession("dbclient")}
+          />
         )}
       </div>
     </div>
@@ -153,6 +159,22 @@ function DomainListSidebar({
     (it) => !search || it.title.toLowerCase().includes(search.toLowerCase()),
   );
 
+  // Aggregate connection/activity summary for the contextual head.
+  const liveCount = items.filter((it) => it.state === "live" || it.state === "run").length;
+  const errCount = items.filter((it) => it.state === "err").length;
+  const summaryPill =
+    errCount > 0 ? (
+      <span className="pf-pill err shrink-0">
+        <span className="pf-dot s-err" />
+        {errCount}
+      </span>
+    ) : liveCount > 0 ? (
+      <span className="pf-pill acc shrink-0">
+        <span className="pf-dot s-live" />
+        {liveCount}
+      </span>
+    ) : null;
+
   const handleNew = useCallback(() => {
     // Realtime spans request protocols + the tcp/udp tool; default to a WS request.
     if (domain === "realtime") {
@@ -177,6 +199,7 @@ function DomainListSidebar({
         title={tl(def.zh, def.en)}
         onNew={handleNew}
         newTitle={tl("新建", "New")}
+        summary={summaryPill}
       />
 
       {/* Search */}
@@ -194,7 +217,21 @@ function DomainListSidebar({
 
       <div className="min-h-0 flex-1 overflow-auto px-2 py-1.5">
         {filtered.length === 0 ? (
-          <EmptyHint Icon={Icon} label={search ? tl("无匹配会话", "No matches") : tl("暂无会话", "No sessions")} />
+          search ? (
+            <EmptyHint
+              Icon={Icon}
+              label={tl("无匹配会话", "No matches")}
+              sub={tl("尝试其他关键词", "Try another keyword")}
+            />
+          ) : (
+            <EmptyHint
+              Icon={Icon}
+              label={tl("暂无会话", "No sessions")}
+              sub={tl(`新建一个 ${def.zh} 会话开始使用`, `Create a new ${def.en} session to get started`)}
+              actionLabel={tl("新建", "New")}
+              onAction={handleNew}
+            />
+          )
         ) : (
           filtered.map((it) => {
             const RowIcon = DOMAIN_ICONS[it.icon] ?? Icon;
@@ -234,18 +271,21 @@ function ContextualHead({
   title,
   onNew,
   newTitle,
+  summary,
 }: {
   Icon: LucideIcon;
   title: string;
   onNew: () => void;
   newTitle: string;
+  summary?: React.ReactNode;
 }) {
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-border-sidebar px-3 pt-3 pb-2.5">
       <Icon className="h-[15px] w-[15px] shrink-0 text-accent" />
-      <span className="flex-1 truncate pf-text-xxs font-bold uppercase tracking-[0.07em] text-text-tertiary">
+      <span className="min-w-0 flex-1 truncate pf-text-xxs font-bold uppercase tracking-[0.07em] text-text-tertiary">
         {title}
       </span>
+      {summary}
       <button
         onClick={onNew}
         className="flex h-[26px] w-[26px] items-center justify-center pf-rounded-sm text-accent transition-all hover:bg-accent-soft/80 active:scale-[0.97]"
@@ -257,13 +297,37 @@ function ContextualHead({
   );
 }
 
-function EmptyHint({ Icon, label }: { Icon: LucideIcon; label: string }) {
+function EmptyHint({
+  Icon,
+  label,
+  sub,
+  actionLabel,
+  onAction,
+}: {
+  Icon: LucideIcon;
+  label: string;
+  sub?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
       <div className="mb-3 flex h-11 w-11 items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-hover shadow-sm">
         <Icon className="w-6 h-6 text-text-tertiary" />
       </div>
       <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">{label}</p>
+      {sub && (
+        <p className="mt-1 text-[length:var(--fs-sidebar-sm)] leading-relaxed text-text-disabled">{sub}</p>
+      )}
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="mt-3 flex items-center gap-1.5 pf-rounded-sm border border-border-default bg-bg-elevated px-2.5 py-1.5 text-[length:var(--fs-sidebar-sm)] font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent active:scale-[0.97]"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }
@@ -1673,6 +1737,19 @@ function EnvironmentsView({ onOpenEnvModal }: { onOpenEnvModal: () => void }) {
 
   return (
     <div className="py-0.5">
+      {environments.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-hover shadow-sm">
+            <Globe className="w-6 h-6 text-text-tertiary" />
+          </div>
+          <p className="text-[length:var(--fs-sidebar)] font-medium text-text-secondary">
+            {t('sidebar.noEnv', { defaultValue: '暂无环境' })}
+          </p>
+          <p className="text-[length:var(--fs-sidebar-sm)] mt-1 leading-relaxed text-text-disabled">
+            {t('sidebar.noEnvHint', { defaultValue: '创建环境以管理变量与密钥' })}
+          </p>
+        </div>
+      )}
       {environments.map((env) => {
         const isActive = env.id === activeEnvId;
         return (

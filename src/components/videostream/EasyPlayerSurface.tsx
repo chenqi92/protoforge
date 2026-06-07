@@ -226,10 +226,12 @@ export function EasyPlayerSurface({ url, liveMode = true, onReady, onError }: Ea
       )}
 
       {!url && (
-        <div className="absolute inset-0 flex items-center justify-center text-white/35">
+        <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-white/40">
           <div className="flex flex-col items-center gap-2">
-            <MonitorPlay className="w-6 h-6" />
-            <span className="pf-text-xxs">等待可播放的媒体地址</span>
+            <div className="mb-1 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-white/10 bg-white/5">
+              <MonitorPlay className="h-6 w-6 text-white/40" />
+            </div>
+            <span className="pf-text-sm font-medium text-white/70">等待可播放的媒体地址</span>
           </div>
         </div>
       )}

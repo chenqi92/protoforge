@@ -534,9 +534,12 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, l
   if (!url) {
     return (
       <div className="h-full w-full bg-black pf-rounded-md overflow-hidden flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2 text-white/30">
-          <Play className="w-6 h-6" />
-          <span className="pf-text-xxs">获取流地址后播放</span>
+        <div className="flex flex-col items-center gap-2 px-6 text-center text-white/40">
+          <div className="mb-1 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-white/10 bg-white/5">
+            <Play className="h-6 w-6 text-white/40" />
+          </div>
+          <span className="pf-text-sm font-medium text-white/70">获取流地址后播放</span>
+          <span className="pf-text-xxs text-white/35">等待信号 · no signal</span>
         </div>
       </div>
     );

@@ -336,11 +336,13 @@ export function EnvironmentEditor() {
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-text-disabled">
-                <div className="text-center">
-                  <Globe className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                  <p className="pf-text-base text-text-secondary">{t('env.selectEnv')}</p>
-                  <p className="pf-text-sm mt-1">{t('env.selectEnvHint')}</p>
+              <div className="flex-1 flex items-center justify-center px-8">
+                <div className="flex flex-col items-center text-center">
+                  <div className="flex h-14 w-14 items-center justify-center pf-rounded-xl border border-border-subtle bg-bg-secondary/75 text-text-disabled">
+                    <Globe className="h-6 w-6 opacity-70" />
+                  </div>
+                  <p className="mt-4 pf-text-base font-semibold text-text-secondary">{t('env.selectEnv')}</p>
+                  <p className="mt-2 max-w-xs pf-text-sm leading-5 text-text-tertiary">{t('env.selectEnvHint')}</p>
                 </div>
               </div>
             )}

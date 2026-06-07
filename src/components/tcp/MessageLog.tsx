@@ -185,7 +185,7 @@ export function MessageLog({
         {filteredMessages.length === 0 ? (
           isFiltering ? (
             <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border-default/60 bg-bg-secondary">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default bg-bg-secondary shadow-sm">
                 <Search className="h-6 w-6 opacity-35" />
               </div>
               <p className="pf-text-md font-semibold text-text-secondary">{t('tcp.messageLog.noMatch')}</p>
@@ -194,8 +194,11 @@ export function MessageLog({
           ) : (
             <div className="flex h-full items-center justify-center px-6 py-8">
               <div className="max-w-xl text-center">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-border-default/60 bg-bg-primary/82">
-                  <PlugZap className="h-5 w-5 text-text-disabled" />
+                <div className={cn(
+                  "mx-auto mb-4 flex h-12 w-12 items-center justify-center pf-rounded-lg border bg-bg-secondary shadow-sm",
+                  connected ? "border-accent/30 text-accent" : "border-border-default text-text-disabled"
+                )}>
+                  <PlugZap className={cn("h-5 w-5", connected ? "opacity-70" : "opacity-100")} />
                 </div>
                 <p className="pf-text-lg font-semibold text-text-secondary">{emptyTitle}</p>
                 <p className="mt-2 pf-text-sm leading-6 text-text-tertiary">{emptyDesc}</p>
@@ -204,14 +207,8 @@ export function MessageLog({
                     {displayFormat === "auto" ? t("tcp.messageLog.auto", "AUTO") : displayFormat.toUpperCase()}
                   </span>
                   {typeof connected === "boolean" ? (
-                    <span
-                      className={cn(
-                        "pf-rounded-sm border px-2.5 py-1 pf-text-xxs font-semibold",
-                        connected
-                          ? "border-success/30 bg-success/10 text-success"
-                          : "border-border-default/60 bg-bg-secondary/78 text-text-tertiary"
-                      )}
-                    >
+                    <span className={cn("pf-pill", connected ? "ok" : "")}>
+                      <span className={cn("pf-dot", connected ? "s-live" : "s-idle")} />
                       {connected ? t('tcp.system.connected') : t('tcp.system.waitingConnection')}
                     </span>
                   ) : null}

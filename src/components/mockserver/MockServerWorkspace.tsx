@@ -3,9 +3,9 @@
 
 import { memo, useEffect, useCallback, useState, useRef } from "react";
 import {
-  Play, Square, Trash2, Plus, Copy, Search,
+  Play, Square, Trash2, Plus, Copy,
   ChevronRight,
-  Clock, ArrowUpDown, AlertCircle, Server, Zap,
+  Clock, AlertCircle, Server, Zap,
   Download, Upload, Globe, Code, ListOrdered, Layers,
   PanelLeftOpen,
 } from "lucide-react";
@@ -259,10 +259,10 @@ function ControlBar({
   return (
     <div className="flex flex-col border-b border-border-default bg-bg-surface">
       <div className="flex items-center gap-2.5 px-3 py-2.5">
-        {/* 状态指示 */}
+        {/* 状态指示 — idle / connecting / live */}
         <span className="pf-status-chip">
-          <span className={cn("pf-dot", running ? "s-live" : "s-idle")} />
-          {running ? t("mockServer.running") : t("mockServer.stopped")}
+          <span className={cn("pf-dot", starting ? "s-conn" : running ? "s-live" : "s-idle")} />
+          {starting ? t("mockServer.starting") : running ? t("mockServer.running") : t("mockServer.stopped")}
         </span>
 
         {/* 运行地址 */}
@@ -293,13 +293,6 @@ function ControlBar({
           <span><Zap className="inline h-3 w-3 mr-0.5" />{totalHits} {t("mockServer.hits")}</span>
           <span><Server className="inline h-3 w-3 mr-0.5" />{routeCount} {t("mockServer.routeCount")}</span>
         </div>
-
-        {error && (
-          <div className="flex items-center gap-1 pf-text-xs text-error">
-            <AlertCircle className="h-3 w-3" />
-            <span className="max-w-48 truncate">{error}</span>
-          </div>
-        )}
 
         {/* 导入/导出 / 代理 */}
         <div className="flex items-center gap-0.5">
@@ -333,6 +326,14 @@ function ControlBar({
           {running ? <><Square className="h-3 w-3" />{t("mockServer.stop")}</> : <><Play className="h-3 w-3" />{starting ? t("mockServer.starting") : t("mockServer.start")}</>}
         </button>
       </div>
+
+      {/* 错误横幅 (error 状态 §6.6) */}
+      {error && (
+        <div className="flex items-start gap-2 px-3 py-2 border-t border-error/30 bg-error/10">
+          <AlertCircle className="h-3.5 w-3.5 text-error shrink-0 mt-px" />
+          <span className="flex-1 min-w-0 pf-text-xs text-error break-all">{error}</span>
+        </div>
+      )}
 
       {/* 代理转发输入行 */}
       {showProxy && (
@@ -409,14 +410,16 @@ function RouteListPanel({
       {/* 列表 */}
       <div className="flex-1 overflow-y-auto min-w-0">
         {routes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full px-4 text-center">
-            <Server className="h-8 w-8 text-text-disabled mb-2" />
-            <p className="pf-text-sm text-text-tertiary mb-2">
+          <div className="flex flex-col items-center justify-center h-full px-5 text-center gap-2">
+            <div className="grid place-items-center h-11 w-11 rounded-xl bg-bg-secondary border border-border-subtle mb-1">
+              <Server className="h-5 w-5 text-text-tertiary" />
+            </div>
+            <p className="pf-text-sm font-medium text-text-secondary">
               {t("mockServer.noRoutes")}
             </p>
             <button
               onClick={() => store.getState().addRoute()}
-              className="flex items-center gap-1 rounded-md bg-accent/10 px-3 py-1.5 pf-text-xs text-accent hover:bg-accent/20 transition-colors"
+              className="mt-1 flex items-center gap-1 rounded-md bg-accent/10 px-3 py-1.5 pf-text-xs text-accent hover:bg-accent/20 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               {t("mockServer.addFirstRoute")}
@@ -557,10 +560,12 @@ function RouteEditorPanel({
 
   if (!route) {
     return (
-      <div className="flex h-full items-center justify-center text-text-tertiary">
-        <div className="text-center">
-          <ArrowUpDown className="h-8 w-8 mx-auto mb-2 text-text-disabled" />
-          <p className="pf-text-sm">{t("mockServer.selectRoute")}</p>
+      <div className="flex h-full items-center justify-center">
+        <div className="flex flex-col items-center text-center gap-2 px-6">
+          <div className="grid place-items-center h-11 w-11 rounded-xl bg-bg-secondary border border-border-subtle mb-1">
+            <Layers className="h-5 w-5 text-text-tertiary" />
+          </div>
+          <p className="pf-text-sm font-medium text-text-secondary">{t("mockServer.selectRoute")}</p>
         </div>
       </div>
     );
@@ -1028,10 +1033,12 @@ function RequestLogPanel({
       {/* 日志列表 */}
       <div ref={listRef} className="flex-1 overflow-y-auto min-w-0">
         {logs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-text-tertiary">
-            <Search className="h-6 w-6 text-text-disabled mb-1.5" />
-            <p className="pf-text-xs">{t("mockServer.noLogs")}</p>
-            <p className="pf-text-[10px] mt-0.5">{t("mockServer.noLogsHint")}</p>
+          <div className="flex flex-col items-center justify-center h-full px-5 text-center gap-1.5">
+            <div className="grid place-items-center h-10 w-10 rounded-xl bg-bg-tertiary border border-border-subtle mb-1">
+              <Zap className="h-4 w-4 text-text-tertiary" />
+            </div>
+            <p className="pf-text-xs font-medium text-text-secondary">{t("mockServer.noLogs")}</p>
+            <p className="pf-text-[10px] text-text-tertiary">{t("mockServer.noLogsHint")}</p>
           </div>
         ) : (
           logs.map((log) => {

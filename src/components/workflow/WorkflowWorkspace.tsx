@@ -225,12 +225,14 @@ function CircleNode({ id, data, selected }: { id: string; data: FlowNodeData; se
       'flex h-14 w-14 items-center justify-center rounded-full border-2 bg-bg-surface shadow-sm transition-colors',
       'animate-in fade-in-0 zoom-in-95 duration-150',
       selected && 'border-accent ring-[3px] ring-accent/35',
-      isEnd && !selected && 'ring-2 ring-offset-1',
-      !selected && isRunning && 'border-info ring-info/20',
+      !selected && isRunning && 'border-info ring-[3px] ring-info/20',
       !selected && isDone && 'border-success',
       !selected && isFailed && 'border-error',
-      !selected && !isRunning && !isDone && !isFailed && 'border-border-default',
-    )} style={isEnd && !selected && !isRunning && !isDone && !isFailed ? { boxShadow: `0 0 0 3px ${meta.color}40` } : undefined}>
+      // End node (terminal) — subtle error-toned ring in its idle state
+      isEnd && !selected && !isRunning && !isDone && !isFailed && 'border-error ring-[3px] ring-error/25',
+      isStart && !selected && !isRunning && !isDone && !isFailed && 'border-success',
+      !isEnd && !isStart && !selected && !isRunning && !isDone && !isFailed && 'border-border-default',
+    )}>
       <NodeActionToolbar nodeId={id} data={data} />
       {/* Start: only source handles (outgoing). End: only target handles (incoming). */}
       {!isStart && <Handle type="target" position={Position.Top} id="top-target" className={hCls} />}

@@ -223,7 +223,7 @@ export function Gb28181Panel({ sessionKey, streamUrl, onStreamUrlChange }: Gb281
                       {item.id}
                     </button>
                     <span className="text-text-tertiary truncate">{item.name}</span>
-                    <span className={cn("pf-text-3xs px-1 rounded font-mono font-semibold", item.status === 'ON' ? 'bg-success/10 text-success' : 'bg-error/10 text-error')}>
+                    <span className={cn("pf-text-3xs px-1 pf-rounded-xs font-mono font-semibold", item.status === 'ON' ? 'bg-success/10 text-success' : 'bg-error/10 text-error')}>
                       {item.status}
                     </span>
                     <button

@@ -405,6 +405,20 @@ function TypeList({
     { label: t('http.graphql.explorer.scalarTypes'), types: cats.scalars },
   ];
 
+  const hasTypes = sections.some((section) => section.types.length > 0);
+
+  if (!hasTypes) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center px-6 text-center text-text-disabled">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-border-default bg-bg-secondary/35">
+          <Search className="h-6 w-6 text-text-tertiary/60" />
+        </div>
+        <p className="pf-text-sm font-medium text-text-secondary">{t('sidebar.noMatch')}</p>
+        <p className="mt-1 pf-text-xs text-text-tertiary">{t('http.graphql.explorer.searchPlaceholder')}</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       {sections.map((section) =>

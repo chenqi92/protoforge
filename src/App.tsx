@@ -79,72 +79,72 @@ const toolWorkbenchMeta: Record<ToolWorkbench, {
     shortTitleKey: "toolWorkbench.tcpudp.shortTitle",
     descKey: "toolWorkbench.tcpudp.description",
     icon: Network,
-    accentClassName: "text-blue-600 dark:text-blue-300",
-    accentBorderClassName: "border-blue-500",
-    accentDotClassName: "bg-blue-500",
+    accentClassName: "text-info",
+    accentBorderClassName: "border-info",
+    accentDotClassName: "bg-info",
   },
   capture: {
     titleKey: "toolWorkbench.capture.title",
     shortTitleKey: "toolWorkbench.capture.shortTitle",
     descKey: "toolWorkbench.capture.description",
     icon: Radio,
-    accentClassName: "text-cyan-600 dark:text-cyan-300",
-    accentBorderClassName: "border-cyan-500",
-    accentDotClassName: "bg-cyan-500",
+    accentClassName: "text-method-head",
+    accentBorderClassName: "border-method-head",
+    accentDotClassName: "bg-method-head",
   },
   loadtest: {
     titleKey: "toolWorkbench.loadtest.title",
     shortTitleKey: "toolWorkbench.loadtest.shortTitle",
     descKey: "toolWorkbench.loadtest.description",
     icon: Gauge,
-    accentClassName: "text-rose-600 dark:text-rose-300",
-    accentBorderClassName: "border-rose-500",
-    accentDotClassName: "bg-rose-500",
+    accentClassName: "text-error",
+    accentBorderClassName: "border-error",
+    accentDotClassName: "bg-error",
   },
   videostream: {
     titleKey: "toolWorkbench.videostream.title",
     shortTitleKey: "toolWorkbench.videostream.shortTitle",
     descKey: "toolWorkbench.videostream.description",
     icon: MonitorPlay,
-    accentClassName: "text-purple-600 dark:text-purple-300",
-    accentBorderClassName: "border-purple-500",
-    accentDotClassName: "bg-purple-500",
+    accentClassName: "text-method-patch",
+    accentBorderClassName: "border-method-patch",
+    accentDotClassName: "bg-method-patch",
   },
   mockserver: {
     titleKey: "toolWorkbench.mockserver.title",
     shortTitleKey: "toolWorkbench.mockserver.shortTitle",
     descKey: "toolWorkbench.mockserver.description",
     icon: Server,
-    accentClassName: "text-green-600 dark:text-green-300",
-    accentBorderClassName: "border-green-500",
-    accentDotClassName: "bg-green-500",
+    accentClassName: "text-success",
+    accentBorderClassName: "border-success",
+    accentDotClassName: "bg-success",
   },
   dbclient: {
     titleKey: "toolWorkbench.dbclient.title",
     shortTitleKey: "toolWorkbench.dbclient.shortTitle",
     descKey: "toolWorkbench.dbclient.description",
     icon: Database,
-    accentClassName: "text-amber-600 dark:text-amber-300",
-    accentBorderClassName: "border-amber-500",
-    accentDotClassName: "bg-amber-500",
+    accentClassName: "text-warning",
+    accentBorderClassName: "border-warning",
+    accentDotClassName: "bg-warning",
   },
   toolbox: {
     titleKey: "toolWorkbench.toolbox.title",
     shortTitleKey: "toolWorkbench.toolbox.shortTitle",
     descKey: "toolWorkbench.toolbox.description",
     icon: Wrench,
-    accentClassName: "text-orange-600 dark:text-orange-300",
-    accentBorderClassName: "border-orange-500",
-    accentDotClassName: "bg-orange-500",
+    accentClassName: "text-accent",
+    accentBorderClassName: "border-accent",
+    accentDotClassName: "bg-accent",
   },
   workflow: {
     titleKey: "toolWorkbench.workflow.title",
     shortTitleKey: "toolWorkbench.workflow.shortTitle",
     descKey: "toolWorkbench.workflow.description",
     icon: Workflow,
-    accentClassName: "text-indigo-600 dark:text-indigo-300",
-    accentBorderClassName: "border-indigo-500",
-    accentDotClassName: "bg-indigo-500",
+    accentClassName: "text-accent",
+    accentBorderClassName: "border-accent",
+    accentDotClassName: "bg-accent",
   },
 };
 
@@ -1413,7 +1413,9 @@ function App() {
         {/* Forge body-row: [ rail | sidebar | workarea ] */}
         <div
           className="grid h-full min-h-0 min-w-0 overflow-hidden"
-          style={{ gridTemplateColumns: `var(--rail-w) ${sidebarVisible ? `${sidebarWidth}px` : "0px"} 1fr` }}
+          // When the sidebar is hidden it's display:none (out of grid flow), so the grid must drop to
+          // 2 columns — otherwise the workarea falls into the (empty) sidebar column and collapses to 0.
+          style={{ gridTemplateColumns: sidebarVisible ? `var(--rail-w) ${sidebarWidth}px 1fr` : `var(--rail-w) 1fr` }}
         >
           <ActivityRail
             activityLogOpen={activityLogOpen}

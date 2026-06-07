@@ -743,8 +743,13 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                   <div className="pf-text-3xs uppercase tracking-[0.08em] text-text-disabled">
                     {t('serial.modbusslave.statusLabel', '状态')}
                   </div>
-                  <div className={cn("mt-1 pf-text-xs font-semibold", running ? "text-success" : "text-text-secondary")}>
-                    {running ? t('serial.modbusslave.started', '从站已启动') : t('serial.modbusslave.stopped', '从站已停止')}
+                  <div className={cn("mt-1 flex items-center gap-1.5 pf-text-xs font-semibold", running ? "text-success" : starting ? "text-warning" : "text-text-secondary")}>
+                    <span className={cn("pf-dot", running ? "s-live" : starting ? "s-conn" : "s-idle")} />
+                    {running
+                      ? t('serial.modbusslave.started', '从站已启动')
+                      : starting
+                        ? t('serial.modbusslave.slaveStarting', '启动中...')
+                        : t('serial.modbusslave.stopped', '从站已停止')}
                   </div>
                 </div>
                 <div className="pf-rounded-md border border-border-default/60 bg-bg-secondary/20 px-3 py-2">
@@ -869,8 +874,18 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
 
                 <div className="min-h-0 flex-1 overflow-y-auto font-mono pf-text-xxs">
                   {requestLog.length === 0 ? (
-                    <div className="flex flex-1 items-center justify-center py-8 text-text-disabled">
-                      {t('serial.modbusslave.noRequests', '暂无请求记录，从站已就绪')}
+                    <div className="flex h-full flex-col items-center justify-center px-6 py-8 text-center">
+                      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-border-default/60 bg-bg-secondary/60">
+                        <Cpu className="h-5 w-5 text-text-disabled" />
+                      </div>
+                      <p className="pf-text-sm font-semibold text-text-secondary font-sans">
+                        {running
+                          ? t('serial.modbusslave.noRequests', '暂无请求记录，从站已就绪')
+                          : t('serial.modbusslave.stopped', '从站已停止')}
+                      </p>
+                      <p className="mt-1 pf-text-xxs text-text-tertiary font-sans">
+                        {t('serial.modbusslave.browserDesc', '切换寄存器区、翻页并批量写入当前页的数据。')}
+                      </p>
                     </div>
                   ) : (
                     <div className="py-1">
@@ -921,11 +936,13 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
       {!compact ? (
         <div className="h-7 flex items-center gap-4 px-4 bg-bg-secondary/60 border-t border-border-default pf-text-xs font-medium shrink-0 select-none rounded-b-[var(--radius-md)]">
         <div className="flex items-center gap-1.5">
-          <span className={cn("pf-dot", running ? "s-live" : "s-idle")} />
-          <span className={cn("transition-colors", running ? "text-success" : "text-text-tertiary")}>
+          <span className={cn("pf-dot", running ? "s-live" : starting ? "s-conn" : "s-idle")} />
+          <span className={cn("transition-colors", running ? "text-success" : starting ? "text-warning" : "text-text-tertiary")}>
             {running
               ? t('serial.modbusslave.started', '从站已启动')
-              : t('serial.modbusslave.stopped', '从站已停止')}
+              : starting
+                ? t('serial.modbusslave.slaveStarting', '启动中...')
+                : t('serial.modbusslave.stopped', '从站已停止')}
           </span>
         </div>
         <div className="w-[1px] h-3 bg-border-default" />

@@ -139,6 +139,22 @@ export function ImageUrlToBase64Tool() {
         </label>
       </section>
 
+      {/* 空状态 — 尚未转换且无错误 */}
+      {!result && !error && !loading && (
+        <section className="flex flex-col items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-border-strong bg-bg-secondary/40 px-6 py-10 text-center">
+          <LinkIcon className="h-7 w-7 text-text-disabled" />
+          <span className="pf-text-sm text-text-tertiary">{t(`${k}.desc`)}</span>
+        </section>
+      )}
+
+      {/* 加载状态 */}
+      {loading && (
+        <section className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-soft p-4 pf-text-sm text-text-secondary">
+          <Loader2 className="h-4 w-4 animate-spin text-accent" />
+          <span>{t(`${k}.converting`)}</span>
+        </section>
+      )}
+
       {/* 错误提示 */}
       {error && (
         <section className="flex items-start gap-2 rounded-lg border border-error/30 bg-error/5 p-3">

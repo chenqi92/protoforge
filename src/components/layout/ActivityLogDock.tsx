@@ -180,10 +180,17 @@ export function ActivityLogDock({ onClose }: { onClose: () => void }) {
       {/* Body */}
       <div className="min-h-0 flex-1 overflow-auto">
         {filtered.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-text-tertiary">
-            <Activity className="h-6 w-6 text-text-disabled" />
-            <span className="pf-text-sm">
+          <div className="flex h-full flex-col items-center justify-center gap-2.5 px-4 text-center">
+            <div className="flex h-[46px] w-[46px] items-center justify-center pf-rounded-lg border border-border-subtle bg-bg-secondary text-text-tertiary shadow-sm">
+              <Activity className="h-5 w-5" />
+            </div>
+            <span className="pf-text-sm font-medium text-text-secondary">
               {entries.length === 0 ? tl("暂无记录", "No entries") : tl("无匹配记录", "No matches")}
+            </span>
+            <span className="pf-text-xs text-text-disabled">
+              {entries.length === 0
+                ? tl("网络与协议活动会实时记录在这里", "Network and protocol activity appears here")
+                : tl("调整过滤条件或正则表达式", "Adjust the filter or regex")}
             </span>
           </div>
         ) : (

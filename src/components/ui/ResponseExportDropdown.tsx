@@ -230,7 +230,7 @@ export function ResponseExportDropdown({ body }: { body: string }) {
         disabled={!hasArrays}
         className={cn(
           "h-6 w-6 flex items-center justify-center rounded-md transition-colors",
-          hasArrays ? "text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer" : "text-text-disabled cursor-not-allowed"
+          hasArrays ? "text-success hover:bg-success/10 cursor-pointer" : "text-text-disabled cursor-not-allowed"
         )}
         title={t('response.exportData', '导出数据')}
       >
@@ -285,8 +285,8 @@ export function ResponseExportDropdown({ body }: { body: string }) {
                   >
                     <span className="font-medium">{fmt.name}</span>
                     {state === 'loading' && <Loader2 className="w-3 h-3 animate-spin text-text-disabled" />}
-                    {state === 'done' && <Check className="w-3 h-3 text-emerald-500 dark:text-emerald-300" />}
-                    {state === 'error' && <span className="pf-text-xxs text-red-500 dark:text-red-300">!</span>}
+                    {state === 'done' && <Check className="w-3 h-3 text-success" />}
+                    {state === 'error' && <span className="pf-text-xxs text-error">!</span>}
                     {state === 'idle' && <span className="pf-text-xxs text-text-disabled">{fmt.extension}</span>}
                   </button>
                 );
@@ -361,7 +361,7 @@ export function ResponseExportDropdown({ body }: { body: string }) {
                     setStep(2);
                   }}
                   disabled={selectedFormat.id !== 'influxdb' && selectedCols.size === 0}
-                  className="px-3 py-1 pf-rounded-sm pf-text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50">
+                  className="px-3 py-1 pf-rounded-sm pf-text-xs font-medium bg-accent text-white hover:bg-accent-hover disabled:opacity-50">
                   {t('response.export', '导出')}
                 </button>
               </div>

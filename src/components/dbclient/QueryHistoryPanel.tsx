@@ -1,7 +1,7 @@
 // 查询历史面板 — 显示最近执行的 SQL 查询
 
 import { memo, useEffect, useState, useCallback } from "react";
-import { History, CheckCircle2, XCircle, Clock, Play, Copy, RefreshCw } from "lucide-react";
+import { History, CheckCircle2, XCircle, Clock, Play, Copy, RefreshCw, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as dbService from "@/services/dbClientService";
 import { getDbClientStoreApi } from "@/stores/dbClientStore";
@@ -44,11 +44,22 @@ export const QueryHistoryPanel = memo(function QueryHistoryPanel({
     store.getState().setSqlText(sql);
   };
 
-  if (entries.length === 0 && !loading) {
+  if (entries.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center text-text-tertiary">
-        <History size={24} className="mb-2 opacity-30" />
-        <span className="pf-text-xs">{t("dbClient.noHistory")}</span>
+      <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+        {loading ? (
+          <>
+            <Loader2 size={20} className="mb-3 animate-spin text-text-tertiary" />
+            <span className="pf-text-xs text-text-tertiary">{t("dbClient.loading")}</span>
+          </>
+        ) : (
+          <>
+            <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
+              <History className="h-8 w-8 opacity-20 text-accent" />
+            </div>
+            <p className="pf-text-base font-medium text-text-tertiary">{t("dbClient.noHistory")}</p>
+          </>
+        )}
       </div>
     );
   }

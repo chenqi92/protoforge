@@ -407,7 +407,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
                 connected ? "bg-error hover:bg-error/90" : connecting ? "bg-warning cursor-wait opacity-70" : "bg-accent hover:bg-accent-hover"
               )}
             >
-              {connected ? <X className="w-4 h-4" /> : <Plug className="w-4 h-4" />}
+              {connected ? <X className="w-4 h-4" /> : connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plug className="w-4 h-4" />}
               {connected ? t('ws.disconnect') : connecting ? t('ws.connecting') : t('ws.connect')}
             </button>
           </>
@@ -595,11 +595,11 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
             >
               {filteredMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center px-6 text-text-disabled">
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default bg-bg-secondary shadow-sm">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center pf-rounded-lg border border-border-default/60 bg-bg-primary/78">
                     <Zap className="w-8 h-8 opacity-20 text-accent" />
                   </div>
-                  <p className="pf-text-md font-medium text-text-secondary">{(searchQuery || dirFilter !== "all") && messages.length > 0 ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
-                  <p className="mt-1 pf-text-sm">{(searchQuery || dirFilter !== "all") && messages.length > 0 ? '' : t('ws.emptyDesc')}</p>
+                  <p className="pf-text-base font-medium text-text-secondary">{(searchQuery || dirFilter !== "all") && messages.length > 0 ? t('commandPalette.noResults') : t('ws.emptyTitle')}</p>
+                  <p className="mt-1 pf-text-xs">{(searchQuery || dirFilter !== "all") && messages.length > 0 ? '' : t('ws.emptyDesc')}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border-default/30">

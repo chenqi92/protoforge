@@ -89,30 +89,36 @@ export function IconGeneratorTool() {
 
   return (
     <ToolboxToolPane>
-      {/* 选择源图片 */}
+      {/* 选择源图片 — 原型 dropzone 风格 */}
       <section>
         <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.selectSource`)}</h3>
-        <div className="flex items-start gap-4">
-          <button onClick={handleSelectSource} className="wb-ghost-btn gap-2 px-3 py-2">
-            <ImagePlus className="h-4 w-4" />
-            {t(`${k}.selectSource`)}
-          </button>
-
-          {sourceImage && (
-            <div className="flex items-center gap-3">
-              <div className="h-16 w-16 overflow-hidden rounded-lg border border-border-default bg-bg-secondary">
-                <img
-                  src={convertFileSrc(sourceImage)}
-                  alt="source"
-                  className="h-full w-full object-contain"
-                />
-              </div>
-              <span className="pf-text-sm text-text-secondary">
-                {t(`${k}.sourceSelected`, { name: sourceName })}
-              </span>
+        {sourceImage ? (
+          <button
+            type="button"
+            onClick={handleSelectSource}
+            className="flex w-full items-center gap-3 rounded-[10px] border border-border-default bg-bg-secondary/40 px-3 py-3 text-left transition-colors hover:border-accent/50 hover:bg-accent-soft"
+          >
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border-default bg-bg-secondary">
+              <img
+                src={convertFileSrc(sourceImage)}
+                alt="source"
+                className="h-full w-full object-contain"
+              />
             </div>
-          )}
-        </div>
+            <span className="min-w-0 truncate pf-text-sm text-text-secondary">
+              {t(`${k}.sourceSelected`, { name: sourceName })}
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSelectSource}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-dashed border-border-strong bg-bg-secondary/40 px-6 py-7 text-center transition-colors hover:border-accent/60 hover:bg-accent-soft"
+          >
+            <ImagePlus className="h-6 w-6 text-text-tertiary" />
+            <span className="pf-text-sm text-text-tertiary">{t(`${k}.selectSource`)}</span>
+          </button>
+        )}
       </section>
 
       {/* 目标平台 — accent-soft 选择块 + check（对齐原型 size-chip 风格） */}

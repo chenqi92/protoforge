@@ -211,9 +211,11 @@ export function ProtocolParserPanel({ initialData, compact, className }: Protoco
 
   if (parserPlugins.length === 0) {
     return (
-      <div className={cn('flex flex-col items-center justify-center gap-3 p-8 text-text-disabled', className)}>
-        <FileCode2 className="h-8 w-8 opacity-30" />
-        <p style={{ fontSize: 'var(--fs-sm)' }}>{t('parser.noParser', '暂无已安装的协议解析器')}</p>
+      <div className={cn('flex flex-col items-center justify-center p-8 text-center', className)}>
+        <div className="flex h-14 w-14 items-center justify-center pf-rounded-xl border border-border-subtle bg-bg-secondary/75 text-text-disabled">
+          <FileCode2 className="h-6 w-6 opacity-70" />
+        </div>
+        <p className="mt-4 max-w-xs text-text-tertiary" style={{ fontSize: 'var(--fs-sm)' }}>{t('parser.noParser', '暂无已安装的协议解析器')}</p>
       </div>
     );
   }

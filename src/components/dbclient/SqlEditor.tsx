@@ -366,6 +366,18 @@ export const SqlEditor = memo(function SqlEditor({
               )}
             </button>
 
+            {/* 连接状态 pill */}
+            {connected && connectionConfig && (
+              <span className="pf-pill acc shrink-0 max-w-[220px]">
+                <span className={cn("pf-dot shrink-0", queryRunning ? "s-run" : "s-ok")} />
+                <span className="truncate font-mono">
+                  {connectionConfig.dbType === "sqlite"
+                    ? (connectionConfig.filePath?.split("/").pop() ?? connectionConfig.filePath ?? "sqlite")
+                    : `${connectionConfig.host}:${connectionConfig.port}`}
+                </span>
+              </span>
+            )}
+
             {/* 数据库选择器 */}
             {databases.length > 0 && (
               <div className="flex items-center gap-1 shrink-0">

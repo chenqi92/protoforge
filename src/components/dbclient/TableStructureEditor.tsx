@@ -48,7 +48,14 @@ export const TableStructureEditor = memo(function TableStructureEditor({
     return <div className="flex h-full items-center justify-center"><Loader2 size={20} className="animate-spin text-text-tertiary" /></div>;
   }
   if (!tab.originalDescription) {
-    return <div className="flex h-full items-center justify-center pf-text-xs text-text-tertiary">无法加载表结构</div>;
+    return (
+      <div className="flex h-full flex-col items-center justify-center px-6 text-text-disabled">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center pf-rounded-lg border border-error/20 bg-error/8">
+          <AlertCircle className="h-6 w-6 text-error opacity-80" />
+        </div>
+        <p className="pf-text-sm font-medium text-text-secondary">无法加载表结构</p>
+      </div>
+    );
   }
 
   return (

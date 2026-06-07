@@ -137,6 +137,17 @@ export function MetricsChart({ data, type, height = 200 }: MetricsChartProps) {
     return () => observer.disconnect();
   }, [draw]);
 
+  // Redraw when the Forge theme (`class`) or accent (`data-accent`) on <html>
+  // changes, so the canvas palette (resolved from CSS vars) follows the theme.
+  useEffect(() => {
+    const mo = new MutationObserver(() => draw());
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-accent"],
+    });
+    return () => mo.disconnect();
+  }, [draw]);
+
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const container = containerRef.current;

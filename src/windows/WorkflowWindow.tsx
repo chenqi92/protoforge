@@ -5,7 +5,7 @@ export function WorkflowWindow() {
   const sessionId = new URLSearchParams(window.location.search).get("session") ?? "default";
 
   return (
-    <ToolWindowShell tool="workflow" sessionId={sessionId} title="工作流编排" module="workflow" accentClassName="bg-indigo-500">
+    <ToolWindowShell tool="workflow" sessionId={sessionId} title="工作流编排" module="workflow" accentClassName="bg-accent">
       <div className="h-full overflow-hidden bg-transparent">
         <WorkflowWorkspace />
       </div>

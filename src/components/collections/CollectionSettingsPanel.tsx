@@ -209,10 +209,12 @@ function VariablesTab({ collection }: { collection: Collection }) {
       </div>
 
       {vars.length === 0 ? (
-        <div className="py-12 flex flex-col items-center text-text-disabled">
-          <Variable className="w-8 h-8 mb-2 opacity-30" />
-          <p className="pf-text-sm">{t('collectionSettings.noVars')}</p>
-          <p className="pf-text-xs mt-0.5 opacity-60">{t('collectionSettings.noVarsHint')}</p>
+        <div className="py-12 px-8 flex flex-col items-center text-center">
+          <div className="flex h-14 w-14 items-center justify-center pf-rounded-xl border border-border-subtle bg-bg-secondary/75 text-text-disabled">
+            <Variable className="h-6 w-6 opacity-70" />
+          </div>
+          <p className="mt-4 pf-text-base font-semibold text-text-secondary">{t('collectionSettings.noVars')}</p>
+          <p className="mt-2 max-w-xs pf-text-xs leading-5 text-text-tertiary">{t('collectionSettings.noVarsHint')}</p>
         </div>
       ) : (
         <div className="border border-border-default/60 rounded-lg overflow-hidden">
