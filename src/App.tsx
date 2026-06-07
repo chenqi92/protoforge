@@ -1170,7 +1170,7 @@ function App() {
         case "loadtest": return <LoadTestWorkspace sessionId={tab.sessionId} />;
         case "videostream": return <VideoStreamWorkspace sessionId={tab.sessionId} initialMode={session?.videoMode ?? DEFAULT_VIDEO_TOOL_MODE} />;
         case "mockserver": return <MockServerWorkspace sessionId={tab.sessionId} />;
-        case "dbclient": return <DbClientWorkspace sessionId={tab.sessionId} />;
+        case "dbclient": return <DbClientWorkspace sessionId={tab.sessionId} showConnectionSidebar={false} />;
         case "toolbox": return <ToolboxWorkspace />;
         case "workflow": return <WorkflowWorkspace />;
         default: return null;
@@ -1348,7 +1348,7 @@ function App() {
                 key={session.id}
                 className={cn("h-full min-h-0 overflow-hidden", session.id === activeToolSessionIds.dbclient ? "block" : "hidden")}
               >
-                <DbClientWorkspace sessionId={session.id} />
+                <DbClientWorkspace sessionId={session.id} showConnectionSidebar={false} />
               </div>
             ))}
           </ToolWorkbenchPanel>
