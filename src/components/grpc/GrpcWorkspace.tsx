@@ -320,7 +320,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="localhost:50051"
-            className="wb-field flex-1 pf-text-sm font-mono"
+            className="wb-request-input"
           />
         }
         actions={

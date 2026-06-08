@@ -18,7 +18,7 @@ export function RequestWorkbenchHeader({
   shellClassName,
 }: RequestWorkbenchHeaderProps) {
   return (
-    <div className={cn("shrink-0 px-3 pb-1 pt-1.5", className)}>
+    <div className={cn("shrink-0", className)}>
       <div
         className={cn(
           "wb-request-shell",
@@ -29,7 +29,7 @@ export function RequestWorkbenchHeader({
         <div className="wb-request-main">{main}</div>
         {actions ? <div className="wb-request-actions">{actions}</div> : null}
       </div>
-      {secondary ? <div className="wb-request-secondary">{secondary}</div> : null}
+      {secondary ? <div className="wb-request-secondary px-3 pb-1.5">{secondary}</div> : null}
     </div>
   );
 }

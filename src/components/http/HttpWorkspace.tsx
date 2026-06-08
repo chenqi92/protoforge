@@ -657,14 +657,12 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
       {/* Top Request Bar Area */}
       <RequestWorkbenchHeader
         prefix={(
-          <RequestProtocolSwitcher
-            activeProtocol={activeTab.protocol}
-            activeHttpMode={config.requestMode}
-            onChange={handleRequestKindChange}
-          />
-        )}
-        main={(
-          <div className="relative flex min-w-0 flex-1 items-center gap-2">
+          <>
+            <RequestProtocolSwitcher
+              activeProtocol={activeTab.protocol}
+              activeHttpMode={config.requestMode}
+              onChange={handleRequestKindChange}
+            />
             <div className="relative shrink-0">
               <button
                 onClick={() => setShowMethods(!showMethods)}
@@ -693,6 +691,10 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
                 </>
               )}
             </div>
+          </>
+        )}
+        main={(
+          <div className="relative flex min-w-0 flex-1 items-center">
             <div className="relative min-w-0 flex-1">
               <VariableInlineInput
                 inputRef={urlInputRef}
