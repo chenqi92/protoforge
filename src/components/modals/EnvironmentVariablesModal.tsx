@@ -173,7 +173,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ type: "spring", duration: 0.3, bounce: 0.1 }}
-            className="w-[860px] max-w-[94vw] min-h-[520px] max-h-[80vh] pf-rounded-xl border border-border-strong bg-bg-elevated shadow-2xl flex flex-col overflow-hidden"
+            className="w-[860px] max-w-[94vw] min-h-[520px] max-h-[80vh] rounded-[14px] border border-border-strong bg-bg-elevated shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
             <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-border-default">

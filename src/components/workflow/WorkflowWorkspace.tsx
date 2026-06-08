@@ -1120,10 +1120,10 @@ function ExecutionPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-default shrink-0">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border-default shrink-0">
         <div className="flex items-center gap-2">
           <Zap className="h-3.5 w-3.5 text-accent" />
-          <span className="pf-text-xs font-semibold text-text-secondary uppercase tracking-wider">{t('workflow.resultPanel')}</span>
+          <span className="pf-text-xs font-semibold text-text-secondary">{t('workflow.resultPanel')}</span>
           {progress && status === 'running' && (
             <span className="pf-text-xxs text-info font-medium">
               {t('workflow.step', { current: progress.currentStep + 1, total: progress.totalSteps })}
@@ -3115,11 +3115,11 @@ function WorkflowWorkspaceInner() {
               <Save className="h-3 w-3" /> {t('workflow.save')}
             </button>
             {isRunning ? (
-              <button onClick={cancelExec} className="flex items-center gap-1 h-7 px-3 pf-rounded-lg bg-error pf-text-xs font-semibold text-white hover:bg-error/90 transition-colors">
+              <button onClick={cancelExec} className="flex items-center gap-1 h-7 px-3 pf-rounded-md bg-error pf-text-xs font-semibold text-white hover:bg-error/90 transition-colors">
                 <Square className="h-3 w-3" /> {t('workflow.stop')}
               </button>
             ) : (
-              <button onClick={handleRun} className="flex items-center gap-1 h-7 px-3 pf-rounded-lg bg-accent pf-text-xs font-semibold text-white hover:bg-accent/90 transition-colors shadow-sm">
+              <button onClick={handleRun} className="flex items-center gap-1 h-7 px-3 pf-rounded-md bg-accent pf-text-xs font-semibold text-white hover:bg-accent/90 transition-colors shadow-sm">
                 <Play className="h-3 w-3" /> {t('workflow.run')}
               </button>
             )}

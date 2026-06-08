@@ -1168,20 +1168,20 @@ const RequestRow = memo(function RequestRow({
       <span className="w-[54px] shrink-0">
         <span className={cn("pf-mtag pf-text-3xs", mtagClass)}>{entry.method}</span>
       </span>
-      <span className={cn("w-[52px] shrink-0 text-center font-mono pf-text-xxs font-semibold tabular-nums", statusColor(entry.status))}>
+      <span className={cn("w-[52px] shrink-0 text-center font-mono pf-text-xs font-semibold tabular-nums", statusColor(entry.status))}>
         {entry.status || <Clock className="inline w-3 h-3 text-text-disabled animate-pulse" />}
       </span>
-      <span className="flex-1 min-w-0 truncate font-mono pf-text-xxs" title={entry.url}>
+      <span className="flex-1 min-w-0 truncate font-mono pf-text-xs" title={entry.url}>
         <span className="text-text-tertiary">{entry.host}</span>
         <span className="text-text-primary">{entry.path?.startsWith("/") ? entry.path : entry.path ? `/${entry.path}` : ""}</span>
       </span>
-      <span className="w-[76px] shrink-0 truncate pf-text-xxs text-text-tertiary" title={entry.contentType || ""}>
+      <span className="w-[76px] shrink-0 truncate pf-text-xs text-text-tertiary" title={entry.contentType || ""}>
         {shortType}
       </span>
-      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xxs tabular-nums text-text-tertiary">
+      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xs tabular-nums text-text-tertiary">
         {formatSize(entry.responseSize)}
       </span>
-      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xxs tabular-nums text-text-tertiary">
+      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xs tabular-nums text-text-tertiary">
         {formatDuration(entry.durationMs)}
       </span>
     </div>
@@ -1353,7 +1353,7 @@ function RawView({ type, entry }: { type: "request" | "response"; entry: Capture
 
   return (
     <pre
-      className="p-3 pf-text-xxs font-mono text-text-secondary whitespace-pre-wrap break-all select-text leading-[1.6] cursor-text"
+      className="p-3 pf-text-xs font-mono text-text-secondary whitespace-pre-wrap break-all select-text leading-[1.6] cursor-text"
       style={{ userSelect: "text", WebkitUserSelect: "text" }}
     >
       {raw || <span className="text-text-disabled italic">Empty</span>}
@@ -1377,7 +1377,7 @@ function HeadersTableView({ headers }: { headers: [string, string][] }) {
         <div
           key={`${key}-${i}`}
           className={cn(
-            "flex pf-text-xxs font-mono px-3 py-1.5 select-text cursor-text",
+            "flex pf-text-xs font-mono px-3 py-1.5 select-text cursor-text",
             i > 0 && "border-t border-border-subtle/40",
             i % 2 === 0 ? "bg-transparent" : "bg-bg-secondary/30"
           )}
@@ -1451,7 +1451,7 @@ function HexView({ data }: { data?: string }) {
 
   return (
     <pre
-      className="p-3 pf-text-xxs font-mono text-text-secondary leading-[1.6] select-text cursor-text whitespace-pre"
+      className="p-3 pf-text-xs font-mono text-text-secondary leading-[1.6] select-text cursor-text whitespace-pre"
       style={{ userSelect: "text", WebkitUserSelect: "text" }}
     >
       {lines.join("\n")}

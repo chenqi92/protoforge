@@ -33,7 +33,7 @@ function methodClass(method?: string): string {
 // 状态码 → .pf-pill 色调
 function statusTone(status: number): string {
   if (status < 300) return "ok";
-  if (status < 400) return "warn";
+  if (status < 400) return "info";
   return "err";
 }
 
@@ -320,8 +320,8 @@ function ControlBar({
           className={cn(
             "flex items-center gap-1.5 rounded-md h-6 px-2.5 pf-text-xs font-semibold transition-colors",
             running
-              ? "bg-error/15 text-error hover:bg-error/25"
-              : "bg-success/15 text-success hover:bg-success/25",
+              ? "bg-transparent text-error hover:bg-error/10"
+              : "bg-accent text-white hover:bg-accent/90",
             starting && "opacity-50 cursor-not-allowed",
           )}
         >

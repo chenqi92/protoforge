@@ -76,7 +76,22 @@ async function renderApp() {
         theme="system"
         richColors
         closeButton
-        toastOptions={{ style: { fontSize: "var(--fs-sm)" } }}
+        style={
+          {
+            "--border-radius": "9px",
+            "--normal-bg": "var(--color-bg-elevated)",
+            "--normal-border": "var(--color-border-strong)",
+            "--normal-text": "var(--color-text-primary)",
+          } as React.CSSProperties
+        }
+        toastOptions={{
+          style: {
+            fontSize: "var(--fs-sm)",
+            padding: "9px 14px",
+            gap: "9px",
+            borderRadius: "9px",
+          },
+        }}
       />
     </React.StrictMode>,
   );

@@ -113,7 +113,7 @@ export function SetEnvVariableDialog() {
       />
       {/* Dialog */}
       <div
-        className="fixed z-[601] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[380px] bg-bg-elevated border border-border-strong pf-rounded-xl shadow-2xl"
+        className="fixed z-[601] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[380px] bg-bg-elevated border border-border-strong rounded-[14px] shadow-2xl"
         onKeyDown={handleKeyDown}
       >
         <div className="flex items-center gap-2.5 px-5 pt-4 pb-3 border-b border-border-default">

@@ -308,31 +308,31 @@ export function OnvifPanel({
               aria-label={t('videostream.ptz.up', '上')}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePtz('up'); } }}
               onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePtzStop(); } }}
-              className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-[34px] w-[34px] flex items-center justify-center pf-rounded-md bg-bg-secondary border border-border-default text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ArrowUp className="w-4 h-4" /></button>
             <div className="flex gap-1">
               <button onMouseDown={() => handlePtz('left')} onMouseUp={handlePtzStop}
                 aria-label={t('videostream.ptz.left', '左')}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePtz('left'); } }}
                 onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePtzStop(); } }}
-                className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+                className="h-[34px] w-[34px] flex items-center justify-center pf-rounded-md bg-bg-secondary border border-border-default text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowLeft className="w-4 h-4" /></button>
               <button onClick={handlePtzStop}
                 aria-label={t('videostream.ptz.stop', '停止')}
-                className="h-8 w-8 flex items-center justify-center rounded-full bg-error/10 border border-error/20 text-error hover:bg-error/20 transition-colors"
+                className="h-[34px] w-[34px] flex items-center justify-center pf-rounded-md bg-error/10 border border-error/20 text-error hover:bg-error/20 transition-colors"
               ><RotateCcw className="w-3.5 h-3.5" /></button>
               <button onMouseDown={() => handlePtz('right')} onMouseUp={handlePtzStop}
                 aria-label={t('videostream.ptz.right', '右')}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePtz('right'); } }}
                 onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePtzStop(); } }}
-                className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+                className="h-[34px] w-[34px] flex items-center justify-center pf-rounded-md bg-bg-secondary border border-border-default text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
               ><ArrowRight className="w-4 h-4" /></button>
             </div>
             <button onMouseDown={() => handlePtz('down')} onMouseUp={handlePtzStop}
               aria-label={t('videostream.ptz.down', '下')}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePtz('down'); } }}
               onKeyUp={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePtzStop(); } }}
-              className="h-8 w-8 flex items-center justify-center pf-rounded-sm bg-bg-secondary border border-border-subtle text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
+              className="h-[34px] w-[34px] flex items-center justify-center pf-rounded-md bg-bg-secondary border border-border-default text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors"
             ><ArrowDown className="w-4 h-4" /></button>
           </div>
           <div className="flex items-center justify-center gap-2">

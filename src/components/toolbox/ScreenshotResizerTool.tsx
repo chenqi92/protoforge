@@ -112,7 +112,7 @@ export function ScreenshotResizerTool() {
       {/* 选择图片 — 原型 dropzone 风格 */}
       <section>
         <div className="mb-2 flex items-center gap-3">
-          <h3 className="pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.selectImages`)}</h3>
+          <h3 className="pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.selectImages`)}</h3>
           {selectedImages.length > 0 && (
             <button
               onClick={() => { setSelectedImages([]); setResult(null); }}
@@ -161,7 +161,7 @@ export function ScreenshotResizerTool() {
       {/* 目标尺寸 */}
       <section>
         <div className="mb-3 flex items-center gap-4">
-          <h3 className="pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.targetSizes`)}</h3>
+          <h3 className="pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.targetSizes`)}</h3>
           <div className="flex items-center gap-2">
             <button onClick={selectAll} className="pf-text-xs text-accent hover:underline">
               {t(`${k}.selectAll`)}
@@ -176,7 +176,7 @@ export function ScreenshotResizerTool() {
         <div className="space-y-4">
           {Object.entries(DEVICE_GROUPS).map(([device, presets]) => (
             <div key={device}>
-              <div className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">
+              <div className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">
                 {device}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -211,7 +211,7 @@ export function ScreenshotResizerTool() {
 
       {/* 输出目录 */}
       <section>
-        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputDir`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputDir`)}</h3>
         <div className="flex items-center gap-3">
           <button onClick={handleSelectOutput} className="wb-ghost-btn gap-2 px-3 py-2">
             <FolderOutput className="h-4 w-4" />
@@ -254,7 +254,7 @@ export function ScreenshotResizerTool() {
 
       {/* 进度条 */}
       {processing && (
-        <section className="rounded-lg border border-accent/30 bg-accent-soft p-4">
+        <section className="pf-rounded-md border border-accent/30 bg-accent-soft p-4">
           <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
             <Loader2 className="h-4 w-4 animate-spin text-accent" />
             <span>
@@ -270,7 +270,7 @@ export function ScreenshotResizerTool() {
 
       {/* 错误详情 */}
       {result && result.errors.length > 0 && (
-        <section className="rounded-lg border border-error/30 bg-error/5 p-3">
+        <section className="pf-rounded-md border border-error/30 bg-error/5 p-3">
           <div className="space-y-1">
             {result.errors.map((err, i) => (
               <div key={i} className="pf-text-xs font-mono text-error">{err}</div>

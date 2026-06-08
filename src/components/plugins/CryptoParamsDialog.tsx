@@ -51,7 +51,7 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
 
   return createPortal(
     <div className="fixed inset-0 z-[var(--z-toast)] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-[420px] pf-rounded-xl border border-border-strong bg-bg-elevated shadow-2xl">
+      <div className="w-[420px] rounded-[14px] border border-border-strong bg-bg-elevated shadow-2xl">
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border-default">
           <Icon className={cn('w-4.5 h-4.5', iconColor)} />

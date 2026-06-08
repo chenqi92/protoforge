@@ -72,7 +72,7 @@ function TreeItem({
           onDrop={(e) => { e.preventDefault(); onDrop(e, item.id); }}
           onClick={() => setExpanded(!expanded)}
           className={cn(
-            'flex h-[27px] items-center gap-1.5 px-1.5 cursor-pointer pf-rounded-sm',
+            'flex h-[27px] items-center gap-1.5 px-1.5 cursor-pointer rounded-[5px]',
             'text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group',
             isDragging && 'opacity-40',
             isDropTarget && dropPosition === 'before' && 'border-t-2 border-t-accent',
@@ -134,7 +134,7 @@ function TreeItem({
       onDrop={(e) => { e.preventDefault(); onDrop(e, item.id); }}
       onClick={() => onSelect?.(item)}
       className={cn(
-        'flex h-[27px] items-center gap-1.5 px-1.5 cursor-pointer pf-rounded-sm',
+        'flex h-[27px] items-center gap-1.5 px-1.5 cursor-pointer rounded-[5px]',
         'text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group',
         isDragging && 'opacity-40',
         isDropTarget && dropPosition === 'before' && 'border-t-2 border-t-accent',
@@ -297,7 +297,7 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border-subtle">
-        <span className="pf-text-xxs font-semibold uppercase tracking-[0.07em] text-text-tertiary">{t('sidebar.collections')}</span>
+        <span className="pf-text-xxs font-bold uppercase tracking-[0.06em] text-text-tertiary">{t('sidebar.collections')}</span>
         <div className="flex items-center gap-1">
           <button className="grid place-items-center w-6 h-6 pf-rounded-xs text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors" title={t('contextMenu.newFolder')}>
             <FolderPlus className="w-3.5 h-3.5" />
@@ -337,7 +337,7 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
                   handleDragEnd();
                 }}
                 className={cn(
-                  'flex h-[27px] items-center gap-1.5 px-1.5 cursor-pointer text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group',
+                  'flex h-[27px] items-center gap-1.5 px-1.5 cursor-pointer rounded-[5px] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group',
                   dropTargetId === `col:${col.id}` && 'ring-1 ring-accent bg-accent-soft',
                 )}
               >

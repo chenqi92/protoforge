@@ -246,7 +246,7 @@ export function MessageLog({
                   onClick={() => onSelectMessage?.(m)}
                   onKeyDown={activateOnKey(() => onSelectMessage?.(m))}
                   className={cn(
-                    "group flex cursor-pointer items-center gap-3 px-3 py-1 transition-colors hover:bg-bg-hover/42",
+                    "group flex cursor-pointer items-center gap-3 px-3 py-[5px] transition-colors hover:bg-bg-hover/42",
                     m.direction === "system" && "bg-warning/[0.05]",
                     selectedMessageId === m.id && "bg-accent/8 ring-1 ring-inset ring-accent/20"
                   )}

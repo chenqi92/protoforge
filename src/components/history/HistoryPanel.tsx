@@ -145,7 +145,7 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
                     onKeyDown={activateOnKey(() => setExpanded(isOpen ? null : item.id))}
                     onContextMenu={(e) => handleItemContextMenu(e, item)}
                     className={cn(
-                      'relative flex items-center gap-2 h-7 px-2 pf-rounded-sm cursor-pointer group transition-colors',
+                      'relative flex items-center gap-2 h-[30px] px-2 rounded-[5px] cursor-pointer group transition-colors',
                       isOpen ? 'bg-accent-soft' : 'hover:bg-bg-hover',
                       isOpen && 'before:content-[\'\'] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-accent',
                     )}

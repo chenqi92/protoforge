@@ -105,9 +105,9 @@ function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
 
   return (
     <Dialog open={isOpen} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="!w-[660px] !max-w-[96vw] !gap-0 !p-0 !rounded-xl sm:!max-w-[660px]" showCloseButton>
+      <DialogContent className="!w-[660px] !max-w-[96vw] !gap-0 !p-0 !rounded-[14px] sm:!max-w-[660px]" showCloseButton>
         <DialogTitle className="sr-only">{t("dbClient.exportDialogTitle", "导出")}</DialogTitle>
-        <div className="flex rounded-xl overflow-hidden max-h-[70vh]">
+        <div className="flex rounded-[14px] overflow-hidden max-h-[70vh]">
           {/* 左：表列表 */}
           <div className="w-[220px] shrink-0 border-r border-border-default bg-bg-secondary flex flex-col min-h-0">
             <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-default shrink-0">
@@ -245,7 +245,7 @@ function ImportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
 
   return (
     <Dialog open={isOpen} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="!w-[400px] !max-w-[96vw] !gap-0 !p-0 !rounded-xl sm:!max-w-[400px]" showCloseButton>
+      <DialogContent className="!w-[400px] !max-w-[96vw] !gap-0 !p-0 !rounded-[14px] sm:!max-w-[400px]" showCloseButton>
         <DialogTitle className="sr-only">{t("dbClient.importDialogTitle", "导入")}</DialogTitle>
         <div className="p-4 space-y-3">
           {!ok ? (

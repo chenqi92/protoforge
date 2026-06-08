@@ -72,13 +72,13 @@ export function CellDetailDialog({ value, column, rowIndex, onClose }: CellDetai
   return (
     <div className="fixed inset-0 z-[var(--z-modal,200)] flex items-center justify-center bg-[rgba(20,28,40,0.34)] dark:bg-[rgba(5,6,8,0.62)] backdrop-blur-[2px]" onClick={onClose}>
       <div
-        className="flex flex-col w-[680px] max-w-[90vw] h-[520px] max-h-[80vh] bg-bg-elevated border border-border-strong pf-rounded-lg shadow-lg overflow-hidden"
+        className="flex flex-col w-[680px] max-w-[90vw] h-[520px] max-h-[80vh] bg-bg-elevated border border-border-strong rounded-[14px] shadow-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 — .modal-head 14px 18px */}
         <div className="flex items-center justify-between px-[18px] py-3.5 border-b border-border-default shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="pf-text-md font-semibold text-text-primary truncate">{column.name}</span>
+            <span className="text-[15px] font-semibold text-text-primary truncate">{column.name}</span>
             <span className="pf-text-xs text-text-disabled font-mono">{column.dataType}</span>
             <span className="pf-text-xs text-text-disabled tabular-nums">#{rowIndex + 1}</span>
           </div>
