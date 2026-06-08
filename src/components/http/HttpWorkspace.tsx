@@ -641,17 +641,6 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
     ] : []),
   ];
 
-  const requestLayoutMode = reqTab === "params" || reqTab === "headers"
-    ? "compact"
-    : reqTab === "body" && !isGraphqlMode && (config.bodyType === "formUrlencoded" || config.bodyType === "formData")
-      ? "table-body"
-      : isGraphqlMode
-        ? "graphql"
-        : "default";
-
-  const requestDefaultSize = requestLayoutMode === "compact" ? 40 : requestLayoutMode === "table-body" ? 58 : requestLayoutMode === "graphql" ? 60 : 58;
-  const responseDefaultSize = requestLayoutMode === "compact" ? 60 : requestLayoutMode === "table-body" ? 42 : requestLayoutMode === "graphql" ? 40 : 42;
-
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">
       {/* Top Request Bar Area */}
@@ -828,10 +817,13 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
       {/* Main Split Area */}
       <div className="flex-1 min-h-0 overflow-hidden pb-3 pt-1.5">
         <div className="http-workbench-shell">
-          <PanelGroup orientation="vertical" key={`request-layout-${requestLayoutMode}`}>
+          {/* Stable 46/54 split (matches the Forge prototype's fixed SplitV initial=46).
+              No per-tab re-key/re-size — switching request tabs must NOT resize the panes
+              or discard the user's manual divider drag. */}
+          <PanelGroup orientation="vertical">
 
           {/* Request Panel */}
-          <Panel minSize="12" defaultSize={requestDefaultSize} className="http-workbench-section">
+          <Panel minSize="12" defaultSize={46} className="http-workbench-section">
             <div className="flex shrink-0 items-stretch gap-0.5 overflow-x-auto border-b border-border-default px-2.5 scrollbar-hide">
               {reqTabs.map((tab) => (
                 <button
@@ -1006,7 +998,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
           <PanelResizeHandle className={loading && !isSseMode ? "http-workbench-divider-loading" : "http-workbench-divider"} />
 
           {/* Response Panel */}
-          <Panel minSize="18" defaultSize={responseDefaultSize} className="http-workbench-section relative">
+          <Panel minSize="18" defaultSize={54} className="http-workbench-section relative">
 
             {isSseMode ? (
               <HttpSseResponsePanel
