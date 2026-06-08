@@ -354,7 +354,7 @@ export function CollectionTree({ onSelectRequest, onRunCollection }: CollectionT
                 >
                   <Play className="w-3 h-3" />
                 </button>
-                <button className="grid place-items-center w-5 h-5 pf-rounded-xs opacity-0 group-hover:opacity-100 text-text-tertiary hover:bg-bg-active hover:text-text-primary transition-all shrink-0">
+                <button aria-label={t('common.more')} className="grid place-items-center w-5 h-5 pf-rounded-xs opacity-0 group-hover:opacity-100 text-text-tertiary hover:bg-bg-active hover:text-text-primary transition-all shrink-0">
                   <MoreHorizontal className="w-3.5 h-3.5" />
                 </button>
               </div>

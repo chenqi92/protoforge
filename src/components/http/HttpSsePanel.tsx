@@ -151,7 +151,7 @@ export function HttpSseResponsePanel({
           <div className="wb-search w-[200px] max-w-full">
             <Search className="w-3.5 h-3.5 text-text-disabled" />
             <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('ws.searchMessages')} className="min-w-0 flex-1" />
-            {searchQuery && <button type="button" onClick={() => setSearchQuery("")} className="text-text-disabled hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>}
+            {searchQuery && <button type="button" onClick={() => setSearchQuery("")} aria-label={t('common.close')} className="text-text-disabled hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>}
           </div>
 
           <span className={cn("pf-pill h-[22px]",

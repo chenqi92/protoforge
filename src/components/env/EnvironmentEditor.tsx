@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Globe, Plus, Trash2, Check, Eye, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { activateOnKey } from '@/lib/a11y';
 import { useTranslation } from 'react-i18next';
 import { useEnvStore } from '@/stores/envStore';
 import { useContextMenu, buildClipboardItems, useZoneFallback } from '@/components/ui/ContextMenu';
@@ -201,7 +202,7 @@ export function EnvironmentEditor() {
                   placeholder={t('env.newEnvPlaceholder')}
                   className="input-field flex-1 pf-text-sm py-1.5"
                 />
-                <button onClick={handleCreateEnv} className="h-7 px-2 bg-accent text-white pf-rounded-md pf-text-xs font-medium hover:bg-accent-hover shrink-0">
+                <button onClick={handleCreateEnv} aria-label={t('env.createEnv', '新建环境')} className="h-7 px-2 bg-accent text-white pf-rounded-md pf-text-xs font-medium hover:bg-accent-hover shrink-0">
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -213,7 +214,11 @@ export function EnvironmentEditor() {
                 environments.map((env) => (
                   <div
                     key={env.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedEnvId === env.id}
                     onClick={() => setSelectedEnvId(env.id)}
+                    onKeyDown={activateOnKey(() => setSelectedEnvId(env.id))}
                     className={cn(
                       "relative flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group mx-1 pf-rounded-md",
                       selectedEnvId === env.id
@@ -223,6 +228,7 @@ export function EnvironmentEditor() {
                   >
                     <button
                       onClick={(e) => { e.stopPropagation(); setActive(env.isActive === 1 ? null : env.id); }}
+                      aria-label={env.isActive === 1 ? t('env.deactivateEnv', '取消激活环境') : t('env.activateEnv', '激活环境')}
                       className={cn(
                         "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
                         env.isActive === 1 ? "border-success bg-success" : "border-border-strong hover:border-accent"

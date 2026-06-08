@@ -722,6 +722,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                     localStorage.setItem(rsKey(), JSON.stringify(updated));
                     setRecentStreams(updated);
                   }}
+                  aria-label={t('video.workspace.removeRecent', '移除历史记录')}
                   className="hidden group-hover:flex h-[22px] w-5 items-center justify-center text-text-disabled hover:text-text-secondary hover:bg-bg-hover transition-colors"
                 >
                   <X className="w-2.5 h-2.5" />
@@ -753,7 +754,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
         <div className="shrink-0 flex items-center gap-2 pf-rounded-sm bg-error/10 border border-error/20 px-3 py-1.5 mt-2">
           <span className="text-error pf-text-sm">&#9888;</span>
           <span className="flex-1 pf-text-xxs text-error">{playerError}</span>
-          <button onClick={() => setPlayerError(null)} className="text-error/60 hover:text-error"><X className="w-3 h-3" /></button>
+          <button onClick={() => setPlayerError(null)} aria-label={t('common.close')} className="text-error/60 hover:text-error"><X className="w-3 h-3" /></button>
         </div>
       )}
 

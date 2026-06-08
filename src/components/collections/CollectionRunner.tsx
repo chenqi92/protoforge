@@ -111,7 +111,7 @@ export function CollectionRunner({ collectionId, collectionName, onClose }: Coll
     <div className="h-full flex flex-col overflow-hidden bg-bg-primary">
       {/* Header */}
       <div className="shrink-0 flex items-center h-10 px-3 bg-bg-secondary/40 border-b border-border-default gap-2">
-        <button onClick={onClose} className="p-1 rounded hover:bg-bg-hover text-text-tertiary"><ArrowLeft className="w-4 h-4" /></button>
+        <button onClick={onClose} aria-label={t('common.close')} className="p-1 rounded hover:bg-bg-hover text-text-tertiary"><ArrowLeft className="w-4 h-4" /></button>
         <BarChart3 className="w-4 h-4 text-accent shrink-0" />
         <span className="pf-text-base font-semibold text-text-primary truncate">Runner: {collectionName}</span>
         <div className="flex-1" />

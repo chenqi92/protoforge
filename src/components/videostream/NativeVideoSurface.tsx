@@ -570,18 +570,21 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, o
       <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
         <button
           onClick={handlePlayPause}
+          aria-label={playing ? t('video.surface.pause', '暂停') : t('video.surface.play', '播放')}
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/80 hover:text-white hover:bg-white/10 transition-colors"
         >
           {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
         </button>
         <button
           onClick={handleStop}
+          aria-label={t('video.surface.stop', '停止')}
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/80 hover:text-white hover:bg-white/10 transition-colors"
         >
           <Square className="w-3 h-3" />
         </button>
         <button
           onClick={handleMute}
+          aria-label={muted ? t('video.surface.unmute', '取消静音') : t('video.surface.mute', '静音')}
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors ml-1"
         >
           {muted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
@@ -639,6 +642,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, o
         {status && !loading && <span className="pf-text-3xs text-white/40 font-mono">{status}</span>}
         <button
           onClick={() => videoRef.current?.requestFullscreen?.()}
+          aria-label={t('video.surface.fullscreen', '全屏')}
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors"
         >
           <Maximize className="w-3 h-3" />

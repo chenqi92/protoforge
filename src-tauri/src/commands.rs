@@ -154,7 +154,6 @@ pub async fn fetch_oauth2_token(req: OAuth2TokenRequest) -> Result<OAuth2TokenRe
     }
 
     let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))?;
@@ -327,14 +326,15 @@ pub async fn open_oauth_window(
             .take(8)
             .collect::<String>()
     );
-    let redirect_uri = req.redirect_uri.clone();
+    // 结构化解析 redirect_uri，避免字节前缀匹配带来的误判
+    let redirect_url = url::Url::parse(&req.redirect_uri)
+        .map_err(|e| format!("redirect_uri 解析失败: {}", e))?;
 
     // 用 channel 传递结果
     let (tx, rx) = oneshot::channel::<Result<OAuthWindowResult, String>>();
     let tx = Arc::new(std::sync::Mutex::new(Some(tx)));
 
     let tx_nav = tx.clone();
-    let redirect_uri_clone = redirect_uri.clone();
 
     let window = WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::External(url))
         .title("OAuth Authorization")
@@ -343,30 +343,44 @@ pub async fn open_oauth_window(
         .decorations(true)
         .resizable(true)
         .on_navigation(move |nav_url| {
-            let nav_str = nav_url.as_str();
-            if nav_str.starts_with(&redirect_uri_clone) {
-                // 拦截到 redirect，提取 code
-                let parsed = reqwest::Url::parse(nav_str).ok();
-                let code = parsed.as_ref().and_then(|u| {
-                    u.query_pairs()
-                        .find(|(k, _)| k == "code")
-                        .map(|(_, v)| v.to_string())
-                });
-                let state = parsed.as_ref().and_then(|u| {
-                    u.query_pairs()
-                        .find(|(k, _)| k == "state")
-                        .map(|(_, v)| v.to_string())
-                });
-                let error = parsed.as_ref().and_then(|u| {
-                    u.query_pairs()
-                        .find(|(k, _)| k == "error")
-                        .map(|(_, v)| v.to_string())
-                });
-                let error_desc = parsed.as_ref().and_then(|u| {
-                    u.query_pairs()
-                        .find(|(k, _)| k == "error_description")
-                        .map(|(_, v)| v.to_string())
-                });
+            // 解析当前导航 URL；解析失败时放行导航
+            let parsed_nav = match url::Url::parse(nav_url.as_str()) {
+                Ok(u) => u,
+                Err(_) => return true,
+            };
+
+            // 结构化比较 scheme/host/port/path（忽略 query 与 fragment）
+            let scheme_match = parsed_nav
+                .scheme()
+                .eq_ignore_ascii_case(redirect_url.scheme());
+            let host_match = match (parsed_nav.host_str(), redirect_url.host_str()) {
+                (Some(a), Some(b)) => a.eq_ignore_ascii_case(b),
+                (None, None) => true,
+                _ => false,
+            };
+            let port_match = parsed_nav.port_or_known_default()
+                == redirect_url.port_or_known_default();
+            let path_match = parsed_nav.path() == redirect_url.path();
+            let is_redirect = scheme_match && host_match && port_match && path_match;
+
+            if is_redirect {
+                // 拦截到 redirect，提取 code（复用上面已解析的 URL）
+                let code = parsed_nav
+                    .query_pairs()
+                    .find(|(k, _)| k == "code")
+                    .map(|(_, v)| v.to_string());
+                let state = parsed_nav
+                    .query_pairs()
+                    .find(|(k, _)| k == "state")
+                    .map(|(_, v)| v.to_string());
+                let error = parsed_nav
+                    .query_pairs()
+                    .find(|(k, _)| k == "error")
+                    .map(|(_, v)| v.to_string());
+                let error_desc = parsed_nav
+                    .query_pairs()
+                    .find(|(k, _)| k == "error_description")
+                    .map(|(_, v)| v.to_string());
 
                 let result = if let Some(err) = error {
                     Err(format!(
@@ -489,7 +503,7 @@ fn proxy_browser_profile_dir() -> String {
 
 #[tauri::command]
 pub async fn open_proxy_browser(
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     url: String,
     proxy_port: u16,
 ) -> Result<String, String> {
@@ -533,38 +547,26 @@ pub async fn open_proxy_browser(
             }
             Err(e) => {
                 log::error!("启动 Chrome 失败: {}, 尝试 fallback", e);
-                fallback_open_browser(&target_url, proxy_port)
+                fallback_open_browser(&app, &target_url, proxy_port)
             }
         }
     } else {
         log::warn!("未找到 Chromium 内核浏览器，使用 fallback 方式");
-        fallback_open_browser(&target_url, proxy_port)
+        fallback_open_browser(&app, &target_url, proxy_port)
     }
 }
 
 /// Fallback: 使用系统默认浏览器 + 系统代理设置（Safari 等会走系统代理）
-fn fallback_open_browser(target_url: &str, _proxy_port: u16) -> Result<String, String> {
-    #[cfg(target_os = "macos")]
-    {
-        let _ = std::process::Command::new("open").arg(target_url).output();
-        Ok("fallback".to_string())
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let _ = std::process::Command::new("cmd")
-            .args(["/c", "start", target_url])
-            .output();
-        Ok("fallback".to_string())
-    }
-
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        let _ = std::process::Command::new("xdg-open")
-            .arg(target_url)
-            .output();
-        Ok("fallback".to_string())
-    }
+fn fallback_open_browser(
+    app: &tauri::AppHandle,
+    target_url: &str,
+    _proxy_port: u16,
+) -> Result<String, String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(target_url.to_string(), None::<&str>)
+        .map_err(|e| format!("打开默认浏览器失败: {}", e))?;
+    Ok("fallback".to_string())
 }
 
 /// 清理代理浏览器（在抓包停止时调用）
@@ -1489,14 +1491,22 @@ pub async fn plugin_run_response_export(
 #[tauri::command]
 pub async fn plugin_run_crypto(
     mgr: State<'_, PluginManager>,
+    wasm_runtime: State<'_, WasmPluginRuntime>,
     plugin_id: String,
     algorithm_id: String,
     mode: String,
     input: String,
     params_json: String,
 ) -> Result<CryptoResult, String> {
-    mgr.run_crypto(&plugin_id, &algorithm_id, &mode, &input, &params_json)
-        .await
+    mgr.run_crypto(
+        &plugin_id,
+        &algorithm_id,
+        &mode,
+        &input,
+        &params_json,
+        &wasm_runtime,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -2480,6 +2490,195 @@ pub async fn vs_player_set_volume(session_id: String, volume: f64) -> Result<(),
     Ok(())
 }
 
+/// 将字节切片手动十六进制编码（避免引入 hex crate）
+fn hex_encode(bytes: &[u8]) -> String {
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        s.push_str(&format!("{:02x}", b));
+    }
+    s
+}
+
+/// 计算 MD5 摘要并返回小写十六进制字符串
+fn md5_hex(input: &str) -> String {
+    use md5::{Digest, Md5};
+    let mut hasher = Md5::new();
+    hasher.update(input.as_bytes());
+    hex_encode(&hasher.finalize())
+}
+
+/// 解析 RTSP/HTTP 的 `WWW-Authenticate: Digest ...` 头，返回参数键值对（键转小写）。
+/// 仅在原始响应中包含 401 与 Digest 挑战时返回 Some。
+fn parse_www_authenticate(raw_response: &str) -> Option<HashMap<String, String>> {
+    // 仅检查状态行（首行）是否为 401，避免把响应体中偶然出现的 "401" 误判为挑战。
+    let status_line = raw_response.lines().next().unwrap_or("");
+    let is_401 = status_line.contains(" 401 ") || status_line.trim_end().ends_with(" 401");
+    if !is_401 {
+        return None;
+    }
+    // 逐行查找 WWW-Authenticate: Digest ...
+    let challenge_line = raw_response.lines().find(|line| {
+        let lower = line.to_ascii_lowercase();
+        lower.starts_with("www-authenticate:") && lower.contains("digest")
+    })?;
+
+    // 取 "Digest" 关键字之后的部分
+    let after_colon = challenge_line.splitn(2, ':').nth(1)?.trim();
+    let params_part = after_colon
+        .strip_prefix("Digest")
+        .or_else(|| after_colon.strip_prefix("digest"))
+        .unwrap_or(after_colon)
+        .trim();
+
+    let mut map = HashMap::new();
+    // 引号感知的分词：仅在双引号外的逗号处切分键值对，
+    // 否则 realm/opaque 中合法的逗号会被截断，导致 HA1 计算错误。
+    for pair in split_outside_quotes(params_part, ',') {
+        let pair = pair.trim();
+        if pair.is_empty() {
+            continue;
+        }
+        // 仅在双引号外的第一个 '=' 处切分 key/value。
+        let eq_pos = {
+            let mut in_quotes = false;
+            let mut found = None;
+            for (i, c) in pair.char_indices() {
+                match c {
+                    '"' => in_quotes = !in_quotes,
+                    '=' if !in_quotes => {
+                        found = Some(i);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            found
+        };
+        let Some(eq) = eq_pos else { continue };
+        let key = pair[..eq].trim().to_ascii_lowercase();
+        let value = pair[eq + 1..].trim().trim_matches('"').to_string();
+        if !key.is_empty() {
+            map.insert(key, value);
+        }
+    }
+    if map.is_empty() {
+        None
+    } else {
+        Some(map)
+    }
+}
+
+/// 按分隔符切分字符串，但忽略位于双引号内部的分隔符。
+fn split_outside_quotes(input: &str, sep: char) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
+    for c in input.chars() {
+        match c {
+            '"' => {
+                in_quotes = !in_quotes;
+                current.push(c);
+            }
+            _ if c == sep && !in_quotes => {
+                parts.push(std::mem::take(&mut current));
+            }
+            _ => current.push(c),
+        }
+    }
+    parts.push(current);
+    parts
+}
+
+/// 根据 RFC 2617 Digest 挑战参数构建 `Authorization: Digest ...\r\n` 头。
+/// uri 必须与 send_rtsp_request 放到请求行上的完整 rtsp:// URL 一致。
+fn build_rtsp_digest_header(
+    method: &str,
+    uri: &str,
+    username: &str,
+    password: &str,
+    challenge: &HashMap<String, String>,
+) -> Result<String, String> {
+    let realm = challenge.get("realm").map(|s| s.as_str()).unwrap_or("");
+    let nonce = challenge.get("nonce").map(|s| s.as_str()).unwrap_or("");
+    let opaque = challenge.get("opaque");
+    let algorithm = challenge
+        .get("algorithm")
+        .map(|s| s.as_str())
+        .unwrap_or("MD5");
+    let algorithm_lower = algorithm.to_ascii_lowercase();
+
+    // 校验算法：仅支持 MD5 / MD5-sess（含 -sess 变体）。
+    let use_sess = algorithm_lower.ends_with("-sess");
+    let base_algo = algorithm_lower.trim_end_matches("-sess");
+    if base_algo != "md5" {
+        return Err(format!("不支持的 Digest 算法: {}（仅支持 MD5 / MD5-sess）", algorithm));
+    }
+
+    // 解析服务器提供的 qop 令牌列表：含 "auth" 则用 auth；仅提供 auth-int 时报错。
+    let qop_use = match challenge.get("qop") {
+        Some(qop_val) => {
+            let tokens: Vec<&str> = qop_val
+                .split(',')
+                .map(|t| t.trim())
+                .filter(|t| !t.is_empty())
+                .collect();
+            let has_auth = tokens.iter().any(|t| t.eq_ignore_ascii_case("auth"));
+            let has_auth_int = tokens.iter().any(|t| t.eq_ignore_ascii_case("auth-int"));
+            if has_auth {
+                Some("auth")
+            } else if has_auth_int {
+                return Err("Digest qop=auth-int 暂不支持".to_string());
+            } else {
+                // 提供了 qop 但无可识别令牌：回退到无 qop 计算路径
+                None
+            }
+        }
+        None => None,
+    };
+
+    let method_upper = method.to_uppercase();
+
+    // 从非 Date 来源派生 cnonce，避免对系统时间敏感
+    let cnonce = uuid::Uuid::new_v4().simple().to_string();
+    let nc = "00000001";
+
+    // HA1：MD5-sess 需追加一轮 MD5(HA1:nonce:cnonce)
+    let ha1_base = md5_hex(&format!("{}:{}:{}", username, realm, password));
+    let ha1 = if use_sess {
+        md5_hex(&format!("{}:{}:{}", ha1_base, nonce, cnonce))
+    } else {
+        ha1_base
+    };
+    let ha2 = md5_hex(&format!("{}:{}", method_upper, uri));
+
+    let mut header = String::from("Authorization: Digest ");
+    header.push_str(&format!("username=\"{}\"", username));
+    header.push_str(&format!(", realm=\"{}\"", realm));
+    header.push_str(&format!(", nonce=\"{}\"", nonce));
+    header.push_str(&format!(", uri=\"{}\"", uri));
+
+    let response = if let Some(qop) = qop_use {
+        // qop 存在：response = MD5(HA1:nonce:nc:cnonce:qop:HA2)
+        md5_hex(&format!(
+            "{}:{}:{}:{}:{}:{}",
+            ha1, nonce, nc, cnonce, qop, ha2
+        ))
+    } else {
+        md5_hex(&format!("{}:{}:{}", ha1, nonce, ha2))
+    };
+
+    header.push_str(&format!(", response=\"{}\"", response));
+    header.push_str(&format!(", algorithm={}", algorithm));
+    if let Some(opaque_val) = opaque {
+        header.push_str(&format!(", opaque=\"{}\"", opaque_val));
+    }
+    if let Some(qop) = qop_use {
+        header.push_str(&format!(", qop={}, nc={}, cnonce=\"{}\"", qop, nc, cnonce));
+    }
+    header.push_str("\r\n");
+    Ok(header)
+}
+
 #[tauri::command]
 pub async fn vs_rtsp_command(
     session_id: String,
@@ -2530,11 +2729,40 @@ pub async fn vs_rtsp_command(
         let token =
             base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", username, password));
         extra_headers.push_str(&format!("Authorization: Basic {}\r\n", token));
-    } else if auth_method == "digest" {
-        return Err(
-            "当前 RTSP 调试面板暂未实现 Digest 挑战应答，仅内置播放器会通过 FFmpeg 自动处理。"
-                .to_string(),
-        );
+    }
+
+    // Digest 认证：先发起一次无凭据请求，根据 401 挑战计算应答后重发
+    if auth_method == "digest" {
+        let first = crate::video_streaming::rtsp::send_rtsp_request(
+            &session_id,
+            &url,
+            &method,
+            None,
+            &transport,
+            "",
+            &app,
+        )
+        .await?;
+
+        if let Some(challenge) = parse_www_authenticate(&first) {
+            // uri 使用与 send_rtsp_request 请求行一致的完整 rtsp:// URL
+            let auth_header =
+                build_rtsp_digest_header(&method, &url, username, password, &challenge)?;
+            extra_headers.push_str(&auth_header);
+            return crate::video_streaming::rtsp::send_rtsp_request(
+                &session_id,
+                &url,
+                &method,
+                None,
+                &transport,
+                &extra_headers,
+                &app,
+            )
+            .await;
+        }
+
+        // 未收到 Digest 挑战（例如服务器直接放行或返回其它状态），原样返回首次结果
+        return Ok(first);
     }
 
     // Use real RTSP client
@@ -3371,9 +3599,10 @@ pub async fn db_client_cancel_query(
     mgr: State<'_, DbConnectionManager>,
     session_id: String,
 ) -> Result<(), String> {
-    let driver_arc = mgr.get_driver_arc(&session_id).await?;
-    let driver = driver_arc.lock().await;
-    driver.cancel_query().await
+    // 不能锁 driver_arc：正在执行的查询持有该锁，取消请求会死锁。
+    // 通过独立的 canceller 句柄发出取消信号，无需等待驱动互斥锁。
+    let canceller = mgr.get_canceller(&session_id).await?;
+    canceller.cancel().await
 }
 
 #[tauri::command]

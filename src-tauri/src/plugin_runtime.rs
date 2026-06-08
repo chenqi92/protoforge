@@ -65,6 +65,9 @@ pub struct PluginManifest {
     /// Remote download URL (only present for remote plugins)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub download_url: Option<String>,
+    /// 下载包的 SHA-256 完整性校验值（可选，缺省时跳过校验）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
     /// Source of this plugin: "builtin" or "remote"
     #[serde(default = "default_source")]
     pub source: String,
@@ -481,6 +484,9 @@ struct RemotePluginEntry {
     #[serde(default)]
     tags: Vec<String>,
     download_url: String,
+    /// 下载包的 SHA-256 完整性校验值（可选）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    sha256: Option<String>,
     /// 插件声明的扩展点贡献
     #[serde(default)]
     contributes: PluginContributes,
@@ -510,6 +516,7 @@ impl RemotePluginEntry {
             tags: self.tags,
             installed: false,
             download_url: Some(self.download_url),
+            sha256: self.sha256,
             source: "remote".to_string(),
             contributes: self.contributes,
             i18n: self.i18n,
@@ -967,17 +974,22 @@ impl PluginManager {
         }
 
         // Try remote
-        let download_url = {
+        let (download_url, expected_sha256) = {
             let cache = self.remote_cache.read().await;
-            cache
+            let entry = cache
                 .as_ref()
-                .and_then(|ps| ps.iter().find(|p| p.id == plugin_id))
-                .and_then(|p| p.download_url.clone())
+                .and_then(|ps| ps.iter().find(|p| p.id == plugin_id));
+            (
+                entry.and_then(|p| p.download_url.clone()),
+                entry.and_then(|p| p.sha256.clone()),
+            )
         };
 
         if let Some(url) = download_url {
             let actual_url = self.rewrite_download_url(&url).await;
-            return self.install_from_remote(plugin_id, &actual_url).await;
+            return self
+                .install_from_remote(plugin_id, &actual_url, expected_sha256.as_deref())
+                .await;
         }
 
         Err(format!("插件 '{}' 在仓库中不存在", plugin_id))
@@ -988,6 +1000,7 @@ impl PluginManager {
         &self,
         plugin_id: &str,
         download_url: &str,
+        expected_sha256: Option<&str>,
     ) -> Result<PluginManifest, String> {
         log::info!("正在从远程下载插件: {} → {}", plugin_id, download_url);
 
@@ -1010,6 +1023,36 @@ impl PluginManager {
             .bytes()
             .await
             .map_err(|e| format!("读取下载数据失败: {}", e))?;
+
+        // SHA-256 完整性校验。
+        // 策略：注册表声明了 sha256 则强制校验，不匹配直接失败（warn-vs-fail）；
+        //       未声明（None）则仅 warn 并放行，保证旧版仓库条目（无哈希）仍可安装。
+        if let Some(expected) = expected_sha256 {
+            use sha2::{Digest, Sha256};
+            let actual = format!("{:x}", {
+                let mut h = Sha256::new();
+                h.update(&bytes);
+                h.finalize()
+            });
+            // 大小写不敏感、仅剥离一次 "sha256:" 前缀（避免 trim_start_matches 重复剥离
+            // 以及对 "SHA256:" 大写前缀失效）。
+            let trimmed = expected.trim();
+            let lower = trimmed.to_ascii_lowercase();
+            let expected_norm = lower.strip_prefix("sha256:").unwrap_or(&lower);
+            if !actual.eq_ignore_ascii_case(expected_norm) {
+                let _ = tokio::fs::remove_dir_all(self.plugins_dir.join(plugin_id)).await;
+                return Err(format!(
+                    "插件 '{}' 完整性校验失败: 期望 {}, 实际 {}",
+                    plugin_id, expected_norm, actual
+                ));
+            }
+            log::info!("插件 '{}' SHA-256 校验通过", plugin_id);
+        } else {
+            log::warn!(
+                "插件 '{}' 未提供 SHA-256 校验值，跳过完整性校验（仅旧版仓库条目兼容）",
+                plugin_id
+            );
+        }
 
         // Determine if it's a tar.gz or a single JS file
         let plugin_dir = self.plugins_dir.join(plugin_id);
@@ -1447,6 +1490,10 @@ impl PluginManager {
 
     /// 执行加密/解密操作
     /// mode: "encrypt" 或 "decrypt"
+    ///
+    /// `wasm_runtime` 为长生命周期的共享实例（Tauri managed State），
+    /// WASM 插件复用其已编译/缓存的模块，避免每次调用都重新读取与 JIT .wasm；
+    /// JS / Native 路径忽略该参数。
     pub async fn run_crypto(
         &self,
         plugin_id: &str,
@@ -1454,6 +1501,7 @@ impl PluginManager {
         mode: &str,
         input: &str,
         params_json: &str,
+        wasm_runtime: &crate::wasm_runtime::WasmPluginRuntime,
     ) -> Result<CryptoResult, String> {
         let reg = self.registry.read().await;
         let rp = reg
@@ -1487,10 +1535,13 @@ impl PluginManager {
             }
             PluginRuntime::Wasm => {
                 drop(reg);
-                Err(format!(
-                    "WASM 插件 '{}' 不支持 crypto 操作（暂未实现）",
-                    plugin_id
-                ))
+                // WASM crypto 走 buffer-ABI，由共享的 WasmPluginRuntime 执行，
+                // 复用其已编译缓存的模块，避免每次调用重新读取与 JIT .wasm。
+                // 确保模块已编译缓存（幂等：已加载则直接命中缓存）
+                wasm_runtime.load_plugin(plugin_id).await?;
+                wasm_runtime
+                    .run_crypto(plugin_id, algorithm_id, mode, input, params_json)
+                    .await
             }
         }
     }

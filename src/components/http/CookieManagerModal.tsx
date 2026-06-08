@@ -286,6 +286,7 @@ export function CookieManagerModal({ open, onClose }: CookieManagerModalProps) {
               </button>
               <button
                 onClick={onClose}
+                aria-label={t('common.close')}
                 className="flex h-9 w-9 items-center justify-center pf-rounded-lg text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="h-4 w-4" />

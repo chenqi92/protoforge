@@ -174,6 +174,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
               <button
                 onClick={() => setActiveSheet(Math.max(0, activeSheet - 1))}
                 disabled={activeSheet === 0}
+                aria-label={t('renderer.prevSheet', '上一个工作表')}
                 className="h-5 w-5 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-50 transition-colors"
               >
                 <ChevronLeft className="h-3 w-3" />
@@ -182,6 +183,7 @@ function TableRenderer({ sheets, className }: { sheets: RenderSheet[]; className
               <button
                 onClick={() => setActiveSheet(Math.min(sheets.length - 1, activeSheet + 1))}
                 disabled={activeSheet === sheets.length - 1}
+                aria-label={t('renderer.nextSheet', '下一个工作表')}
                 className="h-5 w-5 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-50 transition-colors"
               >
                 <ChevronRight className="h-3 w-3" />

@@ -692,6 +692,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                     <button
                       onClick={() => setPage((p) => Math.max(0, p - 1))}
                       disabled={page === 0}
+                      aria-label={t('serial.modbusslave.prevPage', '上一页')}
                       className="flex h-8 w-8 items-center justify-center pf-rounded-sm border border-border-default/60 bg-bg-primary text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-50"
                     >
                       <ChevronLeft className="h-3.5 w-3.5" />
@@ -702,6 +703,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
                     <button
                       onClick={() => setPage((p) => Math.min(maxPage, p + 1))}
                       disabled={page === maxPage}
+                      aria-label={t('serial.modbusslave.nextPage', '下一页')}
                       className="flex h-8 w-8 items-center justify-center pf-rounded-sm border border-border-default/60 bg-bg-primary text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:opacity-50"
                     >
                       <ChevronRight className="h-3.5 w-3.5" />

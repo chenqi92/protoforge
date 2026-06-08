@@ -65,6 +65,7 @@ export function CryptoParamsDialog({ algorithm, mode, onConfirm, onCancel }: Cry
           </div>
           <button
             onClick={onCancel}
+            aria-label={t('common.cancel')}
             className="h-7 w-7 flex items-center justify-center rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <X className="w-4 h-4" />

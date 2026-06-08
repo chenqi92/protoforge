@@ -87,6 +87,7 @@ function RecentConnections({recent, onLoad, onRemove,
             </button>
             <button
               onClick={() => onRemove(r.host, r.port)}
+              aria-label={t('common.delete')}
               className="hidden group-hover:flex h-[22px] w-5 items-center justify-center text-text-disabled hover:text-text-secondary hover:bg-bg-hover transition-colors"
             >
               <X className="w-2.5 h-2.5" />

@@ -4,6 +4,27 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 // ═══════════════════════════════════════════
+//  查询取消句柄 — 独立于驱动锁之外，避免取消时与正在执行的查询争用同一把锁
+// ═══════════════════════════════════════════
+
+/// 取消正在执行查询的句柄。实现必须不依赖被锁住的驱动对象。
+#[async_trait]
+pub trait QueryCanceller: Send + Sync {
+    /// 取消正在执行的查询
+    async fn cancel(&self) -> Result<(), String>;
+}
+
+/// 不支持取消的默认实现（SQLite / InfluxDB 等）
+pub struct NoopCanceller;
+
+#[async_trait]
+impl QueryCanceller for NoopCanceller {
+    async fn cancel(&self) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+// ═══════════════════════════════════════════
 //  值类型 — 跨 IPC 边界的统一表示
 // ═══════════════════════════════════════════
 
@@ -147,6 +168,7 @@ pub struct DriverCapabilities {
     pub supports_row_delete: bool,
     pub supports_import_export: bool,
     pub supports_multiple_databases: bool,
+    pub supports_cancel: bool,
     pub default_port: u16,
 }
 
@@ -277,6 +299,12 @@ pub trait DbDriver: Send + Sync {
 
     /// 取消正在执行的查询
     async fn cancel_query(&self) -> Result<(), String>;
+
+    /// 返回一个独立于驱动锁之外的取消句柄，供 cancel 命令在不锁定驱动的情况下取消查询
+    /// 默认不支持取消
+    fn query_canceller(&self) -> std::sync::Arc<dyn QueryCanceller> {
+        std::sync::Arc::new(NoopCanceller)
+    }
 
     /// 获取驱动能力声明
     fn capabilities(&self) -> DriverCapabilities;

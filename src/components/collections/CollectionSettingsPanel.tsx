@@ -275,6 +275,7 @@ function VariablesTab({ collection }: { collection: Collection }) {
                       </button>
                       <button
                         onClick={() => removeVar(i)}
+                        aria-label={t('common.delete')}
                         className="w-6 h-6 flex items-center justify-center text-text-disabled hover:text-error transition-colors rounded hover:bg-error/10"
                       >
                         <Trash2 className="w-3 h-3" />

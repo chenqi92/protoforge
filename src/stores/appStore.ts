@@ -8,6 +8,7 @@ import {
   DEFAULT_VIDEO_TOOL_MODE,
   type ToolSessionOptions,
 } from "@/types/toolSession";
+import { getMockServerStoreApi } from "@/stores/mockServerStore";
 
 export type RequestProtocol = "http" | "ws" | "mqtt" | "grpc";
 export type ToolWorkbench = "tcpudp" | "loadtest" | "capture" | "videostream" | "mockserver" | "dbclient" | "toolbox" | "workflow";
@@ -43,6 +44,9 @@ export interface ForgeDomain {
   icon: string;
   zh: string;
   en: string;
+  /** protocol-token subtitle (reads the same in zh/en). */
+  subZh?: string;
+  subEn?: string;
   /** opens a modal instead of mounting a workspace (e.g. plugins market). */
   modal?: boolean;
   /** the WorkbenchView this domain maps onto when one exists. */
@@ -58,13 +62,13 @@ export const FORGE_GROUPS: Array<{ id: ForgeGroupId; zh: string; en: string }> =
 
 export const FORGE_DOMAINS: ForgeDomain[] = [
   { id: "api", group: "work", icon: "globe", zh: "API 接口", en: "API", workbench: "requests" },
-  { id: "realtime", group: "work", icon: "radio", zh: "实时连接", en: "Realtime", workbench: "requests" },
+  { id: "realtime", group: "work", icon: "radio", zh: "实时连接", en: "Realtime", subZh: "WS / MQTT / gRPC / TCP", subEn: "WS / MQTT / gRPC / TCP", workbench: "requests" },
   { id: "mock", group: "work", icon: "server", zh: "Mock 服务", en: "Mock", workbench: "mockserver" },
   { id: "workflow", group: "work", icon: "zap", zh: "工作流", en: "Workflow", workbench: "workflow" },
-  { id: "db", group: "data", icon: "database", zh: "数据库", en: "Database", workbench: "dbclient" },
-  { id: "media", group: "data", icon: "video", zh: "视频流", en: "Media", workbench: "videostream" },
+  { id: "db", group: "data", icon: "database", zh: "数据库", en: "Database", subZh: "MySQL / PostgreSQL / Redis", subEn: "MySQL / PostgreSQL / Redis", workbench: "dbclient" },
+  { id: "media", group: "data", icon: "video", zh: "视频流", en: "Media", subZh: "RTSP / RTMP / HLS / WebRTC", subEn: "RTSP / RTMP / HLS / WebRTC", workbench: "videostream" },
   { id: "load", group: "diag", icon: "gauge", zh: "压测", en: "Load Test", workbench: "loadtest" },
-  { id: "capture", group: "diag", icon: "waves", zh: "抓包代理", en: "Capture", workbench: "capture" },
+  { id: "capture", group: "diag", icon: "waves", zh: "抓包代理", en: "Capture", subZh: "HTTP / HTTPS proxy", subEn: "HTTP / HTTPS proxy", workbench: "capture" },
   { id: "toolbox", group: "ext", icon: "wrench", zh: "工具箱", en: "Toolbox", workbench: "toolbox" },
   { id: "plugins", group: "ext", icon: "puzzle", zh: "插件市场", en: "Plugins", modal: true },
 ];
@@ -121,6 +125,8 @@ export interface UnifiedTab {
   protocol?: RequestProtocol;
   domain: ForgeDomainId;
   title: string;
+  /** secondary line — connection target / per-tool summary, replaces the domain label. */
+  detail?: string;
   /** http method, when applicable, for the .pf-mtag badge. */
   method?: string;
   /** lucide icon name for non-http contexts. */
@@ -674,6 +680,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
         protocol,
         domain: PROTOCOL_TO_DOMAIN[protocol],
         title: title || tab.label,
+        detail:
+          protocol === "ws"
+            ? tab.wsUrl
+            : protocol === "http"
+              ? tab.httpConfig?.url || undefined
+              : undefined,
         method: protocol === "http" ? tab.httpConfig?.method : undefined,
         icon: PROTOCOL_ICON[protocol],
         state: state.contextStates[tab.id] ?? fallback,
@@ -683,6 +695,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
     (Object.keys(state.toolSessions) as ToolWorkbench[]).forEach((tool) => {
       for (const session of state.toolSessions[tool]) {
         const contextId = toolContextId(tool, session.id);
+
+        // Per-tool secondary line (connection target / activity summary).
+        let detail: string | undefined;
+        if (tool === "mockserver") {
+          const st = getMockServerStoreApi(session.id).getState();
+          detail = `${st.routes.length} routes`;
+          if (st.running) detail += `:${st.port}`;
+        } else if (tool === "tcpudp") {
+          detail = session.tcpMode ?? undefined;
+        } else if (tool === "videostream") {
+          detail = session.videoMode ?? undefined;
+        }
+
         // Tools without an explicit override default to idle (live connections set 'live').
         result.push({
           id: contextId,
@@ -691,6 +716,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
           sessionId: session.id,
           domain: TOOL_TO_DOMAIN[tool],
           title: session.customLabel?.trim() || FORGE_DOMAINS.find((d) => d.id === TOOL_TO_DOMAIN[tool])?.en || tool,
+          detail,
           icon: TOOL_ICON[tool],
           state: state.contextStates[contextId] ?? "idle",
         });

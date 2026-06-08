@@ -442,7 +442,7 @@ function NodeConfigPanel({
         <div className="flex items-center gap-2">
           <span className="pf-text-sm font-semibold text-text-primary">{t('workflow.nodeConfig')}</span>
         </div>
-        <button onClick={onClose} className="wb-icon-btn"><X className="h-3.5 w-3.5" /></button>
+        <button onClick={onClose} aria-label={t('common.close')} className="wb-icon-btn"><X className="h-3.5 w-3.5" /></button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
@@ -2984,6 +2984,7 @@ function WorkflowWorkspaceInner() {
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDelete(w.id, w.name); }}
+                    aria-label={t('common.delete')}
                     className="p-0.5 text-text-disabled hover:text-error"
                   >
                     <Trash2 className="h-3 w-3" />

@@ -2,6 +2,7 @@ import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { Trash2, Search, Copy, Check, ArrowUpRight, ArrowDownLeft, PlugZap, FileCode2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { activateOnKey } from "@/lib/a11y";
 import { convertFormat } from "@/services/tcpService";
 import { usePluginStore } from "@/stores/pluginStore";
 import type { ConnectionStats, TcpMessage, DataFormat } from "@/types/tcp";
@@ -173,6 +174,7 @@ export function MessageLog({
           {messages.length > 0 ? (
             <button
               onClick={onClear}
+              aria-label={t('common.clear', '清空')}
               className="wb-icon-btn hover:bg-error/10 hover:text-error"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -238,7 +240,11 @@ export function MessageLog({
               return (
                 <div
                   key={m.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selectedMessageId === m.id}
                   onClick={() => onSelectMessage?.(m)}
+                  onKeyDown={activateOnKey(() => onSelectMessage?.(m))}
                   className={cn(
                     "group flex cursor-pointer items-center gap-3 px-3 py-1 transition-colors hover:bg-bg-hover/42",
                     m.direction === "system" && "bg-warning/[0.05]",
@@ -292,6 +298,7 @@ export function MessageLog({
                     {m.size > 0 ? <span className="pf-text-xxs text-text-disabled lg:hidden">{formatSize(m.size)}</span> : null}
                     <button
                       onClick={() => handleCopy(displayData, m.id)}
+                      aria-label={t('common.copy', '复制')}
                       className="pf-rounded-md p-1.5 text-text-disabled opacity-0 transition-all hover:bg-bg-hover hover:text-accent group-hover:opacity-100"
                     >
                       {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}

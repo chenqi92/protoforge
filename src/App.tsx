@@ -232,6 +232,7 @@ function ToolWorkbenchPanel({
   sessions,
   activeSessionId,
   detachedSessionIds,
+  isActive,
   onAddSession,
   onSelectSession,
   onCloseSession,
@@ -242,6 +243,7 @@ function ToolWorkbenchPanel({
   sessions: ToolSession[];
   activeSessionId: string | null;
   detachedSessionIds: string[];
+  isActive: boolean;
   onAddSession: (tool: ToolWorkbench, options?: ToolSessionOptions) => void;
   onSelectSession: (tool: ToolWorkbench, sessionId: string) => void;
   onCloseSession: (tool: ToolWorkbench, sessionId: string) => void;
@@ -282,6 +284,7 @@ function ToolWorkbenchPanel({
   });
 
   useEffect(() => {
+    if (!isActive) return;
     const handleMouseMove = (event: MouseEvent) => {
       const ds = dragStateRef.current;
       if (!ds.sessionId || ds.popped || !sessionBarRef.current) return;
@@ -317,7 +320,7 @@ function ToolWorkbenchPanel({
       window.removeEventListener("mouseup", clearDrag, true);
       window.removeEventListener("blur", clearDrag);
     };
-  }, [onPopout, tool]);
+  }, [onPopout, tool, isActive]);
 
   const handleSessionTabMouseDown = (sessionId: string, event: React.MouseEvent) => {
     if (event.button !== 0) return;
@@ -839,6 +842,11 @@ function App() {
     toolbox: [],
     workflow: [],
   });
+  // 跟踪最新的 detachedToolSessions，供空依赖的 useCallback 在 setState 之前同步读取
+  const detachedToolSessionsRef = useRef(detachedToolSessions);
+  useEffect(() => {
+    detachedToolSessionsRef.current = detachedToolSessions;
+  }, [detachedToolSessions]);
 
   useKeyboardShortcuts();
   useSettingsEffect();
@@ -1012,15 +1020,18 @@ function App() {
   }, [refreshDetachedTools]);
 
   useEffect(() => {
-    return subscribeDockToolRequests(({ tool, sessionId, sourceLabel }) => {
+    return subscribeDockToolRequests(async ({ tool, sessionId, sourceLabel }) => {
+      // 先关闭来源窗口，避免出现短暂的双列；关闭失败不应中断停靠，也不能让 rejection 逃逸
+      try {
+        if (sourceLabel) await closeWindowByLabel(sourceLabel);
+      } catch {
+        /* 忽略关闭失败，仍继续停靠 */
+      }
       openToolTab(tool, sessionId);
       setDetachedToolSessions((prev) => ({
         ...prev,
         [tool]: prev[tool].filter((item) => item !== sessionId),
       }));
-      if (sourceLabel) {
-        void closeWindowByLabel(sourceLabel);
-      }
     });
   }, [openToolTab]);
 
@@ -1062,24 +1073,24 @@ function App() {
       tcpMode: session?.tcpMode ?? undefined,
       videoMode: session?.videoMode ?? undefined,
     });
-    setDetachedToolSessions((prev) => {
-      const nextDetached = prev[tool].includes(detachedSessionId) ? prev[tool] : [...prev[tool], detachedSessionId];
+    // 在 setState 之前根据当前 detached 状态计算 nextDetached，
+    // 避免依赖 React 19 惰性执行的 updater 输出（彼时仍为旧值）。
+    const current = detachedToolSessionsRef.current[tool] ?? [];
+    const nextDetached = current.includes(detachedSessionId) ? current : [...current, detachedSessionId];
+    setDetachedToolSessions((prev) => ({
+      ...prev,
+      [tool]: prev[tool].includes(detachedSessionId) ? prev[tool] : [...prev[tool], detachedSessionId],
+    }));
 
-      // Auto-switch to next visible session if the popped-out one was active
-      const currentActiveId = useAppStore.getState().activeToolSessionIds[tool];
-      if (currentActiveId === detachedSessionId) {
-        const sessions = useAppStore.getState().toolSessions[tool];
-        const nextVisible = sessions.find((s) => !nextDetached.includes(s.id));
-        if (nextVisible) {
-          useAppStore.getState().setActiveToolSession(tool, nextVisible.id);
-        }
+    // Auto-switch to next visible session if the popped-out one was active.
+    // Side effect lives outside the updater so it is not double-fired under StrictMode.
+    const state = useAppStore.getState();
+    if (state.activeToolSessionIds[tool] === detachedSessionId) {
+      const nextVisible = state.toolSessions[tool].find((s) => !nextDetached.includes(s.id));
+      if (nextVisible) {
+        state.setActiveToolSession(tool, nextVisible.id);
       }
-
-      return {
-        ...prev,
-        [tool]: nextDetached,
-      };
-    });
+    }
   }, []);
 
   const handleOpenPlugins = useCallback(() => {
@@ -1259,6 +1270,7 @@ function App() {
             sessions={toolSessions.tcpudp}
             activeSessionId={activeToolSessionIds.tcpudp}
             detachedSessionIds={detachedToolSessions.tcpudp}
+            isActive={activeWorkbench === "tcpudp"}
             onAddSession={addToolSession}
             onSelectSession={setActiveToolSession}
             onCloseSession={closeToolSession}
@@ -1281,6 +1293,7 @@ function App() {
             sessions={toolSessions.capture}
             activeSessionId={activeToolSessionIds.capture}
             detachedSessionIds={detachedToolSessions.capture}
+            isActive={activeWorkbench === "capture"}
             onAddSession={addToolSession}
             onSelectSession={setActiveToolSession}
             onCloseSession={closeToolSession}
@@ -1303,6 +1316,7 @@ function App() {
             sessions={toolSessions.loadtest}
             activeSessionId={activeToolSessionIds.loadtest}
             detachedSessionIds={detachedToolSessions.loadtest}
+            isActive={activeWorkbench === "loadtest"}
             onAddSession={addToolSession}
             onSelectSession={setActiveToolSession}
             onCloseSession={closeToolSession}
@@ -1325,6 +1339,7 @@ function App() {
             sessions={toolSessions.videostream}
             activeSessionId={activeToolSessionIds.videostream}
             detachedSessionIds={detachedToolSessions.videostream}
+            isActive={activeWorkbench === "videostream"}
             onAddSession={addToolSession}
             onSelectSession={setActiveToolSession}
             onCloseSession={closeToolSession}
@@ -1347,6 +1362,7 @@ function App() {
             sessions={toolSessions.mockserver}
             activeSessionId={activeToolSessionIds.mockserver}
             detachedSessionIds={detachedToolSessions.mockserver}
+            isActive={activeWorkbench === "mockserver"}
             onAddSession={addToolSession}
             onSelectSession={setActiveToolSession}
             onCloseSession={closeToolSession}
@@ -1369,6 +1385,7 @@ function App() {
             sessions={toolSessions.dbclient}
             activeSessionId={activeToolSessionIds.dbclient}
             detachedSessionIds={detachedToolSessions.dbclient}
+            isActive={activeWorkbench === "dbclient"}
             onAddSession={addToolSession}
             onSelectSession={setActiveToolSession}
             onCloseSession={closeToolSession}
@@ -1391,6 +1408,7 @@ function App() {
             sessions={toolSessions.toolbox}
             activeSessionId={activeToolSessionIds.toolbox}
             detachedSessionIds={detachedToolSessions.toolbox}
+            isActive={activeWorkbench === "toolbox"}
             onAddSession={addToolSession}
             onSelectSession={setActiveToolSession}
             onCloseSession={closeToolSession}
@@ -1574,7 +1592,7 @@ function App() {
         <div className="fixed inset-0 z-[9999] bg-bg-app overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-4 py-2 border-b border-border-default bg-bg-primary shrink-0">
             <span className="pf-text-sm font-semibold text-text-primary">Design System</span>
-            <button onClick={() => setDesignSystemOpen(false)} className="wb-icon-btn"><X className="w-4 h-4" /></button>
+            <button onClick={() => setDesignSystemOpen(false)} className="wb-icon-btn" aria-label={t('common.close', '关闭')}><X className="w-4 h-4" /></button>
           </div>
           <Suspense fallback={<LazyPaneFallback className="flex-1 bg-bg-app" label={t('app.loading.designSystem', '加载设计系统...')} />}>
             <DesignSystemPage />

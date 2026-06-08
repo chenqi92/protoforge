@@ -561,6 +561,13 @@ impl DbDriver for PostgresDriver {
         Ok(())
     }
 
+    fn query_canceller(&self) -> std::sync::Arc<dyn QueryCanceller> {
+        // 取消句柄持有 cancel_token 的共享引用，独立于驱动锁之外
+        std::sync::Arc::new(PgCanceller {
+            token: self.cancel_token.clone(),
+        })
+    }
+
     fn capabilities(&self) -> DriverCapabilities {
         DriverCapabilities {
             supports_schemas: true,
@@ -570,8 +577,28 @@ impl DbDriver for PostgresDriver {
             supports_row_delete: true,
             supports_import_export: true,
             supports_multiple_databases: true,
+            supports_cancel: true,
             default_port: 5432,
         }
+    }
+}
+
+// 独立于驱动锁之外的 PostgreSQL 取消句柄：通过 CancelToken 发送取消请求
+pub struct PgCanceller {
+    token: Arc<Mutex<Option<tokio_postgres::CancelToken>>>,
+}
+
+#[async_trait]
+impl QueryCanceller for PgCanceller {
+    async fn cancel(&self) -> Result<(), String> {
+        let guard = self.token.lock().await;
+        if let Some(token) = guard.as_ref() {
+            token
+                .cancel_query(NoTls)
+                .await
+                .map_err(|e| format!("Cancel failed: {}", e))?;
+        }
+        Ok(())
     }
 }
 

@@ -1149,6 +1149,7 @@ function SwaggerImportView({
 
                             <button
                               onClick={() => toggleAllInTag(tag)}
+                              aria-label={t('importModal.toggleAllInTag', '全选/取消该分组')}
                               className="flex h-7 w-7 items-center justify-center pf-rounded-md text-text-disabled transition-colors hover:bg-bg-hover hover:text-accent"
                             >
                               {allSelectedInTag ? (

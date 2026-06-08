@@ -146,6 +146,7 @@ export function ScreenshotResizerTool() {
                   {name}
                   <button
                     onClick={() => setSelectedImages((prev) => prev.filter((p) => p !== path))}
+                    aria-label={t('toolbox.removeImage', '移除图片')}
                     className="text-text-disabled hover:text-text-primary"
                   >
                     <X className="h-3 w-3" />

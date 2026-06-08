@@ -367,6 +367,7 @@ export function OnvifPanel({
                 {t('videostream.gb.query', '加载')}
               </button>
               <button onClick={() => setShowPresetInput(v => !v)}
+                aria-label={t('videostream.onvif.addPreset', '新增预置位')}
                 className="h-5 w-5 flex items-center justify-center pf-rounded-xs text-text-disabled hover:text-accent transition-colors"
               ><Plus className="w-3 h-3" /></button>
             </div>

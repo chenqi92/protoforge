@@ -43,6 +43,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
           </div>
           <button
             onClick={onClose}
+            aria-label={t('common.close')}
             className="h-7 w-7 flex items-center justify-center rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <X className="w-4 h-4" />

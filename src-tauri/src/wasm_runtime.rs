@@ -145,6 +145,45 @@ impl WasmPluginRuntime {
         .map_err(|e| format!("WASM 执行任务失败: {}", e))?
     }
 
+    /// Execute the `crypto(ptr, len) -> ptr` export for crypto-tool plugins.
+    ///
+    /// 镜像 parse_data/render_data 的 buffer-ABI：宿主把 { algorithmId, mode, input, params }
+    /// 序列化为 JSON 写入 guest 内存，调用 guest 导出的 `crypto` 函数，读取返回的 JSON
+    /// 字符串并解析为 CryptoResult。
+    pub async fn run_crypto(
+        &self,
+        plugin_id: &str,
+        algorithm_id: &str,
+        mode: &str,
+        input: &str,
+        params_json: &str,
+    ) -> Result<crate::plugin_runtime::CryptoResult, String> {
+        let cached = {
+            let map = self.modules.read().await;
+            map.get(plugin_id)
+                .ok_or_else(|| format!("WASM 插件 '{}' 未加载，请先调用 load_plugin", plugin_id))?
+                .clone()
+        };
+
+        let algo_owned = algorithm_id.to_string();
+        let mode_owned = mode.to_string();
+        let input_owned = input.to_string();
+        let params_owned = params_json.to_string();
+
+        tokio::task::spawn_blocking(move || {
+            execute_crypto(
+                &cached.engine,
+                &cached.module,
+                &algo_owned,
+                &mode_owned,
+                &input_owned,
+                &params_owned,
+            )
+        })
+        .await
+        .map_err(|e| format!("WASM 执行任务失败: {}", e))?
+    }
+
     /// List all loaded WASM plugins.
     pub async fn list_loaded(&self) -> Vec<WasmPluginInfo> {
         let map = self.modules.read().await;
@@ -390,6 +429,89 @@ fn execute_render(
         .map_err(|e| format!("解析 render 结果 JSON 失败: {}", e))?;
 
     Ok(rendered)
+}
+
+/// Execute the crypto(ptr, len) -> ptr export for crypto-tool plugins.
+///
+/// 请求 JSON 形如：{ "algorithmId": "...", "mode": "encrypt"|"decrypt",
+/// "input": "...", "params": { ... } }，其中 params 为解析后的对象（与 JS
+/// crypto 路径传给 encrypt/decrypt 的第三个参数一致）。返回 JSON 解析为 CryptoResult。
+fn execute_crypto(
+    engine: &Engine,
+    module: &Module,
+    algorithm_id: &str,
+    mode: &str,
+    input: &str,
+    params_json: &str,
+) -> Result<crate::plugin_runtime::CryptoResult, String> {
+    let mut store = Store::new(engine, ());
+    // crypto 运算（哈希/分组密码等）可能较重，给予与 render 同量级（50M）的 fuel
+    store
+        .set_fuel(50_000_000)
+        .map_err(|e| format!("fuel 设置失败: {}", e))?;
+    let linker = Linker::new(engine);
+    let instance = linker
+        .instantiate(&mut store, module)
+        .map_err(|e| format!("WASM 实例化失败: {}", e))?;
+
+    let memory = instance
+        .get_memory(&mut store, "memory")
+        .ok_or("找不到 memory 导出")?;
+
+    // 将 params JSON 字符串解析为结构化对象：空串/纯空白退化为 null，
+    // 但格式错误必须报错——静默吞掉会丢失 IV/key/mode 等必需字段，导致输出错误。
+    let params_value: serde_json::Value = if params_json.trim().is_empty() {
+        serde_json::Value::Null
+    } else {
+        serde_json::from_str(params_json)
+            .map_err(|e| format!("解析 crypto 参数 JSON 失败: {}", e))?
+    };
+
+    // 组装请求 JSON 块
+    let request = serde_json::json!({
+        "algorithmId": algorithm_id,
+        "mode": mode,
+        "input": input,
+        "params": params_value,
+    });
+    let request_json =
+        serde_json::to_string(&request).map_err(|e| format!("序列化 crypto 请求失败: {}", e))?;
+
+    let input_bytes = request_json.as_bytes();
+    let input_len = input_bytes.len() as i32;
+
+    let alloc = instance
+        .get_typed_func::<i32, i32>(&mut store, "alloc")
+        .map_err(|e| format!("找不到 alloc 导出: {}", e))?;
+
+    let input_ptr = alloc
+        .call(&mut store, input_len)
+        .map_err(|e| format!("alloc 调用失败: {}", e))?;
+
+    memory
+        .write(&mut store, input_ptr as usize, input_bytes)
+        .map_err(|e| format!("写入 guest 内存失败: {}", e))?;
+
+    // 调用 guest 导出的 crypto(ptr, len) -> ptr；兼容备用导出名 run_crypto
+    let crypto = instance
+        .get_typed_func::<(i32, i32), i32>(&mut store, "crypto")
+        .or_else(|_| instance.get_typed_func::<(i32, i32), i32>(&mut store, "run_crypto"))
+        .map_err(|e| format!("找不到 crypto/run_crypto 导出: {}", e))?;
+
+    let result_ptr = crypto
+        .call(&mut store, (input_ptr, input_len))
+        .map_err(|e| format!("crypto 调用失败: {}", e))?;
+
+    let result_json = read_guest_string(&store, &memory, result_ptr as u32)?;
+
+    if let Ok(dealloc) = instance.get_typed_func::<(i32, i32), ()>(&mut store, "dealloc") {
+        let _ = dealloc.call(&mut store, (input_ptr, input_len));
+    }
+
+    let result: crate::plugin_runtime::CryptoResult = serde_json::from_str(&result_json)
+        .map_err(|e| format!("解析 crypto 结果 JSON 失败: {}", e))?;
+
+    Ok(result)
 }
 
 /// Read a length-prefixed string from guest memory.

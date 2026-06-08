@@ -208,7 +208,7 @@ export const TableDataView = memo(function TableDataView({
         <input value={filterInput} onChange={e => setFilterInput(e.target.value)} onKeyDown={handleKeyDown}
           placeholder={t("dbClient.filterPlaceholder")}
           className="min-w-[100px] flex-1 pf-rounded-sm border border-border-default bg-bg-input px-2 py-0.5 text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none placeholder:text-text-disabled" />
-        {filterInput && <button onClick={handleClearFilter} className="p-0.5 text-text-tertiary hover:text-text-primary"><X size={10} /></button>}
+        {filterInput && <button onClick={handleClearFilter} aria-label={t('dbClient.clearFilter', '清除筛选')} className="p-0.5 text-text-tertiary hover:text-text-primary"><X size={10} /></button>}
 
         <span className="text-border-strong shrink-0">|</span>
 
@@ -216,7 +216,7 @@ export const TableDataView = memo(function TableDataView({
         <span className="pf-text-xs text-method-get shrink-0 font-mono font-semibold">ORDER BY</span>
         <input value={orderByInput} onChange={e => setOrderByInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="col ASC"
           className="w-[130px] pf-rounded-sm border border-border-default bg-bg-input px-2 py-0.5 text-[11px] text-text-primary font-mono focus:border-accent focus:outline-none placeholder:text-text-disabled" />
-        {orderByInput && <button onClick={handleClearOrder} className="p-0.5 text-text-tertiary hover:text-text-primary"><X size={10} /></button>}
+        {orderByInput && <button onClick={handleClearOrder} aria-label={t('dbClient.clearOrder', '清除排序')} className="p-0.5 text-text-tertiary hover:text-text-primary"><X size={10} /></button>}
 
         <button onClick={handleApplyAll} disabled={tab.tableDataLoading}
           className="flex items-center gap-1 pf-rounded-sm px-2 py-0.5 pf-text-xs bg-accent-soft text-accent hover:bg-accent/25 disabled:opacity-40 shrink-0">

@@ -96,7 +96,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
           {stunServers.map((s, i) => (
             <div key={i} className="flex min-w-0 items-center gap-1">
               <span className="min-w-0 flex-1 truncate pf-rounded-sm border border-border-default bg-bg-inset px-2 py-1 pf-text-xxs font-mono text-text-secondary">{s}</span>
-              <button onClick={() => setStunServers(prev => prev.filter((_, j) => j !== i))} className="text-text-disabled hover:text-error p-0.5">
+              <button onClick={() => setStunServers(prev => prev.filter((_, j) => j !== i))} aria-label={t('videostream.webrtc.removeStun', '移除 STUN 服务器')} className="text-text-disabled hover:text-error p-0.5">
                 <Trash2 className="w-3 h-3" />
               </button>
             </div>
@@ -106,7 +106,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
               onKeyDown={(e) => e.key === 'Enter' && addStun()}
               className="wb-field-xs min-w-0 flex-1 font-mono"
             />
-            <button onClick={addStun} className="h-6 w-6 flex items-center justify-center pf-rounded-xs bg-accent/10 text-accent hover:bg-accent/20"><Plus className="w-3 h-3" /></button>
+            <button onClick={addStun} aria-label={t('videostream.webrtc.addStun', '添加 STUN 服务器')} className="h-6 w-6 flex items-center justify-center pf-rounded-xs bg-accent/10 text-accent hover:bg-accent/20"><Plus className="w-3 h-3" /></button>
           </div>
         </div>
       </div>

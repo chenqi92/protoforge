@@ -12,6 +12,9 @@ pub struct MysqlDriver {
     config: MysqlConfig,
     pool: Option<Pool>,
     conn: Arc<Mutex<Option<Conn>>>,
+    // 正在执行查询的连接 id，用于 KILL QUERY
+    // 用 std Mutex（仅做平凡的同步读写），Drop 时能可靠清空
+    query_conn_id: Arc<std::sync::Mutex<Option<u32>>>,
 }
 
 #[allow(dead_code)]
@@ -24,12 +27,27 @@ pub struct MysqlConfig {
     pub ssl: bool,
 }
 
+// 查询结束（含出错提前 return）时清空 query_conn_id
+struct QueryIdGuard {
+    slot: Arc<std::sync::Mutex<Option<u32>>>,
+}
+
+impl Drop for QueryIdGuard {
+    fn drop(&mut self) {
+        // std lock（非 try_lock），保证可靠清空，避免残留过期 id
+        if let Ok(mut g) = self.slot.lock() {
+            *g = None;
+        }
+    }
+}
+
 impl MysqlDriver {
     pub fn new(config: MysqlConfig) -> Self {
         Self {
             config,
             pool: None,
             conn: Arc::new(Mutex::new(None)),
+            query_conn_id: Arc::new(std::sync::Mutex::new(None)),
         }
     }
 
@@ -139,6 +157,9 @@ impl DbDriver for MysqlDriver {
 
     async fn execute_query(&self, sql: &str) -> Result<QueryResult, String> {
         let mut conn = self.get_conn().await?;
+        // 记录当前查询连接 id，供 cancel 发送 KILL QUERY；用 guard 保证结束（含出错）时清空
+        *self.query_conn_id.lock().unwrap() = Some(conn.id());
+        let _id_guard = QueryIdGuard { slot: self.query_conn_id.clone() };
         let start = std::time::Instant::now();
 
         let result: Vec<MysqlRow> = conn
@@ -189,6 +210,9 @@ impl DbDriver for MysqlDriver {
 
     async fn execute_query_in_database(&self, sql: &str, database: &str) -> Result<QueryResult, String> {
         let mut conn = self.get_conn().await?;
+        // 记录当前查询连接 id，供 cancel 发送 KILL QUERY；用 guard 保证结束（含出错）时清空
+        *self.query_conn_id.lock().unwrap() = Some(conn.id());
+        let _id_guard = QueryIdGuard { slot: self.query_conn_id.clone() };
         // 在同一连接上先 USE database
         if !database.is_empty() {
             let use_sql = format!("USE `{}`", database.replace('`', "``"));
@@ -555,9 +579,27 @@ impl DbDriver for MysqlDriver {
     }
 
     async fn cancel_query(&self) -> Result<(), String> {
-        // MySQL 的查询取消需要 KILL QUERY <connection_id>
-        // 当前简单实现暂不支持
+        // MySQL 通过另一条连接发送 KILL QUERY <connection_id> 取消正在执行的查询
+        let id = *self.query_conn_id.lock().unwrap();
+        if let Some(id) = id {
+            // id 是驱动返回的 u32，format! 拼接无注入风险
+            let mut conn = self.get_conn().await?;
+            conn.query_drop(format!("KILL QUERY {}", id))
+                .await
+                .map_err(|e| format!("Cancel query failed: {}", e))?;
+        }
         Ok(())
+    }
+
+    fn query_canceller(&self) -> std::sync::Arc<dyn QueryCanceller> {
+        // 取消句柄持有 pool 的克隆与 query_conn_id 的共享引用，独立于驱动锁之外
+        match &self.pool {
+            Some(pool) => std::sync::Arc::new(MysqlCanceller {
+                pool: pool.clone(),
+                query_conn_id: self.query_conn_id.clone(),
+            }),
+            None => std::sync::Arc::new(NoopCanceller),
+        }
     }
 
     fn capabilities(&self) -> DriverCapabilities {
@@ -569,8 +611,34 @@ impl DbDriver for MysqlDriver {
             supports_row_delete: true,
             supports_import_export: true,
             supports_multiple_databases: true,
+            supports_cancel: true,
             default_port: 3306,
         }
+    }
+}
+
+// 独立于驱动锁之外的 MySQL 取消句柄：用单独的池连接发送 KILL QUERY
+pub struct MysqlCanceller {
+    pool: Pool,
+    query_conn_id: Arc<std::sync::Mutex<Option<u32>>>,
+}
+
+#[async_trait]
+impl QueryCanceller for MysqlCanceller {
+    async fn cancel(&self) -> Result<(), String> {
+        let id = *self.query_conn_id.lock().unwrap();
+        if let Some(id) = id {
+            // id 是驱动返回的 u32，format! 拼接无注入风险
+            let mut conn = self
+                .pool
+                .get_conn()
+                .await
+                .map_err(|e| format!("Get connection failed: {}", e))?;
+            conn.query_drop(format!("KILL QUERY {}", id))
+                .await
+                .map_err(|e| format!("Cancel query failed: {}", e))?;
+        }
+        Ok(())
     }
 }
 

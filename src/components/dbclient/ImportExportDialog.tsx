@@ -154,7 +154,7 @@ function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
                 <div className="flex gap-2">
                   <input value={path} onChange={e => setPath(e.target.value)}
                     className="flex-1 rounded-md border border-border-default bg-bg-secondary px-3 py-1.5 text-xs text-text-primary font-mono focus:border-accent focus:outline-none min-w-0" />
-                  <button onClick={pickPath} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={13} /></button>
+                  <button onClick={pickPath} aria-label={t('dbClient.pickOutputFile', '选择输出文件')} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={13} /></button>
                 </div>
               </Fld>
 
@@ -181,6 +181,7 @@ function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
                           <input value={toolPath} onChange={e => setToolPath(e.target.value)} placeholder={t("dbClient.autoDetect", "自动检测")}
                             className="flex-1 rounded-md border border-border-default bg-bg-secondary px-2.5 py-1 text-xs text-text-primary font-mono focus:border-accent focus:outline-none min-w-0" />
                           <button onClick={async () => { const p = await openDialog({ multiple: false }); if (p) setToolPath(p as string); }}
+                            aria-label={t('dbClient.browseToolPath', '浏览工具路径')}
                             className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={12} /></button>
                         </div>
                       </div>
@@ -255,7 +256,7 @@ function ImportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
                 <div className="flex gap-2">
                   <input value={importPath} onChange={e => setImportPath(e.target.value)} placeholder="/path/to/dump.sql"
                     className="flex-1 rounded-md border border-border-default bg-bg-secondary px-3 py-1.5 text-xs text-text-primary font-mono focus:border-accent focus:outline-none min-w-0" />
-                  <button onClick={pickFile} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={13} /></button>
+                  <button onClick={pickFile} aria-label={t('dbClient.pickImportFile', '选择导入文件')} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={13} /></button>
                 </div>
               </Fld>
 

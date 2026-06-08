@@ -1108,6 +1108,7 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
                 action={
                   <button
                     onClick={() => { setShowScan(false); scanAbortRef.current = true; }}
+                    aria-label={t('common.cancel')}
                     className="pf-rounded-sm p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary"
                   >
                     <X className="h-3.5 w-3.5" />

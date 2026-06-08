@@ -36,7 +36,7 @@ export function HttpRequestErrorBanner({
           {expanded ? t('http.hideDetails', '收起') : t('http.errorDetails')}
         </button>
         <div className="flex-1" />
-        <button onClick={onDismiss} className="p-0.5 text-error/60 hover:text-error transition-colors">
+        <button onClick={onDismiss} aria-label={t('common.close')} className="p-0.5 text-error/60 hover:text-error transition-colors">
           <X className="h-3 w-3" />
         </button>
       </div>
@@ -69,7 +69,7 @@ export function HttpRequestErrorPanel({
       <div className="mt-4 w-full max-w-lg overflow-hidden pf-rounded-lg border border-border-default/60 bg-bg-secondary/20 text-left">
         <div className="flex items-center justify-between border-b border-border-default/40 px-3 py-1.5">
           <span className="pf-text-xxs font-semibold text-text-disabled uppercase tracking-wider">{t('http.errorDetails')}</span>
-          <button onClick={onDismiss} className="p-0.5 text-text-disabled hover:text-text-primary transition-colors">
+          <button onClick={onDismiss} aria-label={t('common.close')} className="p-0.5 text-text-disabled hover:text-text-primary transition-colors">
             <X className="h-3 w-3" />
           </button>
         </div>

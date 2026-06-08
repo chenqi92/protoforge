@@ -1138,9 +1138,10 @@ pub async fn import_selected(
         updated_at: now.clone(),
     };
 
-    // TODO: 与 postman_compat::import_postman 相同，create_collection + 逐条 create_collection_item
-    // 应包裹在事务中，避免中途失败留下不完整集合。
-    collections::create_collection(pool, collection.clone()).await?;
+    // 整个导入过程包裹在事务中 — 中途失败自动回滚，不会留下不完整的集合数据
+    let mut tx = pool.begin().await.map_err(|e| format!("开始事务失败: {}", e))?;
+
+    collections::insert_collection(&collection, &mut *tx).await?;
 
     // 按 tag 分组创建文件夹
     let mut tag_folders: std::collections::HashMap<String, String> =
@@ -1175,7 +1176,7 @@ pub async fn import_selected(
                     created_at: now.clone(),
                     updated_at: now.clone(),
                 };
-                collections::create_collection_item(pool, folder).await?;
+                collections::insert_collection_item(&folder, &mut *tx).await?;
                 tag_folders.insert(ep.tag.clone(), folder_id);
             }
             Some(tag_folders[&ep.tag].clone())
@@ -1262,8 +1263,10 @@ pub async fn import_selected(
             updated_at: now.clone(),
         };
 
-        collections::create_collection_item(pool, item).await?;
+        collections::insert_collection_item(&item, &mut *tx).await?;
     }
+
+    tx.commit().await.map_err(|e| format!("提交事务失败: {}", e))?;
 
     Ok(collection)
 }

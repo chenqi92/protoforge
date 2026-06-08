@@ -5,23 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ProtoForge</title>
-    <!-- Theme-first bootstrap: apply .dark class before any CSS arrives to avoid FOUC -->
-    <script>
-      (function () {
-        try {
-          var raw = localStorage.getItem('protoforge-settings');
-          var mode = 'system';
-          if (raw) {
-            var parsed = JSON.parse(raw);
-            if (parsed && parsed.state && parsed.state.settings && parsed.state.settings.theme) {
-              mode = parsed.state.settings.theme;
-            }
-          }
-          var dark = mode === 'dark' || (mode === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          if (dark) document.documentElement.classList.add('dark');
-        } catch (e) { /* Tracking Prevention may block localStorage */ }
-      })();
-    </script>
+    <!-- Theme-first bootstrap moved to src/themeBootstrap.ts (first import in main.tsx) to satisfy a stricter script-src CSP that no longer allows inline scripts -->
     <!-- Critical CSS inline — paint with correct bg/text before the external stylesheet arrives -->
     <style>
       html, body { margin: 0; padding: 0; background: #eef0f3; color: #1a1d23; font-family: 'IBM Plex Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }

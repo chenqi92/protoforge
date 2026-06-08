@@ -150,12 +150,12 @@ export const TableStructureEditor = memo(function TableStructureEditor({
                     <td className="px-1 py-0.5">
                       <div className="flex items-center justify-center gap-0.5">
                         {i > 0 && (
-                          <button onClick={() => handleMove(i, i - 1)} className="p-0.5 text-text-tertiary hover:text-text-primary rounded hover:bg-bg-hover">
+                          <button onClick={() => handleMove(i, i - 1)} aria-label={t('dbClient.moveColumnUp', '上移列')} className="p-0.5 text-text-tertiary hover:text-text-primary rounded hover:bg-bg-hover">
                             <ChevronUp size={11} />
                           </button>
                         )}
                         {i < tab.editedColumns.length - 1 && (
-                          <button onClick={() => handleMove(i, i + 1)} className="p-0.5 text-text-tertiary hover:text-text-primary rounded hover:bg-bg-hover">
+                          <button onClick={() => handleMove(i, i + 1)} aria-label={t('dbClient.moveColumnDown', '下移列')} className="p-0.5 text-text-tertiary hover:text-text-primary rounded hover:bg-bg-hover">
                             <ChevronDown size={11} />
                           </button>
                         )}

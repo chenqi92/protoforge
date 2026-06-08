@@ -1378,6 +1378,7 @@ export function ImageMergerTool() {
                     e.stopPropagation();
                     removeItem(item.id);
                   }}
+                  aria-label={t('common.delete')}
                   className="opacity-0 group-hover:opacity-100"
                 >
                   <Trash2 className="h-3 w-3 text-error" />

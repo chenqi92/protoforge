@@ -146,6 +146,7 @@ export const DbClientWorkspace = memo(function DbClientWorkspace({
               {connPanelCollapsed && (
                 <button
                   onClick={handleConnPanelExpand}
+                  aria-label={t('common.expand')}
                   className="absolute left-0 top-2 z-10 flex items-center justify-center w-6 h-6 rounded-r bg-bg-surface border border-l-0 border-border-default/50 text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors shadow-sm"
                 >
                   <PanelLeftOpen size={14} />

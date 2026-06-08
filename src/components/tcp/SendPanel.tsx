@@ -207,6 +207,7 @@ export function SendPanel({
                     </span>
                     <button
                       onClick={() => { onClearHistory(); setShowHistory(false); }}
+                      aria-label={t('tcp.sendPanel.clearHistory', '清空历史')}
                       className="pf-rounded-sm p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-error"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -421,7 +422,7 @@ export function SendPanel({
                     {editingCommandId ? t("tcp.sendPanel.editCommand") : t("tcp.sendPanel.addCommand")}
                   </span>
                 </div>
-                <button onClick={closeQuickCommandEditor} className="rounded-md p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
+                <button onClick={closeQuickCommandEditor} aria-label={t('common.close')} className="rounded-md p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -533,6 +534,7 @@ export function SendPanel({
           </button>
           <button
             onClick={() => setShowQuickCmds(false)}
+            aria-label={t('common.collapse')}
             className="pf-rounded-sm p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-secondary shrink-0"
           >
             <ChevronDown className="h-3 w-3" />
@@ -619,6 +621,7 @@ export function SendPanel({
                     </span>
                     <button
                       onClick={() => { onClearHistory(); setShowHistory(false); }}
+                      aria-label={t('tcp.sendPanel.clearHistory', '清空历史')}
                       className="pf-rounded-sm p-1 text-text-disabled transition-colors hover:bg-bg-hover hover:text-error"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -759,7 +762,7 @@ export function SendPanel({
                   {editingCommandId ? t("tcp.sendPanel.editCommand") : t("tcp.sendPanel.addCommand")}
                 </span>
               </div>
-              <button onClick={closeQuickCommandEditor} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-text-primary transition-colors">
+              <button onClick={closeQuickCommandEditor} aria-label={t('common.close')} className="p-1 rounded-md hover:bg-bg-hover text-text-disabled hover:text-text-primary transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>

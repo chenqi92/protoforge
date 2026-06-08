@@ -108,6 +108,7 @@ export function CellDetailDialog({ value, column, rowIndex, onClose }: CellDetai
             </button>
             <button
               onClick={onClose}
+              aria-label={t('common.close')}
               className="p-1 pf-rounded-sm text-text-tertiary hover:bg-bg-hover hover:text-text-primary transition-colors"
             >
               <X size={14} />

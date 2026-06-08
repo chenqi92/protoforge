@@ -1,3 +1,4 @@
+import "./themeBootstrap"; // 必须最先执行 — 在首帧绘制前设置 .dark class（CSP 收紧后内联脚本不再允许）
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Toaster } from "sonner";

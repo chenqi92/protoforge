@@ -261,24 +261,24 @@ export function StatusBar({
               </span>
             </span>
           )}
-        </div>
 
-        <div className="flex-1" />
-
-        <div className="flex items-stretch">
           {responseTime !== undefined && (
-            <span className="group flex items-center gap-1.5 border-l border-border-subtle px-[9px]">
+            <span className="group flex items-center gap-1.5 border-r border-border-subtle px-[9px]">
               <span className="text-text-tertiary">Time</span>
               <span className="font-mono tabular-nums text-text-secondary transition-colors group-hover:text-accent">{responseTime} ms</span>
             </span>
           )}
           {responseSize !== undefined && (
-            <span className="group flex items-center gap-1.5 border-l border-border-subtle px-[9px]">
+            <span className="group flex items-center gap-1.5 border-r border-border-subtle px-[9px]">
               <span className="text-text-tertiary">Size</span>
               <span className="font-mono tabular-nums text-text-secondary transition-colors group-hover:text-accent">{formatSize(responseSize)}</span>
             </span>
           )}
+        </div>
 
+        <div className="flex-1" />
+
+        <div className="flex items-stretch">
           {/* Cookie Jar */}
           <CookieJarButton />
 

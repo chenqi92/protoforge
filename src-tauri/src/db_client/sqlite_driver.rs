@@ -417,6 +417,7 @@ impl DbDriver for SqliteDriver {
             supports_row_delete: true,
             supports_import_export: true,
             supports_multiple_databases: false,
+            supports_cancel: false,
             default_port: 0,
         }
     }

@@ -10,6 +10,7 @@ import {
   Ban, Plus, ArrowRight, Pause,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { activateOnKey } from "@/lib/a11y";
 import { useTranslation } from 'react-i18next';
 import { useCaptureStore, getCaptureStore, destroyCaptureStore } from "@/stores/captureStore";
 import type { BreakpointRule, CapturedEntry, PausedRequest, ResumeModification } from "@/types/capture";
@@ -496,7 +497,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                     className="wb-field h-7 w-[280px] pf-text-xs font-mono px-2"
                     autoFocus
                   />
-                  <button onClick={handleOpenBrowser} className="wb-primary-btn h-7 px-3 pf-text-xs">
+                  <button onClick={handleOpenBrowser} aria-label={t('capture.openBrowser')} className="wb-primary-btn h-7 px-3 pf-text-xs">
                     <Play className="h-3 w-3" fill="currentColor" />
                   </button>
                 </div>
@@ -634,6 +635,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                 </div>
                 <button
                   onClick={() => setCaTrusted(null)}
+                  aria-label={t('common.close')}
                   className="text-text-tertiary hover:text-text-primary transition-colors px-1 mt-0.5"
                 >
                   <X className="w-3 h-3" />
@@ -1148,7 +1150,11 @@ const RequestRow = memo(function RequestRow({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
       onClick={onClick}
+      onKeyDown={activateOnKey(onClick)}
       onContextMenu={handleContextMenu}
       className={cn(
         "flex items-center h-[30px] px-3 cursor-pointer transition-colors border-b border-border-subtle/40",
@@ -1197,6 +1203,7 @@ function DetailPanel({
   onClose: () => void;
   embedded?: boolean;
 }) {
+  const { t } = useTranslation();
   const [reqTab, setReqTab] = useState<BurpTab>("raw");
   const [resTab, setResTab] = useState<BurpTab>("raw");
 
@@ -1221,6 +1228,7 @@ function DetailPanel({
         </div>
         <button
           onClick={onClose}
+          aria-label={t('common.close')}
           className="mr-1 flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
         >
           <X className="w-3 h-3" />

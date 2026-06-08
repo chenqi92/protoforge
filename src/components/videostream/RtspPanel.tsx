@@ -108,6 +108,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
               />
               <button
                 onClick={() => setShowPassword(v => !v)}
+                aria-label={showPassword ? t('common.hide') : t('common.show')}
                 className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-disabled hover:text-text-secondary"
               >
                 {showPassword ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}

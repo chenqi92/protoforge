@@ -86,9 +86,10 @@ export function ActivityRail({ activityLogOpen, onToggleActivityLog, onOpenPlugi
             const Icon = DOMAIN_ICONS[domain.icon] ?? Globe;
             const isActive = activeDomain === domain.id;
             const count = counts[domain.id];
+            const sub = zh ? domain.subZh : domain.subEn;
 
             return (
-              <Tooltip key={domain.id} content={tt(domain)} position="right">
+              <Tooltip key={domain.id} content={sub ? `${tt(domain)} · ${sub}` : tt(domain)} position="right">
                 <button
                   type="button"
                   onClick={() => openForgeDomain(domain.id, { onOpenPluginModal: onOpenPlugins })}
