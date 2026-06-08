@@ -6,7 +6,6 @@ import {
   Search,
   Settings,
   Sun,
-  Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useThemeStore } from "@/stores/themeStore";
@@ -46,17 +45,14 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
       {/* macOS traffic-light spacer */}
       <div className="w-[70px] shrink-0" />
 
-      {/* Brand */}
+      {/* Brand — real ProtoForge app icon */}
       <div className="flex shrink-0 items-center gap-2 no-drag">
-        <div
-          className="flex h-[22px] w-[22px] items-center justify-center rounded-md shadow-[0_2px_8px_var(--color-accent-muted)]"
-          style={{
-            backgroundImage:
-              "linear-gradient(150deg, var(--color-accent), #c2410c)",
-          }}
-        >
-          <Zap className="h-[13px] w-[13px] text-white" />
-        </div>
+        <img
+          src="/app-icon.png"
+          alt="ProtoForge"
+          className="h-[22px] w-[22px] shrink-0 select-none"
+          draggable={false}
+        />
         <span className="text-[12.5px] font-semibold tracking-[-0.01em] text-text-primary">
           Proto<b className="font-bold text-accent">Forge</b>
         </span>

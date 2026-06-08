@@ -18,7 +18,6 @@ import {
   RefreshCw,
   Download,
   CheckCircle,
-  Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -786,9 +785,12 @@ function AboutSection() {
 
   return (
     <div className="flex flex-col items-center gap-4 px-5 py-8">
-      <div className="flex h-16 w-16 items-center justify-center pf-rounded-xl bg-gradient-to-br from-accent to-accent-hover shadow-[0_6px_20px_var(--color-accent-muted)]">
-        <Zap className="h-8 w-8 text-white" />
-      </div>
+      <img
+        src="/app-icon.png"
+        alt="ProtoForge"
+        className="h-16 w-16 shrink-0 select-none drop-shadow-[0_6px_20px_var(--color-accent-muted)]"
+        draggable={false}
+      />
       <div className="flex flex-col items-center gap-1">
         <span className="pf-text-lg font-bold text-text-primary">ProtoForge</span>
         <span className="pf-text-xs font-mono text-text-tertiary">v{currentVersion || '—'}</span>

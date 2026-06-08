@@ -132,8 +132,9 @@ export function RequestStatsPanel() {
 
   return (
     <div className="py-1 px-1">
-      {/* Header */}
-      <div className="flex items-center justify-between px-1 mb-2">
+      {/* Header — fixed min-height so the title keeps the same vertical position
+          whether or not the clear button (which is 24px tall) is present. */}
+      <div className="flex min-h-6 items-center justify-between px-1 mb-2">
         <span className="text-[length:var(--fs-sidebar)] font-semibold text-text-primary flex items-center gap-1.5">
           <BarChart3 className="w-3.5 h-3.5 text-accent" />
           {t('plugin.requestStats.title', '请求统计')}
