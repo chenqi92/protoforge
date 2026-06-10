@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import "@/monacoWorkers"; // Must run before Monaco editor mounts
-import { DiffEditor, useMonaco } from "@monaco-editor/react";
+import { DiffEditor } from "@monaco-editor/react";
 import { GitCompareArrows, FileText, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -171,7 +171,6 @@ function TargetSelector({
 
 export function RequestDiffModal({ open, onClose, sourceTabId }: RequestDiffModalProps) {
   const { t } = useTranslation();
-  const monaco = useMonaco();
   const theme = useThemeStore((s) => s.resolved);
   const editorFontSize = useSettingsStore((s) => Math.max(10, s.settings.fontSize - 1));
 
@@ -185,23 +184,9 @@ export function RequestDiffModal({ open, onClose, sourceTabId }: RequestDiffModa
   const tabs = useAppStore((s) => s.tabs);
   const getEntryDetail = useHistoryStore((s) => s.getEntryDetail);
 
-  // Define themes — pull surface colors from Forge CSS vars so the editor
-  // tracks the active theme/accent instead of hardcoded hex.
-  useEffect(() => {
-    if (monaco) {
-      const cssVar = (name: string, fallback: string) =>
-        getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
-      monaco.editor.defineTheme("protoforge-dark", {
-        base: "vs-dark", inherit: true, rules: [],
-        colors: { "editor.background": cssVar("--color-bg-inset", "#0c0e12"), "editor.lineHighlightBackground": cssVar("--color-bg-secondary", "#191a1b") },
-      });
-      monaco.editor.defineTheme("protoforge-light", {
-        base: "vs", inherit: true, rules: [],
-        colors: { "editor.background": cssVar("--color-bg-primary", "#ffffff"), "editor.lineHighlightBackground": cssVar("--color-bg-secondary", "#f5f6f7") },
-      });
-    }
-  }, [monaco, theme]);
-
+  // Themes are defined once in `@/monacoWorkers` (global + idempotent). Defining
+  // them per-component clobbered the richer CodeEditor palette and, by redefining
+  // the active theme, crashed editors mid-dispose under StrictMode.
   const editorTheme = theme === "dark" ? "protoforge-dark" : "protoforge-light";
 
   // Load target data when selection changes
