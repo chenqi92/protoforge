@@ -87,7 +87,19 @@ if (!dryRun) {
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }
 
-// ── 2. 更新 Cargo.toml ─────────────────────────────────────────
+// ── 2. 更新 package-lock.json ──────────────────────────────────
+const pkgLockPath = resolve(root, 'package-lock.json');
+const pkgLock = JSON.parse(readFileSync(pkgLockPath, 'utf-8'));
+console.log(`   ${dryRun ? '📝' : '✅'} package-lock.json → ${newVersion}`);
+if (!dryRun) {
+  pkgLock.version = newVersion;
+  if (pkgLock.packages?.['']) {
+    pkgLock.packages[''].version = newVersion;
+  }
+  writeFileSync(pkgLockPath, JSON.stringify(pkgLock, null, 2) + '\n');
+}
+
+// ── 3. 更新 Cargo.toml ─────────────────────────────────────────
 const cargoPath = resolve(root, 'src-tauri/Cargo.toml');
 let cargo = readFileSync(cargoPath, 'utf-8');
 const cargoUpdated = cargo.replace(
@@ -99,7 +111,23 @@ if (!dryRun) {
   writeFileSync(cargoPath, cargoUpdated);
 }
 
-// ── 3. 更新 tauri.conf.json ────────────────────────────────────
+// ── 4. 更新 Cargo.lock ─────────────────────────────────────────
+const cargoLockPath = resolve(root, 'src-tauri/Cargo.lock');
+let cargoLock = readFileSync(cargoLockPath, 'utf-8');
+const cargoLockVersionPattern = /(\[\[package\]\]\r?\nname = "protoforge"\r?\nversion = ")[^"]+(")/;
+if (!cargoLockVersionPattern.test(cargoLock)) {
+  throw new Error('无法在 src-tauri/Cargo.lock 中找到 protoforge 包版本');
+}
+const cargoLockUpdated = cargoLock.replace(
+  cargoLockVersionPattern,
+  (_, prefix, suffix) => `${prefix}${newVersion}${suffix}`
+);
+console.log(`   ${dryRun ? '📝' : '✅'} src-tauri/Cargo.lock → ${newVersion}`);
+if (!dryRun) {
+  writeFileSync(cargoLockPath, cargoLockUpdated);
+}
+
+// ── 5. 更新 tauri.conf.json ────────────────────────────────────
 const tauriConfPath = resolve(root, 'src-tauri/tauri.conf.json');
 const tauriConf = JSON.parse(readFileSync(tauriConfPath, 'utf-8'));
 console.log(`   ${dryRun ? '📝' : '✅'} src-tauri/tauri.conf.json → ${newVersion}`);
@@ -108,11 +136,11 @@ if (!dryRun) {
   writeFileSync(tauriConfPath, JSON.stringify(tauriConf, null, 2) + '\n');
 }
 
-// ── 4. Git 操作（仅 --push 时执行）──────────────────────────────
+// ── 6. Git 操作（仅 --push 时执行）──────────────────────────────
 if (autoPush) {
   console.log(`\n🚀 执行 Git 操作...`);
 
-  exec('git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json');
+  exec('git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json');
   exec(`git commit -m "chore: release v${newVersion}"`);
   exec(`git tag v${newVersion}`);
   exec(`git push`);
