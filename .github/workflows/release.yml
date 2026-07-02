@@ -98,6 +98,56 @@ jobs:
           tagName: ""
           releaseName: ""
 
+      - name: Collect standard Windows artifacts
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist-artifacts
+          $bundlePath = "src-tauri/target/${{ matrix.target }}/release/bundle"
+          Get-ChildItem -Path $bundlePath -Recurse -Include "*.msi","*.msi.sig","*.nsis.zip","*.nsis.zip.sig","*.exe" |
+            Where-Object { $_.Name -notmatch "^protoforge\.exe$" } |
+            Copy-Item -Destination dist-artifacts/ -Force
+
+      - name: Build Windows installer with bundled WebView2
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx tauri build --target ${{ matrix.target }} --config src-tauri/tauri.webview2.conf.json --ci
+
+      - name: Collect bundled WebView2 Windows artifacts
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          function Add-WebView2Suffix($name) {
+            if ($name.EndsWith(".nsis.zip.sig")) {
+              return $name.Substring(0, $name.Length - ".nsis.zip.sig".Length) + "-webview2.nsis.zip.sig"
+            }
+            if ($name.EndsWith(".nsis.zip")) {
+              return $name.Substring(0, $name.Length - ".nsis.zip".Length) + "-webview2.nsis.zip"
+            }
+            if ($name.EndsWith(".msi.sig")) {
+              return $name.Substring(0, $name.Length - ".msi.sig".Length) + "-webview2.msi.sig"
+            }
+            if ($name.EndsWith(".msi")) {
+              return $name.Substring(0, $name.Length - ".msi".Length) + "-webview2.msi"
+            }
+            if ($name.EndsWith(".exe")) {
+              return $name.Substring(0, $name.Length - ".exe".Length) + "-webview2.exe"
+            }
+            return $name
+          }
+
+          $bundlePath = "src-tauri/target/${{ matrix.target }}/release/bundle"
+          Get-ChildItem -Path $bundlePath -Recurse -Include "*.msi","*.msi.sig","*.nsis.zip","*.nsis.zip.sig","*.exe" |
+            Where-Object { $_.Name -notmatch "^protoforge\.exe$" } |
+            ForEach-Object {
+              $destName = Add-WebView2Suffix $_.Name
+              Copy-Item -LiteralPath $_.FullName -Destination (Join-Path "dist-artifacts" $destName) -Force
+            }
+
       # ── 收集产物 ──────────────────────────────────────────────
       - name: Collect artifacts (macOS)
         if: startsWith(matrix.platform, 'macos')
@@ -130,11 +180,6 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path dist-artifacts
-          $bundlePath = "src-tauri/target/${{ matrix.target }}/release/bundle"
-          Get-ChildItem -Path $bundlePath -Recurse -Include "*.msi","*.msi.sig","*.nsis.zip","*.nsis.zip.sig","*.exe" |
-            Where-Object { $_.Name -notmatch "^protoforge\.exe$" } |
-            Copy-Item -Destination dist-artifacts/
           Get-ChildItem dist-artifacts/
 
       - name: Collect artifacts (Linux)
@@ -213,6 +258,8 @@ jobs:
               name=$(basename "$f")
               case "$name" in
                 *.dmg) echo "| 🍎 macOS | \`${name}\` |" >> release_notes.md ;;
+                *-webview2.msi) echo "| 🪟 Windows (MSI + WebView2 离线版) | \`${name}\` |" >> release_notes.md ;;
+                *-webview2.exe) echo "| 🪟 Windows (EXE + WebView2 离线版) | \`${name}\` |" >> release_notes.md ;;
                 *.msi) echo "| 🪟 Windows (MSI) | \`${name}\` |" >> release_notes.md ;;
                 *.exe) echo "| 🪟 Windows (EXE) | \`${name}\` |" >> release_notes.md ;;
                 *.deb) echo "| 🐧 Linux (deb) | \`${name}\` |" >> release_notes.md ;;
@@ -270,8 +317,8 @@ jobs:
           fi
 
           # Windows x86_64 (prefer nsis.zip over msi)
-          WIN_FILE=$(ls all-artifacts/*.nsis.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || \
-                     ls all-artifacts/*_x64-setup.exe 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+          WIN_FILE=$(ls all-artifacts/*.nsis.zip 2>/dev/null | grep -v -- '-webview2\.nsis\.zip$' | head -1 | xargs basename 2>/dev/null || \
+                     ls all-artifacts/*_x64-setup.exe 2>/dev/null | grep -v -- '-webview2\.exe$' | head -1 | xargs basename 2>/dev/null || echo "")
           if [ -n "$WIN_FILE" ]; then
             WIN_SIG=$(cat "all-artifacts/${WIN_FILE}.sig" 2>/dev/null || echo "")
             PLATFORMS=$(echo "$PLATFORMS" | jq --arg sig "$WIN_SIG" --arg url "${BASE_URL}/${WIN_FILE}" \

@@ -9,6 +9,7 @@
     "dev:tauri": "tauri dev",
     "build": "tsc && vite build",
     "build:tauri": "tauri build",
+    "build:tauri:webview2": "tauri build --config src-tauri/tauri.webview2.conf.json",
     "build:debug": "tauri build --debug",
     "preview": "vite preview",
     "tauri": "tauri",

@@ -24,6 +24,7 @@
 | 平台 | 安装包 | 说明 |
 |------|--------|------|
 | 🪟 Windows (64-bit) | [**EXE 安装包**](https://github.com/chenqi92/protoforge/releases/latest) | ✅ 推荐 — 双击执行，自动安装 |
+| 🪟 Windows (64-bit，内网/无 WebView2) | [**EXE 安装包（文件名含 `-webview2`）**](https://github.com/chenqi92/protoforge/releases/latest) | 内置 WebView2 离线安装器，适合无法联网下载运行时的环境 |
 | 🪟 Windows (64-bit) | [MSI 安装包](https://github.com/chenqi92/protoforge/releases/latest) | 适合企业组策略静默部署 |
 | 🍎 macOS (Apple Silicon) | [DMG 安装包](https://github.com/chenqi92/protoforge/releases/latest) | M1/M2/M3/M4 芯片 Mac |
 | 🍎 macOS (Intel) | [DMG 安装包](https://github.com/chenqi92/protoforge/releases/latest) | Intel 芯片 Mac |
@@ -295,6 +296,7 @@ npm run build:tauri
 | `npm run dev` | 仅启动前端 Vite 开发服务器 |
 | `npm run dev:tauri` | 启动完整 Tauri 桌面应用（推荐） |
 | `npm run build:tauri` | 构建生产发行包 |
+| `npm run build:tauri:webview2` | 构建内置 WebView2 离线安装器的 Windows 发行包 |
 | `npm run build:debug` | 构建 Debug 包（含 DevTools） |
 | `npm run release:patch` | 版本号 patch +1 并推送触发 CI |
 | `npm run release:minor` | 版本号 minor +1 并推送触发 CI |
