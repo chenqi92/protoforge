@@ -84,6 +84,7 @@ jobs:
 
       # ── Tauri 构建 ─────────────────────────────────────────────
       - name: Build Tauri app
+        if: matrix.platform != 'windows-latest'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -97,6 +98,15 @@ jobs:
           # 不让 tauri-action 自动创建 release，由后续 job 统一处理
           tagName: ""
           releaseName: ""
+
+      - name: Build Tauri app (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: ./scripts/ci-tauri-build-windows.ps1 -Target "${{ matrix.target }}"
 
       - name: Collect standard Windows artifacts
         if: matrix.platform == 'windows-latest'
@@ -115,7 +125,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build --target ${{ matrix.target }} --config src-tauri/tauri.webview2.conf.json --ci
+        run: ./scripts/ci-tauri-build-windows.ps1 -Target "${{ matrix.target }}" -Config "src-tauri/tauri.webview2.conf.json"
 
       - name: Collect bundled WebView2 Windows artifacts
         if: matrix.platform == 'windows-latest'
