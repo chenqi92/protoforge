@@ -9,15 +9,16 @@ param(
 
 $ErrorActionPreference = "Stop"
 $lastExitCode = 1
+$tauriCli = Resolve-Path (Join-Path $PSScriptRoot "..\node_modules\@tauri-apps\cli\tauri.js")
 
 for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
-  $buildArgs = @("tauri", "build", "--target", $Target, "--ci")
+  $buildArgs = @($tauriCli.Path, "build", "--target", $Target, "--ci")
   if ($Config) {
     $buildArgs += @("--config", $Config)
   }
 
-  Write-Host "Running: npx $($buildArgs -join ' ') (attempt $attempt/$Attempts)"
-  & npx @buildArgs
+  Write-Host "Running: node $($buildArgs -join ' ') (attempt $attempt/$Attempts)"
+  & node @buildArgs
   $lastExitCode = $LASTEXITCODE
 
   if ($lastExitCode -eq 0) {
