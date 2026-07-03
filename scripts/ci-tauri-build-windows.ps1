@@ -14,6 +14,7 @@ $tauriConfig = Get-Content (Join-Path $repoRoot "src-tauri\tauri.conf.json") -Ra
 $packageJson = Get-Content (Join-Path $repoRoot "package.json") -Raw | ConvertFrom-Json
 $productName = $tauriConfig.productName
 $version = $packageJson.version
+$tauriCli = Resolve-Path (Join-Path $repoRoot "node_modules\@tauri-apps\cli\tauri.js")
 
 function Test-WindowsBundlesCreated {
   param(
@@ -42,13 +43,13 @@ function Test-WindowsBundlesCreated {
 
 for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
   $startedAt = Get-Date
-  $buildArgs = @("run", "tauri", "--", "build", "--target", $Target, "--ci")
+  $buildArgs = @($tauriCli.Path, "build", "--target", $Target, "--ci")
   if ($Config) {
     $buildArgs += @("--config", $Config)
   }
 
-  Write-Host "Running: npm $($buildArgs -join ' ') (attempt $attempt/$Attempts)"
-  & npm @buildArgs
+  Write-Host "Running: node $($buildArgs -join ' ') (attempt $attempt/$Attempts)"
+  & node @buildArgs
   $lastExitCode = $LASTEXITCODE
 
   if ($lastExitCode -eq 0) {
