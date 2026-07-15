@@ -10,8 +10,11 @@ use super::state::ProtocolMessage;
 #[serde(rename_all = "camelCase")]
 pub struct HlsPlaylistInfo {
     pub playlist_type: String, // "master" or "media"
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target_duration: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub media_sequence: Option<u64>,
     pub is_live: bool,
     pub variants: Vec<HlsVariant>,
@@ -23,9 +26,12 @@ pub struct HlsPlaylistInfo {
 #[serde(rename_all = "camelCase")]
 pub struct HlsVariant {
     pub bandwidth: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub resolution: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub codecs: Option<String>,
     pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
@@ -35,7 +41,9 @@ pub struct HlsSegment {
     pub duration: f64,
     pub uri: String,
     pub sequence: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub byte_range: Option<String>,
     pub discontinuity: bool,
 }
@@ -190,13 +198,14 @@ fn parse_attributes(s: &str) -> Vec<(String, String)> {
 
 /// 从 URL 获取并解析 m3u8 播放列表
 pub async fn fetch_and_parse_playlist(
-    _session_id: &str,
+    session_id: &str,
     url: &str,
     app: &AppHandle,
 ) -> Result<HlsPlaylistInfo, String> {
     // Emit request message
     let req_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "sent".to_string(),
         protocol: "hls".to_string(),
         summary: format!("GET {}", url),
@@ -231,6 +240,7 @@ pub async fn fetch_and_parse_playlist(
     // Emit response message
     let resp_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "received".to_string(),
         protocol: "hls".to_string(),
         summary: format!("HTTP {} — {} bytes", status.as_u16(), body.len()),
@@ -249,6 +259,7 @@ pub async fn fetch_and_parse_playlist(
     // Emit info message with summary
     let info_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "info".to_string(),
         protocol: "hls".to_string(),
         summary: format!(

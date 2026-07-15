@@ -13,6 +13,7 @@ import { ModbusPanel } from "./ModbusPanel";
 import { ModbusSlavePanel } from "./ModbusSlavePanel";
 import { ProtocolSidebarSection, ProtocolWorkbench } from "./ProtocolWorkbench";
 import * as svc from "@/services/tcpService";
+import { releaseTcpSessionResources } from "@/services/tcpSessionLifecycle";
 import { useActivityLogStore } from "@/stores/activityLogStore";
 import { useAppStore } from "@/stores/appStore";
 import type {
@@ -24,6 +25,7 @@ import { DEFAULT_TCP_TOOL_MODE } from "@/types/toolSession";
 import {
   getActiveConnectionLabelsForKeys,
   hasActiveConnectionsForKeys,
+  isConnectionRegistered,
   registerConnection,
   unregisterConnection,
 } from '@/lib/connectionRegistry';
@@ -206,11 +208,16 @@ export const TcpWorkspace = memo(function TcpWorkspace({
       if (!ok) return;
     }
 
+    // Rehydration of the in-memory registry is asynchronous. Always perform
+    // the idempotent backend cleanup so an immediate mode switch cannot leave
+    // a restored connection behind before its panel has registered it again.
+    await releaseTcpSessionResources(sessionKey);
+
     if (!(nextMode in SPLIT_PAIR)) {
       setSplitView(false);
     }
     setMode(nextMode);
-  }, [mode, sessionKey, splitKey]);
+  }, [mode, sessionKey, splitKey, t]);
 
   const toggleModeMenu = useCallback((anchor?: HTMLElement | null) => {
     const anchorEl = anchor ?? modeMenuAnchorRef.current;
@@ -510,7 +517,7 @@ function TcpClientPanel({ sessionKey, compact = false }: { sessionKey: string; c
   const { t } = useTranslation();
   const connectionId = useRef(`tcp-client:${sessionKey}`).current;
   const state = useSocketState();
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected] = useState(() => isConnectionRegistered(sessionKey, connectionId));
   const [connecting, setConnecting] = useState(false);
   const [host, setHost] = useState("127.0.0.1");
   const [port, setPort] = useState(8080);
@@ -520,6 +527,7 @@ function TcpClientPanel({ sessionKey, compact = false }: { sessionKey: string; c
   const hostRef = useRef(host);
   const portRef = useRef(port);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { recent, save: saveRecent, remove: removeRecent } = useRecentConns("tcp-client");
 
   useEffect(() => { autoReconnectRef.current = autoReconnect; }, [autoReconnect]);
@@ -527,12 +535,19 @@ function TcpClientPanel({ sessionKey, compact = false }: { sessionKey: string; c
   useEffect(() => { portRef.current = port; }, [port]);
 
   useEffect(() => {
+    let disposed = false;
     svc.tcpListConnections().then((list) => {
+      if (disposed) return;
       if (list.some((c) => c.connectionId === connectionId)) {
         setConnected(true);
+        registerConnection(sessionKey, connectionId, `TCP ${hostRef.current}:${portRef.current}`);
         state.systemMessage(`[RESTORE] ${t('tcp.system.connectedTo')} (recovered)`);
+      } else {
+        setConnected(false);
+        unregisterConnection(sessionKey, connectionId);
       }
     }).catch(() => {});
+    return () => { disposed = true; };
   }, [connectionId]);
 
   useEffect(() => {
@@ -564,7 +579,7 @@ function TcpClientPanel({ sessionKey, compact = false }: { sessionKey: string; c
             unregisterConnection(sessionKey, connectionId);
             if (autoReconnectRef.current) {
               state.systemMessage(`[INFO] ${t('tcp.system.reconnecting', '2s 后自动重连...')}`);
-              setTimeout(async () => {
+              reconnectTimerRef.current = setTimeout(async () => {
                 if (!autoReconnectRef.current) return;
                 try {
                   setConnecting(true);
@@ -591,8 +606,10 @@ function TcpClientPanel({ sessionKey, compact = false }: { sessionKey: string; c
     return () => {
       disposed = true;
       unlisten?.();
-      unregisterConnection(sessionKey, connectionId);
-      svc.tcpDisconnect(connectionId).catch(() => {});
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
     };
   }, [connectionId, state.addMessage, state.systemMessage, t]);
 
@@ -736,7 +753,7 @@ function TcpServerPanel({ sessionKey, compact = false }: { sessionKey: string; c
   const { t } = useTranslation();
   const serverId = useRef(`tcp-server:${sessionKey}`).current;
   const state = useSocketState();
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState(() => isConnectionRegistered(sessionKey, serverId));
   const [starting, setStarting] = useState(false);
   const [host, setHost] = useState("0.0.0.0");
   const [port, setPort] = useState(9000);
@@ -748,10 +765,13 @@ function TcpServerPanel({ sessionKey, compact = false }: { sessionKey: string; c
   const { recent, save: saveRecent, remove: removeRecent } = useRecentConns("tcp-server");
 
   useEffect(() => {
+    let disposed = false;
     svc.tcpListServers().then((list) => {
+      if (disposed) return;
       const server = list.find((s) => s.serverId === serverId);
       if (server) {
         setRunning(true);
+        registerConnection(sessionKey, serverId, 'TCP Server');
         const restoredClients: TcpServerClient[] = server.clientIds.map((cid, i) => ({
           id: cid,
           remoteAddr: server.clientAddrs[i] || 'unknown',
@@ -759,8 +779,12 @@ function TcpServerPanel({ sessionKey, compact = false }: { sessionKey: string; c
         }));
         setClients(restoredClients);
         state.systemMessage(`[RESTORE] ${t('tcp.system.serverStarted')} (recovered, ${server.clientIds.length} clients)`);
+      } else {
+        setRunning(false);
+        unregisterConnection(sessionKey, serverId);
       }
     }).catch(() => {});
+    return () => { disposed = true; };
   }, [serverId]);
 
   useEffect(() => {
@@ -809,8 +833,6 @@ function TcpServerPanel({ sessionKey, compact = false }: { sessionKey: string; c
     return () => {
       disposed = true;
       unlisten?.();
-      unregisterConnection(sessionKey, serverId);
-      svc.tcpServerStop(serverId).catch(() => {});
     };
   }, [serverId, state.addMessage, state.systemMessage, t]);
 
@@ -963,7 +985,7 @@ function UdpClientPanel({
   const { t } = useTranslation();
   const socketId = useRef(`udp-client:${sessionKey}`).current;
   const state = useSocketState();
-  const [bound, setBound] = useState(false);
+  const [bound, setBound] = useState(() => isConnectionRegistered(sessionKey, socketId));
   const [binding, setBinding] = useState(false);
   const [host, setHost] = useState("0.0.0.0");
   const [port, setPort] = useState(9001);
@@ -984,12 +1006,19 @@ function UdpClientPanel({
   }, [pairTargetAddr]);
 
   useEffect(() => {
+    let disposed = false;
     svc.udpListSockets().then((list) => {
+      if (disposed) return;
       if (list.some((s) => s.socketId === socketId)) {
         setBound(true);
+        registerConnection(sessionKey, socketId, 'UDP Client');
         state.systemMessage(`[RESTORE] ${t('tcp.system.bound')} (recovered)`);
+      } else {
+        setBound(false);
+        unregisterConnection(sessionKey, socketId);
       }
     }).catch(() => {});
+    return () => { disposed = true; };
   }, [socketId]);
 
   useEffect(() => {
@@ -1030,8 +1059,6 @@ function UdpClientPanel({
     return () => {
       disposed = true;
       unlisten?.();
-      unregisterConnection(sessionKey, socketId);
-      svc.udpClose(socketId).catch(() => {});
     };
   }, [socketId, state.addMessage, state.systemMessage, t]);
 
@@ -1180,7 +1207,7 @@ function UdpServerPanel({
   const { t } = useTranslation();
   const socketId = useRef(`udp-server:${sessionKey}`).current;
   const state = useSocketState();
-  const [bound, setBound] = useState(false);
+  const [bound, setBound] = useState(() => isConnectionRegistered(sessionKey, socketId));
   const [binding, setBinding] = useState(false);
   const [host, setHost] = useState("0.0.0.0");
   const [port, setPort] = useState(9000);
@@ -1194,12 +1221,19 @@ function UdpServerPanel({
   }, [host, onTargetChange, port]);
 
   useEffect(() => {
+    let disposed = false;
     svc.udpListSockets().then((list) => {
+      if (disposed) return;
       if (list.some((s) => s.socketId === socketId)) {
         setBound(true);
+        registerConnection(sessionKey, socketId, 'UDP Server');
         state.systemMessage(`[RESTORE] ${t('tcp.system.udpServerBound')} (recovered)`);
+      } else {
+        setBound(false);
+        unregisterConnection(sessionKey, socketId);
       }
     }).catch(() => {});
+    return () => { disposed = true; };
   }, [socketId]);
 
   useEffect(() => {
@@ -1243,8 +1277,6 @@ function UdpServerPanel({
     return () => {
       disposed = true;
       unlisten?.();
-      unregisterConnection(sessionKey, socketId);
-      svc.udpClose(socketId).catch(() => {});
     };
   }, [socketId, state.addMessage, state.systemMessage, t]);
 

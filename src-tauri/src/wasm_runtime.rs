@@ -17,12 +17,15 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use wasmtime::*;
 
-use crate::plugin_runtime::ParseResult;
+use crate::plugin_runtime::{
+    ParseResult, PluginManifest, validate_plugin_entrypoint, validate_plugin_id,
+};
 
 // ── WASM Plugin Info (from guest) ──
 
@@ -46,68 +49,122 @@ struct CachedModule {
     info: WasmPluginInfo,
 }
 
+#[derive(Default)]
+struct WasmCacheState {
+    modules: HashMap<String, Arc<CachedModule>>,
+    /// Per-plugin epoch used to invalidate loads that are doing disk I/O or
+    /// compilation without holding the cache lock.
+    generations: HashMap<String, u64>,
+}
+
+impl WasmCacheState {
+    fn generation(&self, plugin_id: &str) -> u64 {
+        self.generations.get(plugin_id).copied().unwrap_or(0)
+    }
+
+    fn advance_generation(&mut self, plugin_id: &str) {
+        let generation = self.generations.entry(plugin_id.to_string()).or_default();
+        *generation = generation.wrapping_add(1);
+    }
+}
+
 // ── WASM Plugin Runtime ──
 
 pub struct WasmPluginRuntime {
     plugins_dir: PathBuf,
-    /// Cached compiled modules (plugin_id → module)
-    modules: RwLock<HashMap<String, Arc<CachedModule>>>,
+    /// Compiled modules and their commit epochs. The lock is held only for
+    /// cache snapshots/commits, never for filesystem I/O or compilation.
+    cache: RwLock<WasmCacheState>,
 }
 
 impl WasmPluginRuntime {
     pub fn new(app_data_dir: &Path) -> Self {
         Self {
             plugins_dir: app_data_dir.join("plugins"),
-            modules: RwLock::new(HashMap::new()),
+            cache: RwLock::new(WasmCacheState::default()),
         }
     }
 
     /// Load a WASM plugin from disk and cache the compiled module.
     pub async fn load_plugin(&self, plugin_id: &str) -> Result<WasmPluginInfo, String> {
-        // Check if already loaded
-        {
-            let cache = self.modules.read().await;
-            if let Some(cached) = cache.get(plugin_id) {
-                return Ok(cached.info.clone());
-            }
-        }
-
-        let wasm_path = self.find_wasm_file(plugin_id).await?;
-
-        // Read WASM bytes
-        let wasm_bytes = tokio::fs::read(&wasm_path)
+        self.load_plugin_with(plugin_id, async {
+            let wasm_path = self.find_wasm_file(plugin_id).await?;
+            let wasm_bytes = tokio::fs::read(&wasm_path)
+                .await
+                .map_err(|e| format!("读取 WASM 文件失败: {}", e))?;
+            let plugin_id_owned = plugin_id.to_string();
+            tokio::task::spawn_blocking(move || {
+                compile_and_query_info(&wasm_bytes, &plugin_id_owned)
+            })
             .await
-            .map_err(|e| format!("读取 WASM 文件失败: {}", e))?;
-
-        // Compile module in blocking context (CPU-intensive)
-        let plugin_id_owned = plugin_id.to_string();
-        let cached = tokio::task::spawn_blocking(move || {
-            compile_and_query_info(&wasm_bytes, &plugin_id_owned)
+            .map_err(|e| format!("WASM 编译任务失败: {}", e))?
         })
         .await
-        .map_err(|e| format!("WASM 编译任务失败: {}", e))??;
+    }
 
-        let info = cached.info.clone();
-        let cached = Arc::new(cached);
+    async fn load_plugin_with<F>(&self, plugin_id: &str, load: F) -> Result<WasmPluginInfo, String>
+    where
+        F: Future<Output = Result<CachedModule, String>>,
+    {
+        validate_plugin_id(plugin_id)?;
+        let generation = {
+            let cache = self.cache.read().await;
+            if let Some(cached) = cache.modules.get(plugin_id) {
+                return Ok(cached.info.clone());
+            }
+            cache.generation(plugin_id)
+        };
 
-        self.modules
-            .write()
-            .await
-            .insert(plugin_id.to_string(), cached);
-
+        // Slow I/O and compilation intentionally happen outside the cache lock.
+        let compiled = Arc::new(load.await?);
+        let mut cache = self.cache.write().await;
+        if cache.generation(plugin_id) != generation {
+            return Err(format!(
+                "WASM 插件 '{}' 在加载期间已卸载或升级，请重试",
+                plugin_id
+            ));
+        }
+        if let Some(existing) = cache.modules.get(plugin_id) {
+            return Ok(existing.info.clone());
+        }
+        let info = compiled.info.clone();
+        cache.modules.insert(plugin_id.to_string(), compiled);
         Ok(info)
     }
 
-    /// Unload a cached WASM module.
-    pub async fn unload_plugin(&self, plugin_id: &str) {
-        self.modules.write().await.remove(plugin_id);
+    /// Mark the beginning of an install/upgrade/uninstall transaction.
+    /// Existing cached code remains usable until the transaction succeeds, but
+    /// loads that started before this boundary can no longer commit.
+    pub async fn invalidate_inflight_loads(&self, plugin_id: &str) -> Result<(), String> {
+        validate_plugin_id(plugin_id)?;
+        self.cache.write().await.advance_generation(plugin_id);
+        Ok(())
+    }
+
+    /// Unload a cached WASM module and invalidate every load that has not yet
+    /// committed. This is also the successful transaction boundary.
+    pub async fn unload_plugin(&self, plugin_id: &str) -> Result<(), String> {
+        validate_plugin_id(plugin_id)?;
+        self.commit_plugin_version(plugin_id).await;
+        Ok(())
+    }
+
+    /// Commit hook used while PluginManager holds this plugin's version write
+    /// lock. The caller has already validated the ID, so this cannot fail after
+    /// the directory/registry transaction has committed.
+    pub(crate) async fn commit_plugin_version(&self, plugin_id: &str) {
+        let mut cache = self.cache.write().await;
+        cache.advance_generation(plugin_id);
+        cache.modules.remove(plugin_id);
     }
 
     /// Execute the `parse` function of a loaded WASM plugin.
     pub async fn parse_data(&self, plugin_id: &str, raw_data: &str) -> Result<ParseResult, String> {
         let cached = {
-            let map = self.modules.read().await;
-            map.get(plugin_id)
+            let cache = self.cache.read().await;
+            cache
+                .modules
+                .get(plugin_id)
                 .ok_or_else(|| format!("WASM 插件 '{}' 未加载，请先调用 load_plugin", plugin_id))?
                 .clone()
         };
@@ -130,8 +187,10 @@ impl WasmPluginRuntime {
         base64_data: &str,
     ) -> Result<crate::plugin_runtime::RenderResult, String> {
         let cached = {
-            let map = self.modules.read().await;
-            map.get(plugin_id)
+            let cache = self.cache.read().await;
+            cache
+                .modules
+                .get(plugin_id)
                 .ok_or_else(|| format!("WASM 插件 '{}' 未加载，请先调用 load_plugin", plugin_id))?
                 .clone()
         };
@@ -159,8 +218,10 @@ impl WasmPluginRuntime {
         params_json: &str,
     ) -> Result<crate::plugin_runtime::CryptoResult, String> {
         let cached = {
-            let map = self.modules.read().await;
-            map.get(plugin_id)
+            let cache = self.cache.read().await;
+            cache
+                .modules
+                .get(plugin_id)
                 .ok_or_else(|| format!("WASM 插件 '{}' 未加载，请先调用 load_plugin", plugin_id))?
                 .clone()
         };
@@ -186,12 +247,13 @@ impl WasmPluginRuntime {
 
     /// List all loaded WASM plugins.
     pub async fn list_loaded(&self) -> Vec<WasmPluginInfo> {
-        let map = self.modules.read().await;
-        map.values().map(|c| c.info.clone()).collect()
+        let cache = self.cache.read().await;
+        cache.modules.values().map(|c| c.info.clone()).collect()
     }
 
     /// Scan plugins directory for .wasm files and try to load them.
-    pub async fn scan_and_load(&self) -> Vec<String> {
+    #[cfg(test)]
+    async fn scan_and_load(&self) -> Vec<String> {
         let mut loaded = Vec::new();
 
         let dir = &self.plugins_dir;
@@ -232,25 +294,48 @@ impl WasmPluginRuntime {
         loaded
     }
 
-    /// Find the .wasm file for a plugin (looks for *.wasm in plugin dir)
+    /// Resolve the exact WASM entrypoint declared by this plugin's manifest.
+    /// Auxiliary `.wasm` files in JavaScript plugins and directory iteration
+    /// order must never decide which code is compiled.
     async fn find_wasm_file(&self, plugin_id: &str) -> Result<PathBuf, String> {
+        validate_plugin_id(plugin_id)?;
         let plugin_dir = self.plugins_dir.join(plugin_id);
-        if !plugin_dir.exists() {
-            return Err(format!("插件目录不存在: {}", plugin_dir.display()));
-        }
-
-        let mut entries = tokio::fs::read_dir(&plugin_dir)
+        let plugin_dir_metadata = tokio::fs::symlink_metadata(&plugin_dir)
             .await
-            .map_err(|e| format!("读取插件目录失败: {}", e))?;
-
-        while let Some(entry) = entries.next_entry().await.map_err(|e| e.to_string())? {
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("wasm") {
-                return Ok(path);
-            }
+            .map_err(|e| format!("读取插件目录元数据失败: {}", e))?;
+        if plugin_dir_metadata.file_type().is_symlink() || !plugin_dir_metadata.is_dir() {
+            return Err(format!("插件 '{}' 的目录不是普通目录", plugin_id));
         }
 
-        Err(format!("插件 '{}' 目录中没有 .wasm 文件", plugin_id))
+        let manifest_content = tokio::fs::read_to_string(plugin_dir.join("manifest.json"))
+            .await
+            .map_err(|e| format!("读取插件 manifest 失败: {}", e))?;
+        let manifest_content = manifest_content
+            .strip_prefix('\u{feff}')
+            .unwrap_or(&manifest_content);
+        let manifest: PluginManifest = serde_json::from_str(manifest_content)
+            .map_err(|e| format!("解析插件 manifest 失败: {}", e))?;
+        if manifest.id != plugin_id {
+            return Err(format!(
+                "插件目录 '{}' 的 manifest ID 为 '{}'",
+                plugin_id, manifest.id
+            ));
+        }
+        if Path::new(&manifest.entrypoint)
+            .extension()
+            .and_then(|extension| extension.to_str())
+            != Some("wasm")
+        {
+            return Err(format!(
+                "插件 '{}' 的 manifest entrypoint '{}' 不是 WASM",
+                plugin_id, manifest.entrypoint
+            ));
+        }
+
+        validate_plugin_entrypoint(&plugin_dir, &manifest.entrypoint).await?;
+        tokio::fs::canonicalize(plugin_dir.join(&manifest.entrypoint))
+            .await
+            .map_err(|e| format!("规范化 WASM entrypoint 失败: {}", e))
     }
 }
 
@@ -266,7 +351,15 @@ fn compile_and_query_info(wasm_bytes: &[u8], fallback_id: &str) -> Result<Cached
 
     // Try to get plugin info by calling plugin_info()
     let info = match call_plugin_info(&engine, &module) {
-        Ok(info) => info,
+        Ok(info) => {
+            if info.id != fallback_id {
+                return Err(format!(
+                    "WASM plugin_info ID '{}' 与 manifest ID '{}' 不一致",
+                    info.id, fallback_id
+                ));
+            }
+            info
+        }
         Err(_) => {
             // Fallback: create basic info from plugin_id
             WasmPluginInfo {
@@ -541,4 +634,279 @@ fn read_guest_string(store: &Store<()>, memory: &Memory, ptr: u32) -> Result<Str
 
     String::from_utf8(data[ptr + 4..ptr + 4 + len].to_vec())
         .map_err(|e| format!("UTF-8 解码失败: {}", e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::sync::Notify;
+
+    fn test_module(plugin_id: &str) -> CachedModule {
+        compile_and_query_info(b"(module)", plugin_id).unwrap()
+    }
+
+    fn wasm_test_root(test_name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "protoforge-wasm-{}-{}",
+            test_name,
+            uuid::Uuid::new_v4()
+        ))
+    }
+
+    async fn write_test_manifest(plugin_dir: &Path, plugin_id: &str, entrypoint: &str) {
+        let manifest = serde_json::json!({
+            "id": plugin_id,
+            "name": plugin_id,
+            "version": "1.0.0",
+            "description": "test plugin",
+            "author": "test",
+            "type": "protocol-parser",
+            "icon": "test",
+            "entrypoint": entrypoint
+        });
+        tokio::fs::write(
+            plugin_dir.join("manifest.json"),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn manifest_selects_exact_wasm_entrypoint() {
+        let root = wasm_test_root("exact-entrypoint");
+        let plugin_dir = root.join("plugins").join("demo-plugin");
+        tokio::fs::create_dir_all(&plugin_dir).await.unwrap();
+        write_test_manifest(&plugin_dir, "demo-plugin", "chosen.wasm").await;
+        tokio::fs::write(plugin_dir.join("first.wasm"), b"wrong")
+            .await
+            .unwrap();
+        tokio::fs::write(plugin_dir.join("chosen.wasm"), b"right")
+            .await
+            .unwrap();
+
+        let runtime = WasmPluginRuntime::new(&root);
+        let resolved = runtime.find_wasm_file("demo-plugin").await.unwrap();
+        assert_eq!(
+            resolved,
+            plugin_dir.join("chosen.wasm").canonicalize().unwrap()
+        );
+
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn javascript_manifest_with_auxiliary_wasm_is_not_a_wasm_plugin() {
+        let root = wasm_test_root("js-auxiliary-wasm");
+        let plugin_dir = root.join("plugins").join("demo-plugin");
+        tokio::fs::create_dir_all(&plugin_dir).await.unwrap();
+        write_test_manifest(&plugin_dir, "demo-plugin", "index.js").await;
+        tokio::fs::write(plugin_dir.join("index.js"), "function parse() {}")
+            .await
+            .unwrap();
+        tokio::fs::write(plugin_dir.join("helper.wasm"), b"helper")
+            .await
+            .unwrap();
+
+        let runtime = WasmPluginRuntime::new(&root);
+        let error = runtime.find_wasm_file("demo-plugin").await.unwrap_err();
+        assert!(error.contains("不是 WASM"));
+        assert!(runtime.scan_and_load().await.is_empty());
+
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn wasm_manifest_id_must_match_directory() {
+        let root = wasm_test_root("manifest-id-mismatch");
+        let plugin_dir = root.join("plugins").join("demo-plugin");
+        tokio::fs::create_dir_all(&plugin_dir).await.unwrap();
+        write_test_manifest(&plugin_dir, "another-plugin", "index.wasm").await;
+        tokio::fs::write(plugin_dir.join("index.wasm"), b"module")
+            .await
+            .unwrap();
+
+        let runtime = WasmPluginRuntime::new(&root);
+        let error = runtime.find_wasm_file("demo-plugin").await.unwrap_err();
+        assert!(error.contains("manifest ID"));
+
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[test]
+    fn wasm_plugin_info_id_must_match_manifest_id() {
+        let json = serde_json::json!({
+            "id": "another-plugin",
+            "name": "Another",
+            "version": "1.0.0",
+            "description": "test",
+            "author": "test"
+        })
+        .to_string();
+        let mut guest_string = (json.len() as u32).to_le_bytes().to_vec();
+        guest_string.extend_from_slice(json.as_bytes());
+        let wat_data = guest_string
+            .iter()
+            .map(|byte| format!("\\{:02x}", byte))
+            .collect::<String>();
+        let wat = format!(
+            "(module (memory (export \"memory\") 1) \
+             (data (i32.const 0) \"{}\") \
+             (func (export \"plugin_info\") (result i32) i32.const 0))",
+            wat_data
+        );
+
+        let error = compile_and_query_info(wat.as_bytes(), "demo-plugin")
+            .err()
+            .expect("mismatched plugin_info ID must fail");
+        assert!(error.contains("another-plugin"));
+        assert!(error.contains("demo-plugin"));
+    }
+
+    #[tokio::test]
+    async fn unload_plugin_removes_compiled_module_from_cache() {
+        let runtime = WasmPluginRuntime::new(&std::env::temp_dir());
+        let cached = test_module("demo-plugin");
+        runtime
+            .cache
+            .write()
+            .await
+            .modules
+            .insert("demo-plugin".to_string(), Arc::new(cached));
+
+        assert!(
+            runtime
+                .cache
+                .read()
+                .await
+                .modules
+                .contains_key("demo-plugin")
+        );
+        runtime.unload_plugin("demo-plugin").await.unwrap();
+        assert!(
+            !runtime
+                .cache
+                .read()
+                .await
+                .modules
+                .contains_key("demo-plugin")
+        );
+    }
+
+    #[tokio::test]
+    async fn slow_load_cannot_reinsert_after_unload() {
+        let runtime = Arc::new(WasmPluginRuntime::new(&std::env::temp_dir()));
+        let entered = Arc::new(Notify::new());
+        let release = Arc::new(Notify::new());
+        let load_task = {
+            let runtime = Arc::clone(&runtime);
+            let entered = Arc::clone(&entered);
+            let release = Arc::clone(&release);
+            tokio::spawn(async move {
+                runtime
+                    .load_plugin_with("demo-plugin", async move {
+                        entered.notify_one();
+                        release.notified().await;
+                        Ok(test_module("demo-plugin"))
+                    })
+                    .await
+            })
+        };
+
+        entered.notified().await;
+        runtime.unload_plugin("demo-plugin").await.unwrap();
+        release.notify_one();
+
+        let error = load_task.await.unwrap().unwrap_err();
+        assert!(error.contains("已卸载或升级"));
+        assert!(runtime.list_loaded().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn upgrade_boundaries_reject_loads_before_and_during_switch() {
+        let runtime = Arc::new(WasmPluginRuntime::new(&std::env::temp_dir()));
+
+        let before_entered = Arc::new(Notify::new());
+        let before_release = Arc::new(Notify::new());
+        let before_task = {
+            let runtime = Arc::clone(&runtime);
+            let entered = Arc::clone(&before_entered);
+            let release = Arc::clone(&before_release);
+            tokio::spawn(async move {
+                runtime
+                    .load_plugin_with("demo-plugin", async move {
+                        entered.notify_one();
+                        release.notified().await;
+                        Ok(test_module("demo-plugin"))
+                    })
+                    .await
+            })
+        };
+        before_entered.notified().await;
+
+        // Transaction start invalidates loads that began against the previous
+        // directory while retaining any already-cached old module for rollback.
+        runtime
+            .invalidate_inflight_loads("demo-plugin")
+            .await
+            .unwrap();
+
+        let during_entered = Arc::new(Notify::new());
+        let during_release = Arc::new(Notify::new());
+        let during_task = {
+            let runtime = Arc::clone(&runtime);
+            let entered = Arc::clone(&during_entered);
+            let release = Arc::clone(&during_release);
+            tokio::spawn(async move {
+                runtime
+                    .load_plugin_with("demo-plugin", async move {
+                        entered.notify_one();
+                        release.notified().await;
+                        Ok(test_module("demo-plugin"))
+                    })
+                    .await
+            })
+        };
+        during_entered.notified().await;
+
+        // A successful atomic switch removes the old cache and invalidates
+        // loads that started anywhere inside the transaction window.
+        runtime.unload_plugin("demo-plugin").await.unwrap();
+        before_release.notify_one();
+        during_release.notify_one();
+
+        assert!(before_task.await.unwrap().is_err());
+        assert!(during_task.await.unwrap().is_err());
+        assert!(runtime.list_loaded().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn failed_upgrade_boundary_keeps_cached_old_module() {
+        let runtime = WasmPluginRuntime::new(&std::env::temp_dir());
+        runtime.cache.write().await.modules.insert(
+            "demo-plugin".to_string(),
+            Arc::new(test_module("demo-plugin")),
+        );
+
+        runtime
+            .invalidate_inflight_loads("demo-plugin")
+            .await
+            .unwrap();
+
+        assert_eq!(runtime.list_loaded().await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn invalid_plugin_ids_do_not_create_generation_entries() {
+        let runtime = WasmPluginRuntime::new(&std::env::temp_dir());
+
+        assert!(runtime.unload_plugin("../invalid").await.is_err());
+        assert!(
+            runtime
+                .invalidate_inflight_loads(".uninstall-invalid")
+                .await
+                .is_err()
+        );
+        assert!(runtime.cache.read().await.generations.is_empty());
+    }
 }

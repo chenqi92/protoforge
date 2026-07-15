@@ -41,10 +41,12 @@ export interface GrpcCallResult {
 
 export interface GrpcStreamEvent {
   connectionId: string;
+  generation: number;
   eventType: 'data' | 'completed' | 'error';
   data?: string;
   statusCode?: number;
   statusMessage?: string;
+  droppedCount: number;
   timestamp: string;
 }
 

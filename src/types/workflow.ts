@@ -50,7 +50,6 @@ export type NodeType =
   | 'urlEncode'
   | 'urlDecode'
   | 'hash'
-  // Phase 1 新增 — 流程控制 & 辅助
   | 'condition'
   | 'loop'
   | 'parallel'
@@ -66,7 +65,7 @@ export interface FlowEdge {
   id: string;
   sourceNodeId: string;
   targetNodeId: string;
-  /** 可选条件表达式 */
+  /** 可选条件表达式；条件节点的 true/false 字面量可表示期望分支 */
   condition?: string;
   /** 边上显示的文字标签（如 "成功" / "失败"） */
   label?: string;
@@ -109,6 +108,7 @@ export type ExecutionStatus =
   | 'pending'
   | 'running'
   | 'completed'
+  | 'skipped'
   | 'failed'
   | 'cancelled';
 
@@ -272,17 +272,17 @@ export interface HashNodeConfig {
 
 /** 条件判断节点配置 */
 export interface ConditionNodeConfig {
-  /** 条件表达式，如 {{prev.status}} == 200 */
+  /** 条件表达式，支持 true/false 及 == != > >= < <= */
   expression: string;
 }
 
-/** 循环节点配置 */
+/** @deprecated 当前工作流模型没有子图边界，仅用于读取旧工作流。 */
 export interface LoopNodeConfig {
   /** 循环次数 */
   iterations: number;
 }
 
-/** 并行节点配置 */
+/** @deprecated 当前工作流模型没有子图边界，仅用于读取旧工作流。 */
 export interface ParallelNodeConfig {
   /** 最大并行度 (0 = 无限制) */
   maxConcurrency: number;
@@ -401,7 +401,7 @@ export const NODE_CATEGORIES: NodeCategory[] = [
   { id: 'trigger',  labelKey: 'workflow.categories.trigger',  nodes: ['start', 'end'] },
   { id: 'network',  labelKey: 'workflow.categories.network',  nodes: ['httpRequest', 'wsSend', 'tcpSend', 'udpSend', 'mqttPublish'] },
   { id: 'integration', labelKey: 'workflow.categories.integration', nodes: ['dbQuery'] },
-  { id: 'flow',     labelKey: 'workflow.categories.flow',     nodes: ['condition', 'loop', 'parallel', 'delay'] },
+  { id: 'flow',     labelKey: 'workflow.categories.flow',     nodes: ['condition', 'delay'] },
   { id: 'data',     labelKey: 'workflow.categories.data',     nodes: ['extractData', 'jsonParse', 'jsonStringify', 'textTransform', 'setVariable', 'script'] },
   { id: 'codec',    labelKey: 'workflow.categories.codec',    nodes: ['base64Encode', 'base64Decode', 'urlEncode', 'urlDecode', 'hash'] },
   { id: 'utility',  labelKey: 'workflow.categories.utility',  nodes: ['timestamp', 'uuid'] },

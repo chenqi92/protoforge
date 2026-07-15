@@ -36,6 +36,18 @@ export interface SerialPortInfo {
   manufacturer?: string;
 }
 
+/** Authoritative backend state used when a workspace is remounted. */
+export interface SerialConnectionStatus {
+  open: boolean;
+  generation: string;
+  portName: string;
+  config: SerialPortConfig;
+  dtr: boolean;
+  rts: boolean;
+  signals: SerialSignals;
+  connectedSince: string;
+}
+
 // ── 串口事件（后端推送） ──
 
 export type SerialEventType = 'opened' | 'data' | 'closed' | 'error' | 'signals';
@@ -49,6 +61,7 @@ export interface SerialSignals {
 
 export interface SerialEvent {
   portId: string;
+  generation: string;
   eventType: SerialEventType;
   data?: string;
   rawHex?: string;
@@ -124,11 +137,70 @@ export interface ModbusEvent {
   timestamp: string;
 }
 
+export interface ModbusTcpStatus {
+  connected: boolean;
+  connId: string;
+  host: string;
+  port: number;
+  connectedSince: string;
+}
+
+export interface ModbusRtuStatus {
+  connected: boolean;
+  connId: string;
+  portName: string;
+  config: SerialPortConfig;
+  connectedSince: string;
+}
+
+export interface ModbusSlaveRegisterEntry {
+  address: number;
+  value: number;
+}
+
+export interface ModbusSlaveBitEntry {
+  address: number;
+  value: boolean;
+}
+
+export interface ModbusSlaveInitialBank {
+  holdingRegisters: ModbusSlaveRegisterEntry[];
+  coils: ModbusSlaveBitEntry[];
+  inputRegisters: ModbusSlaveRegisterEntry[];
+  discreteInputs: ModbusSlaveBitEntry[];
+}
+
+interface ModbusSlaveStatusBase extends ModbusSlaveInitialBank {
+  running: boolean;
+  connId: string;
+  generation: string;
+  unitId: number;
+  startedAt: string;
+}
+
+export type ModbusSlaveStatus = ModbusSlaveStatusBase & (
+  | {
+      transport: 'tcp';
+      host: string;
+      port: number;
+    }
+  | {
+      transport: 'rtu';
+      portName: string;
+      baudRate: BaudRate;
+      dataBits: DataBits;
+      stopBits: StopBits;
+      parity: Parity;
+      flowControl: FlowControl;
+    }
+);
+
 // ── Modbus 从站事件（后端推送） ──
 
 export interface ModbusSlaveEvent {
   connId: string;
   eventType: 'started' | 'stopped' | 'request' | 'write' | 'error';
+  generation?: string;
   clientAddr?: string;
   unitId?: number;
   functionCode?: number;

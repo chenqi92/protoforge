@@ -4,19 +4,24 @@
 use crate::collections::{
     self, Collection, CollectionItem, EnvVariable, Environment, GlobalVariable, HistoryEntry,
 };
-use crate::db_client::{self, ConnectionConfig, DbConnectionManager, SaveConnectionRequest, SavedConnection, QueryHistoryEntry};
 use crate::db_client::driver::*;
+use crate::db_client::{
+    self, ConnectionConfig, DbConnectionManager, QueryHistoryEntry, SaveConnectionRequest,
+    SavedConnection,
+};
+use crate::grpc_client::{self, GrpcConnections};
 use crate::http_client::{
     self, HttpRequest, HttpRequestWithScripts, HttpResponse, HttpResponseWithScripts,
 };
 use crate::load_test::{LoadTestConfig, LoadTestState};
+use crate::mock_server::{
+    self, MockRequestLog, MockRoute, MockServerConfig, MockServerState, MockServerStatusInfo,
+};
 use crate::mqtt_client::{self, MqttConnectRequest, MqttConnections};
 use crate::script_engine::{self, ScriptRequestContext, ScriptResponse, ScriptResult};
 use crate::sse_client::{self, SseConnectRequest, SseConnections};
 use crate::tcp_client::{TcpConnections, TcpServers, UdpSockets};
-use crate::mock_server::{self, MockRoute, MockRequestLog, MockServerConfig, MockServerState, MockServerStatusInfo};
 use crate::wasm_runtime::WasmPluginRuntime;
-use crate::grpc_client::{self, GrpcConnections};
 use crate::ws_client::WsConnections;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
@@ -141,9 +146,13 @@ pub struct OAuth2TokenRequest {
 #[serde(rename_all = "camelCase")]
 pub struct OAuth2TokenResponse {
     pub access_token: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub token_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_in: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
 }
 
@@ -309,7 +318,8 @@ pub async fn open_oauth_window(
     // PKCE: append code_challenge and code_challenge_method
     if let Some(challenge) = &req.code_challenge {
         if !challenge.is_empty() {
-            url.query_pairs_mut().append_pair("code_challenge", challenge);
+            url.query_pairs_mut()
+                .append_pair("code_challenge", challenge);
             url.query_pairs_mut().append_pair(
                 "code_challenge_method",
                 req.code_challenge_method.as_deref().unwrap_or("S256"),
@@ -327,8 +337,8 @@ pub async fn open_oauth_window(
             .collect::<String>()
     );
     // 结构化解析 redirect_uri，避免字节前缀匹配带来的误判
-    let redirect_url = url::Url::parse(&req.redirect_uri)
-        .map_err(|e| format!("redirect_uri 解析失败: {}", e))?;
+    let redirect_url =
+        url::Url::parse(&req.redirect_uri).map_err(|e| format!("redirect_uri 解析失败: {}", e))?;
 
     // 用 channel 传递结果
     let (tx, rx) = oneshot::channel::<Result<OAuthWindowResult, String>>();
@@ -358,8 +368,8 @@ pub async fn open_oauth_window(
                 (None, None) => true,
                 _ => false,
             };
-            let port_match = parsed_nav.port_or_known_default()
-                == redirect_url.port_or_known_default();
+            let port_match =
+                parsed_nav.port_or_known_default() == redirect_url.port_or_known_default();
             let path_match = parsed_nav.path() == redirect_url.path();
             let is_redirect = scheme_match && host_match && port_match && path_match;
 
@@ -755,7 +765,11 @@ pub async fn save_global_variables(
 // ═══════════════════════════════════════════
 
 #[tauri::command]
-pub async fn add_history(pool: State<'_, SqlitePool>, entry: HistoryEntry, max_count: Option<i64>) -> Result<(), String> {
+pub async fn add_history(
+    pool: State<'_, SqlitePool>,
+    entry: HistoryEntry,
+    max_count: Option<i64>,
+) -> Result<(), String> {
     collections::add_history(&pool, entry, max_count.unwrap_or(200)).await
 }
 
@@ -1157,8 +1171,21 @@ pub async fn proxy_start(
 }
 
 #[tauri::command]
-pub async fn proxy_stop(state: State<'_, ProxyState>, session_id: String) -> Result<(), String> {
-    proxy_capture::stop_proxy(&state, &session_id).await
+pub async fn proxy_stop(
+    app: tauri::AppHandle,
+    state: State<'_, ProxyState>,
+    session_id: String,
+) -> Result<(), String> {
+    proxy_capture::stop_proxy(&app, &state, &session_id).await
+}
+
+#[tauri::command]
+pub async fn proxy_destroy_session(
+    app: tauri::AppHandle,
+    state: State<'_, ProxyState>,
+    session_id: String,
+) -> Result<(), String> {
+    proxy_capture::destroy_session(&app, &state, &session_id).await
 }
 
 #[tauri::command]
@@ -1178,9 +1205,8 @@ pub async fn proxy_get_entries(
 }
 
 #[tauri::command]
-pub async fn proxy_clear(state: State<'_, ProxyState>, session_id: String) -> Result<(), String> {
-    proxy_capture::clear_entries(&state, &session_id).await;
-    Ok(())
+pub async fn proxy_clear(state: State<'_, ProxyState>, session_id: String) -> Result<u64, String> {
+    proxy_capture::clear_entries(&state, &session_id).await
 }
 
 #[tauri::command]
@@ -1324,8 +1350,7 @@ pub async fn proxy_set_breakpoints(
     session_id: String,
     patterns: Vec<BreakpointRule>,
 ) -> Result<(), String> {
-    proxy_capture::set_breakpoints(&state, &session_id, patterns).await;
-    Ok(())
+    proxy_capture::set_breakpoints(&state, &session_id, patterns).await
 }
 
 /// 获取当前断点规则
@@ -1349,12 +1374,13 @@ pub async fn proxy_list_paused(
 /// 放行一个被挂起的请求（modified 为空则按原样转发）
 #[tauri::command]
 pub async fn proxy_resume(
+    app: tauri::AppHandle,
     state: State<'_, ProxyState>,
     session_id: String,
     paused_id: String,
     modified: Option<ResumeModification>,
 ) -> Result<(), String> {
-    proxy_capture::resume(&state, &session_id, &paused_id, modified).await
+    proxy_capture::resume(&app, &state, &session_id, &paused_id, modified).await
 }
 
 // ═══════════════════════════════════════════
@@ -1368,6 +1394,7 @@ use crate::plugin_runtime::{
 
 #[tauri::command]
 pub async fn plugin_list(mgr: State<'_, PluginManager>) -> Result<Vec<PluginManifest>, String> {
+    mgr.scan_installed().await?;
     Ok(mgr.list_installed().await)
 }
 
@@ -1375,23 +1402,35 @@ pub async fn plugin_list(mgr: State<'_, PluginManager>) -> Result<Vec<PluginMani
 pub async fn plugin_list_available(
     mgr: State<'_, PluginManager>,
 ) -> Result<Vec<PluginManifest>, String> {
+    mgr.scan_installed().await?;
     Ok(mgr.list_available().await)
 }
 
 #[tauri::command]
 pub async fn plugin_install(
     mgr: State<'_, PluginManager>,
+    wasm_runtime: State<'_, WasmPluginRuntime>,
     plugin_id: String,
 ) -> Result<PluginManifest, String> {
-    mgr.install(&plugin_id).await
+    mgr.scan_installed().await?;
+    // Establish an epoch boundary before the directory transaction so a slow
+    // load that already read the old file cannot commit after a successful
+    // switch. Keep the compiled old cache until success so rollback remains
+    // immediately usable.
+    wasm_runtime.invalidate_inflight_loads(&plugin_id).await?;
+    mgr.install(&plugin_id, &wasm_runtime).await
 }
 
 #[tauri::command]
 pub async fn plugin_uninstall(
     mgr: State<'_, PluginManager>,
+    wasm_runtime: State<'_, WasmPluginRuntime>,
     plugin_id: String,
 ) -> Result<(), String> {
-    mgr.uninstall(&plugin_id).await
+    mgr.scan_installed().await?;
+    wasm_runtime.invalidate_inflight_loads(&plugin_id).await?;
+    mgr.uninstall_with_wasm_runtime(&plugin_id, &wasm_runtime)
+        .await
 }
 
 #[tauri::command]
@@ -1416,11 +1455,13 @@ pub async fn plugin_render_data(
 pub async fn plugin_get_protocol_parsers(
     mgr: State<'_, PluginManager>,
 ) -> Result<Vec<ProtocolParser>, String> {
+    mgr.scan_installed().await?;
     Ok(mgr.get_protocol_parsers().await)
 }
 
 #[tauri::command]
 pub async fn plugin_refresh_registry(mgr: State<'_, PluginManager>) -> Result<usize, String> {
+    mgr.scan_installed().await?;
     mgr.refresh_registry().await
 }
 
@@ -1429,7 +1470,7 @@ pub async fn plugin_get_icon(
     mgr: State<'_, PluginManager>,
     plugin_id: String,
 ) -> Result<Option<String>, String> {
-    Ok(mgr.get_plugin_icon(&plugin_id).await)
+    mgr.get_plugin_icon(&plugin_id).await
 }
 
 #[tauri::command]
@@ -1525,6 +1566,7 @@ pub async fn plugin_run_context_menu_action(
 pub async fn plugin_list_crypto_algorithms(
     mgr: State<'_, PluginManager>,
 ) -> Result<Vec<InstalledCryptoAlgorithm>, String> {
+    mgr.scan_installed().await?;
     Ok(mgr.list_crypto_algorithms().await)
 }
 
@@ -1965,37 +2007,40 @@ pub async fn mqtt_publish(
 
 #[tauri::command]
 pub async fn wasm_load_plugin(
+    mgr: State<'_, PluginManager>,
     runtime: State<'_, WasmPluginRuntime>,
     plugin_id: String,
 ) -> Result<serde_json::Value, String> {
-    let info = runtime.load_plugin(&plugin_id).await?;
+    let info = mgr.load_wasm_plugin(&runtime, &plugin_id).await?;
     serde_json::to_value(info).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn wasm_unload_plugin(
+    mgr: State<'_, PluginManager>,
     runtime: State<'_, WasmPluginRuntime>,
     plugin_id: String,
 ) -> Result<(), String> {
-    runtime.unload_plugin(&plugin_id).await;
-    Ok(())
+    mgr.unload_wasm_plugin(&runtime, &plugin_id).await
 }
 
 #[tauri::command]
 pub async fn wasm_parse_data(
+    mgr: State<'_, PluginManager>,
     runtime: State<'_, WasmPluginRuntime>,
     plugin_id: String,
     raw_data: String,
 ) -> Result<serde_json::Value, String> {
-    let result = runtime.parse_data(&plugin_id, &raw_data).await?;
+    let result = mgr.parse_wasm_data(&runtime, &plugin_id, &raw_data).await?;
     serde_json::to_value(result).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn wasm_list_loaded(
+    mgr: State<'_, PluginManager>,
     runtime: State<'_, WasmPluginRuntime>,
 ) -> Result<serde_json::Value, String> {
-    let list = runtime.list_loaded().await;
+    let list = mgr.list_loaded_wasm_plugins(&runtime).await?;
     serde_json::to_value(list).map_err(|e| e.to_string())
 }
 
@@ -2107,6 +2152,56 @@ use crate::video_streaming::{
     state::{StreamEvent, StreamInfo},
 };
 
+/// Retire every resource owned by a video session id. Callers must hold the
+/// per-session operation lock so a replacement cannot be installed halfway
+/// through cleanup.
+async fn retire_video_session_resources(
+    state: &VideoStreamState,
+    session_id: &str,
+    app: Option<&AppHandle>,
+) -> Option<u64> {
+    // Remove the outer generation first. HTTP-FLV workers check this map before
+    // every emit and again after acquiring the operation lock during teardown.
+    let retired_generation = if let Some(old) = state.sessions.lock().await.remove(session_id) {
+        let generation = old.generation;
+        if let Some(tx) = old.shutdown_tx {
+            let _ = tx.send(());
+        }
+        Some(generation)
+    } else {
+        None
+    };
+
+    // Both subsystems invalidate their own generation gates before returning,
+    // so an old worker cannot emit into a replacement with the same id.
+    crate::video_streaming::player::stop_player(session_id).await;
+    crate::video_streaming::media_gateway::stop_hls_session(session_id).await;
+
+    state.onvif_sessions.lock().await.remove(session_id);
+    if let Some(mut gb) = state.gb_sessions.lock().await.remove(session_id) {
+        if let Some(app) = app {
+            let _ = crate::video_streaming::gb28181::stop_play(&mut gb, session_id, app).await;
+        }
+        drop(gb.socket);
+    }
+    if let Some(rtmp) = state.rtmp_sessions.lock().await.remove(session_id)
+        && let Some(tx) = rtmp.shutdown_tx
+    {
+        let _ = tx.send(());
+    }
+    if let Some(srt) = state.srt_sessions.lock().await.remove(session_id)
+        && let Some(tx) = srt.shutdown_tx
+    {
+        let _ = tx.send(());
+    }
+    if let Some(webrtc) = state.webrtc_sessions.lock().await.remove(session_id)
+        && let Some(tx) = webrtc.shutdown_tx
+    {
+        let _ = tx.send(());
+    }
+    retired_generation
+}
+
 #[tauri::command]
 pub async fn vs_connect(
     session_id: String,
@@ -2114,19 +2209,37 @@ pub async fn vs_connect(
     config: String,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
-) -> Result<(), String> {
-    let mut sessions = state.sessions.lock().await;
+) -> Result<u64, String> {
+    let operation = state.session_operation(&session_id).await;
+    let _operation_guard = operation.lock().await;
+    let _ = retire_video_session_resources(&state, &session_id, Some(&app)).await;
 
-    // Remove existing session if any
-    if let Some(old) = sessions.remove(&session_id) {
-        if let Some(tx) = old.shutdown_tx {
-            let _ = tx.send(());
-        }
-    }
+    let generation = state.next_session_generation();
 
-    // For HTTP-FLV, start background stream parsing task
-    let shutdown_tx = if protocol == "http-flv" {
+    // Install the outer generation before starting HTTP-FLV so its first
+    // generation check cannot race ahead of registration.
+    let (shutdown_tx, shutdown_rx) = if protocol == "http-flv" {
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+        (Some(tx), Some(rx))
+    } else {
+        (None, None)
+    };
+    let session = crate::video_streaming::state::StreamSession {
+        generation,
+        session_id: session_id.clone(),
+        protocol: protocol.clone(),
+        config: config.clone(),
+        connected: true,
+        shutdown_tx,
+    };
+    state
+        .sessions
+        .lock()
+        .await
+        .insert(session_id.clone(), session);
+
+    // For HTTP-FLV, start background stream parsing task.
+    if let Some(rx) = shutdown_rx {
         let sid = session_id.clone();
         let cfg: serde_json::Value = serde_json::from_str(&config).unwrap_or_default();
         let url = cfg
@@ -2135,42 +2248,60 @@ pub async fn vs_connect(
             .unwrap_or("")
             .to_string();
         let app_clone = app.clone();
+        let task_sessions = state.sessions.clone();
+        let task_operation = operation.clone();
         tokio::spawn(async move {
-            if let Err(e) = crate::video_streaming::http_flv::start_flv_stream(
+            let result = crate::video_streaming::http_flv::start_flv_stream(
                 sid.clone(),
                 url,
                 app_clone.clone(),
                 rx,
+                generation,
+                task_sessions.clone(),
             )
-            .await
-            {
+            .await;
+            if let Err(e) = &result {
                 log::warn!("FLV stream error: {}", e);
+            }
+
+            let _operation_guard = task_operation.lock().await;
+            let is_current = task_sessions
+                .lock()
+                .await
+                .get(&sid)
+                .is_some_and(|session| session.generation == generation);
+            if !is_current {
+                return;
+            }
+            crate::video_streaming::player::stop_player(&sid).await;
+            crate::video_streaming::media_gateway::stop_hls_session(&sid).await;
+
+            let mut sessions = task_sessions.lock().await;
+            if sessions
+                .get(&sid)
+                .is_some_and(|session| session.generation == generation)
+            {
+                sessions.remove(&sid);
+                let (event_type, data) = match result {
+                    Ok(()) => ("disconnected".to_string(), None),
+                    Err(error) => ("error".to_string(), Some(error)),
+                };
                 let event = StreamEvent {
-                    session_id: sid,
-                    event_type: "error".to_string(),
-                    data: Some(e),
+                    session_id: sid.clone(),
+                    generation: Some(generation),
+                    event_type,
+                    data,
                     timestamp: chrono::Utc::now().to_rfc3339(),
                 };
                 let _ = app_clone.emit("videostream-event", &event);
             }
         });
-        Some(tx)
-    } else {
-        None
-    };
-
-    let session = crate::video_streaming::state::StreamSession {
-        session_id: session_id.clone(),
-        protocol: protocol.clone(),
-        config: config.clone(),
-        connected: true,
-        shutdown_tx,
-    };
-    sessions.insert(session_id.clone(), session);
+    }
 
     // Emit connected event
     let event = StreamEvent {
         session_id: session_id.clone(),
+        generation: Some(generation),
         event_type: "connected".to_string(),
         data: Some(format!("{} stream ready", protocol.to_uppercase())),
         timestamp: chrono::Utc::now().to_rfc3339(),
@@ -2182,56 +2313,41 @@ pub async fn vs_connect(
         session_id,
         protocol
     );
-    Ok(())
+    Ok(generation)
 }
 
 #[tauri::command]
 pub async fn vs_disconnect(
     session_id: String,
+    expected_generation: Option<u64>,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    crate::video_streaming::player::stop_player(&session_id).await;
-    crate::video_streaming::media_gateway::stop_hls_session(&session_id).await;
+    let operation = state.session_operation(&session_id).await;
+    let _operation_guard = operation.lock().await;
+    if let Some(expected_generation) = expected_generation {
+        let is_current = state
+            .sessions
+            .lock()
+            .await
+            .get(&session_id)
+            .is_some_and(|session| session.generation == expected_generation);
+        if !is_current {
+            return Ok(());
+        }
+    }
+    let retired_generation = retire_video_session_resources(&state, &session_id, Some(&app)).await;
 
-    // Clean up generic session
-    let mut sessions = state.sessions.lock().await;
-    if let Some(old) = sessions.remove(&session_id) {
-        if let Some(tx) = old.shutdown_tx {
-            let _ = tx.send(());
-        }
+    if !state.sessions.lock().await.contains_key(&session_id) {
+        let event = StreamEvent {
+            session_id: session_id.clone(),
+            generation: retired_generation,
+            event_type: "disconnected".to_string(),
+            data: None,
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        };
+        let _ = app.emit("videostream-event", &event);
     }
-    drop(sessions);
-
-    // Clean up protocol-specific sessions
-    state.onvif_sessions.lock().await.remove(&session_id);
-    if let Some(mut gb) = state.gb_sessions.lock().await.remove(&session_id) {
-        let _ = crate::video_streaming::gb28181::stop_play(&mut gb, &session_id, &app).await;
-        drop(gb.socket); // Close UDP socket
-    }
-    if let Some(rtmp) = state.rtmp_sessions.lock().await.remove(&session_id) {
-        if let Some(tx) = rtmp.shutdown_tx {
-            let _ = tx.send(());
-        }
-    }
-    if let Some(srt) = state.srt_sessions.lock().await.remove(&session_id) {
-        if let Some(tx) = srt.shutdown_tx {
-            let _ = tx.send(());
-        }
-    }
-    if let Some(webrtc) = state.webrtc_sessions.lock().await.remove(&session_id) {
-        if let Some(tx) = webrtc.shutdown_tx {
-            let _ = tx.send(());
-        }
-    }
-
-    let event = StreamEvent {
-        session_id: session_id.clone(),
-        event_type: "disconnected".to_string(),
-        data: None,
-        timestamp: chrono::Utc::now().to_rfc3339(),
-    };
-    let _ = app.emit("videostream-event", &event);
 
     log::info!("Video stream disconnected: {}", session_id);
     Ok(())
@@ -2246,7 +2362,7 @@ pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String>
     if lower.starts_with("rtsp://") {
         // RTSP probe: send DESCRIBE and parse SDP
         let resp = crate::video_streaming::rtsp::send_rtsp_request(
-            "probe", &url, "DESCRIBE", None, "tcp", "", &app,
+            "probe", None, &url, "DESCRIBE", None, "tcp", "", &app,
         )
         .await?;
 
@@ -2404,11 +2520,25 @@ pub async fn vs_probe(url: String, app: AppHandle) -> Result<StreamInfo, String>
 #[tauri::command]
 pub async fn vs_player_load(
     session_id: String,
+    expected_generation: u64,
     protocol: String,
     url: String,
     config: Option<String>,
+    state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<String, String> {
+    let operation = state.session_operation(&session_id).await;
+    let _operation_guard = operation.lock().await;
+    let is_current = state
+        .sessions
+        .lock()
+        .await
+        .get(&session_id)
+        .is_some_and(|session| session.generation == expected_generation);
+    if !is_current {
+        return Err("视频流播放请求已失效".to_string());
+    }
+
     log::info!(
         "Player load: session={} protocol={} url={}",
         session_id,
@@ -2427,6 +2557,7 @@ pub async fn vs_player_load(
             crate::video_streaming::player::stop_player(&session_id).await;
             crate::video_streaming::media_gateway::start_hls_session(
                 session_id.clone(),
+                expected_generation,
                 protocol,
                 url,
                 config,
@@ -2438,6 +2569,7 @@ pub async fn vs_player_load(
             crate::video_streaming::media_gateway::stop_hls_session(&session_id).await;
             crate::video_streaming::player::start_player(
                 session_id.clone(),
+                expected_generation,
                 protocol,
                 url.clone(),
                 config,
@@ -2467,14 +2599,22 @@ pub async fn vs_ffmpeg_download(app: AppHandle) -> Result<String, String> {
 pub async fn vs_player_control(
     session_id: String,
     action: String,
+    state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
     log::info!("Player control: session={} action={}", session_id, action);
     if action == "stop" {
+        let generation = state
+            .sessions
+            .lock()
+            .await
+            .get(&session_id)
+            .map(|session| session.generation);
         crate::video_streaming::player::stop_player(&session_id).await;
         crate::video_streaming::media_gateway::stop_hls_session(&session_id).await;
         let event = crate::video_streaming::state::StreamEvent {
             session_id,
+            generation,
             event_type: "disconnected".to_string(),
             data: None,
             timestamp: chrono::Utc::now().to_rfc3339(),
@@ -2499,12 +2639,24 @@ fn hex_encode(bytes: &[u8]) -> String {
     s
 }
 
-/// 计算 MD5 摘要并返回小写十六进制字符串
-fn md5_hex(input: &str) -> String {
+/// 计算 MD5 摘要并返回小写十六进制字符串。
+fn md5_hex_bytes(input: &[u8]) -> String {
     use md5::{Digest, Md5};
     let mut hasher = Md5::new();
-    hasher.update(input.as_bytes());
+    hasher.update(input);
     hex_encode(&hasher.finalize())
+}
+
+fn md5_hex(input: &str) -> String {
+    md5_hex_bytes(input.as_bytes())
+}
+
+/// 转义 Digest 头中的 quoted-string，并拒绝可造成请求头注入的控制字符。
+fn digest_quoted_value(field: &str, value: &str) -> Result<String, String> {
+    if value.chars().any(|c| c.is_control()) {
+        return Err(format!("Digest {} 包含非法控制字符", field));
+    }
+    Ok(value.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
 /// 解析 RTSP/HTTP 的 `WWW-Authenticate: Digest ...` 头，返回参数键值对（键转小写）。
@@ -2516,19 +2668,20 @@ fn parse_www_authenticate(raw_response: &str) -> Option<HashMap<String, String>>
     if !is_401 {
         return None;
     }
-    // 逐行查找 WWW-Authenticate: Digest ...
-    let challenge_line = raw_response.lines().find(|line| {
-        let lower = line.to_ascii_lowercase();
-        lower.starts_with("www-authenticate:") && lower.contains("digest")
+    // 逐行查找以 Digest 为认证方案的 WWW-Authenticate，避免把参数值里
+    // 偶然出现的 "digest" 当作认证方案。
+    let params_part = raw_response.lines().find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        if !name.trim().eq_ignore_ascii_case("www-authenticate") {
+            return None;
+        }
+        let value = value.trim();
+        let scheme_end = value.find(char::is_whitespace).unwrap_or(value.len());
+        if !value[..scheme_end].eq_ignore_ascii_case("digest") {
+            return None;
+        }
+        Some(value[scheme_end..].trim())
     })?;
-
-    // 取 "Digest" 关键字之后的部分
-    let after_colon = challenge_line.splitn(2, ':').nth(1)?.trim();
-    let params_part = after_colon
-        .strip_prefix("Digest")
-        .or_else(|| after_colon.strip_prefix("digest"))
-        .unwrap_or(after_colon)
-        .trim();
 
     let mut map = HashMap::new();
     // 引号感知的分词：仅在双引号外的逗号处切分键值对，
@@ -2541,9 +2694,15 @@ fn parse_www_authenticate(raw_response: &str) -> Option<HashMap<String, String>>
         // 仅在双引号外的第一个 '=' 处切分 key/value。
         let eq_pos = {
             let mut in_quotes = false;
+            let mut escaped = false;
             let mut found = None;
             for (i, c) in pair.char_indices() {
+                if in_quotes && escaped {
+                    escaped = false;
+                    continue;
+                }
                 match c {
+                    '\\' if in_quotes => escaped = true,
                     '"' => in_quotes = !in_quotes,
                     '=' if !in_quotes => {
                         found = Some(i);
@@ -2556,16 +2715,14 @@ fn parse_www_authenticate(raw_response: &str) -> Option<HashMap<String, String>>
         };
         let Some(eq) = eq_pos else { continue };
         let key = pair[..eq].trim().to_ascii_lowercase();
-        let value = pair[eq + 1..].trim().trim_matches('"').to_string();
+        let Some(value) = parse_digest_parameter_value(&pair[eq + 1..]) else {
+            continue;
+        };
         if !key.is_empty() {
             map.insert(key, value);
         }
     }
-    if map.is_empty() {
-        None
-    } else {
-        Some(map)
-    }
+    if map.is_empty() { None } else { Some(map) }
 }
 
 /// 按分隔符切分字符串，但忽略位于双引号内部的分隔符。
@@ -2573,8 +2730,18 @@ fn split_outside_quotes(input: &str, sep: char) -> Vec<String> {
     let mut parts = Vec::new();
     let mut current = String::new();
     let mut in_quotes = false;
+    let mut escaped = false;
     for c in input.chars() {
+        if in_quotes && escaped {
+            current.push(c);
+            escaped = false;
+            continue;
+        }
         match c {
+            '\\' if in_quotes => {
+                escaped = true;
+                current.push(c);
+            }
             '"' => {
                 in_quotes = !in_quotes;
                 current.push(c);
@@ -2589,6 +2756,41 @@ fn split_outside_quotes(input: &str, sep: char) -> Vec<String> {
     parts
 }
 
+/// Decode an RFC quoted-string parameter, including quoted-pair escapes.
+fn parse_digest_parameter_value(raw: &str) -> Option<String> {
+    let raw = raw.trim();
+    if !raw.starts_with('"') {
+        return Some(raw.to_string());
+    }
+
+    let mut value = String::new();
+    let mut escaped = false;
+    let mut closing_quote = None;
+    for (offset, c) in raw[1..].char_indices() {
+        if escaped {
+            value.push(c);
+            escaped = false;
+            continue;
+        }
+        match c {
+            '\\' => escaped = true,
+            '"' => {
+                closing_quote = Some(offset + 1);
+                break;
+            }
+            _ => value.push(c),
+        }
+    }
+    if escaped {
+        return None;
+    }
+    let closing_quote = closing_quote?;
+    if !raw[closing_quote + 1..].trim().is_empty() {
+        return None;
+    }
+    Some(value)
+}
+
 /// 根据 RFC 2617 Digest 挑战参数构建 `Authorization: Digest ...\r\n` 头。
 /// uri 必须与 send_rtsp_request 放到请求行上的完整 rtsp:// URL 一致。
 fn build_rtsp_digest_header(
@@ -2596,6 +2798,7 @@ fn build_rtsp_digest_header(
     uri: &str,
     username: &str,
     password: &str,
+    entity_body: &[u8],
     challenge: &HashMap<String, String>,
 ) -> Result<String, String> {
     let realm = challenge.get("realm").map(|s| s.as_str()).unwrap_or("");
@@ -2606,15 +2809,21 @@ fn build_rtsp_digest_header(
         .map(|s| s.as_str())
         .unwrap_or("MD5");
     let algorithm_lower = algorithm.to_ascii_lowercase();
+    if nonce.is_empty() {
+        return Err("Digest challenge 缺少 nonce".to_string());
+    }
 
     // 校验算法：仅支持 MD5 / MD5-sess（含 -sess 变体）。
     let use_sess = algorithm_lower.ends_with("-sess");
     let base_algo = algorithm_lower.trim_end_matches("-sess");
     if base_algo != "md5" {
-        return Err(format!("不支持的 Digest 算法: {}（仅支持 MD5 / MD5-sess）", algorithm));
+        return Err(format!(
+            "不支持的 Digest 算法: {}（仅支持 MD5 / MD5-sess）",
+            algorithm
+        ));
     }
 
-    // 解析服务器提供的 qop 令牌列表：含 "auth" 则用 auth；仅提供 auth-int 时报错。
+    // 解析服务器提供的 qop 令牌列表；优先使用 auth，并支持 auth-int 实体完整性校验。
     let qop_use = match challenge.get("qop") {
         Some(qop_val) => {
             let tokens: Vec<&str> = qop_val
@@ -2627,10 +2836,9 @@ fn build_rtsp_digest_header(
             if has_auth {
                 Some("auth")
             } else if has_auth_int {
-                return Err("Digest qop=auth-int 暂不支持".to_string());
+                Some("auth-int")
             } else {
-                // 提供了 qop 但无可识别令牌：回退到无 qop 计算路径
-                None
+                return Err(format!("不支持的 Digest qop: {}", qop_val));
             }
         }
         None => None,
@@ -2649,13 +2857,12 @@ fn build_rtsp_digest_header(
     } else {
         ha1_base
     };
-    let ha2 = md5_hex(&format!("{}:{}", method_upper, uri));
-
-    let mut header = String::from("Authorization: Digest ");
-    header.push_str(&format!("username=\"{}\"", username));
-    header.push_str(&format!(", realm=\"{}\"", realm));
-    header.push_str(&format!(", nonce=\"{}\"", nonce));
-    header.push_str(&format!(", uri=\"{}\"", uri));
+    let ha2 = if qop_use == Some("auth-int") {
+        let entity_hash = md5_hex_bytes(entity_body);
+        md5_hex(&format!("{}:{}:{}", method_upper, uri, entity_hash))
+    } else {
+        md5_hex(&format!("{}:{}", method_upper, uri))
+    };
 
     let response = if let Some(qop) = qop_use {
         // qop 存在：response = MD5(HA1:nonce:nc:cnonce:qop:HA2)
@@ -2667,13 +2874,30 @@ fn build_rtsp_digest_header(
         md5_hex(&format!("{}:{}:{}", ha1, nonce, ha2))
     };
 
+    let username = digest_quoted_value("username", username)?;
+    let realm = digest_quoted_value("realm", realm)?;
+    let nonce = digest_quoted_value("nonce", nonce)?;
+    let uri = digest_quoted_value("uri", uri)?;
+
+    let mut header = String::from("Authorization: Digest ");
+    header.push_str(&format!("username=\"{}\"", username));
+    header.push_str(&format!(", realm=\"{}\"", realm));
+    header.push_str(&format!(", nonce=\"{}\"", nonce));
+    header.push_str(&format!(", uri=\"{}\"", uri));
+
     header.push_str(&format!(", response=\"{}\"", response));
     header.push_str(&format!(", algorithm={}", algorithm));
     if let Some(opaque_val) = opaque {
-        header.push_str(&format!(", opaque=\"{}\"", opaque_val));
+        header.push_str(&format!(
+            ", opaque=\"{}\"",
+            digest_quoted_value("opaque", opaque_val)?
+        ));
     }
     if let Some(qop) = qop_use {
         header.push_str(&format!(", qop={}, nc={}, cnonce=\"{}\"", qop, nc, cnonce));
+    } else if use_sess {
+        // MD5-sess 的 HA1 无论是否使用 qop 都依赖 cnonce，服务端必须收到它。
+        header.push_str(&format!(", cnonce=\"{}\"", cnonce));
     }
     header.push_str("\r\n");
     Ok(header)
@@ -2682,11 +2906,26 @@ fn build_rtsp_digest_header(
 #[tauri::command]
 pub async fn vs_rtsp_command(
     session_id: String,
+    expected_generation: u64,
     method: String,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<String, String> {
     log::info!("RTSP command: session={} method={}", session_id, method);
+
+    let operation = state.session_operation(&session_id).await;
+    let _operation_guard = operation.lock().await;
+    let is_current = state
+        .sessions
+        .lock()
+        .await
+        .get(&session_id)
+        .is_some_and(|session| {
+            session.generation == expected_generation && session.protocol == "rtsp"
+        });
+    if !is_current {
+        return Err("RTSP 请求对应的视频流会话已失效".to_string());
+    }
 
     // Get the URL from the session config
     let sessions = state.sessions.lock().await;
@@ -2735,6 +2974,7 @@ pub async fn vs_rtsp_command(
     if auth_method == "digest" {
         let first = crate::video_streaming::rtsp::send_rtsp_request(
             &session_id,
+            Some(expected_generation),
             &url,
             &method,
             None,
@@ -2747,10 +2987,11 @@ pub async fn vs_rtsp_command(
         if let Some(challenge) = parse_www_authenticate(&first) {
             // uri 使用与 send_rtsp_request 请求行一致的完整 rtsp:// URL
             let auth_header =
-                build_rtsp_digest_header(&method, &url, username, password, &challenge)?;
+                build_rtsp_digest_header(&method, &url, username, password, b"", &challenge)?;
             extra_headers.push_str(&auth_header);
             return crate::video_streaming::rtsp::send_rtsp_request(
                 &session_id,
+                Some(expected_generation),
                 &url,
                 &method,
                 None,
@@ -2768,6 +3009,7 @@ pub async fn vs_rtsp_command(
     // Use real RTSP client
     crate::video_streaming::rtsp::send_rtsp_request(
         &session_id,
+        Some(expected_generation),
         &url,
         &method,
         None,
@@ -2874,6 +3116,7 @@ pub async fn vs_gb_unregister(
 
     let msg = crate::video_streaming::state::ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.clone(),
         direction: "info".to_string(),
         protocol: "gb28181".to_string(),
         summary: "GB28181 会话已注销".to_string(),
@@ -2915,6 +3158,13 @@ pub async fn vs_gb_stop_live(
 ) -> Result<(), String> {
     log::info!("GB28181 stop live: session={}", session_id);
 
+    let generation = state
+        .sessions
+        .lock()
+        .await
+        .get(&session_id)
+        .map(|session| session.generation);
+
     crate::video_streaming::player::stop_player(&session_id).await;
     crate::video_streaming::media_gateway::stop_hls_session(&session_id).await;
 
@@ -2927,6 +3177,7 @@ pub async fn vs_gb_stop_live(
 
     let event = crate::video_streaming::state::StreamEvent {
         session_id,
+        generation,
         event_type: "disconnected".to_string(),
         data: None,
         timestamp: chrono::Utc::now().to_rfc3339(),
@@ -2962,9 +3213,12 @@ pub async fn vs_gb_ptz(
 // ── ONVIF Commands ──
 
 #[tauri::command]
-pub async fn vs_onvif_discover(app: AppHandle) -> Result<Vec<serde_json::Value>, String> {
-    log::info!("ONVIF WS-Discovery scan");
-    crate::video_streaming::onvif::discover(&app).await
+pub async fn vs_onvif_discover(
+    session_id: String,
+    app: AppHandle,
+) -> Result<Vec<serde_json::Value>, String> {
+    log::info!("ONVIF WS-Discovery scan: session={}", session_id);
+    crate::video_streaming::onvif::discover(&session_id, &app).await
 }
 
 #[tauri::command]
@@ -3180,6 +3434,7 @@ pub async fn vs_onvif_close(
 
     let msg = crate::video_streaming::state::ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.clone(),
         direction: "info".to_string(),
         protocol: "onvif".to_string(),
         summary: "ONVIF 会话已关闭".to_string(),
@@ -3194,36 +3449,62 @@ pub async fn vs_onvif_close(
 
 // ── RTMP Commands ──
 
+async fn require_current_rtmp_generation(
+    state: &VideoStreamState,
+    session_id: &str,
+    expected_generation: u64,
+) -> Result<(), String> {
+    let sessions = state.sessions.lock().await;
+    match sessions.get(session_id) {
+        Some(session)
+            if session.generation == expected_generation && session.protocol == "rtmp" =>
+        {
+            Ok(())
+        }
+        _ => Err("RTMP 请求对应的视频流会话已失效".to_string()),
+    }
+}
+
 #[tauri::command]
 pub async fn vs_rtmp_handshake(
     session_id: String,
+    expected_generation: u64,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
     log::info!("RTMP handshake: session={}", session_id);
 
-    // Get URL from session config
+    let operation = state.session_operation(&session_id).await;
+    let _operation_guard = operation.lock().await;
+
+    // Get the URL only from the generation that requested this handshake.
     let sessions = state.sessions.lock().await;
-    let url = if let Some(session) = sessions.get(&session_id) {
-        let cfg: serde_json::Value = serde_json::from_str(&session.config).unwrap_or_default();
-        cfg.get("url")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string()
-    } else {
-        return Err("Session not found".to_string());
-    };
+    let session = sessions
+        .get(&session_id)
+        .filter(|session| session.generation == expected_generation && session.protocol == "rtmp")
+        .ok_or_else(|| "RTMP 请求对应的视频流会话已失效".to_string())?;
+    let cfg: serde_json::Value = serde_json::from_str(&session.config).unwrap_or_default();
+    let url = cfg
+        .get("url")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
     drop(sessions);
 
     if url.is_empty() {
         return Err("No RTMP URL configured".to_string());
     }
 
-    let stream = crate::video_streaming::rtmp::handshake(&session_id, &url, &app).await?;
+    let stream =
+        crate::video_streaming::rtmp::handshake(&session_id, expected_generation, &url, &app)
+            .await?;
+    require_current_rtmp_generation(&state, &session_id, expected_generation).await?;
 
     // Store the TCP stream for subsequent commands
     let rtmp_session = crate::video_streaming::state::RtmpSession {
+        generation: expected_generation,
         stream: Some(stream),
+        decoder: crate::video_streaming::rtmp::RtmpChunkDecoder::default(),
         url: url.clone(),
         handshake_done: true,
         connected: false,
@@ -3241,22 +3522,39 @@ pub async fn vs_rtmp_handshake(
 #[tauri::command]
 pub async fn vs_rtmp_connect_app(
     session_id: String,
+    expected_generation: u64,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
     log::info!("RTMP connect app: session={}", session_id);
 
+    let operation = state.session_operation(&session_id).await;
+    let _operation_guard = operation.lock().await;
+    require_current_rtmp_generation(&state, &session_id, expected_generation).await?;
+
     let mut sessions = state.rtmp_sessions.lock().await;
     let rtmp = sessions
         .get_mut(&session_id)
         .ok_or_else(|| "RTMP session not found — handshake first".to_string())?;
+    if rtmp.generation != expected_generation {
+        return Err("RTMP 握手会话已失效，请重新握手".to_string());
+    }
 
+    let url = rtmp.url.clone();
     let stream = rtmp
         .stream
         .as_mut()
         .ok_or_else(|| "RTMP TCP stream not available".to_string())?;
 
-    crate::video_streaming::rtmp::connect_app(stream, &session_id, &rtmp.url.clone(), &app).await?;
+    crate::video_streaming::rtmp::connect_app(
+        stream,
+        &mut rtmp.decoder,
+        &session_id,
+        expected_generation,
+        &url,
+        &app,
+    )
+    .await?;
     rtmp.connected = true;
 
     Ok(())
@@ -3265,23 +3563,39 @@ pub async fn vs_rtmp_connect_app(
 #[tauri::command]
 pub async fn vs_rtmp_play(
     session_id: String,
+    expected_generation: u64,
     stream_key: String,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
     log::info!("RTMP play: session={} key={}", session_id, stream_key);
 
+    let operation = state.session_operation(&session_id).await;
+    let _operation_guard = operation.lock().await;
+    require_current_rtmp_generation(&state, &session_id, expected_generation).await?;
+
     let mut sessions = state.rtmp_sessions.lock().await;
     let rtmp = sessions
         .get_mut(&session_id)
         .ok_or_else(|| "RTMP session not found".to_string())?;
+    if rtmp.generation != expected_generation {
+        return Err("RTMP 握手会话已失效，请重新握手".to_string());
+    }
 
     let stream = rtmp
         .stream
         .as_mut()
         .ok_or_else(|| "RTMP TCP stream not available".to_string())?;
 
-    crate::video_streaming::rtmp::play(stream, &session_id, &stream_key, &app).await
+    crate::video_streaming::rtmp::play(
+        stream,
+        &mut rtmp.decoder,
+        &session_id,
+        expected_generation,
+        &stream_key,
+        &app,
+    )
+    .await
 }
 
 // ── SRT Commands ──
@@ -3342,37 +3656,90 @@ pub async fn vs_srt_stats(
 #[tauri::command]
 pub async fn vs_webrtc_create_offer(
     session_id: String,
+    expected_generation: u64,
     config: String,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<String, String> {
     log::info!("WebRTC create offer: session={}", session_id);
 
-    crate::video_streaming::webrtc::create_offer(&session_id, &config, &state, &app).await
+    let operation = state.session_operation(&session_id).await;
+    let _operation_guard = operation.lock().await;
+    let is_current = state
+        .sessions
+        .lock()
+        .await
+        .get(&session_id)
+        .is_some_and(|session| {
+            session.generation == expected_generation && session.protocol == "webrtc"
+        });
+    if !is_current {
+        return Err("WebRTC 请求对应的视频流会话已失效".to_string());
+    }
+    crate::video_streaming::webrtc::create_offer(
+        &session_id,
+        expected_generation,
+        &config,
+        &state,
+        &app,
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn vs_webrtc_set_answer(
     session_id: String,
+    expected_generation: u64,
     sdp: String,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
     log::info!("WebRTC set answer: session={}", session_id);
 
-    crate::video_streaming::webrtc::set_answer(&session_id, &sdp, &state, &app).await
+    let operation = state.session_operation(&session_id).await;
+    let _operation_guard = operation.lock().await;
+    let is_current = state
+        .sessions
+        .lock()
+        .await
+        .get(&session_id)
+        .is_some_and(|session| session.generation == expected_generation);
+    if !is_current {
+        return Err("WebRTC 请求对应的视频流会话已失效".to_string());
+    }
+    crate::video_streaming::webrtc::set_answer(&session_id, expected_generation, &sdp, &state, &app)
+        .await
 }
 
 #[tauri::command]
 pub async fn vs_webrtc_add_ice(
     session_id: String,
+    expected_generation: u64,
     candidate: String,
     state: State<'_, VideoStreamState>,
     app: AppHandle,
 ) -> Result<(), String> {
     log::info!("WebRTC add ICE: session={}", session_id);
 
-    crate::video_streaming::webrtc::add_ice_candidate(&session_id, &candidate, &state, &app).await
+    let operation = state.session_operation(&session_id).await;
+    let _operation_guard = operation.lock().await;
+    let is_current = state
+        .sessions
+        .lock()
+        .await
+        .get(&session_id)
+        .is_some_and(|session| session.generation == expected_generation);
+    if !is_current {
+        return Err("WebRTC 请求对应的视频流会话已失效".to_string());
+    }
+    crate::video_streaming::webrtc::add_ice_candidate(
+        &session_id,
+        expected_generation,
+        &candidate,
+        &state,
+        &app,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -3402,7 +3769,7 @@ pub async fn mock_server_start(
     session_id: String,
     port: u16,
     routes: Vec<MockRoute>,
-) -> Result<(), String> {
+) -> Result<MockServerStatusInfo, String> {
     mock_server::start_mock_server(app, &state, &session_id, port, routes).await
 }
 
@@ -3412,6 +3779,14 @@ pub async fn mock_server_stop(
     session_id: String,
 ) -> Result<(), String> {
     mock_server::stop_mock_server(&state, &session_id).await
+}
+
+#[tauri::command]
+pub async fn mock_server_destroy(
+    state: State<'_, MockServerState>,
+    session_id: String,
+) -> Result<(), String> {
+    mock_server::destroy_mock_server(&state, &session_id).await
 }
 
 #[tauri::command]
@@ -3512,8 +3887,12 @@ pub async fn db_client_connect_saved(
     session_id: String,
     connection_id: String,
 ) -> Result<ServerInfo, String> {
-    let app_data_dir = app.path().app_data_dir().map_err(|e| format!("App data dir: {}", e))?;
-    let (info, _config) = db_client::connect_saved(&pool, &app_data_dir, &mgr, &session_id, &connection_id).await?;
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("App data dir: {}", e))?;
+    let (info, _config) =
+        db_client::connect_saved(&pool, &app_data_dir, &mgr, &session_id, &connection_id).await?;
     Ok(info)
 }
 
@@ -3579,9 +3958,7 @@ pub async fn db_client_execute_query(
     let driver = driver_arc.lock().await;
     // 使用 execute_query_in_database 确保 USE db 和用户 SQL 在同一连接上执行
     let mut result = match database {
-        Some(ref db) if !db.is_empty() => {
-            driver.execute_query_in_database(&sql, db).await?
-        }
+        Some(ref db) if !db.is_empty() => driver.execute_query_in_database(&sql, db).await?,
         _ => driver.execute_query(&sql).await?,
     };
     // 安全阈值：截断超过 10000 行的结果防止前端 OOM
@@ -3589,7 +3966,9 @@ pub async fn db_client_execute_query(
     if result.rows.len() > MAX_ROWS {
         result.rows.truncate(MAX_ROWS);
         result.truncated = true;
-        result.warnings.push(format!("Result truncated to {} rows", MAX_ROWS));
+        result
+            .warnings
+            .push(format!("Result truncated to {} rows", MAX_ROWS));
     }
     Ok(result)
 }
@@ -3620,10 +3999,18 @@ pub async fn db_client_fetch_table_data(
 ) -> Result<QueryResult, String> {
     let driver_arc = mgr.get_driver_arc(&session_id).await?;
     let driver = driver_arc.lock().await;
-    driver.fetch_table_data(
-        &database, &schema, &table, offset, limit,
-        sort_column.as_deref(), sort_dir.as_deref(), filter.as_deref(),
-    ).await
+    driver
+        .fetch_table_data(
+            &database,
+            &schema,
+            &table,
+            offset,
+            limit,
+            sort_column.as_deref(),
+            sort_dir.as_deref(),
+            filter.as_deref(),
+        )
+        .await
 }
 
 #[tauri::command]
@@ -3649,7 +4036,9 @@ pub async fn db_client_delete_rows(
 ) -> Result<u64, String> {
     let driver_arc = mgr.get_driver_arc(&session_id).await?;
     let driver = driver_arc.lock().await;
-    driver.delete_rows(&database, &schema, &table, &pk_columns, &pk_values).await
+    driver
+        .delete_rows(&database, &schema, &table, &pk_columns, &pk_values)
+        .await
 }
 
 // ── DB Client 持久化 ──
@@ -3660,7 +4049,10 @@ pub async fn db_client_save_connection(
     pool: State<'_, SqlitePool>,
     req: SaveConnectionRequest,
 ) -> Result<String, String> {
-    let app_data_dir = app.path().app_data_dir().map_err(|e| format!("App data dir: {}", e))?;
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("App data dir: {}", e))?;
     db_client::save_connection(&pool, &req, &app_data_dir).await
 }
 
@@ -3709,13 +4101,23 @@ pub async fn db_client_export(
     let tool_result = match config.db_type.as_str() {
         "postgresql" => {
             db_client::export::pg_dump(
-                &config.host, config.port, &config.username, &config.password, &options,
-            ).await
+                &config.host,
+                config.port,
+                &config.username,
+                &config.password,
+                &options,
+            )
+            .await
         }
         "mysql" => {
             db_client::export::mysql_dump(
-                &config.host, config.port, &config.username, &config.password, &options,
-            ).await
+                &config.host,
+                config.port,
+                &config.username,
+                &config.password,
+                &options,
+            )
+            .await
         }
         "sqlite" => {
             let db_path = config.file_path.as_deref().unwrap_or(&config.database);
@@ -3731,9 +4133,7 @@ pub async fn db_client_export(
             // 使用内置 SQL 导出
             let driver_arc = mgr.get_driver_arc(&session_id).await?;
             let driver = driver_arc.lock().await;
-            db_client::export::sql_based_export(
-                &**driver, &options, config.db_type.as_str(),
-            ).await
+            db_client::export::sql_based_export(&**driver, &options, config.db_type.as_str()).await
         }
         Err(e) => Err(e),
     }
@@ -3749,13 +4149,23 @@ pub async fn db_client_import(
     match config.db_type.as_str() {
         "postgresql" => {
             db_client::export::pg_import(
-                &config.host, config.port, &config.username, &config.password, &options,
-            ).await
+                &config.host,
+                config.port,
+                &config.username,
+                &config.password,
+                &options,
+            )
+            .await
         }
         "mysql" => {
             db_client::export::mysql_import(
-                &config.host, config.port, &config.username, &config.password, &options,
-            ).await
+                &config.host,
+                config.port,
+                &config.username,
+                &config.password,
+                &options,
+            )
+            .await
         }
         _ => Err(format!("Import not supported for {}", config.db_type)),
     }
@@ -3771,24 +4181,39 @@ pub async fn grpc_load_proto(proto_path: String) -> Result<grpc_client::ProtoLoa
 }
 
 #[tauri::command]
-pub async fn grpc_load_proto_content(content: String, key: String) -> Result<grpc_client::ProtoLoadResult, String> {
+pub async fn grpc_load_proto_content(
+    content: String,
+    key: String,
+) -> Result<grpc_client::ProtoLoadResult, String> {
     grpc_client::load_proto_content(&content, &key).await
 }
 
 #[tauri::command]
-pub async fn grpc_reflect(url: String) -> Result<grpc_client::ProtoLoadResult, String> {
-    grpc_client::reflect_services(&url).await
+pub async fn grpc_reflect(
+    url: String,
+    tls_enabled: bool,
+) -> Result<grpc_client::ProtoLoadResult, String> {
+    grpc_client::reflect_services(&url, tls_enabled).await
 }
 
 #[tauri::command]
 pub async fn grpc_call_unary(
     url: String,
+    tls_enabled: bool,
     proto_key: String,
     method_full_name: String,
     request_json: String,
     metadata: HashMap<String, String>,
 ) -> Result<grpc_client::GrpcCallResult, String> {
-    grpc_client::call_unary(&url, &proto_key, &method_full_name, &request_json, &metadata).await
+    grpc_client::call_unary(
+        &url,
+        tls_enabled,
+        &proto_key,
+        &method_full_name,
+        &request_json,
+        &metadata,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -3797,16 +4222,18 @@ pub async fn grpc_call_server_stream(
     connections: State<'_, GrpcConnections>,
     connection_id: String,
     url: String,
+    tls_enabled: bool,
     proto_key: String,
     method_full_name: String,
     request_json: String,
     metadata: HashMap<String, String>,
-) -> Result<(), String> {
+) -> Result<u64, String> {
     grpc_client::call_server_stream(
         app,
         connections.inner(),
         &connection_id,
         &url,
+        tls_enabled,
         &proto_key,
         &method_full_name,
         &request_json,
@@ -3821,15 +4248,17 @@ pub async fn grpc_call_client_stream(
     connections: State<'_, GrpcConnections>,
     connection_id: String,
     url: String,
+    tls_enabled: bool,
     proto_key: String,
     method_full_name: String,
     metadata: HashMap<String, String>,
-) -> Result<(), String> {
+) -> Result<u64, String> {
     grpc_client::call_client_stream(
         app,
         connections.inner(),
         &connection_id,
         &url,
+        tls_enabled,
         &proto_key,
         &method_full_name,
         &metadata,
@@ -3843,15 +4272,17 @@ pub async fn grpc_call_bidi_stream(
     connections: State<'_, GrpcConnections>,
     connection_id: String,
     url: String,
+    tls_enabled: bool,
     proto_key: String,
     method_full_name: String,
     metadata: HashMap<String, String>,
-) -> Result<(), String> {
+) -> Result<u64, String> {
     grpc_client::call_bidi_stream(
         app,
         connections.inner(),
         &connection_id,
         &url,
+        tls_enabled,
         &proto_key,
         &method_full_name,
         &metadata,
@@ -3891,4 +4322,291 @@ pub async fn grpc_cancel_stream(
     connection_id: String,
 ) -> Result<(), String> {
     grpc_client::cancel_stream(connections.inner(), &connection_id).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn rtmp_commands_reject_stale_generic_session_generations() {
+        let state = VideoStreamState::new();
+        state.sessions.lock().await.insert(
+            "rtmp-generation-test".to_string(),
+            crate::video_streaming::state::StreamSession {
+                generation: 42,
+                session_id: "rtmp-generation-test".to_string(),
+                protocol: "rtmp".to_string(),
+                config: r#"{"url":"rtmp://example.invalid/live/camera"}"#.to_string(),
+                connected: true,
+                shutdown_tx: None,
+            },
+        );
+
+        assert!(
+            require_current_rtmp_generation(&state, "rtmp-generation-test", 42)
+                .await
+                .is_ok()
+        );
+        assert!(
+            require_current_rtmp_generation(&state, "rtmp-generation-test", 41)
+                .await
+                .is_err()
+        );
+        state
+            .sessions
+            .lock()
+            .await
+            .get_mut("rtmp-generation-test")
+            .expect("session")
+            .protocol = "hls".to_string();
+        assert!(
+            require_current_rtmp_generation(&state, "rtmp-generation-test", 42)
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn same_id_replacement_retires_all_old_resources_before_installing_new_generation() {
+        let state = VideoStreamState::new();
+        let session_id = format!("video-replacement-test-{}", uuid::Uuid::new_v4());
+        let (generic_tx, generic_rx) = tokio::sync::oneshot::channel();
+        let (rtmp_tx, rtmp_rx) = tokio::sync::oneshot::channel();
+        let (srt_tx, srt_rx) = tokio::sync::oneshot::channel();
+        let (webrtc_tx, webrtc_rx) = tokio::sync::oneshot::channel();
+
+        state.sessions.lock().await.insert(
+            session_id.clone(),
+            crate::video_streaming::state::StreamSession {
+                generation: 1,
+                session_id: session_id.clone(),
+                protocol: "rtsp".to_string(),
+                config: "{}".to_string(),
+                connected: true,
+                shutdown_tx: Some(generic_tx),
+            },
+        );
+        state.onvif_sessions.lock().await.insert(
+            session_id.clone(),
+            crate::video_streaming::state::OnvifSession {
+                host: "127.0.0.1".to_string(),
+                port: 80,
+                username: String::new(),
+                password: String::new(),
+                device_service_url: String::new(),
+                media_service_url: String::new(),
+                ptz_service_url: String::new(),
+                use_proxy: false,
+            },
+        );
+        state.rtmp_sessions.lock().await.insert(
+            session_id.clone(),
+            crate::video_streaming::state::RtmpSession {
+                generation: 1,
+                stream: None,
+                decoder: crate::video_streaming::rtmp::RtmpChunkDecoder::default(),
+                url: "rtmp://example.invalid/live/camera".to_string(),
+                handshake_done: true,
+                connected: true,
+                shutdown_tx: Some(rtmp_tx),
+            },
+        );
+        state.srt_sessions.lock().await.insert(
+            session_id.clone(),
+            crate::video_streaming::state::SrtSession {
+                config: "{}".to_string(),
+                connected: true,
+                shutdown_tx: Some(srt_tx),
+            },
+        );
+        state.webrtc_sessions.lock().await.insert(
+            session_id.clone(),
+            crate::video_streaming::state::WebRtcSession {
+                config: "{}".to_string(),
+                connected: true,
+                shutdown_tx: Some(webrtc_tx),
+            },
+        );
+        crate::video_streaming::player::install_test_player_session(&session_id).await;
+        crate::video_streaming::media_gateway::install_test_hls_session(&session_id).await;
+
+        let operation = state.session_operation(&session_id).await;
+        let _guard = operation.lock().await;
+        retire_video_session_resources(&state, &session_id, None).await;
+
+        assert!(generic_rx.await.is_ok());
+        assert!(rtmp_rx.await.is_ok());
+        assert!(srt_rx.await.is_ok());
+        assert!(webrtc_rx.await.is_ok());
+        assert!(!state.onvif_sessions.lock().await.contains_key(&session_id));
+        assert!(!state.rtmp_sessions.lock().await.contains_key(&session_id));
+        assert!(!state.srt_sessions.lock().await.contains_key(&session_id));
+        assert!(!state.webrtc_sessions.lock().await.contains_key(&session_id));
+        assert!(!crate::video_streaming::player::has_test_player_session(&session_id).await);
+        assert!(!crate::video_streaming::media_gateway::has_test_hls_session(&session_id).await);
+
+        state.sessions.lock().await.insert(
+            session_id.clone(),
+            crate::video_streaming::state::StreamSession {
+                generation: 2,
+                session_id: session_id.clone(),
+                protocol: "hls".to_string(),
+                config: "{}".to_string(),
+                connected: true,
+                shutdown_tx: None,
+            },
+        );
+        assert_eq!(
+            state
+                .sessions
+                .lock()
+                .await
+                .get(&session_id)
+                .map(|session| session.generation),
+            Some(2)
+        );
+    }
+
+    #[test]
+    fn parses_digest_challenge_with_quoted_commas() {
+        let raw = concat!(
+            "RTSP/1.0 401 Unauthorized\r\n",
+            "WWW-Authenticate: Digest realm=\"camera, floor 1\", nonce=\"abc\", qop=\"auth,auth-int\"\r\n",
+            "\r\n"
+        );
+
+        let challenge = parse_www_authenticate(raw).expect("Digest challenge");
+        assert_eq!(
+            challenge.get("realm").map(String::as_str),
+            Some("camera, floor 1")
+        );
+        assert_eq!(challenge.get("nonce").map(String::as_str), Some("abc"));
+        assert_eq!(
+            challenge.get("qop").map(String::as_str),
+            Some("auth,auth-int")
+        );
+    }
+
+    #[test]
+    fn parses_digest_quoted_pairs_without_splitting_escaped_commas() {
+        let raw = concat!(
+            "RTSP/1.0 401 Unauthorized\r\n",
+            "WWW-Authenticate: Digest realm=\"cam\\\"era, floor\\\\one\", nonce=\"n\\\\x\", opaque=\"a\\\"b,c\"\r\n",
+            "\r\n"
+        );
+
+        let challenge = parse_www_authenticate(raw).expect("Digest challenge");
+        assert_eq!(
+            challenge.get("realm").map(String::as_str),
+            Some("cam\"era, floor\\one")
+        );
+        assert_eq!(challenge.get("nonce").map(String::as_str), Some("n\\x"));
+        assert_eq!(challenge.get("opaque").map(String::as_str), Some("a\"b,c"));
+    }
+
+    #[test]
+    fn builds_digest_auth_int_for_empty_rtsp_entity() {
+        let uri = "rtsp://camera.example/live";
+        let challenge = HashMap::from([
+            ("realm".to_string(), "camera".to_string()),
+            ("nonce".to_string(), "nonce-1".to_string()),
+            ("algorithm".to_string(), "MD5".to_string()),
+            ("qop".to_string(), "auth-int".to_string()),
+        ]);
+
+        let header = build_rtsp_digest_header("DESCRIBE", uri, "alice", "secret", b"", &challenge)
+            .expect("auth-int header");
+        let cnonce = header
+            .split("cnonce=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .expect("cnonce");
+        let ha1 = md5_hex("alice:camera:secret");
+        let entity_hash = md5_hex_bytes(b"");
+        let ha2 = md5_hex(&format!("DESCRIBE:{}:{}", uri, entity_hash));
+        let expected = md5_hex(&format!(
+            "{}:{}:{}:{}:{}:{}",
+            ha1, "nonce-1", "00000001", cnonce, "auth-int", ha2
+        ));
+
+        assert!(header.contains("qop=auth-int"));
+        assert!(header.contains(&format!("response=\"{}\"", expected)));
+    }
+
+    #[test]
+    fn rejects_digest_header_control_characters() {
+        let challenge = HashMap::from([
+            ("realm".to_string(), "camera\r\nInjected: true".to_string()),
+            ("nonce".to_string(), "abc".to_string()),
+        ]);
+
+        let error = build_rtsp_digest_header(
+            "DESCRIBE",
+            "rtsp://camera.example/live",
+            "alice",
+            "secret",
+            b"",
+            &challenge,
+        )
+        .expect_err("control characters must be rejected");
+        assert!(error.contains("控制字符"));
+    }
+
+    #[test]
+    fn rejects_missing_nonce_and_unsupported_qop() {
+        let missing_nonce = HashMap::from([("realm".to_string(), "camera".to_string())]);
+        let error = build_rtsp_digest_header(
+            "DESCRIBE",
+            "rtsp://camera.example/live",
+            "alice",
+            "secret",
+            b"",
+            &missing_nonce,
+        )
+        .expect_err("nonce is required");
+        assert!(error.contains("nonce"));
+
+        let unsupported_qop = HashMap::from([
+            ("realm".to_string(), "camera".to_string()),
+            ("nonce".to_string(), "abc".to_string()),
+            ("qop".to_string(), "auth-conf".to_string()),
+        ]);
+        let error = build_rtsp_digest_header(
+            "DESCRIBE",
+            "rtsp://camera.example/live",
+            "alice",
+            "secret",
+            b"",
+            &unsupported_qop,
+        )
+        .expect_err("unsupported qop must fail explicitly");
+        assert!(error.contains("auth-conf"));
+    }
+
+    #[test]
+    fn md5_sess_without_qop_includes_cnonce_and_valid_response() {
+        let uri = "rtsp://camera.example/live";
+        let challenge = HashMap::from([
+            ("realm".to_string(), "camera".to_string()),
+            ("nonce".to_string(), "nonce-1".to_string()),
+            ("algorithm".to_string(), "MD5-sess".to_string()),
+        ]);
+
+        let header = build_rtsp_digest_header("DESCRIBE", uri, "alice", "secret", b"", &challenge)
+            .expect("MD5-sess header");
+        let cnonce = header
+            .split("cnonce=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .expect("cnonce");
+        let ha1_base = md5_hex("alice:camera:secret");
+        let ha1 = md5_hex(&format!("{}:{}:{}", ha1_base, "nonce-1", cnonce));
+        let ha2 = md5_hex(&format!("DESCRIBE:{}", uri));
+        let expected = md5_hex(&format!("{}:{}:{}", ha1, "nonce-1", ha2));
+
+        assert!(header.contains(&format!("cnonce=\"{}\"", cnonce)));
+        assert!(header.contains(&format!("response=\"{}\"", expected)));
+        assert!(!header.contains("qop="));
+    }
 }

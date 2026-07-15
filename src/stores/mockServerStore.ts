@@ -14,6 +14,7 @@ import * as mockService from "@/services/mockServerService";
 
 interface MockServerStoreState {
   sessionId: string;
+  instanceGeneration: number | null;
   running: boolean;
   port: number;
   routes: MockRoute[];
@@ -65,12 +66,86 @@ interface MockServerStoreState {
 
 type MockServerStoreApi = ReturnType<typeof createMockServerSessionStore>;
 
+const MAX_RENDERER_LOG_ENTRIES = 2_000;
+const MAX_RENDERER_LOG_BYTES = 32 * 1024 * 1024;
+const utf8Encoder = new TextEncoder();
+
+function mockLogSize(log: MockRequestLog): number {
+  let bytes = 32;
+  const values = [
+    log.id,
+    log.sessionId,
+    log.timestamp,
+    log.method,
+    log.path,
+    log.query,
+    log.requestBody,
+    log.matchedRouteId,
+    log.matchedPattern,
+    log.responseBody,
+  ];
+  for (const value of values) {
+    if (value) bytes += utf8Encoder.encode(value).byteLength;
+  }
+  for (const [name, value] of log.requestHeaders) {
+    bytes += utf8Encoder.encode(name).byteLength + utf8Encoder.encode(value).byteLength;
+  }
+  return bytes;
+}
+
+function retainNewestLogs(logs: MockRequestLog[]): { logs: MockRequestLog[]; bytes: number } {
+  const retained: MockRequestLog[] = [];
+  let bytes = 0;
+
+  for (let index = logs.length - 1; index >= 0 && retained.length < MAX_RENDERER_LOG_ENTRIES; index -= 1) {
+    const log = logs[index];
+    const size = mockLogSize(log);
+    if (size > MAX_RENDERER_LOG_BYTES) continue;
+    if (bytes + size > MAX_RENDERER_LOG_BYTES) break;
+    retained.push(log);
+    bytes += size;
+  }
+
+  retained.reverse();
+  return { logs: retained, bytes };
+}
+
+export function isMockLogForInstance(
+  log: Pick<MockRequestLog, "sessionId" | "instanceGeneration">,
+  sessionId: string,
+  instanceGeneration: number | null,
+): boolean {
+  return instanceGeneration !== null
+    && log.sessionId === sessionId
+    && log.instanceGeneration === instanceGeneration;
+}
+
 const stores = new Map<string, MockServerStoreApi>();
 const cleanupFns = new Map<string, () => void>();
 
 function createMockServerSessionStore(sessionId: string) {
   let listenerPromise: Promise<UnlistenFn> | null = null;
   let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  let retainedLogBytes = 0;
+
+  function applyServerStatus(
+    status: MockServerStatusInfo,
+    set: (partial: Partial<MockServerStoreState>) => void,
+    get: () => MockServerStoreState,
+  ) {
+    const instanceGeneration = status.instanceGeneration > 0
+      ? status.instanceGeneration
+      : null;
+    const generationChanged = get().instanceGeneration !== instanceGeneration;
+    if (generationChanged) retainedLogBytes = 0;
+    set({
+      instanceGeneration,
+      running: status.running,
+      port: status.port,
+      totalHits: status.totalHits,
+      ...(generationChanged ? { logs: [] } : {}),
+    });
+  }
 
   function scheduleAutoSave(get: () => MockServerStoreState) {
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
@@ -86,10 +161,12 @@ function createMockServerSessionStore(sessionId: string) {
   cleanupFns.set(sessionId, () => {
     if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
     if (listenerPromise) { void listenerPromise.then((fn) => fn()); listenerPromise = null; }
+    retainedLogBytes = 0;
   });
 
   return createStore<MockServerStoreState>((set, get) => ({
     sessionId,
+    instanceGeneration: null,
     running: false,
     port: 3100,
     routes: [],
@@ -165,8 +242,9 @@ function createMockServerSessionStore(sessionId: string) {
       const p = port ?? get().port;
       const routes = get().routes;
       try {
-        await mockService.startMockServer(sessionId, p, routes);
-        set({ running: true, port: p, error: null });
+        const status = await mockService.startMockServer(sessionId, p, routes);
+        applyServerStatus(status, set, get);
+        set({ error: null });
         // 首次启动自动创建持久化配置
         if (!get().configId) {
           set({ configId: sessionId });
@@ -256,23 +334,25 @@ function createMockServerSessionStore(sessionId: string) {
 
     clearLogs: async () => {
       await mockService.clearMockServerLog(sessionId);
+      retainedLogBytes = 0;
       set({ logs: [], totalHits: 0 });
     },
 
     loadLogs: async () => {
       const logs = await mockService.getMockServerLog(sessionId);
-      set({ logs });
+      const instanceGeneration = get().instanceGeneration;
+      const retained = retainNewestLogs(
+        logs.filter((log) => isMockLogForInstance(log, sessionId, instanceGeneration)),
+      );
+      retainedLogBytes = retained.bytes;
+      set({ logs: retained.logs });
     },
 
     refreshStatus: async () => {
       try {
         const status: MockServerStatusInfo =
           await mockService.getMockServerStatus(sessionId);
-        set({
-          running: status.running,
-          port: status.port,
-          totalHits: status.totalHits,
-        });
+        applyServerStatus(status, set, get);
       } catch {
         // ignore
       }
@@ -284,10 +364,17 @@ function createMockServerSessionStore(sessionId: string) {
           "mock-server-hit",
           (event) => {
             const log = event.payload;
-            if (log.sessionId !== sessionId) return;
+            if (!isMockLogForInstance(log, sessionId, get().instanceGeneration)) return;
             set((s) => {
               const newLogs = [...s.logs, log];
-              if (newLogs.length > 2000) newLogs.splice(0, newLogs.length - 2000);
+              retainedLogBytes += mockLogSize(log);
+              while (
+                newLogs.length > 0
+                && (newLogs.length > MAX_RENDERER_LOG_ENTRIES
+                  || retainedLogBytes > MAX_RENDERER_LOG_BYTES)
+              ) {
+                retainedLogBytes -= mockLogSize(newLogs.shift()!);
+              }
               return {
                 logs: newLogs,
                 totalHits: s.totalHits + 1,
@@ -323,7 +410,15 @@ export function getMockServerStoreApi(sessionId: string): MockServerStoreApi {
 }
 
 export function destroyMockServerStore(sessionId: string) {
+  detachMockServerStore(sessionId);
+}
+
+/** Synchronously detach exactly the current store before asynchronous backend teardown. */
+export function detachMockServerStore(sessionId: string): MockServerStoreApi | undefined {
+  const store = stores.get(sessionId);
+  if (!store) return undefined;
   const cleanup = cleanupFns.get(sessionId);
   if (cleanup) { cleanup(); cleanupFns.delete(sessionId); }
-  stores.delete(sessionId);
+  if (stores.get(sessionId) === store) stores.delete(sessionId);
+  return store;
 }

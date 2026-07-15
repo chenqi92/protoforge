@@ -226,7 +226,14 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
   const [ffmpegStatus, setFfmpegStatus] = useState<FfmpegStatus | null>(null);
   const [ffmpegProgressText, setFfmpegProgressText] = useState("");
   const logEndRef = useRef<HTMLDivElement>(null);
+  const playAttemptEpochRef = useRef(0);
+  const activeGenerationRef = useRef<number | null>(null);
   const suggestedPlaybackMode = useMemo(() => inferVideoModeFromUrl(streamUrl), [streamUrl]);
+
+  useEffect(() => () => {
+    ++playAttemptEpochRef.current;
+    activeGenerationRef.current = null;
+  }, []);
   const assistantActive = isAssistantMode(mode);
   const effectivePlaybackMode = useMemo<VideoProtocol>(() => {
     if (!assistantActive) {
@@ -311,9 +318,16 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
     const setup = async () => {
       const ue = await vsSvc.onStreamEvent((e) => {
         if (e.sessionId !== sessionKey) return;
+        const activeGeneration = activeGenerationRef.current;
+        const generationMatches = e.generation === undefined
+          ? activeGeneration === null
+          : e.generation === activeGeneration;
+        if (!generationMatches) return;
         switch (e.eventType) {
           case 'connected': setConnected(true); break;
           case 'disconnected':
+            ++playAttemptEpochRef.current;
+            activeGenerationRef.current = null;
             setConnected(false);
             setConnecting(false);
             setPlaying(false);
@@ -323,6 +337,8 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
             setStats(null);
             break;
           case 'error':
+            ++playAttemptEpochRef.current;
+            activeGenerationRef.current = null;
             setConnecting(false);
             setConnected(false);
             setPlaybackReady(false);
@@ -332,9 +348,14 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
         }
       });
       if (disposed) { ue(); return; } unlistenEvent = ue;
-      const us = await vsSvc.onStreamStats((s) => { if (s.sessionId !== sessionKey) return; setStats(s); });
+      const us = await vsSvc.onStreamStats((s) => {
+        if (s.sessionId !== sessionKey || s.generation !== activeGenerationRef.current) return;
+        setStats(s);
+      });
       if (disposed) { us(); return; } unlistenStats = us;
       const um = await vsSvc.onProtocolMessage((m) => {
+        if (m.sessionId !== sessionKey) return;
+        if (m.generation !== undefined && m.generation !== activeGenerationRef.current) return;
         setMessageMap((prev) => {
           const key = m.protocol || 'unknown';
           const bucket = prev[key] ?? [];
@@ -344,7 +365,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
       if (disposed) { um(); return; } unlistenMsg = um;
     };
     setup();
-    return () => { disposed = true; unlistenEvent?.(); unlistenStats?.(); unlistenMsg?.(); vsSvc.disconnectStream(sessionKey).catch(() => {}); };
+    return () => { disposed = true; unlistenEvent?.(); unlistenStats?.(); unlistenMsg?.(); };
   }, [sessionKey]);
 
   const [playerError, setPlayerError] = useState<string | null>(null);
@@ -410,7 +431,11 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
   }, [rtmpConfig, rtspConfig, srtConfig]);
 
   const handleDisconnectPlayer = useCallback(async () => {
-    await vsSvc.disconnectStream(sessionKey).catch(() => {});
+    const attemptEpoch = ++playAttemptEpochRef.current;
+    const generation = activeGenerationRef.current;
+    activeGenerationRef.current = null;
+    await vsSvc.disconnectStream(sessionKey, generation ?? undefined).catch(() => {});
+    if (playAttemptEpochRef.current !== attemptEpoch) return;
     setShowPlayer(false);
     setPlaying(false);
     setConnecting(false);
@@ -427,6 +452,8 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
       await handleDisconnectPlayer();
       return;
     }
+    const attemptEpoch = ++playAttemptEpochRef.current;
+    const isCurrentAttempt = () => playAttemptEpochRef.current === attemptEpoch;
     const activeUrl = resolveActiveUrl();
     if (!activeUrl) return;
     if (!supportsIntegratedPlayback(effectivePlaybackMode, activeUrl)) {
@@ -441,6 +468,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
     const playbackTarget = resolvePlaybackTarget(effectivePlaybackMode, activeUrl);
     if (playbackTarget.requiresFfmpeg) {
       const status = ffmpegStatus ?? await vsSvc.ffmpegStatus().catch(() => null);
+      if (!isCurrentAttempt()) return;
       if (status) setFfmpegStatus(status);
       if (status && !status.available) {
         setPlayerError(t('video.workspace.ffmpegMissing', 'FFmpeg 未安装，当前模式无法启动内置播放器。'));
@@ -453,10 +481,17 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
     setRecentStreams(loadRecentStreams());
 
     const connectPayload = buildConnectConfig(effectivePlaybackMode, activeUrl);
+    let generation: number | null = null;
     if (connectPayload) {
       try {
-        await vsSvc.connectStream(sessionKey, connectPayload.protocol, connectPayload.config);
+        generation = await vsSvc.connectStream(sessionKey, connectPayload.protocol, connectPayload.config);
+        if (!isCurrentAttempt()) {
+          await vsSvc.disconnectStream(sessionKey, generation).catch(() => {});
+          return;
+        }
+        activeGenerationRef.current = generation;
       } catch (error) {
+        if (!isCurrentAttempt()) return;
         setPlayerError(String(error));
         return;
       }
@@ -472,12 +507,30 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
     setConnecting(true);
     if (playbackTarget.engine === "tauri-mse") {
       await new Promise(r => requestAnimationFrame(() => setTimeout(r, 50)));
+      if (!isCurrentAttempt()) {
+        if (generation !== null) await vsSvc.disconnectStream(sessionKey, generation).catch(() => {});
+        return;
+      }
     }
     if (playbackTarget.requiresPlayerLoad) {
+      if (generation === null) {
+        setPlayerError(t('video.workspace.sessionExpired', '视频流会话未建立，无法启动播放器。'));
+        return;
+      }
       try {
-        const resolvedUrl = await vsSvc.playerLoad(sessionKey, effectivePlaybackMode, activeUrl, connectPayload?.config);
+        const resolvedUrl = await vsSvc.playerLoad(sessionKey, generation, effectivePlaybackMode, activeUrl, connectPayload?.config);
+        if (!isCurrentAttempt()) {
+          await vsSvc.disconnectStream(sessionKey, generation).catch(() => {});
+          return;
+        }
         setPlayerUrl(resolvedUrl);
       } catch (e) {
+        if (!isCurrentAttempt()) {
+          await vsSvc.disconnectStream(sessionKey, generation).catch(() => {});
+          return;
+        }
+        ++playAttemptEpochRef.current;
+        activeGenerationRef.current = null;
         setPlayerError(String(e));
         setConnecting(false);
         setPlaying(false);
@@ -485,7 +538,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
         setPlaybackEngine(null);
         setShowPlayer(false);
         setPlayerUrl(null);
-        await vsSvc.disconnectStream(sessionKey).catch(() => {});
+        await vsSvc.disconnectStream(sessionKey, generation).catch(() => {});
       }
     }
   }, [showPlayer, resolveActiveUrl, effectivePlaybackMode, ffmpegStatus, buildConnectConfig, sessionKey, handleDisconnectPlayer, assistantActive, t]);
@@ -499,6 +552,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
         return (
           <RtspPanel
             sessionKey={sessionKey}
+            expectedGeneration={activeGenerationRef.current}
             connected={connected}
             streamUrl={streamUrl}
             onStreamUrlChange={setStreamUrl}
@@ -510,6 +564,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
         return (
           <RtmpPanel
             sessionKey={sessionKey}
+            expectedGeneration={activeGenerationRef.current}
             connected={connected}
             streamUrl={streamUrl}
             onStreamUrlChange={setStreamUrl}
@@ -519,7 +574,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
         );
       case 'http-flv': return <HttpFlvPanel sessionKey={sessionKey} connected={connected} />;
       case 'hls': return <HlsPanel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} />;
-      case 'webrtc': return <WebRtcPanel sessionKey={sessionKey} connected={connected} />;
+      case 'webrtc': return <WebRtcPanel sessionKey={sessionKey} expectedGeneration={activeGenerationRef.current} connected={connected} />;
       case 'gb28181': return <Gb28181Panel sessionKey={sessionKey} connected={connected} streamUrl={streamUrl} onStreamUrlChange={setStreamUrl} />;
       case 'srt': return <SrtPanel sessionKey={sessionKey} connected={connected} config={srtConfig} onConfigChange={setSrtConfig} />;
       case 'onvif':
@@ -796,6 +851,7 @@ export const VideoStreamWorkspace = memo(function VideoStreamWorkspace({
                         <VideoPlayer
                           url={playerUrl}
                           sessionId={sessionKey}
+                          expectedGeneration={activeGenerationRef.current}
                           liveMode={mode !== "hls"}
                           onStop={() => {
                             void handleDisconnectPlayer();

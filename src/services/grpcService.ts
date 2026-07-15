@@ -14,13 +14,14 @@ export async function loadProtoContent(content: string, key: string): Promise<Pr
 }
 
 /** Use gRPC reflection to discover services */
-export async function reflectServices(url: string): Promise<ProtoLoadResult> {
-  return invoke<ProtoLoadResult>('grpc_reflect', { url });
+export async function reflectServices(url: string, tlsEnabled: boolean): Promise<ProtoLoadResult> {
+  return invoke<ProtoLoadResult>('grpc_reflect', { url, tlsEnabled });
 }
 
 /** Make a unary gRPC call */
 export async function callUnary(
   url: string,
+  tlsEnabled: boolean,
   protoKey: string,
   methodFullName: string,
   requestJson: string,
@@ -28,6 +29,7 @@ export async function callUnary(
 ): Promise<GrpcCallResult> {
   return invoke<GrpcCallResult>('grpc_call_unary', {
     url,
+    tlsEnabled,
     protoKey,
     methodFullName,
     requestJson,
@@ -39,14 +41,16 @@ export async function callUnary(
 export async function callServerStream(
   connectionId: string,
   url: string,
+  tlsEnabled: boolean,
   protoKey: string,
   methodFullName: string,
   requestJson: string,
   metadata: Record<string, string>,
-): Promise<void> {
-  return invoke('grpc_call_server_stream', {
+): Promise<number> {
+  return invoke<number>('grpc_call_server_stream', {
     connectionId,
     url,
+    tlsEnabled,
     protoKey,
     methodFullName,
     requestJson,
@@ -58,12 +62,13 @@ export async function callServerStream(
 export async function callClientStream(
   connectionId: string,
   url: string,
+  tlsEnabled: boolean,
   protoKey: string,
   methodFullName: string,
   metadata: Record<string, string>,
-): Promise<void> {
-  return invoke('grpc_call_client_stream', {
-    connectionId, url, protoKey, methodFullName, metadata,
+): Promise<number> {
+  return invoke<number>('grpc_call_client_stream', {
+    connectionId, url, tlsEnabled, protoKey, methodFullName, metadata,
   });
 }
 
@@ -71,12 +76,13 @@ export async function callClientStream(
 export async function callBidiStream(
   connectionId: string,
   url: string,
+  tlsEnabled: boolean,
   protoKey: string,
   methodFullName: string,
   metadata: Record<string, string>,
-): Promise<void> {
-  return invoke('grpc_call_bidi_stream', {
-    connectionId, url, protoKey, methodFullName, metadata,
+): Promise<number> {
+  return invoke<number>('grpc_call_bidi_stream', {
+    connectionId, url, tlsEnabled, protoKey, methodFullName, metadata,
   });
 }
 

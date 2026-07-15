@@ -15,10 +15,25 @@ export function registerConnection(sessionKey: string, connId: string, label: st
   registry.get(sessionKey)!.set(connId, { label });
 }
 
-/** Unregister a connection. Call when disconnected/closed/unmounted. */
+/** Unregister a connection after the backend handle is disconnected/closed. */
 export function unregisterConnection(sessionKey: string, connId: string): void {
   registry.get(sessionKey)?.delete(connId);
   if (registry.get(sessionKey)?.size === 0) registry.delete(sessionKey);
+}
+
+/** Returns whether a specific backend handle is registered for this session. */
+export function isConnectionRegistered(sessionKey: string, connId: string): boolean {
+  return registry.get(sessionKey)?.has(connId) ?? false;
+}
+
+/** Forget all handles owned by one session key after centralized cleanup. */
+export function clearConnections(sessionKey: string): void {
+  registry.delete(sessionKey);
+}
+
+/** Forget all handles owned by a group of related session keys. */
+export function clearConnectionsForKeys(sessionKeys: Iterable<string>): void {
+  for (const sessionKey of sessionKeys) clearConnections(sessionKey);
 }
 
 /** Returns true if the session has any active connections. */

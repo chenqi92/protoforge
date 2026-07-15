@@ -16,6 +16,8 @@ import type {
   CellEdit,
 } from "@/types/dbclient";
 import * as dbService from "@/services/dbClientService";
+import { generateAlterTableSQL } from "@/lib/sqlDialect";
+import { registerToolStoreDetacher } from "@/stores/toolStoreLifecycle";
 
 // ═══════════════════════════════════════════
 //  Tab 类型
@@ -947,7 +949,6 @@ function createDbClientSessionStore(sessionId: string) {
       const config = get().connectionConfig;
       if (!config) return;
 
-      const { generateAlterTableSQL } = await import("@/lib/sqlDialect");
       const statements = generateAlterTableSQL(
         config.dbType, tab.schema, tab.table,
         tab.originalDescription.columns, tab.editedColumns,
@@ -1009,8 +1010,21 @@ export function useDbClientStore<T>(
 }
 
 export function cleanupDbClientStore(sessionId: string): void {
+  detachDbClientStore(sessionId);
+}
+
+/** Detach and return the exact current store before awaiting backend disconnect. */
+export function detachDbClientStore(sessionId: string): DbClientStoreApi | undefined {
+  const store = stores.get(sessionId);
+  if (!store) return undefined;
   const cleanup = cleanupFns.get(sessionId);
   if (cleanup) cleanup();
-  stores.delete(sessionId);
+  if (stores.get(sessionId) === store) stores.delete(sessionId);
   cleanupFns.delete(sessionId);
+  return store;
 }
+
+registerToolStoreDetacher("dbclient", (sessionId) => {
+  const store = detachDbClientStore(sessionId);
+  return store ? () => store.getState().disconnect() : undefined;
+});

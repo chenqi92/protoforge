@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import * as mbSvc from "@/services/modbusService";
 import * as svcSerial from "@/services/serialService";
-import { registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
+import { isConnectionRegistered, registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
 import { useActivityLogStore } from "@/stores/activityLogStore";
 import { ProtocolSidebarSection } from "./ProtocolWorkbench";
 import type { SerialPortInfo, SerialPortConfig, ModbusTransport, ModbusFunctionCode, ModbusTransaction, ModbusResponse } from "@/types/serial";
@@ -806,8 +806,10 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
   // ── 连接状态 ──
   const [transport, setTransport] = useState<ModbusTransport>("tcp");
   const transportRef = useRef<ModbusTransport>("tcp");
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected] = useState(() => isConnectionRegistered(sessionKey, connId));
   const [connecting, setConnecting] = useState(false);
+  const lifecycleEpochRef = useRef(0);
+  const statusEpochRef = useRef(0);
 
   // ── TCP 配置 ──
   const [host, setHost] = useState("127.0.0.1");
@@ -860,6 +862,40 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
   useEffect(() => { refreshPorts(); }, []);
   useEffect(() => { transportRef.current = transport; }, [transport]);
 
+  // A view can be temporarily unmounted by split/docking operations while the
+  // session still owns its backend connection. Restore from backend authority.
+  useEffect(() => {
+    let disposed = false;
+    const snapshotEpoch = statusEpochRef.current;
+    Promise.all([
+      mbSvc.modbusTcpStatus(connId),
+      mbSvc.modbusRtuStatus(connId),
+    ]).then(([tcpStatus, rtuStatus]) => {
+      if (disposed || statusEpochRef.current !== snapshotEpoch) return;
+      if (tcpStatus?.connected) {
+        transportRef.current = 'tcp';
+        setTransport('tcp');
+        setHost(tcpStatus.host);
+        setPort(tcpStatus.port);
+        registerConnection(sessionKey, connId, `Modbus TCP ${tcpStatus.host}:${tcpStatus.port}`);
+      } else if (rtuStatus?.connected) {
+        transportRef.current = 'rtu';
+        setTransport('rtu');
+        setPortName(rtuStatus.portName);
+        setSerialConfig(rtuStatus.config);
+        registerConnection(sessionKey, connId, `Modbus RTU ${rtuStatus.portName}`);
+      } else {
+        setConnected(false);
+        setConnecting(false);
+        unregisterConnection(sessionKey, connId);
+        return;
+      }
+      setConnected(true);
+      setConnecting(false);
+    }).catch(() => {});
+    return () => { disposed = true; };
+  }, [connId, sessionKey]);
+
   // ── 连接事件监听 ──
   useEffect(() => {
     let disposed = false;
@@ -867,6 +903,8 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
     const setup = async () => {
       const listener = await mbSvc.onModbusEvent((event) => {
         if (event.connId !== connId) return;
+        lifecycleEpochRef.current += 1;
+        statusEpochRef.current += 1;
         switch (event.eventType) {
           case "connected":
             setConnected(true);
@@ -892,11 +930,8 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
     return () => {
       disposed = true;
       unlisten?.();
-      unregisterConnection(sessionKey, connId);
-      mbSvc.modbusTcpDisconnect(connId).catch(() => {});
-      mbSvc.modbusRtuClose(connId).catch(() => {});
     };
-  }, [connId]);
+  }, [connId, sessionKey]);
 
   // ── 轮询 useEffect ──
   useEffect(() => {
@@ -920,14 +955,18 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
 
   // ── 连接 / 断开 ──
   const handleToggleConnection = async () => {
+    const actionEpoch = ++lifecycleEpochRef.current;
+    statusEpochRef.current += 1;
     if (connected) {
       unregisterConnection(sessionKey, connId);
-      if (transport === "tcp") {
-        await mbSvc.modbusTcpDisconnect(connId).catch(() => {});
-      } else {
-        await mbSvc.modbusRtuClose(connId).catch(() => {});
+      await Promise.allSettled([
+        mbSvc.modbusTcpDisconnect(connId),
+        mbSvc.modbusRtuClose(connId),
+      ]);
+      if (lifecycleEpochRef.current === actionEpoch) {
+        setConnected(false);
+        setConnecting(false);
       }
-      setConnected(false);
     } else {
       setConnecting(true);
       try {
@@ -937,9 +976,13 @@ export function ModbusPanel({ sessionKey, compact = false }: { sessionKey: strin
           await mbSvc.modbusRtuOpen(connId, portName, serialConfig);
         }
         // 某些后端实现同步连接，不会推送 "connected" 事件
-        setConnected(true);
-        setConnecting(false);
+        if (lifecycleEpochRef.current === actionEpoch) {
+          setConnected(true);
+          setConnecting(false);
+          registerConnection(sessionKey, connId, `Modbus ${transport.toUpperCase()}`);
+        }
       } catch (err: unknown) {
+        if (lifecycleEpochRef.current !== actionEpoch) return;
         setConnecting(false);
         const tx: ModbusTransaction = {
           id: crypto.randomUUID(),

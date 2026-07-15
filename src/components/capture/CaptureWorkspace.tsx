@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { activateOnKey } from "@/lib/a11y";
 import { useTranslation } from 'react-i18next';
-import { useCaptureStore, getCaptureStore, destroyCaptureStore } from "@/stores/captureStore";
+import { useCaptureStore, getCaptureStore } from "@/stores/captureStore";
 import type { BreakpointRule, CapturedEntry, PausedRequest, ResumeModification } from "@/types/capture";
 import {
   Dialog,
@@ -203,17 +203,47 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       loadBreakpoints: loadBp,
       loadPaused: loadPs,
     } = store.getState();
-    refresh();
-    load();
-    loadBp();
-    loadPs();
-    const unlistenPromise = init();
+    void refresh().catch((error) => console.warn('Failed to refresh capture status', error));
+    void load().catch((error) => console.warn('Failed to load captured entries', error));
+    void loadBp().catch((error) => console.warn('Failed to load capture breakpoints', error));
+    void loadPs().catch((error) => console.warn('Failed to load paused capture requests', error));
+
+    let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let releaseListener: (() => void) | null = null;
+    let retryDelay = 100;
+
+    const attachListeners = async () => {
+      try {
+        const release = await init();
+        if (disposed) {
+          release();
+        } else {
+          releaseListener = release;
+          // Close the gap between the initial snapshot and a delayed listener
+          // attachment. The backend retains entries and paused requests, so a
+          // post-attach snapshot recovers every event missed while retrying.
+          await Promise.allSettled([refresh(), load(), loadPs()]);
+        }
+      } catch (error) {
+        if (disposed) return;
+        console.warn('Failed to register capture listeners; retrying', error);
+        retryTimer = setTimeout(() => {
+          retryTimer = null;
+          void attachListeners();
+        }, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 5_000);
+      }
+    };
+
+    void attachListeners();
     return () => {
-      // 先解绑事件监听，再销毁 store，避免监听器尚未注册完成就被移出 map
-      unlistenPromise.then((fn) => {
-        fn();
-        destroyCaptureStore(sessionId);
-      });
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      // Split view and detached windows can mount the same session more than
+      // once. Only remove this view's listener here; the session store is
+      // destroyed by closeToolSession when the session itself is closed.
+      releaseListener?.();
     };
   }, [sessionId]);
 
@@ -235,6 +265,16 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       checkCaTrust();
     }
   }, [running, checkCaTrust]);
+
+  // Detached windows have independent renderer stores. Periodic authoritative
+  // status reconciliation closes the TOCTOU window when another renderer
+  // starts/stops the same backend session.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void getCaptureStore(sessionId).getState().refreshStatus();
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [sessionId]);
 
   // 轮询后备：每 2 秒从后端拉取条目（确保事件推送失败时也能展示）
   useEffect(() => {

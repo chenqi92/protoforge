@@ -53,12 +53,12 @@ export function OnvifPanel({
   const handleDiscover = useCallback(async () => {
     setDiscovering(true);
     try {
-      const devices = await vsSvc.onvifDiscover();
+      const devices = await vsSvc.onvifDiscover(sessionKey);
       setDiscoveredDevices(devices as typeof discoveredDevices);
     } catch { /* */ }
     setHasScanned(true);
     setDiscovering(false);
-  }, []);
+  }, [sessionKey]);
 
   const [querying, setQuerying] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);

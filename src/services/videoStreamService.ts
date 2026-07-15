@@ -13,12 +13,12 @@ import type {
 
 // ── 连接控制 ──
 
-export async function connectStream(sessionId: string, protocol: VideoProtocol, config: object): Promise<void> {
+export async function connectStream(sessionId: string, protocol: VideoProtocol, config: object): Promise<number> {
   return invoke('vs_connect', { sessionId, protocol, config: JSON.stringify(config) });
 }
 
-export async function disconnectStream(sessionId: string): Promise<void> {
-  return invoke('vs_disconnect', { sessionId });
+export async function disconnectStream(sessionId: string, expectedGeneration?: number): Promise<void> {
+  return invoke('vs_disconnect', { sessionId, expectedGeneration: expectedGeneration ?? null });
 }
 
 export async function probeStream(url: string): Promise<StreamInfo> {
@@ -27,8 +27,8 @@ export async function probeStream(url: string): Promise<StreamInfo> {
 
 // ── 播放器控制 ──
 
-export async function playerLoad(sessionId: string, protocol: VideoProtocol, url: string, config?: object): Promise<string> {
-  return invoke('vs_player_load', { sessionId, protocol, url, config: config ? JSON.stringify(config) : null });
+export async function playerLoad(sessionId: string, expectedGeneration: number, protocol: VideoProtocol, url: string, config?: object): Promise<string> {
+  return invoke('vs_player_load', { sessionId, expectedGeneration, protocol, url, config: config ? JSON.stringify(config) : null });
 }
 
 export async function playerControl(sessionId: string, action: 'play' | 'pause' | 'stop'): Promise<void> {
@@ -49,8 +49,8 @@ export async function ffmpegDownload(): Promise<string> {
 
 // ── RTSP 专用 ──
 
-export async function rtspCommand(sessionId: string, method: string): Promise<string> {
-  return invoke('vs_rtsp_command', { sessionId, method });
+export async function rtspCommand(sessionId: string, expectedGeneration: number, method: string): Promise<string> {
+  return invoke('vs_rtsp_command', { sessionId, expectedGeneration, method });
 }
 
 // ── HLS 专用 ──
@@ -87,8 +87,8 @@ export async function gb28181StopLive(sessionId: string): Promise<void> {
 
 // ── ONVIF 专用 ──
 
-export async function onvifDiscover(): Promise<object[]> {
-  return invoke('vs_onvif_discover');
+export async function onvifDiscover(sessionId: string): Promise<object[]> {
+  return invoke('vs_onvif_discover', { sessionId });
 }
 
 export async function onvifGetDeviceInfo(sessionId: string, config: object): Promise<object> {
@@ -129,16 +129,16 @@ export async function onvifClose(sessionId: string): Promise<void> {
 
 // ── RTMP 专用 ──
 
-export async function rtmpHandshake(sessionId: string): Promise<void> {
-  return invoke('vs_rtmp_handshake', { sessionId });
+export async function rtmpHandshake(sessionId: string, expectedGeneration: number): Promise<void> {
+  return invoke('vs_rtmp_handshake', { sessionId, expectedGeneration });
 }
 
-export async function rtmpConnectApp(sessionId: string): Promise<void> {
-  return invoke('vs_rtmp_connect_app', { sessionId });
+export async function rtmpConnectApp(sessionId: string, expectedGeneration: number): Promise<void> {
+  return invoke('vs_rtmp_connect_app', { sessionId, expectedGeneration });
 }
 
-export async function rtmpPlay(sessionId: string, streamKey: string): Promise<void> {
-  return invoke('vs_rtmp_play', { sessionId, streamKey });
+export async function rtmpPlay(sessionId: string, expectedGeneration: number, streamKey: string): Promise<void> {
+  return invoke('vs_rtmp_play', { sessionId, expectedGeneration, streamKey });
 }
 
 // ── SRT 专用 ──
@@ -157,16 +157,16 @@ export async function srtStats(sessionId: string): Promise<object> {
 
 // ── WebRTC 专用 ──
 
-export async function webrtcCreateOffer(sessionId: string, config: object): Promise<string> {
-  return invoke('vs_webrtc_create_offer', { sessionId, config: JSON.stringify(config) });
+export async function webrtcCreateOffer(sessionId: string, expectedGeneration: number, config: object): Promise<string> {
+  return invoke('vs_webrtc_create_offer', { sessionId, expectedGeneration, config: JSON.stringify(config) });
 }
 
-export async function webrtcSetAnswer(sessionId: string, sdp: string): Promise<void> {
-  return invoke('vs_webrtc_set_answer', { sessionId, sdp });
+export async function webrtcSetAnswer(sessionId: string, expectedGeneration: number, sdp: string): Promise<void> {
+  return invoke('vs_webrtc_set_answer', { sessionId, expectedGeneration, sdp });
 }
 
-export async function webrtcAddIce(sessionId: string, candidate: string): Promise<void> {
-  return invoke('vs_webrtc_add_ice', { sessionId, candidate });
+export async function webrtcAddIce(sessionId: string, expectedGeneration: number, candidate: string): Promise<void> {
+  return invoke('vs_webrtc_add_ice', { sessionId, expectedGeneration, candidate });
 }
 
 export async function webrtcClose(sessionId: string): Promise<void> {

@@ -336,9 +336,8 @@
     border-radius: 999px;
     transition: background-color 0.2s ease;
   }
-  *:hover > ::-webkit-scrollbar-thumb,
-  *:focus > ::-webkit-scrollbar-thumb,
-  ::-webkit-scrollbar:hover ::-webkit-scrollbar-thumb,
+  *:hover::-webkit-scrollbar-thumb,
+  *:focus::-webkit-scrollbar-thumb,
   ::-webkit-scrollbar-thumb:hover,
   :hover::-webkit-scrollbar-thumb {
     background-color: rgba(0, 0, 0, 0.18);

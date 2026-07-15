@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from "@/stores/appStore";
+import { requestConnectionId, useAppStore } from "@/stores/appStore";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { useHistoryStore } from "@/stores/historyStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -147,7 +147,7 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
   const config = activeTab.httpConfig;
   const response = activeTab.httpResponse;
   const { loading, error } = activeTab;
-  const sseConnId = `sse-${tabId}`;
+  const sseConnId = requestConnectionId(activeTab, "http");
   const isSseMode = config.requestMode === "sse";
   const isGraphqlMode = config.requestMode === "graphql";
   const graphqlHeaders = useMemo(() => {
@@ -238,7 +238,8 @@ export const HttpWorkspace = memo(function HttpWorkspace({ tabId }: { tabId: str
       cancelled = true;
       stopEvent?.();
       stopStatus?.();
-      void invoke("sse_disconnect", { connId: sseConnId }).catch(() => {});
+      // Split view can mount the same request twice. Closing one pane must not
+      // disconnect the still-open tab; appStore owns tab/protocol cleanup.
     };
   }, [sseConnId]);
 

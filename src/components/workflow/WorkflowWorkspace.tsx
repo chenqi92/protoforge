@@ -49,6 +49,7 @@ import {
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter,
   ArrowUp, ArrowDown,
+  SkipForward,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -127,6 +128,57 @@ function defaultConfig(nodeType: NodeType): Record<string, unknown> {
   }
 }
 
+function isWorkflowConnectionAllowed(
+  workflow: Workflow,
+  source: string | null | undefined,
+  target: string | null | undefined,
+  sourceHandle?: string | null,
+  ignoredEdgeId?: string,
+): boolean {
+  if (!source || !target || source === target) return false;
+
+  const sourceNode = workflow.nodes.find((node) => node.id === source);
+  const targetNode = workflow.nodes.find((node) => node.id === target);
+  if (!sourceNode || !targetNode) return false;
+  if (sourceNode.nodeType === 'end' || targetNode.nodeType === 'start') return false;
+
+  const normalizedSourceHandle = sourceHandle || undefined;
+  if (
+    sourceNode.nodeType === 'condition'
+    && normalizedSourceHandle !== 'left-source'
+    && normalizedSourceHandle !== 'right-source'
+  ) {
+    return false;
+  }
+
+  const edges = workflow.edges.filter((edge) => edge.id !== ignoredEdgeId);
+  if (edges.some(
+    (edge) => edge.sourceNodeId === source
+      && edge.targetNodeId === target
+      && (edge.sourceHandle || undefined) === normalizedSourceHandle,
+  )) {
+    return false;
+  }
+
+  // DFS from the proposed target: reaching the source would close a cycle.
+  const adjacency = new Map<string, string[]>();
+  for (const edge of edges) {
+    const neighbors = adjacency.get(edge.sourceNodeId) || [];
+    neighbors.push(edge.targetNodeId);
+    adjacency.set(edge.sourceNodeId, neighbors);
+  }
+  const visited = new Set<string>();
+  const stack = [target];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (current === source) return false;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    stack.push(...(adjacency.get(current) || []));
+  }
+  return true;
+}
+
 // ═══════════════════════════════════════════
 //  Custom React Flow Nodes (multiple shapes)
 // ═══════════════════════════════════════════
@@ -172,6 +224,7 @@ function RectangleNode({ id, data, selected }: { id: string; data: FlowNodeData;
   const meta = NODE_TYPE_META[data.nodeType];
   const isRunning = data.status === 'running';
   const isDone = data.status === 'completed';
+  const isSkipped = data.status === 'skipped';
   const isFailed = data.status === 'failed';
   const hCls = '!w-3 !h-3 !bg-accent !border-2 !border-bg-primary';
   const statusDot = isRunning ? 's-run' : isDone ? 's-ok' : isFailed ? 's-err' : 's-idle';
@@ -184,8 +237,9 @@ function RectangleNode({ id, data, selected }: { id: string; data: FlowNodeData;
       selected && 'border-accent ring-[3px] ring-accent/35',
       !selected && isRunning && 'border-info ring-[3px] ring-info/20',
       !selected && isDone && 'border-success',
+      !selected && isSkipped && 'border-border-default border-dashed opacity-60',
       !selected && isFailed && 'border-error',
-      !selected && !isRunning && !isDone && !isFailed && 'border-border-default',
+      !selected && !isRunning && !isDone && !isSkipped && !isFailed && 'border-border-default',
     )}>
       <NodeActionToolbar nodeId={id} data={data} />
       {/* Each direction has both source+target so you can drag from AND drop onto any point */}
@@ -217,6 +271,7 @@ function CircleNode({ id, data, selected }: { id: string; data: FlowNodeData; se
   const isStart = data.nodeType === 'start';
   const isRunning = data.status === 'running';
   const isDone = data.status === 'completed';
+  const isSkipped = data.status === 'skipped';
   const isFailed = data.status === 'failed';
   const hCls = '!w-3 !h-3 !bg-accent !border-2 !border-bg-primary';
 
@@ -227,11 +282,12 @@ function CircleNode({ id, data, selected }: { id: string; data: FlowNodeData; se
       selected && 'border-accent ring-[3px] ring-accent/35',
       !selected && isRunning && 'border-info ring-[3px] ring-info/20',
       !selected && isDone && 'border-success',
+      !selected && isSkipped && 'border-border-default border-dashed opacity-60',
       !selected && isFailed && 'border-error',
       // End node (terminal) — subtle error-toned ring in its idle state
-      isEnd && !selected && !isRunning && !isDone && !isFailed && 'border-error ring-[3px] ring-error/25',
-      isStart && !selected && !isRunning && !isDone && !isFailed && 'border-success',
-      !isEnd && !isStart && !selected && !isRunning && !isDone && !isFailed && 'border-border-default',
+      isEnd && !selected && !isRunning && !isDone && !isSkipped && !isFailed && 'border-error ring-[3px] ring-error/25',
+      isStart && !selected && !isRunning && !isDone && !isSkipped && !isFailed && 'border-success',
+      !isEnd && !isStart && !selected && !isRunning && !isDone && !isSkipped && !isFailed && 'border-border-default',
     )}>
       <NodeActionToolbar nodeId={id} data={data} />
       {/* Start: only source handles (outgoing). End: only target handles (incoming). */}
@@ -254,15 +310,17 @@ function DiamondNode({ id, data, selected }: { id: string; data: FlowNodeData; s
   const meta = NODE_TYPE_META[data.nodeType];
   const isRunning = data.status === 'running';
   const isDone = data.status === 'completed';
+  const isSkipped = data.status === 'skipped';
   const isFailed = data.status === 'failed';
   const hCls = '!w-3 !h-3 !bg-accent !border-2 !border-bg-primary';
 
   return (
     <div className="relative animate-in fade-in-0 zoom-in-95 duration-150" style={{ width: 80, height: 80 }}>
       <NodeActionToolbar nodeId={id} data={data} />
-      {/* Each direction: source + target overlaid */}
+      {/* Left=false and right=true are the only interactive branch outputs.
+          Hidden top/bottom source handles keep previously saved edges renderable. */}
       <Handle type="target" position={Position.Top} id="top-target" className={hCls} style={{ top: -5 }} />
-      <Handle type="source" position={Position.Top} id="top-source" className={cn(hCls, '!bg-transparent')} style={{ top: -5 }} />
+      <Handle type="source" position={Position.Top} id="top-source" className="!pointer-events-none !w-3 !h-3 !bg-transparent !border-transparent" style={{ top: -5 }} />
       <Handle type="target" position={Position.Left} id="left-target" className={hCls} style={{ left: -5 }} />
       <Handle type="source" position={Position.Left} id="left-source" className="!w-3 !h-3 !bg-error !border-2 !border-bg-primary" style={{ left: -5 }} />
       <div
@@ -271,8 +329,9 @@ function DiamondNode({ id, data, selected }: { id: string; data: FlowNodeData; s
           selected && 'border-accent ring-[3px] ring-accent/35',
           !selected && isRunning && 'border-info ring-2 ring-info/20',
           !selected && isDone && 'border-success',
+          !selected && isSkipped && 'border-border-default border-dashed opacity-60',
           !selected && isFailed && 'border-error',
-          !selected && !isRunning && !isDone && !isFailed && 'border-border-default',
+          !selected && !isRunning && !isDone && !isSkipped && !isFailed && 'border-border-default',
         )}
         style={{ transform: 'rotate(45deg)', borderRadius: 8 }}
       />
@@ -281,7 +340,7 @@ function DiamondNode({ id, data, selected }: { id: string; data: FlowNodeData; s
         <span className="pf-text-xxs font-semibold text-text-primary mt-0.5 truncate max-w-[60px]">{data.label}</span>
       </div>
       <Handle type="target" position={Position.Bottom} id="bottom-target" className={cn(hCls, '!bg-transparent')} style={{ bottom: -5 }} />
-      <Handle type="source" position={Position.Bottom} id="bottom-source" className={hCls} style={{ bottom: -5 }} />
+      <Handle type="source" position={Position.Bottom} id="bottom-source" className="!pointer-events-none !w-3 !h-3 !bg-transparent !border-transparent" style={{ bottom: -5 }} />
       <Handle type="target" position={Position.Right} id="right-target" className={cn(hCls, '!bg-transparent')} style={{ right: -5 }} />
       <Handle type="source" position={Position.Right} id="right-source" className="!w-3 !h-3 !bg-success !border-2 !border-bg-primary" style={{ right: -5 }} />
     </div>
@@ -827,7 +886,6 @@ function NodeConfigPanel({
           </>
         )}
 
-        {/* ── New node types ── */}
         {node.nodeType === 'condition' && (
           <div>
             <label className={labelCls}>{t('workflow.nodeFields.condExpression')}</label>
@@ -836,18 +894,9 @@ function NodeConfigPanel({
           </div>
         )}
 
-        {node.nodeType === 'loop' && (
-          <div>
-            <label className={labelCls}>{t('workflow.nodeFields.iterations')}</label>
-            <input type="number" min={1} value={(config.iterations as number) || 3} onChange={(e) => updateConfig('iterations', Number(e.target.value))} className={fieldCls} />
-          </div>
-        )}
-
-        {node.nodeType === 'parallel' && (
-          <div>
-            <label className={labelCls}>{t('workflow.nodeFields.maxConcurrency')}</label>
-            <input type="number" min={0} value={(config.maxConcurrency as number) || 0} onChange={(e) => updateConfig('maxConcurrency', Number(e.target.value))} className={fieldCls} />
-            <p className="pf-text-xxs text-text-disabled mt-1">{t('workflow.nodeFields.maxConcurrencyHint', { defaultValue: '0 = 不限制并行度' })}</p>
+        {(node.nodeType === 'loop' || node.nodeType === 'parallel') && (
+          <div className="pf-rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 pf-text-xxs leading-relaxed text-warning">
+            {t('workflow.nodeFields.unsupportedControlNode')}
           </div>
         )}
 
@@ -1015,13 +1064,14 @@ function HttpTimingBar({ timing }: { timing: Record<string, unknown> }) {
 function ExecutionStatsHeader({ nodeResults }: { nodeResults: NodeResult[] }) {
   const { t } = useTranslation();
   const stats = useMemo(() => {
-    let passed = 0, failed = 0, totalMs = 0;
+    let passed = 0, failed = 0, skipped = 0, totalMs = 0;
     for (const r of nodeResults) {
       if (r.status === 'completed') passed += 1;
       else if (r.status === 'failed') failed += 1;
+      else if (r.status === 'skipped') skipped += 1;
       totalMs += r.durationMs || 0;
     }
-    return { passed, failed, total: nodeResults.length, totalMs };
+    return { passed, failed, skipped, total: nodeResults.length, totalMs };
   }, [nodeResults]);
   return (
     <div className="flex items-center gap-2 px-4 py-2 border-b border-border-default bg-bg-secondary shrink-0 flex-wrap">
@@ -1035,6 +1085,13 @@ function ExecutionStatsHeader({ nodeResults }: { nodeResults: NodeResult[] }) {
       )}>
         <XCircle className="h-3 w-3" />
         {t('workflow.result.failed', { count: stats.failed })}
+      </span>
+      <span className={cn(
+        'inline-flex items-center gap-1 pf-text-xxs font-medium',
+        stats.skipped > 0 ? 'text-text-tertiary' : 'text-text-disabled',
+      )}>
+        <SkipForward className="h-3 w-3" />
+        {t('workflow.result.skipped', { count: stats.skipped })}
       </span>
       <span className="ml-auto pf-text-xxs font-mono text-text-tertiary">
         {t('workflow.result.totalDuration', { ms: stats.totalMs })}
@@ -1188,6 +1245,7 @@ function ExecutionPanel({
                 >
                   {result.status === 'completed' && <CheckCircle2 className="h-3 w-3 text-success shrink-0" />}
                   {result.status === 'failed' && <XCircle className="h-3 w-3 text-error shrink-0" />}
+                  {result.status === 'skipped' && <SkipForward className="h-3 w-3 text-text-disabled shrink-0" />}
                   {result.status === 'running' && <Loader2 className="h-3 w-3 animate-spin text-info shrink-0" />}
                   {result.status === 'pending' && <Clock className="h-3 w-3 text-text-disabled shrink-0" />}
                   <Icon className="h-3 w-3 shrink-0" style={{ color: meta.color }} />
@@ -1279,10 +1337,6 @@ function getResultSummary(result: NodeResult): string | null {
     case 'urlDecode':
     case 'hash':
       return `${((out.value as string) || '').substring(0, 50)}`;
-    case 'loop':
-      return `${out.iterations} iterations`;
-    case 'parallel':
-      return `max ${out.maxConcurrency ?? 0}`;
     case 'script':
       return `${(out.logs as string[] | undefined)?.length ?? 0} logs / ${out.envUpdates && typeof out.envUpdates === 'object' ? Object.keys(out.envUpdates as Record<string, unknown>).length : 0} vars`;
     case 'start':
@@ -1668,20 +1722,6 @@ function NodeOutputView({ result }: { result: NodeResult }) {
           <span className={keyCls}>UUID</span>
           <span className={valCls}>{String(out.value || '')}</span>
           <CopyButton text={String(out.value || '')} />
-        </div>
-      );
-    case 'loop':
-      return (
-        <div className="space-y-1">
-          <div className={kvCls}><span className={keyCls}>Count</span><span className={valCls}>{String(out.iterations ?? 0)}</span></div>
-          {Boolean(out.note) && <div className={kvCls}><span className={keyCls}>Note</span><span className={valCls}>{String(out.note)}</span></div>}
-        </div>
-      );
-    case 'parallel':
-      return (
-        <div className="space-y-1">
-          <div className={kvCls}><span className={keyCls}>Max</span><span className={valCls}>{String(out.maxConcurrency ?? 0)}</span></div>
-          {Boolean(out.note) && <div className={kvCls}><span className={keyCls}>Note</span><span className={valCls}>{String(out.note)}</span></div>}
         </div>
       );
     case 'start':
@@ -2163,6 +2203,24 @@ function WorkflowWorkspaceInner() {
   }, [localWorkflow, t, setDirty, bumpStructure, pushHistory]);
 
   const handleReverseEdge = useCallback((edgeId: string) => {
+    if (!localWorkflow) return;
+    const edge = localWorkflow.edges.find((candidate) => candidate.id === edgeId);
+    if (!edge) return;
+    const newSourceNode = localWorkflow.nodes.find((node) => node.id === edge.targetNodeId);
+    const newSourceHandle = newSourceNode?.nodeType === 'condition'
+      ? undefined
+      : 'bottom-source';
+    if (!isWorkflowConnectionAllowed(
+      localWorkflow,
+      edge.targetNodeId,
+      edge.sourceNodeId,
+      newSourceHandle,
+      edge.id,
+    )) {
+      toast.error(t('workflow.menu.reverseEdgeInvalid'));
+      return;
+    }
+
     pushHistory(localWorkflow);
     setLocalWorkflow((prev) => {
       if (!prev) return prev;
@@ -2170,14 +2228,19 @@ function WorkflowWorkspaceInner() {
         ...prev,
         edges: prev.edges.map((e) =>
           e.id === edgeId
-            ? { ...e, sourceNodeId: e.targetNodeId, targetNodeId: e.sourceNodeId, sourceHandle: undefined }
+            ? {
+                ...e,
+                sourceNodeId: e.targetNodeId,
+                targetNodeId: e.sourceNodeId,
+                sourceHandle: newSourceHandle,
+              }
             : e
         ),
       };
     });
     bumpStructure();
     setDirty(true);
-  }, [setDirty, bumpStructure, localWorkflow, pushHistory]);
+  }, [setDirty, bumpStructure, localWorkflow, pushHistory, t]);
 
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
     onEdgesChange(changes);
@@ -2506,40 +2569,8 @@ function WorkflowWorkspaceInner() {
     if (!localWorkflow) return false;
     const source = 'source' in connection ? connection.source : null;
     const target = 'target' in connection ? connection.target : null;
-    if (!source || !target) return false;
-    // Reject self-loops
-    if (source === target) return false;
-    // Reject duplicate edges (same source + target + sourceHandle)
     const sourceHandle = ('sourceHandle' in connection ? connection.sourceHandle : null) || undefined;
-    const isDuplicate = localWorkflow.edges.some(
-      (e) => e.sourceNodeId === source && e.targetNodeId === target && (e.sourceHandle || undefined) === sourceHandle
-    );
-    if (isDuplicate) return false;
-    // Reject connections originating from an "end" node (terminal)
-    const sourceNode = localWorkflow.nodes.find((n) => n.id === source);
-    if (sourceNode?.nodeType === 'end') return false;
-    // Reject connections targeting a "start" node (entry point)
-    const targetNode = localWorkflow.nodes.find((n) => n.id === target);
-    if (targetNode?.nodeType === 'start') return false;
-    // Reject if adding this edge would form a directed cycle
-    // (DFS from target — if we can reach source, adding source→target creates a cycle)
-    const adjacency = new Map<string, string[]>();
-    for (const e of localWorkflow.edges) {
-      const arr = adjacency.get(e.sourceNodeId) || [];
-      arr.push(e.targetNodeId);
-      adjacency.set(e.sourceNodeId, arr);
-    }
-    const visited = new Set<string>();
-    const stack: string[] = [target];
-    while (stack.length > 0) {
-      const current = stack.pop()!;
-      if (current === source) return false; // would form a cycle
-      if (visited.has(current)) continue;
-      visited.add(current);
-      const neighbors = adjacency.get(current);
-      if (neighbors) stack.push(...neighbors);
-    }
-    return true;
+    return isWorkflowConnectionAllowed(localWorkflow, source, target, sourceHandle);
   }, [localWorkflow]);
 
   // ── JSON Import / Export ──

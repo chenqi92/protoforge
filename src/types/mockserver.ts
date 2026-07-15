@@ -61,6 +61,7 @@ export interface SequenceItem {
 export interface MockRequestLog {
   id: string;
   sessionId: string;
+  instanceGeneration: number;
   timestamp: string;
   method: string;
   path: string;
@@ -77,6 +78,7 @@ export interface MockRequestLog {
 
 export interface MockServerStatusInfo {
   sessionId: string;
+  instanceGeneration: number;
   running: boolean;
   port: number;
   routeCount: number;

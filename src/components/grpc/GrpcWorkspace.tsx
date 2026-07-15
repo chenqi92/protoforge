@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useEffect } from "react";
+import { memo, useState, useCallback, useEffect, useRef } from "react";
 import {
   Play, Loader2, FolderOpen, RefreshCw, ChevronRight, ChevronDown,
   Copy, Check, Square, Search, Lock, ArrowUp, ArrowDown, Boxes, MousePointerClick, Inbox,
@@ -6,7 +6,7 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
-import { useAppStore } from "@/stores/appStore";
+import { requestConnectionId, useAppStore } from "@/stores/appStore";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher } from "@/components/request/RequestProtocolSwitcher";
 import { JsonEditorLite } from "@/components/common/JsonEditorLite";
@@ -19,6 +19,75 @@ import { buildRequestTemplate, getMethodKindLabel } from "@/types/grpc";
 import type { GrpcMethodKind } from "@/types/grpc";
 
 const MAX_STREAM_MESSAGES = 500;
+const MAX_STREAM_MESSAGE_BYTES = 64 * 1024;
+const MAX_STREAM_TOTAL_BYTES = 2 * 1024 * 1024;
+const MAX_PENDING_START_EVENTS = 32;
+const STREAM_EVENT_OVERHEAD_BYTES = 128;
+const TRUNCATED_SUFFIX = "\n… [preview truncated]";
+const utf8Encoder = new TextEncoder();
+
+type StreamPreviewEvent = GrpcStreamEvent & { previewBytes: number };
+
+function utf8ByteLength(value: string | undefined): number {
+  return value ? utf8Encoder.encode(value).byteLength : 0;
+}
+
+function truncateUtf8Preview(value: string | undefined, maxBytes: number): string | undefined {
+  if (value === undefined) return undefined;
+  if (maxBytes <= 0) return "";
+  if (utf8ByteLength(value) <= maxBytes) return value;
+
+  const suffixBytes = utf8ByteLength(TRUNCATED_SUFFIX);
+  if (suffixBytes >= maxBytes) {
+    return maxBytes >= utf8ByteLength("…") ? "…" : "";
+  }
+  const contentBudget = maxBytes - suffixBytes;
+  let low = 0;
+  let high = value.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (utf8ByteLength(value.slice(0, middle)) <= contentBudget) {
+      low = middle;
+    } else {
+      high = middle - 1;
+    }
+  }
+
+  let prefix = value.slice(0, low);
+  const finalCodeUnit = prefix.charCodeAt(prefix.length - 1);
+  if (finalCodeUnit >= 0xd800 && finalCodeUnit <= 0xdbff) {
+    prefix = prefix.slice(0, -1);
+  }
+  return `${prefix}${TRUNCATED_SUFFIX}`;
+}
+
+function toStreamPreview(event: GrpcStreamEvent): StreamPreviewEvent {
+  const contentBudget = MAX_STREAM_MESSAGE_BYTES - STREAM_EVENT_OVERHEAD_BYTES;
+  const data = truncateUtf8Preview(event.data, contentBudget);
+  const statusBudget = Math.max(0, contentBudget - utf8ByteLength(data));
+  const statusMessage = truncateUtf8Preview(event.statusMessage, statusBudget);
+  const previewBytes = STREAM_EVENT_OVERHEAD_BYTES
+    + utf8ByteLength(data)
+    + utf8ByteLength(statusMessage);
+  return { ...event, data, statusMessage, previewBytes };
+}
+
+function appendStreamPreview(
+  previous: StreamPreviewEvent[],
+  event: GrpcStreamEvent,
+): StreamPreviewEvent[] {
+  const next = [...previous, toStreamPreview(event)];
+  let totalBytes = next.reduce((total, item) => total + item.previewBytes, 0);
+  let firstRetained = 0;
+  while (
+    firstRetained < next.length
+    && (next.length - firstRetained > MAX_STREAM_MESSAGES || totalBytes > MAX_STREAM_TOTAL_BYTES)
+  ) {
+    totalBytes -= next[firstRetained].previewBytes;
+    firstRetained += 1;
+  }
+  return firstRetained === 0 ? next : next.slice(firstRetained);
+}
 
 // Map gRPC method kind to Forge method-* tokens (avoids hardcoded palette colors).
 function methodKindToneClass(kind: GrpcMethodKind): string {
@@ -140,24 +209,66 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
 
   // Streaming
   const [streaming, setStreaming] = useState(false);
-  const [streamMessages, setStreamMessages] = useState<GrpcStreamEvent[]>([]);
+  const [streamMessages, setStreamMessages] = useState<StreamPreviewEvent[]>([]);
+  const [streamDroppedCount, setStreamDroppedCount] = useState(0);
+  const activeStreamGenerationRef = useRef<number | null>(null);
+  const streamStartingRef = useRef(false);
+  const pendingStartEventsRef = useRef<GrpcStreamEvent[]>([]);
+  const connectionId = activeTab
+    ? requestConnectionId(activeTab, "grpc")
+    : `grpc-${tabId}-detached`;
 
-  // Listen for stream events
+  const handleIncomingStreamEvent = useCallback((event: GrpcStreamEvent) => {
+    if (event.droppedCount > 0) {
+      setStreamDroppedCount((previous) => previous + event.droppedCount);
+    }
+    if (event.eventType === "data") {
+      setStreamMessages((previous) => appendStreamPreview(previous, event));
+    } else if (event.eventType === "completed") {
+      activeStreamGenerationRef.current = null;
+      setStreaming(false);
+    } else if (event.eventType === "error") {
+      activeStreamGenerationRef.current = null;
+      setError(event.data ?? "Stream error");
+      setStreaming(false);
+    }
+  }, []);
+
+  const activateStreamGeneration = useCallback((generation: number) => {
+    activeStreamGenerationRef.current = generation;
+    streamStartingRef.current = false;
+    const pending = pendingStartEventsRef.current;
+    pendingStartEventsRef.current = [];
+    for (const event of pending) {
+      if (event.generation === generation) {
+        handleIncomingStreamEvent(event);
+      }
+    }
+  }, [handleIncomingStreamEvent]);
+
+  // Listen for stream events. Events can race the invoke response that carries
+  // the generation, so retain a small bounded start buffer and flush only the
+  // generation returned by the backend.
   useEffect(() => {
+    activeStreamGenerationRef.current = null;
+    streamStartingRef.current = false;
+    pendingStartEventsRef.current = [];
     const unlisten = listen<GrpcStreamEvent>("grpc-stream-event", (e) => {
-      if (e.payload.connectionId !== tabId) return;
-
-      if (e.payload.eventType === "data") {
-        setStreamMessages((prev) => [...prev, e.payload].slice(-MAX_STREAM_MESSAGES));
-      } else if (e.payload.eventType === "completed") {
-        setStreaming(false);
-      } else if (e.payload.eventType === "error") {
-        setError(e.payload.data ?? "Stream error");
-        setStreaming(false);
+      if (e.payload.connectionId !== connectionId) return;
+      if (e.payload.generation === activeStreamGenerationRef.current) {
+        handleIncomingStreamEvent(e.payload);
+        return;
+      }
+      if (streamStartingRef.current && activeStreamGenerationRef.current === null) {
+        const pending = pendingStartEventsRef.current;
+        pending.push(e.payload);
+        if (pending.length > MAX_PENDING_START_EVENTS) {
+          pending.splice(0, pending.length - MAX_PENDING_START_EVENTS);
+        }
       }
     });
     return () => { unlisten.then((f) => f()); };
-  }, [tabId]);
+  }, [connectionId, handleIncomingStreamEvent]);
 
   // Load proto file
   const handleLoadProto = useCallback(async () => {
@@ -186,7 +297,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
     setProtoLoading(true);
     setProtoError(null);
     try {
-      const result = await grpcService.reflectServices(url);
+      const result = await grpcService.reflectServices(url, tlsEnabled);
       setProtoResult(result);
       setProtoKey(`reflect:${url}`);
       setSelectedMethod(null);
@@ -196,7 +307,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
     } finally {
       setProtoLoading(false);
     }
-  }, [url]);
+  }, [url, tlsEnabled]);
 
   // Select method
   const handleSelectMethod = useCallback((method: GrpcMethodInfo, service: GrpcServiceInfo) => {
@@ -216,6 +327,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
     setError(null);
     setResponse(null);
     setStreamMessages([]);
+    setStreamDroppedCount(0);
 
     try {
       let parsedMetadata: Record<string, string> = {};
@@ -226,66 +338,89 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
       const kind = selectedMethod.kind;
 
       if (kind === "unary") {
+        activeStreamGenerationRef.current = null;
+        streamStartingRef.current = false;
+        pendingStartEventsRef.current = [];
         const result = await grpcService.callUnary(
-          url, protoKey, selectedMethod.fullName, requestJson, parsedMetadata,
+          url, tlsEnabled, protoKey, selectedMethod.fullName, requestJson, parsedMetadata,
         );
         setResponse(result);
       } else if (kind === "serverStreaming") {
+        activeStreamGenerationRef.current = null;
+        streamStartingRef.current = true;
+        pendingStartEventsRef.current = [];
         setStreaming(true);
-        await grpcService.callServerStream(
-          tabId, url, protoKey, selectedMethod.fullName, requestJson, parsedMetadata,
+        const generation = await grpcService.callServerStream(
+          connectionId, url, tlsEnabled, protoKey, selectedMethod.fullName, requestJson, parsedMetadata,
         );
+        activateStreamGeneration(generation);
       } else if (kind === "clientStreaming") {
+        activeStreamGenerationRef.current = null;
+        streamStartingRef.current = true;
+        pendingStartEventsRef.current = [];
         setStreaming(true);
-        await grpcService.callClientStream(
-          tabId, url, protoKey, selectedMethod.fullName, parsedMetadata,
+        const generation = await grpcService.callClientStream(
+          connectionId, url, tlsEnabled, protoKey, selectedMethod.fullName, parsedMetadata,
         );
+        activateStreamGeneration(generation);
       } else if (kind === "bidiStreaming") {
+        activeStreamGenerationRef.current = null;
+        streamStartingRef.current = true;
+        pendingStartEventsRef.current = [];
         setStreaming(true);
-        await grpcService.callBidiStream(
-          tabId, url, protoKey, selectedMethod.fullName, parsedMetadata,
+        const generation = await grpcService.callBidiStream(
+          connectionId, url, tlsEnabled, protoKey, selectedMethod.fullName, parsedMetadata,
         );
+        activateStreamGeneration(generation);
       }
     } catch (e: any) {
+      activeStreamGenerationRef.current = null;
+      streamStartingRef.current = false;
+      pendingStartEventsRef.current = [];
+      setStreaming(false);
       setError(String(e));
     } finally {
       setLoading(false);
     }
-  }, [selectedMethod, protoKey, url, requestJson, metadata, tabId]);
+  }, [selectedMethod, protoKey, url, tlsEnabled, requestJson, metadata, connectionId, activateStreamGeneration]);
 
   // Send a message on an active stream (client/bidi)
   const handleStreamSend = useCallback(async () => {
     if (!selectedMethod || !protoKey || !streaming) return;
+    const generation = activeStreamGenerationRef.current;
+    if (generation === null) return;
     try {
-      await grpcService.streamSend(tabId, protoKey, selectedMethod.fullName, requestJson);
-      setStreamMessages((prev) => [
-        ...prev,
-        {
-          connectionId: tabId,
-          eventType: "data" as const,
-          data: requestJson,
-          timestamp: new Date().toISOString(),
-        },
-      ].slice(-MAX_STREAM_MESSAGES));
+      await grpcService.streamSend(connectionId, protoKey, selectedMethod.fullName, requestJson);
+      setStreamMessages((prev) => appendStreamPreview(prev, {
+        connectionId,
+        generation,
+        eventType: "data" as const,
+        data: requestJson,
+        droppedCount: 0,
+        timestamp: new Date().toISOString(),
+      }));
     } catch (e: any) {
       setError(String(e));
     }
-  }, [selectedMethod, protoKey, streaming, tabId, requestJson]);
+  }, [selectedMethod, protoKey, streaming, connectionId, requestJson]);
 
   // Close the send side
   const handleCloseSend = useCallback(async () => {
     try {
-      await grpcService.streamCloseSend(tabId);
+      await grpcService.streamCloseSend(connectionId);
     } catch {}
-  }, [tabId]);
+  }, [connectionId]);
 
   // Cancel stream
   const handleCancel = useCallback(async () => {
     try {
-      await grpcService.cancelStream(tabId);
+      await grpcService.cancelStream(connectionId);
     } catch {}
+    activeStreamGenerationRef.current = null;
+    streamStartingRef.current = false;
+    pendingStartEventsRef.current = [];
     setStreaming(false);
-  }, [tabId]);
+  }, [connectionId]);
 
   // Copy response
   const handleCopy = useCallback(() => {
@@ -460,6 +595,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                         </>
                       )}
                       {streaming && <span className="text-accent inline-flex items-center gap-1.5"><span className="pf-dot s-live" /> Streaming ({streamMessages.length})</span>}
+                      {streamDroppedCount > 0 && <span className="text-warning tabular-nums">Dropped {streamDroppedCount}</span>}
                       <button onClick={handleCopy} aria-label={t('common.copy')} className="ml-auto p-0.5 text-text-tertiary hover:text-text-secondary">
                         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       </button>
@@ -482,7 +618,7 @@ export const GrpcWorkspace = memo(function GrpcWorkspace({ tabId }: { tabId: str
                       {streamMessages.length > 0 && (
                         <div className="divide-y divide-border-default/30">
                           {streamMessages.map((msg, i) => {
-                            const isSent = msg.connectionId === tabId && msg.eventType === "data" && !msg.statusCode;
+                            const isSent = msg.connectionId === connectionId && msg.eventType === "data" && !msg.statusCode;
                             return (
                               <div key={i} className={cn("px-3 py-1.5 transition-colors hover:bg-bg-hover/40", isSent && "bg-accent-soft/30")}>
                                 <div className="mb-0.5 flex items-center gap-2 pf-text-3xs text-text-disabled">

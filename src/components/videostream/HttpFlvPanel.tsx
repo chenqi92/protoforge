@@ -23,7 +23,11 @@ export function HttpFlvPanel({ sessionKey, connected }: HttpFlvPanelProps) {
     let unlisten: (() => void) | undefined;
 
     void vsSvc.onProtocolMessage((message) => {
-      if (message.protocol !== "http-flv" || !message.summary.startsWith("FLV Tag #")) return;
+      if (
+        message.sessionId !== sessionKey
+        || message.protocol !== "http-flv"
+        || !message.summary.startsWith("FLV Tag #")
+      ) return;
       try {
         const detail = JSON.parse(message.detail) as {
           tagType?: FlvTag["type"];

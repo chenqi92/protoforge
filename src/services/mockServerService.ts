@@ -12,12 +12,16 @@ export async function startMockServer(
   sessionId: string,
   port: number,
   routes: MockRoute[],
-): Promise<void> {
-  return invoke("mock_server_start", { sessionId, port, routes });
+): Promise<MockServerStatusInfo> {
+  return invoke<MockServerStatusInfo>("mock_server_start", { sessionId, port, routes });
 }
 
 export async function stopMockServer(sessionId: string): Promise<void> {
   return invoke("mock_server_stop", { sessionId });
+}
+
+export async function destroyMockServer(sessionId: string): Promise<void> {
+  return invoke("mock_server_destroy", { sessionId });
 }
 
 export async function updateMockRoutes(

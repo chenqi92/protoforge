@@ -34,6 +34,7 @@ import { usePluginStore } from "@/stores/pluginStore";
 import { RequestStatsPanel } from "@/components/plugins/RequestStatsPanel";
 import { ConnectionSidebar } from "@/components/dbclient/ConnectionSidebar";
 import { toast } from "sonner";
+import { listHistory } from '@/services/historyService';
 
 type SidebarView = "collections" | "history" | "environments" | "stats";
 
@@ -413,7 +414,6 @@ function ApiSidebar({ onOpenEnvModal, onTogglePanel }: { onOpenEnvModal: () => v
   // ── History export ──
   const exportHistory = async (format: 'json' | 'csv') => {
     try {
-      const { listHistory } = await import('@/services/historyService');
       const entries = await listHistory(10000);
       let content: string;
       let fileName: string;

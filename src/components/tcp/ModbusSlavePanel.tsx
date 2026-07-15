@@ -11,10 +11,11 @@ import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import * as mbSvc from "@/services/modbusService";
 import * as svcSerial from "@/services/serialService";
-import { registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
+import { isConnectionRegistered, registerConnection, unregisterConnection } from '@/lib/connectionRegistry';
 import { ProtocolSidebarSection } from "./ProtocolWorkbench";
 import type {
   SerialPortInfo, SerialPortConfig, ModbusTransport, ModbusSlaveEvent,
+  ModbusSlaveInitialBank, ModbusSlaveStatus,
 } from "@/types/serial";
 import { DEFAULT_SERIAL_CONFIG, BAUD_RATES } from "@/types/serial";
 
@@ -26,6 +27,63 @@ type RegTab = 'holding' | 'coil' | 'discrete' | 'input';
 
 const PAGE_SIZE = 16;
 const MAX_ADDR = 65535;
+
+interface ModbusSlaveBankMaps {
+  holdingRegisters: Map<number, number>;
+  coils: Map<number, boolean>;
+  inputRegisters: Map<number, number>;
+  discreteInputs: Map<number, boolean>;
+}
+
+function emptyBankMaps(): ModbusSlaveBankMaps {
+  return {
+    holdingRegisters: new Map(),
+    coils: new Map(),
+    inputRegisters: new Map(),
+    discreteInputs: new Map(),
+  };
+}
+
+function cloneBankMaps(bank: ModbusSlaveBankMaps): ModbusSlaveBankMaps {
+  return {
+    holdingRegisters: new Map(bank.holdingRegisters),
+    coils: new Map(bank.coils),
+    inputRegisters: new Map(bank.inputRegisters),
+    discreteInputs: new Map(bank.discreteInputs),
+  };
+}
+
+// A session can be remounted while an IPC is still in flight. Keeping the
+// queue outside the component preserves physical write order across remounts.
+const slaveBankMutationQueues = new Map<string, Promise<void>>();
+
+function enqueueSlaveBankMutation(connId: string, mutation: () => Promise<void>): Promise<void> {
+  const previous = slaveBankMutationQueues.get(connId) ?? Promise.resolve();
+  const operation = previous.catch(() => {}).then(mutation);
+  const tail = operation.catch(() => {});
+  slaveBankMutationQueues.set(connId, tail);
+  void tail.then(() => {
+    if (slaveBankMutationQueues.get(connId) === tail) {
+      slaveBankMutationQueues.delete(connId);
+    }
+  });
+  return operation;
+}
+
+async function waitForSlaveBankMutations(connId: string): Promise<void> {
+  while (true) {
+    const tail = slaveBankMutationQueues.get(connId);
+    if (!tail) return;
+    await tail;
+    if (slaveBankMutationQueues.get(connId) === tail) return;
+  }
+}
+
+function retryDelay(attempt: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, Math.min(2000, 100 * 2 ** Math.min(attempt, 5)));
+  });
+}
 
 // ── Modbus addressing prefix ──
 function addrPrefix(tab: RegTab): string {
@@ -197,10 +255,14 @@ function SlaveConnectionBar({
           </span>
           <input
             type="number"
-            min={1}
-            max={247}
+            min={transport === 'tcp' ? 0 : 1}
+            max={transport === 'tcp' ? 255 : 247}
             value={unitId}
-            onChange={(e) => onUnitIdChange(Math.max(1, Math.min(247, parseInt(e.target.value) || 1)))}
+            onChange={(e) => {
+              const min = transport === 'tcp' ? 0 : 1;
+              const max = transport === 'tcp' ? 255 : 247;
+              onUnitIdChange(Math.max(min, Math.min(max, parseInt(e.target.value) || min)));
+            }}
             disabled={running}
             className="wb-field w-full"
           />
@@ -246,6 +308,8 @@ function SlaveConnectionBar({
 
 export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: string; compact?: boolean }) {
   const { t } = useTranslation();
+  const connId = `modbus-slave-${sessionKey}`;
+  const initiallyRunning = isConnectionRegistered(sessionKey, connId);
 
   // ── Connection state ──
   const [transport, setTransport] = useState<ModbusTransport>('tcp');
@@ -256,7 +320,7 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
   const [serialPorts, setSerialPorts] = useState<SerialPortInfo[]>([]);
   const [loadingPorts, setLoadingPorts] = useState(false);
   const [unitId, setUnitId] = useState(1);
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState(initiallyRunning);
   const [starting, setStarting] = useState(false);
 
   // ── Register bank state ──
@@ -265,6 +329,9 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
   const [coils, setCoils] = useState<Map<number, boolean>>(new Map());
   const [discreteInputs, setDiscreteInputs] = useState<Map<number, boolean>>(new Map());
   const [inputRegs, setInputRegs] = useState<Map<number, number>>(new Map());
+  const displayedBankRef = useRef<ModbusSlaveBankMaps>(emptyBankMaps());
+  const desiredBankRef = useRef<ModbusSlaveBankMaps>(emptyBankMaps());
+  const activeGenerationRef = useRef<string | null>(null);
 
   // ── UI state ──
   const [activeTab, setActiveTab] = useState<RegTab>('holding');
@@ -273,17 +340,19 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
   // ── Request log ──
   const [requestLog, setRequestLog] = useState<ModbusSlaveEvent[]>([]);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const lifecycleEpochRef = useRef(0);
+  const statusEpochRef = useRef(0);
+  const statusRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   // ── Stats ──
   const [requestCount, setRequestCount] = useState(0);
-  const [startedAt, setStartedAt] = useState<Date | null>(null);
+  const [startedAt, setStartedAt] = useState<Date | null>(initiallyRunning ? new Date() : null);
   const [uptime, setUptime] = useState('');
 
   // ── Inline edit state ──
   const [editingAddr, setEditingAddr] = useState<number | null>(null);
   const [editingVal, setEditingVal] = useState('');
-
-  const connId = `modbus-slave-${sessionKey}`;
 
   // ── Refresh serial ports ──
   const refreshPorts = useCallback(async () => {
@@ -301,6 +370,111 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
   useEffect(() => {
     if (transport === 'rtu') refreshPorts();
   }, [transport, refreshPorts]);
+
+  const applyAuthoritativeStatus = useCallback((status: ModbusSlaveStatus | null) => {
+    if (!status) {
+      activeGenerationRef.current = null;
+      desiredBankRef.current = cloneBankMaps(displayedBankRef.current);
+      setRunning(false);
+      setStarting(false);
+      setStartedAt(null);
+      unregisterConnection(sessionKey, connId);
+      return;
+    }
+    setTransport(status.transport);
+    if (status.transport === 'tcp') {
+      setHost(status.host);
+      setPort(status.port);
+    } else {
+      setPortName(status.portName);
+      setSerialConfig({
+        baudRate: status.baudRate,
+        dataBits: status.dataBits,
+        stopBits: status.stopBits,
+        parity: status.parity,
+        flowControl: status.flowControl,
+      });
+    }
+    const bank: ModbusSlaveBankMaps = {
+      holdingRegisters: new Map(status.holdingRegisters.map(({ address, value }) => [address, value])),
+      coils: new Map(status.coils.map(({ address, value }) => [address, value])),
+      inputRegisters: new Map(status.inputRegisters.map(({ address, value }) => [address, value])),
+      discreteInputs: new Map(status.discreteInputs.map(({ address, value }) => [address, value])),
+    };
+    displayedBankRef.current = bank;
+    desiredBankRef.current = cloneBankMaps(bank);
+    activeGenerationRef.current = status.generation;
+    setUnitId(status.unitId);
+    setHoldingRegs(bank.holdingRegisters);
+    setCoils(bank.coils);
+    setInputRegs(bank.inputRegisters);
+    setDiscreteInputs(bank.discreteInputs);
+    setRunning(status.running);
+    setStarting(false);
+    setStartedAt(new Date(status.startedAt));
+    registerConnection(sessionKey, connId, 'Modbus Slave');
+  }, [connId, sessionKey]);
+
+  const refreshAuthoritativeStatus = useCallback(async (expectedEpoch?: number) => {
+    const refreshEpoch = expectedEpoch ?? ++statusEpochRef.current;
+    const status = await mbSvc.modbusSlaveStatus(connId);
+    if (mountedRef.current && statusEpochRef.current === refreshEpoch) {
+      applyAuthoritativeStatus(status);
+    }
+  }, [applyAuthoritativeStatus, connId]);
+
+  const scheduleAuthoritativeStatusRefresh = useCallback(() => {
+    if (statusRefreshTimerRef.current) clearTimeout(statusRefreshTimerRef.current);
+    const scheduledEpoch = statusEpochRef.current;
+    statusRefreshTimerRef.current = setTimeout(() => {
+      statusRefreshTimerRef.current = null;
+      void (async () => {
+        await waitForSlaveBankMutations(connId);
+        if (!mountedRef.current || statusEpochRef.current !== scheduledEpoch) return;
+        await refreshAuthoritativeStatus();
+      })().catch(() => {});
+    }, 30);
+  }, [connId, refreshAuthoritativeStatus]);
+
+  const hydrateAuthoritativeStatus = useCallback(async (
+    expectedGeneration?: string,
+    expectedLifecycleEpoch = lifecycleEpochRef.current,
+  ) => {
+    const hydrateEpoch = ++statusEpochRef.current;
+    let attempt = 0;
+    const isCurrent = () => mountedRef.current
+      && lifecycleEpochRef.current === expectedLifecycleEpoch
+      && statusEpochRef.current === hydrateEpoch;
+
+    while (isCurrent()) {
+      try {
+        await waitForSlaveBankMutations(connId);
+        if (!isCurrent()) return;
+        const status = await mbSvc.modbusSlaveStatus(connId);
+        if (!isCurrent()) return;
+        if (expectedGeneration && (
+          activeGenerationRef.current !== expectedGeneration
+          || status?.generation !== expectedGeneration
+        )) {
+          return;
+        }
+        applyAuthoritativeStatus(status);
+        return;
+      } catch {
+        if (!isCurrent()) return;
+        await retryDelay(attempt);
+        attempt += 1;
+      }
+    }
+  }, [applyAuthoritativeStatus, connId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (statusRefreshTimerRef.current) clearTimeout(statusRefreshTimerRef.current);
+    };
+  }, []);
 
   // ── Uptime ticker ──
   useEffect(() => {
@@ -322,62 +496,83 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
     let disposed = false;
     let unlisten: (() => void) | null = null;
     const setup = async () => {
-      const fn = await mbSvc.onModbusSlaveEvent((ev) => {
-        if (ev.connId !== connId) return;
-        if (ev.eventType === 'started') {
-          setRunning(true);
-          setStarting(false);
-          setStartedAt(new Date());
-          registerConnection(sessionKey, connId, 'Modbus Slave');
-        } else if (ev.eventType === 'stopped') {
-          setRunning(false);
-          setStartedAt(null);
-          unregisterConnection(sessionKey, connId);
-        } else if (ev.eventType === 'request') {
-          setRequestCount((c) => c + 1);
-          setRequestLog((prev) => [...prev.slice(-499), ev]);
-          // Auto scroll
-          setTimeout(() => {
-            if (!logEndRef.current || logEndRef.current.offsetParent === null) {
+      let attempt = 0;
+      while (!disposed) {
+        try {
+          const fn = await mbSvc.onModbusSlaveEvent((ev) => {
+            if (disposed) return;
+            if (ev.connId !== connId) return;
+            if (ev.eventType === 'started') {
+              const startedLifecycleEpoch = ++lifecycleEpochRef.current;
+              activeGenerationRef.current = ev.generation ?? null;
+              desiredBankRef.current = cloneBankMaps(displayedBankRef.current);
+              setRunning(true);
+              setStarting(false);
+              setStartedAt(new Date());
+              registerConnection(sessionKey, connId, 'Modbus Slave');
+              void hydrateAuthoritativeStatus(ev.generation, startedLifecycleEpoch);
+            } else if (
+              ev.generation
+              && activeGenerationRef.current
+              && ev.generation !== activeGenerationRef.current
+            ) {
               return;
+            } else if (ev.eventType === 'stopped') {
+              lifecycleEpochRef.current += 1;
+              statusEpochRef.current += 1;
+              activeGenerationRef.current = null;
+              desiredBankRef.current = cloneBankMaps(displayedBankRef.current);
+              setRunning(false);
+              setStartedAt(null);
+              unregisterConnection(sessionKey, connId);
+            } else if (ev.eventType === 'request') {
+              setRequestCount((c) => c + 1);
+              setRequestLog((prev) => [...prev.slice(-499), ev]);
+              // Auto scroll
+              setTimeout(() => {
+                if (!logEndRef.current || logEndRef.current.offsetParent === null) {
+                  return;
+                }
+                logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+              }, 50);
+              // Request events can arrive after a stop/restart or out of order.
+              // Re-read the generation-checked backend snapshot for writes instead
+              // of replaying event values into local state.
+              if ([5, 6, 15, 16].includes(ev.functionCode ?? -1)) {
+                scheduleAuthoritativeStatusRefresh();
+              }
+            } else if (ev.eventType === 'error') {
+              setRequestLog((prev) => [...prev.slice(-499), ev]);
             }
-            logEndRef.current.scrollIntoView({ behavior: 'smooth' });
-          }, 50);
-          // If it's a write, update local register state
-          if (ev.functionCode !== undefined && ev.values !== undefined && ev.startAddress !== undefined) {
-            const fc = ev.functionCode;
-            if (fc === 5 || fc === 15) {
-              // coil write
-              setCoils((prev) => {
-                const next = new Map(prev);
-                ev.values!.forEach((v, i) => next.set(ev.startAddress! + i, v !== 0));
-                return next;
-              });
-            } else if (fc === 6 || fc === 16) {
-              // holding register write
-              setHoldingRegs((prev) => {
-                const next = new Map(prev);
-                ev.values!.forEach((v, i) => next.set(ev.startAddress! + i, v));
-                return next;
-              });
-            }
+          });
+          if (disposed) {
+            fn();
+          } else {
+            unlisten = fn;
+            // Events emitted while listener registration was failing are not
+            // replayed. Re-read the backend immediately after every successful
+            // attachment to close that observation gap.
+            void hydrateAuthoritativeStatus(undefined, lifecycleEpochRef.current);
           }
-        } else if (ev.eventType === 'error') {
-          setRequestLog((prev) => [...prev.slice(-499), ev]);
+          return;
+        } catch {
+          await retryDelay(attempt);
+          attempt += 1;
         }
-      });
-      if (disposed) { fn(); return; }
-      unlisten = fn;
+      }
     };
-    setup();
+    void setup();
     return () => {
       disposed = true;
       unlisten?.();
-      unregisterConnection(sessionKey, connId);
-      mbSvc.modbusSlaveStopTcp(connId).catch(() => {});
-      mbSvc.modbusSlaveStopRtu(connId).catch(() => {});
     };
-  }, [connId]);
+  }, [connId, hydrateAuthoritativeStatus, scheduleAuthoritativeStatusRefresh, sessionKey]);
+
+  // Rehydrate the authoritative backend listener and sparse banks after a
+  // workspace remount. Local registry state alone cannot restore bank data.
+  useEffect(() => {
+    void hydrateAuthoritativeStatus(undefined, lifecycleEpochRef.current);
+  }, [hydrateAuthoritativeStatus]);
 
   // ── Auto-scroll log ──
   useEffect(() => {
@@ -389,25 +584,45 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
 
   // ── Toggle start/stop ──
   const handleToggle = useCallback(async () => {
+    const actionEpoch = ++lifecycleEpochRef.current;
+    statusEpochRef.current += 1;
     if (running) {
       try {
-        unregisterConnection(sessionKey, connId);
-        if (transport === 'tcp') await mbSvc.modbusSlaveStopTcp(connId);
-        else await mbSvc.modbusSlaveStopRtu(connId);
-        setRunning(false);
-        setStartedAt(null);
+        const expectedGeneration = activeGenerationRef.current;
+        if (!expectedGeneration) throw new Error('Modbus Slave 状态尚未恢复');
+        await mbSvc.modbusSlaveStop(connId, expectedGeneration);
+        if (lifecycleEpochRef.current === actionEpoch) {
+          activeGenerationRef.current = null;
+          desiredBankRef.current = cloneBankMaps(displayedBankRef.current);
+          unregisterConnection(sessionKey, connId);
+          setRunning(false);
+          setStartedAt(null);
+        }
       } catch (err) {
+        void hydrateAuthoritativeStatus(undefined, lifecycleEpochRef.current);
         toast.error(t('serial.modbusslave.stopFailed', 'Modbus Slave 停止失败') + ': ' + String(err));
       }
     } else {
       setStarting(true);
       try {
-        if (transport === 'tcp') {
-          await mbSvc.modbusSlaveStartTcp(connId, host, port, unitId);
-        } else {
-          await mbSvc.modbusSlaveStartRtu(connId, portName, serialConfig, unitId);
+        const bank = displayedBankRef.current;
+        const initialBank = {
+          holdingRegisters: Array.from(bank.holdingRegisters, ([address, value]) => ({ address, value })),
+          coils: Array.from(bank.coils, ([address, value]) => ({ address, value })),
+          inputRegisters: Array.from(bank.inputRegisters, ([address, value]) => ({ address, value })),
+          discreteInputs: Array.from(bank.discreteInputs, ([address, value]) => ({ address, value })),
+        };
+        const generation = transport === 'tcp'
+          ? await mbSvc.modbusSlaveStartTcp(connId, host, port, unitId, initialBank)
+          : await mbSvc.modbusSlaveStartRtu(connId, portName, serialConfig, unitId, initialBank);
+        if (lifecycleEpochRef.current === actionEpoch) {
+          activeGenerationRef.current = generation;
+          setRunning(true);
+          setStarting(false);
+          setStartedAt(new Date());
+          registerConnection(sessionKey, connId, 'Modbus Slave');
+          void hydrateAuthoritativeStatus(generation, actionEpoch);
         }
-        // backend will fire 'started' event; we set running/starting there
       } catch (err) {
         setStarting(false);
         setRequestLog((prev) => [
@@ -419,9 +634,10 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
             rawHex: String(err),
           } as ModbusSlaveEvent,
         ]);
+        toast.error(t('serial.modbusslave.startFailed', 'Modbus Slave 启动失败') + ': ' + String(err));
       }
     }
-  }, [running, transport, connId, host, port, unitId, portName, serialConfig]);
+  }, [running, transport, connId, host, port, unitId, portName, serialConfig, sessionKey, t, hydrateAuthoritativeStatus]);
 
   // ── Page helpers ──
   const pageStart = page * PAGE_SIZE;
@@ -436,81 +652,154 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
   function getDiscrete(addr: number): boolean { return discreteInputs.get(addr) ?? false; }
   function getInput(addr: number): number { return inputRegs.get(addr) ?? 0; }
 
+  const applyRunningBankUpdate = useCallback(async (updates: Partial<ModbusSlaveInitialBank>) => {
+    const updateEpoch = ++statusEpochRef.current;
+    // Capture the generation before entering the per-connection queue. Reading
+    // it inside the queued closure could bind an old edit to a replacement
+    // slave that started while the edit was waiting.
+    const expectedGeneration = activeGenerationRef.current;
+    let failure: unknown;
+    if (!expectedGeneration) {
+      failure = new Error('Modbus Slave 状态尚未恢复');
+    } else {
+      try {
+        await enqueueSlaveBankMutation(
+          connId,
+          () => mbSvc.modbusSlaveApplyBatch(connId, expectedGeneration, updates),
+        );
+      } catch (err) {
+        failure = err;
+      }
+    }
+    try {
+      // A later user action may already be queued. Wait until the session queue
+      // is fully drained so at least the newest operation publishes one final,
+      // generation-checked snapshot.
+      await waitForSlaveBankMutations(connId);
+      await refreshAuthoritativeStatus(updateEpoch);
+    } catch (err) {
+      failure ??= err;
+    }
+    if (mountedRef.current && failure !== undefined) {
+      toast.error(t('serial.modbusslave.updateFailed', '更新从站数据失败') + ': ' + String(failure));
+    }
+  }, [connId, refreshAuthoritativeStatus, t]);
+
   // ── Commit edit ──
   const commitEdit = useCallback(async (addr: number, raw: string) => {
     setEditingAddr(null);
     if (activeTab === 'holding') {
       const v = Math.max(0, Math.min(65535, parseInt(raw) || 0));
-      setHoldingRegs((prev) => new Map(prev).set(addr, v));
       if (running) {
-        try { await mbSvc.modbusSlaveSetHoldingReg(connId, addr, v); } catch { /* ignore */ }
+        desiredBankRef.current.holdingRegisters.set(addr, v);
+        await applyRunningBankUpdate({ holdingRegisters: [{ address: addr, value: v }] });
+      } else {
+        const bank = cloneBankMaps(displayedBankRef.current);
+        bank.holdingRegisters.set(addr, v);
+        displayedBankRef.current = bank;
+        desiredBankRef.current = cloneBankMaps(bank);
+        setHoldingRegs(bank.holdingRegisters);
       }
     } else if (activeTab === 'input') {
       const v = Math.max(0, Math.min(65535, parseInt(raw) || 0));
-      setInputRegs((prev) => new Map(prev).set(addr, v));
       if (running) {
-        try { await mbSvc.modbusSlaveSetInputReg(connId, addr, v); } catch { /* ignore */ }
+        desiredBankRef.current.inputRegisters.set(addr, v);
+        await applyRunningBankUpdate({ inputRegisters: [{ address: addr, value: v }] });
+      } else {
+        const bank = cloneBankMaps(displayedBankRef.current);
+        bank.inputRegisters.set(addr, v);
+        displayedBankRef.current = bank;
+        desiredBankRef.current = cloneBankMaps(bank);
+        setInputRegs(bank.inputRegisters);
       }
     }
-  }, [activeTab, connId, running]);
+  }, [activeTab, applyRunningBankUpdate, running]);
 
   // ── Toggle coil/discrete ──
   const toggleBool = useCallback(async (addr: number, tab: RegTab) => {
     if (tab === 'coil') {
-      const newVal = !getCoil(addr);
-      setCoils((prev) => new Map(prev).set(addr, newVal));
+      const source = running ? desiredBankRef.current : displayedBankRef.current;
+      const newVal = !(source.coils.get(addr) ?? false);
       if (running) {
-        try { await mbSvc.modbusSlaveSetCoil(connId, addr, newVal); } catch { /* ignore */ }
+        desiredBankRef.current.coils.set(addr, newVal);
+        await applyRunningBankUpdate({ coils: [{ address: addr, value: newVal }] });
+      } else {
+        const bank = cloneBankMaps(displayedBankRef.current);
+        bank.coils.set(addr, newVal);
+        displayedBankRef.current = bank;
+        desiredBankRef.current = cloneBankMaps(bank);
+        setCoils(bank.coils);
       }
     } else if (tab === 'discrete') {
-      const newVal = !getDiscrete(addr);
-      setDiscreteInputs((prev) => new Map(prev).set(addr, newVal));
+      const source = running ? desiredBankRef.current : displayedBankRef.current;
+      const newVal = !(source.discreteInputs.get(addr) ?? false);
       if (running) {
-        try { await mbSvc.modbusSlaveSetDiscreteInput(connId, addr, newVal); } catch { /* ignore */ }
+        desiredBankRef.current.discreteInputs.set(addr, newVal);
+        await applyRunningBankUpdate({ discreteInputs: [{ address: addr, value: newVal }] });
+      } else {
+        const bank = cloneBankMaps(displayedBankRef.current);
+        bank.discreteInputs.set(addr, newVal);
+        displayedBankRef.current = bank;
+        desiredBankRef.current = cloneBankMaps(bank);
+        setDiscreteInputs(bank.discreteInputs);
       }
     }
-  }, [coils, discreteInputs, connId, running]);
+  }, [applyRunningBankUpdate, running]);
 
   // ── Bulk fill ──
-  const handleBulkFill = useCallback((action: 'zero' | 'one' | 'increment' | 'random') => {
+  const handleBulkFill = useCallback(async (action: 'zero' | 'one' | 'increment' | 'random') => {
     if (activeTab === 'holding' || activeTab === 'input') {
-      const setter = activeTab === 'holding' ? setHoldingRegs : setInputRegs;
-      setter((prev) => {
-        const next = new Map(prev);
-        addresses.forEach((addr, i) => {
-          let v = 0;
-          if (action === 'zero') v = 0;
-          else if (action === 'one') v = 1;
-          else if (action === 'increment') v = i;
-          else v = Math.floor(Math.random() * 65536);
-          next.set(addr, v);
-          if (running) {
-            const fn = activeTab === 'holding' ? mbSvc.modbusSlaveSetHoldingReg : mbSvc.modbusSlaveSetInputReg;
-            fn(connId, addr, v).catch(() => { /* ignore */ });
-          }
-        });
-        return next;
+      const entries = addresses.map((addr, i) => {
+        let value = 0;
+        if (action === 'one') value = 1;
+        else if (action === 'increment') value = i;
+        else if (action === 'random') value = Math.floor(Math.random() * 65536);
+        return { address: addr, value };
       });
+      if (running) {
+        const target = activeTab === 'holding'
+          ? desiredBankRef.current.holdingRegisters
+          : desiredBankRef.current.inputRegisters;
+        entries.forEach(({ address, value }) => target.set(address, value));
+        await applyRunningBankUpdate(activeTab === 'holding'
+          ? { holdingRegisters: entries }
+          : { inputRegisters: entries });
+        return;
+      }
+      const bank = cloneBankMaps(displayedBankRef.current);
+      const target = activeTab === 'holding' ? bank.holdingRegisters : bank.inputRegisters;
+      entries.forEach(({ address, value }) => target.set(address, value));
+      displayedBankRef.current = bank;
+      desiredBankRef.current = cloneBankMaps(bank);
+      if (activeTab === 'holding') setHoldingRegs(bank.holdingRegisters);
+      else setInputRegs(bank.inputRegisters);
     } else {
-      const setter = activeTab === 'coil' ? setCoils : setDiscreteInputs;
-      const ipcFn = activeTab === 'coil' ? mbSvc.modbusSlaveSetCoil : mbSvc.modbusSlaveSetDiscreteInput;
-      setter((prev) => {
-        const next = new Map(prev);
-        addresses.forEach((addr) => {
-          let v = false;
-          if (action === 'zero') v = false;
-          else if (action === 'one') v = true;
-          else if (action === 'increment') v = addr % 2 === 0;
-          else v = Math.random() > 0.5;
-          next.set(addr, v);
-          if (running) {
-            ipcFn(connId, addr, v).catch(() => { /* ignore */ });
-          }
-        });
-        return next;
+      const entries = addresses.map((addr) => {
+        let value = false;
+        if (action === 'one') value = true;
+        else if (action === 'increment') value = addr % 2 === 0;
+        else if (action === 'random') value = Math.random() > 0.5;
+        return { address: addr, value };
       });
+      if (running) {
+        const target = activeTab === 'coil'
+          ? desiredBankRef.current.coils
+          : desiredBankRef.current.discreteInputs;
+        entries.forEach(({ address, value }) => target.set(address, value));
+        await applyRunningBankUpdate(activeTab === 'coil'
+          ? { coils: entries }
+          : { discreteInputs: entries });
+        return;
+      }
+      const bank = cloneBankMaps(displayedBankRef.current);
+      const target = activeTab === 'coil' ? bank.coils : bank.discreteInputs;
+      entries.forEach(({ address, value }) => target.set(address, value));
+      displayedBankRef.current = bank;
+      desiredBankRef.current = cloneBankMaps(bank);
+      if (activeTab === 'coil') setCoils(bank.coils);
+      else setDiscreteInputs(bank.discreteInputs);
     }
-  }, [activeTab, addresses, connId, running]);
+  }, [activeTab, addresses, applyRunningBankUpdate, running]);
 
   const isRegTab = activeTab === 'holding' || activeTab === 'input';
 
@@ -530,7 +819,9 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
     const prefix = addrPrefix(activeTab);
     const addrDisplay = `${prefix}${(addr + 1).toString().padStart(4, '0')}`;
     const val = activeTab === 'holding' ? getHolding(addr) : getInput(addr);
-    const isEditable = activeTab === 'holding';
+    // A simulator operator must be able to seed both writable holding
+    // registers and read-only-from-the-master input registers.
+    const isEditable = activeTab === 'holding' || activeTab === 'input';
     const isEditing = editingAddr === addr;
 
     return (
@@ -638,7 +929,12 @@ export function ModbusSlavePanel({ sessionKey, compact = false }: { sessionKey: 
             >
               <SlaveConnectionBar
                 transport={transport}
-                onTransportChange={setTransport}
+                onTransportChange={(nextTransport) => {
+                  setTransport(nextTransport);
+                  setUnitId((current) => nextTransport === 'rtu'
+                    ? Math.max(1, Math.min(247, current))
+                    : Math.max(0, Math.min(255, current)));
+                }}
                 host={host}
                 port={port}
                 onHostChange={setHost}

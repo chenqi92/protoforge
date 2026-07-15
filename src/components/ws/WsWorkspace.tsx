@@ -2,7 +2,7 @@ import { lazy, memo, Suspense, useDeferredValue, useState, useEffect, useRef, us
 import { Play, Loader2, ChevronDown, X, Trash2, ArrowUp, ArrowDown, Search, ChevronUp, Plug, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import { useAppStore } from "@/stores/appStore";
+import { requestConnectionId, useAppStore } from "@/stores/appStore";
 import type { WsMessage, WsEvent } from "@/types/ws";
 import { RequestWorkbenchHeader } from "@/components/request/RequestWorkbenchHeader";
 import { RequestProtocolSwitcher, type RequestKind } from "@/components/request/RequestProtocolSwitcher";
@@ -60,6 +60,9 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const currentUrl = activeTab?.wsUrl || "ws://localhost:8080";
+  const connectionId = activeTab
+    ? requestConnectionId(activeTab, "ws")
+    : `ws-${tabId}-detached`;
 
   useEffect(() => {
     try {
@@ -96,13 +99,13 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
   }, [connected]);
 
   useEffect(() => {
-    if (!tabId) return;
+    if (!connectionId) return;
     let cancelled = false;
 
     const syncState = async () => {
       try {
         const { wsIsConnected } = await import("@/services/wsService");
-        const isConnected = await wsIsConnected(tabId);
+        const isConnected = await wsIsConnected(connectionId);
         if (cancelled) return;
         setConnected(isConnected);
         setConnecting(false);
@@ -117,7 +120,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
     return () => {
       cancelled = true;
     };
-  }, [tabId]);
+  }, [connectionId]);
 
   const appendMessage = useCallback((message: WsMessage) => {
     setMessages((prev) => {
@@ -139,23 +142,22 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
       heartbeatTimerRef.current = setInterval(async () => {
         try {
           const { wsSend } = await import("@/services/wsService");
-          if (tabId) await wsSend(tabId, heartbeatMsg);
+          await wsSend(connectionId, heartbeatMsg);
         } catch {}
       }, heartbeatInterval * 1000);
     }
     return () => { if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current); };
-  }, [connected, heartbeatEnabled, heartbeatInterval, heartbeatMsg, tabId]);
+  }, [connected, heartbeatEnabled, heartbeatInterval, heartbeatMsg, connectionId]);
 
   // 监听 WS 事件
   useEffect(() => {
-    if (!tabId) return;
     let disposed = false;
     let unlisten: (() => void) | null = null;
 
     const setup = async () => {
       const { onWsEvent } = await import("@/services/wsService");
       const cleanup = await onWsEvent((event: WsEvent) => {
-        if (disposed || event.connectionId !== tabId) return;
+        if (disposed || event.connectionId !== connectionId) return;
 
         const fingerprint = `${event.eventType}|${event.timestamp}|${event.dataType || ""}|${event.data || ""}|${event.reason || ""}`;
         const now = Date.now();
@@ -239,7 +241,8 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
         cleanup();
         return;
       }
-      unlisten = cleanup;
+      if (disposed) cleanup();
+      else unlisten = cleanup;
     };
 
     void setup();
@@ -249,7 +252,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabId, t, pushWsEventMessage, url]);
+  }, [connectionId, t, pushWsEventMessage, url]);
 
   const doConnect = async () => {
     setConnecting(true);
@@ -257,7 +260,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
       const { wsConnect } = await import("@/services/wsService");
       const headerMap: Record<string, string> = {};
       headers.filter(h => h.enabled && h.key.trim()).forEach(h => { headerMap[h.key] = h.value; });
-      await wsConnect(activeTab.id, url, Object.keys(headerMap).length > 0 ? headerMap : null);
+      await wsConnect(connectionId, url, Object.keys(headerMap).length > 0 ? headerMap : null);
     } catch (err: unknown) {
       setConnecting(false);
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -277,7 +280,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
     if (connected) {
       setAutoReconnect(false); // 手动断开时停止自动重连
       const { wsDisconnect } = await import("@/services/wsService");
-      await wsDisconnect(activeTab.id);
+      await wsDisconnect(connectionId);
       setConnected(false);
     } else {
       await doConnect();
@@ -291,7 +294,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
         // Parse hex string to bytes
         const { wsSendBinary } = await import("@/services/wsService");
         const bytes = message.trim().split(/\s+/).map(h => parseInt(h, 16)).filter(n => !isNaN(n));
-        await wsSendBinary(activeTab.id, bytes);
+        await wsSendBinary(connectionId, bytes);
         appendMessage({
           id: crypto.randomUUID(), direction: "sent",
           kind: "message",
@@ -301,7 +304,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
         });
       } else {
         const { wsSend } = await import("@/services/wsService");
-        await wsSend(activeTab.id, message);
+        await wsSend(connectionId, message);
         appendMessage({
           id: crypto.randomUUID(),
           kind: "message",
@@ -360,7 +363,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
     try {
       if (connected || connecting) {
         const { wsDisconnect } = await import("@/services/wsService");
-        await wsDisconnect(activeTab.id);
+        await wsDisconnect(connectionId);
       }
     } catch {}
 
@@ -377,7 +380,7 @@ export const WsWorkspace = memo(function WsWorkspace({ tabId }: { tabId: string 
       name: kind === "graphql" ? "GraphQL Request" : "Untitled Request",
       method: kind === "graphql" ? "POST" : "GET",
     });
-  }, [activeTab, connected, connecting, setTabProtocol, updateHttpConfig]);
+  }, [activeTab, connected, connecting, connectionId, setTabProtocol, updateHttpConfig]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-transparent">

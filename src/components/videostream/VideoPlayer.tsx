@@ -6,6 +6,7 @@ import { isDirectMediaUrl, stripPlayerPrefix } from "@/lib/videoPlayback";
 interface VideoPlayerProps {
   url: string | null;
   sessionId: string;
+  expectedGeneration: number | null;
   onError?: (msg: string) => void;
   onReady?: () => void;
   onStop?: () => void;
@@ -13,7 +14,7 @@ interface VideoPlayerProps {
   liveMode?: boolean;
 }
 
-export function VideoPlayer({ url, sessionId, onError, onReady, onStop, onPlayingChange, liveMode = true }: VideoPlayerProps) {
+export function VideoPlayer({ url, sessionId, expectedGeneration, onError, onReady, onStop, onPlayingChange, liveMode = true }: VideoPlayerProps) {
   const [forceNativeFallback, setForceNativeFallback] = useState(false);
 
   const normalizedUrl = useMemo(() => {
@@ -32,7 +33,7 @@ export function VideoPlayer({ url, sessionId, onError, onReady, onStop, onPlayin
   }, [normalizedUrl]);
 
   if (!normalizedUrl) {
-    return <NativeVideoSurface url={null} sessionId={sessionId} onError={onError} onReady={onReady} onStop={onStop} onPlayingChange={onPlayingChange} liveMode={liveMode} />;
+    return <NativeVideoSurface url={null} sessionId={sessionId} expectedGeneration={expectedGeneration} onError={onError} onReady={onReady} onStop={onStop} onPlayingChange={onPlayingChange} liveMode={liveMode} />;
   }
 
   if (prefersEasyPlayer && !forceNativeFallback) {
@@ -60,5 +61,5 @@ export function VideoPlayer({ url, sessionId, onError, onReady, onStop, onPlayin
       ? `hls:${normalizedUrl}`
       : normalizedUrl;
 
-  return <NativeVideoSurface url={nativeUrl} sessionId={sessionId} onError={onError} onReady={onReady} onStop={onStop} onPlayingChange={onPlayingChange} liveMode={liveMode} />;
+  return <NativeVideoSurface url={nativeUrl} sessionId={sessionId} expectedGeneration={expectedGeneration} onError={onError} onReady={onReady} onStop={onStop} onPlayingChange={onPlayingChange} liveMode={liveMode} />;
 }

@@ -17,6 +17,10 @@ export async function stopProxy(sessionId: string): Promise<void> {
   return invoke("proxy_stop", { sessionId });
 }
 
+export async function destroyProxySession(sessionId: string): Promise<void> {
+  return invoke("proxy_destroy_session", { sessionId });
+}
+
 export async function getProxyStatus(sessionId: string): Promise<ProxyStatusInfo> {
   return invoke("proxy_status", { sessionId });
 }
@@ -25,8 +29,8 @@ export async function getEntries(sessionId: string): Promise<CapturedEntry[]> {
   return invoke("proxy_get_entries", { sessionId });
 }
 
-export async function clearEntries(sessionId: string): Promise<void> {
-  return invoke("proxy_clear", { sessionId });
+export async function clearEntries(sessionId: string): Promise<number> {
+  return invoke<number>("proxy_clear", { sessionId });
 }
 
 export async function exportCaCert(): Promise<string> {

@@ -107,9 +107,10 @@ fn extract_header_value(response: &str, header_name: &str) -> Option<String> {
         })
 }
 
-fn emit_received_message(app: &AppHandle, response: &str, protocol: &str) {
+fn emit_received_message(app: &AppHandle, session_id: &str, response: &str, protocol: &str) {
     let recv_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "received".to_string(),
         protocol: protocol.to_string(),
         summary: response
@@ -124,9 +125,10 @@ fn emit_received_message(app: &AppHandle, response: &str, protocol: &str) {
     let _ = app.emit("videostream-protocol-msg", &recv_msg);
 }
 
-fn emit_sent_message(app: &AppHandle, message: &str, protocol: &str) {
+fn emit_sent_message(app: &AppHandle, session_id: &str, message: &str, protocol: &str) {
     let sent_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "sent".to_string(),
         protocol: protocol.to_string(),
         summary: message.lines().next().unwrap_or("SIP message").to_string(),
@@ -190,10 +192,11 @@ async fn sip_send_recv_until_final(
     socket: &UdpSocket,
     target: &str,
     message: &str,
+    session_id: &str,
     protocol: &str,
     app: &AppHandle,
 ) -> Result<String, String> {
-    emit_sent_message(app, message, protocol);
+    emit_sent_message(app, session_id, message, protocol);
 
     socket
         .send_to(message.as_bytes(), target)
@@ -215,7 +218,7 @@ async fn sip_send_recv_until_final(
             .map_err(|e| format!("SIP recv failed: {}", e))?;
 
         let response = String::from_utf8_lossy(&buf[..n]).to_string();
-        emit_received_message(app, &response, protocol);
+        emit_received_message(app, session_id, &response, protocol);
 
         let (status_code, _) = parse_sip_status(&response);
         if !(100..200).contains(&status_code) {
@@ -268,10 +271,10 @@ async fn sip_send_recv(
     socket: &UdpSocket,
     target: &str,
     message: &str,
-    _session_id: &str,
+    session_id: &str,
     app: &AppHandle,
 ) -> Result<String, String> {
-    emit_sent_message(app, message, "gb28181");
+    emit_sent_message(app, session_id, message, "gb28181");
 
     socket
         .send_to(message.as_bytes(), target)
@@ -290,7 +293,7 @@ async fn sip_send_recv(
 
     let response = String::from_utf8_lossy(&buf[..n]).to_string();
 
-    emit_received_message(app, &response, "gb28181");
+    emit_received_message(app, session_id, &response, "gb28181");
 
     Ok(response)
 }
@@ -346,6 +349,7 @@ pub async fn register(
         // Emit info about auth challenge
         let info_msg = ProtocolMessage {
             id: uuid::Uuid::new_v4().to_string(),
+            session_id: session_id.to_string(),
             direction: "info".to_string(),
             protocol: "gb28181".to_string(),
             summary: "SIP 401 Unauthorized — digest auth required".to_string(),
@@ -384,6 +388,7 @@ pub async fn register(
     // Emit success info
     let info_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "info".to_string(),
         protocol: "gb28181".to_string(),
         summary: format!("SIP REGISTER successful — device {} registered", device_id),
@@ -475,7 +480,8 @@ pub async fn start_play(
         Some(&sdp_body),
     );
 
-    let response = sip_send_recv_until_final(socket, &target, &invite, "gb28181", app).await?;
+    let response =
+        sip_send_recv_until_final(socket, &target, &invite, session_id, "gb28181", app).await?;
     let (status_code, reason) = parse_sip_status(&response);
     if status_code != 200 {
         return Err(format!(
@@ -501,7 +507,7 @@ pub async fn start_play(
         None,
         None,
     );
-    emit_sent_message(app, &ack, "gb28181");
+    emit_sent_message(app, session_id, &ack, "gb28181");
     socket
         .send_to(ack.as_bytes(), &target)
         .await
@@ -509,6 +515,7 @@ pub async fn start_play(
 
     let info_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "info".to_string(),
         protocol: "gb28181".to_string(),
         summary: format!("GB28181 实时流已建立: {}", target_device_id),
@@ -538,7 +545,7 @@ pub async fn start_play(
 
 pub async fn stop_play(
     session: &mut Gb28181Session,
-    _session_id: &str,
+    session_id: &str,
     app: &AppHandle,
 ) -> Result<(), String> {
     let active = match session.active_play.take() {
@@ -567,10 +574,11 @@ pub async fn stop_play(
         None,
     );
 
-    let _ = sip_send_recv_until_final(socket, &target, &bye, "gb28181", app).await;
+    let _ = sip_send_recv_until_final(socket, &target, &bye, session_id, "gb28181", app).await;
 
     let info_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "info".to_string(),
         protocol: "gb28181".to_string(),
         summary: format!("GB28181 实时流已关闭: {}", active.target_device_id),
@@ -648,6 +656,7 @@ pub async fn query_catalog(
             // Emit received catalog
             let recv_msg = ProtocolMessage {
                 id: uuid::Uuid::new_v4().to_string(),
+                session_id: session_id.to_string(),
                 direction: "received".to_string(),
                 protocol: "gb28181".to_string(),
                 summary: "Catalog Response".to_string(),
@@ -667,6 +676,7 @@ pub async fn query_catalog(
                 // 200 OK but no catalog data yet — might come asynchronously
                 let info_msg = ProtocolMessage {
                     id: uuid::Uuid::new_v4().to_string(),
+                    session_id: session_id.to_string(),
                     direction: "info".to_string(),
                     protocol: "gb28181".to_string(),
                     summary: "Catalog query accepted, waiting for response...".to_string(),

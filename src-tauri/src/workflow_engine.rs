@@ -9,7 +9,7 @@
 
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 use tauri::Emitter;
 use tokio_util::sync::CancellationToken;
@@ -46,7 +46,7 @@ pub struct FlowNode {
     /// 节点特定配置（JSON），由 node_type 决定 schema
     pub config: serde_json::Value,
     /// 节点在画布上的 x/y 坐标（前端使用，后端透传）
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub position: Option<NodePosition>,
 }
 
@@ -79,7 +79,6 @@ pub enum NodeType {
     UrlEncode,
     UrlDecode,
     Hash,
-    // Phase 1 新增 — 流程控制 & 辅助
     Condition,
     Loop,
     Parallel,
@@ -99,12 +98,12 @@ pub struct FlowEdge {
     pub id: String,
     pub source_node_id: String,
     pub target_node_id: String,
-    /// 可选条件表达式（预留，Phase 1 不使用）
-    #[serde(default)]
+    /// 可选条件表达式；条件节点的 true/false 字面量可表示期望分支
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_handle: Option<String>,
 }
 
@@ -127,7 +126,7 @@ pub struct WorkflowExecution {
     pub status: ExecutionStatus,
     pub node_results: Vec<NodeResult>,
     pub started_at: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub finished_at: Option<String>,
     pub total_duration_ms: u64,
 }
@@ -142,7 +141,7 @@ pub struct NodeResult {
     pub status: ExecutionStatus,
     /// 节点输出（JSON），后续节点可引用
     pub output: serde_json::Value,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     pub duration_ms: u64,
 }
@@ -154,6 +153,7 @@ pub enum ExecutionStatus {
     Pending,
     Running,
     Completed,
+    Skipped,
     Failed,
     Cancelled,
 }
@@ -178,7 +178,7 @@ pub struct WorkflowProgressEvent {
     /// 当前节点状态
     pub status: ExecutionStatus,
     /// 节点结果（仅在节点完成/失败时填充）
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub node_result: Option<NodeResult>,
 }
 
@@ -254,21 +254,29 @@ impl FlowContext {
     /// - {{node_id.field}} — 引用上游节点输出的某个字段
     /// - {{node_id.output}} — 引用上游节点的完整输出 JSON
     pub fn resolve_template(&self, template: &str) -> String {
-        let mut result = template.to_string();
-        // 查找所有 {{...}} 模式并替换
-        loop {
-            let start = match result.find("{{") {
-                Some(i) => i,
-                None => break,
+        // Only scan the original template once. Re-scanning substituted values can
+        // loop forever for self-references (`x = "{{x}}"`) or make mutually
+        // recursive variables grow without bound.
+        let mut result = String::with_capacity(template.len());
+        let mut cursor = 0;
+
+        while let Some(relative_start) = template[cursor..].find("{{") {
+            let start = cursor + relative_start;
+            result.push_str(&template[cursor..start]);
+
+            let Some(relative_end) = template[start + 2..].find("}}") else {
+                result.push_str(&template[start..]);
+                return result;
             };
-            let end = match result[start..].find("}}") {
-                Some(i) => start + i + 2,
-                None => break,
-            };
-            let var_name = &result[start + 2..end - 2].trim();
-            let replacement = self.variables.get(*var_name).cloned().unwrap_or_default();
-            result = format!("{}{}{}", &result[..start], replacement, &result[end..]);
+            let end = start + 2 + relative_end;
+            let var_name = template[start + 2..end].trim();
+            if let Some(replacement) = self.variables.get(var_name) {
+                result.push_str(replacement);
+            }
+            cursor = end + 2;
         }
+
+        result.push_str(&template[cursor..]);
         result
     }
 
@@ -298,6 +306,8 @@ impl FlowContext {
 
 /// 对流程节点进行拓扑排序，返回节点 ID 的执行顺序
 fn topological_sort(nodes: &[FlowNode], edges: &[FlowEdge]) -> Result<Vec<String>, String> {
+    validate_workflow_graph(nodes, edges)?;
+
     let mut in_degree: HashMap<String, usize> = HashMap::new();
     let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
 
@@ -349,6 +359,165 @@ fn topological_sort(nodes: &[FlowNode], edges: &[FlowEdge]) -> Result<Vec<String
     Ok(result)
 }
 
+/// Validate identifiers and references before maps keyed by ID are built.
+/// Without this, duplicate IDs silently overwrite one another and duplicate
+/// edge IDs can activate a different branch than the one that was evaluated.
+fn validate_workflow_graph(nodes: &[FlowNode], edges: &[FlowEdge]) -> Result<(), String> {
+    let mut node_ids = HashSet::with_capacity(nodes.len());
+    for node in nodes {
+        if node.id.trim().is_empty() {
+            return Err("流程节点 ID 不能为空".to_string());
+        }
+        if !node_ids.insert(node.id.as_str()) {
+            return Err(format!("流程包含重复的节点 ID: {}", node.id));
+        }
+    }
+
+    let mut edge_ids = HashSet::with_capacity(edges.len());
+    for edge in edges {
+        if edge.id.trim().is_empty() {
+            return Err("流程连线 ID 不能为空".to_string());
+        }
+        if !edge_ids.insert(edge.id.as_str()) {
+            return Err(format!("流程包含重复的连线 ID: {}", edge.id));
+        }
+        if !node_ids.contains(edge.source_node_id.as_str()) {
+            return Err(format!(
+                "流程连线 {} 引用了不存在的源节点: {}",
+                edge.id, edge.source_node_id
+            ));
+        }
+        if !node_ids.contains(edge.target_node_id.as_str()) {
+            return Err(format!(
+                "流程连线 {} 引用了不存在的目标节点: {}",
+                edge.id, edge.target_node_id
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// 记录已被上游节点选中的边。节点只要有一条有效入边即可执行，
+/// 从而使未选分支自然向下游传播 Skipped，合流节点也不会被无效分支阻塞。
+#[derive(Debug, Default)]
+struct RoutingState {
+    active_edge_ids: HashSet<String>,
+}
+
+impl RoutingState {
+    fn should_execute(&self, node_id: &str, edges: &[FlowEdge]) -> bool {
+        let mut has_incoming = false;
+        for edge in edges.iter().filter(|edge| edge.target_node_id == node_id) {
+            has_incoming = true;
+            if self.active_edge_ids.contains(&edge.id) {
+                return true;
+            }
+        }
+        !has_incoming
+    }
+
+    fn activate_outgoing(
+        &mut self,
+        source_node: &FlowNode,
+        edges: &[FlowEdge],
+        context: &FlowContext,
+        condition_result: Option<bool>,
+    ) -> Result<(), String> {
+        let mut selected_edge_ids = Vec::new();
+        for edge in edges
+            .iter()
+            .filter(|edge| edge.source_node_id == source_node.id)
+        {
+            if edge_is_selected(edge, &source_node.node_type, context, condition_result)? {
+                selected_edge_ids.push(edge.id.clone());
+            }
+        }
+        self.active_edge_ids.extend(selected_edge_ids);
+        Ok(())
+    }
+}
+
+fn branch_for_source_handle(source_handle: Option<&str>) -> Option<bool> {
+    let handle = source_handle?.trim().to_ascii_lowercase();
+    match handle.as_str() {
+        "true" | "true-source" | "right" | "right-source" | "success" => Some(true),
+        "false" | "false-source" | "left" | "left-source" | "failure" => Some(false),
+        _ => None,
+    }
+}
+
+fn is_legacy_unconditional_condition_handle(source_handle: Option<&str>) -> bool {
+    let Some(handle) = source_handle else {
+        return true;
+    };
+    matches!(
+        handle.trim().to_ascii_lowercase().as_str(),
+        "top" | "top-source" | "bottom" | "bottom-source"
+    )
+}
+
+fn edge_is_selected(
+    edge: &FlowEdge,
+    source_node_type: &NodeType,
+    context: &FlowContext,
+    condition_result: Option<bool>,
+) -> Result<bool, String> {
+    let edge_condition = edge
+        .condition
+        .as_deref()
+        .map(str::trim)
+        .filter(|condition| !condition.is_empty())
+        .map(|condition| {
+            // Only a literal written directly on the edge is a legacy branch
+            // selector. A template that resolves to true/false is a dynamic
+            // guard and must remain an AND predicate with sourceHandle.
+            let is_branch_literal =
+                condition.eq_ignore_ascii_case("true") || condition.eq_ignore_ascii_case("false");
+            let resolved = context.resolve_template(condition);
+            evaluate_condition_expression(&resolved)
+                .map(|result| (result, is_branch_literal))
+                .map_err(|error| format!("边 {} 的条件表达式无效: {}", edge.id, error))
+        })
+        .transpose()?;
+
+    if *source_node_type == NodeType::Condition {
+        let actual = condition_result.ok_or_else(|| "条件节点未返回布尔结果".to_string())?;
+        let source_handle = edge
+            .source_handle
+            .as_deref()
+            .map(str::trim)
+            .filter(|handle| !handle.is_empty());
+        let handle_branch = branch_for_source_handle(source_handle);
+        // Older saved workflows allowed condition nodes to connect from the
+        // generic top/bottom handles (or without a source handle at all) and
+        // executed those edges unconditionally. The editor now only creates
+        // explicit left=false/right=true branch handles, but retaining the
+        // legacy behavior here prevents existing workflows from becoming
+        // unloadable after the routing upgrade.
+        if handle_branch.is_none() && edge_condition.is_none() {
+            if is_legacy_unconditional_condition_handle(source_handle) {
+                return Ok(true);
+            }
+            return Err(format!(
+                "条件节点的边 {} 使用了无法判定 true/false 的源端口 '{}'",
+                edge.id,
+                source_handle.unwrap_or_default()
+            ));
+        }
+        return Ok(handle_branch.is_none_or(|expected| expected == actual)
+            && edge_condition.is_none_or(|(result, is_branch_literal)| {
+                if is_branch_literal {
+                    result == actual
+                } else {
+                    result
+                }
+            }));
+    }
+
+    Ok(edge_condition.map(|(result, _)| result).unwrap_or(true))
+}
+
 // ═══════════════════════════════════════════
 //  WorkflowRunner — 核心执行引擎
 // ═══════════════════════════════════════════
@@ -384,6 +553,7 @@ pub async fn run_workflow(
         workflow.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
 
     let mut context = FlowContext::new(&workflow.variables);
+    let mut routing_state = RoutingState::default();
     let mut node_results: Vec<NodeResult> = Vec::new();
     let mut final_status = ExecutionStatus::Completed;
     let total_steps = sorted_ids.len();
@@ -413,6 +583,33 @@ pub async fn run_workflow(
             Some(n) => n,
             None => continue,
         };
+
+        if !routing_state.should_execute(&node.id, &workflow.edges) {
+            let node_result = NodeResult {
+                node_id: node.id.clone(),
+                node_name: node.name.clone(),
+                node_type: node.node_type.clone(),
+                status: ExecutionStatus::Skipped,
+                output: serde_json::Value::Null,
+                error: None,
+                duration_ms: 0,
+            };
+            let _ = app.emit(
+                "workflow-progress",
+                WorkflowProgressEvent {
+                    execution_id: execution_id.clone(),
+                    workflow_id: workflow.id.clone(),
+                    current_step: step_idx,
+                    total_steps,
+                    current_node_id: node.id.clone(),
+                    current_node_name: node.name.clone(),
+                    status: ExecutionStatus::Skipped,
+                    node_result: Some(node_result.clone()),
+                },
+            );
+            node_results.push(node_result);
+            continue;
+        }
 
         // 发送"正在执行"事件
         let _ = app.emit(
@@ -454,7 +651,8 @@ pub async fn run_workflow(
                     }
                 }
                 if node.node_type == NodeType::Script {
-                    if let Some(env_updates) = output.get("envUpdates").and_then(|v| v.as_object()) {
+                    if let Some(env_updates) = output.get("envUpdates").and_then(|v| v.as_object())
+                    {
                         for (key, value) in env_updates {
                             let resolved = value
                                 .as_str()
@@ -466,14 +664,38 @@ pub async fn run_workflow(
                 }
                 // 将输出写入上下文供后续节点使用
                 context.set_node_output(&node.id, output.clone());
-                NodeResult {
-                    node_id: node.id.clone(),
-                    node_name: node.name.clone(),
-                    node_type: node.node_type.clone(),
-                    status: ExecutionStatus::Completed,
-                    output,
-                    error: None,
-                    duration_ms,
+                let condition_result = if node.node_type == NodeType::Condition {
+                    output.get("result").and_then(serde_json::Value::as_bool)
+                } else {
+                    None
+                };
+                match routing_state.activate_outgoing(
+                    node,
+                    &workflow.edges,
+                    &context,
+                    condition_result,
+                ) {
+                    Ok(()) => NodeResult {
+                        node_id: node.id.clone(),
+                        node_name: node.name.clone(),
+                        node_type: node.node_type.clone(),
+                        status: ExecutionStatus::Completed,
+                        output,
+                        error: None,
+                        duration_ms,
+                    },
+                    Err(error) => {
+                        final_status = ExecutionStatus::Failed;
+                        NodeResult {
+                            node_id: node.id.clone(),
+                            node_name: node.name.clone(),
+                            node_type: node.node_type.clone(),
+                            status: ExecutionStatus::Failed,
+                            output,
+                            error: Some(error),
+                            duration_ms,
+                        }
+                    }
                 }
             }
             Err(e) => {
@@ -572,23 +794,24 @@ async fn execute_node(
         NodeType::UrlEncode => execute_url_codec_node(config, true).await,
         NodeType::UrlDecode => execute_url_codec_node(config, false).await,
         NodeType::Hash => execute_hash_node(config).await,
-        // Phase 1: 占位执行器
-        NodeType::Start => Ok(serde_json::json!({ "state": "started", "at": chrono::Utc::now().to_rfc3339() })),
-        NodeType::End => Ok(serde_json::json!({ "state": "finished", "at": chrono::Utc::now().to_rfc3339() })),
+        NodeType::Start => {
+            Ok(serde_json::json!({ "state": "started", "at": chrono::Utc::now().to_rfc3339() }))
+        }
+        NodeType::End => {
+            Ok(serde_json::json!({ "state": "finished", "at": chrono::Utc::now().to_rfc3339() }))
+        }
         NodeType::Log => execute_log_node(config).await,
         NodeType::SetVariable => execute_set_variable_node(config, context).await,
         NodeType::Timestamp => execute_timestamp_node(config).await,
         NodeType::Uuid => execute_uuid_node().await,
         NodeType::Assertion => execute_assertion_node(config, context).await,
         NodeType::Condition => execute_condition_node(config, context).await,
-        NodeType::Loop => Ok(serde_json::json!({
-            "iterations": config.get("iterations").and_then(|v| v.as_u64()).unwrap_or(1),
-            "note": "Loop body execution is planned for a future phase"
-        })),
-        NodeType::Parallel => Ok(serde_json::json!({
-            "maxConcurrency": config.get("maxConcurrency").and_then(|v| v.as_u64()).unwrap_or(0),
-            "note": "Parallel execution is planned for a future phase"
-        })),
+        NodeType::Loop => {
+            Err("循环节点暂不受支持：当前工作流模型无法定义安全的循环子图边界".to_string())
+        }
+        NodeType::Parallel => {
+            Err("并行节点暂不受支持：当前工作流模型无法定义安全的并行子图边界".to_string())
+        }
     }
 }
 
@@ -612,9 +835,9 @@ async fn execute_http_node(config: &serde_json::Value) -> Result<serde_json::Val
 async fn execute_ws_send_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
     use futures_util::{SinkExt, StreamExt};
     use std::collections::HashMap;
+    use tokio_tungstenite::tungstenite::Message;
     use tokio_tungstenite::tungstenite::client::IntoClientRequest;
     use tokio_tungstenite::tungstenite::http;
-    use tokio_tungstenite::tungstenite::Message;
 
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
@@ -893,7 +1116,9 @@ async fn execute_udp_send_node(config: &serde_json::Value) -> Result<serde_json:
 }
 
 /// MQTT 发布节点 — 连接 → 等待 ConnAck → 发布 → 断开
-async fn execute_mqtt_publish_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+async fn execute_mqtt_publish_node(
+    config: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct MqttPublishNodeConfig {
@@ -938,7 +1163,7 @@ async fn execute_mqtt_publish_node(config: &serde_json::Value) -> Result<serde_j
             match eventloop.poll().await {
                 Ok(rumqttc::Event::Incoming(rumqttc::Incoming::ConnAck(_))) => break Ok(()),
                 Ok(rumqttc::Event::Incoming(rumqttc::Incoming::Disconnect)) => {
-                    break Err("MQTT Broker 已断开连接".to_string())
+                    break Err("MQTT Broker 已断开连接".to_string());
                 }
                 Ok(_) => {}
                 Err(e) => break Err(format!("MQTT 连接失败: {}", e)),
@@ -1222,7 +1447,9 @@ async fn execute_json_parse_node(config: &serde_json::Value) -> Result<serde_jso
     }))
 }
 
-async fn execute_json_stringify_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+async fn execute_json_stringify_node(
+    config: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
     let input = config
         .get("input")
         .and_then(|v| v.as_str())
@@ -1251,7 +1478,9 @@ async fn execute_json_stringify_node(config: &serde_json::Value) -> Result<serde
     }))
 }
 
-async fn execute_text_transform_node(config: &serde_json::Value) -> Result<serde_json::Value, String> {
+async fn execute_text_transform_node(
+    config: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct TextTransformConfig {
@@ -1490,14 +1719,10 @@ async fn execute_assertion_node(
         "greaterThan" => {
             target.parse::<f64>().unwrap_or(0.0) > expected.parse::<f64>().unwrap_or(0.0)
         }
-        "lessThan" => {
-            target.parse::<f64>().unwrap_or(0.0) < expected.parse::<f64>().unwrap_or(0.0)
-        }
-        "matches" => {
-            regex_lite::Regex::new(&expected)
-                .map(|re| re.is_match(&target))
-                .unwrap_or(false)
-        }
+        "lessThan" => target.parse::<f64>().unwrap_or(0.0) < expected.parse::<f64>().unwrap_or(0.0),
+        "matches" => regex_lite::Regex::new(&expected)
+            .map(|re| re.is_match(&target))
+            .unwrap_or(false),
         _ => false,
     };
 
@@ -1517,7 +1742,139 @@ async fn execute_assertion_node(
     }
 }
 
-/// 条件判断节点 — Phase 1 仅求值表达式，不做分支路由
+#[derive(Debug, PartialEq)]
+enum ConditionValue {
+    Bool(bool),
+    Number(f64),
+    String(String),
+    Null,
+}
+
+fn find_comparison_operator(expression: &str) -> Option<(usize, &'static str)> {
+    let bytes = expression.as_bytes();
+    let mut quote = None;
+    let mut escaped = false;
+    let mut index = 0;
+
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if let Some(quote_byte) = quote {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == quote_byte {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+
+        if byte == b'\'' || byte == b'"' {
+            quote = Some(byte);
+            index += 1;
+            continue;
+        }
+
+        for operator in ["==", "!=", ">=", "<=", ">", "<"] {
+            if bytes[index..].starts_with(operator.as_bytes()) {
+                return Some((index, operator));
+            }
+        }
+        index += 1;
+    }
+
+    None
+}
+
+fn parse_condition_value(raw: &str) -> Result<ConditionValue, String> {
+    let value = raw.trim();
+    if value.is_empty() {
+        return Err("比较运算数不能为空".to_string());
+    }
+    if value.eq_ignore_ascii_case("true") {
+        return Ok(ConditionValue::Bool(true));
+    }
+    if value.eq_ignore_ascii_case("false") {
+        return Ok(ConditionValue::Bool(false));
+    }
+    if value.eq_ignore_ascii_case("null") {
+        return Ok(ConditionValue::Null);
+    }
+    if value.starts_with('"') || value.ends_with('"') {
+        if !(value.starts_with('"') && value.ends_with('"')) {
+            return Err(format!("字符串引号不匹配: {}", value));
+        }
+        let parsed = serde_json::from_str::<String>(value)
+            .map_err(|error| format!("字符串无效: {}", error))?;
+        return Ok(ConditionValue::String(parsed));
+    }
+    if value.starts_with('\'') || value.ends_with('\'') {
+        if !(value.starts_with('\'') && value.ends_with('\'')) {
+            return Err(format!("字符串引号不匹配: {}", value));
+        }
+        return Ok(ConditionValue::String(
+            value[1..value.len() - 1].to_string(),
+        ));
+    }
+    if let Ok(number) = value.parse::<f64>() {
+        return Ok(ConditionValue::Number(number));
+    }
+    Ok(ConditionValue::String(value.to_string()))
+}
+
+fn evaluate_condition_expression(expression: &str) -> Result<bool, String> {
+    let expression = expression.trim();
+    if expression.is_empty() {
+        return Ok(false);
+    }
+    if expression.eq_ignore_ascii_case("true")
+        || expression.eq_ignore_ascii_case("yes")
+        || expression == "1"
+    {
+        return Ok(true);
+    }
+    if expression.eq_ignore_ascii_case("false")
+        || expression.eq_ignore_ascii_case("no")
+        || expression == "0"
+    {
+        return Ok(false);
+    }
+
+    let Some((operator_index, operator)) = find_comparison_operator(expression) else {
+        // Phase-1 evaluated only the exact legacy false literals above; every
+        // other non-empty string (including "0.0", "null", or malformed
+        // quoted text) was true. Keep that persisted-data contract while the
+        // comparison grammar below remains strict for new expressions.
+        return Ok(true);
+    };
+    let left = parse_condition_value(&expression[..operator_index])?;
+    let right = parse_condition_value(&expression[operator_index + operator.len()..])?;
+
+    match operator {
+        "==" => Ok(left == right),
+        "!=" => Ok(left != right),
+        ">" | ">=" | "<" | "<=" => {
+            let ordering = match (&left, &right) {
+                (ConditionValue::Number(left), ConditionValue::Number(right)) => left
+                    .partial_cmp(right)
+                    .ok_or_else(|| "数值无法比较".to_string())?,
+                (ConditionValue::String(left), ConditionValue::String(right)) => left.cmp(right),
+                _ => return Err(format!("运算符 {} 只能比较两个数值或两个字符串", operator)),
+            };
+            Ok(match operator {
+                ">" => ordering.is_gt(),
+                ">=" => ordering.is_ge(),
+                "<" => ordering.is_lt(),
+                "<=" => ordering.is_le(),
+                _ => unreachable!(),
+            })
+        }
+        _ => unreachable!(),
+    }
+}
+
+/// 条件判断节点：配置在调用前已完成模板解析。
 async fn execute_condition_node(
     config: &serde_json::Value,
     _context: &FlowContext,
@@ -1527,12 +1884,7 @@ async fn execute_condition_node(
         .and_then(|v| v.as_str())
         .unwrap_or("true")
         .to_string();
-    // 简单求值：检查是否为 "true" 或非空非零
-    let result = match expression.trim().to_lowercase().as_str() {
-        "true" | "1" | "yes" => true,
-        "false" | "0" | "no" | "" => false,
-        _ => !expression.trim().is_empty(),
-    };
+    let result = evaluate_condition_expression(&expression)?;
     Ok(serde_json::json!({
         "expression": expression,
         "result": result,
@@ -1686,8 +2038,8 @@ fn percent_decode(input: &str) -> Result<String, String> {
                 }
                 let hex = std::str::from_utf8(&bytes[idx + 1..idx + 3])
                     .map_err(|e| format!("URL 解码失败: {}", e))?;
-                let value = u8::from_str_radix(hex, 16)
-                    .map_err(|e| format!("URL 解码失败: {}", e))?;
+                let value =
+                    u8::from_str_radix(hex, 16).map_err(|e| format!("URL 解码失败: {}", e))?;
                 out.push(value);
                 idx += 3;
             }
@@ -1767,6 +2119,8 @@ pub async fn get_workflow(pool: &SqlitePool, id: &str) -> Result<Workflow, Strin
 
 /// 创建流程
 pub async fn create_workflow(pool: &SqlitePool, workflow: &Workflow) -> Result<Workflow, String> {
+    validate_workflow_graph(&workflow.nodes, &workflow.edges)?;
+
     let definition = serde_json::json!({
         "nodes": workflow.nodes,
         "edges": workflow.edges,
@@ -1798,6 +2152,8 @@ pub async fn create_workflow(pool: &SqlitePool, workflow: &Workflow) -> Result<W
 
 /// 更新流程
 pub async fn update_workflow(pool: &SqlitePool, workflow: &Workflow) -> Result<(), String> {
+    validate_workflow_graph(&workflow.nodes, &workflow.edges)?;
+
     let definition = serde_json::json!({
         "nodes": workflow.nodes,
         "edges": workflow.edges,
@@ -1841,6 +2197,33 @@ pub async fn delete_workflow(pool: &SqlitePool, id: &str) -> Result<(), String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn routing_node(id: &str, node_type: NodeType) -> FlowNode {
+        FlowNode {
+            id: id.into(),
+            name: id.into(),
+            node_type,
+            config: serde_json::json!({}),
+            position: None,
+        }
+    }
+
+    fn routing_edge(
+        id: &str,
+        source: &str,
+        target: &str,
+        source_handle: Option<&str>,
+        condition: Option<&str>,
+    ) -> FlowEdge {
+        FlowEdge {
+            id: id.into(),
+            source_node_id: source.into(),
+            target_node_id: target.into(),
+            condition: condition.map(str::to_string),
+            label: None,
+            source_handle: source_handle.map(str::to_string),
+        }
+    }
 
     // ── FlowContext 模板替换 ──
 
@@ -1890,6 +2273,39 @@ mod tests {
     }
 
     #[test]
+    fn test_resolve_template_does_not_recurse_into_replacements() {
+        let ctx = FlowContext::new(&[
+            FlowVariable {
+                key: "self".into(),
+                value: "{{self}}".into(),
+                description: "".into(),
+            },
+            FlowVariable {
+                key: "left".into(),
+                value: "{{right}}".into(),
+                description: "".into(),
+            },
+            FlowVariable {
+                key: "right".into(),
+                value: "{{left}}".into(),
+                description: "".into(),
+            },
+        ]);
+
+        assert_eq!(ctx.resolve_template("{{self}}"), "{{self}}");
+        assert_eq!(
+            ctx.resolve_template("{{left}}/{{right}}"),
+            "{{right}}/{{left}}"
+        );
+    }
+
+    #[test]
+    fn test_resolve_template_preserves_unclosed_marker() {
+        let ctx = FlowContext::new(&[]);
+        assert_eq!(ctx.resolve_template("before {{missing"), "before {{missing");
+    }
+
+    #[test]
     fn test_resolve_config_nested() {
         let ctx = FlowContext::new(&[FlowVariable {
             key: "base".into(),
@@ -1905,6 +2321,255 @@ mod tests {
         let resolved = ctx.resolve_config(&config);
         assert_eq!(resolved["url"], "https://api.test.com/users");
         assert_eq!(resolved["headers"]["Authorization"], "Bearer token");
+    }
+
+    // ── 条件表达式与分支路由 ──
+
+    #[test]
+    fn test_condition_expression_literals_and_comparisons() {
+        assert_eq!(evaluate_condition_expression("true"), Ok(true));
+        assert_eq!(evaluate_condition_expression(" FALSE "), Ok(false));
+        assert_eq!(evaluate_condition_expression("yes"), Ok(true));
+        assert_eq!(evaluate_condition_expression("no"), Ok(false));
+        assert_eq!(evaluate_condition_expression("1"), Ok(true));
+        assert_eq!(evaluate_condition_expression("0"), Ok(false));
+        assert_eq!(evaluate_condition_expression(""), Ok(false));
+        assert_eq!(evaluate_condition_expression("0.0"), Ok(true));
+        assert_eq!(evaluate_condition_expression("null"), Ok(true));
+        assert_eq!(evaluate_condition_expression("\"unterminated"), Ok(true));
+        assert_eq!(evaluate_condition_expression("200 == 200"), Ok(true));
+        assert_eq!(evaluate_condition_expression("200 != 201"), Ok(true));
+        assert_eq!(evaluate_condition_expression("3.5 > 2"), Ok(true));
+        assert_eq!(evaluate_condition_expression("3 >= 3"), Ok(true));
+        assert_eq!(evaluate_condition_expression("2 < 3"), Ok(true));
+        assert_eq!(evaluate_condition_expression("2 <= 2"), Ok(true));
+        assert_eq!(
+            evaluate_condition_expression("\"beta\" > \"alpha\""),
+            Ok(true)
+        );
+        assert_eq!(evaluate_condition_expression("not a condition"), Ok(true));
+    }
+
+    #[test]
+    fn test_condition_routes_true_and_false_source_handles() {
+        let condition = routing_node("condition", NodeType::Condition);
+        let edges = vec![
+            routing_edge(
+                "true-edge",
+                "condition",
+                "true-node",
+                Some("right-source"),
+                None,
+            ),
+            routing_edge(
+                "false-edge",
+                "condition",
+                "false-node",
+                Some("left-source"),
+                None,
+            ),
+        ];
+        let context = FlowContext::new(&[]);
+
+        let mut true_routing = RoutingState::default();
+        true_routing
+            .activate_outgoing(&condition, &edges, &context, Some(true))
+            .unwrap();
+        assert!(true_routing.should_execute("true-node", &edges));
+        assert!(!true_routing.should_execute("false-node", &edges));
+
+        let mut false_routing = RoutingState::default();
+        false_routing
+            .activate_outgoing(&condition, &edges, &context, Some(false))
+            .unwrap();
+        assert!(!false_routing.should_execute("true-node", &edges));
+        assert!(false_routing.should_execute("false-node", &edges));
+    }
+
+    #[test]
+    fn test_condition_source_handle_combines_with_dynamic_edge_guard() {
+        let condition = routing_node("condition", NodeType::Condition);
+        let edges = vec![routing_edge(
+            "guarded-false-edge",
+            "condition",
+            "false-node",
+            Some("left-source"),
+            Some("{{enabled}}"),
+        )];
+        let disabled_context = FlowContext::new(&[FlowVariable {
+            key: "enabled".into(),
+            value: "false".into(),
+            description: String::new(),
+        }]);
+        let mut disabled_routing = RoutingState::default();
+        disabled_routing
+            .activate_outgoing(&condition, &edges, &disabled_context, Some(false))
+            .unwrap();
+        assert!(!disabled_routing.should_execute("false-node", &edges));
+
+        let enabled_context = FlowContext::new(&[FlowVariable {
+            key: "enabled".into(),
+            value: "true".into(),
+            description: String::new(),
+        }]);
+        let mut enabled_routing = RoutingState::default();
+        enabled_routing
+            .activate_outgoing(&condition, &edges, &enabled_context, Some(false))
+            .unwrap();
+        assert!(enabled_routing.should_execute("false-node", &edges));
+    }
+
+    #[test]
+    fn test_condition_routes_legacy_edge_conditions() {
+        let condition = routing_node("condition", NodeType::Condition);
+        let edges = vec![
+            routing_edge("true-edge", "condition", "true-node", None, Some("true")),
+            routing_edge("false-edge", "condition", "false-node", None, Some("false")),
+            routing_edge(
+                "expression-edge",
+                "condition",
+                "expression-node",
+                None,
+                Some("{{condition.result}} == false"),
+            ),
+        ];
+        let mut context = FlowContext::new(&[]);
+        context.set_node_output("condition", serde_json::json!({ "result": false }));
+        let mut routing = RoutingState::default();
+
+        routing
+            .activate_outgoing(&condition, &edges, &context, Some(false))
+            .unwrap();
+
+        assert!(!routing.should_execute("true-node", &edges));
+        assert!(routing.should_execute("false-node", &edges));
+        assert!(routing.should_execute("expression-node", &edges));
+    }
+
+    #[test]
+    fn test_condition_preserves_legacy_unconditional_source_handles() {
+        let condition = routing_node("condition", NodeType::Condition);
+        let missing_selector_edges = vec![routing_edge(
+            "missing-selector",
+            "condition",
+            "downstream",
+            None,
+            None,
+        )];
+        let ambiguous_edges = vec![routing_edge(
+            "ambiguous",
+            "condition",
+            "downstream",
+            Some("top-source"),
+            None,
+        )];
+        let context = FlowContext::new(&[]);
+        let mut routing = RoutingState::default();
+
+        routing
+            .activate_outgoing(&condition, &missing_selector_edges, &context, Some(true))
+            .unwrap();
+        assert!(routing.should_execute("downstream", &missing_selector_edges));
+
+        let mut routing = RoutingState::default();
+        routing
+            .activate_outgoing(&condition, &ambiguous_edges, &context, Some(true))
+            .unwrap();
+        assert!(routing.should_execute("downstream", &ambiguous_edges));
+
+        let invalid_edges = vec![routing_edge(
+            "invalid",
+            "condition",
+            "downstream",
+            Some("right-soruce"),
+            None,
+        )];
+        let mut routing = RoutingState::default();
+        assert!(
+            routing
+                .activate_outgoing(&condition, &invalid_edges, &context, Some(true))
+                .is_err()
+        );
+        assert!(!routing.should_execute("downstream", &invalid_edges));
+
+        let compatible_edges = vec![routing_edge(
+            "compatible",
+            "condition",
+            "downstream",
+            Some("top-source"),
+            Some("true"),
+        )];
+        routing
+            .activate_outgoing(&condition, &compatible_edges, &context, Some(true))
+            .unwrap();
+        assert!(routing.should_execute("downstream", &compatible_edges));
+    }
+
+    #[test]
+    fn test_routing_activation_is_transactional_on_invalid_edge_condition() {
+        let source = routing_node("source", NodeType::Delay);
+        let edges = vec![
+            routing_edge("valid", "source", "valid-target", None, None),
+            routing_edge(
+                "invalid",
+                "source",
+                "invalid-target",
+                None,
+                Some("true > 1"),
+            ),
+        ];
+        let context = FlowContext::new(&[]);
+        let mut routing = RoutingState::default();
+
+        assert!(
+            routing
+                .activate_outgoing(&source, &edges, &context, None)
+                .is_err()
+        );
+        assert!(!routing.should_execute("valid-target", &edges));
+        assert!(!routing.should_execute("invalid-target", &edges));
+    }
+
+    #[test]
+    fn test_skipped_branch_propagates_and_merge_accepts_any_active_input() {
+        let condition = routing_node("condition", NodeType::Condition);
+        let true_node = routing_node("true-node", NodeType::Delay);
+        let edges = vec![
+            routing_edge(
+                "condition-true",
+                "condition",
+                "true-node",
+                Some("right-source"),
+                None,
+            ),
+            routing_edge(
+                "condition-false",
+                "condition",
+                "false-node",
+                Some("left-source"),
+                None,
+            ),
+            routing_edge("false-tail", "false-node", "false-tail-node", None, None),
+            routing_edge("false-merge", "false-tail-node", "merge", None, None),
+            routing_edge("true-merge", "true-node", "merge", None, None),
+        ];
+        let context = FlowContext::new(&[]);
+        let mut routing = RoutingState::default();
+
+        routing
+            .activate_outgoing(&condition, &edges, &context, Some(true))
+            .unwrap();
+        assert!(routing.should_execute("true-node", &edges));
+        assert!(!routing.should_execute("false-node", &edges));
+
+        // 未选分支不激活出边，因此 Skipped 会继续向下游传播。
+        assert!(!routing.should_execute("false-tail-node", &edges));
+
+        routing
+            .activate_outgoing(&true_node, &edges, &context, None)
+            .unwrap();
+        // 合流节点只需任一有效入边，不等待被跳过的分支。
+        assert!(routing.should_execute("merge", &edges));
     }
 
     // ── 拓扑排序 ──
@@ -1940,12 +2605,16 @@ mod tests {
                 source_node_id: "a".into(),
                 target_node_id: "b".into(),
                 condition: None,
+                label: None,
+                source_handle: None,
             },
             FlowEdge {
                 id: "e2".into(),
                 source_node_id: "b".into(),
                 target_node_id: "c".into(),
                 condition: None,
+                label: None,
+                source_handle: None,
             },
         ];
         let result = topological_sort(&nodes, &edges).unwrap();
@@ -1976,12 +2645,16 @@ mod tests {
                 source_node_id: "a".into(),
                 target_node_id: "b".into(),
                 condition: None,
+                label: None,
+                source_handle: None,
             },
             FlowEdge {
                 id: "e2".into(),
                 source_node_id: "b".into(),
                 target_node_id: "a".into(),
                 condition: None,
+                label: None,
+                source_handle: None,
             },
         ];
         assert!(topological_sort(&nodes, &edges).is_err());
@@ -1999,6 +2672,68 @@ mod tests {
         let edges = vec![];
         let result = topological_sort(&nodes, &edges).unwrap();
         assert_eq!(result, vec!["a"]);
+    }
+
+    #[test]
+    fn test_topological_sort_rejects_duplicate_node_ids() {
+        let nodes = vec![
+            FlowNode {
+                id: "same".into(),
+                name: "A".into(),
+                node_type: NodeType::Delay,
+                config: serde_json::json!({}),
+                position: None,
+            },
+            FlowNode {
+                id: "same".into(),
+                name: "B".into(),
+                node_type: NodeType::Delay,
+                config: serde_json::json!({}),
+                position: None,
+            },
+        ];
+
+        assert!(
+            topological_sort(&nodes, &[])
+                .unwrap_err()
+                .contains("重复的节点 ID")
+        );
+    }
+
+    #[test]
+    fn test_topological_sort_rejects_duplicate_and_dangling_edges() {
+        let nodes = vec![
+            FlowNode {
+                id: "a".into(),
+                name: "A".into(),
+                node_type: NodeType::Delay,
+                config: serde_json::json!({}),
+                position: None,
+            },
+            FlowNode {
+                id: "b".into(),
+                name: "B".into(),
+                node_type: NodeType::Delay,
+                config: serde_json::json!({}),
+                position: None,
+            },
+        ];
+        let duplicate_edges = vec![
+            routing_edge("edge", "a", "b", None, None),
+            routing_edge("edge", "a", "b", None, None),
+        ];
+        assert!(
+            topological_sort(&nodes, &duplicate_edges)
+                .unwrap_err()
+                .contains("重复的连线 ID")
+        );
+
+        let dangling_edges = vec![routing_edge("edge", "missing", "b", None, None)];
+        assert!(
+            topological_sort(&nodes, &dangling_edges)
+                .unwrap_err()
+                .contains("不存在的源节点")
+        );
     }
 
     // ── JSON 路径提取 ──

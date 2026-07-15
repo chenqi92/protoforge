@@ -7,7 +7,7 @@ use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-use super::state::{ProtocolMessage, StreamEvent};
+use super::state::{GenerationTagged, ProtocolMessage, StreamEvent};
 
 /// RTSP 会话状态
 #[allow(dead_code)]
@@ -24,6 +24,7 @@ pub struct RtspSession {
 #[serde(rename_all = "camelCase")]
 pub struct SdpInfo {
     pub raw: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub session_name: Option<String>,
     pub media_descriptions: Vec<SdpMedia>,
 }
@@ -34,9 +35,13 @@ pub struct SdpMedia {
     pub media_type: String, // "video" or "audio"
     pub port: u32,
     pub protocol: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub codec: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub clock_rate: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub control: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fmtp: Option<String>,
 }
 
@@ -130,6 +135,7 @@ pub fn parse_sdp(raw: &str) -> SdpInfo {
 /// 发送 RTSP 请求并接收响应
 pub async fn send_rtsp_request(
     session_id: &str,
+    outer_generation: Option<u64>,
     url: &str,
     method: &str,
     rtsp_session: Option<&str>,
@@ -175,6 +181,7 @@ pub async fn send_rtsp_request(
     // Emit sent message
     let sent_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "sent".to_string(),
         protocol: "rtsp".to_string(),
         summary: format!("{} {} RTSP/1.0", method.to_uppercase(), url),
@@ -182,7 +189,14 @@ pub async fn send_rtsp_request(
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: Some(request.len() as u32),
     };
-    let _ = app.emit("videostream-protocol-msg", &sent_msg);
+    if let Some(generation) = outer_generation {
+        let _ = app.emit(
+            "videostream-protocol-msg",
+            &GenerationTagged::new(&sent_msg, generation),
+        );
+    } else {
+        let _ = app.emit("videostream-protocol-msg", &sent_msg);
+    }
 
     // Connect and send
     let addr = format!("{}:{}", host, port);
@@ -256,6 +270,7 @@ pub async fn send_rtsp_request(
     // Emit received message
     let recv_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "received".to_string(),
         protocol: "rtsp".to_string(),
         summary: status_line.clone(),
@@ -263,7 +278,14 @@ pub async fn send_rtsp_request(
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: Some(response.len() as u32),
     };
-    let _ = app.emit("videostream-protocol-msg", &recv_msg);
+    if let Some(generation) = outer_generation {
+        let _ = app.emit(
+            "videostream-protocol-msg",
+            &GenerationTagged::new(&recv_msg, generation),
+        );
+    } else {
+        let _ = app.emit("videostream-protocol-msg", &recv_msg);
+    }
 
     // If DESCRIBE, also emit stream-info with SDP
     if method.eq_ignore_ascii_case("DESCRIBE") {
@@ -297,6 +319,7 @@ pub async fn send_rtsp_request(
                 };
                 let event = StreamEvent {
                     session_id: session_id.to_string(),
+                    generation: outer_generation,
                     event_type: "stream-info".to_string(),
                     data: Some(serde_json::to_string(&info).unwrap_or_default()),
                     timestamp: chrono::Utc::now().to_rfc3339(),
@@ -307,6 +330,7 @@ pub async fn send_rtsp_request(
             // Emit SDP as info message
             let sdp_msg = ProtocolMessage {
                 id: uuid::Uuid::new_v4().to_string(),
+                session_id: session_id.to_string(),
                 direction: "info".to_string(),
                 protocol: "rtsp".to_string(),
                 summary: format!("SDP: {} media description(s)", sdp.media_descriptions.len()),
@@ -314,7 +338,14 @@ pub async fn send_rtsp_request(
                 timestamp: chrono::Utc::now().to_rfc3339(),
                 size: None,
             };
-            let _ = app.emit("videostream-protocol-msg", &sdp_msg);
+            if let Some(generation) = outer_generation {
+                let _ = app.emit(
+                    "videostream-protocol-msg",
+                    &GenerationTagged::new(&sdp_msg, generation),
+                );
+            } else {
+                let _ = app.emit("videostream-protocol-msg", &sdp_msg);
+            }
         }
     }
 

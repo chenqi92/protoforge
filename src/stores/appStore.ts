@@ -8,7 +8,11 @@ import {
   DEFAULT_VIDEO_TOOL_MODE,
   type ToolSessionOptions,
 } from "@/types/toolSession";
-import { getMockServerStoreApi } from "@/stores/mockServerStore";
+import {
+  detachMockServerStore,
+  getMockServerStoreApi,
+} from "@/stores/mockServerStore";
+import { detachToolStore } from "@/stores/toolStoreLifecycle";
 
 export type RequestProtocol = "http" | "ws" | "mqtt" | "grpc";
 export type ToolWorkbench = "tcpudp" | "loadtest" | "capture" | "videostream" | "mockserver" | "dbclient" | "toolbox" | "workflow";
@@ -145,6 +149,8 @@ export interface ToolSession {
 export interface AppTab {
   id: string;
   protocol: RequestProtocol;
+  /** Unique backend-connection incarnation. Rotated on every protocol switch. */
+  connectionEpoch: string;
   label: string;
   customLabel?: string | null;
   linkedCollectionItemId?: string | null;
@@ -215,6 +221,15 @@ export function toolContextId(tool: ToolWorkbench, sessionId: string): string {
   return `${tool}:${sessionId}`;
 }
 
+/** Backend IDs are incarnation-scoped so delayed cleanup from an old protocol
+ * can never tear down a later connection that reuses the same request tab. */
+export function requestConnectionId(
+  tab: Pick<AppTab, "id" | "connectionEpoch">,
+  protocol: RequestProtocol,
+): string {
+  return `${protocol}-${tab.id}-${tab.connectionEpoch}`;
+}
+
 const requestLabels: Record<RequestProtocol, string> = {
   http: "Untitled Request",
   ws: "WebSocket",
@@ -230,6 +245,111 @@ function createToolSession(tool: ToolWorkbench, id?: string, options?: ToolSessi
     tcpMode: tool === "tcpudp" ? options?.tcpMode ?? DEFAULT_TCP_TOOL_MODE : null,
     videoMode: tool === "videostream" ? options?.videoMode ?? DEFAULT_VIDEO_TOOL_MODE : null,
   };
+}
+
+function withoutContextStates(
+  states: Record<string, ContextState>,
+  ids: Iterable<string>,
+): Record<string, ContextState> {
+  const next = { ...states };
+  for (const id of ids) delete next[id];
+  return next;
+}
+
+/**
+ * Release backend resources owned by a request tab.  Request workspaces can be
+ * mounted more than once while split view is active, so tying this to React
+ * unmounting would disconnect a still-open tab when only one pane is closed.
+ */
+function releaseRequestResources(
+  tab: Pick<AppTab, "id" | "protocol" | "connectionEpoch">,
+): void {
+  void (async () => {
+    try {
+      const connectionId = requestConnectionId(tab, tab.protocol);
+      switch (tab.protocol) {
+        case "ws": {
+          const { wsDisconnect } = await import("@/services/wsService");
+          await wsDisconnect(connectionId);
+          break;
+        }
+        case "mqtt": {
+          const { invoke } = await import("@tauri-apps/api/core");
+          await invoke("mqtt_disconnect", { connId: connectionId });
+          break;
+        }
+        case "grpc": {
+          const { cancelStream } = await import("@/services/grpcService");
+          await cancelStream(connectionId);
+          break;
+        }
+        case "http": {
+          // HTTP tabs may own an SSE connection. Disconnecting a missing
+          // connection is intentionally a no-op in the backend.
+          const { invoke } = await import("@tauri-apps/api/core");
+          await invoke("sse_disconnect", { connId: connectionId });
+          break;
+        }
+      }
+    } catch {
+      // Closing a tab must remain best-effort even if the backend has already
+      // released the connection.
+    }
+  })();
+}
+
+/** Release long-running work owned by a tool session before removing it. */
+function releaseToolSessionResources(tool: ToolWorkbench, sessionId: string): void {
+  const detachedStoreRelease = tool === "capture" || tool === "dbclient"
+    ? detachToolStore(tool, sessionId)
+    : undefined;
+  if (tool === "mockserver") {
+    // Detach synchronously so a same-ID workspace opened while backend destroy
+    // is pending owns a fresh store that the old close cannot later remove.
+    detachMockServerStore(sessionId);
+  }
+
+  void (async () => {
+    try {
+      switch (tool) {
+        case "loadtest": {
+          const { stopLoadTest } = await import("@/services/loadTestService");
+          await stopLoadTest(sessionId);
+          break;
+        }
+        case "capture": {
+          const { destroyProxySession } = await import("@/services/captureService");
+          await destroyProxySession(sessionId);
+          break;
+        }
+        case "mockserver": {
+          const { destroyMockServer } = await import("@/services/mockServerService");
+          await destroyMockServer(sessionId);
+          break;
+        }
+        case "dbclient": {
+          await detachedStoreRelease?.();
+          break;
+        }
+        case "videostream": {
+          const { disconnectStream } = await import("@/services/videoStreamService");
+          await disconnectStream(sessionId);
+          break;
+        }
+        case "tcpudp": {
+          const { releaseTcpSessionResources } = await import("@/services/tcpSessionLifecycle");
+          await releaseTcpSessionResources(sessionId);
+          break;
+        }
+        case "toolbox":
+        case "workflow":
+          // These workspaces own no session-scoped backend task.
+          break;
+      }
+    } catch {
+      // Session removal should not be blocked by an already-closed resource.
+    }
+  })();
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -264,6 +384,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const tab: AppTab = {
       id,
       protocol,
+      connectionEpoch: crypto.randomUUID(),
       label: requestLabels[protocol],
       customLabel: null,
       linkedCollectionItemId: null,
@@ -385,6 +506,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   closeToolSession: (tool, sessionId) => {
+    if (get().toolSessions[tool].some((item) => item.id === sessionId)) {
+      releaseToolSessionResources(tool, sessionId);
+    }
     set((state) => {
       const sessions = state.toolSessions[tool];
       const index = sessions.findIndex((item) => item.id === sessionId);
@@ -405,6 +529,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
             ...state.activeToolSessionIds,
             [tool]: replacement.id,
           },
+          contextStates: withoutContextStates(state.contextStates, [toolContextId(tool, sessionId)]),
           activeWorkbench: tool,
           activeCollectionId: null,
         };
@@ -424,6 +549,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
           ...state.activeToolSessionIds,
           [tool]: nextActiveId,
         },
+        contextStates: withoutContextStates(state.contextStates, [toolContextId(tool, sessionId)]),
       };
     });
   },
@@ -463,6 +589,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   closeTab: (id) => {
+    const closingTab = get().tabs.find((tab) => tab.id === id);
+    if (closingTab) releaseRequestResources(closingTab);
     set((state) => {
       const nextTabs = state.tabs.filter((tab) => tab.id !== id);
       let nextActiveId = state.activeTabId;
@@ -474,6 +602,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return {
         tabs: nextTabs,
         activeTabId: nextActiveId,
+        contextStates: withoutContextStates(state.contextStates, [id]),
       };
     });
   },
@@ -497,13 +626,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   setTabProtocol: (id, protocol) => {
+    const previousTab = get().tabs.find((tab) => tab.id === id);
+    if (previousTab && previousTab.protocol !== protocol) {
+      releaseRequestResources(previousTab);
+    }
     set((state) => ({
       tabs: state.tabs.map((tab) => {
         if (tab.id !== id) return tab;
+        if (tab.protocol === protocol) return tab;
 
         return {
           ...tab,
           protocol,
+          connectionEpoch: crypto.randomUUID(),
           label: tab.label === requestLabels[tab.protocol] ? requestLabels[protocol] : tab.label,
           httpConfig: protocol === "http" && !tab.httpConfig ? createDefaultRequest() : tab.httpConfig,
           wsUrl: protocol === "ws" && !tab.wsUrl ? "ws://localhost:8080" : tab.wsUrl,
@@ -519,17 +654,32 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   closeOtherTabs: (id) => {
-    set((state) => ({
-      tabs: state.tabs.filter((tab) => tab.id === id),
-      activeTabId: id,
-      activeWorkbench: "requests",
-      activeCollectionId: null,
-    }));
+    const currentTabs = get().tabs;
+    if (!currentTabs.some((tab) => tab.id === id)) return;
+    currentTabs.forEach((tab) => {
+      if (tab.id !== id) releaseRequestResources(tab);
+    });
+    set((state) => {
+      const removedIds = state.tabs.filter((tab) => tab.id !== id).map((tab) => tab.id);
+      return {
+        tabs: state.tabs.filter((tab) => tab.id === id),
+        activeTabId: id,
+        activeWorkbench: "requests",
+        activeCollectionId: null,
+        contextStates: withoutContextStates(state.contextStates, removedIds),
+      };
+    });
   },
 
   closeTabsToRight: (id) => {
+    const currentTabs = get().tabs;
+    const currentIndex = currentTabs.findIndex((tab) => tab.id === id);
+    if (currentIndex >= 0) {
+      currentTabs.slice(currentIndex + 1).forEach(releaseRequestResources);
+    }
     set((state) => {
       const currentIndex = state.tabs.findIndex((tab) => tab.id === id);
+      if (currentIndex < 0) return {};
       const nextTabs = state.tabs.slice(0, currentIndex + 1);
       const nextActiveId = nextTabs.some((tab) => tab.id === state.activeTabId) ? state.activeTabId : id;
 
@@ -538,6 +688,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
         activeTabId: nextActiveId,
         activeWorkbench: "requests",
         activeCollectionId: null,
+        contextStates: withoutContextStates(
+          state.contextStates,
+          state.tabs.slice(currentIndex + 1).map((tab) => tab.id),
+        ),
       };
     });
   },
@@ -551,6 +705,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const duplicate: AppTab = {
       ...structuredClone(source),
       id: newId,
+      connectionEpoch: crypto.randomUUID(),
       label: `${source.label} (副本)`,
       linkedCollectionItemId: null,
       linkedCollectionId: null,

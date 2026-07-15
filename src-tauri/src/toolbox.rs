@@ -2,7 +2,14 @@
 
 use image::Rgba;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use std::io;
+use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock, Weak};
+
+type BatchRenameDirectoryLocks = Mutex<HashMap<PathBuf, Weak<Mutex<()>>>>;
+
+static BATCH_RENAME_DIRECTORY_LOCKS: OnceLock<BatchRenameDirectoryLocks> = OnceLock::new();
 
 #[derive(Serialize)]
 pub struct ToolboxBatchResult {
@@ -116,12 +123,8 @@ pub async fn toolbox_resize_screenshots(
                 .unwrap_or("image");
 
             for &(w, h) in &target_sizes {
-                let resized = image::imageops::resize(
-                    &img,
-                    w,
-                    h,
-                    image::imageops::FilterType::Lanczos3,
-                );
+                let resized =
+                    image::imageops::resize(&img, w, h, image::imageops::FilterType::Lanczos3);
 
                 let filename = format!("{stem}_{w}x{h}.png");
                 let dest = out.join(&filename);
@@ -161,8 +164,7 @@ pub async fn toolbox_generate_icons(
     output_dir: String,
 ) -> Result<ToolboxBatchResult, String> {
     tokio::task::spawn_blocking(move || {
-        let img = image::open(&source_path)
-            .map_err(|e| format!("打开图片失败: {e}"))?;
+        let img = image::open(&source_path).map_err(|e| format!("打开图片失败: {e}"))?;
 
         let out = PathBuf::from(&output_dir);
         let mut success_count = 0usize;
@@ -249,43 +251,33 @@ pub async fn toolbox_generate_icons(
 }
 
 /// 创建 ICO 文件，包含多个尺寸
-fn create_ico(
-    img: &image::DynamicImage,
-    sizes: &[u32],
-    dest: &Path,
-) -> Result<usize, String> {
+fn create_ico(img: &image::DynamicImage, sizes: &[u32], dest: &Path) -> Result<usize, String> {
     use image::codecs::ico::IcoEncoder;
     use std::io::BufWriter;
 
-    let file = std::fs::File::create(dest)
-        .map_err(|e| format!("创建 ICO 文件失败: {e}"))?;
+    let file = std::fs::File::create(dest).map_err(|e| format!("创建 ICO 文件失败: {e}"))?;
     let writer = BufWriter::new(file);
 
     // 先生成所有尺寸的 RGBA 数据
     let mut frames: Vec<image::RgbaImage> = Vec::new();
     for &size in sizes {
-        let resized = image::imageops::resize(
-            img,
-            size,
-            size,
-            image::imageops::FilterType::Lanczos3,
-        );
+        let resized =
+            image::imageops::resize(img, size, size, image::imageops::FilterType::Lanczos3);
         frames.push(resized);
     }
 
     let encoder = IcoEncoder::new(writer);
-    let ico_images: Vec<_> = frames
-        .iter()
-        .map(|frame| {
-            image::codecs::ico::IcoFrame::as_png(
-                frame.as_raw(),
-                frame.width(),
-                frame.height(),
-                image::ColorType::Rgba8.into(),
-            )
-            .expect("ICO frame encoding failed")
-        })
-        .collect();
+    let mut ico_images = Vec::with_capacity(frames.len());
+    for frame in &frames {
+        let ico_frame = image::codecs::ico::IcoFrame::as_png(
+            frame.as_raw(),
+            frame.width(),
+            frame.height(),
+            image::ColorType::Rgba8.into(),
+        )
+        .map_err(|e| format!("ICO 帧编码失败: {e}"))?;
+        ico_images.push(ico_frame);
+    }
 
     encoder
         .encode_images(&ico_images)
@@ -333,7 +325,11 @@ pub async fn toolbox_compress_images(
                     _ => "png",
                 },
             };
-            let target_ext = if target_format == "jpeg" { "jpg" } else { "png" };
+            let target_ext = if target_format == "jpeg" {
+                "jpg"
+            } else {
+                "png"
+            };
 
             let original_size = std::fs::metadata(src).map(|m| m.len()).unwrap_or(0);
 
@@ -398,14 +394,19 @@ fn encode_jpeg(img: &image::DynamicImage, dest: &Path, quality: u8) -> Result<()
     // JPEG 不支持 alpha，需先合成到白底
     let rgb = img.to_rgb8();
     encoder
-        .encode(rgb.as_raw(), rgb.width(), rgb.height(), image::ExtendedColorType::Rgb8)
+        .encode(
+            rgb.as_raw(),
+            rgb.width(),
+            rgb.height(),
+            image::ExtendedColorType::Rgb8,
+        )
         .map_err(|e| format!("JPEG 编码失败: {e}"))?;
     Ok(())
 }
 
 fn encode_png(img: &image::DynamicImage, dest: &Path, level: &str) -> Result<(), String> {
-    use image::codecs::png::{CompressionType, FilterType, PngEncoder};
     use image::ImageEncoder;
+    use image::codecs::png::{CompressionType, FilterType, PngEncoder};
     use std::io::BufWriter;
 
     let compression = match level {
@@ -560,8 +561,8 @@ pub async fn toolbox_merge_images(
         let mut canvas = image::RgbaImage::from_pixel(canvas_w, canvas_h, bg);
 
         for item in &items {
-            let src = image::open(&item.source)
-                .map_err(|e| format!("打开 {} 失败: {e}", item.source))?;
+            let src =
+                image::open(&item.source).map_err(|e| format!("打开 {} 失败: {e}", item.source))?;
 
             let w = item.w.round().max(1.0) as u32;
             let h = item.h.round().max(1.0) as u32;
@@ -598,9 +599,7 @@ pub async fn toolbox_merge_images(
                 std::fs::write(&dest, &pdf).map_err(|e| format!("写入失败: {e}"))?;
             }
             _ => {
-                canvas
-                    .save(&dest)
-                    .map_err(|e| format!("保存失败: {e}"))?;
+                canvas.save(&dest).map_err(|e| format!("保存失败: {e}"))?;
             }
         }
 
@@ -621,8 +620,7 @@ pub async fn toolbox_list_directory(path: String) -> Result<Vec<ToolboxFileEntry
         let dir = PathBuf::from(&path);
         let mut entries = Vec::new();
 
-        let read_dir = std::fs::read_dir(&dir)
-            .map_err(|e| format!("读取目录失败: {e}"))?;
+        let read_dir = std::fs::read_dir(&dir).map_err(|e| format!("读取目录失败: {e}"))?;
 
         for entry in read_dir {
             let entry = match entry {
@@ -659,6 +657,271 @@ pub async fn toolbox_list_directory(path: String) -> Result<Vec<ToolboxFileEntry
     .map_err(|e| format!("任务执行失败: {e}"))?
 }
 
+fn batch_rename_directory_lock(canonical_dir: &Path) -> Arc<Mutex<()>> {
+    let registry = BATCH_RENAME_DIRECTORY_LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut locks = registry
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    locks.retain(|_, lock| lock.strong_count() > 0);
+    if let Some(lock) = locks.get(canonical_dir).and_then(Weak::upgrade) {
+        return lock;
+    }
+
+    let lock = Arc::new(Mutex::new(()));
+    locks.insert(canonical_dir.to_path_buf(), Arc::downgrade(&lock));
+    lock
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "macos"))]
+fn path_to_c_string(path: &Path) -> io::Result<std::ffi::CString> {
+    use std::os::unix::ffi::OsStrExt;
+
+    std::ffi::CString::new(path.as_os_str().as_bytes()).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("路径包含 NUL 字节: {}", path.display()),
+        )
+    })
+}
+
+/// 在同一文件系统内原子移动，并保证目标存在时绝不覆盖。
+#[cfg(target_os = "linux")]
+fn rename_no_replace(source: &Path, target: &Path) -> io::Result<()> {
+    let source = path_to_c_string(source)?;
+    let target = path_to_c_string(target)?;
+    // SAFETY: CString guarantees valid NUL-terminated pointers for the duration of the syscall.
+    let result = unsafe {
+        libc::syscall(
+            libc::SYS_renameat2,
+            libc::AT_FDCWD,
+            source.as_ptr(),
+            libc::AT_FDCWD,
+            target.as_ptr(),
+            libc::RENAME_NOREPLACE,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+#[cfg(target_os = "android")]
+fn rename_no_replace(source: &Path, target: &Path) -> io::Result<()> {
+    let source = path_to_c_string(source)?;
+    let target = path_to_c_string(target)?;
+    // SAFETY: CString guarantees valid NUL-terminated pointers for this libc call.
+    let result = unsafe {
+        libc::renameat2(
+            libc::AT_FDCWD,
+            source.as_ptr(),
+            libc::AT_FDCWD,
+            target.as_ptr(),
+            libc::RENAME_NOREPLACE as _,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn rename_no_replace(source: &Path, target: &Path) -> io::Result<()> {
+    let source = path_to_c_string(source)?;
+    let target = path_to_c_string(target)?;
+    // SAFETY: CString guarantees valid NUL-terminated pointers for this libc call.
+    let result = unsafe { libc::renamex_np(source.as_ptr(), target.as_ptr(), libc::RENAME_EXCL) };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn rename_no_replace(source: &Path, target: &Path) -> io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+
+    #[link(name = "Kernel32")]
+    unsafe extern "system" {
+        fn MoveFileW(existing_file_name: *const u16, new_file_name: *const u16) -> i32;
+    }
+
+    fn wide_path(path: &Path) -> io::Result<Vec<u16>> {
+        let mut wide: Vec<u16> = path.as_os_str().encode_wide().collect();
+        if wide.contains(&0) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("路径包含 NUL 字节: {}", path.display()),
+            ));
+        }
+        wide.push(0);
+        Ok(wide)
+    }
+
+    let source = wide_path(source)?;
+    let target = wide_path(target)?;
+    // MoveFileW has atomic no-replace semantics and fails if target already exists.
+    // SAFETY: both vectors are NUL-terminated and remain alive for the call.
+    let result = unsafe { MoveFileW(source.as_ptr(), target.as_ptr()) };
+    if result != 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "macos",
+    target_os = "windows"
+)))]
+fn rename_no_replace(_source: &Path, _target: &Path) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "当前平台不支持原子 no-replace 重命名",
+    ))
+}
+
+fn batch_rename_with_hook(
+    directory: &Path,
+    renames: &[(String, String)],
+    before_activation: impl FnOnce(),
+) -> Result<ToolboxBatchResult, String> {
+    let dir = std::fs::canonicalize(directory)
+        .map_err(|error| format!("目录不存在或不可访问: {} ({error})", directory.display()))?;
+    if !dir.is_dir() {
+        return Err(format!("目录不存在或不可访问: {}", directory.display()));
+    }
+
+    // 同一 canonical 目录内的应用内批量操作全程串行，避免两个命令互相
+    // 把对方的 source/target 当成外部并发变化。
+    let directory_lock = batch_rename_directory_lock(&dir);
+    let _directory_guard = directory_lock
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
+    fn validate_entry_name(name: &str) -> Result<(), String> {
+        if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains('\0') {
+            return Err(format!("文件名无效: {name:?}"));
+        }
+        let mut components = Path::new(name).components();
+        if !matches!(components.next(), Some(Component::Normal(_))) || components.next().is_some() {
+            return Err(format!("文件名必须是目录内的单个名称: {name:?}"));
+        }
+        Ok(())
+    }
+
+    fn comparison_key(name: &str) -> String {
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
+        {
+            name.to_lowercase()
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        {
+            name.to_string()
+        }
+    }
+
+    let mut sources = std::collections::HashSet::new();
+    let mut targets = std::collections::HashSet::new();
+    for (old_name, new_name) in renames {
+        validate_entry_name(old_name)?;
+        validate_entry_name(new_name)?;
+
+        if !sources.insert(comparison_key(old_name)) {
+            return Err(format!("源名称重复: {old_name}"));
+        }
+        if !targets.insert(comparison_key(new_name)) {
+            return Err(format!("目标名称冲突: {new_name}"));
+        }
+        if std::fs::symlink_metadata(dir.join(old_name)).is_err() {
+            return Err(format!("源文件不存在: {old_name}"));
+        }
+    }
+
+    // 预检仅用于尽早给出友好错误；真正的防覆盖由每次 no-replace rename 保证。
+    for (_, new_name) in renames {
+        let target_path = dir.join(new_name);
+        if std::fs::symlink_metadata(&target_path).is_ok()
+            && !sources.contains(&comparison_key(new_name))
+        {
+            return Err(format!("目标已存在: {new_name}"));
+        }
+    }
+
+    let mut temp_names: Vec<(PathBuf, PathBuf, PathBuf)> = Vec::new();
+    for (old_name, new_name) in renames {
+        if old_name == new_name {
+            continue;
+        }
+        let old_path = dir.join(old_name);
+        let new_path = dir.join(new_name);
+        let temp_path = dir.join(format!(".toolbox_rename_tmp_{}", uuid::Uuid::new_v4()));
+        temp_names.push((old_path, temp_path, new_path));
+    }
+
+    let mut staged_count = 0usize;
+    for (old_path, temp_path, _) in &temp_names {
+        if let Err(error) = rename_no_replace(old_path, temp_path) {
+            let mut rollback_errors = Vec::new();
+            for (rollback_old, rollback_temp, _) in temp_names[..staged_count].iter().rev() {
+                if let Err(rollback_error) = rename_no_replace(rollback_temp, rollback_old) {
+                    rollback_errors.push(rollback_error.to_string());
+                }
+            }
+            let rollback_detail = if rollback_errors.is_empty() {
+                String::new()
+            } else {
+                format!("；回滚失败: {}", rollback_errors.join("; "))
+            };
+            return Err(format!(
+                "暂存重命名失败 ({}): {error}{rollback_detail}",
+                old_path.display()
+            ));
+        }
+        staged_count += 1;
+    }
+
+    before_activation();
+
+    let mut activated_count = 0usize;
+    for (_, temp_path, new_path) in &temp_names {
+        if let Err(error) = rename_no_replace(temp_path, new_path) {
+            let mut rollback_errors = Vec::new();
+            for (_, activated_temp, activated_new) in temp_names[..activated_count].iter().rev() {
+                if let Err(rollback_error) = rename_no_replace(activated_new, activated_temp) {
+                    rollback_errors.push(rollback_error.to_string());
+                }
+            }
+            for (rollback_old, rollback_temp, _) in temp_names.iter().rev() {
+                if let Err(rollback_error) = rename_no_replace(rollback_temp, rollback_old) {
+                    rollback_errors.push(rollback_error.to_string());
+                }
+            }
+            let rollback_detail = if rollback_errors.is_empty() {
+                String::new()
+            } else {
+                format!("；回滚失败: {}", rollback_errors.join("; "))
+            };
+            return Err(format!(
+                "完成重命名失败 ({}): {error}{rollback_detail}",
+                new_path.display()
+            ));
+        }
+        activated_count += 1;
+    }
+
+    Ok(ToolboxBatchResult {
+        success_count: temp_names.len(),
+        errors: Vec::new(),
+    })
+}
+
 /// 批量重命名文件/文件夹
 #[tauri::command]
 pub async fn toolbox_batch_rename(
@@ -666,66 +929,155 @@ pub async fn toolbox_batch_rename(
     renames: Vec<(String, String)>,
 ) -> Result<ToolboxBatchResult, String> {
     tokio::task::spawn_blocking(move || {
-        let dir = PathBuf::from(&directory);
-        let mut success_count = 0usize;
-        let mut errors = Vec::new();
-
-        // 先检查目标名是否有冲突
-        let mut targets: std::collections::HashSet<String> = std::collections::HashSet::new();
-        for (_, new_name) in &renames {
-            if !targets.insert(new_name.clone()) {
-                return Err(format!("目标名称冲突: {new_name}"));
-            }
-        }
-
-        // 检查目标名是否与已有文件冲突（排除自身重命名的情况）
-        let rename_sources: std::collections::HashSet<&str> =
-            renames.iter().map(|(old, _)| old.as_str()).collect();
-        for (_, new_name) in &renames {
-            let target_path = dir.join(new_name);
-            if target_path.exists() && !rename_sources.contains(new_name.as_str()) {
-                return Err(format!("目标已存在: {new_name}"));
-            }
-        }
-
-        // 使用临时名称做两阶段重命名，避免循环冲突
-        let mut temp_names: Vec<(PathBuf, PathBuf, PathBuf)> = Vec::new();
-        for (old_name, new_name) in &renames {
-            if old_name == new_name {
-                continue;
-            }
-            let old_path = dir.join(old_name);
-            let new_path = dir.join(new_name);
-            let temp_path = dir.join(format!(".toolbox_rename_tmp_{}", uuid::Uuid::new_v4()));
-            temp_names.push((old_path, temp_path, new_path));
-        }
-
-        // 第一阶段：重命名为临时名称
-        for (old_path, temp_path, _) in &temp_names {
-            if let Err(e) = std::fs::rename(old_path, temp_path) {
-                errors.push(format!(
-                    "{}: {e}",
-                    old_path.file_name().unwrap_or_default().to_string_lossy()
-                ));
-            }
-        }
-
-        // 第二阶段：从临时名称重命名为最终名称
-        for (_, temp_path, new_path) in &temp_names {
-            match std::fs::rename(temp_path, new_path) {
-                Ok(_) => success_count += 1,
-                Err(e) => errors.push(format!(
-                    "{}: {e}",
-                    new_path.file_name().unwrap_or_default().to_string_lossy()
-                )),
-            }
-        }
-
-        Ok(ToolboxBatchResult {
-            success_count,
-            errors,
-        })
+        batch_rename_with_hook(Path::new(&directory), &renames, || {})
     })
     .await
     .map_err(|e| format!("任务执行失败: {e}"))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_directory(label: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "protoforge-toolbox-{label}-{}",
+            uuid::Uuid::new_v4()
+        ))
+    }
+
+    #[tokio::test]
+    async fn batch_rename_supports_cycles_without_overwriting() {
+        let dir = test_directory("cycle");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.txt"), b"A").unwrap();
+        std::fs::write(dir.join("b.txt"), b"B").unwrap();
+
+        let result = toolbox_batch_rename(
+            dir.to_string_lossy().into_owned(),
+            vec![
+                ("a.txt".to_string(), "b.txt".to_string()),
+                ("b.txt".to_string(), "a.txt".to_string()),
+            ],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(result.success_count, 2);
+        assert_eq!(std::fs::read(dir.join("a.txt")).unwrap(), b"B");
+        assert_eq!(std::fs::read(dir.join("b.txt")).unwrap(), b"A");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn batch_rename_does_not_replace_target_created_after_preflight() {
+        let dir = test_directory("target-race");
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("source.txt");
+        let target = dir.join("target.txt");
+        std::fs::write(&source, b"source-data").unwrap();
+
+        let result = batch_rename_with_hook(
+            &dir,
+            &[("source.txt".to_string(), "target.txt".to_string())],
+            || std::fs::write(&target, b"concurrent-target").unwrap(),
+        );
+
+        assert!(result.is_err());
+        assert_eq!(std::fs::read(&source).unwrap(), b"source-data");
+        assert_eq!(std::fs::read(&target).unwrap(), b"concurrent-target");
+        assert!(std::fs::read_dir(&dir).unwrap().all(|entry| {
+            !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".toolbox_rename_tmp_")
+        }));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn batch_rename_serializes_operations_for_the_same_directory() {
+        let dir = test_directory("directory-lock");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.txt"), b"A").unwrap();
+        std::fs::write(dir.join("c.txt"), b"C").unwrap();
+
+        let (first_entered_tx, first_entered_rx) = std::sync::mpsc::channel();
+        let (release_first_tx, release_first_rx) = std::sync::mpsc::channel();
+        let first_dir = dir.clone();
+        let first = std::thread::spawn(move || {
+            batch_rename_with_hook(
+                &first_dir,
+                &[("a.txt".to_string(), "b.txt".to_string())],
+                || {
+                    first_entered_tx.send(()).unwrap();
+                    release_first_rx.recv().unwrap();
+                },
+            )
+        });
+        first_entered_rx.recv().unwrap();
+
+        let (second_started_tx, second_started_rx) = std::sync::mpsc::channel();
+        let (second_entered_tx, second_entered_rx) = std::sync::mpsc::channel();
+        let second_dir = dir.clone();
+        let second = std::thread::spawn(move || {
+            second_started_tx.send(()).unwrap();
+            batch_rename_with_hook(
+                &second_dir,
+                &[("c.txt".to_string(), "d.txt".to_string())],
+                || second_entered_tx.send(()).unwrap(),
+            )
+        });
+        second_started_rx.recv().unwrap();
+        assert!(second_entered_rx.try_recv().is_err());
+
+        release_first_tx.send(()).unwrap();
+        assert!(first.join().unwrap().is_ok());
+        assert!(second.join().unwrap().is_ok());
+        second_entered_rx.recv().unwrap();
+        assert_eq!(std::fs::read(dir.join("b.txt")).unwrap(), b"A");
+        assert_eq!(std::fs::read(dir.join("d.txt")).unwrap(), b"C");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn batch_rename_rejects_traversal_and_preserves_sources() {
+        let dir = test_directory("traversal");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("safe.txt"), b"safe").unwrap();
+        let escaped_name = format!("escaped-{}.txt", uuid::Uuid::new_v4());
+
+        let result = toolbox_batch_rename(
+            dir.to_string_lossy().into_owned(),
+            vec![("safe.txt".to_string(), format!("../{escaped_name}"))],
+        )
+        .await;
+
+        assert!(result.is_err());
+        assert_eq!(std::fs::read(dir.join("safe.txt")).unwrap(), b"safe");
+        assert!(!dir.parent().unwrap().join(escaped_name).exists());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn batch_rename_validates_all_sources_before_mutating() {
+        let dir = test_directory("preflight");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("present.txt"), b"present").unwrap();
+
+        let result = toolbox_batch_rename(
+            dir.to_string_lossy().into_owned(),
+            vec![
+                ("present.txt".to_string(), "renamed.txt".to_string()),
+                ("missing.txt".to_string(), "other.txt".to_string()),
+            ],
+        )
+        .await;
+
+        assert!(result.is_err());
+        assert!(dir.join("present.txt").exists());
+        assert!(!dir.join("renamed.txt").exists());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }

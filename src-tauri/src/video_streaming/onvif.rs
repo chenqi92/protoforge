@@ -92,7 +92,7 @@ async fn soap_request(
     url: &str,
     action: &str,
     body: &str,
-    _session_id: &str,
+    session_id: &str,
     auth: Option<(&str, &str)>,
     use_proxy: bool,
     app: &AppHandle,
@@ -106,6 +106,7 @@ async fn soap_request(
     // Emit sent message
     let sent_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "sent".to_string(),
         protocol: "onvif".to_string(),
         summary: format!("SOAP POST {} → {}", action, url),
@@ -152,6 +153,7 @@ async fn soap_request(
     // Emit received message
     let recv_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "received".to_string(),
         protocol: "onvif".to_string(),
         summary: format!(
@@ -327,7 +329,7 @@ fn extract_all_tags<'a>(xml: &'a str, tag: &str) -> Vec<&'a str> {
 
 // ── WS-Discovery 设备发现 ──
 
-pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String> {
+pub async fn discover(session_id: &str, app: &AppHandle) -> Result<Vec<serde_json::Value>, String> {
     use tokio::net::UdpSocket;
 
     // WS-Discovery Probe — xmlns:dn declared for NetworkVideoTransmitter type
@@ -357,6 +359,7 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
     // Emit sent message
     let sent_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "sent".to_string(),
         protocol: "onvif".to_string(),
         summary: "WS-Discovery Probe → 239.255.255.250:3702".to_string(),
@@ -498,6 +501,7 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
                 // Emit received
                 let recv_msg = ProtocolMessage {
                     id: uuid::Uuid::new_v4().to_string(),
+                    session_id: session_id.to_string(),
                     direction: "received".to_string(),
                     protocol: "onvif".to_string(),
                     summary: format!("WS-Discovery ProbeMatch from {}", addr),
@@ -566,6 +570,7 @@ pub async fn discover(app: &AppHandle) -> Result<Vec<serde_json::Value>, String>
     // Emit info summary
     let info_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "info".to_string(),
         protocol: "onvif".to_string(),
         summary: format!("WS-Discovery: found {} device(s)", devices.len()),
@@ -725,6 +730,7 @@ pub async fn get_profiles(
     // Emit info
     let info_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "info".to_string(),
         protocol: "onvif".to_string(),
         summary: format!("Found {} media profile(s)", profiles.len()),

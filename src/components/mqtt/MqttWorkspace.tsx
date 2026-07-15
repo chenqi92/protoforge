@@ -6,7 +6,7 @@ import { listen } from '@tauri-apps/api/event';
 import { Play, Square, Trash2, Send, Plus, X, Radio, ArrowDown, ArrowUp, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import { useAppStore } from '@/stores/appStore';
+import { requestConnectionId, useAppStore } from '@/stores/appStore';
 import { RequestWorkbenchHeader } from '@/components/request/RequestWorkbenchHeader';
 import { RequestProtocolSwitcher, type RequestKind } from '@/components/request/RequestProtocolSwitcher';
 
@@ -52,7 +52,9 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
   const [pubQos, setPubQos] = useState(0);
   const [pubRetain, setPubRetain] = useState(false);
 
-  const connId = `mqtt-${tabId}`;
+  const connId = activeTab
+    ? requestConnectionId(activeTab, 'mqtt')
+    : `mqtt-${tabId}-detached`;
 
   // Listen to backend events
   useEffect(() => {

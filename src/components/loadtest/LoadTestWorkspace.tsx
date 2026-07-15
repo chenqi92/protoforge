@@ -24,6 +24,8 @@ const LOAD_TEST_METHOD_CLASSES: Record<HttpMethod, string> = {
   DELETE: "text-method-delete",
   PATCH: "text-method-patch",
 };
+const MAX_RETAINED_SNAPSHOTS = 3_600;
+const LISTENER_RETRY_MS = 1_000;
 
 export const LoadTestWorkspace = memo(function LoadTestWorkspace({ sessionId }: { sessionId?: string }) {
   const testId = useRef(sessionId ?? crypto.randomUUID()).current;
@@ -111,44 +113,93 @@ function LoadTestPanel({ tabId }: { tabId: string }) {
 
   // ─── Read prefill config from bridge ───
   useEffect(() => {
+    let disposed = false;
     let cleanup: (() => void) | undefined;
 
-    (async () => {
+    void (async () => {
       const { popLoadTestConfig, subscribeLoadTestPrefill } = await import("@/lib/loadTestBridge");
+      if (disposed) return;
       applyPrefill(popLoadTestConfig());
-      cleanup = subscribeLoadTestPrefill((prefill) => applyPrefill(prefill));
+      const unsubscribe = subscribeLoadTestPrefill((prefill) => {
+        if (!disposed) applyPrefill(prefill);
+      });
+      if (disposed) unsubscribe();
+      else cleanup = unsubscribe;
     })();
 
     return () => {
+      disposed = true;
       cleanup?.();
     };
   }, [applyPrefill]);
 
   // Listen events
   useEffect(() => {
-    let unMetrics: (() => void) | null = null;
-    let unComplete: (() => void) | null = null;
-    const setup = async () => {
-      const { onLoadTestMetrics, onLoadTestComplete } = await import("@/services/loadTestService");
-      unMetrics = await onLoadTestMetrics((s) => {
-        if (s.testId !== tabId) return;
-        setSnapshots((prev) => [...prev, s]);
-        setLatestMetrics(s);
-        if (s.errorSamples && s.errorSamples.length > 0) {
-          setErrorSamples((prev) => {
-            const next = [...prev, ...s.errorSamples];
-            return next.length > 200 ? next.slice(-200) : next;
-          });
-        }
-      });
-      unComplete = await onLoadTestComplete((r) => {
-        if (r.testId !== tabId) return;
-        setSummary(r);
-        setRunning(false);
-      });
+    let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const activeUnlisteners: Array<() => void> = [];
+
+    const clearListeners = () => {
+      for (const unlisten of activeUnlisteners.splice(0)) unlisten();
     };
-    setup();
-    return () => { unMetrics?.(); unComplete?.(); };
+
+    const scheduleRetry = () => {
+      if (disposed || retryTimer) return;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        void setup();
+      }, LISTENER_RETRY_MS);
+    };
+
+    const setup = async () => {
+      try {
+        const { onLoadTestMetrics, onLoadTestComplete } = await import("@/services/loadTestService");
+        if (disposed) return;
+
+        const listeners = await Promise.allSettled([
+          onLoadTestMetrics((s) => {
+            if (disposed || s.testId !== tabId) return;
+            setSnapshots((prev) => {
+              const next = [...prev, s];
+              return next.length > MAX_RETAINED_SNAPSHOTS
+                ? next.slice(-MAX_RETAINED_SNAPSHOTS)
+                : next;
+            });
+            setLatestMetrics(s);
+            if (s.errorSamples && s.errorSamples.length > 0) {
+              setErrorSamples((prev) => {
+                const next = [...prev, ...s.errorSamples];
+                return next.length > 200 ? next.slice(-200) : next;
+              });
+            }
+          }),
+          onLoadTestComplete((r) => {
+            if (disposed || r.testId !== tabId) return;
+            setSummary(r);
+            setRunning(false);
+          }),
+        ]);
+
+        const installed = listeners.flatMap((result) =>
+          result.status === "fulfilled" ? [result.value] : [],
+        );
+        if (disposed || listeners.some((result) => result.status === "rejected")) {
+          for (const unlisten of installed) unlisten();
+          scheduleRetry();
+          return;
+        }
+
+        activeUnlisteners.push(...installed);
+      } catch {
+        scheduleRetry();
+      }
+    };
+    void setup();
+    return () => {
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      clearListeners();
+    };
   }, [tabId]);
 
   // ─── Build config ───

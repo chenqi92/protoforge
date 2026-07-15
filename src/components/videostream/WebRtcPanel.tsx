@@ -8,10 +8,11 @@ import * as vsSvc from "@/services/videoStreamService";
 
 interface WebRtcPanelProps {
   sessionKey: string;
+  expectedGeneration: number | null;
   connected: boolean;
 }
 
-export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
+export function WebRtcPanel({ sessionKey, expectedGeneration, connected }: WebRtcPanelProps) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'offer' | 'answer'>('offer');
   const [stunServers, setStunServers] = useState(['stun:stun.l.google.com:19302']);
@@ -28,7 +29,12 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     vsSvc.onStreamEvent((e) => {
-      if (e.sessionId === sessionKey && e.eventType === 'protocol-data' && e.data) {
+      if (
+        e.sessionId === sessionKey
+        && e.generation === expectedGeneration
+        && e.eventType === 'protocol-data'
+        && e.data
+      ) {
         try {
           const data = JSON.parse(e.data);
           if (data.type === 'ice-candidate' && data.candidate) {
@@ -38,7 +44,7 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
       }
     }).then(fn => { unlisten = fn; });
     return () => { unlisten?.(); };
-  }, [sessionKey]);
+  }, [expectedGeneration, sessionKey]);
 
   const addStun = () => {
     if (newStun.trim()) {
@@ -48,11 +54,12 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
   };
 
   const handleCreateOffer = useCallback(async () => {
+    if (expectedGeneration === null) return;
     setCreating(true);
     setIceCandidates([]);
     try {
       const turnServers = turnUrl ? [{ url: turnUrl, username: turnUser, credential: turnPass }] : [];
-      const sdp = await vsSvc.webrtcCreateOffer(sessionKey, {
+      const sdp = await vsSvc.webrtcCreateOffer(sessionKey, expectedGeneration, {
         stunServers,
         turnServers,
         mode,
@@ -60,14 +67,14 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
       setLocalSdp(sdp);
     } catch { /* */ }
     setCreating(false);
-  }, [sessionKey, stunServers, turnUrl, turnUser, turnPass, mode]);
+  }, [expectedGeneration, sessionKey, stunServers, turnUrl, turnUser, turnPass, mode]);
 
   const handleSetAnswer = useCallback(async () => {
-    if (!remoteSdp.trim()) return;
+    if (expectedGeneration === null || !remoteSdp.trim()) return;
     try {
-      await vsSvc.webrtcSetAnswer(sessionKey, remoteSdp);
+      await vsSvc.webrtcSetAnswer(sessionKey, expectedGeneration, remoteSdp);
     } catch { /* */ }
-  }, [sessionKey, remoteSdp]);
+  }, [expectedGeneration, sessionKey, remoteSdp]);
 
   return (
     <div className="min-w-0 space-y-4 overflow-x-hidden">
@@ -131,11 +138,11 @@ export function WebRtcPanel({ sessionKey, connected }: WebRtcPanelProps) {
 
       {/* Actions */}
       <div className="flex gap-2">
-          <button onClick={handleCreateOffer} disabled={creating}
+          <button onClick={handleCreateOffer} disabled={expectedGeneration === null || creating}
             className="btn-ghost-action flex-1">
             {creating ? t('videostream.webrtc.generating', '生成中...') : mode === 'offer' ? 'Create Offer' : 'Create Answer'}
           </button>
-          <button onClick={handleSetAnswer} disabled={!remoteSdp.trim()}
+          <button onClick={handleSetAnswer} disabled={expectedGeneration === null || !remoteSdp.trim()}
             className="btn-ghost-action flex-1">
             Set Remote SDP
           </button>
