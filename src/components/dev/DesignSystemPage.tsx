@@ -3,6 +3,7 @@
 // Access via tab in development mode
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { Search, Trash2, Settings, Send, Check, X, AlertTriangle } from "lucide-react";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -32,6 +33,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function DesignSystemPage() {
+  const { t } = useTranslation();
   const [inputVal, setInputVal] = useState("Sample text");
 
   return (
@@ -164,8 +166,8 @@ export function DesignSystemPage() {
             <div className="flex items-center gap-3">
               <button className="wb-primary-btn bg-accent">wb-primary-btn</button>
               <button className="wb-ghost-btn">wb-ghost-btn</button>
-              <button className="wb-icon-btn"><Settings className="w-4 h-4" /></button>
-              <button className="wb-icon-btn"><Search className="w-4 h-4" /></button>
+              <button aria-label={t('common.settings', '设置')} className="wb-icon-btn"><Settings className="w-4 h-4" /></button>
+              <button aria-label={t('common.search')} className="wb-icon-btn"><Search className="w-4 h-4" /></button>
             </div>
           </div>
         </div>

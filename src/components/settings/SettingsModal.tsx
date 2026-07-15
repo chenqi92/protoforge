@@ -18,7 +18,6 @@ import {
   RefreshCw,
   Download,
   CheckCircle,
-  Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -115,7 +114,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       }}
     >
       <DialogContent
-        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden pf-rounded-xl border border-border-strong bg-bg-elevated p-0 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)] sm:max-w-[920px]"
+        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden rounded-[14px] border border-border-strong bg-bg-elevated p-0 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)] sm:max-w-[920px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
@@ -127,7 +126,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               <div className="flex h-8 w-8 items-center justify-center pf-rounded-md bg-accent shrink-0">
                 <Settings className="h-4 w-4 text-white" />
               </div>
-              <p className="pf-text-md font-semibold tracking-tight text-text-primary truncate">{t('settings.title')}</p>
+              <p className="text-[15px] font-semibold tracking-tight text-text-primary truncate">{t('settings.title')}</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -786,9 +785,12 @@ function AboutSection() {
 
   return (
     <div className="flex flex-col items-center gap-4 px-5 py-8">
-      <div className="flex h-16 w-16 items-center justify-center pf-rounded-xl bg-gradient-to-br from-accent to-accent-hover shadow-[0_6px_20px_var(--color-accent-muted)]">
-        <Zap className="h-8 w-8 text-white" />
-      </div>
+      <img
+        src="/app-icon.png"
+        alt="ProtoForge"
+        className="h-16 w-16 shrink-0 select-none drop-shadow-[0_6px_20px_var(--color-accent-muted)]"
+        draggable={false}
+      />
       <div className="flex flex-col items-center gap-1">
         <span className="pf-text-lg font-bold text-text-primary">ProtoForge</span>
         <span className="pf-text-xs font-mono text-text-tertiary">v{currentVersion || '—'}</span>

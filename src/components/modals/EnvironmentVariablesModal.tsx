@@ -173,7 +173,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ type: "spring", duration: 0.3, bounce: 0.1 }}
-            className="w-[860px] max-w-[94vw] min-h-[520px] max-h-[80vh] pf-rounded-xl border border-border-strong bg-bg-elevated shadow-2xl flex flex-col overflow-hidden"
+            className="w-[860px] max-w-[94vw] min-h-[520px] max-h-[80vh] rounded-[14px] border border-border-strong bg-bg-elevated shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
             <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-border-default">
@@ -186,7 +186,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                   <p className="pf-text-3xs text-text-disabled">{t('env.modal.subtitle', '管理全局变量和环境专属变量')}</p>
                 </div>
               </div>
-              <button onClick={onClose} className="w-7 h-7 flex items-center justify-center pf-rounded-md hover:bg-bg-hover text-text-disabled hover:text-text-primary transition-colors">
+              <button onClick={onClose} aria-label={t('common.close')} className="w-7 h-7 flex items-center justify-center pf-rounded-md hover:bg-bg-hover text-text-disabled hover:text-text-primary transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -379,6 +379,7 @@ export default function EnvironmentVariablesModal({ open, onClose }: Props) {
                             <td className="px-2 py-1.5 border-b border-border-subtle">
                               <button
                                 onClick={() => isGlobal ? deleteGlobalVar(v.id) : deleteEnvVar(v.id)}
+                                aria-label={t('common.delete')}
                                 className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-6 h-6 pf-rounded-md hover:bg-error/10 hover:text-error text-text-disabled transition-all"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />

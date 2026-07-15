@@ -34,7 +34,6 @@ interface RequestsOverviewProps {
 }
 
 export function RequestsOverview({ onNewTab, onOpenCollection, onOpenEnvModal }: RequestsOverviewProps) {
-  /* eslint-disable @typescript-eslint/no-unused-vars */
   const { t } = useTranslation();
   const collections = useCollectionStore((s) => s.collections);
   const allItems = useCollectionStore((s) => s.items);

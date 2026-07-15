@@ -150,7 +150,7 @@ export function SseWorkspace() {
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
               <span className="pf-pill"><span className="pf-text-3xs uppercase tracking-wide opacity-70">evt</span><span className="tabular-nums">{events.length}</span></span>
-              <button onClick={() => setEvents([])} className="wb-icon-btn hover:bg-error/10 hover:text-error transition-colors">
+              <button onClick={() => setEvents([])} aria-label={t('sse.clearEvents', '清空事件')} className="wb-icon-btn hover:bg-error/10 hover:text-error transition-colors">
                 <Trash2 className="w-3 h-3" />
               </button>
             </div>

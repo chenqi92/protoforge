@@ -16,6 +16,7 @@ import {
 interface NativeVideoSurfaceProps {
   url: string | null;
   sessionId: string;
+  expectedGeneration: number | null;
   onError?: (msg: string) => void;
   onReady?: () => void;
   onStop?: () => void;
@@ -25,6 +26,7 @@ interface NativeVideoSurfaceProps {
 
 interface InitEvent {
   sessionId: string;
+  generation: number;
   codec: string;
   width: number;
   height: number;
@@ -33,12 +35,14 @@ interface InitEvent {
 
 interface DataEvent {
   sessionId: string;
+  generation: number;
   seq: number;
   data: string;
 }
 
 interface ErrorEvent {
   sessionId: string;
+  generation: number;
   error: string;
 }
 
@@ -90,7 +94,7 @@ function preferredRecorderMimeType(): string | undefined {
   return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
 }
 
-export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, onPlayingChange, liveMode = true }: NativeVideoSurfaceProps) {
+export function NativeVideoSurface({ url, sessionId, expectedGeneration, onError, onReady, onStop, onPlayingChange, liveMode = true }: NativeVideoSurfaceProps) {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<HlsInstance | null>(null);
@@ -331,7 +335,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, o
 
     const setup = async () => {
       unlistenInit = await listen<InitEvent>("player-init", (event) => {
-        if (cancelled || event.payload.sessionId !== sessionId) return;
+        if (cancelled || event.payload.sessionId !== sessionId || event.payload.generation !== expectedGeneration) return;
 
         const { codec, width, height, hasAudio } = event.payload;
         const mime = codecToMime(codec, hasAudio);
@@ -372,7 +376,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, o
       });
 
       unlistenData = await listen<DataEvent>("player-data", (event) => {
-        if (cancelled || event.payload.sessionId !== sessionId) return;
+        if (cancelled || event.payload.sessionId !== sessionId || event.payload.generation !== expectedGeneration) return;
 
         const raw = atob(event.payload.data);
         const buffer = new ArrayBuffer(raw.length);
@@ -402,7 +406,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, o
       });
 
       unlistenError = await listen<ErrorEvent>("player-error", (event) => {
-        if (cancelled || event.payload.sessionId !== sessionId) return;
+        if (cancelled || event.payload.sessionId !== sessionId || event.payload.generation !== expectedGeneration) return;
         setLoading(false);
         setStatus("");
         onErrorRef.current?.(event.payload.error);
@@ -422,7 +426,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, o
       video.load();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [isTauri, liveMode, notifyReady, playbackRate, sessionId, t, url, volume]);
+  }, [expectedGeneration, isTauri, liveMode, notifyReady, playbackRate, sessionId, t, url, volume]);
 
   const handlePlayPause = useCallback(() => {
     const video = videoRef.current;
@@ -570,18 +574,21 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, o
       <div className="absolute bottom-0 left-0 right-0 flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-t from-black/80 to-transparent">
         <button
           onClick={handlePlayPause}
+          aria-label={playing ? t('video.surface.pause', '暂停') : t('video.surface.play', '播放')}
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/80 hover:text-white hover:bg-white/10 transition-colors"
         >
           {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
         </button>
         <button
           onClick={handleStop}
+          aria-label={t('video.surface.stop', '停止')}
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/80 hover:text-white hover:bg-white/10 transition-colors"
         >
           <Square className="w-3 h-3" />
         </button>
         <button
           onClick={handleMute}
+          aria-label={muted ? t('video.surface.unmute', '取消静音') : t('video.surface.mute', '静音')}
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors ml-1"
         >
           {muted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
@@ -639,6 +646,7 @@ export function NativeVideoSurface({ url, sessionId, onError, onReady, onStop, o
         {status && !loading && <span className="pf-text-3xs text-white/40 font-mono">{status}</span>}
         <button
           onClick={() => videoRef.current?.requestFullscreen?.()}
+          aria-label={t('video.surface.fullscreen', '全屏')}
           className="flex h-6 w-6 items-center justify-center pf-rounded-xs text-white/60 hover:text-white transition-colors"
         >
           <Maximize className="w-3 h-3" />

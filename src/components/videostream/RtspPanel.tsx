@@ -9,6 +9,7 @@ import type { RtspConfig } from "@/types/videostream";
 
 interface RtspPanelProps {
   sessionKey: string;
+  expectedGeneration: number | null;
   connected: boolean;
   streamUrl: string;
   onStreamUrlChange: (url: string) => void;
@@ -16,7 +17,7 @@ interface RtspPanelProps {
   onConfigChange: (config: RtspConfig) => void;
 }
 
-export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStreamUrlChange: _onStreamUrlChange, config, onConfigChange }: RtspPanelProps) {
+export function RtspPanel({ sessionKey, expectedGeneration, connected, streamUrl: _streamUrl, onStreamUrlChange: _onStreamUrlChange, config, onConfigChange }: RtspPanelProps) {
   const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [sdpContent, setSdpContent] = useState('');
@@ -25,9 +26,10 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
   const [executing, setExecuting] = useState('');
 
   const sendCommand = useCallback(async (method: string) => {
+    if (expectedGeneration === null) return;
     setExecuting(method);
     try {
-      const resp = await vsSvc.rtspCommand(sessionKey, method);
+      const resp = await vsSvc.rtspCommand(sessionKey, expectedGeneration, method);
       setRtspResponses(prev => [...prev, {
         method,
         status: resp.includes('200') ? '200 OK' : resp.substring(0, 30),
@@ -46,7 +48,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
       }]);
     }
     setExecuting('');
-  }, [sessionKey]);
+  }, [expectedGeneration, sessionKey]);
 
   const rtspMethods = ['DESCRIBE', 'SETUP', 'PLAY', 'PAUSE', 'TEARDOWN'];
   void _streamUrl;
@@ -108,6 +110,7 @@ export function RtspPanel({ sessionKey, connected, streamUrl: _streamUrl, onStre
               />
               <button
                 onClick={() => setShowPassword(v => !v)}
+                aria-label={showPassword ? t('common.hide') : t('common.show')}
                 className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-text-disabled hover:text-text-secondary"
               >
                 {showPassword ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}

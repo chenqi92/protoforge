@@ -47,6 +47,7 @@ export interface StreamInfo {
 }
 
 export interface StreamStats {
+  generation?: number;
   bytesReceived: number;
   packetsReceived: number;
   packetsLost: number;
@@ -61,6 +62,7 @@ export interface StreamStats {
 
 export interface StreamEvent {
   sessionId: string;
+  generation?: number;
   eventType: 'connected' | 'disconnected' | 'error' | 'stream-info' | 'stats-update' | 'protocol-data';
   data?: string;
   timestamp: string;
@@ -68,6 +70,8 @@ export interface StreamEvent {
 
 export interface ProtocolMessage {
   id: string;
+  sessionId: string;
+  generation?: number;
   direction: 'sent' | 'received' | 'info';
   protocol: VideoProtocol;
   summary: string;
@@ -91,6 +95,16 @@ export interface RtmpConfig {
   mode: 'pull' | 'push';
   streamKey: string;
 }
+
+export type RtmpMetadataValue =
+  | string
+  | number
+  | boolean
+  | null
+  | RtmpMetadataValue[]
+  | { [key: string]: RtmpMetadataValue };
+
+export type RtmpMetadata = Record<string, RtmpMetadataValue>;
 
 export interface HttpFlvConfig {
   url: string;
@@ -154,12 +168,14 @@ export interface HlsVariant {
   resolution?: string;
   codecs?: string;
   url: string;
+  name?: string;
 }
 
 export interface HlsSegment {
   duration: number;
   uri: string;
   sequence: number;
+  title?: string;
   byteRange?: string;
 }
 
@@ -186,11 +202,11 @@ export interface SdpInfo {
 }
 
 export interface SdpMedia {
-  type: string;
+  mediaType: string;
   port: number;
   protocol: string;
-  formats: string[];
-  attributes: Record<string, string>;
   codec?: string;
   clockRate?: number;
+  control?: string;
+  fmtp?: string;
 }

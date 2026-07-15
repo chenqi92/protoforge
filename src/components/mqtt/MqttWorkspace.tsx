@@ -6,7 +6,7 @@ import { listen } from '@tauri-apps/api/event';
 import { Play, Square, Trash2, Send, Plus, X, Radio, ArrowDown, ArrowUp, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import { useAppStore } from '@/stores/appStore';
+import { requestConnectionId, useAppStore } from '@/stores/appStore';
 import { RequestWorkbenchHeader } from '@/components/request/RequestWorkbenchHeader';
 import { RequestProtocolSwitcher, type RequestKind } from '@/components/request/RequestProtocolSwitcher';
 
@@ -52,7 +52,9 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
   const [pubQos, setPubQos] = useState(0);
   const [pubRetain, setPubRetain] = useState(false);
 
-  const connId = `mqtt-${tabId}`;
+  const connId = activeTab
+    ? requestConnectionId(activeTab, 'mqtt')
+    : `mqtt-${tabId}-detached`;
 
   // Listen to backend events
   useEffect(() => {
@@ -239,7 +241,7 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
                   <option value={1}>QoS 1</option>
                   <option value={2}>QoS 2</option>
                 </select>
-                <button onClick={handleSubscribe} disabled={!isConnected || !newSubTopic.trim()} className="wb-icon-btn border-0 bg-accent text-white hover:bg-accent-hover disabled:opacity-50">
+                <button onClick={handleSubscribe} disabled={!isConnected || !newSubTopic.trim()} aria-label={t('mqtt.subscribe', '订阅')} className="wb-icon-btn border-0 bg-accent text-white hover:bg-accent-hover disabled:opacity-50">
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -257,7 +259,7 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
                       </span>
                       <div className="flex shrink-0 items-center gap-1.5">
                         <span className="pf-pill">Q{sub.qos}</span>
-                        <button onClick={() => handleUnsubscribe(sub.topic)} className="flex h-6 w-6 items-center justify-center pf-rounded-sm text-text-disabled transition-colors hover:bg-error/10 hover:text-error"><X className="w-3 h-3" /></button>
+                        <button onClick={() => handleUnsubscribe(sub.topic)} aria-label={t('mqtt.unsubscribe', '取消订阅')} className="flex h-6 w-6 items-center justify-center pf-rounded-sm text-text-disabled transition-colors hover:bg-error/10 hover:text-error"><X className="w-3 h-3" /></button>
                       </div>
                     </div>
                   ))
@@ -313,7 +315,7 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
                   <button onClick={() => setAutoScroll(!autoScroll)} className={cn("wb-ghost-btn px-2.5 pf-text-xs", autoScroll && "text-accent")}>
                     <ArrowDown className="w-3 h-3" /> {t('mqtt.autoScroll')}
                   </button>
-                  <button onClick={() => setMessages([])} className="wb-icon-btn hover:bg-error/10 hover:text-error"><Trash2 className="w-3 h-3" /></button>
+                  <button onClick={() => setMessages([])} aria-label={t('mqtt.clearMessages', '清空消息')} className="wb-icon-btn hover:bg-error/10 hover:text-error"><Trash2 className="w-3 h-3" /></button>
                 </div>
               </div>
               <div ref={listRef} className="flex-1 overflow-auto bg-bg-secondary/10">
@@ -328,7 +330,7 @@ export const MqttWorkspace = memo(function MqttWorkspace({ tabId }: { tabId: str
                 ) : (
                   <div className="divide-y divide-border-default/40">
                     {visibleMessages.map((msg, i) => (
-                      <div key={i} className={cn("px-4 py-1.5 transition-colors hover:bg-bg-hover/40", msg.direction === 'out' && "bg-accent-soft/30")}>
+                      <div key={i} className={cn("px-3 py-1.5 transition-colors hover:bg-bg-hover/40", msg.direction === 'out' && "bg-accent-soft/30")}>
                         <div className="mb-0.5 flex items-center gap-2">
                           {msg.direction === 'out' ? (
                             <ArrowUp className="h-3.5 w-3.5 shrink-0 text-method-post" />

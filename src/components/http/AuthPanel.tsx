@@ -414,6 +414,9 @@ function OAuth2Panel({ config, onChange }: { config: OAuth2Config; onChange: (up
           <div className="flex items-center gap-2">
             <button
               type="button"
+              role="switch"
+              aria-checked={config.usePkce}
+              aria-label={t('http.oauth2.pkce')}
               onClick={() => onChange({ usePkce: !config.usePkce })}
               className={cn(
                 "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",

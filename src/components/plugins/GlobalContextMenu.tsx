@@ -813,7 +813,7 @@ export function GlobalContextMenu() {
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border-default/60">
               <span className="pf-text-sm font-semibold text-text-primary">{t('contextMenu.protocolParse', '协议解析')}</span>
-              <button onClick={() => setParserDialogData(null)} className="p-1 rounded hover:bg-bg-hover text-text-tertiary">
+              <button onClick={() => setParserDialogData(null)} aria-label={t('common.close')} className="p-1 rounded hover:bg-bg-hover text-text-tertiary">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -1062,7 +1062,7 @@ function ExportOptionsDialog({
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-default/60">
           <span className="pf-text-sm font-semibold text-text-primary">{fmt.name}</span>
-          <button onClick={onClose} className="p-1 rounded hover:bg-bg-hover text-text-tertiary">
+          <button onClick={onClose} aria-label={t('common.close')} className="p-1 rounded hover:bg-bg-hover text-text-tertiary">
             <X className="w-4 h-4" />
           </button>
         </div>

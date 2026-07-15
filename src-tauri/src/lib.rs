@@ -8,19 +8,21 @@ mod grpc_client;
 mod http_client;
 mod load_test;
 mod mock_server;
+mod modbus;
 mod mqtt_client;
 mod plugin_runtime;
 mod plugins;
 mod postman_compat;
 mod proxy_capture;
 mod script_engine;
+mod serial_port;
 mod sse_client;
 mod swagger_import;
 mod tcp_client;
+mod toolbox;
 mod video_streaming;
 mod wasm_runtime;
 mod workflow_engine;
-mod toolbox;
 mod ws_client;
 
 use load_test::LoadTestState;
@@ -159,6 +161,8 @@ pub fn run() {
             app.manage(TcpConnections::new());
             app.manage(TcpServers::new());
             app.manage(UdpSockets::new());
+            app.manage(modbus::new_connections());
+            app.manage(serial_port::new_connections());
             app.manage(LoadTestState::new());
             app.manage(ProxyState::new());
             app.manage(workflow_engine::WorkflowState::new());
@@ -176,8 +180,8 @@ pub fn run() {
             let wasm_rt = wasm_runtime::WasmPluginRuntime::new(&app_data);
             let handle2 = app.handle().clone();
             tauri::async_runtime::block_on(async move {
-                // ── 预留：内置默认插件注册口 ──
-                // 如果将来需要软件自带某些功能插件，在此调用 register_native()。
+                // ── 内置默认插件注册口 ──
+                // 软件需要自带功能插件时，在此调用 register_native()。
                 // 当前所有插件均通过「插件中心」安装，不预装。
 
                 handle2.manage(plugin_mgr);
@@ -194,9 +198,12 @@ pub fn run() {
                 }
                 // 扫描 WASM 插件
                 let wrt = handle3.state::<wasm_runtime::WasmPluginRuntime>();
-                let wasm_loaded = wrt.scan_and_load().await;
-                if !wasm_loaded.is_empty() {
-                    log::info!("已加载 {} 个 WASM 插件", wasm_loaded.len());
+                match pm.scan_and_load_wasm_plugins(&wrt).await {
+                    Ok(wasm_loaded) if !wasm_loaded.is_empty() => {
+                        log::info!("已加载 {} 个 WASM 插件", wasm_loaded.len());
+                    }
+                    Ok(_) => {}
+                    Err(error) => log::warn!("扫描 WASM 插件失败: {}", error),
                 }
                 // 检测 IP 地理位置，自动选择最优下载源（中国大陆 → R2 CDN）
                 pm.detect_and_set_mirror().await;
@@ -284,6 +291,34 @@ pub fn run() {
             commands::tcp_list_connections,
             commands::tcp_list_servers,
             commands::udp_list_sockets,
+            // Serial Port
+            serial_port::serial_list_ports,
+            serial_port::serial_open,
+            serial_port::serial_close,
+            serial_port::serial_close_generation,
+            serial_port::serial_send,
+            serial_port::serial_set_dtr,
+            serial_port::serial_set_rts,
+            serial_port::serial_get_status,
+            // Modbus TCP / RTU master + TCP / RTU slave
+            modbus::modbus_tcp_connect,
+            modbus::modbus_tcp_disconnect,
+            modbus::modbus_tcp_status,
+            modbus::modbus_rtu_open,
+            modbus::modbus_rtu_close,
+            modbus::modbus_rtu_status,
+            modbus::modbus_execute,
+            modbus::modbus_slave_tcp_start,
+            modbus::modbus_slave_tcp_stop,
+            modbus::modbus_slave_rtu_start,
+            modbus::modbus_slave_rtu_stop,
+            modbus::modbus_slave_stop,
+            modbus::modbus_slave_status,
+            modbus::modbus_slave_apply_batch,
+            modbus::modbus_slave_set_holding_register,
+            modbus::modbus_slave_set_coil,
+            modbus::modbus_slave_set_input_register,
+            modbus::modbus_slave_set_discrete_input,
             // Load Test
             commands::start_load_test,
             commands::stop_load_test,
@@ -291,6 +326,7 @@ pub fn run() {
             // Proxy Capture
             commands::proxy_start,
             commands::proxy_stop,
+            commands::proxy_destroy_session,
             commands::proxy_status,
             commands::proxy_get_entries,
             commands::proxy_clear,
@@ -400,6 +436,7 @@ pub fn run() {
             // Mock Server
             commands::mock_server_start,
             commands::mock_server_stop,
+            commands::mock_server_destroy,
             commands::mock_server_update_routes,
             commands::mock_server_get_log,
             commands::mock_server_clear_log,

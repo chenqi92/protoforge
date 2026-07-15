@@ -10,8 +10,9 @@ import {
   Ban, Plus, ArrowRight, Pause,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { activateOnKey } from "@/lib/a11y";
 import { useTranslation } from 'react-i18next';
-import { useCaptureStore, getCaptureStore, destroyCaptureStore } from "@/stores/captureStore";
+import { useCaptureStore, getCaptureStore } from "@/stores/captureStore";
 import type { BreakpointRule, CapturedEntry, PausedRequest, ResumeModification } from "@/types/capture";
 import {
   Dialog,
@@ -202,17 +203,47 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       loadBreakpoints: loadBp,
       loadPaused: loadPs,
     } = store.getState();
-    refresh();
-    load();
-    loadBp();
-    loadPs();
-    const unlistenPromise = init();
+    void refresh().catch((error) => console.warn('Failed to refresh capture status', error));
+    void load().catch((error) => console.warn('Failed to load captured entries', error));
+    void loadBp().catch((error) => console.warn('Failed to load capture breakpoints', error));
+    void loadPs().catch((error) => console.warn('Failed to load paused capture requests', error));
+
+    let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let releaseListener: (() => void) | null = null;
+    let retryDelay = 100;
+
+    const attachListeners = async () => {
+      try {
+        const release = await init();
+        if (disposed) {
+          release();
+        } else {
+          releaseListener = release;
+          // Close the gap between the initial snapshot and a delayed listener
+          // attachment. The backend retains entries and paused requests, so a
+          // post-attach snapshot recovers every event missed while retrying.
+          await Promise.allSettled([refresh(), load(), loadPs()]);
+        }
+      } catch (error) {
+        if (disposed) return;
+        console.warn('Failed to register capture listeners; retrying', error);
+        retryTimer = setTimeout(() => {
+          retryTimer = null;
+          void attachListeners();
+        }, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 5_000);
+      }
+    };
+
+    void attachListeners();
     return () => {
-      // 先解绑事件监听，再销毁 store，避免监听器尚未注册完成就被移出 map
-      unlistenPromise.then((fn) => {
-        fn();
-        destroyCaptureStore(sessionId);
-      });
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      // Split view and detached windows can mount the same session more than
+      // once. Only remove this view's listener here; the session store is
+      // destroyed by closeToolSession when the session itself is closed.
+      releaseListener?.();
     };
   }, [sessionId]);
 
@@ -234,6 +265,16 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
       checkCaTrust();
     }
   }, [running, checkCaTrust]);
+
+  // Detached windows have independent renderer stores. Periodic authoritative
+  // status reconciliation closes the TOCTOU window when another renderer
+  // starts/stops the same backend session.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void getCaptureStore(sessionId).getState().refreshStatus();
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [sessionId]);
 
   // 轮询后备：每 2 秒从后端拉取条目（确保事件推送失败时也能展示）
   useEffect(() => {
@@ -496,7 +537,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                     className="wb-field h-7 w-[280px] pf-text-xs font-mono px-2"
                     autoFocus
                   />
-                  <button onClick={handleOpenBrowser} className="wb-primary-btn h-7 px-3 pf-text-xs">
+                  <button onClick={handleOpenBrowser} aria-label={t('capture.openBrowser')} className="wb-primary-btn h-7 px-3 pf-text-xs">
                     <Play className="h-3 w-3" fill="currentColor" />
                   </button>
                 </div>
@@ -634,6 +675,7 @@ export const CaptureWorkspace = memo(function CaptureWorkspace({ sessionId }: { 
                 </div>
                 <button
                   onClick={() => setCaTrusted(null)}
+                  aria-label={t('common.close')}
                   className="text-text-tertiary hover:text-text-primary transition-colors px-1 mt-0.5"
                 >
                   <X className="w-3 h-3" />
@@ -1148,7 +1190,11 @@ const RequestRow = memo(function RequestRow({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
       onClick={onClick}
+      onKeyDown={activateOnKey(onClick)}
       onContextMenu={handleContextMenu}
       className={cn(
         "flex items-center h-[30px] px-3 cursor-pointer transition-colors border-b border-border-subtle/40",
@@ -1162,20 +1208,20 @@ const RequestRow = memo(function RequestRow({
       <span className="w-[54px] shrink-0">
         <span className={cn("pf-mtag pf-text-3xs", mtagClass)}>{entry.method}</span>
       </span>
-      <span className={cn("w-[52px] shrink-0 text-center font-mono pf-text-xxs font-semibold tabular-nums", statusColor(entry.status))}>
+      <span className={cn("w-[52px] shrink-0 text-center font-mono pf-text-xs font-semibold tabular-nums", statusColor(entry.status))}>
         {entry.status || <Clock className="inline w-3 h-3 text-text-disabled animate-pulse" />}
       </span>
-      <span className="flex-1 min-w-0 truncate font-mono pf-text-xxs" title={entry.url}>
+      <span className="flex-1 min-w-0 truncate font-mono pf-text-xs" title={entry.url}>
         <span className="text-text-tertiary">{entry.host}</span>
         <span className="text-text-primary">{entry.path?.startsWith("/") ? entry.path : entry.path ? `/${entry.path}` : ""}</span>
       </span>
-      <span className="w-[76px] shrink-0 truncate pf-text-xxs text-text-tertiary" title={entry.contentType || ""}>
+      <span className="w-[76px] shrink-0 truncate pf-text-xs text-text-tertiary" title={entry.contentType || ""}>
         {shortType}
       </span>
-      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xxs tabular-nums text-text-tertiary">
+      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xs tabular-nums text-text-tertiary">
         {formatSize(entry.responseSize)}
       </span>
-      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xxs tabular-nums text-text-tertiary">
+      <span className="w-[70px] shrink-0 text-right font-mono pf-text-xs tabular-nums text-text-tertiary">
         {formatDuration(entry.durationMs)}
       </span>
     </div>
@@ -1197,6 +1243,7 @@ function DetailPanel({
   onClose: () => void;
   embedded?: boolean;
 }) {
+  const { t } = useTranslation();
   const [reqTab, setReqTab] = useState<BurpTab>("raw");
   const [resTab, setResTab] = useState<BurpTab>("raw");
 
@@ -1221,6 +1268,7 @@ function DetailPanel({
         </div>
         <button
           onClick={onClose}
+          aria-label={t('common.close')}
           className="mr-1 flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
         >
           <X className="w-3 h-3" />
@@ -1345,7 +1393,7 @@ function RawView({ type, entry }: { type: "request" | "response"; entry: Capture
 
   return (
     <pre
-      className="p-3 pf-text-xxs font-mono text-text-secondary whitespace-pre-wrap break-all select-text leading-[1.6] cursor-text"
+      className="p-3 pf-text-xs font-mono text-text-secondary whitespace-pre-wrap break-all select-text leading-[1.6] cursor-text"
       style={{ userSelect: "text", WebkitUserSelect: "text" }}
     >
       {raw || <span className="text-text-disabled italic">Empty</span>}
@@ -1369,7 +1417,7 @@ function HeadersTableView({ headers }: { headers: [string, string][] }) {
         <div
           key={`${key}-${i}`}
           className={cn(
-            "flex pf-text-xxs font-mono px-3 py-1.5 select-text cursor-text",
+            "flex pf-text-xs font-mono px-3 py-1.5 select-text cursor-text",
             i > 0 && "border-t border-border-subtle/40",
             i % 2 === 0 ? "bg-transparent" : "bg-bg-secondary/30"
           )}
@@ -1443,7 +1491,7 @@ function HexView({ data }: { data?: string }) {
 
   return (
     <pre
-      className="p-3 pf-text-xxs font-mono text-text-secondary leading-[1.6] select-text cursor-text whitespace-pre"
+      className="p-3 pf-text-xs font-mono text-text-secondary leading-[1.6] select-text cursor-text whitespace-pre"
       style={{ userSelect: "text", WebkitUserSelect: "text" }}
     >
       {lines.join("\n")}

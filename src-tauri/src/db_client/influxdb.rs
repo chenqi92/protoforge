@@ -365,6 +365,6 @@ schema.fieldKeys(bucket: "{}", measurement: "{}")"#, bucket, table);
     async fn cancel_query(&self) -> Result<(), String> { Ok(()) }
 
     fn capabilities(&self) -> DriverCapabilities {
-        DriverCapabilities { supports_schemas: false, supports_transactions: false, supports_explain: false, supports_cell_edit: false, supports_row_delete: false, supports_import_export: false, supports_multiple_databases: true, default_port: 8086 }
+        DriverCapabilities { supports_schemas: false, supports_transactions: false, supports_explain: false, supports_cell_edit: false, supports_row_delete: false, supports_import_export: false, supports_multiple_databases: true, supports_cancel: false, default_port: 8086 }
     }
 }

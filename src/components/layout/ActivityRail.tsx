@@ -86,16 +86,17 @@ export function ActivityRail({ activityLogOpen, onToggleActivityLog, onOpenPlugi
             const Icon = DOMAIN_ICONS[domain.icon] ?? Globe;
             const isActive = activeDomain === domain.id;
             const count = counts[domain.id];
+            const sub = zh ? domain.subZh : domain.subEn;
 
             return (
-              <Tooltip key={domain.id} content={tt(domain)} position="right">
+              <Tooltip key={domain.id} content={sub ? `${tt(domain)} · ${sub}` : tt(domain)} position="right">
                 <button
                   type="button"
                   onClick={() => openForgeDomain(domain.id, { onOpenPluginModal: onOpenPlugins })}
                   aria-label={tt(domain)}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "group relative flex h-9 w-[38px] items-center justify-center rounded-lg transition-colors duration-[var(--transition-fast)]",
+                    "group relative flex h-9 w-[38px] items-center justify-center rounded-[8px] transition-colors duration-[var(--transition-fast)]",
                     isActive
                       ? "bg-accent-soft text-accent"
                       : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",
@@ -126,7 +127,7 @@ export function ActivityRail({ activityLogOpen, onToggleActivityLog, onOpenPlugi
           aria-label={t('activityLog.title')}
           aria-pressed={activityLogOpen}
           className={cn(
-            "relative flex h-9 w-[38px] items-center justify-center rounded-lg transition-colors duration-[var(--transition-fast)]",
+            "relative flex h-9 w-[38px] items-center justify-center rounded-[8px] transition-colors duration-[var(--transition-fast)]",
             activityLogOpen
               ? "bg-accent-soft text-accent"
               : "text-text-tertiary hover:bg-bg-hover hover:text-text-primary",

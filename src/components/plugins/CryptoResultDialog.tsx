@@ -29,7 +29,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
 
   return createPortal(
     <div className="fixed inset-0 z-[var(--z-toast)] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-[480px] max-h-[80vh] pf-rounded-xl border border-border-strong bg-bg-elevated shadow-2xl flex flex-col">
+      <div className="w-[480px] max-h-[80vh] rounded-[14px] border border-border-strong bg-bg-elevated shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border-default shrink-0">
           <Unlock className={cn('w-4.5 h-4.5', isError ? 'text-error' : 'text-success')} />
@@ -43,6 +43,7 @@ export function CryptoResultDialog({ output, algorithmName, onClose }: CryptoRes
           </div>
           <button
             onClick={onClose}
+            aria-label={t('common.close')}
             className="h-7 w-7 flex items-center justify-center rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <X className="w-4 h-4" />

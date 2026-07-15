@@ -34,6 +34,7 @@ import { usePluginStore } from "@/stores/pluginStore";
 import { RequestStatsPanel } from "@/components/plugins/RequestStatsPanel";
 import { ConnectionSidebar } from "@/components/dbclient/ConnectionSidebar";
 import { toast } from "sonner";
+import { listHistory } from '@/services/historyService';
 
 type SidebarView = "collections" | "history" | "environments" | "stats";
 
@@ -153,19 +154,37 @@ function DomainListSidebar({
   const addTab = useAppStore((s) => s.addTab);
   const addToolSession = useAppStore((s) => s.addToolSession);
 
-  // Sessions belonging to this domain, derived from the unified list.
-  const items = useMemo<UnifiedTab[]>(() => {
-    return useAppStore.getState().getUnifiedTabs().filter((t) => t.domain === domain);
+  // 该 domain 下的全部统一标签（含 kind==="tool" 的工具会话）。
+  // 汇总计数与“是否存在工具会话”据此判断，避免漏掉 TCP/UDP 等工具会话的状态。
+  const domainTabs = useMemo<UnifiedTab[]>(() => {
+    return useAppStore
+      .getState()
+      .getUnifiedTabs()
+      .filter((t) => t.domain === domain);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domain, tabs, toolSessions, activeToolSessionIds, contextStates]);
+
+  // 仅渲染请求行：工具会话由工作区顶部标签条（App.tsx）统一管理，此处排除避免重复列出。
+  const items = useMemo<UnifiedTab[]>(
+    () => domainTabs.filter((t) => t.kind !== "tool"),
+    [domainTabs],
+  );
 
   const filtered = items.filter(
     (it) => !search || it.title.toLowerCase().includes(search.toLowerCase()),
   );
 
+  // Domains whose workbench is a tool (not "requests") never list request tabs
+  // here — their sessions live in the workspace tab strip instead.
+  const isToolDomain = def.workbench !== "requests";
+
+  // 该 domain 是否存在工具会话（如 realtime 下的 TCP/UDP），用于空态提示分支。
+  const hasToolSessions = domainTabs.some((it) => it.kind === "tool");
+
   // Aggregate connection/activity summary for the contextual head.
-  const liveCount = items.filter((it) => it.state === "live" || it.state === "run").length;
-  const errCount = items.filter((it) => it.state === "err").length;
+  // 计数取自未过滤集合，使 TCP/UDP 等工具会话的 live/err 状态也计入汇总气泡。
+  const liveCount = domainTabs.filter((it) => it.state === "live" || it.state === "run").length;
+  const errCount = domainTabs.filter((it) => it.state === "err").length;
   const summaryPill =
     errCount > 0 ? (
       <span className="pf-pill err shrink-0">
@@ -214,7 +233,7 @@ function DomainListSidebar({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('sidebar.searchSessions', '搜索会话…')}
-            className="h-[28px] w-full pf-rounded-sm border border-border-default bg-bg-app pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
+            className="h-[28px] w-full pf-rounded-md border border-border-default bg-bg-app pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
           />
         </div>
       </div>
@@ -226,6 +245,16 @@ function DomainListSidebar({
               Icon={Icon}
               label={t('sidebar.noSessionMatch', '无匹配会话')}
               sub={t('sidebar.tryAnotherKeyword', '尝试其他关键词')}
+            />
+          ) : isToolDomain || hasToolSessions ? (
+            // 工具型 domain，或虽非工具型但存在工具会话（如 realtime 下的 TCP/UDP）
+            // 而没有请求行时：指向工作区标签条，而非误报“暂无会话”。
+            <EmptyHint
+              Icon={Icon}
+              label={t('sidebar.manageSessionsInWorkspace', '在工作区标签条管理会话')}
+              sub={t('sidebar.manageSessionsInWorkspaceHint', '此类会话已统一在工作区顶部标签条中创建与切换')}
+              actionLabel={t('sidebar.newSession', '新建')}
+              onAction={handleNew}
             />
           ) : (
             <EmptyHint
@@ -257,7 +286,7 @@ function DomainListSidebar({
                 <RowIcon className={cn("h-[15px] w-[15px] shrink-0", isActive ? "text-accent" : "text-text-tertiary")} />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-[length:var(--fs-sidebar)] font-medium">{it.title}</span>
-                  <span className="truncate pf-text-3xs text-text-disabled">{tl(def.zh, def.en)}</span>
+                  <span className="truncate pf-text-3xs text-text-disabled">{it.detail || tl(def.zh, def.en)}</span>
                 </div>
                 <span className={cn("pf-dot shrink-0", `s-${it.state}`)} />
               </button>
@@ -385,7 +414,6 @@ function ApiSidebar({ onOpenEnvModal, onTogglePanel }: { onOpenEnvModal: () => v
   // ── History export ──
   const exportHistory = async (format: 'json' | 'csv') => {
     try {
-      const { listHistory } = await import('@/services/historyService');
       const entries = await listHistory(10000);
       let content: string;
       let fileName: string;
@@ -591,7 +619,7 @@ function ApiSidebar({ onOpenEnvModal, onTogglePanel }: { onOpenEnvModal: () => v
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`${t('common.search')}${t(navItems.find(n => n.id === activeView)?.labelKey || '')}...`}
-            className="h-[28px] w-full pf-rounded-sm border border-border-default bg-bg-app pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
+            className="h-[28px] w-full pf-rounded-md border border-border-default bg-bg-app pl-8 pr-3 text-[length:var(--fs-sidebar)] text-text-primary outline-none transition-all placeholder:text-text-tertiary focus:border-accent focus:shadow-[0_0_0_2px_var(--color-accent-soft)]"
           />
         </div>
       </div>
@@ -1167,7 +1195,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
                 <span className="truncate text-[length:var(--fs-sidebar)] font-medium">{item.name}</span>
               )}
               {childCount > 0 && (
-                <span className="pf-text-3xs text-text-disabled ml-auto tabular-nums">{childCount}</span>
+                <span className="pf-text-3xs text-text-disabled ml-auto tabular-nums font-mono">{childCount}</span>
               )}
             </button>
             <AnimatePresence>
@@ -1257,6 +1285,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
         const isColDropTarget = dropTargetId === `col:${col.id}`;
         return (
           <div key={col.id} className="mb-0.5">
+            <div className="relative group flex items-center">
             <button
               onClick={() => toggleExpand(col.id)}
               onContextMenu={(e) => handleFolderContextMenu(e, col)}
@@ -1284,7 +1313,7 @@ function CollectionsView({ search, expanded, setExpanded }: {
                 setDragCollectionId(null);
               }}
               className={cn(
-                "w-full flex items-center gap-1.5 px-2 py-[5px] pf-rounded-sm text-[length:var(--fs-sidebar)] font-semibold text-text-primary hover:bg-bg-hover transition-colors group",
+                "w-full flex items-center gap-1.5 pl-2 pr-7 py-[5px] rounded-[5px] text-[length:var(--fs-sidebar)] font-semibold text-text-primary hover:bg-bg-hover transition-colors",
                 isColDropTarget && "ring-1 ring-accent bg-accent/5"
               )}
             >
@@ -1313,18 +1342,20 @@ function CollectionsView({ search, expanded, setExpanded }: {
                 <span className="truncate">{col.name}</span>
               )}
               {renamingId !== col.id && (
-                <>
-                  <span className="pf-text-3xs text-text-disabled ml-auto tabular-nums">{requestItems.length || ''}</span>
-                  <span
-                    role="button"
-                    onClick={(e) => { e.stopPropagation(); handleFolderContextMenu(e, col); }}
-                    className="w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-bg-hover transition-all shrink-0"
-                  >
-                    <MoreHorizontal className="w-3.5 h-3.5 text-text-disabled" />
-                  </span>
-                </>
+                <span className="pf-text-3xs text-text-disabled ml-auto tabular-nums font-mono">{requestItems.length || ''}</span>
               )}
             </button>
+            {renamingId !== col.id && (
+              <button
+                type="button"
+                aria-label={t('sidebar.folderActions', '文件夹操作')}
+                onClick={(e) => { e.stopPropagation(); handleFolderContextMenu(e, col); }}
+                className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 hover:bg-bg-hover transition-all shrink-0"
+              >
+                <MoreHorizontal className="w-3.5 h-3.5 text-text-disabled" />
+              </button>
+            )}
+            </div>
             <AnimatePresence>
               {(search || expanded[col.id]) && (
                 <motion.div
@@ -1455,7 +1486,7 @@ function RequestItemWithTooltip({
         onMouseEnter={scheduleShow}
         onMouseLeave={scheduleHide}
         className={cn(
-          "w-full flex items-center gap-2 pr-2 py-[4px] pf-rounded-sm text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group/item",
+          "w-full flex items-center gap-1.5 pr-2 py-[4px] rounded-[5px] text-[length:var(--fs-sidebar)] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors group/item",
           dragItemId === item.id && "opacity-40",
           dropTargetId === item.id && dropPosition === 'before' && "border-t-2 border-t-accent",
           dropTargetId === item.id && dropPosition === 'after' && "border-b-2 border-b-accent"

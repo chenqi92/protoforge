@@ -123,7 +123,7 @@ export function ImageCompressorTool() {
       {/* 选择图片 — 原型 dropzone 风格 */}
       <section>
         <div className="mb-2 flex items-center gap-3">
-          <h3 className="pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.selectImages`)}</h3>
+          <h3 className="pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.selectImages`)}</h3>
           {selectedImages.length > 0 && (
             <button
               onClick={() => {
@@ -160,6 +160,7 @@ export function ImageCompressorTool() {
                   {name}
                   <button
                     onClick={() => setSelectedImages((prev) => prev.filter((p) => p !== path))}
+                    aria-label={t('toolbox.removeImage', '移除图片')}
                     className="text-text-disabled hover:text-text-primary"
                   >
                     <X className="h-3 w-3" />
@@ -173,7 +174,7 @@ export function ImageCompressorTool() {
 
       {/* 输出格式 */}
       <section>
-        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputFormat`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputFormat`)}</h3>
         <div className="flex flex-wrap gap-2">
           {FORMAT_OPTIONS.map((opt) => {
             const checked = format === opt.id;
@@ -204,7 +205,7 @@ export function ImageCompressorTool() {
       {/* JPEG 质量 */}
       {showJpegQuality && (
         <section>
-          <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.jpegQuality`)}</h3>
+          <h3 className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.jpegQuality`)}</h3>
           <div className="flex max-w-md items-center gap-3">
             <input
               type="range"
@@ -230,7 +231,7 @@ export function ImageCompressorTool() {
       {/* PNG 压缩级别 */}
       {showPngLevel && (
         <section>
-          <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.pngCompression`)}</h3>
+          <h3 className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.pngCompression`)}</h3>
           <div className="flex flex-wrap gap-2">
             {PNG_LEVELS.map((opt) => {
               const checked = pngCompression === opt.id;
@@ -261,7 +262,7 @@ export function ImageCompressorTool() {
 
       {/* 文件名后缀 + 覆盖 */}
       <section>
-        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputName`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputName`)}</h3>
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2">
             <span className="pf-text-sm text-text-secondary">{t(`${k}.suffix`)}</span>
@@ -287,7 +288,7 @@ export function ImageCompressorTool() {
 
       {/* 输出目录 */}
       <section>
-        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputDir`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.outputDir`)}</h3>
         <div className="flex items-center gap-3">
           <button onClick={handleSelectOutput} className="wb-ghost-btn gap-2 px-3 py-2">
             <FolderOutput className="h-4 w-4" />
@@ -330,7 +331,7 @@ export function ImageCompressorTool() {
 
       {/* 进度条 */}
       {processing && (
-        <section className="rounded-lg border border-accent/30 bg-accent-soft p-4">
+        <section className="pf-rounded-md border border-accent/30 bg-accent-soft p-4">
           <div className="mb-2 flex items-center gap-2 pf-text-sm text-text-secondary">
             <Loader2 className="h-4 w-4 animate-spin text-accent" />
             <span>
@@ -349,7 +350,7 @@ export function ImageCompressorTool() {
 
       {/* 总体节省 */}
       {result && savedRatio && result.successCount > 0 && (
-        <section className="rounded-lg border border-success/30 bg-success/5 p-4">
+        <section className="pf-rounded-md border border-success/30 bg-success/5 p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/15 text-success">
               <ArrowDownToLine className="h-4 w-4" />
@@ -372,8 +373,8 @@ export function ImageCompressorTool() {
       {/* 单文件结果 */}
       {result && result.items.length > 0 && (
         <section>
-          <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.results`)}</h3>
-          <div className="overflow-hidden rounded-lg border border-border-default">
+          <h3 className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.results`)}</h3>
+          <div className="overflow-hidden pf-rounded-md border border-border-default">
             <table className="w-full pf-text-xs">
               <thead className="bg-bg-tertiary text-text-tertiary">
                 <tr>
@@ -418,7 +419,7 @@ export function ImageCompressorTool() {
 
       {/* 错误详情 */}
       {result && result.errors.length > 0 && (
-        <section className="rounded-lg border border-error/30 bg-error/5 p-3">
+        <section className="pf-rounded-md border border-error/30 bg-error/5 p-3">
           <div className="space-y-1">
             {result.errors.map((err, i) => (
               <div key={i} className="pf-text-xs font-mono text-error">

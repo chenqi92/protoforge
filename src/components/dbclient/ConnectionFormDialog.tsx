@@ -179,7 +179,7 @@ export function ConnectionFormDialog({
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent
-        className="w-[540px] max-w-[96vw] max-h-[88vh] gap-0 overflow-hidden pf-rounded-xl border border-border-strong bg-bg-elevated p-0 shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_2px_4px_-2px_rgba(0,0,0,0.04)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.5)] sm:max-w-[540px]"
+        className="w-[540px] max-w-[96vw] max-h-[88vh] gap-0 overflow-hidden rounded-[14px] border border-border-strong bg-bg-elevated p-0 shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_2px_4px_-2px_rgba(0,0,0,0.04)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.5)] sm:max-w-[540px]"
         showCloseButton
       >
         <DialogTitle className="sr-only">
@@ -192,7 +192,7 @@ export function ConnectionFormDialog({
             <Icon size={20} className={meta.color} />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="pf-text-base font-semibold text-text-primary">
+            <h2 className="text-[15px] font-semibold text-text-primary">
               {editingConnection ? t("dbClient.editConnection") : t("dbClient.newConnection")}
             </h2>
             <p className="pf-text-xs text-text-tertiary mt-0.5">{DB_TYPE_LABELS[dbType]}</p>

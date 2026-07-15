@@ -6,7 +6,6 @@ import {
   Search,
   Settings,
   Sun,
-  Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useThemeStore } from "@/stores/themeStore";
@@ -46,38 +45,36 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
       {/* macOS traffic-light spacer */}
       <div className="w-[70px] shrink-0" />
 
-      {/* Brand */}
+      {/* Brand — real ProtoForge app icon */}
       <div className="flex shrink-0 items-center gap-2 no-drag">
-        <div
-          className="flex h-[22px] w-[22px] items-center justify-center rounded-md shadow-[0_2px_8px_var(--color-accent-muted)]"
-          style={{
-            backgroundImage:
-              "linear-gradient(150deg, var(--color-accent), color-mix(in srgb, var(--color-accent) 55%, #000))",
-          }}
-        >
-          <Zap className="h-[13px] w-[13px] text-white" />
-        </div>
-        <span className="pf-text-sm font-medium tracking-[-0.01em] text-text-primary">
+        <img
+          src="/app-icon.png"
+          alt="ProtoForge"
+          className="h-[22px] w-[22px] shrink-0 select-none"
+          draggable={false}
+        />
+        <span className="text-[12.5px] font-semibold tracking-[-0.01em] text-text-primary">
           Proto<b className="font-bold text-accent">Forge</b>
         </span>
       </div>
 
-      {/* Centered ⌘K command pill */}
-      <div className="flex min-w-0 flex-1 justify-center px-2">
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent("toggle-command-palette"))}
-          className="no-drag flex h-6 w-full min-w-0 max-w-[460px] items-center gap-2 rounded-[7px] border border-border-default bg-bg-app pl-[9px] pr-2 pf-text-xs text-text-tertiary transition-colors hover:border-border-strong hover:text-text-secondary"
-        >
-          <Search className="h-[13px] w-[13px] shrink-0" />
-          <span className="min-w-0 flex-1 truncate text-left">
-            {t('app.titleBar.searchPlaceholder', '搜索请求 / 命令 / 集合…')}
-          </span>
-          <span className="shrink-0 rounded-[4px] border border-border-default border-b-2 bg-bg-secondary px-[5px] py-px font-mono text-[10.5px] leading-[1.3] text-text-secondary">
-            ⌘K
-          </span>
-        </button>
-      </div>
+      {/* ⌘K command pill — left-aligned right after the brand (Forge .tb-cmd) */}
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new CustomEvent("toggle-command-palette"))}
+        className="no-drag flex h-6 min-w-[320px] max-w-[460px] items-center gap-2 rounded-[7px] border border-border-default bg-bg-app pl-[9px] pr-2 pf-text-xs text-text-tertiary transition-colors hover:border-border-strong hover:text-text-secondary"
+      >
+        <Search className="h-[13px] w-[13px] shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left">
+          {t('app.titleBar.searchPlaceholder', '搜索请求 / 命令 / 集合…')}
+        </span>
+        <span className="shrink-0 rounded-[4px] border border-border-default border-b-2 bg-bg-tertiary px-[5px] py-px font-mono text-[10.5px] leading-[1.3] text-text-secondary">
+          ⌘K
+        </span>
+      </button>
+
+      {/* spacer pushes actions to the right */}
+      <div className="min-w-0 flex-1" />
 
       {/* Right actions — flat icon row (Forge .tb-actions) */}
       <div className="flex shrink-0 items-center gap-0.5 no-drag">
@@ -85,7 +82,8 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("open-design-system"))}
-            className="flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+            aria-label={t('app.titleBar.designRationale', '设计说明 / 站点图')}
+            className="flex h-7 w-7 items-center justify-center pf-rounded-md text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
           >
             <Map className="h-4 w-4" />
           </button>
@@ -94,7 +92,8 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
           <button
             type="button"
             onClick={onOpenPlugins}
-            className="flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+            aria-label={t('titleBar.plugins')}
+            className="flex h-7 w-7 items-center justify-center pf-rounded-md text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
           >
             <Puzzle className="h-4 w-4" />
           </button>
@@ -103,7 +102,7 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
           <button
             type="button"
             onClick={toggleLanguage}
-            className="flex h-7 w-7 items-center justify-center pf-rounded-sm pf-text-xs font-semibold text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+            className="flex h-7 w-7 items-center justify-center pf-rounded-md pf-text-xs font-semibold text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
           >
             {zh ? "EN" : t('app.titleBar.langIndicatorZh', '中')}
           </button>
@@ -111,7 +110,7 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
         <button
           type="button"
           onClick={cycleTheme}
-          className="flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          className="flex h-7 w-7 items-center justify-center pf-rounded-md text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
           title={mode === "system" ? t('titleBar.themeSystem') : mode === "dark" ? t('titleBar.themeDark') : t('titleBar.themeLight')}
         >
           {mode === "system" ? (
@@ -126,7 +125,8 @@ export function TitleBar({ onOpenPlugins, onOpenSettings }: TitleBarProps) {
           <button
             type="button"
             onClick={onOpenSettings}
-            className="flex h-7 w-7 items-center justify-center pf-rounded-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+            aria-label={t('titleBar.settings')}
+            className="flex h-7 w-7 items-center justify-center pf-rounded-md text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
           >
             <Settings className="h-4 w-4" />
           </button>

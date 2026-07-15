@@ -164,7 +164,7 @@ export const ToolboxWorkspace = memo(function ToolboxWorkspace() {
                   {/* 分组标题 .sechead */}
                   <div className="mb-1 flex items-center gap-1.5 px-1.5 py-1">
                     <GroupIcon className="h-3 w-3 text-text-tertiary" />
-                    <span className="pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">
+                    <span className="pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">
                       {t(meta.labelKey)}
                     </span>
                   </div>

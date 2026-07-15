@@ -53,7 +53,7 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           // Forge dialog: elevated surface, border-strong ring + Forge drop shadow.
-          "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] gap-4 rounded-xl bg-popover p-4 text-sm ring-1 ring-border-strong shadow-lg duration-150 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] gap-4 rounded-[14px] bg-popover p-4 text-sm ring-1 ring-border-strong shadow-lg duration-150 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
           className
         )}
         {...props}
@@ -122,7 +122,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-base leading-none font-[590] tracking-[-0.01em]",
+        "font-heading text-[15px] leading-none font-[590] tracking-[-0.01em]",
         className
       )}
       {...props}

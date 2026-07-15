@@ -1,6 +1,6 @@
 // MySQL 驱动实现
 
-use super::driver::{*, validate_identifier, quote_mysql_ident};
+use super::driver::{quote_mysql_ident, validate_identifier, *};
 use async_trait::async_trait;
 use mysql_async::prelude::*;
 use mysql_async::{Conn, Opts, OptsBuilder, Pool, Row as MysqlRow, Value as MysqlValue};
@@ -12,6 +12,9 @@ pub struct MysqlDriver {
     config: MysqlConfig,
     pool: Option<Pool>,
     conn: Arc<Mutex<Option<Conn>>>,
+    // 正在执行查询的连接 id，用于 KILL QUERY
+    // 用 std Mutex（仅做平凡的同步读写），Drop 时能可靠清空
+    query_conn_id: Arc<std::sync::Mutex<Option<u32>>>,
 }
 
 #[allow(dead_code)]
@@ -24,12 +27,27 @@ pub struct MysqlConfig {
     pub ssl: bool,
 }
 
+// 查询结束（含出错提前 return）时清空 query_conn_id
+struct QueryIdGuard {
+    slot: Arc<std::sync::Mutex<Option<u32>>>,
+}
+
+impl Drop for QueryIdGuard {
+    fn drop(&mut self) {
+        // std lock（非 try_lock），保证可靠清空，避免残留过期 id
+        if let Ok(mut g) = self.slot.lock() {
+            *g = None;
+        }
+    }
+}
+
 impl MysqlDriver {
     pub fn new(config: MysqlConfig) -> Self {
         Self {
             config,
             pool: None,
             conn: Arc::new(Mutex::new(None)),
+            query_conn_id: Arc::new(std::sync::Mutex::new(None)),
         }
     }
 
@@ -43,29 +61,30 @@ impl MysqlDriver {
             .map_err(|e| format!("Get connection failed: {}", e))
     }
 
-
     fn mysql_value_to_sql(val: &MysqlValue) -> SqlValue {
         match val {
             MysqlValue::NULL => SqlValue::Null,
-            MysqlValue::Bytes(b) => {
-                match String::from_utf8(b.clone()) {
-                    Ok(s) => SqlValue::Text(s),
-                    Err(_) => {
-                        use base64::Engine;
-                        SqlValue::Bytes(base64::engine::general_purpose::STANDARD.encode(b))
-                    }
+            MysqlValue::Bytes(b) => match String::from_utf8(b.clone()) {
+                Ok(s) => SqlValue::Text(s),
+                Err(_) => {
+                    use base64::Engine;
+                    SqlValue::Bytes(base64::engine::general_purpose::STANDARD.encode(b))
                 }
-            }
+            },
             MysqlValue::Int(i) => SqlValue::Int(*i),
             MysqlValue::UInt(u) => SqlValue::Int(*u as i64),
             MysqlValue::Float(f) => SqlValue::Float(*f as f64),
             MysqlValue::Double(d) => SqlValue::Float(*d),
-            MysqlValue::Date(y, m, d, h, mi, s, us) => {
-                SqlValue::Timestamp(format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:06}", y, m, d, h, mi, s, us))
-            }
+            MysqlValue::Date(y, m, d, h, mi, s, us) => SqlValue::Timestamp(format!(
+                "{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:06}",
+                y, m, d, h, mi, s, us
+            )),
             MysqlValue::Time(neg, days, h, m, s, us) => {
                 let sign = if *neg { "-" } else { "" };
-                SqlValue::Text(format!("{}{}d {:02}:{:02}:{:02}.{:06}", sign, days, h, m, s, us))
+                SqlValue::Text(format!(
+                    "{}{}d {:02}:{:02}:{:02}.{:06}",
+                    sign, days, h, m, s, us
+                ))
             }
         }
     }
@@ -139,6 +158,11 @@ impl DbDriver for MysqlDriver {
 
     async fn execute_query(&self, sql: &str) -> Result<QueryResult, String> {
         let mut conn = self.get_conn().await?;
+        // 记录当前查询连接 id，供 cancel 发送 KILL QUERY；用 guard 保证结束（含出错）时清空
+        *self.query_conn_id.lock().unwrap() = Some(conn.id());
+        let _id_guard = QueryIdGuard {
+            slot: self.query_conn_id.clone(),
+        };
         let start = std::time::Instant::now();
 
         let result: Vec<MysqlRow> = conn
@@ -187,41 +211,69 @@ impl DbDriver for MysqlDriver {
         })
     }
 
-    async fn execute_query_in_database(&self, sql: &str, database: &str) -> Result<QueryResult, String> {
+    async fn execute_query_in_database(
+        &self,
+        sql: &str,
+        database: &str,
+    ) -> Result<QueryResult, String> {
         let mut conn = self.get_conn().await?;
+        // 记录当前查询连接 id，供 cancel 发送 KILL QUERY；用 guard 保证结束（含出错）时清空
+        *self.query_conn_id.lock().unwrap() = Some(conn.id());
+        let _id_guard = QueryIdGuard {
+            slot: self.query_conn_id.clone(),
+        };
         // 在同一连接上先 USE database
         if !database.is_empty() {
             let use_sql = format!("USE `{}`", database.replace('`', "``"));
-            conn.query_drop(&use_sql).await
+            conn.query_drop(&use_sql)
+                .await
                 .map_err(|e| format!("USE database failed: {}", e))?;
         }
         // 然后执行用户 SQL（同一个 conn 对象）
         let start = std::time::Instant::now();
-        let result: Vec<MysqlRow> = conn.query(sql).await
+        let result: Vec<MysqlRow> = conn
+            .query(sql)
+            .await
             .map_err(|e| format!("Query failed: {}", e))?;
         let elapsed = start.elapsed().as_millis() as u64;
 
         if result.is_empty() {
             return Ok(QueryResult {
-                columns: vec![], rows: vec![], affected_rows: None,
-                execution_time_ms: elapsed, truncated: false, total_rows: Some(0), warnings: vec![],
+                columns: vec![],
+                rows: vec![],
+                affected_rows: None,
+                execution_time_ms: elapsed,
+                truncated: false,
+                total_rows: Some(0),
+                warnings: vec![],
             });
         }
 
-        let columns: Vec<ColumnInfo> = result[0].columns_ref().iter().map(|col| ColumnInfo {
-            name: col.name_str().to_string(),
-            data_type: format!("{:?}", col.column_type()),
-            nullable: true,
-            is_primary_key: col.flags().contains(mysql_async::consts::ColumnFlags::PRI_KEY_FLAG),
-            max_length: Some(col.column_length() as i64),
-        }).collect();
+        let columns: Vec<ColumnInfo> = result[0]
+            .columns_ref()
+            .iter()
+            .map(|col| ColumnInfo {
+                name: col.name_str().to_string(),
+                data_type: format!("{:?}", col.column_type()),
+                nullable: true,
+                is_primary_key: col
+                    .flags()
+                    .contains(mysql_async::consts::ColumnFlags::PRI_KEY_FLAG),
+                max_length: Some(col.column_length() as i64),
+            })
+            .collect();
 
         let data: Vec<Vec<SqlValue>> = result.iter().map(Self::row_to_values).collect();
         let row_count = data.len();
 
         Ok(QueryResult {
-            columns, rows: data, affected_rows: None,
-            execution_time_ms: elapsed, truncated: false, total_rows: Some(row_count as i64), warnings: vec![],
+            columns,
+            rows: data,
+            affected_rows: None,
+            execution_time_ms: elapsed,
+            truncated: false,
+            total_rows: Some(row_count as i64),
+            warnings: vec![],
         })
     }
 
@@ -451,10 +503,7 @@ impl DbDriver for MysqlDriver {
         };
         let order = match sort_column {
             Some(col) => {
-                let dir = if sort_dir
-                    .unwrap_or("ASC")
-                    .eq_ignore_ascii_case("DESC")
-                {
+                let dir = if sort_dir.unwrap_or("ASC").eq_ignore_ascii_case("DESC") {
                     "DESC"
                 } else {
                     "ASC"
@@ -465,23 +514,28 @@ impl DbDriver for MysqlDriver {
             None => String::new(),
         };
         validate_identifier(table)?;
-        let table_ref = format!("{}.{}", quote_mysql_ident(effective_db)?, quote_mysql_ident(table)?);
+        let table_ref = format!(
+            "{}.{}",
+            quote_mysql_ident(effective_db)?,
+            quote_mysql_ident(table)?
+        );
 
         // 先查总行数
         let count_sql = format!("SELECT COUNT(*) FROM {} {}", table_ref, where_clause);
         let total_rows: Option<i64> = match self.execute_query(&count_sql).await {
-            Ok(cr) if !cr.rows.is_empty() && !cr.rows[0].is_empty() => {
-                match &cr.rows[0][0] {
-                    SqlValue::Int(n) => Some(*n),
-                    SqlValue::Text(s) => s.parse().ok(),
-                    _ => None,
-                }
-            }
+            Ok(cr) if !cr.rows.is_empty() && !cr.rows[0].is_empty() => match &cr.rows[0][0] {
+                SqlValue::Int(n) => Some(*n),
+                SqlValue::Text(s) => s.parse().ok(),
+                _ => None,
+            },
             _ => None,
         };
 
         let sql = if limit > 0 {
-            format!("SELECT * FROM {} {} {} LIMIT {} OFFSET {}", table_ref, where_clause, order, limit, offset)
+            format!(
+                "SELECT * FROM {} {} {} LIMIT {} OFFSET {}",
+                table_ref, where_clause, order, limit, offset
+            )
         } else {
             format!("SELECT * FROM {} {} {}", table_ref, where_clause, order)
         };
@@ -491,6 +545,14 @@ impl DbDriver for MysqlDriver {
     }
 
     async fn apply_cell_edits(&self, edits: &[CellEdit]) -> Result<u64, String> {
+        for edit in edits {
+            validate_primary_key_values(&edit.pk_columns, &edit.pk_values).map_err(|error| {
+                format!(
+                    "Invalid primary key for edit on '{}.{}': {}",
+                    edit.table, edit.column, error
+                )
+            })?;
+        }
         let mut conn = self.get_conn().await?;
         let mut affected = 0u64;
         for edit in edits {
@@ -502,8 +564,8 @@ impl DbDriver for MysqlDriver {
             let where_parts: Vec<String> = edit
                 .pk_columns
                 .iter()
-                .enumerate()
-                .map(|(i, col)| format!("`{}` = {}", col, sql_value_literal_mysql(&edit.pk_values[i])))
+                .zip(&edit.pk_values)
+                .map(|(col, value)| format!("`{}` = {}", col, sql_value_literal_mysql(value)))
                 .collect();
             let sql = format!(
                 "UPDATE `{}`.`{}` SET `{}` = {} WHERE {}",
@@ -529,6 +591,15 @@ impl DbDriver for MysqlDriver {
         pk_columns: &[String],
         pk_values: &[Vec<SqlValue>],
     ) -> Result<u64, String> {
+        for (row_index, row_pks) in pk_values.iter().enumerate() {
+            validate_primary_key_values(pk_columns, row_pks).map_err(|error| {
+                format!(
+                    "Invalid primary key values for delete row {}: {}",
+                    row_index + 1,
+                    error
+                )
+            })?;
+        }
         let mut conn = self.get_conn().await?;
         let effective_db = if database.is_empty() {
             &self.config.database
@@ -539,12 +610,14 @@ impl DbDriver for MysqlDriver {
         for row_pks in pk_values {
             let where_parts: Vec<String> = pk_columns
                 .iter()
-                .enumerate()
-                .map(|(i, col)| format!("`{}` = {}", col, sql_value_literal_mysql(&row_pks[i])))
+                .zip(row_pks)
+                .map(|(col, value)| format!("`{}` = {}", col, sql_value_literal_mysql(value)))
                 .collect();
             let sql = format!(
                 "DELETE FROM `{}`.`{}` WHERE {}",
-                effective_db, table, where_parts.join(" AND ")
+                effective_db,
+                table,
+                where_parts.join(" AND ")
             );
             conn.query_drop(&sql)
                 .await
@@ -555,9 +628,27 @@ impl DbDriver for MysqlDriver {
     }
 
     async fn cancel_query(&self) -> Result<(), String> {
-        // MySQL 的查询取消需要 KILL QUERY <connection_id>
-        // 当前简单实现暂不支持
+        // MySQL 通过另一条连接发送 KILL QUERY <connection_id> 取消正在执行的查询
+        let id = *self.query_conn_id.lock().unwrap();
+        if let Some(id) = id {
+            // id 是驱动返回的 u32，format! 拼接无注入风险
+            let mut conn = self.get_conn().await?;
+            conn.query_drop(format!("KILL QUERY {}", id))
+                .await
+                .map_err(|e| format!("Cancel query failed: {}", e))?;
+        }
         Ok(())
+    }
+
+    fn query_canceller(&self) -> std::sync::Arc<dyn QueryCanceller> {
+        // 取消句柄持有 pool 的克隆与 query_conn_id 的共享引用，独立于驱动锁之外
+        match &self.pool {
+            Some(pool) => std::sync::Arc::new(MysqlCanceller {
+                pool: pool.clone(),
+                query_conn_id: self.query_conn_id.clone(),
+            }),
+            None => std::sync::Arc::new(NoopCanceller),
+        }
     }
 
     fn capabilities(&self) -> DriverCapabilities {
@@ -569,8 +660,34 @@ impl DbDriver for MysqlDriver {
             supports_row_delete: true,
             supports_import_export: true,
             supports_multiple_databases: true,
+            supports_cancel: true,
             default_port: 3306,
         }
+    }
+}
+
+// 独立于驱动锁之外的 MySQL 取消句柄：用单独的池连接发送 KILL QUERY
+pub struct MysqlCanceller {
+    pool: Pool,
+    query_conn_id: Arc<std::sync::Mutex<Option<u32>>>,
+}
+
+#[async_trait]
+impl QueryCanceller for MysqlCanceller {
+    async fn cancel(&self) -> Result<(), String> {
+        let id = *self.query_conn_id.lock().unwrap();
+        if let Some(id) = id {
+            // id 是驱动返回的 u32，format! 拼接无注入风险
+            let mut conn = self
+                .pool
+                .get_conn()
+                .await
+                .map_err(|e| format!("Get connection failed: {}", e))?;
+            conn.query_drop(format!("KILL QUERY {}", id))
+                .await
+                .map_err(|e| format!("Cancel query failed: {}", e))?;
+        }
+        Ok(())
     }
 }
 

@@ -1,6 +1,6 @@
 // PostgreSQL 驱动实现
 
-use super::driver::{*, validate_identifier, quote_pg_ident};
+use super::driver::{quote_pg_ident, validate_identifier, *};
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -32,7 +32,10 @@ impl PostgresDriver {
     }
 
     fn client(&self) -> Result<&Client, String> {
-        self.client.as_ref().map(|c| c.as_ref()).ok_or_else(|| "Not connected".to_string())
+        self.client
+            .as_ref()
+            .map(|c| c.as_ref())
+            .ok_or_else(|| "Not connected".to_string())
     }
 
     fn row_to_values(row: &tokio_postgres::Row) -> Vec<SqlValue> {
@@ -136,8 +139,11 @@ impl DbDriver for PostgresDriver {
     async fn connect(&mut self) -> Result<ServerInfo, String> {
         let conn_str = format!(
             "host={} port={} dbname={} user={} password={}",
-            self.config.host, self.config.port, self.config.database,
-            self.config.username, self.config.password
+            self.config.host,
+            self.config.port,
+            self.config.database,
+            self.config.username,
+            self.config.password
         );
 
         let (client, connection) = tokio_postgres::connect(&conn_str, NoTls)
@@ -455,7 +461,11 @@ impl DbDriver for PostgresDriver {
         let effective_schema = if schema.is_empty() { "public" } else { schema };
         validate_identifier(effective_schema)?;
         validate_identifier(table)?;
-        let quoted_table = format!("{}.{}", quote_pg_ident(effective_schema)?, quote_pg_ident(table)?);
+        let quoted_table = format!(
+            "{}.{}",
+            quote_pg_ident(effective_schema)?,
+            quote_pg_ident(table)?
+        );
         let where_clause = match filter {
             Some(f) if !f.trim().is_empty() => format!("WHERE {}", f),
             _ => String::new(),
@@ -463,7 +473,11 @@ impl DbDriver for PostgresDriver {
         let order = match sort_column {
             Some(col) => {
                 validate_identifier(col)?;
-                let safe_dir = if sort_dir.unwrap_or("ASC").eq_ignore_ascii_case("DESC") { "DESC" } else { "ASC" };
+                let safe_dir = if sort_dir.unwrap_or("ASC").eq_ignore_ascii_case("DESC") {
+                    "DESC"
+                } else {
+                    "ASC"
+                };
                 format!("ORDER BY {} {}", quote_pg_ident(col)?, safe_dir)
             }
             None => String::new(),
@@ -471,17 +485,18 @@ impl DbDriver for PostgresDriver {
         // 查总行数
         let count_sql = format!("SELECT COUNT(*) FROM {} {}", quoted_table, where_clause);
         let total_rows: Option<i64> = match self.execute_query(&count_sql).await {
-            Ok(cr) if !cr.rows.is_empty() && !cr.rows[0].is_empty() => {
-                match &cr.rows[0][0] {
-                    SqlValue::Int(n) => Some(*n),
-                    SqlValue::Text(s) => s.parse().ok(),
-                    _ => None,
-                }
-            }
+            Ok(cr) if !cr.rows.is_empty() && !cr.rows[0].is_empty() => match &cr.rows[0][0] {
+                SqlValue::Int(n) => Some(*n),
+                SqlValue::Text(s) => s.parse().ok(),
+                _ => None,
+            },
             _ => None,
         };
         let sql = if limit > 0 {
-            format!("SELECT * FROM {} {} {} LIMIT {} OFFSET {}", quoted_table, where_clause, order, limit, offset)
+            format!(
+                "SELECT * FROM {} {} {} LIMIT {} OFFSET {}",
+                quoted_table, where_clause, order, limit, offset
+            )
         } else {
             format!("SELECT * FROM {} {} {}", quoted_table, where_clause, order)
         };
@@ -491,19 +506,28 @@ impl DbDriver for PostgresDriver {
     }
 
     async fn apply_cell_edits(&self, edits: &[CellEdit]) -> Result<u64, String> {
+        for edit in edits {
+            validate_primary_key_values(&edit.pk_columns, &edit.pk_values).map_err(|error| {
+                format!(
+                    "Invalid primary key for edit on '{}.{}': {}",
+                    edit.table, edit.column, error
+                )
+            })?;
+        }
         let client = self.client()?;
         let mut affected = 0u64;
         for edit in edits {
-            let effective_schema = if edit.schema.is_empty() { "public" } else { &edit.schema };
+            let effective_schema = if edit.schema.is_empty() {
+                "public"
+            } else {
+                &edit.schema
+            };
             // 构建 WHERE 子句
             let where_parts: Vec<String> = edit
                 .pk_columns
                 .iter()
-                .enumerate()
-                .map(|(i, col)| {
-                    let val = &edit.pk_values[i];
-                    format!("\"{}\" = {}", col, sql_value_literal(val))
-                })
+                .zip(&edit.pk_values)
+                .map(|(col, value)| format!("\"{}\" = {}", col, sql_value_literal(value)))
                 .collect();
             let where_clause = where_parts.join(" AND ");
             let new_val = sql_value_literal(&edit.new_value);
@@ -528,18 +552,29 @@ impl DbDriver for PostgresDriver {
         pk_columns: &[String],
         pk_values: &[Vec<SqlValue>],
     ) -> Result<u64, String> {
+        for (row_index, row_pks) in pk_values.iter().enumerate() {
+            validate_primary_key_values(pk_columns, row_pks).map_err(|error| {
+                format!(
+                    "Invalid primary key values for delete row {}: {}",
+                    row_index + 1,
+                    error
+                )
+            })?;
+        }
         let client = self.client()?;
         let effective_schema = if schema.is_empty() { "public" } else { schema };
         let mut affected = 0u64;
         for row_pks in pk_values {
             let where_parts: Vec<String> = pk_columns
                 .iter()
-                .enumerate()
-                .map(|(i, col)| format!("\"{}\" = {}", col, sql_value_literal(&row_pks[i])))
+                .zip(row_pks)
+                .map(|(col, value)| format!("\"{}\" = {}", col, sql_value_literal(value)))
                 .collect();
             let sql = format!(
                 "DELETE FROM \"{}\".\"{}\" WHERE {}",
-                effective_schema, table, where_parts.join(" AND ")
+                effective_schema,
+                table,
+                where_parts.join(" AND ")
             );
             let n = client
                 .execute(&sql, &[])
@@ -561,6 +596,13 @@ impl DbDriver for PostgresDriver {
         Ok(())
     }
 
+    fn query_canceller(&self) -> std::sync::Arc<dyn QueryCanceller> {
+        // 取消句柄持有 cancel_token 的共享引用，独立于驱动锁之外
+        std::sync::Arc::new(PgCanceller {
+            token: self.cancel_token.clone(),
+        })
+    }
+
     fn capabilities(&self) -> DriverCapabilities {
         DriverCapabilities {
             supports_schemas: true,
@@ -570,8 +612,28 @@ impl DbDriver for PostgresDriver {
             supports_row_delete: true,
             supports_import_export: true,
             supports_multiple_databases: true,
+            supports_cancel: true,
             default_port: 5432,
         }
+    }
+}
+
+// 独立于驱动锁之外的 PostgreSQL 取消句柄：通过 CancelToken 发送取消请求
+pub struct PgCanceller {
+    token: Arc<Mutex<Option<tokio_postgres::CancelToken>>>,
+}
+
+#[async_trait]
+impl QueryCanceller for PgCanceller {
+    async fn cancel(&self) -> Result<(), String> {
+        let guard = self.token.lock().await;
+        if let Some(token) = guard.as_ref() {
+            token
+                .cancel_query(NoTls)
+                .await
+                .map_err(|e| format!("Cancel failed: {}", e))?;
+        }
+        Ok(())
     }
 }
 

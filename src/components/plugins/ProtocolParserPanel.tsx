@@ -11,6 +11,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Component, type Reac
 import { Search, FileCode2, Loader2, AlertCircle, Copy, Check, ChevronDown, ChevronRight, ArrowLeftRight } from 'lucide-react';
 import { PluginIcon } from '@/components/plugins/PluginIcon';
 import { cn } from '@/lib/utils';
+import { activateOnKey } from '@/lib/a11y';
 import { useTranslation } from 'react-i18next';
 import { usePluginStore } from '@/stores/pluginStore';
 import * as pluginService from '@/services/pluginService';
@@ -449,8 +450,12 @@ function SectionRenderer({ section, fieldMap, search, collapsed, onToggle }: {
     <div className={cn("pf-rounded-sm border border-border-default/50 overflow-hidden border-l-[3px]", getBorderColor(section.color))}>
       {/* Section Header */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={!collapsed}
         className={cn("flex items-center justify-between px-2.5 py-1.5 cursor-pointer select-none transition-colors", getBgTint(section.color), "hover:brightness-[0.97]")}
         onClick={onToggle}
+        onKeyDown={activateOnKey(onToggle)}
       >
         <div className="flex items-center gap-1.5">
           {collapsed
@@ -670,8 +675,13 @@ function DefaultGroupRenderer({ fields, search, collapsedSections, toggleSection
         return (
           <SectionErrorBoundary key={g}>
             <div className={cn("pf-rounded-sm border border-border-default/50 overflow-hidden border-l-[3px]", getBorderColor(color))}>
-              <div className={cn("flex items-center justify-between px-2.5 py-1.5 cursor-pointer select-none transition-colors", getBgTint(color), "hover:brightness-[0.97]")}
-                onClick={() => toggleSection(g)}>
+              <div
+                role="button"
+                tabIndex={0}
+                aria-expanded={!isCollapsed}
+                className={cn("flex items-center justify-between px-2.5 py-1.5 cursor-pointer select-none transition-colors", getBgTint(color), "hover:brightness-[0.97]")}
+                onClick={() => toggleSection(g)}
+                onKeyDown={activateOnKey(() => toggleSection(g))}>
                 <div className="flex items-center gap-1.5">
                   {isCollapsed ? <ChevronRight className="w-3 h-3 text-text-disabled" /> : <ChevronDown className="w-3 h-3 text-text-disabled" />}
                   <span className="pf-text-xs font-semibold text-text-secondary">{g}</span>

@@ -105,9 +105,9 @@ function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
 
   return (
     <Dialog open={isOpen} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="!w-[660px] !max-w-[96vw] !gap-0 !p-0 !rounded-xl sm:!max-w-[660px]" showCloseButton>
+      <DialogContent className="!w-[660px] !max-w-[96vw] !gap-0 !p-0 !rounded-[14px] sm:!max-w-[660px]" showCloseButton>
         <DialogTitle className="sr-only">{t("dbClient.exportDialogTitle", "导出")}</DialogTitle>
-        <div className="flex rounded-xl overflow-hidden max-h-[70vh]">
+        <div className="flex rounded-[14px] overflow-hidden max-h-[70vh]">
           {/* 左：表列表 */}
           <div className="w-[220px] shrink-0 border-r border-border-default bg-bg-secondary flex flex-col min-h-0">
             <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-default shrink-0">
@@ -154,7 +154,7 @@ function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
                 <div className="flex gap-2">
                   <input value={path} onChange={e => setPath(e.target.value)}
                     className="flex-1 rounded-md border border-border-default bg-bg-secondary px-3 py-1.5 text-xs text-text-primary font-mono focus:border-accent focus:outline-none min-w-0" />
-                  <button onClick={pickPath} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={13} /></button>
+                  <button onClick={pickPath} aria-label={t('dbClient.pickOutputFile', '选择输出文件')} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={13} /></button>
                 </div>
               </Fld>
 
@@ -181,6 +181,7 @@ function ExportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
                           <input value={toolPath} onChange={e => setToolPath(e.target.value)} placeholder={t("dbClient.autoDetect", "自动检测")}
                             className="flex-1 rounded-md border border-border-default bg-bg-secondary px-2.5 py-1 text-xs text-text-primary font-mono focus:border-accent focus:outline-none min-w-0" />
                           <button onClick={async () => { const p = await openDialog({ multiple: false }); if (p) setToolPath(p as string); }}
+                            aria-label={t('dbClient.browseToolPath', '浏览工具路径')}
                             className="rounded-md border border-border-default bg-bg-secondary px-2 py-1 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={12} /></button>
                         </div>
                       </div>
@@ -244,7 +245,7 @@ function ImportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
 
   return (
     <Dialog open={isOpen} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="!w-[400px] !max-w-[96vw] !gap-0 !p-0 !rounded-xl sm:!max-w-[400px]" showCloseButton>
+      <DialogContent className="!w-[400px] !max-w-[96vw] !gap-0 !p-0 !rounded-[14px] sm:!max-w-[400px]" showCloseButton>
         <DialogTitle className="sr-only">{t("dbClient.importDialogTitle", "导入")}</DialogTitle>
         <div className="p-4 space-y-3">
           {!ok ? (
@@ -255,7 +256,7 @@ function ImportDialog({ open: isOpen, onClose, sessionId, connectionConfig, sele
                 <div className="flex gap-2">
                   <input value={importPath} onChange={e => setImportPath(e.target.value)} placeholder="/path/to/dump.sql"
                     className="flex-1 rounded-md border border-border-default bg-bg-secondary px-3 py-1.5 text-xs text-text-primary font-mono focus:border-accent focus:outline-none min-w-0" />
-                  <button onClick={pickFile} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={13} /></button>
+                  <button onClick={pickFile} aria-label={t('dbClient.pickImportFile', '选择导入文件')} className="rounded-md border border-border-default bg-bg-secondary px-2 py-1.5 text-text-tertiary hover:bg-bg-hover shrink-0"><FolderOpen size={13} /></button>
                 </div>
               </Fld>
 

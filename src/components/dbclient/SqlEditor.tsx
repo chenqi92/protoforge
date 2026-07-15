@@ -19,6 +19,7 @@ import { formatSql } from "@/lib/sqlFormatter";
 import { getMonacoLanguage, getDbKeywords } from "@/lib/sqlDialect";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { useContextMenu, type ContextMenuEntry } from "@/components/ui/ContextMenu";
+import { DB_TYPE_SUPPORTS_CANCEL } from "@/types/dbclient";
 
 // ── SQL 标准关键字 ──
 const SQL_KEYWORDS = [
@@ -51,6 +52,8 @@ export const SqlEditor = memo(function SqlEditor({
   const connectionConfig = useDbClientStore(sessionId, (s) => s.connectionConfig);
   const databases = useDbClientStore(sessionId, (s) => s.databases);
   const selectedDatabase = useDbClientStore(sessionId, (s) => s.selectedDatabase);
+  // 当前连接驱动是否支持取消查询（与后端 DriverCapabilities.supportsCancel 对应）
+  const supportsCancel = connectionConfig ? DB_TYPE_SUPPORTS_CANCEL[connectionConfig.dbType] : false;
 
   const completionDisposableRef = useRef<{ dispose(): void } | null>(null);
   const editorRef = useRef<{ getValue(): string; getSelection(): { startLineNumber: number; endLineNumber: number; startColumn: number; endColumn: number } | null; getModel(): { getValueInRange(range: unknown): string } | null } | null>(null);
@@ -292,45 +295,49 @@ export const SqlEditor = memo(function SqlEditor({
       <div className="flex items-center border-b border-border-default bg-bg-app shrink-0">
         <div className="flex flex-1 items-center overflow-x-auto min-w-0 scrollbar-hide">
           {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleSwitchTab(tab.id)}
-              onContextMenu={(e) => handleTabContextMenu(e, tab.id)}
-              onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); getDbClientStoreApi(sessionId).getState().closeTab(tab.id); } }}
-              className={cn(
-                "group flex h-[33px] items-center gap-1.5 px-2.5 pf-text-sm font-medium border-b-2 transition-colors shrink-0 max-w-[180px]",
-                tab.id === activeTabId
-                  ? "border-accent text-accent bg-bg-surface"
-                  : "border-transparent text-text-secondary hover:text-text-primary hover:bg-bg-hover/50",
-              )}
-            >
-              {tab.kind === "structure" ? (
-                <Pencil size={11} className="shrink-0 text-warning" />
-              ) : tab.kind === "query" ? (
-                <FileText size={11} className="shrink-0 opacity-60" />
-              ) : (
-                <Table2 size={11} className="shrink-0 text-info" />
-              )}
-              <span className="truncate">{tab.label}</span>
-              {tab.kind === "query" && tab.queryRunning && (
-                <Loader2 size={10} className="animate-spin shrink-0" />
-              )}
-              {tab.kind === "table" && tab.tableDataLoading && (
-                <Loader2 size={10} className="animate-spin shrink-0" />
-              )}
-              {tab.kind === "structure" && tab.loading && (
-                <Loader2 size={10} className="animate-spin shrink-0" />
-              )}
-              <span
-                onClick={(e) => handleCloseTab(tab.id, e)}
+            <div key={tab.id} className="group relative flex shrink-0">
+              <button
+                onClick={() => handleSwitchTab(tab.id)}
+                onContextMenu={(e) => handleTabContextMenu(e, tab.id)}
+                onMouseDown={(e) => { if (e.button === 1) { e.preventDefault(); getDbClientStoreApi(sessionId).getState().closeTab(tab.id); } }}
                 className={cn(
-                  "shrink-0 p-0.5 pf-rounded-sm hover:bg-bg-hover transition-opacity",
-                  tab.id === activeTabId ? "opacity-60 hover:opacity-100" : "opacity-0 group-hover:opacity-100",
+                  "flex h-[33px] items-center gap-1.5 pl-2.5 pr-1.5 pf-text-sm font-medium border-b-2 transition-colors shrink-0 max-w-[180px]",
+                  tab.id === activeTabId
+                    ? "border-accent text-accent bg-bg-surface"
+                    : "border-transparent text-text-secondary hover:text-text-primary hover:bg-bg-hover/50",
+                )}
+              >
+                {tab.kind === "structure" ? (
+                  <Pencil size={11} className="shrink-0 text-warning" />
+                ) : tab.kind === "query" ? (
+                  <FileText size={11} className="shrink-0 opacity-60" />
+                ) : (
+                  <Table2 size={11} className="shrink-0 text-info" />
+                )}
+                <span className="truncate">{tab.label}</span>
+                {tab.kind === "query" && tab.queryRunning && (
+                  <Loader2 size={10} className="animate-spin shrink-0" />
+                )}
+                {tab.kind === "table" && tab.tableDataLoading && (
+                  <Loader2 size={10} className="animate-spin shrink-0" />
+                )}
+                {tab.kind === "structure" && tab.loading && (
+                  <Loader2 size={10} className="animate-spin shrink-0" />
+                )}
+              </button>
+              <button
+                type="button"
+                aria-label={t('dbClient.closeTab','关闭标签')}
+                onClick={(e) => handleCloseTab(tab.id, e)}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={cn(
+                  "shrink-0 self-center mr-1 p-0.5 pf-rounded-sm hover:bg-bg-hover transition-opacity focus-visible:opacity-100",
+                  tab.id === activeTabId ? "opacity-60 hover:opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
                 )}
               >
                 <X size={10} />
-              </span>
-            </button>
+              </button>
+            </div>
           ))}
         </div>
         <button
@@ -350,13 +357,16 @@ export const SqlEditor = memo(function SqlEditor({
           <div className="flex items-center gap-2 border-b border-border-default px-3 py-1.5 shrink-0">
             <button
               onClick={queryRunning ? handleCancel : handleExecute}
-              disabled={!connected}
+              disabled={!connected || (queryRunning && !supportsCancel)}
+              title={queryRunning && !supportsCancel
+                ? t("dbClient.cancelUnsupported", "当前数据库驱动不支持取消查询")
+                : undefined}
               className={cn(
                 "flex items-center gap-1.5 pf-rounded-sm px-3 py-1 pf-text-xs font-medium transition-colors",
                 queryRunning
                   ? "bg-error/15 text-error hover:bg-error/25"
-                  : "bg-accent-soft text-accent hover:bg-accent/25",
-                !connected && "opacity-40 cursor-not-allowed",
+                  : "bg-accent text-white font-semibold hover:bg-accent-hover",
+                (!connected || (queryRunning && !supportsCancel)) && "opacity-40 cursor-not-allowed",
               )}
             >
               {queryRunning ? (

@@ -583,6 +583,7 @@ function TabItem({
             event.stopPropagation();
             onClose();
           }}
+          aria-label={t('common.close')}
           className={cn(
             "flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] transition-colors hover:bg-bg-active hover:text-text-primary",
             isActive ? "text-text-tertiary" : "text-text-tertiary/50 group-hover:text-text-tertiary"

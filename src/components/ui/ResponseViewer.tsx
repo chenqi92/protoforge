@@ -692,7 +692,7 @@ export function ResponseViewer({ body, contentType, responseHeaders, isBinary, m
                     className="flex-1 min-w-0 h-full bg-transparent outline-none text-text-primary placeholder:text-text-disabled font-mono text-[11px]"
                   />
                   {filterValue && (
-                    <button onClick={() => setFilterValue('')} className="text-text-disabled hover:text-text-secondary shrink-0">
+                    <button onClick={() => setFilterValue('')} aria-label={t('response.clearFilter', '清除筛选')} className="text-text-disabled hover:text-text-secondary shrink-0">
                       <X className="w-3 h-3" />
                     </button>
                   )}

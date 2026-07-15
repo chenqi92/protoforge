@@ -33,7 +33,7 @@ function methodClass(method?: string): string {
 // 状态码 → .pf-pill 色调
 function statusTone(status: number): string {
   if (status < 300) return "ok";
-  if (status < 400) return "warn";
+  if (status < 400) return "info";
   return "err";
 }
 
@@ -55,6 +55,7 @@ export const MockServerWorkspace = memo(function MockServerWorkspace({
 }: {
   sessionId: string;
 }) {
+  const { t } = useTranslation();
   const running = useMockServerStore(sessionId, (s) => s.running);
   const routes = useMockServerStore(sessionId, (s) => s.routes);
   const selectedRouteId = useMockServerStore(sessionId, (s) => s.selectedRouteId);
@@ -122,6 +123,7 @@ export const MockServerWorkspace = memo(function MockServerWorkspace({
             {routePanelCollapsed && (
               <button
                 onClick={handleRoutePanelExpand}
+                aria-label={t('common.expand')}
                 className="absolute left-0 top-2 z-10 flex items-center justify-center w-6 h-6 rounded-r bg-bg-surface border border-l-0 border-border-default/50 text-text-tertiary hover:text-text-primary hover:bg-bg-hover transition-colors shadow-sm"
               >
                 <PanelLeftOpen size={14} />
@@ -318,8 +320,8 @@ function ControlBar({
           className={cn(
             "flex items-center gap-1.5 rounded-md h-6 px-2.5 pf-text-xs font-semibold transition-colors",
             running
-              ? "bg-error/15 text-error hover:bg-error/25"
-              : "bg-success/15 text-success hover:bg-success/25",
+              ? "bg-transparent text-error hover:bg-error/10"
+              : "bg-accent text-white hover:bg-accent/90",
             starting && "opacity-50 cursor-not-allowed",
           )}
         >
@@ -733,7 +735,7 @@ function ExamplesTabContent({ route, update }: { route: MockRoute; update: (p: P
               className="flex-1 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
             <input type="number" value={ex.statusCode} onChange={(e) => updateExample(ex.id, { statusCode: parseInt(e.target.value, 10) || 200 })} min={100} max={599}
               className="w-16 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-xs text-text-primary focus:border-accent focus:outline-none" />
-            <button onClick={() => removeExample(ex.id)} className="p-1 rounded hover:bg-error/10 text-text-tertiary hover:text-error">
+            <button onClick={() => removeExample(ex.id)} aria-label={t('common.delete')} className="p-1 rounded hover:bg-error/10 text-text-tertiary hover:text-error">
               <Trash2 className="h-3 w-3" />
             </button>
           </div>
@@ -813,7 +815,7 @@ function SequenceTabContent({ route, update }: { route: MockRoute; update: (p: P
             <input type="number" value={item.delayMs ?? ""} onChange={(e) => updateItem(idx, { delayMs: e.target.value ? parseInt(e.target.value, 10) : undefined })} placeholder="delay ms"
               className="w-20 rounded border border-border-default bg-bg-input px-2 py-1 pf-text-[11px] text-text-primary focus:border-accent focus:outline-none" />
             <div className="flex-1" />
-            <button onClick={() => removeItem(idx)} className="p-1 rounded hover:bg-error/10 text-text-tertiary hover:text-error">
+            <button onClick={() => removeItem(idx)} aria-label={t('common.delete')} className="p-1 rounded hover:bg-error/10 text-text-tertiary hover:text-error">
               <Trash2 className="h-3 w-3" />
             </button>
           </div>
@@ -907,6 +909,7 @@ function ResponseHeadersEditor({
           />
           <button
             onClick={() => commit(rows.filter((r) => r._id !== row._id))}
+            aria-label={t('common.delete')}
             className="p-1 rounded hover:bg-error/10 text-text-tertiary hover:text-error"
           >
             <Trash2 className="h-3 w-3" />

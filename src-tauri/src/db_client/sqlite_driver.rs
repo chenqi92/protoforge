@@ -1,6 +1,6 @@
 // SQLite 驱动实现 — 打开外部 .db 文件（区别于应用自身的 sqlx 池）
 
-use super::driver::{*, quote_sqlite_ident};
+use super::driver::{quote_sqlite_ident, *};
 use async_trait::async_trait;
 use rusqlite::{Connection, types::Value as SqliteValue};
 use std::path::PathBuf;
@@ -25,7 +25,11 @@ impl SqliteDriver {
     }
 
     #[allow(dead_code)]
-    fn with_conn<F, R>(&self, guard: &tokio::sync::MutexGuard<'_, Option<Connection>>, f: F) -> Result<R, String>
+    fn with_conn<F, R>(
+        &self,
+        guard: &tokio::sync::MutexGuard<'_, Option<Connection>>,
+        f: F,
+    ) -> Result<R, String>
     where
         F: FnOnce(&Connection) -> Result<R, String>,
     {
@@ -96,9 +100,7 @@ impl DbDriver for SqliteDriver {
             .collect();
 
         let mut rows_data: Vec<Vec<SqlValue>> = Vec::new();
-        let mut rows_iter = stmt
-            .query([])
-            .map_err(|e| format!("Query failed: {}", e))?;
+        let mut rows_iter = stmt.query([]).map_err(|e| format!("Query failed: {}", e))?;
 
         while let Some(row) = rows_iter
             .next()
@@ -266,7 +268,8 @@ impl DbDriver for SqliteDriver {
 
         let mut indexes = Vec::new();
         for (idx_name, unique) in idx_list {
-            let safe_idx = quote_sqlite_ident(&idx_name).unwrap_or_else(|_| format!("\"{}\"", idx_name));
+            let safe_idx =
+                quote_sqlite_ident(&idx_name).unwrap_or_else(|_| format!("\"{}\"", idx_name));
             let mut stmt = conn
                 .prepare(&format!("PRAGMA index_info({})", safe_idx))
                 .map_err(|e| format!("Index info failed: {}", e))?;
@@ -285,11 +288,9 @@ impl DbDriver for SqliteDriver {
 
         // 行数
         let count: Option<i64> = conn
-            .query_row(
-                &format!("SELECT COUNT(*) FROM {}", safe_table),
-                [],
-                |row| row.get(0),
-            )
+            .query_row(&format!("SELECT COUNT(*) FROM {}", safe_table), [], |row| {
+                row.get(0)
+            })
             .ok();
 
         Ok(TableDescription {
@@ -320,24 +321,29 @@ impl DbDriver for SqliteDriver {
         let order = match sort_column {
             Some(col) => {
                 validate_identifier(col)?;
-                let dir = if sort_dir.unwrap_or("ASC").eq_ignore_ascii_case("DESC") { "DESC" } else { "ASC" };
+                let dir = if sort_dir.unwrap_or("ASC").eq_ignore_ascii_case("DESC") {
+                    "DESC"
+                } else {
+                    "ASC"
+                };
                 format!("ORDER BY {} {}", quote_sqlite_ident(col)?, dir)
             }
             None => String::new(),
         };
         let count_sql = format!("SELECT COUNT(*) FROM {} {}", safe_table, where_clause);
         let total_rows: Option<i64> = match self.execute_query(&count_sql).await {
-            Ok(cr) if !cr.rows.is_empty() && !cr.rows[0].is_empty() => {
-                match &cr.rows[0][0] {
-                    SqlValue::Int(n) => Some(*n),
-                    SqlValue::Text(s) => s.parse().ok(),
-                    _ => None,
-                }
-            }
+            Ok(cr) if !cr.rows.is_empty() && !cr.rows[0].is_empty() => match &cr.rows[0][0] {
+                SqlValue::Int(n) => Some(*n),
+                SqlValue::Text(s) => s.parse().ok(),
+                _ => None,
+            },
             _ => None,
         };
         let sql = if limit > 0 {
-            format!("SELECT * FROM {} {} {} LIMIT {} OFFSET {}", safe_table, where_clause, order, limit, offset)
+            format!(
+                "SELECT * FROM {} {} {} LIMIT {} OFFSET {}",
+                safe_table, where_clause, order, limit, offset
+            )
         } else {
             format!("SELECT * FROM {} {} {}", safe_table, where_clause, order)
         };
@@ -347,6 +353,14 @@ impl DbDriver for SqliteDriver {
     }
 
     async fn apply_cell_edits(&self, edits: &[CellEdit]) -> Result<u64, String> {
+        for edit in edits {
+            validate_primary_key_values(&edit.pk_columns, &edit.pk_values).map_err(|error| {
+                format!(
+                    "Invalid primary key for edit on '{}.{}': {}",
+                    edit.table, edit.column, error
+                )
+            })?;
+        }
         let guard = self.conn.lock().await;
         let conn = guard.as_ref().ok_or_else(|| "Not connected".to_string())?;
         let mut affected = 0u64;
@@ -354,10 +368,8 @@ impl DbDriver for SqliteDriver {
             let where_parts: Vec<String> = edit
                 .pk_columns
                 .iter()
-                .enumerate()
-                .map(|(i, col)| {
-                    format!("\"{}\" = {}", col, sql_value_literal_sqlite(&edit.pk_values[i]))
-                })
+                .zip(&edit.pk_values)
+                .map(|(col, value)| format!("\"{}\" = {}", col, sql_value_literal_sqlite(value)))
                 .collect();
             let sql = format!(
                 "UPDATE \"{}\" SET \"{}\" = {} WHERE {}",
@@ -382,18 +394,28 @@ impl DbDriver for SqliteDriver {
         pk_columns: &[String],
         pk_values: &[Vec<SqlValue>],
     ) -> Result<u64, String> {
+        for (row_index, row_pks) in pk_values.iter().enumerate() {
+            validate_primary_key_values(pk_columns, row_pks).map_err(|error| {
+                format!(
+                    "Invalid primary key values for delete row {}: {}",
+                    row_index + 1,
+                    error
+                )
+            })?;
+        }
         let guard = self.conn.lock().await;
         let conn = guard.as_ref().ok_or_else(|| "Not connected".to_string())?;
         let mut affected = 0u64;
         for row_pks in pk_values {
             let where_parts: Vec<String> = pk_columns
                 .iter()
-                .enumerate()
-                .map(|(i, col)| format!("\"{}\" = {}", col, sql_value_literal_sqlite(&row_pks[i])))
+                .zip(row_pks)
+                .map(|(col, value)| format!("\"{}\" = {}", col, sql_value_literal_sqlite(value)))
                 .collect();
             let sql = format!(
                 "DELETE FROM \"{}\" WHERE {}",
-                table, where_parts.join(" AND ")
+                table,
+                where_parts.join(" AND ")
             );
             let n = conn
                 .execute(&sql, [])
@@ -417,6 +439,7 @@ impl DbDriver for SqliteDriver {
             supports_row_delete: true,
             supports_import_export: true,
             supports_multiple_databases: false,
+            supports_cancel: false,
             default_port: 0,
         }
     }

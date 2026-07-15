@@ -243,7 +243,7 @@ export const ConnectionSidebar = memo(function ConnectionSidebar({
     <div className="flex h-full flex-col">
       {/* 头部 */}
       <div className="flex items-center justify-between border-b border-border-default px-3 py-2">
-        <span className="pf-text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+        <span className="pf-text-xxs font-bold uppercase tracking-[0.07em] text-text-tertiary">
           {t("dbClient.connections")}
         </span>
         <button

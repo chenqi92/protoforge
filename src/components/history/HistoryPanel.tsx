@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Trash2, Search, ChevronRight, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { activateOnKey } from '@/lib/a11y';
 import { useTranslation } from 'react-i18next';
 import { getStatusColor } from '@/types/http';
 import { useContextMenu, buildClipboardItems, useZoneFallback } from '@/components/ui/ContextMenu';
@@ -137,10 +138,14 @@ export function HistoryPanel({ onRestoreRequest }: HistoryPanelProps) {
                   exit={{ opacity: 0, height: 0 }}
                 >
                   <div
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isOpen}
                     onClick={() => setExpanded(isOpen ? null : item.id)}
+                    onKeyDown={activateOnKey(() => setExpanded(isOpen ? null : item.id))}
                     onContextMenu={(e) => handleItemContextMenu(e, item)}
                     className={cn(
-                      'relative flex items-center gap-2 h-7 px-2 pf-rounded-sm cursor-pointer group transition-colors',
+                      'relative flex items-center gap-2 h-[30px] px-2 rounded-[5px] cursor-pointer group transition-colors',
                       isOpen ? 'bg-accent-soft' : 'hover:bg-bg-hover',
                       isOpen && 'before:content-[\'\'] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-accent',
                     )}

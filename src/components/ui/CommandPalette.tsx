@@ -101,6 +101,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
           id: `go-${d.id}`,
           section: sectionGo,
           label: dl(d),
+          hint: zh ? d.subZh : d.subEn,
           icon: DOMAIN_ICONS[d.icon] ?? Globe,
           action: () => { openForgeDomain(d.id, { onOpenPluginModal: () => window.dispatchEvent(new CustomEvent('open-plugin-modal')) }); onClose(); },
         });
@@ -183,9 +184,9 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
   return (
     <>
       <div className="fixed inset-0 bg-[rgba(20,28,40,0.34)] backdrop-blur-sm z-[var(--z-tooltip)] dark:bg-[rgba(5,6,8,0.62)]" onClick={onClose} />
-      <div className="fixed left-1/2 top-[15%] z-[var(--z-tooltip)] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden pf-rounded-xl border border-border-strong bg-bg-elevated text-popover-foreground shadow-lg">
+      <div className="fixed left-1/2 top-[15%] z-[var(--z-tooltip)] flex max-h-[460px] w-[620px] max-w-[92vw] -translate-x-1/2 flex-col overflow-hidden rounded-[12px] border border-border-strong bg-bg-elevated text-popover-foreground shadow-lg">
         {/* Search Input */}
-        <div className="flex items-center gap-3 border-b border-border-subtle px-5 py-3 dark:border-white/[0.05]">
+        <div className="flex items-center gap-3 border-b border-border-subtle px-4 py-3.5 dark:border-white/[0.05]">
           <Search className="w-4 h-4 text-text-disabled shrink-0" />
           <input
             ref={inputRef}
@@ -193,7 +194,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
             onChange={(e) => { setQuery(e.target.value); setSelectedIdx(0); }}
             onKeyDown={handleKeyDown}
             placeholder={t('commandPalette.placeholder')}
-            className="h-10 flex-1 bg-transparent pf-text-md text-text-primary outline-none placeholder:text-text-disabled"
+            className="h-10 flex-1 bg-transparent text-[15px] text-text-primary outline-none placeholder:text-text-disabled"
           />
           <button onClick={onClose} aria-label={t('commandPalette.closeLabel')} className="pf-rounded-md p-1.5 text-text-disabled transition-colors hover:bg-bg-hover hover:text-text-primary">
             <X className="w-4 h-4" />
@@ -223,7 +224,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
                       onClick={item.action}
                       onMouseEnter={() => setSelectedIdx(idx)}
                       className={cn(
-                        'mx-2 flex w-[calc(100%-1rem)] items-center gap-3 pf-rounded-lg px-3 py-2 text-left transition-colors',
+                        'mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-[7px] px-2.5 py-2 text-left transition-colors',
                         isSel ? 'bg-muted dark:bg-white/[0.06]' : 'hover:bg-muted/60 dark:hover:bg-white/[0.03]',
                       )}
                     >

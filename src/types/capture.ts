@@ -2,6 +2,8 @@
 
 export interface CapturedEntry {
   sessionId: string;
+  /** 后端分配的会话内单调发布序号，用于与 clear 线性化。 */
+  captureSeq: number;
   id: string;
   method: string;
   url: string;
@@ -57,6 +59,20 @@ export interface PausedRequest {
   requestHeaders: [string, string][];
   requestBody?: string;
   timestamp: string;
+}
+
+export type PausedRequestRemovalReason =
+  | "timeout"
+  | "stopped"
+  | "disconnected"
+  | "destroyed"
+  | "resumed";
+
+/** 后端自动放行或移除挂起请求时推送的事件。 */
+export interface PausedRequestRemoved {
+  sessionId: string;
+  requestId: string;
+  reason: PausedRequestRemovalReason;
 }
 
 /** 放行时携带的修改 — 与 Rust ResumeModification 对齐（全部可选） */

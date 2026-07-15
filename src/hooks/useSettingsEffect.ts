@@ -181,9 +181,8 @@ export function useSettingsEffect() {
     document.documentElement.dataset.accent = settings.accentColor;
   }, [settings.accentColor]);
 
-  // ── 初始化时恢复保存的主题 ──
+  // ── 恢复保存的主题，并响应导入/恢复/程序化修改 ──
   useEffect(() => {
     setMode(settings.theme);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);  // Only on mount
+  }, [settings.theme, setMode]);
 }

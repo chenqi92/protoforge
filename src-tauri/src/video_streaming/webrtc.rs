@@ -259,6 +259,7 @@ fn parse_stun_mapped_address(resp: &[u8], _txn_id: &[u8; 12]) -> Option<(String,
 
 pub async fn create_offer(
     session_id: &str,
+    outer_generation: u64,
     config: &str,
     state: &VideoStreamState,
     app: &AppHandle,
@@ -293,6 +294,7 @@ pub async fn create_offer(
         "videostream-event",
         &super::state::StreamEvent {
             session_id: session_id.to_string(),
+            generation: Some(outer_generation),
             event_type: "protocol-data".to_string(),
             data: Some(
                 serde_json::json!({
@@ -329,6 +331,7 @@ pub async fn create_offer(
                     "videostream-event",
                     &super::state::StreamEvent {
                         session_id: session_id.to_string(),
+                        generation: Some(outer_generation),
                         event_type: "protocol-data".to_string(),
                         data: Some(
                             serde_json::json!({
@@ -382,6 +385,7 @@ pub async fn create_offer(
 
 pub async fn set_answer(
     session_id: &str,
+    outer_generation: u64,
     sdp: &str,
     state: &VideoStreamState,
     app: &AppHandle,
@@ -432,6 +436,7 @@ pub async fn set_answer(
         "videostream-event",
         &super::state::StreamEvent {
             session_id: session_id.to_string(),
+            generation: Some(outer_generation),
             event_type: "connected".to_string(),
             data: Some("WebRTC signaling complete".to_string()),
             timestamp: chrono::Utc::now().to_rfc3339(),
@@ -443,6 +448,7 @@ pub async fn set_answer(
 
 pub async fn add_ice_candidate(
     session_id: &str,
+    _outer_generation: u64,
     candidate: &str,
     _state: &VideoStreamState,
     app: &AppHandle,
@@ -466,9 +472,10 @@ fn get_local_ip() -> Option<String> {
     socket.local_addr().ok().map(|addr| addr.ip().to_string())
 }
 
-fn emit_msg(app: &AppHandle, _session_id: &str, direction: &str, summary: &str, detail: &str) {
+fn emit_msg(app: &AppHandle, session_id: &str, direction: &str, summary: &str, detail: &str) {
     let msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: direction.to_string(),
         protocol: "webrtc".to_string(),
         summary: summary.to_string(),

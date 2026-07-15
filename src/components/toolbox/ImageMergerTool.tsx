@@ -998,7 +998,7 @@ export function ImageMergerTool() {
 
       {/* 快速布局（适配任意数量） */}
       <section>
-        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.layoutPresets`)}</h3>
+        <h3 className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.layoutPresets`)}</h3>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((preset) => {
             const Icon = preset.icon;
@@ -1022,7 +1022,7 @@ export function ImageMergerTool() {
 
       {/* 模板库（按当前图片数量过滤） */}
       <section>
-        <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">
+        <h3 className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">
           {t(`${k}.templates`)}
           {items.length > 0 && (
             <span className="ml-2 pf-text-xs font-normal text-text-tertiary">
@@ -1031,7 +1031,7 @@ export function ImageMergerTool() {
           )}
         </h3>
         {matchingTemplates.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border-strong px-4 py-3 pf-text-xs text-text-disabled">
+          <div className="pf-rounded-md border border-dashed border-border-strong px-4 py-3 pf-text-xs text-text-disabled">
             {items.length === 0
               ? t(`${k}.templatesEmpty`)
               : t(`${k}.templatesNone`, { count: items.length })}
@@ -1084,7 +1084,7 @@ export function ImageMergerTool() {
       {/* 画布 */}
       <section>
         <div className="mb-2 flex items-center gap-3">
-          <h3 className="pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.canvas`)}</h3>
+          <h3 className="pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.canvas`)}</h3>
           <span className="pf-text-xs text-text-disabled">
             {Math.round(canvasW)} × {Math.round(canvasH)} px · {(previewScale * 100).toFixed(0)}%
           </span>
@@ -1222,8 +1222,8 @@ export function ImageMergerTool() {
       {/* 设置 */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* 间距 + 吸附 */}
-        <div className="rounded-lg border border-border-default bg-bg-secondary/60 p-3">
-          <h4 className="mb-2 pf-text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+        <div className="pf-rounded-md border border-border-default bg-bg-secondary/60 p-3">
+          <h4 className="mb-2 pf-text-xs font-bold uppercase tracking-wider text-text-tertiary">
             {t(`${k}.gapAndSnap`)}
           </h4>
           <div className="flex items-center gap-3">
@@ -1255,8 +1255,8 @@ export function ImageMergerTool() {
         </div>
 
         {/* 背景 + 输出格式 */}
-        <div className="rounded-lg border border-border-default bg-bg-secondary/60 p-3">
-          <h4 className="mb-2 pf-text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+        <div className="pf-rounded-md border border-border-default bg-bg-secondary/60 p-3">
+          <h4 className="mb-2 pf-text-xs font-bold uppercase tracking-wider text-text-tertiary">
             {t(`${k}.backgroundAndFormat`)}
           </h4>
           <div className="flex items-center gap-2">
@@ -1353,7 +1353,7 @@ export function ImageMergerTool() {
       {/* 已选图片缩略列表 */}
       {items.length > 0 && (
         <section>
-          <h3 className="mb-2 pf-text-xxs font-semibold uppercase tracking-wider text-text-tertiary">{t(`${k}.imageList`)}</h3>
+          <h3 className="mb-2 pf-text-xxs font-bold uppercase tracking-wider text-text-tertiary">{t(`${k}.imageList`)}</h3>
           <div className="flex flex-wrap gap-2">
             {items.map((item) => (
               <div
@@ -1378,6 +1378,7 @@ export function ImageMergerTool() {
                     e.stopPropagation();
                     removeItem(item.id);
                   }}
+                  aria-label={t('common.delete')}
                   className="opacity-0 group-hover:opacity-100"
                 >
                   <Trash2 className="h-3 w-3 text-error" />

@@ -203,6 +203,7 @@ async fn caller_connect(
     // Emit success
     let info_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "info".to_string(),
         protocol: "srt".to_string(),
         summary: format!("SRT connected to {}:{}", host, port),
@@ -355,6 +356,7 @@ async fn listener_connect(
     // Emit connected
     let info_msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: "info".to_string(),
         protocol: "srt".to_string(),
         summary: format!("SRT listener connected from {}", caller_addr),
@@ -491,9 +493,10 @@ fn hex_preview(data: &[u8], max: usize) -> String {
         .join(" ")
 }
 
-fn emit_msg(app: &AppHandle, _session_id: &str, direction: &str, summary: &str, detail: &str) {
+fn emit_msg(app: &AppHandle, session_id: &str, direction: &str, summary: &str, detail: &str) {
     let msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.to_string(),
         direction: direction.to_string(),
         protocol: "srt".to_string(),
         summary: summary.to_string(),

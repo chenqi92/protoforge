@@ -474,6 +474,7 @@ export function AssertionBuilder({
                     {/* Delete on hover */}
                     <button
                       onClick={() => handleRemove(a.id)}
+                      aria-label={t('common.delete')}
                       className="shrink-0 h-4 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 text-text-disabled hover:text-error transition-all"
                     >
                       <Trash2 className="h-2.5 w-2.5" />
@@ -639,7 +640,7 @@ export function AssertionBuilder({
                       <button onClick={() => handleDuplicate(a.id)} className="p-0.5 text-text-disabled hover:text-text-secondary" title={t('assertion.duplicate')}>
                         <Copy className="h-2.5 w-2.5" />
                       </button>
-                      <button onClick={() => handleRemove(a.id)} className="p-0.5 text-text-disabled hover:text-error">
+                      <button onClick={() => handleRemove(a.id)} aria-label={t('common.delete')} className="p-0.5 text-text-disabled hover:text-error">
                         <Trash2 className="h-2.5 w-2.5" />
                       </button>
                     </div>

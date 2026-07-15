@@ -125,7 +125,7 @@ export function ActivityLogDock({ onClose }: { onClose: () => void }) {
       {/* Header */}
       <div className="flex shrink-0 items-center gap-2 border-b border-border-default px-3 py-1.5">
         <Activity className="h-3.5 w-3.5 shrink-0 text-accent" />
-        <span className="pf-text-sm font-semibold text-text-primary">
+        <span className="text-[12.5px] font-semibold text-text-primary">
           {t('activityLog.title', '活动日志')}
         </span>
 
@@ -138,7 +138,7 @@ export function ActivityLogDock({ onClose }: { onClose: () => void }) {
               onChange={(e) => handleFilterChange(e.target.value)}
               placeholder={t('activityLog.filterPlaceholder', '正则过滤 /regex/')}
               className={cn(
-                "h-[24px] w-[180px] pf-rounded-sm border bg-bg-app pl-7 pr-2 font-mono pf-text-xs text-text-primary outline-none transition-all placeholder:text-text-tertiary",
+                "h-[24px] w-[180px] pf-rounded-md border bg-bg-app pl-7 pr-2 font-mono pf-text-xs text-text-primary outline-none transition-all placeholder:text-text-tertiary",
                 regexError ? "border-error focus:border-error" : "border-border-default focus:border-accent",
               )}
             />

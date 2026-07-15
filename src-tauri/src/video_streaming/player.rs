@@ -4,19 +4,21 @@
 //! 前端用 MSE API 直接 appendBuffer 播放
 
 use base64::Engine;
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{Mutex, oneshot};
 
 use super::ffmpeg_manager;
-use super::state::ProtocolMessage;
+use super::state::{GenerationTagged, ProtocolMessage};
 
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PlayerInitEvent {
     session_id: String,
+    generation: u64,
     codec: String,
     width: u32,
     height: u32,
@@ -27,6 +29,7 @@ struct PlayerInitEvent {
 #[serde(rename_all = "camelCase")]
 struct PlayerDataEvent {
     session_id: String,
+    generation: u64,
     seq: u32,
     data: String, // base64-encoded fMP4 chunk
 }
@@ -35,6 +38,7 @@ struct PlayerDataEvent {
 #[serde(rename_all = "camelCase")]
 struct PlayerErrorEvent {
     session_id: String,
+    generation: u64,
     error: String,
 }
 
@@ -42,6 +46,7 @@ struct PlayerErrorEvent {
 #[serde(rename_all = "camelCase")]
 struct PlayerStatsEvent {
     session_id: String,
+    generation: u64,
     bytes_received: u64,
     packets_received: u64,
     packets_lost: u64,
@@ -50,39 +55,213 @@ struct PlayerStatsEvent {
     uptime: u64,
 }
 
+fn truncate_log_line(mut line: String, max_bytes: usize) -> (String, bool) {
+    if line.len() <= max_bytes {
+        return (line, false);
+    }
+    let suffix = " …[truncated]";
+    if max_bytes <= suffix.len() {
+        let mut marker = suffix.to_string();
+        let mut end = max_bytes.min(marker.len());
+        while end > 0 && !marker.is_char_boundary(end) {
+            end -= 1;
+        }
+        marker.truncate(end);
+        return (marker, true);
+    }
+    let target = max_bytes.saturating_sub(suffix.len());
+    let mut end = target.min(line.len());
+    while end > 0 && !line.is_char_boundary(end) {
+        end -= 1;
+    }
+    line.truncate(end);
+    line.push_str(suffix);
+    (line, true)
+}
+
+fn read_bounded_to_end(
+    mut reader: impl std::io::Read,
+    max_bytes: usize,
+) -> std::io::Result<(Vec<u8>, bool)> {
+    let mut output = Vec::with_capacity(max_bytes.min(64 * 1024));
+    let mut truncated = false;
+    let mut buffer = [0u8; 16 * 1024];
+    loop {
+        let size = reader.read(&mut buffer)?;
+        if size == 0 {
+            break;
+        }
+        let remaining = max_bytes.saturating_sub(output.len());
+        let retained = remaining.min(size);
+        output.extend_from_slice(&buffer[..retained]);
+        truncated |= retained < size;
+    }
+    Ok((output, truncated))
+}
+
 pub struct PlayerSession {
+    generation: String,
+    gate: PlayerGenerationGate,
     pub shutdown_tx: Option<oneshot::Sender<()>>,
 }
 
 pub static PLAYER_SESSIONS: std::sync::LazyLock<Arc<Mutex<HashMap<String, PlayerSession>>>> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
+/// A synchronous generation gate shared by every thread belonging to one player start.
+///
+/// `emit_if_current` holds a read lock through `AppHandle::emit`, while stop/restart takes
+/// the write lock to invalidate the generation. Once invalidation returns, an old worker
+/// therefore cannot pass a check and publish an event afterwards.
+#[derive(Clone)]
+struct PlayerGenerationGate {
+    generation: String,
+    active: Arc<RwLock<bool>>,
+}
+
+impl PlayerGenerationGate {
+    fn new() -> Self {
+        Self {
+            generation: uuid::Uuid::new_v4().to_string(),
+            active: Arc::new(RwLock::new(true)),
+        }
+    }
+
+    fn is_current(&self) -> bool {
+        *self
+            .active
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn invalidate(&self) {
+        *self
+            .active
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = false;
+    }
+
+    fn run_if_current<T>(&self, action: impl FnOnce() -> T) -> Option<T> {
+        let active = self
+            .active
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !*active {
+            return None;
+        }
+        Some(action())
+    }
+
+    fn emit_if_current<S: Serialize + Clone>(
+        &self,
+        app: &AppHandle,
+        event: &str,
+        payload: &S,
+    ) -> Result<bool, tauri::Error> {
+        match self.run_if_current(|| app.emit(event, payload)) {
+            Some(result) => result.map(|()| true),
+            None => Ok(false),
+        }
+    }
+}
+
+/// Install a pending generation immediately, before any async FFmpeg discovery. This makes the
+/// latest start invocation authoritative even when an older invocation finishes discovery later.
+async fn begin_player_generation(session_id: &str) -> PlayerGenerationGate {
+    let gate = PlayerGenerationGate::new();
+    let previous_shutdown = {
+        let mut sessions = PLAYER_SESSIONS.lock().await;
+        let previous = sessions.remove(session_id);
+        if let Some(previous) = previous.as_ref() {
+            previous.gate.invalidate();
+        }
+        sessions.insert(
+            session_id.to_string(),
+            PlayerSession {
+                generation: gate.generation.clone(),
+                gate: gate.clone(),
+                shutdown_tx: None,
+            },
+        );
+        previous.and_then(|session| session.shutdown_tx)
+    };
+    if let Some(tx) = previous_shutdown {
+        let _ = tx.send(());
+    }
+    gate
+}
+
+async fn remove_player_generation_if_current(
+    session_id: &str,
+    gate: &PlayerGenerationGate,
+) -> bool {
+    let mut sessions = PLAYER_SESSIONS.lock().await;
+    let is_current = sessions
+        .get(session_id)
+        .is_some_and(|session| session.generation == gate.generation);
+    if is_current {
+        if let Some(session) = sessions.remove(session_id) {
+            session.gate.invalidate();
+        }
+    }
+    is_current
+}
+
+async fn attach_player_shutdown(
+    session_id: &str,
+    gate: &PlayerGenerationGate,
+    shutdown_tx: oneshot::Sender<()>,
+) -> bool {
+    let mut shutdown_tx = Some(shutdown_tx);
+    let attached = {
+        let mut sessions = PLAYER_SESSIONS.lock().await;
+        match sessions.get_mut(session_id) {
+            Some(session) if session.generation == gate.generation && gate.is_current() => {
+                session.shutdown_tx = shutdown_tx.take();
+                true
+            }
+            _ => false,
+        }
+    };
+    // Dropping an unattached sender also releases its receiver.
+    drop(shutdown_tx);
+    attached
+}
+
 pub async fn start_player(
     session_id: String,
+    outer_generation: u64,
     protocol: String,
     url: String,
     config: Option<String>,
     app: AppHandle,
 ) -> Result<(), String> {
-    stop_player(&session_id).await;
+    let gate = begin_player_generation(&session_id).await;
 
     // 确保 FFmpeg 已安装
-    let ffmpeg_path = ffmpeg_manager::ensure_ffmpeg(&app).await?;
+    let ffmpeg_path = match ffmpeg_manager::ensure_ffmpeg(&app).await {
+        Ok(path) => path,
+        Err(error) => {
+            return if remove_player_generation_if_current(&session_id, &gate).await {
+                Err(error)
+            } else {
+                // A newer start already owns the session; do not surface a stale failure.
+                Ok(())
+            };
+        }
+    };
     let ffprobe_path = ffmpeg_manager::get_ffprobe_path(&app).await.ok();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
-
-    PLAYER_SESSIONS.lock().await.insert(
-        session_id.clone(),
-        PlayerSession {
-            shutdown_tx: Some(shutdown_tx),
-        },
-    );
+    if !attach_player_shutdown(&session_id, &gate, shutdown_tx).await {
+        return Ok(());
+    }
 
     let msg = ProtocolMessage {
         id: uuid::Uuid::new_v4().to_string(),
+        session_id: session_id.clone(),
         direction: "info".to_string(),
-        protocol: "player".to_string(),
+        protocol: protocol.clone(),
         summary: format!("播放器启动 -- FFmpeg fMP4 管线: {}", url),
         detail: format!(
             "源: {}\nFFmpeg: {}\n输出: fragmented MP4 → Tauri IPC → MSE",
@@ -92,11 +271,16 @@ pub async fn start_player(
         timestamp: chrono::Utc::now().to_rfc3339(),
         size: None,
     };
-    let _ = app.emit("videostream-protocol-msg", &msg);
+    let _ = gate.emit_if_current(
+        &app,
+        "videostream-protocol-msg",
+        &GenerationTagged::new(&msg, outer_generation),
+    );
 
     let sid = session_id.clone();
     let app_clone = app.clone();
     let protocol_clone = protocol.clone();
+    let worker_gate = gate.clone();
 
     // Run FFmpeg CLI pipeline in a blocking thread
     std::thread::spawn(move || {
@@ -109,28 +293,44 @@ pub async fn start_player(
             ffprobe_path.as_deref(),
             &app_clone,
             shutdown_rx,
+            &worker_gate,
+            outer_generation,
         );
         if let Err(e) = &result {
             log::warn!("Player {} error: {}", sid, e);
             // Emit player-error so frontend VideoPlayer can show the error
-            let _ = app_clone.emit(
+            let _ = worker_gate.emit_if_current(
+                &app_clone,
                 "player-error",
                 &PlayerErrorEvent {
                     session_id: sid.clone(),
+                    generation: outer_generation,
                     error: e.clone(),
                 },
             );
             let msg = ProtocolMessage {
                 id: uuid::Uuid::new_v4().to_string(),
+                session_id: sid.clone(),
                 direction: "info".to_string(),
-                protocol: "player".to_string(),
+                protocol: protocol_clone.clone(),
                 summary: format!("播放器错误: {}", e),
                 detail: e.clone(),
                 timestamp: chrono::Utc::now().to_rfc3339(),
                 size: None,
             };
-            let _ = app_clone.emit("videostream-protocol-msg", &msg);
+            let _ = worker_gate.emit_if_current(
+                &app_clone,
+                "videostream-protocol-msg",
+                &GenerationTagged::new(&msg, outer_generation),
+            );
         }
+
+        // Natural EOF and pipeline errors must release the registry sender as
+        // well as the generation gate. The generation check prevents an old
+        // worker from removing a newer restart for the same session id.
+        tauri::async_runtime::spawn(async move {
+            remove_player_generation_if_current(&sid, &worker_gate).await;
+        });
     });
 
     // Give FFmpeg a moment to start
@@ -140,11 +340,29 @@ pub async fn start_player(
 }
 
 pub async fn stop_player(session_id: &str) {
-    if let Some(session) = PLAYER_SESSIONS.lock().await.remove(session_id) {
+    let session = {
+        let mut sessions = PLAYER_SESSIONS.lock().await;
+        let session = sessions.remove(session_id);
+        if let Some(session) = session.as_ref() {
+            session.gate.invalidate();
+        }
+        session
+    };
+    if let Some(session) = session {
         if let Some(tx) = session.shutdown_tx {
             let _ = tx.send(());
         }
     }
+}
+
+#[cfg(test)]
+pub(crate) async fn install_test_player_session(session_id: &str) {
+    let _ = begin_player_generation(session_id).await;
+}
+
+#[cfg(test)]
+pub(crate) async fn has_test_player_session(session_id: &str) -> bool {
+    PLAYER_SESSIONS.lock().await.contains_key(session_id)
 }
 
 /// Detect FFmpeg major version and return the correct RTSP socket timeout flag.
@@ -196,7 +414,9 @@ fn probe_stream(
     protocol: &str,
     url: &str,
     config: &Value,
-) -> ProbeResult {
+    shutdown_rx: &mut oneshot::Receiver<()>,
+    gate: &PlayerGenerationGate,
+) -> Option<ProbeResult> {
     let mut cmd = std::process::Command::new(ffprobe_path);
 
     // 为流媒体 URL 添加超时参数
@@ -257,13 +477,30 @@ fn probe_stream(
     let probe_deadline_secs = if is_rtmp { 18 } else { 8 };
     match cmd.spawn() {
         Ok(mut child) => {
+            const MAX_FFPROBE_OUTPUT_BYTES: usize = 8 * 1024 * 1024;
+            let stdout_handle = child.stdout.take().map(|stdout| {
+                std::thread::spawn(move || read_bounded_to_end(stdout, MAX_FFPROBE_OUTPUT_BYTES))
+            });
             let deadline =
                 std::time::Instant::now() + std::time::Duration::from_secs(probe_deadline_secs);
+            let mut cancelled = false;
             let status = loop {
                 match child.try_wait() {
                     Ok(Some(status)) => break Some(status),
                     Ok(None) => {
+                        let shutdown_requested = match shutdown_rx.try_recv() {
+                            Ok(()) | Err(tokio::sync::oneshot::error::TryRecvError::Closed) => true,
+                            Err(tokio::sync::oneshot::error::TryRecvError::Empty) => false,
+                        };
+                        if shutdown_requested || !gate.is_current() {
+                            cancelled = true;
+                            let _ = child.kill();
+                            let _ = child.wait();
+                            break None;
+                        }
                         if std::time::Instant::now() >= deadline {
+                            let _ = child.kill();
+                            let _ = child.wait();
                             break None;
                         }
                         std::thread::sleep(std::time::Duration::from_millis(100));
@@ -271,39 +508,43 @@ fn probe_stream(
                     Err(e) => {
                         log::warn!("ffprobe wait error: {}", e);
                         let _ = child.kill();
+                        let _ = child.wait();
                         break None;
                     }
                 }
             };
+            let output = stdout_handle
+                .and_then(|handle| handle.join().ok())
+                .and_then(Result::ok);
+            if cancelled {
+                return None;
+            }
             match status {
                 Some(s) if s.success() => {
-                    if let Some(stdout) = child.stdout.take() {
-                        use std::io::Read;
-                        let mut output = Vec::new();
-                        let mut reader = std::io::BufReader::new(stdout);
-                        if reader.read_to_end(&mut output).is_ok() {
-                            return parse_ffprobe_output(&output);
+                    if let Some((output, truncated)) = output {
+                        if !truncated {
+                            return Some(parse_ffprobe_output(&output));
                         }
+                        log::warn!("ffprobe output exceeded {} bytes", MAX_FFPROBE_OUTPUT_BYTES);
+                    } else {
+                        log::warn!("ffprobe: could not read stdout");
                     }
-                    log::warn!("ffprobe: could not read stdout");
                 }
                 Some(s) => log::warn!("ffprobe exited with status: {}", s),
                 None => {
-                    log::warn!("ffprobe timed out, killing process");
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    log::warn!("ffprobe timed out or failed");
                 }
             }
         }
         Err(e) => log::warn!("ffprobe spawn error: {}", e),
     }
 
-    ProbeResult {
+    Some(ProbeResult {
         width: 0,
         height: 0,
         codec: "h264".to_string(),
         has_audio: false,
-    }
+    })
 }
 
 /// 解析 ffprobe JSON 输出 — 提取视频 codec/分辨率 + 检测音频流
@@ -443,8 +684,13 @@ fn run_fmp4_pipeline(
     ffmpeg_path: &std::path::Path,
     ffprobe_path: Option<&std::path::Path>,
     app: &AppHandle,
-    shutdown_rx: oneshot::Receiver<()>,
+    mut shutdown_rx: oneshot::Receiver<()>,
+    gate: &PlayerGenerationGate,
+    outer_generation: u64,
 ) -> Result<(), String> {
+    if !gate.is_current() {
+        return Ok(());
+    }
     let config = parse_player_config(config);
     let prepared_url = prepare_input_url(protocol, url, &config);
 
@@ -456,7 +702,17 @@ fn run_fmp4_pipeline(
 
     // Probe stream info (video codec + audio detection)
     let probe = if let Some(probe_path) = ffprobe_path {
-        probe_stream(probe_path, protocol, &prepared_url, &config)
+        let Some(probe) = probe_stream(
+            probe_path,
+            protocol,
+            &prepared_url,
+            &config,
+            &mut shutdown_rx,
+            gate,
+        ) else {
+            return Ok(());
+        };
+        probe
     } else {
         ProbeResult {
             width: 0,
@@ -465,6 +721,9 @@ fn run_fmp4_pipeline(
             has_audio: false,
         }
     };
+    if !gate.is_current() {
+        return Ok(());
+    }
 
     log::info!(
         "Player {}: probed {}x{} codec={} has_audio={}",
@@ -501,12 +760,18 @@ fn run_fmp4_pipeline(
     std::thread::sleep(std::time::Duration::from_millis(200));
     let init_event = PlayerInitEvent {
         session_id: session_id.to_string(),
+        generation: outer_generation,
         codec: output_codec,
         width: output_width,
         height: output_height,
         has_audio: probe.has_audio,
     };
-    let _ = app.emit("player-init", &init_event);
+    if !gate
+        .emit_if_current(app, "player-init", &init_event)
+        .unwrap_or(false)
+    {
+        return Ok(());
+    }
 
     // Build FFmpeg command — output fragmented MP4
     let mut cmd = std::process::Command::new(ffmpeg_path);
@@ -630,17 +895,36 @@ fn run_fmp4_pipeline(
     let stderr_sid = session_id.to_string();
     let stderr_protocol = protocol.to_string();
     let stderr_app = app.clone();
+    let stderr_gate = gate.clone();
     let stderr_handle = std::thread::spawn(move || {
         if let Some(stderr) = stderr {
             use std::io::{BufRead, BufReader};
             let reader = BufReader::new(stderr);
-            let mut lines = Vec::new();
+            const MAX_STDERR_LINES: usize = 200;
+            const MAX_STDERR_BYTES: usize = 256 * 1024;
+            const MAX_STDERR_LINE_BYTES: usize = 16 * 1024;
+            let mut lines: std::collections::VecDeque<String> = std::collections::VecDeque::new();
+            let mut retained_bytes = 0usize;
+            let mut dropped_lines = 0usize;
+            let mut truncated_lines = 0usize;
             for line in reader.lines() {
                 match line {
                     Ok(l) => {
                         if !l.trim().is_empty() {
-                            log::warn!("FFmpeg [{}]: {}", stderr_sid, l);
-                            lines.push(l);
+                            let (line, truncated) = truncate_log_line(l, MAX_STDERR_LINE_BYTES);
+                            truncated_lines += usize::from(truncated);
+                            log::warn!("FFmpeg [{}]: {}", stderr_sid, line);
+                            while !lines.is_empty()
+                                && (lines.len() >= MAX_STDERR_LINES
+                                    || retained_bytes + line.len() > MAX_STDERR_BYTES)
+                            {
+                                if let Some(removed) = lines.pop_front() {
+                                    retained_bytes -= removed.len();
+                                    dropped_lines += 1;
+                                }
+                            }
+                            retained_bytes += line.len();
+                            lines.push_back(line);
                         }
                     }
                     Err(_) => break,
@@ -649,23 +933,59 @@ fn run_fmp4_pipeline(
             // Emit aggregated stderr as a protocol message for debugging
             // Use the detected stream protocol so messages appear in the correct tab
             if !lines.is_empty() {
+                let mut detail = lines.into_iter().collect::<Vec<_>>().join("\n");
+                if dropped_lines > 0 || truncated_lines > 0 {
+                    detail.push_str(&format!(
+                        "\n[stderr bounded: {} older lines dropped, {} long lines truncated]",
+                        dropped_lines, truncated_lines
+                    ));
+                }
                 let msg = super::state::ProtocolMessage {
                     id: uuid::Uuid::new_v4().to_string(),
+                    session_id: stderr_sid.clone(),
                     direction: "info".to_string(),
                     protocol: stderr_protocol.clone(),
-                    summary: format!("FFmpeg stderr ({} lines)", lines.len()),
-                    detail: lines.join("\n"),
+                    summary: format!("FFmpeg stderr (bounded, {} bytes retained)", retained_bytes),
+                    detail,
                     timestamp: chrono::Utc::now().to_rfc3339(),
                     size: None,
                 };
-                let _ = stderr_app.emit("videostream-protocol-msg", &msg);
+                let _ = stderr_gate.emit_if_current(
+                    &stderr_app,
+                    "videostream-protocol-msg",
+                    &GenerationTagged::new(&msg, outer_generation),
+                );
             }
         }
     });
 
-    // Read fMP4 chunks from stdout and emit as data events
-    let mut reader = std::io::BufReader::with_capacity(128 * 1024, stdout);
-    let mut buf = vec![0u8; 64 * 1024]; // 64KB read buffer
+    // Drain stdout on a dedicated reader thread. The pipeline thread can then
+    // poll shutdown and kill FFmpeg even while the pipe itself is idle.
+    let (stdout_tx, stdout_rx) = std::sync::mpsc::sync_channel::<std::io::Result<Vec<u8>>>(8);
+    let stdout_handle = std::thread::spawn(move || {
+        use std::io::Read;
+
+        let mut reader = std::io::BufReader::with_capacity(128 * 1024, stdout);
+        let mut buf = vec![0u8; 64 * 1024];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => {
+                    let _ = stdout_tx.send(Ok(Vec::new()));
+                    break;
+                }
+                Ok(size) => {
+                    if stdout_tx.send(Ok(buf[..size].to_vec())).is_err() {
+                        break;
+                    }
+                }
+                Err(error) => {
+                    let _ = stdout_tx.send(Err(error));
+                    break;
+                }
+            }
+        }
+    });
+
     let mut seq = 0u32;
     let mut total_bytes = 0u64;
     let mut errors = 0;
@@ -673,35 +993,30 @@ fn run_fmp4_pipeline(
     let mut last_stats_at = start_time;
     let mut stats_bytes_window = 0u64;
 
-    // Check shutdown in a non-blocking way
-    let shutdown_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let flag_clone = shutdown_flag.clone();
-    std::thread::spawn(move || {
-        let _ = shutdown_rx.blocking_recv();
-        flag_clone.store(true, std::sync::atomic::Ordering::Relaxed);
-    });
-
-    use std::io::Read;
-
-    // 设置读取超时：如果 10 秒内没有数据，认为流已断开
+    // 15 秒内没有任何管线数据时，认为流已断开。
     let mut no_data_start: Option<std::time::Instant> = None;
     let max_wait = std::time::Duration::from_secs(15);
 
     loop {
-        if shutdown_flag.load(std::sync::atomic::Ordering::Relaxed) {
-            log::info!("Player {}: shutdown requested", session_id);
-            break;
+        match shutdown_rx.try_recv() {
+            Ok(()) | Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
+                log::info!("Player {}: shutdown requested", session_id);
+                break;
+            }
+            Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {}
         }
 
-        let n = match reader.read(&mut buf) {
-            Ok(0) => {
+        let chunk = match stdout_rx.recv_timeout(std::time::Duration::from_millis(100)) {
+            Ok(Ok(chunk)) if chunk.is_empty() => {
                 // EOF — 流结束
                 if seq == 0 {
                     // 没读到任何数据就 EOF，说明 FFmpeg 连接/启动失败
-                    let _ = app.emit(
+                    let _ = gate.emit_if_current(
+                        app,
                         "player-error",
                         &PlayerErrorEvent {
                             session_id: session_id.to_string(),
+                            generation: outer_generation,
                             error: "FFmpeg 未能读取到流数据，请检查地址是否正确或流是否可用"
                                 .to_string(),
                         },
@@ -709,15 +1024,11 @@ fn run_fmp4_pipeline(
                 }
                 break;
             }
-            Ok(n) => {
+            Ok(Ok(chunk)) => {
                 no_data_start = None;
-                n
+                chunk
             }
-            Err(ref e)
-                if e.kind() == std::io::ErrorKind::TimedOut
-                    || e.kind() == std::io::ErrorKind::WouldBlock =>
-            {
-                // 非阻塞读取可能返回 WouldBlock
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                 if let Some(start) = no_data_start {
                     if start.elapsed() > max_wait {
                         log::warn!(
@@ -725,10 +1036,12 @@ fn run_fmp4_pipeline(
                             session_id,
                             max_wait
                         );
-                        let _ = app.emit(
+                        let _ = gate.emit_if_current(
+                            app,
                             "player-error",
                             &PlayerErrorEvent {
                                 session_id: session_id.to_string(),
+                                generation: outer_generation,
                                 error: "流数据超时，可能已断开".to_string(),
                             },
                         );
@@ -737,21 +1050,24 @@ fn run_fmp4_pipeline(
                 } else {
                     no_data_start = Some(std::time::Instant::now());
                 }
-                std::thread::sleep(std::time::Duration::from_millis(50));
                 continue;
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 log::warn!("Player {}: read error: {}", session_id, e);
-                let _ = app.emit(
+                let _ = gate.emit_if_current(
+                    app,
                     "player-error",
                     &PlayerErrorEvent {
                         session_id: session_id.to_string(),
+                        generation: outer_generation,
                         error: format!("读取流数据失败: {}", e),
                     },
                 );
                 break;
             }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
         };
+        let n = chunk.len();
 
         seq += 1;
         total_bytes += n as u64;
@@ -759,16 +1075,20 @@ fn run_fmp4_pipeline(
 
         let data_event = PlayerDataEvent {
             session_id: session_id.to_string(),
+            generation: outer_generation,
             seq,
-            data: base64::engine::general_purpose::STANDARD.encode(&buf[..n]),
+            data: base64::engine::general_purpose::STANDARD.encode(&chunk),
         };
 
-        if app.emit("player-data", &data_event).is_err() {
-            errors += 1;
-            if errors > 10 {
-                log::info!("Player {}: too many emit errors, stopping", session_id);
-                let _ = child.kill();
-                return Ok(());
+        match gate.emit_if_current(app, "player-data", &data_event) {
+            Ok(true) => {}
+            Ok(false) => break,
+            Err(_) => {
+                errors += 1;
+                if errors > 10 {
+                    log::info!("Player {}: too many emit errors, stopping", session_id);
+                    break;
+                }
             }
         }
 
@@ -781,6 +1101,7 @@ fn run_fmp4_pipeline(
             let elapsed = last_stats_at.elapsed().as_secs_f64().max(0.001);
             let stats_event = PlayerStatsEvent {
                 session_id: session_id.to_string(),
+                generation: outer_generation,
                 bytes_received: total_bytes,
                 packets_received: seq as u64,
                 packets_lost: 0,
@@ -788,7 +1109,12 @@ fn run_fmp4_pipeline(
                 fps: 0.0,
                 uptime: start_time.elapsed().as_secs(),
             };
-            let _ = app.emit("videostream-stats", &stats_event);
+            if !gate
+                .emit_if_current(app, "videostream-stats", &stats_event)
+                .unwrap_or(false)
+            {
+                break;
+            }
             stats_bytes_window = 0;
             last_stats_at = std::time::Instant::now();
         }
@@ -797,8 +1123,11 @@ fn run_fmp4_pipeline(
     // Clean up child process
     let _ = child.kill();
     let _ = child.wait();
+    drop(stdout_rx);
 
-    // Wait for stderr drain thread to finish
+    // Wait for both pipe-drain threads to finish. Dropping the bounded stdout
+    // receiver also releases a reader that was blocked while sending a chunk.
+    let _ = stdout_handle.join();
     let _ = stderr_handle.join();
 
     log::info!(
@@ -808,4 +1137,78 @@ fn run_fmp4_pipeline(
         total_bytes
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[tokio::test]
+    async fn replacing_and_stopping_player_invalidates_older_generation_gates() {
+        let session_id = format!("player-generation-test-{}", uuid::Uuid::new_v4());
+        let first = begin_player_generation(&session_id).await;
+        let second = begin_player_generation(&session_id).await;
+
+        assert_ne!(first.generation, second.generation);
+        assert!(!first.is_current());
+        assert!(second.is_current());
+
+        let actions = AtomicUsize::new(0);
+        assert!(
+            first
+                .run_if_current(|| actions.fetch_add(1, Ordering::SeqCst))
+                .is_none()
+        );
+        assert_eq!(actions.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            second.run_if_current(|| actions.fetch_add(1, Ordering::SeqCst)),
+            Some(0)
+        );
+
+        stop_player(&session_id).await;
+        assert!(!second.is_current());
+        assert!(
+            second
+                .run_if_current(|| actions.fetch_add(1, Ordering::SeqCst))
+                .is_none()
+        );
+        assert_eq!(actions.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn natural_completion_cleanup_drops_shutdown_sender() {
+        let session_id = format!("player-natural-end-test-{}", uuid::Uuid::new_v4());
+        let gate = begin_player_generation(&session_id).await;
+        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        assert!(attach_player_shutdown(&session_id, &gate, shutdown_tx).await);
+
+        assert!(remove_player_generation_if_current(&session_id, &gate).await);
+        assert!(!gate.is_current());
+        assert!(shutdown_rx.await.is_err());
+        assert!(!PLAYER_SESSIONS.lock().await.contains_key(&session_id));
+    }
+
+    #[test]
+    fn stderr_line_truncation_is_utf8_safe_and_bounded() {
+        let (short, truncated) = truncate_log_line("short".to_string(), 16);
+        assert_eq!(short, "short");
+        assert!(!truncated);
+
+        let (long, truncated) = truncate_log_line("错误错误错误错误错误".to_string(), 20);
+        assert!(truncated);
+        assert!(long.is_char_boundary(long.len()));
+        assert!(long.len() <= 20);
+        assert!(long.ends_with("[truncated]"));
+    }
+
+    #[test]
+    fn probe_output_drain_keeps_reading_after_retention_limit() {
+        let input = vec![7u8; 128 * 1024];
+        let (output, truncated) =
+            read_bounded_to_end(std::io::Cursor::new(input), 32 * 1024).unwrap();
+        assert_eq!(output.len(), 32 * 1024);
+        assert!(truncated);
+        assert!(output.iter().all(|byte| *byte == 7));
+    }
 }

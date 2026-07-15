@@ -220,6 +220,7 @@ export interface DriverCapabilities {
   supportsRowDelete: boolean;
   supportsImportExport: boolean;
   supportsMultipleDatabases: boolean;
+  supportsCancel: boolean;
   defaultPort: number;
 }
 
@@ -286,4 +287,12 @@ export const DB_TYPE_DEFAULTS: Record<DbType, Partial<ConnectionConfig>> = {
   mysql: { host: "localhost", port: 3306, username: "root", database: "" },
   sqlite: { host: "", port: 0, username: "", database: "" },
   influxdb: { host: "localhost", port: 8086, username: "", database: "" },
+};
+
+// 各驱动是否支持取消正在执行的查询（与后端 DriverCapabilities.supportsCancel 保持一致）
+export const DB_TYPE_SUPPORTS_CANCEL: Record<DbType, boolean> = {
+  postgresql: true,
+  mysql: true,
+  sqlite: false,
+  influxdb: false,
 };

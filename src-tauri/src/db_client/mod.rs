@@ -87,12 +87,15 @@ pub struct SaveConnectionRequest {
 
 pub struct DbConnectionManager {
     connections: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<Box<dyn DbDriver>>>>>>,
+    // 取消句柄独立于驱动锁之外，使取消查询时不会争用正在执行查询所持有的驱动锁
+    cancellers: Arc<Mutex<HashMap<String, std::sync::Arc<dyn QueryCanceller>>>>,
 }
 
 impl DbConnectionManager {
     pub fn new() -> Self {
         Self {
             connections: Arc::new(Mutex::new(HashMap::new())),
+            cancellers: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -149,16 +152,36 @@ impl DbConnectionManager {
         };
 
         let info = driver.connect().await?;
+        // 在 driver 被移入 Mutex 前先取出取消句柄，存入独立的 cancellers 映射
+        let canceller = driver.query_canceller();
         self.connections
             .lock()
             .await
             .insert(session_id.to_string(), Arc::new(tokio::sync::Mutex::new(driver)));
+        self.cancellers
+            .lock()
+            .await
+            .insert(session_id.to_string(), canceller);
         Ok(info)
+    }
+
+    /// 获取某个 session 的取消句柄（独立于驱动锁之外，取消时不会触碰被锁住的驱动）
+    pub async fn get_canceller(
+        &self,
+        session_id: &str,
+    ) -> Result<std::sync::Arc<dyn QueryCanceller>, String> {
+        let guard = self.cancellers.lock().await;
+        guard
+            .get(session_id)
+            .cloned()
+            .ok_or_else(|| format!("No connection for session: {}", session_id))
     }
 
     /// 断开连接
     pub async fn disconnect(&self, session_id: &str) -> Result<(), String> {
         let driver_arc = self.connections.lock().await.remove(session_id);
+        // 同步移除取消句柄，避免泄漏
+        self.cancellers.lock().await.remove(session_id);
         if let Some(arc) = driver_arc {
             let mut driver = arc.lock().await;
             driver.disconnect().await?;

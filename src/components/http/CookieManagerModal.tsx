@@ -245,7 +245,7 @@ export function CookieManagerModal({ open, onClose }: CookieManagerModalProps) {
       }}
     >
       <DialogContent
-        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden pf-rounded-xl border border-border-default bg-bg-primary p-0 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)] sm:max-w-[920px]"
+        className="flex h-[min(86vh,720px)] w-[920px] max-w-[94vw] min-h-[560px] max-h-[86vh] flex-col gap-0 overflow-hidden rounded-[14px] border border-border-default bg-bg-primary p-0 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.08] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_16px_48px_rgba(0,0,0,0.6)] sm:max-w-[920px]"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t("cookieManager.title")}</DialogTitle>
@@ -286,6 +286,7 @@ export function CookieManagerModal({ open, onClose }: CookieManagerModalProps) {
               </button>
               <button
                 onClick={onClose}
+                aria-label={t('common.close')}
                 className="flex h-9 w-9 items-center justify-center pf-rounded-lg text-text-tertiary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 <X className="h-4 w-4" />

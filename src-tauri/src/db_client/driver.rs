@@ -4,6 +4,27 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 // ═══════════════════════════════════════════
+//  查询取消句柄 — 独立于驱动锁之外，避免取消时与正在执行的查询争用同一把锁
+// ═══════════════════════════════════════════
+
+/// 取消正在执行查询的句柄。实现必须不依赖被锁住的驱动对象。
+#[async_trait]
+pub trait QueryCanceller: Send + Sync {
+    /// 取消正在执行的查询
+    async fn cancel(&self) -> Result<(), String>;
+}
+
+/// 不支持取消的默认实现（SQLite / InfluxDB 等）
+pub struct NoopCanceller;
+
+#[async_trait]
+impl QueryCanceller for NoopCanceller {
+    async fn cancel(&self) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+// ═══════════════════════════════════════════
 //  值类型 — 跨 IPC 边界的统一表示
 // ═══════════════════════════════════════════
 
@@ -132,6 +153,27 @@ pub struct CellEdit {
     pub new_value: SqlValue,
 }
 
+/// Validate that a row contains exactly one value for every primary-key column.
+/// Drivers must call this before pairing columns with values to avoid panics and
+/// incomplete WHERE clauses for composite primary keys.
+pub fn validate_primary_key_values(
+    pk_columns: &[String],
+    pk_values: &[SqlValue],
+) -> Result<(), String> {
+    if pk_columns.is_empty() {
+        return Err("Primary key columns cannot be empty".to_string());
+    }
+    if pk_columns.len() != pk_values.len() {
+        return Err(format!(
+            "Primary key value count mismatch: expected {} value(s) for column(s) [{}], got {}",
+            pk_columns.len(),
+            pk_columns.join(", "),
+            pk_values.len()
+        ));
+    }
+    Ok(())
+}
+
 // ═══════════════════════════════════════════
 //  驱动能力声明
 // ═══════════════════════════════════════════
@@ -147,6 +189,7 @@ pub struct DriverCapabilities {
     pub supports_row_delete: bool,
     pub supports_import_export: bool,
     pub supports_multiple_databases: bool,
+    pub supports_cancel: bool,
     pub default_port: u16,
 }
 
@@ -224,7 +267,11 @@ pub trait DbDriver: Send + Sync {
 
     /// 在指定数据库上下文中执行查询（同一连接先 USE db）
     /// 默认实现忽略 database 参数，MySQL 覆盖此方法
-    async fn execute_query_in_database(&self, sql: &str, _database: &str) -> Result<QueryResult, String> {
+    async fn execute_query_in_database(
+        &self,
+        sql: &str,
+        _database: &str,
+    ) -> Result<QueryResult, String> {
         self.execute_query(sql).await
     }
 
@@ -278,6 +325,12 @@ pub trait DbDriver: Send + Sync {
     /// 取消正在执行的查询
     async fn cancel_query(&self) -> Result<(), String>;
 
+    /// 返回一个独立于驱动锁之外的取消句柄，供 cancel 命令在不锁定驱动的情况下取消查询
+    /// 默认不支持取消
+    fn query_canceller(&self) -> std::sync::Arc<dyn QueryCanceller> {
+        std::sync::Arc::new(NoopCanceller)
+    }
+
     /// 获取驱动能力声明
     fn capabilities(&self) -> DriverCapabilities;
 }
@@ -322,4 +375,34 @@ pub fn quote_mysql_ident(name: &str) -> Result<String, String> {
 pub fn quote_sqlite_ident(name: &str) -> Result<String, String> {
     validate_identifier(name)?;
     Ok(format!("\"{}\"", name.replace('"', "\"\"")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn primary_key_validation_accepts_complete_composite_key() {
+        let columns = vec!["tenant_id".to_string(), "record_id".to_string()];
+        let values = vec![SqlValue::Int(7), SqlValue::Int(9)];
+
+        assert!(validate_primary_key_values(&columns, &values).is_ok());
+    }
+
+    #[test]
+    fn primary_key_validation_rejects_missing_composite_key_value() {
+        let columns = vec!["tenant_id".to_string(), "record_id".to_string()];
+        let values = vec![SqlValue::Int(7)];
+
+        let error = validate_primary_key_values(&columns, &values).unwrap_err();
+        assert!(error.contains("expected 2"));
+        assert!(error.contains("got 1"));
+        assert!(error.contains("tenant_id, record_id"));
+    }
+
+    #[test]
+    fn primary_key_validation_rejects_empty_columns() {
+        let error = validate_primary_key_values(&[], &[]).unwrap_err();
+        assert_eq!(error, "Primary key columns cannot be empty");
+    }
 }
